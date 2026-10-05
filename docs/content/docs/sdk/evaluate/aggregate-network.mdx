@@ -1,0 +1,84 @@
+---
+title: "Aggregate bytes per token"
+description: "Exact terminal-row pruning and compact prepared requests, with all-link cost gates."
+---
+
+Two optional prepared-protocol choices reduce executed work and redundant
+single-row metadata. They compose with row residues, paged/compressed artifacts,
+bounded preparation overlap, prefix reuse and trusted-client Freivalds checks.
+
+## Python SDK example
+
+```python
+from pllm import Model
+from pllm.preparation import PreparedInventory
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import ClientBundleTransport, MaskedLinear
+
+pipeline = MaskedLinearCpu(
+    Model.tiny(),
+    linear=MaskedLinear(
+        output_encoding="row_residues",
+        request_encoding="compact",
+        prefill_pruning="terminal",
+    ),
+    delivery=ClientBundleTransport(
+        "artifacts", compression="zlib", batch_objects=64, storage="paged",
+    ),
+    inventory=PreparedInventory(
+        "request-sized", rows=1, refill="on-demand", stage_window=4,
+    ),
+)
+assert pipeline.linear.get_params()["prefill_pruning"] == "terminal"
+```
+
+API: [protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures).
+
+## Contracts
+
+- **`prefill_pruning="terminal"`**: native compiler follows graph dependencies
+  backward from logits and every retained state output. A grouped linear stage
+  shrinks only when every output needs its final row and row independence is
+  known. Layout, attention, state and unknown operators stop propagation.
+  Decode and batched continuation retain their full contracts. Local shapes and
+  conservative memory admission remain intact. Reserved unused rows are burned;
+  this option does not yet reduce offline inventory issuance.
+- **`request_encoding="compact"`**: single-row messages reuse the admitted
+  inventory's model, weight, shape and numeric commitments. Authenticated outer
+  session/stage binding, a fresh response nonce and a one-use ticket remain.
+  A separate frame namespace requires explicit provider acknowledgement. Bad
+  shape, stage, replay, cancellation or failure cannot revive material.
+
+Both options bind the Pipeline digest. Defaults `"none"` and `"raw"` preserve
+previous identities. No client body weights are added. These options retain
+the prepared protocol's existing erasure/non-collusion assumptions.
+
+## Evidence scope
+
+Pinned Qwen2.5 isolated demand slicing preserves every checked logit and KV bit
+on three prompts. At 39+8 tokens it projects a 3.13% arithmetic-body reduction,
+including unimplemented per-stage offline sizing. Compact request encoding alone
+saves 277 kB over seven decode rows in its isolated byte comparison.
+
+Use the separate ordinary four-Experiment cohort for actual covered all-link
+bytes, client CPU and output identity. Its combined choice reduces covered
+setup-inclusive bodies from **236.56 to 234.07 MB** (29.57 to 29.26 MB/output),
+or **1.05%**, and online bodies by **3.50%**. All eight outputs agree. Cold client
+CPU changes from 8.67 to 8.53 seconds; aggregate CPU is nearly equal, while
+request latency rises from 13.27 to 13.46 seconds. This single local cohort
+establishes an incremental byte saving, not a speed claim.
+
+Whole-process lifetime peaks in a
+sequential cohort are not independent candidate RSS measurements. Neither
+isolated arithmetic nor local HTTP bodies establish full-wire savings or
+WAN throughput. Savings from separate probes must not be added together.
+
+A public-prefix capsule probe has a larger 17–21× narrow arithmetic-and-capsule
+ratio, but only for a fixed 256-token explicitly public prefix. Charging cold
+client and provider model distribution reduces it to about 1.30×. It remains
+research-only pending a portable authenticated state contract.
+
+See [research and reproduction](https://github.com/blairhudson/pllm/blob/main/docs/research/aggregate-network.md),
+[probe evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/aggregate-network-qwen25-2026-10-06.json),
+[SDK cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/aggregate-network-sdk-qwen25-2026-10-06.json),
+and [WAN overlap choices](/sdk/evaluate/wan-tps/).

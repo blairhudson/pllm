@@ -1144,6 +1144,9 @@ class RuntimeClient:
         self.prefill_chunk_rows = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("linear", {}).get("params", {}).get("prefill_chunk_rows", 0)
             if self.experiment is not None else 0)
+        self.prepared_request_encoding = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("linear", {}).get("params", {}).get("request_encoding", "raw")
+            if self.experiment is not None else "raw")
         if self.prefill_chunk_rows and self.session_transport == "http":
             raise ValueError("duplex prefill requires a WebSocket session transport")
         self._bundle_cache_explicit = bundle_cache_dir is not None
@@ -2622,6 +2625,8 @@ class RuntimeClient:
                 session_body["inventory_id"] = provider.inventory_id
                 session_body["inventory_start"] = provider.reservation_start
                 session_body["inventory_rows"] = provider.reservation_rows
+                if self.prepared_request_encoding != "raw":
+                    session_body["prepared_request_encoding"] = self.prepared_request_encoding
                 if compiled is not None:
                     session_body["decoder_plan"] = {
                         "schema": "pllm.decoder_session.v1",
@@ -2651,6 +2656,11 @@ class RuntimeClient:
                 _raise(session_response)
                 session_value = session_response.json()
                 session_id = str(session_value["id"])
+                if prepared_public and session_value.get("prepared_request_encoding", "raw") != self.prepared_request_encoding:
+                    try:
+                        self.http.post(f"/v1/runtime/sessions/{session_id}/cancel", headers=self.headers)
+                    finally:
+                        raise ModelError("provider did not admit the prepared request encoding")
             except BaseException:
                 if prepared_public and provider is not None:
                     provider.close()
@@ -3569,7 +3579,7 @@ class RuntimeClient:
                     results.append(result.payload)
                 self.audit.online_steps += sum(prepared_stage_batch_rows(payload) or 1 for payload in payloads)
                 return results
-            if len(payloads) > 1 or compact_rows is not None:
+            if len(payloads) > 1 or (compact_rows is not None and compact_rows > 1):
                 upload = encode_length_prefixed(payloads)
                 if state.privacy_protocol != "direct_bfv_w4a4":
                     self.audit.masked_online_upload_bytes += len(upload)
@@ -3625,6 +3635,7 @@ class RuntimeClient:
                 inference=exchange,
                 inventory=provider,
                 prefill_chunk_rows=self.prefill_chunk_rows,
+                request_encoding=self.prepared_request_encoding,
                 verification_component=str(
                     state.bundle.privacy.get("verification_component", "none")
                 ),

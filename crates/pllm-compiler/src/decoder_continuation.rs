@@ -150,6 +150,11 @@ pub fn lower_decoder_continuation(
     }
     let mut graph = plan.prefill.clone();
     let mut schedule = source.prefill.clone();
+    // Continuation exposes per-row logits/checkpoints, including intermediate
+    // prefix boundaries. Its demand contract therefore retains every row.
+    for step in &mut schedule.steps {
+        step.terminal_row_only = false;
+    }
     let mut appended = BTreeSet::new();
     for op in &mut graph.operations {
         if matches!(

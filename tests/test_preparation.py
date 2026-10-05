@@ -197,6 +197,7 @@ def test_streamed_http_rejection_preserves_status_without_reading_error_body():
 
 
 @pytest.mark.parametrize("bound", [100, 40_000, 9_000_000])
+@pytest.mark.parametrize("rows", [1, 2])
 @pytest.mark.parametrize(
     ("verification_component", "unexpected_material"),
     [
@@ -206,7 +207,7 @@ def test_streamed_http_rejection_preserves_status_without_reading_error_body():
     ],
 )
 def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(
-    bound: int, verification_component: str, unexpected_material: bool
+    bound: int, verification_component: str, unexpected_material: bool, rows: int
 ):
     profile = seeded_ring_profile(bound)
     weight = np.array([[3, -2, 5], [-7, 1, 4]], dtype=np.int8)
@@ -219,7 +220,7 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(
     )
     seen: dict[str, bytes] = {}
     prepared = request(
-        rows=2,
+        rows=rows,
         signed_output_bound=profile.signed_output_bound,
         ring=profile.ring,
         modulus=profile.modulus,
@@ -257,7 +258,7 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(
 
     inventory = PreparedInventory(
         prepared.session_id,
-        2,
+        rows,
         {
             metadata.id: PreparedStageRows(
                 request=prepared,
@@ -267,12 +268,13 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(
             )
         },
     )
-    lease = inventory.reserve(2)
+    lease = inventory.reserve(rows)
     remote = PreparedRemoteLinear(
         "model-v1", "body-abc", {metadata.id: metadata}, lease, infer,
         verification_component=verification_component,
+        request_encoding="compact",
     )
-    clear = np.array([[5, -3, 2], [-8, 4, 7]], dtype=np.float32)
+    clear = np.array([[5, -3, 2], [-8, 4, 7]], dtype=np.float32)[:rows]
     if verification_component != "none" or unexpected_material:
         with pytest.raises(TransformerClientError, match="verification does not match"):
             remote(metadata.id, clear)
@@ -281,14 +283,14 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(
             assert seen["cancelled"] == b"yes"
         lease.close()
         assert inventory.status()["available"] == 0
-        assert inventory.status()["consumed"] == 2
+        assert inventory.status()["consumed"] == rows
         return
     actual = remote(metadata.id, clear)
     quantized = quantize_activation_per_row(clear, bits=8)
     expected = (quantized.values.astype(np.int64) @ weight.astype(np.int64).T) * quantized.scales[:, None] + metadata.bias
     np.testing.assert_array_equal(actual, expected.astype(np.float32))
     wire = PreparedStageBatchRequest.unpack(seen["inference"])
-    assert len(wire.correlation_ids) == 2
+    assert len(wire.correlation_ids) == rows
     assert all(len(item) == 32 for item in wire.correlation_ids)
     assert prepared.seed not in seen["inference"]
     assert remote.stats.preparation_upload_bytes == 0

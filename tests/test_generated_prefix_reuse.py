@@ -7,6 +7,7 @@ pytestmark = pytest.mark.integration
 
 from pllm import Experiment
 from pllm.profiles import TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu
+from pllm.protocols import MaskedLinear
 from pllm.quantization import SymmetricPerRow
 from pllm.runtime.prefill_cache import prefill_key
 from pllm.runtime.semantic_executor import SemanticDecoderRuntime
@@ -15,11 +16,16 @@ from pllm.state import ClientPrefixReuse
 from test_batched_prefix_reuse import prefix_experiment
 
 
-@pytest.mark.parametrize("topology_name", ["prepared", "offset", "verified"])
-def test_generated_prefix_uses_only_completed_executed_tokens(tmp_path, monkeypatch, topology_name):
+@pytest.mark.parametrize("topology_name,pruning", [
+    ("prepared", False), ("offset", False), ("verified", False),
+    ("prepared", True), ("verified", True),
+])
+def test_generated_prefix_uses_only_completed_executed_tokens(tmp_path, monkeypatch, topology_name, pruning):
     model_id, base = prefix_experiment(tmp_path)
     options = dict(quantization=SymmetricPerRow(weight_bits=8, activation_bits=8, causal_reduction="prefix_f32"),
         cache=ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=248, generated_prefixes=True))
+    if pruning:
+        options["linear"] = MaskedLinear(request_encoding="compact", prefill_pruning="terminal")
     pipeline = (TwoOnlineOffsetCpu(base.pipeline.model, **options) if topology_name == "offset" else
         VerifiedMaskedLinearCpu(base.pipeline.model, inventory=base.pipeline.inventory, **options)
         if topology_name == "verified" else base.pipeline.with_params(**options))

@@ -1,5 +1,5 @@
 {
   "title": "Evaluate",
   "root": true,
-  "pages": ["index", "benchmark", "client-memory", "wan-tps", "combinations", "next-five", "resident-share-gate", "latent-response", "he-quadratic-share", "projected-polynomial", "network-hypotheses", "private-pages", "private-head-retrieval", "paged-native", "search", "evidence", "assurance", "metrics"]
+  "pages": ["index", "benchmark", "client-memory", "wan-tps", "aggregate-network", "combinations", "next-five", "resident-share-gate", "latent-response", "he-quadratic-share", "projected-polynomial", "network-hypotheses", "private-pages", "private-head-retrieval", "paged-native", "search", "evidence", "assurance", "metrics"]
 }

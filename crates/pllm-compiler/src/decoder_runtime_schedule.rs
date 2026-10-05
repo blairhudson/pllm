@@ -3,7 +3,7 @@ use pllm_models::{
 };
 use pllm_types::{canonical_digest, pipeline_digest_bytes, Digest};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub const DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION: &str = "pllm.decoder_runtime_schedule.v2";
 const DECODER_RUNTIME_SCHEDULE_DIGEST_DOMAIN: &str = "pllm.decoder_runtime_schedule.v2";
@@ -42,6 +42,58 @@ pub struct DecoderRuntimeStep {
     pub executor: DecoderRuntimeExecutor,
     pub weight_ids: Vec<String>,
     pub outputs: Vec<DecoderRuntimeOutput>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub terminal_row_only: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
+}
+
+/// Public graph liveness only. Persistent outputs always demand every row;
+/// unknown/layout/state/attention operations stop last-row propagation.
+fn terminal_demand<'a>(graph: &'a DecoderGraph) -> BTreeMap<&'a str, u8> {
+    let operations: BTreeMap<_, _> = graph
+        .operations
+        .iter()
+        .map(|op| (op.id.as_str(), op))
+        .collect();
+    let mut demand = BTreeMap::new();
+    let mut queue = VecDeque::from([(graph.output.as_str(), 2)]);
+    queue.extend(
+        graph
+            .state_outputs
+            .iter()
+            .map(|state| (state.id.as_str(), 2)),
+    );
+    while let Some((id, wanted)) = queue.pop_front() {
+        let Some(operation) = operations.get(id) else {
+            continue;
+        };
+        if demand.get(id).copied().unwrap_or(0) >= wanted {
+            continue;
+        }
+        demand.insert(id, wanted);
+        let upstream = match operation.operator {
+            ModelOperator::LastToken => 1,
+            ModelOperator::Linear
+            | ModelOperator::OutputHead
+            | ModelOperator::RmsNorm
+            | ModelOperator::ResidualAdd
+            | ModelOperator::Silu
+            | ModelOperator::Multiply
+            | ModelOperator::GeluTanh
+            | ModelOperator::Softcap => wanted,
+            _ => 2,
+        };
+        queue.extend(
+            operation
+                .inputs
+                .iter()
+                .map(|input| (input.as_str(), upstream)),
+        );
+    }
+    demand
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1430,6 +1482,7 @@ fn lower_phase(
                 },
                 weight_ids,
                 outputs,
+                terminal_row_only: false,
             });
             continue;
         }
@@ -1466,6 +1519,7 @@ fn lower_phase(
             input_ids: operation.inputs.clone(),
             executor: DecoderRuntimeExecutor::ClientLocal,
             weight_ids: Vec::new(),
+            terminal_row_only: false,
             outputs: vec![DecoderRuntimeOutput {
                 operation_id: operation.id.clone(),
                 output_shape: operation.output_shape.clone(),
@@ -1680,7 +1734,7 @@ pub fn lower_decoder_runtime_schedule(
     validate_gated_delta_contract(&plan.prefill)?;
     validate_gated_delta_contract(&plan.decode)?;
     validate_causal_convolution_handoff(plan)?;
-    let prefill = lower_phase(
+    let mut prefill = lower_phase(
         &plan.prefill,
         linear_executor,
         client_prefix_layers,
@@ -1692,6 +1746,26 @@ pub fn lower_decoder_runtime_schedule(
         client_prefix_layers,
         &client_linear_roles,
     )?;
+    if composition
+        .components
+        .get("linear")
+        .and_then(|component| component.params.get("prefill_pruning"))
+        .and_then(serde_json::Value::as_str)
+        == Some("terminal")
+    {
+        let demand = terminal_demand(&plan.prefill);
+        for step in &mut prefill.steps {
+            step.terminal_row_only = step.operators.iter().all(|op| *op == ModelOperator::Linear)
+                && step
+                    .operation_ids
+                    .iter()
+                    .all(|id| demand.get(id.as_str()) == Some(&1))
+                && step.outputs.iter().all(|output| {
+                    matches!(output.output_shape.as_slice(),
+                    [1, rows, _] if *rows == plan.prefill.query_sequence)
+                });
+        }
+    }
     if linear_stage_signature(&prefill) != linear_stage_signature(&decode) {
         return Err("prefill/decode linear stage contracts differ".into());
     }

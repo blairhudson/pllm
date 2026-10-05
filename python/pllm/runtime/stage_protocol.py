@@ -14,6 +14,8 @@ from .quantization import centered_residues, positive_residues
 STAGE_PROTOCOL_VERSION = 3
 PREPARED_STAGE_BATCH_REQUEST_MAGIC = b"PLLMPSB1"
 PREPARED_STAGE_BATCH_RESPONSE_MAGIC = b"PLLMPSR1"
+PREPARED_STAGE_SINGLE_REQUEST_MAGIC = b"PLLMPSB2"
+PREPARED_STAGE_SINGLE_RESPONSE_MAGIC = b"PLLMPSR2"
 RingKind = Literal["u16", "u24", "u32", "prime"]
 
 
@@ -67,20 +69,21 @@ def _packed_stage_id(value: str, *, kind: str) -> bytes:
 
 
 def prepared_stage_batch_rows(payload: bytes) -> int | None:
-    if not payload.startswith(PREPARED_STAGE_BATCH_REQUEST_MAGIC):
+    single = payload.startswith(PREPARED_STAGE_SINGLE_REQUEST_MAGIC)
+    if not single and not payload.startswith(PREPARED_STAGE_BATCH_REQUEST_MAGIC):
         return None
     header = len(PREPARED_STAGE_BATCH_REQUEST_MAGIC)
     if len(payload) < header + 4:
         raise ProtocolError("invalid prepared stage batch header")
     rows = struct.unpack_from(">I", payload, header)[0]
-    if rows <= 1:
-        raise ProtocolError("prepared stage batch must contain multiple rows")
+    if (single and rows != 1) or (not single and rows <= 1):
+        raise ProtocolError("prepared stage row count differs from its frame version")
     return rows
 
 
 @dataclass(frozen=True, slots=True)
 class PreparedStageBatchRequest:
-    """Compact multi-row request for the public prepared path."""
+    """Inventory-bound request; single-row frames use a distinct namespace."""
 
     batch_id: str
     correlation_ids: tuple[str, ...]
@@ -89,7 +92,7 @@ class PreparedStageBatchRequest:
 
     def pack(self) -> bytes:
         value = np.asarray(self.masked_input, dtype=np.uint32)
-        if value.ndim != 2 or value.shape[0] <= 1 or value.shape[1] <= 0:
+        if value.ndim != 2 or value.shape[0] < 1 or value.shape[1] <= 0:
             raise ProtocolError("prepared stage batch must be a non-empty matrix")
         rows, columns = value.shape
         if len(self.correlation_ids) != rows or len(set(self.correlation_ids)) != rows:
@@ -103,7 +106,8 @@ class PreparedStageBatchRequest:
             [batch, tickets, columns, self.wire_bits, pack_residues(value, self.wire_bits)],
             use_bin_type=True,
         )
-        return PREPARED_STAGE_BATCH_REQUEST_MAGIC + struct.pack(">I", rows) + body
+        magic = PREPARED_STAGE_SINGLE_REQUEST_MAGIC if rows == 1 else PREPARED_STAGE_BATCH_REQUEST_MAGIC
+        return magic + struct.pack(">I", rows) + body
 
     @classmethod
     def unpack(
@@ -141,12 +145,15 @@ class PreparedStageBatchRequest:
         ):
             raise ProtocolError("prepared stage batch payload length mismatch")
         ticket_bytes = bytes(tickets)
+        correlation_ids = tuple(
+            ticket_bytes[index : index + 16].hex()
+            for index in range(0, len(ticket_bytes), 16)
+        )
+        if len(set(correlation_ids)) != rows:
+            raise ProtocolError("prepared stage batch tickets must be unique per row")
         return cls(
             batch_id=bytes(batch).hex(),
-            correlation_ids=tuple(
-                ticket_bytes[index : index + 16].hex()
-                for index in range(0, len(ticket_bytes), 16)
-            ),
+            correlation_ids=correlation_ids,
             masked_input=unpack_residues(bytes(data), (rows, columns), wire_bits),
             wire_bits=wire_bits,
         )
@@ -161,7 +168,7 @@ class PreparedStageBatchResponse:
 
     def pack(self) -> bytes:
         value = np.asarray(self.masked_output, dtype=np.uint32)
-        if value.ndim != 2 or value.shape[0] <= 1 or value.shape[1] <= 0:
+        if value.ndim != 2 or value.shape[0] < 1 or value.shape[1] <= 0:
             raise ProtocolError("prepared stage batch result must be a non-empty matrix")
         rows, columns = value.shape
         batch = _packed_stage_id(self.batch_id, kind="prepared stage batch ID")
@@ -169,7 +176,8 @@ class PreparedStageBatchResponse:
             [batch, columns, self.wire_bits, self.server_ns, pack_residues(value, self.wire_bits)],
             use_bin_type=True,
         )
-        return PREPARED_STAGE_BATCH_RESPONSE_MAGIC + struct.pack(">I", rows) + body
+        magic = PREPARED_STAGE_SINGLE_RESPONSE_MAGIC if rows == 1 else PREPARED_STAGE_BATCH_RESPONSE_MAGIC
+        return magic + struct.pack(">I", rows) + body
 
     @classmethod
     def unpack(
@@ -179,14 +187,15 @@ class PreparedStageBatchResponse:
         max_rows: int | None = None,
         max_tensor_elements: int | None = None,
     ) -> "PreparedStageBatchResponse":
-        if not payload.startswith(PREPARED_STAGE_BATCH_RESPONSE_MAGIC):
+        single = payload.startswith(PREPARED_STAGE_SINGLE_RESPONSE_MAGIC)
+        if not single and not payload.startswith(PREPARED_STAGE_BATCH_RESPONSE_MAGIC):
             raise ProtocolError("invalid prepared stage batch result magic")
         header = len(PREPARED_STAGE_BATCH_RESPONSE_MAGIC)
         if len(payload) < header + 4:
             raise ProtocolError("invalid prepared stage batch result header")
         rows = struct.unpack_from(">I", payload, header)[0]
-        if rows <= 1:
-            raise ProtocolError("prepared stage batch result must contain multiple rows")
+        if (single and rows != 1) or (not single and rows <= 1):
+            raise ProtocolError("prepared stage result row count differs from its frame version")
         if max_rows is not None and rows > max_rows:
             raise ProtocolError("prepared stage batch result row count exceeds model context")
         try:

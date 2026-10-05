@@ -1117,10 +1117,21 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                         raise TransformerClientError("continuation output head shape/type mismatch")
                 else:
                     input_value = values[step["input_ids"][0]]
+                    terminal = bool(step.get("terminal_row_only", False)) and not continuation
+                    work = input_value[..., -1:, :] if terminal else input_value
                     if step["executor"] == "client_linear" and self.bundle.stages[stage_id].client_weight is not None:
-                        output = self.bundle.local_linear(stage_id, input_value)
+                        output = self.bundle.local_linear(stage_id, work)
                     else:
-                        output = self.remote(stage_id, input_value)
+                        output = self.remote(stage_id, work)
+                    if terminal:
+                        shape = input_value.shape[:-1] + (self.bundle.stages[stage_id].out_features,)
+                        if np.asarray(output).shape != shape[:-2] + (1, shape[-1]):
+                            raise TransformerClientError("terminal-row stage shape mismatch")
+                        # These rows have no path to any retained state or logit.
+                        # Keep the original local layout and conservative allocation bound.
+                        expanded = np.zeros(shape, dtype=np.float32)
+                        expanded[..., -1:, :] = output
+                        output = expanded
                     if continuation and (
                         np.asarray(output).shape != np.asarray(input_value).shape[:-1] + (self.bundle.stages[stage_id].out_features,)
                         or np.asarray(output).dtype != np.float32

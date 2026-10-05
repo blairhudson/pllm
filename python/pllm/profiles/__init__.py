@@ -630,7 +630,11 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     transport_options: dict[str, Any] = {}
     linear = pipeline.components.get("linear")
     if linear is not None and linear.component == "pllm/masked-linear":
-        if (set(linear.params) - {"output_encoding", "prefill_chunk_rows"}
+        if (set(linear.params) - {"output_encoding", "prefill_chunk_rows", "request_encoding", "prefill_pruning"}
+            or type(linear.params.get("prefill_pruning", "none")) is not str
+            or linear.params.get("prefill_pruning", "none") not in {"none", "terminal"}
+            or type(linear.params.get("request_encoding", "raw")) is not str
+            or linear.params.get("request_encoding", "raw") not in {"raw", "compact"}
             or type(linear.params.get("output_encoding", "raw")) is not str
             or linear.params.get("output_encoding", "raw") not in {"raw", "row_residues"}
             or type(linear.params.get("prefill_chunk_rows", 0)) is not int

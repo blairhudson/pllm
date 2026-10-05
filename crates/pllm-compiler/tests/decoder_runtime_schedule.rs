@@ -66,6 +66,80 @@ fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> 
 }
 
 #[test]
+fn terminal_pruning_preserves_state_roots_and_grouped_stage_ownership() {
+    for config in [QWEN2, QWEN3] {
+        for verified in [false, true] {
+            let plan = plan(config);
+            let mut pipeline: serde_json::Value =
+                serde_json::from_slice(&composition(verified)).unwrap();
+            let baseline =
+                lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).unwrap();
+            assert!(!String::from_utf8(canonical_bytes(&baseline))
+                .unwrap()
+                .contains("terminal_row_only"));
+            pipeline["components"]["linear"]["params"] = json!({
+                "prefill_pruning": "terminal", "request_encoding": "compact"
+            });
+            let schedule =
+                lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).unwrap();
+            assert_ne!(schedule.digest(), baseline.digest());
+            assert_eq!(schedule.decode, baseline.decode);
+            let selected: Vec<_> = schedule
+                .prefill
+                .steps
+                .iter()
+                .filter(|step| step.terminal_row_only)
+                .collect();
+            assert_eq!(selected.len(), 3);
+            assert!(selected.iter().all(|step| step.layer == Some(1)
+                && step.operators.iter().all(|op| *op == ModelOperator::Linear)));
+            assert!(selected.iter().any(|step| step.operation_ids.len() == 2));
+            assert_eq!(
+                schedule.prefill.state_outputs,
+                baseline.prefill.state_outputs
+            );
+            assert!(schedule
+                .prefill
+                .steps
+                .iter()
+                .filter(|step| step.operation_ids.len() == 3)
+                .all(|step| !step.terminal_row_only));
+            let mut blocked = plan.clone();
+            let last = blocked
+                .prefill
+                .operations
+                .iter()
+                .find(|op| op.operator == ModelOperator::LastToken)
+                .unwrap()
+                .inputs[0]
+                .clone();
+            let boundary = blocked
+                .prefill
+                .operations
+                .iter_mut()
+                .find(|op| op.id == last)
+                .unwrap();
+            boundary.operator = ModelOperator::Reshape;
+            boundary.attributes = json!({"shape": boundary.output_shape});
+            // Replacing a semantic norm with an unproven layout transform cannot
+            // preserve the original source contract or authorize pruning.
+            assert!(lower_decoder_runtime_schedule(&blocked, &canonical_bytes(&pipeline)).is_err());
+            for key in ["prefill_pruning", "request_encoding"] {
+                for invalid in [json!(true), json!(1), json!("unknown")] {
+                    let mut invalid_pipeline = pipeline.clone();
+                    invalid_pipeline["components"]["linear"]["params"][key] = invalid;
+                    assert!(lower_decoder_runtime_schedule(
+                        &plan,
+                        &canonical_bytes(&invalid_pipeline)
+                    )
+                    .is_err());
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn public_stage_metal_backend_preserves_remote_schedule_and_rejects_forged_policy() {
     let plan = plan(QWEN2);
     let cpu: serde_json::Value = serde_json::from_slice(&composition(false)).unwrap();

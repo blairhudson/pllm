@@ -1141,6 +1141,7 @@ class PreparedRemoteLinear:
         *,
         verification_component: str = "none",
         prefill_chunk_rows: int = 0,
+        request_encoding: str = "raw",
     ) -> None:
         self.model_id = model_id
         self.body_fingerprint = body_fingerprint
@@ -1151,6 +1152,9 @@ class PreparedRemoteLinear:
         if type(prefill_chunk_rows) is not int or prefill_chunk_rows not in {0, 4, 8, 16, 32}:
             raise TransformerClientError("invalid prepared prefill chunk bound")
         self.prefill_chunk_rows = prefill_chunk_rows
+        if type(request_encoding) is not str or request_encoding not in {"raw", "compact"}:
+            raise TransformerClientError("invalid prepared request encoding")
+        self.request_encoding = request_encoding
         self.stats = StageClientStats()
         self.verified_calls = 0
 
@@ -1220,7 +1224,7 @@ class PreparedRemoteLinear:
         chunks, inference_requests = [], []
         for start in range(0, quantized.rows, chunk_rows):
             end = min(quantized.rows, start + chunk_rows)
-            batch_id = secrets.token_hex(16) if end - start > 1 else None
+            batch_id = secrets.token_hex(16) if end - start > 1 or self.request_encoding == "compact" else None
             chunks.append((start, end, batch_id))
             if batch_id is not None:
                 inference_requests.append(PreparedStageBatchRequest(

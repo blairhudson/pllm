@@ -98,8 +98,8 @@ def test_duplex_reordered_authenticated_reply_burns_session_before_retry(tmp_pat
         assert client.responses.create(input="abc", max_output_tokens=2, temperature=0).usage.output_tokens == 2
 
 
-@pytest.mark.parametrize("offset", [False, True])
-def test_wan_choices_use_the_existing_gateway(tmp_path, offset):
+@pytest.mark.parametrize("offset,aggregate", [(False, False), (True, False), (False, True)])
+def test_wan_choices_use_the_existing_gateway(tmp_path, offset, aggregate):
     from fastapi.testclient import TestClient
     source = pllm.Model.path(str(create_tiny_llama_checkpoint(tmp_path / "model", num_hidden_layers=1)),
                              model_id="wan-gateway-tiny")
@@ -108,7 +108,9 @@ def test_wan_choices_use_the_existing_gateway(tmp_path, offset):
     pipeline = (TwoOnlineOffsetCpu(source, **common, linear=TwoOnlineOffsetLinear(
         input_encoding="seeded", output_encoding="row_residues", dispatch="seed_first")) if offset else
         MaskedLinearCpu(source, **common,
-            linear=MaskedLinear(output_encoding="row_residues", prefill_chunk_rows=4),
+            linear=MaskedLinear(output_encoding="row_residues", prefill_chunk_rows=4,
+                request_encoding="compact" if aggregate else "raw",
+                prefill_pruning="terminal" if aggregate else "none"),
             inventory=PreparedInventory("request-sized", rows=1, refill="on-demand", stage_window=4)))
     experiment = pllm.Experiment("wan-gateway", pipeline, pllm.Deployment.local(root=str(tmp_path)),
         pllm.ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=2))

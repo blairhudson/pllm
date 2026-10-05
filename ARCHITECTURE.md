@@ -1109,6 +1109,30 @@ request TPS 17.3%; seed-first offset improves decode TPS 1.94-fold with unchange
 application bodies. Outputs match; peak client memory, independent operators,
 full physical wire and a tenfold network improvement remain unestablished.
 
+`MaskedLinear(prefill_pruning="terminal")` uses native backward row demand from
+logits and persistent state to prune only whole row-independent linear groups.
+It preserves state roots and local tensor layouts; batched continuation retains
+all rows. Current inventory admission still issues and burns the full reservation,
+so isolated arithmetic projections overstate its live offline savings.
+`MaskedLinear(request_encoding="compact")` additionally uses a separately
+negotiated single-row frame namespace with fresh nonce/ticket and authenticated
+session/stage context. Both choices compose with paged/compressed artifacts,
+row residues, prefix reuse and Freivalds verification without new client body
+weights. Defaults preserve previous identities. A matched 39+8-token SDK cohort
+reduces covered setup-inclusive bodies from 236.56 to 234.07 MB (1.05%) and
+online bodies by 3.50%, with identical outputs and zero observed new swap.
+Client CPU is slightly lower, aggregate CPU nearly equal and request latency
+slightly higher; independent peak-memory and WAN speed benefits are unmeasured.
+A distinct public-prefix capsule
+oracle preserves checked Qwen logits/KV and reduces arithmetic plus capsule
+delivery 17–21× for a fixed 256-token public prefix; adding cold client and two
+provider checkpoint artifacts reduces the ratio to about 1.30×. It has no portable
+authenticated state importer. Exact integer anchors and output lifting fail the
+client-cost/byte gate. Five separately scoped 100× constructions include a tiny
+finite-task lookup, explicit basis-leakage and rounding counterexamples, and two
+unimplemented architecture hypotheses. These are recorded in
+`docs/research/aggregate-network.md`; no general 10× or 100× improvement follows.
+
 ## Application boundary
 
 The client owns plaintext input, inventory root seeds and masks, private

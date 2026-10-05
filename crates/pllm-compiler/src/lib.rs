@@ -1798,6 +1798,8 @@ fn validate_decoder_linear_composition(
 fn valid_prepared_parameters(component: &ExperimentComponent) -> bool {
     component.params.iter().all(|(key, value)| {
         (key == "output_encoding" && matches!(value.as_str(), Some("raw" | "row_residues")))
+            || (key == "request_encoding" && matches!(value.as_str(), Some("raw" | "compact")))
+            || (key == "prefill_pruning" && matches!(value.as_str(), Some("none" | "terminal")))
             || (key == "prefill_chunk_rows" && matches!(value.as_u64(), Some(0 | 4 | 8 | 16 | 32)))
     })
 }

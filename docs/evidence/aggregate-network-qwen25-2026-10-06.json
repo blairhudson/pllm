@@ -1,0 +1,3783 @@
+{
+  "bases": {
+    "candidates": [
+      "exact integer anchor splitting",
+      "lossless output-basis lifting"
+    ],
+    "exact_integer_oracle": true,
+    "executed_rows": 46,
+    "privacy": "input masks stay full-width; public source weights alone determine residual layouts",
+    "scope": "compared against existing row residues, not uncompressed responses; input and control bodies unchanged",
+    "stages": [
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64202,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 310,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.016909999999999314
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16048,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014558000000000959
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 10120,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 2908,
+          "public_forest_bytes": 1495,
+          "selected_edges": 220
+        },
+        "raw_residue_output_bytes": 151110,
+        "stage": "layers.0.self_attn.qkv_proj",
+        "weight_digest": "9cfa314b1ed2abb2f154fff5b5907a8aee36e4eae33685841cfe507780438583"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -49624,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 552,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.012650000000000716
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12462,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 82,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.010969000000002893
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117088,
+        "stage": "layers.0.self_attn.o_proj",
+        "weight_digest": "ec275e35e5151ff39d6bd57168e3854cf3059e5e73fd59a2b8e1f45d90823fe6"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544344,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 424,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14583000000000013
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136032,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 160,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1283619999999992
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1284435,
+        "stage": "layers.0.mlp.gate_up_proj",
+        "weight_digest": "e22126bf7d445bf7a13353f18ec29740d6ea6b3fb16b9ce531068065e67d99fa"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271752,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 632,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06997900000000001
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67948,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 148,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06178499999999687
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 129030,
+        "stage": "layers.0.mlp.down_proj",
+        "weight_digest": "1152598dbaaaf29546a9b7471c7987b345819a7adbd5bcd831f5ddffc8a1ed5f"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64456,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 56,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01774999999999949
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16128,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 0,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.015826999999998037
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 230,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 56,
+          "public_forest_bytes": 41,
+          "selected_edges": 5
+        },
+        "raw_residue_output_bytes": 152030,
+        "stage": "layers.1.self_attn.qkv_proj",
+        "weight_digest": "bd9e86f1dd2c393c50b9c3c7aadac026c6f3473374d815653f08ae4b6dc1fdf9"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50050,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 126,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013594000000001216
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12510,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011822999999999695
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118226,
+        "stage": "layers.1.self_attn.o_proj",
+        "weight_digest": "31892e535141db03ed87af452cd1d507930384c694f6dfeb9052077f764b1d68"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544216,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 552,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14504600000000067
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136078,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 114,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12150300000000058
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1284596,
+        "stage": "layers.1.mlp.gate_up_proj",
+        "weight_digest": "0d3bce78b75c256d53eab9a6ebe05d3c2753ce07c4a324a83722a0020ed68064"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271636,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 748,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07066400000000073
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67876,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 220,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06298900000000174
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 129301,
+        "stage": "layers.1.mlp.down_proj",
+        "weight_digest": "a45f44974fa427403a5fd39b88b56c4a3ee8ab1fd2eca4b83488d0c43391d6bc"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64340,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 172,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01777699999999882
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16082,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 46,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.015012999999999721
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 368,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 92,
+          "public_forest_bytes": 55,
+          "selected_edges": 8
+        },
+        "raw_residue_output_bytes": 151432,
+        "stage": "layers.2.self_attn.qkv_proj",
+        "weight_digest": "8efd12aa29644f0d26585cc4a0b58fb8f06fcd4f32128ceff155ae76ed2e86f2"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50130,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 46,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013472999999997626
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12544,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 0,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011528999999999456
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117559,
+        "stage": "layers.2.self_attn.o_proj",
+        "weight_digest": "5250874fdefaa636829f3f782a4b706fe47e00be00637c4d236ad5e6db50c1c3"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544146,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 622,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1432690000000001
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136076,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 116,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12140199999999979
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1283872,
+        "stage": "layers.2.mlp.gate_up_proj",
+        "weight_digest": "47ca13e2305af2c4dc546b03e9feb4695a6ca6a5a4971c052c5f0df04454e2d5"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271624,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 760,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07069100000000006
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67808,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 288,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06314899999999923
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 129111,
+        "stage": "layers.2.mlp.down_proj",
+        "weight_digest": "057a11751288cf247b16f4b1a76fc4c5e4e9a9670ea2628e3f4d9e1383b0741f"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64396,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 116,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.017001000000000488
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16104,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 24,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014732999999999663
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 368,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 92,
+          "public_forest_bytes": 43,
+          "selected_edges": 8
+        },
+        "raw_residue_output_bytes": 151605,
+        "stage": "layers.3.self_attn.qkv_proj",
+        "weight_digest": "6a5f64cceb4a1dcb72425081147c12c170a9d5feeba271b7fcb40f19b07c3666"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50050,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 126,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013345999999998526
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12532,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 12,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011463999999996588
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118048,
+        "stage": "layers.3.self_attn.o_proj",
+        "weight_digest": "283a3c20f43147c1eb8b162d27d7b5b104b234d06c8211139daa1c27fac7f39d"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544216,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 552,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14282700000000048
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136008,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 184,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12309899999999985
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1284211,
+        "stage": "layers.3.mlp.gate_up_proj",
+        "weight_digest": "361b4135b05ae2cfca8d98dc1e1ccb380b42c6b1c65be1da198d464953eb1449"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271764,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 620,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07126199999999727
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67900,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 196,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.0628220000000006
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 129013,
+        "stage": "layers.3.mlp.down_proj",
+        "weight_digest": "df4fa5ee0baeda138d0e3e083ea4d43777fcb16eadb5c7c031cc28f74d772858"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64410,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 102,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01647599999999727
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16106,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 22,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014340000000000686
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 151800,
+        "stage": "layers.4.self_attn.qkv_proj",
+        "weight_digest": "a2d2ce97aaa6b5106d165383cdcae3abe962bf3d086992d96dd0b1b5a7d913f7"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50014,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 162,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01283199999999951
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12544,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 0,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011142000000003094
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117962,
+        "stage": "layers.4.self_attn.o_proj",
+        "weight_digest": "4c34fe57b62fc937739b54dd726b4a624e07ea62dcfecc66d7508c83282d7344"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544332,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 436,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14044799999999924
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136112,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12258899999999784
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1282917,
+        "stage": "layers.4.mlp.gate_up_proj",
+        "weight_digest": "f2ae24dbed7a04bd8cef9e5604c14867d3152ee97ce39ee2b0273e14822d1ce5"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271878,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 506,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06940900000000028
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67922,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 174,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06126300000000029
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128128,
+        "stage": "layers.4.mlp.down_proj",
+        "weight_digest": "291eba04204495d49fff6bd09c0ab3c03cfaf53d4fe496666ef4de1df607236c"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64340,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 172,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01698299999999975
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16106,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 22,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014829999999999899
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 322,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 80,
+          "public_forest_bytes": 51,
+          "selected_edges": 7
+        },
+        "raw_residue_output_bytes": 151783,
+        "stage": "layers.5.self_attn.qkv_proj",
+        "weight_digest": "099b3f9b0891f134269cfb5f2a66008a10ac203754669932f29ce51ffa34fdfe"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50060,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 116,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013242999999999228
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12510,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.0114219999999996
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118117,
+        "stage": "layers.5.self_attn.o_proj",
+        "weight_digest": "a84dbca7d7d94039eed75adc45983936e1d357dbf7792d0d008e1d6b806c93c6"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544192,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 576,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14481599999999872
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136054,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12181800000000109
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 46,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 12,
+          "public_forest_bytes": 9,
+          "selected_edges": 1
+        },
+        "raw_residue_output_bytes": 1284677,
+        "stage": "layers.5.mlp.gate_up_proj",
+        "weight_digest": "c070f0c04dd72251ece02290ff534b66ba19cac836b83e647ef2c4182adbd8a6"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271888,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 496,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07039199999999823
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67992,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 104,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.060485999999997375
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128588,
+        "stage": "layers.5.mlp.down_proj",
+        "weight_digest": "f4e23c56a080a022eb43474858d51ee86e6fc4467b5a7adff231d5cf10d247a8"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64396,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 116,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01722199999999674
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16116,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 12,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.015272000000003061
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 230,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 58,
+          "public_forest_bytes": 35,
+          "selected_edges": 5
+        },
+        "raw_residue_output_bytes": 151703,
+        "stage": "layers.6.self_attn.qkv_proj",
+        "weight_digest": "21a9cc94cf4412dbe495a6b2ade90f79b21f521635174df8280cfe943cacb992"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50050,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 126,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013186999999994953
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12520,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 24,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011341999999999075
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118048,
+        "stage": "layers.6.self_attn.o_proj",
+        "weight_digest": "9bdd3268f285e7500e9bf5464804c5946105d9a70db47bb4257dc2130bd9e77b"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544158,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 610,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1435080000000042
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -135996,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 196,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12532300000000163
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 46,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 12,
+          "public_forest_bytes": 9,
+          "selected_edges": 1
+        },
+        "raw_residue_output_bytes": 1282952,
+        "stage": "layers.6.mlp.gate_up_proj",
+        "weight_digest": "c2ceedaa5e56f432b6c6e67ade09638e14ad135a71726cddd6b708580a9f613c"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271832,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 552,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06980800000000187
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67924,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 172,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.062384999999999025
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128415,
+        "stage": "layers.6.mlp.down_proj",
+        "weight_digest": "8272db0857638b9205bff1f43c272fdd43ba28c5fd55ed55276792d5c380e0c9"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64352,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 160,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01644900000000149
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16106,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 22,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014531000000005179
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 322,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 80,
+          "public_forest_bytes": 53,
+          "selected_edges": 7
+        },
+        "raw_residue_output_bytes": 151501,
+        "stage": "layers.7.self_attn.qkv_proj",
+        "weight_digest": "4c1a1e421e2c462f704b6e3640178c002aafd24a295fee5a2fdcf1e20023d1aa"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -49912,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 264,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.012731999999999744
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12464,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011078000000004806
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117898,
+        "stage": "layers.7.self_attn.o_proj",
+        "weight_digest": "5d44c9783d71a7e1caca3d5b4981210501fb33a906fc7d12449fb108e3ffa48f"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544240,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 528,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.13977000000000572
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136054,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1268749999999983
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1283308,
+        "stage": "layers.7.mlp.gate_up_proj",
+        "weight_digest": "f59224afe893aa1db4cb2748893a54f1aadf4b712ec73e63a00f5d825a819ad9"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272052,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 332,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07145500000000027
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67970,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 126,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06346500000000077
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127788,
+        "stage": "layers.7.mlp.down_proj",
+        "weight_digest": "d49b1faedfeb847e116e80f763863db3d105dae936d3ea557f6558c0eb806d45"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64398,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 114,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.017090000000003158
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16128,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 0,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.015096999999997252
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 46,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 22,
+          "public_forest_bytes": 7,
+          "selected_edges": 1
+        },
+        "raw_residue_output_bytes": 151645,
+        "stage": "layers.8.self_attn.qkv_proj",
+        "weight_digest": "4d7c8e99487821af137f8d98447c8c7408005a57f88936e9b93a09741471d06b"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50096,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013207999999998776
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12544,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 0,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011285999999998353
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118059,
+        "stage": "layers.8.self_attn.o_proj",
+        "weight_digest": "a6a86760f0cda211c0abdf7a27a3992b43f74c32bf89b9d7fb5c8fd9f8c0396c"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544240,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 528,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14481200000000172
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136078,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 114,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12676599999999638
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1282664,
+        "stage": "layers.8.mlp.gate_up_proj",
+        "weight_digest": "c597722a293f9dac7ad63bfe466e73175d1cfaceefeb727641cbed09d90b88c3"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272052,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 332,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07179699999999656
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -68050,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 46,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06270399999999654
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128340,
+        "stage": "layers.8.mlp.down_proj",
+        "weight_digest": "29df02f8ff9180fd3c320f0b091bcfc3872d0c18024f821a7f57842562b9737e"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64432,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01751000000000147
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16104,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 24,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.015025000000001398
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 138,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 34,
+          "public_forest_bytes": 23,
+          "selected_edges": 3
+        },
+        "raw_residue_output_bytes": 151421,
+        "stage": "layers.9.self_attn.qkv_proj",
+        "weight_digest": "d4c1269cc2538130f91d32ed1968fde50714c574981bcd92b4aa97d513cff494"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50038,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.012790999999999997
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12522,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 22,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.010989999999999611
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117898,
+        "stage": "layers.9.self_attn.o_proj",
+        "weight_digest": "20bb5f622823489f860b560048074c80a69ca2d62b3ae79d04612fc0cb56ce0d"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544090,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 678,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.142161999999999
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136030,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 162,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.11785199999999918
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1283688,
+        "stage": "layers.9.mlp.gate_up_proj",
+        "weight_digest": "51ee618d4969684613e3ed95caac2df6c0bbaf327d90a5d86e3e75a8497d5ef3"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272142,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 242,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07081600000000066
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -68038,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 58,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06320999999999799
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127898,
+        "stage": "layers.9.mlp.down_proj",
+        "weight_digest": "416ee29d474a8b0686509347d0c8284cfb86ceb528affa4269858629dd4a0f5a"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64398,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 114,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01649900000000315
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16082,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 46,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014272000000005391
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 138,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 34,
+          "public_forest_bytes": 25,
+          "selected_edges": 3
+        },
+        "raw_residue_output_bytes": 151806,
+        "stage": "layers.10.self_attn.qkv_proj",
+        "weight_digest": "8c603837da393f84802186b206eff0f6cf8c30cebc34950bbc633065aa63c447"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50028,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 148,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.012730999999995163
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12522,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 22,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011000000000002785
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117760,
+        "stage": "layers.10.self_attn.o_proj",
+        "weight_digest": "8ae48c97b94da70eabe41b1dddce5ef354c9b8c70849279968c0ab3700d968c5"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544158,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 610,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.13956299999999544
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136042,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 150,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12459899999999635
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1282877,
+        "stage": "layers.10.mlp.gate_up_proj",
+        "weight_digest": "6e4aee7bdd4cf60d47b566446c7fa7399746ae81b9d0017f69742127fd10420d"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272038,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 346,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07177099999999825
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67970,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 126,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.060615999999996006
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127915,
+        "stage": "layers.10.mlp.down_proj",
+        "weight_digest": "965a27f3ffc2ca46f6d969e207261eb7de249aac5adb3add6204e4f936c957b3"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64340,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 172,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.017108000000000345
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16128,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 0,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014943999999999846
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 1380,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 344,
+          "public_forest_bytes": 217,
+          "selected_edges": 30
+        },
+        "raw_residue_output_bytes": 151208,
+        "stage": "layers.11.self_attn.qkv_proj",
+        "weight_digest": "123a5e97567529c59ada1648007db5500d26a108b3eb45415a291b4a86907aa5"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -49946,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 230,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.012940000000000396
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12452,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 92,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01130500000000012
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117979,
+        "stage": "layers.11.self_attn.o_proj",
+        "weight_digest": "a1f6af189040069663f49c511d3a2534b35618097138b584a47016bae27258f7"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544216,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 552,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1389739999999975
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136064,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 128,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12571099999999547
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1282728,
+        "stage": "layers.11.mlp.gate_up_proj",
+        "weight_digest": "39813cf73807cea040c69aa463070d6b25f3b375e063b43610e97c7b8a4977a1"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272166,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 218,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07082100000000224
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -68016,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06296100000000138
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127932,
+        "stage": "layers.11.mlp.down_proj",
+        "weight_digest": "8b36a986e12d54eae55f2e9cafbdbb18f6668688d061a56d57076df8eb1ec717"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64316,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 196,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.016473000000004845
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16070,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 58,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014274000000000342
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 92,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 24,
+          "public_forest_bytes": 17,
+          "selected_edges": 2
+        },
+        "raw_residue_output_bytes": 151910,
+        "stage": "layers.12.self_attn.qkv_proj",
+        "weight_digest": "82c18973925ef578703b6bbc3d559933e7fb502f4e37e2b77fb69821b102aab7"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -49970,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 206,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013525999999998817
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12498,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 46,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011751000000003842
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117967,
+        "stage": "layers.12.self_attn.o_proj",
+        "weight_digest": "686ae6d67c3993e85fe6bfbdcc313a67416e0c5ebef7fbd7a8cddce112531d0a"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544136,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 632,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.142635999999996
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136088,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 104,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1265640000000019
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1282561,
+        "stage": "layers.12.mlp.gate_up_proj",
+        "weight_digest": "f369b91cc47e9e7e33b49e25ac2c0734f7047ffe93a2bc60b70c426f0f12ce18"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272292,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 92,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07030899999999463
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -68074,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 22,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06201599999999985
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128271,
+        "stage": "layers.12.mlp.down_proj",
+        "weight_digest": "4599769c6722654bbfdc7cfc83cbf116342c9d97b5277704dc90227bed36259d"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64432,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.017487000000002695
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16082,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 46,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.015378999999995813
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 414,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 104,
+          "public_forest_bytes": 67,
+          "selected_edges": 9
+        },
+        "raw_residue_output_bytes": 151645,
+        "stage": "layers.13.self_attn.qkv_proj",
+        "weight_digest": "0a0e27b62af7f2651c2fba00e75888e4333b2992ba1ce9a56bdea2147e11fe44"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50004,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 172,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013446000000001845
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12510,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011293000000001996
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118151,
+        "stage": "layers.13.self_attn.o_proj",
+        "weight_digest": "a5ed6c69c26e658801684f28ae0f1e6f7e1a6295dc58f41d998433473f78cbfe"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544136,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 632,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14447899999999692
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136030,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 162,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12561099999999925
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1282676,
+        "stage": "layers.13.mlp.gate_up_proj",
+        "weight_digest": "6ad0b4ca68fd565001a6d90581d221e3dd054d08c9aee5c6b02dfd77a8732234"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272222,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 162,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07011899999999827
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -68062,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.061900999999998874
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127915,
+        "stage": "layers.13.mlp.down_proj",
+        "weight_digest": "f0a31af20d0b02834f10864b1513917a048a129682080ac6a4405d08bf49470c"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64282,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 230,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.016387000000001706
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16060,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 68,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014392000000000849
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 460,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 114,
+          "public_forest_bytes": 75,
+          "selected_edges": 10
+        },
+        "raw_residue_output_bytes": 151553,
+        "stage": "layers.14.self_attn.qkv_proj",
+        "weight_digest": "dbec973d9f0b09ff762ce17ecd9af0ce95a8cd8f44eaad0bbdc7cd9f6560fd8a"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -49934,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 242,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.012872999999999024
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12510,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011159999999996728
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118065,
+        "stage": "layers.14.self_attn.o_proj",
+        "weight_digest": "fdcfe976eb8534a403a7a1d1e918c1b41b365f383b4eb267e41a1dfe9a090966"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544090,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 678,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1434289999999976
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136020,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 172,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1196470000000005
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 46,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 12,
+          "public_forest_bytes": 9,
+          "selected_edges": 1
+        },
+        "raw_residue_output_bytes": 1282026,
+        "stage": "layers.14.mlp.gate_up_proj",
+        "weight_digest": "ffdb570abfbb5a8e91b2e479445179fefdcb51cfe6a5851e82b9a79fde935d4d"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272246,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06860400000000055
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -68062,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.060722999999995864
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127466,
+        "stage": "layers.14.mlp.down_proj",
+        "weight_digest": "7896e916c54586bd334d9148d80fc3e6de80d93a399f1fe85b92bc3ec8629864"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64306,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 206,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.017070999999994285
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16106,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 22,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014654000000000167
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 460,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 114,
+          "public_forest_bytes": 73,
+          "selected_edges": 10
+        },
+        "raw_residue_output_bytes": 151645,
+        "stage": "layers.15.self_attn.qkv_proj",
+        "weight_digest": "d86f00614b2bd93246ef1d89dff6eb9a0712a9097cf4655f20da4be0f902869c"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50026,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 150,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013093999999995276
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12510,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011118000000003292
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118094,
+        "stage": "layers.15.self_attn.o_proj",
+        "weight_digest": "9d703c4f41ea191962179b3119dcbbf987e8816c25b421a5004a414de3f95fe3"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -543870,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 898,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14321699999999993
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -135916,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 276,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1266030000000029
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1280037,
+        "stage": "layers.15.mlp.gate_up_proj",
+        "weight_digest": "06747e710c8983a680660961bef851114b9d61cf7d69a959bf3e12990d903819"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -272038,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 346,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06873199999999713
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -68016,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.061624999999999375
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127662,
+        "stage": "layers.15.mlp.down_proj",
+        "weight_digest": "4d29e0bbf21096c95a4ce46e79f29809e3ad3572d9792a5a4f3e102a9d07cd43"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64362,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 150,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.017081000000004565
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16082,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 46,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.015480000000003713
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 1748,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 438,
+          "public_forest_bytes": 259,
+          "selected_edges": 38
+        },
+        "raw_residue_output_bytes": 151007,
+        "stage": "layers.16.self_attn.qkv_proj",
+        "weight_digest": "3d4542b33e5e0fa232c6006835ead67404e6826b45f52a0100b94a552697ec5a"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -49808,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 368,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01308800000000332
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12486,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 58,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011517000000004884
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 116846,
+        "stage": "layers.16.self_attn.o_proj",
+        "weight_digest": "a4ca3c98e4ad9809a41cd074e6c3b2564b51bc03beee62d8cb33bf7571ad303e"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -543790,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 978,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14255500000000154
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -135882,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 310,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12526599999999632
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 92,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 24,
+          "public_forest_bytes": 15,
+          "selected_edges": 2
+        },
+        "raw_residue_output_bytes": 1279847,
+        "stage": "layers.16.mlp.gate_up_proj",
+        "weight_digest": "3d5fe311218f03cce03ec59873fdca11361737533a604bada250f3a59a62abb0"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271890,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 494,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.0699820000000031
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67958,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.061818999999999846
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127627,
+        "stage": "layers.16.mlp.down_proj",
+        "weight_digest": "77a3d9dc3156012ddc66737b1269ae41e0bcd299827fdf07b16fa437abb88e77"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64340,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 172,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.016689999999996985
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16118,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 10,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01420599999999439
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 184,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 46,
+          "public_forest_bytes": 33,
+          "selected_edges": 4
+        },
+        "raw_residue_output_bytes": 151432,
+        "stage": "layers.17.self_attn.qkv_proj",
+        "weight_digest": "ec57a841a8003152614d4b2b7497f1e03e4c735d213caaa9adad01ef9c0cc0ac"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50038,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013021999999999423
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12510,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011583000000001675
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118163,
+        "stage": "layers.17.self_attn.o_proj",
+        "weight_digest": "168cd9e7f46c52bbc3193f7f7fd5f1b1132d1e735a7d6c30ad8c04ee2f40699d"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544078,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 690,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1429900000000046
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136054,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12660499999999786
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1283883,
+        "stage": "layers.17.mlp.gate_up_proj",
+        "weight_digest": "df7fc3bb02764fcacd9e9e332213e2c1955bba9afce4370170f2d388ee2b491f"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271992,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 392,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06928500000000071
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -68038,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 58,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06194300000000652
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128358,
+        "stage": "layers.17.mlp.down_proj",
+        "weight_digest": "f1f069668e286b6ae7d4279cd0f442fff788dc5eb9de53cb087dce49d1f4d1d5"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64248,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 264,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.016989000000002363
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16094,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014779000000004316
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 230,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 56,
+          "public_forest_bytes": 29,
+          "selected_edges": 5
+        },
+        "raw_residue_output_bytes": 151087,
+        "stage": "layers.18.self_attn.qkv_proj",
+        "weight_digest": "a1a96c3860f2a5f5b103137ffd9222c2b8fb79a91c80ddfc3605eec0f0177990"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50048,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 128,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013273999999995567
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12508,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 36,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011344000000001131
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118215,
+        "stage": "layers.18.self_attn.o_proj",
+        "weight_digest": "24cdb26fc080c1e454488398c58a9fbe408455e7e80818cb6d1f14fa10b8800c"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544320,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 448,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14413900000000268
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136090,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 102,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12350499999999442
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1284826,
+        "stage": "layers.18.mlp.gate_up_proj",
+        "weight_digest": "0e861ffd8b10c26774a2e0e5b44253253e2aae2ee682a6bc80b930fe6f47a9d7"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271590,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 794,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07078599999999824
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67900,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 196,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.062303
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128864,
+        "stage": "layers.18.mlp.down_proj",
+        "weight_digest": "26c53a97e6567e4eeca644ef29c5a2360fd6b5c4909941431b24430df0a716e1"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64396,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 116,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.017771999999993682
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16092,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 36,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014963000000001614
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 230,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 58,
+          "public_forest_bytes": 35,
+          "selected_edges": 5
+        },
+        "raw_residue_output_bytes": 151657,
+        "stage": "layers.19.self_attn.qkv_proj",
+        "weight_digest": "ca12ffd8b5a7af2eb963f157b7754ca119cf028f5896dd0ccee5becc3e512886"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -49968,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 208,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013201999999999714
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12520,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 24,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011586999999998682
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118163,
+        "stage": "layers.19.self_attn.o_proj",
+        "weight_digest": "2d5236f4ecbbe12c07597bd3fd41d92d795385db2825223de7f27bd64594cc14"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544206,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 562,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14465799999999973
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136008,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 184,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12080299999999511
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1281997,
+        "stage": "layers.19.mlp.gate_up_proj",
+        "weight_digest": "33838e676f6df987772c673d30455b5959b14c6b961c442525fcff5e30c7f2c3"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271866,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 518,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06896199999999908
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67958,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.061014000000000124
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 127915,
+        "stage": "layers.19.mlp.down_proj",
+        "weight_digest": "0459b979f8e5d31920f85fdc213820aafbdc16102b13416a93cce8efeaaf60f2"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64292,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 220,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01687599999999634
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16082,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 46,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014818000000005327
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 690,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 174,
+          "public_forest_bytes": 117,
+          "selected_edges": 15
+        },
+        "raw_residue_output_bytes": 150737,
+        "stage": "layers.20.self_attn.qkv_proj",
+        "weight_digest": "8c2b10447e4616f50621d8c33e3ca65f112806ffcd941293dd86479b92db4df9"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50016,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 160,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01300300000000476
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12522,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 22,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01138000000000261
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117743,
+        "stage": "layers.20.self_attn.o_proj",
+        "weight_digest": "ac14c0691412270e0356816691fa711d8219ed10ffb2921f6eb9ea0778019012"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544148,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 620,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.14296199999999715
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136054,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 138,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12362800000000362
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1282503,
+        "stage": "layers.20.mlp.gate_up_proj",
+        "weight_digest": "2d5ee5213f9de45394d336121df319a0959cd180f3cca02fd4f2e067fa18edfd"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271832,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 552,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06993500000000097
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67912,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 184,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.0622809999999987
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128099,
+        "stage": "layers.20.mlp.down_proj",
+        "weight_digest": "62546c89ff0b765c5ea6ba587128fd7ef43405ce37ec674e298a0df2171d7c36"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64316,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 196,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.01689299999999605
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16094,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 34,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014909000000002948
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 690,
+          "native_i8_residual_compatible": false,
+          "output_plus_correction_bytes_saved": 172,
+          "public_forest_bytes": 101,
+          "selected_edges": 15
+        },
+        "raw_residue_output_bytes": 150081,
+        "stage": "layers.21.self_attn.qkv_proj",
+        "weight_digest": "8bb1314393b07955f2fb0f3890cb06955dbbca6296f8927ca183671e44bec547"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50072,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 104,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013492999999996869
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12544,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 0,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011445999999999401
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117985,
+        "stage": "layers.21.self_attn.o_proj",
+        "weight_digest": "259a15a5685d5d7dcb61c4925971c1b3c005bf57d805a1dbc51405cb4cbe6717"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544458,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 310,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1450749999999985
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136122,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 70,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12149000000000143
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 1284723,
+        "stage": "layers.21.mlp.gate_up_proj",
+        "weight_digest": "c6bd34f12ed29ce3f7fadb0b4db8a7b56cc272068f143c11bfc59c17af1fcaea"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271648,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 736,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07141699999999673
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67936,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 160,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06317700000000315
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128990,
+        "stage": "layers.21.mlp.down_proj",
+        "weight_digest": "9ea4a53d6e241a369854689dd6062cc3e9e87d71ee20d830aa37e28b09a821d8"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64248,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 264,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.016415000000002067
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16116,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 12,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014316000000000884
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 644,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 160,
+          "public_forest_bytes": 103,
+          "selected_edges": 14
+        },
+        "raw_residue_output_bytes": 150380,
+        "stage": "layers.22.self_attn.qkv_proj",
+        "weight_digest": "c555e21a8e842231f6b83f1e552a4fe5ccd82608777715380c6c9b8327dc7a2b"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50140,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 36,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013210999999998307
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12532,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 12,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011268000000001166
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 118330,
+        "stage": "layers.22.self_attn.o_proj",
+        "weight_digest": "d570980e65d84fe31d705d37eddf68776837c9cce60bad627163479d6e1a73ed"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544136,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 632,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1411200000000008
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136008,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 184,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12216000000000093
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 46,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 24,
+          "public_forest_bytes": 9,
+          "selected_edges": 1
+        },
+        "raw_residue_output_bytes": 1283826,
+        "stage": "layers.22.mlp.gate_up_proj",
+        "weight_digest": "411afd65e57c83677c79c89252f7c8feb19553c7f38e7e3c2bdba43ef8165677"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271602,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 782,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.07196100000000172
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67876,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 220,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.0634330000000034
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 129094,
+        "stage": "layers.22.mlp.down_proj",
+        "weight_digest": "2b69e79d687412ccccd605ec1c746e5241c8772bbf68ddbac44bba4419845e75"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -64214,
+            "new_client_anchor_bytes": 64512,
+            "new_client_integer_macs": 1483776,
+            "output_plus_correction_bytes_saved": 298,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.017139999999997713
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -16060,
+            "new_client_anchor_bytes": 16128,
+            "new_client_integer_macs": 370944,
+            "output_plus_correction_bytes_saved": 68,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.014718000000002007
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 1058,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 264,
+          "public_forest_bytes": 187,
+          "selected_edges": 23
+        },
+        "raw_residue_output_bytes": 151484,
+        "stage": "layers.23.self_attn.qkv_proj",
+        "weight_digest": "37c1f2b6bdde31b6253112155b5898f5d9a76ac117d287e74877119c432dc0f4"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -50108,
+            "new_client_anchor_bytes": 50176,
+            "new_client_integer_macs": 1154048,
+            "output_plus_correction_bytes_saved": 68,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.013289000000000328
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -12544,
+            "new_client_anchor_bytes": 12544,
+            "new_client_integer_macs": 288512,
+            "output_plus_correction_bytes_saved": 0,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.011212999999997919
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 117904,
+        "stage": "layers.23.self_attn.o_proj",
+        "weight_digest": "c25df373380d30a4febb42387538733558a90fa8d9ab643a51cca2fee09a00cc"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -544354,
+            "new_client_anchor_bytes": 544768,
+            "new_client_integer_macs": 12529664,
+            "output_plus_correction_bytes_saved": 414,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.1403880000000015
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -136112,
+            "new_client_anchor_bytes": 136192,
+            "new_client_integer_macs": 3132416,
+            "output_plus_correction_bytes_saved": 80,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.12439399999999523
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 92,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 22,
+          "public_forest_bytes": 17,
+          "selected_edges": 2
+        },
+        "raw_residue_output_bytes": 1285217,
+        "stage": "layers.23.mlp.gate_up_proj",
+        "weight_digest": "2d36426542a56bb27b508c85bba17d1c63e3efb784af878327ed5168d9d67f72"
+      },
+      {
+        "anchors": [
+          {
+            "block": 32,
+            "cold_net_bytes_saved_before_framing": -271878,
+            "new_client_anchor_bytes": 272384,
+            "new_client_integer_macs": 6264832,
+            "output_plus_correction_bytes_saved": 506,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.0705730000000031
+          },
+          {
+            "block": 128,
+            "cold_net_bytes_saved_before_framing": -67900,
+            "new_client_anchor_bytes": 68096,
+            "new_client_integer_macs": 1566208,
+            "output_plus_correction_bytes_saved": 196,
+            "public_compilation_and_separate_oracle_cpu_seconds": 0.06318100000000015
+          }
+        ],
+        "lifting": {
+          "extra_client_additions": 0,
+          "native_i8_residual_compatible": true,
+          "output_plus_correction_bytes_saved": 0,
+          "public_forest_bytes": 1,
+          "selected_edges": 0
+        },
+        "raw_residue_output_bytes": 128910,
+        "stage": "layers.23.mlp.down_proj",
+        "weight_digest": "a2eafb084e2f7904a548c673367427532f5777e775226ac3ebd883d6c3aa2474"
+      }
+    ]
+  },
+  "capsule": {
+    "candidate": "public-prefix state capsules",
+    "capsule_bytes": 6291906,
+    "capsule_sha256": "5ab83c09810dfbf340a1b9d78a65a3cb61bdce4f829b55a2670ff75c8d04424f",
+    "cohort": [
+      {
+        "arithmetic_plus_capsule_reduction_factor": 21.299365632976976,
+        "candidate": {
+          "active_kv_bytes": 6537216,
+          "all_link_arithmetic_MB_per_generated_token": 3.16032,
+          "all_link_arithmetic_bytes": 25282560,
+          "all_logit_bits_digest": "3239c2b836cccdcc97f89d596095f87f222f5785caf29d7185aa9adc84a32916",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 3578265600,
+            "offline_correction_bytes": 9338880,
+            "online_input_bytes": 6604800,
+            "online_output_bytes": 9338880,
+            "remote_rows": 960,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 0.4907319999999231,
+          "generated_outputs": 8,
+          "kv_digest": "e2295426e0a2d266b95a1293633b4285d346e22acaa370e4a5edbb2f7c505931",
+          "local_client_algorithm_cpu_seconds": 0.7102820000000776,
+          "output_digest": "8d53b12214f78487158c504201155d2b7b062e78a6fe3bc152828cfd869715ce"
+        },
+        "capsule_plus_arithmetic_bytes": 31574466,
+        "cold_client_bundle_and_arithmetic_reduction_factor": 4.6098919122462485,
+        "cold_two_provider_checkpoint_plus_client_bundle_reduction_factor": 1.2975937255831653,
+        "control": {
+          "active_kv_bytes": 6537216,
+          "all_link_arithmetic_MB_per_generated_token": 84.064512,
+          "all_link_arithmetic_bytes": 672516096,
+          "all_logit_bits_digest": "3239c2b836cccdcc97f89d596095f87f222f5785caf29d7185aa9adc84a32916",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 95181864960,
+            "offline_correction_bytes": 248414208,
+            "online_input_bytes": 175687680,
+            "online_output_bytes": 248414208,
+            "remote_rows": 25536,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 8.246960999999992,
+          "generated_outputs": 8,
+          "kv_digest": "e2295426e0a2d266b95a1293633b4285d346e22acaa370e4a5edbb2f7c505931",
+          "local_client_algorithm_cpu_seconds": 4.14415000000001,
+          "output_digest": "8d53b12214f78487158c504201155d2b7b062e78a6fe3bc152828cfd869715ce"
+        },
+        "private_suffix_tokens": 3
+      },
+      {
+        "arithmetic_plus_capsule_reduction_factor": 17.36757322678988,
+        "candidate": {
+          "active_kv_bytes": 6610944,
+          "all_link_arithmetic_MB_per_generated_token": 4.108416,
+          "all_link_arithmetic_bytes": 32867328,
+          "all_logit_bits_digest": "58cc96f571ba1e06e3d8d8972e5839748bbe131da1c4e48eb8406a203a89cba2",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 4651745280,
+            "offline_correction_bytes": 12140544,
+            "online_input_bytes": 8586240,
+            "online_output_bytes": 12140544,
+            "remote_rows": 1248,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 0.5787599999996758,
+          "generated_outputs": 8,
+          "kv_digest": "bfdc88a1555be876a25599495fc87457e5a4a8cf6d038787688a491ca8c8d8b7",
+          "local_client_algorithm_cpu_seconds": 0.7689910000003266,
+          "output_digest": "923c39361d7c3c2c3aaae2b24f46d127dc58b96c8b7c649b7411c2defb360afc"
+        },
+        "capsule_plus_arithmetic_bytes": 39159234,
+        "cold_client_bundle_and_arithmetic_reduction_factor": 4.461999785001577,
+        "cold_two_provider_checkpoint_plus_client_bundle_reduction_factor": 1.2965493790960536,
+        "control": {
+          "active_kv_bytes": 6610944,
+          "all_link_arithmetic_MB_per_generated_token": 85.012608,
+          "all_link_arithmetic_bytes": 680100864,
+          "all_logit_bits_digest": "58cc96f571ba1e06e3d8d8972e5839748bbe131da1c4e48eb8406a203a89cba2",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 96255344640,
+            "offline_correction_bytes": 251215872,
+            "online_input_bytes": 177669120,
+            "online_output_bytes": 251215872,
+            "remote_rows": 25824,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 8.332794999999976,
+          "generated_outputs": 8,
+          "kv_digest": "bfdc88a1555be876a25599495fc87457e5a4a8cf6d038787688a491ca8c8d8b7",
+          "local_client_algorithm_cpu_seconds": 4.19970600000002,
+          "output_digest": "923c39361d7c3c2c3aaae2b24f46d127dc58b96c8b7c649b7411c2defb360afc"
+        },
+        "private_suffix_tokens": 6
+      },
+      {
+        "arithmetic_plus_capsule_reduction_factor": 18.497256829997824,
+        "candidate": {
+          "active_kv_bytes": 6586368,
+          "all_link_arithmetic_MB_per_generated_token": 3.792384,
+          "all_link_arithmetic_bytes": 30339072,
+          "all_logit_bits_digest": "62d1f7ca34bec7034e4344d99e63f33b51938573aaf083ba50b3c0e02bbb5fee",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 4293918720,
+            "offline_correction_bytes": 11206656,
+            "online_input_bytes": 7925760,
+            "online_output_bytes": 11206656,
+            "remote_rows": 1152,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 0.5551509999999524,
+          "generated_outputs": 8,
+          "kv_digest": "3d38e1b3157effa3cc8e2c1df8373bbe366c3b374f101eb1b70c8ab28f04485e",
+          "local_client_algorithm_cpu_seconds": 0.7407660000000362,
+          "output_digest": "eefe751ce175373f3501416c7d9357b52b26cf93d70a3d6fc6795cc5fdc0b571"
+        },
+        "capsule_plus_arithmetic_bytes": 36630978,
+        "cold_client_bundle_and_arithmetic_reduction_factor": 4.509932090264662,
+        "cold_two_provider_checkpoint_plus_client_bundle_reduction_factor": 1.2968966792094996,
+        "control": {
+          "active_kv_bytes": 6586368,
+          "all_link_arithmetic_MB_per_generated_token": 84.696576,
+          "all_link_arithmetic_bytes": 677572608,
+          "all_logit_bits_digest": "62d1f7ca34bec7034e4344d99e63f33b51938573aaf083ba50b3c0e02bbb5fee",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 95897518080,
+            "offline_correction_bytes": 250281984,
+            "online_input_bytes": 177008640,
+            "online_output_bytes": 250281984,
+            "remote_rows": 25728,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 8.308067000000165,
+          "generated_outputs": 8,
+          "kv_digest": "3d38e1b3157effa3cc8e2c1df8373bbe366c3b374f101eb1b70c8ab28f04485e",
+          "local_client_algorithm_cpu_seconds": 4.169460999999842,
+          "output_digest": "eefe751ce175373f3501416c7d9357b52b26cf93d70a3d6fc6795cc5fdc0b571"
+        },
+        "private_suffix_tokens": 5
+      }
+    ],
+    "composition_digest": "9adc7c010b09835bceb3c3498e2ad44cbb0a9641447f35deac9a495cacc1c149",
+    "decision": "requires explicit public-prefix contract and authenticated source/numeric/state admission",
+    "full_logit_and_KV_bits_equal": true,
+    "public_once_per_capsule_compilation_cpu_seconds": 11.347057999999997,
+    "public_prefix_tokens": 256,
+    "raw_client_bundle_bytes": 145977008,
+    "scope": "trusted in-process producer snapshot; cold capsule body charged once per independent request; no portable importer or role transport",
+    "source_safetensors_bytes_per_provider": 988097824
+  },
+  "century_gates": {
+    "budget": {
+      "covered_control_bytes": 178970000,
+      "full_width_openings_affordable_if_all_else_free": 3,
+      "full_wire_bytes": null,
+      "one_opening_per_layer_already_exceeds_target": true,
+      "one_opening_per_layer_bytes": 12042240,
+      "target_100x_bytes": 1789700.0,
+      "target_bytes_per_generated_token": 55928.125,
+      "two_party_u32_full_width_opening_bytes": 501760
+    },
+    "one_island_distilled_decoder": {
+      "gate": "trained source, language quality, exact private rescaling and selection must fit the all-link budget; cannot retrofit Qwen by suppressing its nonlinear operators",
+      "hypothesis": "jointly train a public-affine recurrent trunk with one narrow private nonlinear settlement per output, instead of one cut per original layer",
+      "measured_reduction_factor": null
+    },
+    "packed_threshold_resident_decoder": {
+      "gate": "a lane batch amortizes ciphertexts, not per-client secret-shared arithmetic; needs complete nonlinear/key-switch schedule and independent cryptographic review",
+      "hypothesis": "cross-request threshold-key SIMD, retain hidden state and selection within non-colluding workers",
+      "measured_reduction_factor": null
+    },
+    "public_basis": {
+      "candidate": "secret-basis conjugate decoder",
+      "decision": "rejected: public operator pair reveals the supposedly secret orthogonal key",
+      "private_input_recovery_max_error": 3.4416913763379853e-15,
+      "public_operator_rank": 8
+    },
+    "rounding_debt": {
+      "candidate": "layer-span rounding-debt certificates",
+      "debt_bound_for_k_rescalings": "sum_i (0.5 * product_{j>i} ||W_j||_infinity)",
+      "decision": "requires private certified debt settlement, not merely postponed rounding",
+      "delayed_rounding_output": 2,
+      "early_rounding_output": 0,
+      "exact_fusion_without_debt_is_false": true
+    }
+  },
+  "complete": true,
+  "created_at": "2026-10-05T22:30:16.328868+00:00",
+  "demand": {
+    "candidate": "terminal-row demand slicing",
+    "cohort": [
+      {
+        "candidate": {
+          "active_kv_bytes": 1130496,
+          "all_link_arithmetic_MB_per_generated_token": 14.082688,
+          "all_link_arithmetic_bytes": 112661504,
+          "all_logit_bits_digest": "4c17c2fce55ff848a1442e3550bc24218a339504d75d5efdb5fca8620b080a7b",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 15932686336,
+            "offline_correction_bytes": 41611520,
+            "online_input_bytes": 29438464,
+            "online_output_bytes": 41611520,
+            "remote_rows": 4302,
+            "rows_elided": 114
+          },
+          "clear_provider_kernel_cpu_seconds": 1.4270589999999927,
+          "generated_outputs": 8,
+          "kv_digest": "bc049b330ea0f59d882c998968f90c08c32846dace3f1d260991705dd8164fdb",
+          "local_client_algorithm_cpu_seconds": 0.5702120000000068,
+          "output_digest": "8ee6f35bfee37094e7d80784ed6b3b49b3ddde1996e976378d7eb6b38441ec42"
+        },
+        "control": {
+          "active_kv_bytes": 1130496,
+          "all_link_arithmetic_MB_per_generated_token": 14.537472,
+          "all_link_arithmetic_bytes": 116299776,
+          "all_logit_bits_digest": "4c17c2fce55ff848a1442e3550bc24218a339504d75d5efdb5fca8620b080a7b",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 16460021760,
+            "offline_correction_bytes": 42958848,
+            "online_input_bytes": 30382080,
+            "online_output_bytes": 42958848,
+            "remote_rows": 4416,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 1.5222299999999809,
+          "generated_outputs": 8,
+          "kv_digest": "bc049b330ea0f59d882c998968f90c08c32846dace3f1d260991705dd8164fdb",
+          "local_client_algorithm_cpu_seconds": 0.6630290000000194,
+          "output_digest": "8ee6f35bfee37094e7d80784ed6b3b49b3ddde1996e976378d7eb6b38441ec42"
+        },
+        "input_tokens": 39
+      },
+      {
+        "candidate": {
+          "active_kv_bytes": 1105920,
+          "all_link_arithmetic_MB_per_generated_token": 13.778624,
+          "all_link_arithmetic_bytes": 110228992,
+          "all_logit_bits_digest": "ead1e0b4a9dd1ee711005c5b3ab15c58817d858f78afbb38e1b03c47ed3eaa84",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 15588737024,
+            "offline_correction_bytes": 40713088,
+            "online_input_bytes": 28802816,
+            "online_output_bytes": 40713088,
+            "remote_rows": 4209,
+            "rows_elided": 111
+          },
+          "clear_provider_kernel_cpu_seconds": 1.4027470000000726,
+          "generated_outputs": 8,
+          "kv_digest": "3253f8c167f3b4fa80619fe9fae8008d157ce582631395ec23a8e7429e0a79d1",
+          "local_client_algorithm_cpu_seconds": 0.5624189999999274,
+          "output_digest": "326d2ec0f16349b6db02808e1ed81ce9c09a2481c5bc7b3512368a36ee71d3de"
+        },
+        "control": {
+          "active_kv_bytes": 1105920,
+          "all_link_arithmetic_MB_per_generated_token": 14.22144,
+          "all_link_arithmetic_bytes": 113771520,
+          "all_logit_bits_digest": "ead1e0b4a9dd1ee711005c5b3ab15c58817d858f78afbb38e1b03c47ed3eaa84",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 16102195200,
+            "offline_correction_bytes": 42024960,
+            "online_input_bytes": 29721600,
+            "online_output_bytes": 42024960,
+            "remote_rows": 4320,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 1.449689999999972,
+          "generated_outputs": 8,
+          "kv_digest": "3253f8c167f3b4fa80619fe9fae8008d157ce582631395ec23a8e7429e0a79d1",
+          "local_client_algorithm_cpu_seconds": 0.5670990000000291,
+          "output_digest": "326d2ec0f16349b6db02808e1ed81ce9c09a2481c5bc7b3512368a36ee71d3de"
+        },
+        "input_tokens": 38
+      },
+      {
+        "candidate": {
+          "active_kv_bytes": 1105920,
+          "all_link_arithmetic_MB_per_generated_token": 13.778624,
+          "all_link_arithmetic_bytes": 110228992,
+          "all_logit_bits_digest": "fc0d1cd03fe51d776d7b4db8ddcfb878cb9726297ed61296d066efeabe916601",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 15588737024,
+            "offline_correction_bytes": 40713088,
+            "online_input_bytes": 28802816,
+            "online_output_bytes": 40713088,
+            "remote_rows": 4209,
+            "rows_elided": 111
+          },
+          "clear_provider_kernel_cpu_seconds": 1.3988200000000575,
+          "generated_outputs": 8,
+          "kv_digest": "2a8bd9ae43ee8672d363d1a45f23ad1bc2f932208e03f6fbe9eae3845ba9b4c4",
+          "local_client_algorithm_cpu_seconds": 0.5800519999999416,
+          "output_digest": "90fbbb003270a1b2780da2e7232de677b8e61fba897009a633547890dba1359f"
+        },
+        "control": {
+          "active_kv_bytes": 1105920,
+          "all_link_arithmetic_MB_per_generated_token": 14.22144,
+          "all_link_arithmetic_bytes": 113771520,
+          "all_logit_bits_digest": "fc0d1cd03fe51d776d7b4db8ddcfb878cb9726297ed61296d066efeabe916601",
+          "arithmetic_bodies": {
+            "integer_macs_one_worker": 16102195200,
+            "offline_correction_bytes": 42024960,
+            "online_input_bytes": 29721600,
+            "online_output_bytes": 42024960,
+            "remote_rows": 4320,
+            "rows_elided": 0
+          },
+          "clear_provider_kernel_cpu_seconds": 1.4674149999999528,
+          "generated_outputs": 8,
+          "kv_digest": "2a8bd9ae43ee8672d363d1a45f23ad1bc2f932208e03f6fbe9eae3845ba9b4c4",
+          "local_client_algorithm_cpu_seconds": 0.6138140000000476,
+          "output_digest": "90fbbb003270a1b2780da2e7232de677b8e61fba897009a633547890dba1359f"
+        },
+        "input_tokens": 38
+      }
+    ],
+    "decision": "numeric gate passed; needs compiler-owned row-demand and reservation schedule before promotion",
+    "full_logit_and_KV_bits_equal": true,
+    "new_client_state_bytes": 0,
+    "new_client_weights_bytes": 0,
+    "scope": "exact remote-row elision oracle; original local shapes retained; arithmetic bodies only",
+    "selected_stages": [
+      "layers.23.mlp.down_proj",
+      "layers.23.mlp.gate_up_proj",
+      "layers.23.self_attn.o_proj"
+    ]
+  },
+  "entire_research_process_peak_rss_bytes": 1582972928,
+  "finite": {
+    "candidate": "finite-task private response capsules",
+    "client_local_public_table_control": {
+      "client_table_bytes": 512,
+      "cold_table_delivery_bytes": 512,
+      "decision": "At this tiny public task domain, local lookup beats two-server PIR bodies and trust costs.",
+      "online_bytes": 0
+    },
+    "cold_table_plus_query_reply_bytes": 1518,
+    "decision": "scope-restricted 100x candidate; no arbitrary-prompt support, authenticated role transport or independent cryptographic review",
+    "generated_outputs": 8,
+    "narrow_cold_body_reduction_factor_at_least": 83275.88932806325,
+    "native_private_lookup": {
+      "body_bytes_per_query": 494,
+      "client_cpu_seconds_per_query_median": 2.7e-05,
+      "client_online_table_bytes_required": 0,
+      "client_wire_and_returned_payload_bytes": 558,
+      "exact_byte_parity": true,
+      "full_wire_bytes": null,
+      "layout_digest": "a38dd01e99a619e5c9152ed5f0de250dd3fb6380ad648a3f0f53182a7c18ab66",
+      "limitations": [
+        "Two semi-honest non-colluding servers, AES-based DPF assumption, no independent cryptographic review",
+        "Process-local replay ledger; no authenticated transport or distributed restart contract",
+        "Payload counts exclude Python/Rust object overhead and are not measured peak memory",
+        "Fixture owner holds source bytes for validation; online client CPU excludes fixture and provider setup",
+        "Local lookup currently has zero online bytes; PIR adds these bodies in exchange for optional client table removal",
+        "A tied local output head still needs the table until a separate head boundary is implemented",
+        "Source distribution, complete decoder compute and generation quality are unmeasured"
+      ],
+      "page_records": 1,
+      "peak_client_memory_bytes": null,
+      "public_table_scan_bytes_per_query_both_workers": 1024,
+      "public_table_storage_bytes_per_worker": 512,
+      "queries": 3,
+      "record_bytes": 32,
+      "records": 16,
+      "schema": "pllm.private_page_lookup_probe.v1",
+      "scope": "in-process native XOR-PIR; exact serialized query/reply bodies",
+      "source_table_digest": "1ae05c2eb578428ec0da8236fd12027926625fb1d551f5f088ea283c2ee55551",
+      "two_worker_table_admission_cpu_seconds": 6.5e-05,
+      "whole_decoder_executable": false,
+      "worker_cpu_seconds_per_query_median": [
+        4.7e-05,
+        4.7e-05
+      ]
+    },
+    "new_client_model_weights_bytes": 0,
+    "offline_compilation_amortization_responses_vs_single_clear_execution": 30.331622914143807,
+    "public_table_compilation_cpu_seconds": 67.97820200000001,
+    "public_table_delivery_both_workers_bytes": 1024,
+    "scope": "native two-server research PIR over exact fixed-length W8A8 continuations; fixed greedy task grammar; model checkpoint distribution and full wire omitted",
+    "smallest_matched_arithmetic_control_bytes": 126412800,
+    "task_domain_cardinality": 16
+  },
+  "frames": {
+    "candidate": "lease-relative protocol frames",
+    "decode_rows": 7,
+    "decode_upload_bytes_saved": 277088,
+    "new_client_weights_bytes": 0,
+    "new_persistent_client_state_bytes": 0,
+    "scope": "serialized single-row request proof; fresh tickets/nonces remain; full live-session admission required",
+    "stages": [
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.0.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.0.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.0.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.0.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.1.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.1.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.1.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.1.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.2.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.2.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.2.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.2.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.3.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.3.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.3.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.3.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.4.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.4.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.4.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.4.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.5.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.5.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.5.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.5.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.6.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.6.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.6.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.6.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.7.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.7.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.7.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.7.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.8.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.8.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.8.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.8.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3157,
+        "stage": "layers.9.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.9.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3155,
+        "stage": "layers.9.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19924,
+        "stage": "layers.9.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.10.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.10.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.10.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.10.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.11.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.11.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.11.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.11.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.12.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.12.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.12.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.12.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.13.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.13.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.13.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.13.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.14.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.14.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.14.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.14.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.15.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.15.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.15.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.15.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.16.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.16.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.16.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.16.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.17.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.17.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.17.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.17.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.18.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.18.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.18.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.18.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.19.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.19.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.19.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.19.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.20.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.20.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.20.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.20.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.21.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.21.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.21.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.21.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.22.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.22.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.22.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.22.mlp.down_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3158,
+        "stage": "layers.23.self_attn.qkv_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.23.self_attn.o_proj"
+      },
+      {
+        "compact_bytes": 2744,
+        "full_bytes": 3156,
+        "stage": "layers.23.mlp.gate_up_proj"
+      },
+      {
+        "compact_bytes": 19512,
+        "full_bytes": 19925,
+        "stage": "layers.23.mlp.down_proj"
+      }
+    ]
+  },
+  "full_wire_bytes": null,
+  "new_swap_bytes": 0,
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "schema": "pllm.aggregate_network_hypotheses.v1",
+  "scope": "bounded isolated research; no live pipeline or full-wire claim",
+  "source": {
+    "binding_digest": "d71a4996249e7ebd377cfa1a4541b8e0210b2fadfa37d10e924b65d84893fb3d",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "70c41bcfbc218c9d1248f6bb396f07b4f27238f78d7413f9bba59adee0f2ace5",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "schedule_digest": "cd1da0b3e62311ba627e75aa45e49091ca85b2533c42456c157195925e259990",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "units": "decimal bytes/MB per authoritative generated output",
+  "whole_client_peak_rss_bytes": null
+}

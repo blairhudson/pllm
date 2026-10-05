@@ -102,6 +102,7 @@ class RuntimeSession:
     inventory_next_row: int = 0
     inventory_ready: bool = False
     reserved_attempts: frozenset[tuple[str, str]] = frozenset()
+    prepared_request_encoding: str = "raw"
     reservation_start: int = 0
     reservation_rows: int = 0
     inventory_reserved_entries: int = 0
@@ -849,6 +850,11 @@ def create_app(
                 },
             )
         decoder_contract = body.get("decoder_plan")
+        request_encoding = body.get("prepared_request_encoding", "raw")
+        if (type(request_encoding) is not str or request_encoding not in {"raw", "compact"}
+                or (request_encoding != "raw" and (
+                    decoder_contract is None or body.get("execution") != "seeded-preparation"))):
+            raise HTTPException(status_code=409, detail="Invalid prepared request encoding")
         continuation_slot = None
         if body.get("decoder_continuation") is not None and decoder_contract is None:
             raise HTTPException(status_code=409, detail="Continuation requires a compiled decoder")
@@ -947,6 +953,7 @@ def create_app(
                     ) from exc
         session_id = new_id("rts")
         session = RuntimeSession(session_id, new_id("resp"), model_id, api_key)
+        session.prepared_request_encoding = request_encoding
         session.execution = str(body.get("execution") or "runtime")
         requested_contexts = list(body.get("context_ids") or [])
         if body.get("context_id") is not None:
@@ -1062,6 +1069,8 @@ def create_app(
         }
         if continuation_slot is not None:
             result["decoder_continuation"] = continuation_slot
+        if request_encoding != "raw":
+            result["prepared_request_encoding"] = request_encoding
         if expected_authorization is not None:
             result["preparation_authorization"] = {
                 "body_fingerprint": expected_authorization.body_fingerprint,
@@ -1296,6 +1305,8 @@ def create_app(
             raise ProtocolError("prepared session model is unavailable")
         batch_rows = prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
         if batch_rows is not None:
+            if batch_rows == 1 and session.prepared_request_encoding != "compact":
+                raise ProtocolError("single-row compact frame was not admitted")
             batch = PreparedStageBatchRequest.unpack(
                 payloads[0],
                 max_rows=min(manifest.context_length, config.prepared_stage_batch_rows),
@@ -1371,6 +1382,8 @@ def create_app(
                 ).pack()
             ]
 
+        if session.prepared_request_encoding == "compact":
+            raise ProtocolError("prepared request encoding differs from admitted session")
         requests = [
             MaskedStageRequest.unpack(
                 payload,
