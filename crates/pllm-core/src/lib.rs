@@ -15,6 +15,7 @@ pub mod head_index;
 pub mod kernels;
 pub mod kv_cache;
 pub mod logrow_numeric;
+pub mod mask_stream;
 pub mod masked_aggregate;
 pub mod offset_transport;
 pub mod paged;

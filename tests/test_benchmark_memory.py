@@ -27,7 +27,9 @@ def test_estimate_prices_complete_graph_and_native_copies():
     assert set(value["provider_peak_bytes"]) == {"inference", "preparation"}
     assert value["components"]["per_engine_i8_and_native_bytes"] > 0
     assert value["native_total_peak_bytes"] == value["client_peak_bytes"] + sum(value["provider_peak_bytes"].values())
-    assert value["components"]["client_mask_bytes"] > value["components"]["provider_correction_bytes"] > 0
+    assert value["components"]["legacy_client_mask_bytes"] > value["components"]["provider_correction_bytes"] > 0
+    assert 0 < value["components"]["client_mask_bytes"] < value["components"]["legacy_client_mask_bytes"]
+    assert value["components"]["client_mask_cursor_bytes"] > 0
     assert value["components"]["client_tensor_work_bytes"] > 0
     residency = value["components"]["per_role_i8_and_native_bytes"]
     assert residency["preparation"] < residency["inference"] < value["components"]["per_engine_i8_and_native_bytes"]
@@ -38,7 +40,7 @@ def test_estimate_prices_complete_graph_and_native_copies():
     assert offset["components"]["client_mask_bytes"] == 0
 
 
-@pytest.mark.parametrize("storage", [None, object(), bytearray(b"\x00")])
+@pytest.mark.parametrize("storage", [None, object(), bytearray(b"\x00"), b"\x00"])
 def test_snapshot_estimate_rejects_reference_stale_or_mutable_backend(monkeypatch, storage):
     from types import SimpleNamespace
     from pllm.runtime import _native_support
@@ -61,7 +63,9 @@ def test_large_dense_model_rejected_on_32gib_before_any_values(monkeypatch):
     assert value["components"]["float_quantization_work_bytes"] <= 28 * MiB
     assert all(value["docker_provider_peak_bytes"][role] > value["provider_peak_bytes"][role]
                for role in value["provider_peak_bytes"])
-    report = memory.admit_memory(value, _host(), backend="auto", docker_capacity=(20 * GiB, 0))
+    # A 32 GiB machine can admit a sufficiently small workload when otherwise
+    # idle. This occupied-host fixture must still reject before tensor loading.
+    report = memory.admit_memory(value, _host(available=18 * GiB), backend="auto", docker_capacity=(20 * GiB, 0))
     assert report["selected_backend"] is None
     assert not any(candidate["admitted"] for candidate in report["candidates"].values())
     with pytest.raises(BenchmarkMemoryError, match="exceeds safe headroom"):

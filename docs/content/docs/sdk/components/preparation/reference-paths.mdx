@@ -14,6 +14,12 @@ to preparation. Preparation computes corrections, and inference stores them in a
 sealed inventory. The client refills inventory only while idle. A restart or idle
 timeout discards inventory held in memory.
 
+Native clients retain seed-bound SHAKE cursors and a one-use row ledger, expanding
+input/output masks only for the active stage. Closing or cancelling a reservation
+burns unused rows without expanding them. This changes client storage, not mask
+bytes, tickets, correction traffic or provider trust. Mask expansion CPU now occurs
+when rows are claimed; include both preparation and online client CPU in comparisons.
+
 Prepared material is part of the system cost. Benchmarks must state whether
 preparation and loading are included in cold and warm measurements so the resulting
 [research evidence](/research/evidence/) keeps that scope visible.

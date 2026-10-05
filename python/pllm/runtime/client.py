@@ -65,8 +65,6 @@ from .preparation_protocol import (
     PreparationRequest,
     SessionAuthorization,
     SessionAuthorizationAck,
-    expand_output_mask,
-    expand_preparation_mask,
     freivalds_binding,
     freivalds_material_id,
     freivalds_session_id,
@@ -2346,8 +2344,6 @@ class RuntimeClient:
                     )
                 return stage.id, PreparedStageRows(
                     request=request,
-                    input_mask=expand_preparation_mask(request),
-                    output_mask=expand_output_mask(request),
                     verification=verification,
                     verification_binding=verification_binding,
                 )

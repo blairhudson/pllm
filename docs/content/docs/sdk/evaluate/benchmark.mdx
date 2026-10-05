@@ -43,6 +43,12 @@ peaks plus the margin can substantially exceed one checkpoint's file size; inspe
 `estimate.components` and per-role peaks before treating that estimate as residency.
 Older Docker images retain the legacy allocation upper bounds.
 
+Client mask pricing now covers native seed cursors and active-stage masks rather
+than every stage's complete inventory. Reports retain the legacy allowance for
+comparison. The measured 628.16 → 89.60 MB peak-RSS reduction covers an isolated
+Qwen3-4B-shaped mask probe; it is not a whole-decoder memory result. Workspace and
+bundle-copy allowances remain separately conservative.
+
 Inspect without starting roles:
 
 ```bash

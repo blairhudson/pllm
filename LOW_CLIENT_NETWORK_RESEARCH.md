@@ -5,6 +5,25 @@ worker and preprocessing link; record cold public distribution separately from
 online bodies. Count client compute and retained/temporary storage explicitly.
 All five methods use native hot paths and existing SDK/benchmark conventions.
 
+## Urgent client-memory gate
+
+Client RAM is now the first optimization priority: target 10× lower matched
+whole-client peak RSS while preserving numeric outputs, the privacy boundary and
+predominantly remote body computation. The initial Qwen3-4B 64+8 client estimate
+of 8.25 GiB gives a working estimate budget of 0.83 GiB; estimate changes cannot
+substitute for isolated measurements.
+
+The first implementation replaces eager mask inventories with native one-use
+SHAKE cursors. A geometry-only isolated probe reduces process peak RSS from
+628.16 to 89.60 MB with identical masks/tickets and lower combined mask CPU.
+It reduces the client estimate to 5.92 GiB, not the 0.83 GiB target. See
+[`client-mask-memory-2026-10-05.md`](docs/evidence/client-mask-memory-2026-10-05.md).
+Next are authenticated paged boundary-weight import/execution and explicit live
+workspace accounting. Existing semantic execution already releases last-use
+tensors; narrowing that estimate must not be reported as newly saved memory.
+
+## Existing network methods
+
 | Method | Hypothesis and admission gate | Status |
 | --- | --- | --- |
 | Seeded additive ingress | A fresh seed given only to the mask worker replaces one tensor upload; exact reconstruction, role/context binding and cancellation remain intact | Implemented as opt-in `TwoOnlineOffsetLinear(input_encoding="seeded")` |

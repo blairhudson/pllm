@@ -437,6 +437,20 @@ def expand_output_mask(request: PreparationRequest) -> np.ndarray:
     return expand_preparation_mask(request, "output-s")
 
 
+def prepared_mask_rows(request: PreparationRequest):
+    """Opaque bounded row cursor; its bytes match the existing full-mask oracle."""
+    from ._native_support import extension
+    request._validate(max_rows=1 << 20, max_tensor_elements=1 << 26)
+    native = extension()
+    if native is None:
+        return None  # explicit correctness-only Python backend retains its oracle
+    if not hasattr(native, "PreparedMaskRows"):
+        raise RuntimeError("native mask stream is missing; rebuild this checkout")
+    return native.PreparedMaskRows(request.seed, _mask_domain(request, "input-r"),
+        _mask_domain(request, "output-s"), request.rows, request.in_features,
+        request.out_features, request.wire_bits)
+
+
 @dataclass(frozen=True, slots=True)
 class CorrectionPush:
     attempt_id: str

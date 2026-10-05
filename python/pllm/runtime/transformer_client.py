@@ -21,6 +21,7 @@ from .preparation_protocol import (
     derive_online_attempt_id,
     expand_output_mask,
     expand_preparation_mask,
+    prepared_mask_rows,
 )
 from .quantization import dequantize_matmul, quantize_activation_per_row, signed_qmax
 from .public_equalization import PublicEqualizationError, equalize_activation, validate_input_scale
@@ -44,13 +45,44 @@ class TransformerClientError(RuntimeError):
 
 @dataclass(slots=True)
 class PreparedStageRows:
-    request: PreparationRequest
-    input_mask: np.ndarray
-    output_mask: np.ndarray
+    request: PreparationRequest = field(repr=False)
+    input_mask: np.ndarray | None = field(default=None, repr=False)
+    output_mask: np.ndarray | None = field(default=None, repr=False)
     verification: Any | None = field(default=None, repr=False)
     verification_binding: bytes = field(default=b"", repr=False)
+    _mask_rows: Any | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if (self.input_mask is None) != (self.output_mask is None):
+            raise TransformerClientError("prepared masks must use one storage mode")
+        if self.input_mask is None:
+            self._mask_rows = prepared_mask_rows(self.request)
+            if self._mask_rows is None:
+                self.input_mask = expand_preparation_mask(self.request)
+                self.output_mask = expand_output_mask(self.request)
+
+    def take_masks(self, begin: int, count: int) -> tuple[np.ndarray, np.ndarray]:
+        if self._mask_rows is not None:
+            r, s = self._mask_rows.take(begin, count)
+            return (np.frombuffer(r, dtype="<u4").reshape(count, self.request.in_features),
+                    np.frombuffer(s, dtype="<u4").reshape(count, self.request.out_features))
+        if self.input_mask is None or self.output_mask is None:
+            raise TransformerClientError("prepared mask stream is closed")
+        return self.input_mask[begin:begin + count], self.output_mask[begin:begin + count]
+
+    def burn(self, begin: int, count: int) -> None:
+        if self._mask_rows is not None:
+            self._mask_rows.burn(begin, count)
+
+    @property
+    def retained_mask_bytes(self) -> int:
+        if self._mask_rows is not None:
+            return self._mask_rows.retained_bytes
+        return sum(value.nbytes for value in (self.input_mask, self.output_mask) if value is not None)
 
     def cancel(self) -> None:
+        if self._mask_rows is not None:
+            self._mask_rows.cancel()
         if self.verification is not None:
             self.verification.cancel()
             self.verification = None
@@ -88,11 +120,22 @@ class PreparedInventoryLease:
             stage_claims = sum(self._offsets.values())
             verifiers = tuple(self._verifiers.values())
             self._verifiers.clear()
+            for stage_id, stage in self.stages.items():
+                used = self._offsets.get(stage_id, 0)
+                if used < self.rows:
+                    stage.burn(self.start + used, self.rows - used)
         self._owner._finish(self.rows, consumed, stage_claims)
         for verifier in verifiers:
             verifier.cancel()
 
     def take(self, stage_id: str, count: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
+        try:
+            return self._take(stage_id, count)
+        except BaseException:
+            self.close()
+            raise
+
+    def _take(self, stage_id: str, count: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
         stage = self.stages.get(stage_id)
         if stage is None or type(count) is not int or count <= 0:
             raise TransformerClientError("prepared inventory stage request is invalid")
@@ -115,7 +158,8 @@ class PreparedInventoryLease:
                 if previous is not None:
                     previous.cancel()
                 self._verifiers[stage_id] = verifier
-        return stage.input_mask[begin:end], stage.output_mask[begin:end], attempts
+            r, s = stage.take_masks(begin, count)
+        return r, s, attempts
 
     def take_verifier(self, stage_id: str) -> Any | None:
         with self._lock:

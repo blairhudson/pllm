@@ -6,6 +6,7 @@ use pllm_core::{codec, kernels};
 mod continuation;
 mod head_index;
 mod logrow;
+mod mask_stream;
 mod masked_aggregate;
 mod network;
 mod offset_transport;
@@ -1696,6 +1697,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     paged::register(module)?;
     offset_transport::register(module)?;
     masked_aggregate::register(module)?;
+    mask_stream::register(module)?;
     row_memo::register(module)?;
     public_transforms::register(module)?;
     progressive_head::register(module)?;

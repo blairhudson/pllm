@@ -765,6 +765,15 @@ remote stage. Batches default to 64 rows and are configurable with
 `PLLM_PREPARED_INVENTORY_ROWS`. Domain-separated expansion binds each row to the
 inventory, model, body, stage, weight, shape, quantization, ring, modulus, and wire
 width and produces one-time input mask `r`, output mask `s`, and ticket.
+The native client retains SHAKE256 cursors and a one-use row ledger rather than
+all stages' expanded masks. It expands only claimed stage rows, handles disjoint
+out-of-order leases through bounded XOF skipping, and burns cancelled ranges
+without expansion. Domains and emitted mask/ticket bytes are unchanged. An
+isolated Qwen3-4B-shaped 71-row mask probe reduces peak RSS from 628.16 to
+89.60 MB and retained masks from 507.76 to 0.224 MB, with matching bytes and
+zero observed swap growth. This measures mask handling rather than whole-client
+memory; expansion CPU moves into row claims. Python retains lease orchestration;
+Rust owns bounded expansion and the burn ledger under a GIL-released binding.
 Preparation computes each batch of `W·r-s`, pushes it to inference's fixed endpoint,
 and waits for inference's acceptance acknowledgement. After every stage is loaded, the
 client asks inference to seal the inventory; only then does inference report `READY`.

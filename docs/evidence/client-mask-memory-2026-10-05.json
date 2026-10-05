@@ -1,0 +1,45 @@
+{
+  "schema": "pllm.client_mask_memory.v1",
+  "scope": "Isolated client-mask residency/CPU, using semantic geometry and public test seeds.\n\nThis does not load checkpoint tensors, contact providers or measure a decoder.\nRings use conservative public signed-i8 bounds, not weight-derived live bounds.\nBoth modes execute identical 64-row prefill and seven one-row decode claims.\n",
+  "samples": [
+    {
+      "mode": "eager",
+      "config_sha256": "8ba006f74fecfaaeb392872a60f4a480e7ec9860153d2e1b769ec81f9a147f8a",
+      "model_plan_digest": "e6fa4d00a599e5c11a61065375bea541036931ec35cbccaf02e0c08713742af8",
+      "stage_count": 144,
+      "rows": 71,
+      "mask_and_ticket_digest": "70e924c309acece8d84b47fd3bbf18ab66563402f140a7d71eecdf2724cb9dc7",
+      "retained_mask_bytes": 507764736,
+      "issue_cpu_seconds": 0.832789,
+      "claim_cpu_seconds": 0.200565,
+      "combined_cpu_seconds": 1.033354,
+      "peak_rss_bytes": 628162560,
+      "end_rss_bytes": 628162560
+    },
+    {
+      "mode": "stream",
+      "config_sha256": "8ba006f74fecfaaeb392872a60f4a480e7ec9860153d2e1b769ec81f9a147f8a",
+      "model_plan_digest": "e6fa4d00a599e5c11a61065375bea541036931ec35cbccaf02e0c08713742af8",
+      "stage_count": 144,
+      "rows": 71,
+      "mask_and_ticket_digest": "70e924c309acece8d84b47fd3bbf18ab66563402f140a7d71eecdf2724cb9dc7",
+      "retained_mask_bytes": 224496,
+      "issue_cpu_seconds": 0.028241000000000016,
+      "claim_cpu_seconds": 0.8961460000000001,
+      "combined_cpu_seconds": 0.9243870000000001,
+      "peak_rss_bytes": 89604096,
+      "end_rss_bytes": 89604096
+    }
+  ],
+  "host": {
+    "total": 34359738368,
+    "available": 13690634240,
+    "swap_used": 4879024128,
+    "disk_free": 19150663680
+  },
+  "max_swap_growth_bytes": 0,
+  "measured_at": "2026-10-05T01:08:44.678897+00:00",
+  "parity": true,
+  "python": "3.13.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O"
+}

@@ -111,8 +111,8 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                 snapshot_storage = view.readonly
         except (AttributeError, TypeError, BufferError):
             pass
-    if not snapshot_storage:
-        raise BenchmarkMemoryError("memory admission requires the installed native snapshot storage backend")
+    if not snapshot_storage or not hasattr(native, "PreparedMaskRows"):
+        raise BenchmarkMemoryError("memory admission requires the installed native snapshot storage and mask-stream backend")
 
     for value in (max_input_tokens, max_output_tokens, inventory_rows):
         if type(value) is not int or not 1 <= value <= 32768:
@@ -179,7 +179,13 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                              else min(64, s.out_features) * s.in_features) for s in stages)
     legacy_loading = max(legacy_quantization, 4 * largest, largest * 2)
     rows = max(inventory_rows, max_input_tokens + max_output_tokens - 1)
-    masks = 16 * rows * sum(s.in_features + s.out_features for s in remote) if options.requires_preparation else 0
+    legacy_masks = 16 * rows * sum(s.in_features + s.out_features for s in remote) if options.requires_preparation else 0
+    # Only one stage's claimed mask rows are returned at a time. Price native
+    # output buffers, Python conversion and the per-stage cursor/burn ledger.
+    mask_cursors = (2048 + rows) * len(remote) if options.requires_preparation else 0
+    masks = (16 * rows * max(
+        (s.in_features + s.out_features for s in remote), default=0) + mask_cursors
+        if options.requires_preparation else 0)
     corrections = 8 * rows * sum(s.out_features for s in remote) if options.requires_preparation else 0
     work = max((4096 + rows * (16 * s.in_features + 24 * s.out_features) for s in remote), default=0)
     window = pipeline.components.get("inventory")
@@ -251,6 +257,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "docker_provider_peak_bytes": docker_role_peaks,
         "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
         "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+        "mask_storage": "one_active_stage_v1; one benchmark response at a time",
         "native_total_peak_bytes": client_peak + sum(role_peaks.values()),
         "components": {"per_engine_i8_and_native_bytes": cpu_weights,
             "per_role_i8_and_native_bytes": role_weights,
@@ -260,6 +267,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             "legacy_largest_loading_temporary_bytes": legacy_loading,
             "largest_loading_temporary_bytes": loading, "raw_client_bundle_bytes": bundle,
             "client_mask_bytes": masks, "provider_correction_bytes": corrections,
+            "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "client_tensor_work_bytes": tensors,
             "client_cache_bytes": cache_bytes, "per_provider_metal_bytes": gpu_provider,
             "client_metal_bytes": gpu_client, "checkpoint_bytes": checkpoint_bytes,
