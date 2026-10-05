@@ -63,6 +63,13 @@ Use fresh processes for candidate peaks. The Qwen3-4B client estimate is now
 that estimate correction is separate from allocation savings. **10× whole-client
 memory and the initial 0.83 GiB estimate target remain unmet.**
 
+The SDK also reuses its request tokenizer and already-encoded token IDs instead
+of loading another decoder vocabulary. A separate matched complete-response pair
+measures **308.0 → 291.0 MB peak RSS (5.53%)**, with matching outputs and no new
+persistent tokenizer cache. The pairs have different cohort salts, so their
+reduction factors are not multiplied. See the
+[tokenizer evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/tokenizer-memory-2026-10-05.md).
+
 ## Python SDK example
 
 ```python

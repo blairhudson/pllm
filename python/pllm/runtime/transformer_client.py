@@ -1469,7 +1469,9 @@ class MaskedTransformerClientRuntime:
         self.stage_routes = dict(stage_routes or {})
         self.cfg = bundle.cfg
         self.config = self.cfg
-        self.tokenizer = bundle.tokenizer()
+        # SDK execution already owns its tokenizer and passes token IDs. Loading
+        # another vocabulary here can dominate the thin decoder's resident RAM.
+        self._tokenizer: Tokenizer | None = None
         self.hidden = int(self.cfg["hidden_size"])
         self.layers = int(self.cfg["num_hidden_layers"])
         self.heads = int(self.cfg["num_attention_heads"])
@@ -1503,6 +1505,16 @@ class MaskedTransformerClientRuntime:
         if nonlinear_evaluator is not None and not callable(nonlinear_evaluator):
             raise TransformerClientError("nonlinear evaluator must be callable")
         self.nonlinear_evaluator = nonlinear_evaluator
+
+    @property
+    def tokenizer(self) -> Tokenizer:
+        if self._tokenizer is None:
+            self._tokenizer = self.bundle.tokenizer()
+        return self._tokenizer
+
+    @tokenizer.setter
+    def tokenizer(self, value: Tokenizer) -> None:
+        self._tokenizer = value
 
     def _stage_id(self, role: str, layer: int) -> str:
         default_suffix = {

@@ -12,6 +12,7 @@ import sys
 import tempfile
 
 MODES = ("eager-resident", "lazy-resident", "lazy-paged")
+TOKENIZER_MODES = ("paged-eager-tokenizer", "lazy-paged")
 
 
 def experiment(mode, *, tiny=False, four_b=False):
@@ -23,13 +24,13 @@ def experiment(mode, *, tiny=False, four_b=False):
     else:
         model = Model.hf("Qwen/Qwen2.5-0.5B-Instruct", revision="7ae557604adf67be50417f59c2c2f167def9a775")
     example = runpy.run_path(str(Path(__file__).resolve().parents[1] / "examples/benchmarks/client_memory.py"))
-    return example["candidate"](mode, model, "paged" if mode == "lazy-paged" else "memory")
+    return example["candidate"](mode, model, "paged" if mode in TOKENIZER_MODES else "memory")
 
 
 def worker(args):
     from pllm.runtime.benchmark_cli import run_loopback_benchmark
     profiles = {}
-    if args.profile_only:
+    if args.profile_only or args.tokenizer_ablation:
         from pllm.runtime import client as client_module, model_binding, semantic_executor, transformer_client
         from pllm.runtime.benchmark_memory import process_memory
 
@@ -46,6 +47,12 @@ def worker(args):
                     row = profiles.setdefault(label, {"calls": 0, "peak_before_max": 0, "peak_after_max": 0,
                                                        "rss_after_max": 0, "new_highwater_max": 0})
                     row["calls"] += 1
+                    if name == "tokenizer":
+                        import traceback
+                        row.setdefault("call_sites", []).append([
+                            f"{Path(frame.filename).name}:{frame.lineno}:{frame.name}"
+                            for frame in traceback.extract_stack(limit=8)[:-1]
+                        ])
                     row["peak_before_max"] = max(row["peak_before_max"], before["lifetime_peak_rss_bytes"] or 0)
                     row["peak_after_max"] = max(row["peak_after_max"], after["lifetime_peak_rss_bytes"] or 0)
                     row["rss_after_max"] = max(row["rss_after_max"], after["rss_bytes"])
@@ -59,6 +66,15 @@ def worker(args):
         watch(transformer_client.ClientBundle, "tokenizer")
         for name in ("prepare_ids", "forward_ids", "snapshot"):
             watch(semantic_executor.SemanticDecoderRuntime, name)
+    if args.child in {"eager-resident", "paged-eager-tokenizer"}:
+        from pllm.runtime.transformer_client import MaskedTransformerClientRuntime
+        runtime_constructor = MaskedTransformerClientRuntime.__init__
+
+        def eager_tokenizer(self, *values, **kwargs):
+            runtime_constructor(self, *values, **kwargs)
+            self.tokenizer  # Restore the historical eager decoder allocation.
+
+        MaskedTransformerClientRuntime.__init__ = eager_tokenizer
     if args.child == "eager-resident":
         # Test-local historical allocation control. The ordinary SDK remains lazy.
         from pllm.runtime import client
@@ -90,8 +106,10 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--tiny", action="store_true")
     parser.add_argument("--four-b", action="store_true")
-    parser.add_argument("--profile-only", action="store_true", help="single paged diagnostic; no paired comparison")
-    parser.add_argument("--child", choices=MODES, help=argparse.SUPPRESS)
+    diagnostic = parser.add_mutually_exclusive_group()
+    diagnostic.add_argument("--profile-only", action="store_true", help="single paged diagnostic; no paired comparison")
+    diagnostic.add_argument("--tokenizer-ablation", action="store_true", help="matched eager/lazy decoder-tokenizer pair")
+    parser.add_argument("--child", choices=(*MODES, "paged-eager-tokenizer"), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.output.exists():
         parser.error("output already exists")
@@ -116,7 +134,8 @@ def main():
     with args.output.open("x") as archive, tempfile.TemporaryDirectory(prefix="pllm-client-runtime-memory-") as directory:
         checkpoint({"schema": "pllm.client_runtime_memory_probe.v1", "status": "running", "records": records})
         root = Path(directory)
-        for mode in (("lazy-paged",) if args.profile_only else MODES):
+        modes = (("lazy-paged",) if args.profile_only else TOKENIZER_MODES if args.tokenizer_ablation else MODES)
+        for mode in modes:
             preflight = benchmark_memory(experiment(mode, tiny=args.tiny, four_b=args.four_b), backend="native")
             require_admission(preflight)
             # The parent remains live and eager control restores historical masks.
@@ -140,6 +159,8 @@ def main():
                 command.append("--four-b")
             if args.profile_only:
                 command.append("--profile-only")
+            if args.tokenizer_ablation:
+                command.append("--tokenizer-ablation")
             print(f"running {mode}", flush=True)
             child = subprocess.Popen(command, env=env)
             try:

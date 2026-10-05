@@ -156,6 +156,37 @@ def _remote(engine: MaskedTransformerEngine, model_id: str, bundle: ClientBundle
     return remote
 
 
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+def test_token_id_decoder_does_not_load_an_unused_tokenizer(tmp_path, monkeypatch, model_type):
+    engine, bundle, config = _bundle(tmp_path, model_type=model_type,
+        with_qkv_bias=model_type == "qwen2", qk_norm=model_type == "qwen3")
+    compiled = compile_runtime_model(_plan(config), bundle)
+    original = ClientBundle.tokenizer
+    reference = compiled.runtime(_remote(engine, "tiny-binding", bundle))
+    reference.tokenizer = original(bundle)
+    expected_prefill = reference.forward_ids([0, 2]).copy()
+    expected_decode = reference.forward_ids([3]).copy()
+    expected_state = reference.snapshot()
+    calls = []
+
+    def construct(self):
+        calls.append(self.model_id)
+        return original(self)
+
+    monkeypatch.setattr(ClientBundle, "tokenizer", construct)
+    runtime = compiled.runtime(_remote(engine, "tiny-binding", bundle))
+    np.testing.assert_array_equal(runtime.forward_ids([0, 2]), expected_prefill)
+    np.testing.assert_array_equal(runtime.forward_ids([3]), expected_decode)
+    state = runtime.snapshot()
+    for actual, expected in zip(state.caches, expected_state.caches, strict=True):
+        np.testing.assert_array_equal(actual.key, expected.key)
+        np.testing.assert_array_equal(actual.value, expected.value)
+    assert calls == [] and runtime._tokenizer is None
+    assert runtime.encode_prompt("Hi") == reference.encode_prompt("Hi")
+    assert runtime.tokenizer is runtime.tokenizer
+    assert calls == [bundle.model_id]
+
+
 def test_stage_plan_roles_and_layers():
     fused = transformer_stage_plan(
         hidden_size=32,

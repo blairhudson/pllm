@@ -3712,10 +3712,13 @@ class RuntimeClient:
                 # decoded assistant text is not guaranteed to round-trip for
                 # byte fallback tokens, normalising tokenizers or special tokens.
                 suffix_text = rendered[len(prior.rendered_context) :]
-                suffix = runtime.tokenizer.encode(suffix_text, add_bos=False)
+                suffix = tokenizer.encode(suffix_text, add_bos=False)
                 full_input_ids = [*prior.token_ids, *suffix]
             else:
-                full_input_ids = runtime.encode_prompt(rendered)
+                # Admission and inventory sizing already encoded this exact
+                # rendered request. Reuse it instead of loading a second
+                # decoder-owned vocabulary and tokenizing the prompt again.
+                full_input_ids = list(full_prefill_ids)
                 if (
                     prior is not None
                     and len(full_input_ids) >= len(prior.token_ids)
@@ -3815,7 +3818,7 @@ class RuntimeClient:
                 if step == 0:
                     first_output_online_bytes = response_online_bytes()
                 output_ids.append(token)
-                text_so_far = runtime.tokenizer.decode(output_ids)
+                text_so_far = tokenizer.decode(output_ids)
                 delta = (
                     text_so_far[len(previous_text) :]
                     if text_so_far.startswith(previous_text)

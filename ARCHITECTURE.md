@@ -720,15 +720,32 @@ Enforced WAN/link shaping cannot fall back to an unthrottled measurement.
 The attempted Qwen3-4B cohort exhausted a 32 GiB host after Docker was raised to
 20 GiB; no successful result was produced. Single-snapshot stage ownership,
 bounded float loading, segmented bundle delivery and role-specific weight retention
-reduce its lean native allocation estimate from 34.78 to 19.75 GiB, still above
-available headroom. That figure includes 5.98 GiB for Inference, 5.52 GiB for
-Preparation and 8.25 GiB for the client, with a 25% margin in each. The client
-still charges conservative bundle-copy, 71-row mask and decoder-workspace bounds;
+reduced its then-current lean native allocation estimate from 34.78 to 19.75 GiB,
+above available headroom. That historical figure included 5.98 GiB for Inference,
+5.52 GiB for Preparation and 8.25 GiB for the client, with a 25% margin in each,
+including conservative bundle-copy, 71-row mask and decoder-workspace bounds;
 the original 7.49 GiB BF16 checkpoint is not a whole-topology memory estimate.
 Docker retains the legacy allocation
 upper bounds for potentially older images. A tiny native
 CPU/Metal control passes functionality and cleanup, with equal outputs and zero
 observed swap growth; it does not establish large-model capacity.
+
+Client admission now prices live allocation roots, view aliases, numeric scratch
+and geometric full-KV/snapshot overlap; unknown layouts retain the unreleased
+output bound. The runtime already released last-use tensors, so this is estimate
+correction rather than a memory optimization. Lazy masks and paged artifacts
+plus that pricing put the bounded Qwen3-4B client estimate at 1.07 GiB, above the
+initial 0.83 GiB target. The benchmark retires completed response-owned state while
+keeping its separately qualified prefix cache. Ordinary reports expose current
+and process-lifetime client/dashboard RSS; candidate peaks require fresh processes.
+A matched Qwen2.5 37+8 complete-response cohort measures 665.49 to 306.43 MB peak
+RSS (2.17x) for eager/resident versus lazy/paged allocation, with matching outputs
+and zero observed swap growth. A separate tokenizer ablation measures another
+5.53% reduction, 308.0 to 291.0 MB. The SDK shares its request-owned tokenizer and
+encoded input; token-ID execution does not load a decoder vocabulary, while direct
+string helpers construct one lazily. It adds no persistent tokenizer cache. These
+different cohorts are not multiplied. The separate 9.44x Qwen3-4B storage/import
+result excludes body/KV work; 10x whole-client memory remains unestablished.
 
 A matrix is copied into Rust once at compilation, then reused for later calls.
 `CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that

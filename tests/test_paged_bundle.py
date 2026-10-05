@@ -199,6 +199,9 @@ def test_paged_sdk_matches_all_logits_kv_cache_and_gateway(tmp_path, monkeypatch
 
     monkeypatch.setattr(SemanticDecoderRuntime, "prepare_ids", prefill_capture)
     monkeypatch.setattr(SemanticDecoderRuntime, "decode_step", decode_capture)
+    def unused_runtime_tokenizer(runtime):
+        raise AssertionError("SDK token-ID execution must reuse its request tokenizer")
+    monkeypatch.setattr(SemanticDecoderRuntime, "tokenizer", property(unused_runtime_tokenizer))
     for storage in ("memory", "paged"):
         common = dict(quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
             delivery=ClientBundleTransport("artifacts", compression="zlib", batch_objects=64, storage=storage),
