@@ -2242,7 +2242,8 @@ def compile_runtime_model(
     if runtime_options.prepared_output_encoding == "row_residues":
         from .residue_codec import compiled_row_layout
         try:
-            compiled_row_layout(result, namespace="prepared")
+            compiled_row_layout(result, namespace="prepared", packed_input=(
+                composition.components["linear"].params.get("request_encoding") == "stage_packed"))
         except ValueError as exc:
             raise RuntimeBindingError(str(exc)) from exc
     return result

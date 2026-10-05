@@ -1798,10 +1798,20 @@ fn validate_decoder_linear_composition(
 fn valid_prepared_parameters(component: &ExperimentComponent) -> bool {
     component.params.iter().all(|(key, value)| {
         (key == "output_encoding" && matches!(value.as_str(), Some("raw" | "row_residues")))
-            || (key == "request_encoding" && matches!(value.as_str(), Some("raw" | "compact")))
+            || (key == "request_encoding"
+                && matches!(value.as_str(), Some("raw" | "compact" | "stage_packed")))
             || (key == "prefill_pruning" && matches!(value.as_str(), Some("none" | "terminal")))
             || (key == "prefill_chunk_rows" && matches!(value.as_u64(), Some(0 | 4 | 8 | 16 | 32)))
-    })
+    }) && (component
+        .params
+        .get("request_encoding")
+        .and_then(serde_json::Value::as_str)
+        != Some("stage_packed")
+        || component
+            .params
+            .get("output_encoding")
+            .and_then(serde_json::Value::as_str)
+            == Some("row_residues"))
 }
 
 fn valid_offset_parameters(component: &ExperimentComponent) -> bool {

@@ -851,10 +851,14 @@ def create_app(
             )
         decoder_contract = body.get("decoder_plan")
         request_encoding = body.get("prepared_request_encoding", "raw")
-        if (type(request_encoding) is not str or request_encoding not in {"raw", "compact"}
+        if (type(request_encoding) is not str or request_encoding not in {"raw", "compact", "stage_packed"}
                 or (request_encoding != "raw" and (
                     decoder_contract is None or body.get("execution") != "seeded-preparation"))):
             raise HTTPException(status_code=409, detail="Invalid prepared request encoding")
+        if request_encoding == "stage_packed" and getattr(
+            engines.get(engine_name), "prepared_output_encoding", "raw"
+        ) != "row_residues":
+            raise HTTPException(status_code=409, detail="Packed inputs require admitted row-residue outputs")
         continuation_slot = None
         if body.get("decoder_continuation") is not None and decoder_contract is None:
             raise HTTPException(status_code=409, detail="Continuation requires a compiled decoder")
@@ -1305,12 +1309,19 @@ def create_app(
             raise ProtocolError("prepared session model is unavailable")
         batch_rows = prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
         if batch_rows is not None:
-            if batch_rows == 1 and session.prepared_request_encoding != "compact":
+            if batch_rows == 1 and session.prepared_request_encoding == "raw":
                 raise ProtocolError("single-row compact frame was not admitted")
+            expected_input_bits = None
+            if session.prepared_request_encoding == "stage_packed":
+                widths = engine.prepared_output_widths(session.model_id, stage_id)
+                if not widths:
+                    raise ProtocolError("stage lacks an admitted packed-input layout")
+                expected_input_bits = max(widths)
             batch = PreparedStageBatchRequest.unpack(
                 payloads[0],
                 max_rows=min(manifest.context_length, config.prepared_stage_batch_rows),
                 max_tensor_elements=config.prepared_tensor_max_elements,
+                expected_input_bits=expected_input_bits,
             )
             inventory = sessions.get(session.inventory_id or "")
             root = inventory.inventory_roots.get(stage_id) if inventory is not None else None
@@ -1382,7 +1393,7 @@ def create_app(
                 ).pack()
             ]
 
-        if session.prepared_request_encoding == "compact":
+        if session.prepared_request_encoding != "raw":
             raise ProtocolError("prepared request encoding differs from admitted session")
         requests = [
             MaskedStageRequest.unpack(

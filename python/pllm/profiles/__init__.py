@@ -634,7 +634,9 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             or type(linear.params.get("prefill_pruning", "none")) is not str
             or linear.params.get("prefill_pruning", "none") not in {"none", "terminal"}
             or type(linear.params.get("request_encoding", "raw")) is not str
-            or linear.params.get("request_encoding", "raw") not in {"raw", "compact"}
+            or linear.params.get("request_encoding", "raw") not in {"raw", "compact", "stage_packed"}
+            or (linear.params.get("request_encoding") == "stage_packed"
+                and linear.params.get("output_encoding") != "row_residues")
             or type(linear.params.get("output_encoding", "raw")) is not str
             or linear.params.get("output_encoding", "raw") not in {"raw", "row_residues"}
             or type(linear.params.get("prefill_chunk_rows", 0)) is not int

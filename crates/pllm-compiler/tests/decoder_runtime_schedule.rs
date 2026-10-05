@@ -66,6 +66,24 @@ fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> 
 }
 
 #[test]
+fn packed_ingress_requires_the_exact_output_quotient_contract() {
+    for verified in [false, true] {
+        let plan = plan(QWEN2);
+        let mut pipeline: serde_json::Value =
+            serde_json::from_slice(&composition(verified)).unwrap();
+        pipeline["components"]["linear"]["params"] = json!({"request_encoding": "stage_packed"});
+        assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).is_err());
+        pipeline["components"]["linear"]["params"]["output_encoding"] = json!("row_residues");
+        let packed = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).unwrap();
+        pipeline["components"]["linear"]["params"]["request_encoding"] = json!("compact");
+        let control = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).unwrap();
+        assert_ne!(control.digest(), packed.digest());
+        assert_eq!(control.prefill, packed.prefill);
+        assert_eq!(control.decode, packed.decode);
+    }
+}
+
+#[test]
 fn terminal_pruning_preserves_state_roots_and_grouped_stage_ownership() {
     for config in [QWEN2, QWEN3] {
         for verified in [false, true] {

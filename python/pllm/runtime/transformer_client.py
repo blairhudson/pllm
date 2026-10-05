@@ -1152,7 +1152,7 @@ class PreparedRemoteLinear:
         if type(prefill_chunk_rows) is not int or prefill_chunk_rows not in {0, 4, 8, 16, 32}:
             raise TransformerClientError("invalid prepared prefill chunk bound")
         self.prefill_chunk_rows = prefill_chunk_rows
-        if type(request_encoding) is not str or request_encoding not in {"raw", "compact"}:
+        if type(request_encoding) is not str or request_encoding not in {"raw", "compact", "stage_packed"}:
             raise TransformerClientError("invalid prepared request encoding")
         self.request_encoding = request_encoding
         self.stats = StageClientStats()
@@ -1210,6 +1210,16 @@ class PreparedRemoteLinear:
         profile = stage.seeded_profile
         if profile is None or profile.wire_bits not in {16, 24, 32} or profile.modulus != 1 << profile.wire_bits:
             raise TransformerClientError("stage lacks a seeded ring profile")
+        input_bits = None
+        if self.request_encoding == "stage_packed":
+            from .residue_codec import MAX_VALUES
+            widths = stage.output_residue_bits
+            if (not widths or min(widths) < 1 or max(widths) > profile.wire_bits
+                    or quantized.rows * stage.in_features > MAX_VALUES):
+                raise TransformerClientError("stage lacks an admitted packed-input layout")
+            # All omitted input contributions are multiples of every output ring.
+            # Masks and corrections retain their original domains and one-use rules.
+            input_bits = max(widths)
         clear_signed = quantized.values.reshape(quantized.rows, stage.in_features)
         mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
         verifier = self.inventory.take_verifier(stage_id)
@@ -1224,12 +1234,13 @@ class PreparedRemoteLinear:
         chunks, inference_requests = [], []
         for start in range(0, quantized.rows, chunk_rows):
             end = min(quantized.rows, start + chunk_rows)
-            batch_id = secrets.token_hex(16) if end - start > 1 or self.request_encoding == "compact" else None
+            batch_id = secrets.token_hex(16) if end - start > 1 or self.request_encoding != "raw" else None
             chunks.append((start, end, batch_id))
             if batch_id is not None:
                 inference_requests.append(PreparedStageBatchRequest(
                     batch_id=batch_id, correlation_ids=tuple(attempt_ids[start:end]),
-                    masked_input=complement[start:end], wire_bits=profile.wire_bits).pack())
+                    masked_input=complement[start:end], wire_bits=profile.wire_bits,
+                    input_bits=input_bits).pack())
             else:
                 inference_requests.append(MaskedStageRequest(
                     model=self.model_id,

@@ -58,7 +58,7 @@ def experiment(source, root, encoding, *, verified=False, output="raw", chunks=0
 @pytest.mark.integration
 @pytest.mark.parametrize("verified,output,chunks,transport", [
     (False, "raw", 0, "http"), (False, "row_residues", 4, "websocket"),
-    (True, "row_residues", 4, "websocket"),
+    (True, "row_residues", 4, "websocket"), (False, "row_residues", 0, "http"),
 ])
 def test_compact_composes_with_cache_paging_duplex_and_verification(
     tmp_path, monkeypatch, verified, output, chunks, transport,
@@ -84,7 +84,10 @@ def test_compact_composes_with_cache_paging_duplex_and_verification(
 
     monkeypatch.setattr(SemanticDecoderRuntime, "prepare_ids", prefill)
     monkeypatch.setattr(SemanticDecoderRuntime, "decode_step", decode)
-    for encoding, pruning in (("raw", "none"), ("compact", "none"), ("raw", "terminal"), ("compact", "terminal")):
+    candidates = [("raw", "none"), ("compact", "none"), ("raw", "terminal"), ("compact", "terminal")]
+    if output == "row_residues":
+        candidates += [("stage_packed", "none"), ("stage_packed", "terminal")]
+    for encoding, pruning in candidates:
         key = f"{encoding}-{pruning}"
         exp = experiment(source, tmp_path / key, encoding, verified=verified, output=output, chunks=chunks, pruning=pruning)
         with build_roles(exp, engine_threads=1) as roles, roles.client(
@@ -110,13 +113,14 @@ def test_compact_composes_with_cache_paging_duplex_and_verification(
 
 
 @pytest.mark.integration
-def test_compact_replay_and_wrong_stage_burn_material(tmp_path, monkeypatch):
+@pytest.mark.parametrize("encoding", ["compact", "stage_packed"])
+def test_compact_replay_and_wrong_stage_burn_material(tmp_path, monkeypatch, encoding):
     from pllm.runtime.client import _Channel
     from pllm.runtime.protocol import ProtocolEnvelope, pack_envelope, unpack_envelope
     from pllm.runtime.security import derive_session_key
     source = pllm.Model.path(str(create_tiny_llama_checkpoint(tmp_path / "model", num_hidden_layers=1)),
                             model_id="compact-test")
-    exp = experiment(source, tmp_path, "compact")
+    exp = experiment(source, tmp_path, encoding, output="row_residues")
     original = _Channel.exchange
     captured = []
 

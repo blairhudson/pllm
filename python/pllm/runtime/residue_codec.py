@@ -14,6 +14,7 @@ from .stage_protocol import ProtocolError
 ROW_MAGIC = b"PLLMOR01"
 PREPARED_ROW_MAGIC = b"PLLMPR01"
 MAX_VALUES = 4_000_000
+MAX_ROWS = 4096
 
 
 def encode_layout(widths: bytes) -> dict:
@@ -57,7 +58,7 @@ def row_layout_digest(records, *, namespace: str = "offset") -> str:
         + json.dumps(sorted(records), separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()
 
 
-def compiled_row_layout(compiled, *, namespace: str = "offset") -> str:
+def compiled_row_layout(compiled, *, namespace: str = "offset", packed_input: bool = False) -> str:
     records = []
     prefill_rows = compiled._plan.prefill["query_sequence"] if namespace == "prepared" else 1
     for binding in compiled._stages:
@@ -70,8 +71,10 @@ def compiled_row_layout(compiled, *, namespace: str = "offset") -> str:
             or any(not 1 <= width <= stage.seeded_profile.wire_bits for width in widths)):
             raise ProtocolError("compiled stage lacks an exact residue layout")
         maximum_rows = 1 if stage.op == "lm_head" else prefill_rows
-        if namespace == "prepared" and maximum_rows * stage.out_features > MAX_VALUES:
+        if namespace == "prepared" and (maximum_rows > MAX_ROWS or maximum_rows * stage.out_features > MAX_VALUES):
             raise ProtocolError("compiled residue output exceeds bounded codec capacity")
+        if packed_input and maximum_rows * stage.in_features > MAX_VALUES:
+            raise ProtocolError("compiled residue input exceeds bounded codec capacity")
         records.append((binding.stage_id, stage.weight_digest, stage.in_features,
                         stage.out_features, stage.activation_bits, widths.hex()))
     digest = row_layout_digest(records, namespace=namespace)

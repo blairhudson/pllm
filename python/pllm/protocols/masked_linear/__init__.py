@@ -17,7 +17,7 @@ class MaskedLinear(ProtocolMethod):
         lifecycle_phase="compilation",
         parameter_schema={"type": "object", "properties": {
             "output_encoding": {"type": "string", "enum": ["raw", "row_residues"]},
-            "request_encoding": {"type": "string", "enum": ["raw", "compact"]},
+            "request_encoding": {"type": "string", "enum": ["raw", "compact", "stage_packed"]},
             "prefill_pruning": {"type": "string", "enum": ["none", "terminal"]},
             "prefill_chunk_rows": {"type": "integer", "enum": [0, 4, 8, 16, 32]},
         }, "additionalProperties": False},
@@ -31,8 +31,10 @@ class MaskedLinear(ProtocolMethod):
             raise ConfigurationError("prepared output encoding must be raw or row_residues")
         if type(prefill_chunk_rows) is not int or prefill_chunk_rows not in {0, 4, 8, 16, 32}:
             raise ConfigurationError("prefill_chunk_rows must be 0, 4, 8, 16 or 32")
-        if type(request_encoding) is not str or request_encoding not in {"raw", "compact"}:
-            raise ConfigurationError("prepared request encoding must be raw or compact")
+        if type(request_encoding) is not str or request_encoding not in {"raw", "compact", "stage_packed"}:
+            raise ConfigurationError("prepared request encoding must be raw, compact or stage_packed")
+        if request_encoding == "stage_packed" and output_encoding != "row_residues":
+            raise ConfigurationError("stage_packed requests require row_residues outputs")
         if type(prefill_pruning) is not str or prefill_pruning not in {"none", "terminal"}:
             raise ConfigurationError("prepared prefill pruning must be none or terminal")
         params: dict[str, object] = {} if output_encoding == "raw" else {"output_encoding": output_encoding}
