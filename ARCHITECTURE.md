@@ -1133,6 +1133,24 @@ finite-task lookup, explicit basis-leakage and rounding counterexamples, and two
 unimplemented architecture hypotheses. These are recorded in
 `docs/research/aggregate-network.md`; no general 10× or 100× improvement follows.
 
+`MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues")`
+further packs masked inputs to each stage's maximum public output-residue width.
+Omitted high-bit contributions vanish in every output ring; original masks,
+corrections and one-use inventory domains remain intact. Native composition
+admission, source-bound layouts, explicit session acknowledgement and a bounded
+distinct frame namespace reject forged widths and downgrades. The option composes
+with pruning, paging, compression, prefix reuse, duplex execution and Freivalds
+checks without client body weights. A matched 39+8 pair reduces covered bodies
+from 234.07 to 229.98 MB (1.75%) and online bodies by 5.95%, with matching output
+digests and zero observed new swap. Aggregate CPU is nearly equal and request
+latency slightly higher; full wire and independent peak-memory benefits are
+unmeasured. Odd-radix packing, block-moment bypasses and signed row dictionaries
+fail the byte/client-cost gate; sparse shift-mask reuse exposes private relations.
+Five separate whole-decoder 100× hypotheses have bounded entropy, label-linkage,
+polynomial-cost, tensor-rank and state-equivalence vetoes. Their scope and
+reproduction live in `docs/research/network-algebra.md`; none activates a new
+protected decoder or establishes a general 10×/100× result.
+
 ## Application boundary
 
 The client owns plaintext input, inventory root seeds and masks, private

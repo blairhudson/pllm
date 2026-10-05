@@ -1,10 +1,10 @@
 ---
 title: "Aggregate bytes per token"
-description: "Exact terminal-row pruning and compact prepared requests, with all-link cost gates."
+description: "Exact terminal-row pruning and compact or stage-packed prepared requests, with all-link cost gates."
 ---
 
-Two optional prepared-protocol choices reduce executed work and redundant
-single-row metadata. They compose with row residues, paged/compressed artifacts,
+Optional prepared-protocol choices reduce executed work, redundant
+single-row metadata and padded masked-input bits. They compose with row residues, paged/compressed artifacts,
 bounded preparation overlap, prefix reuse and trusted-client Freivalds checks.
 
 ## Python SDK example
@@ -19,7 +19,7 @@ pipeline = MaskedLinearCpu(
     Model.tiny(),
     linear=MaskedLinear(
         output_encoding="row_residues",
-        request_encoding="compact",
+        request_encoding="stage_packed",
         prefill_pruning="terminal",
     ),
     delivery=ClientBundleTransport(
@@ -30,6 +30,7 @@ pipeline = MaskedLinearCpu(
     ),
 )
 assert pipeline.linear.get_params()["prefill_pruning"] == "terminal"
+assert pipeline.linear.get_params()["request_encoding"] == "stage_packed"
 ```
 
 API: [protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures).
@@ -48,8 +49,15 @@ API: [protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures).
   session/stage binding, a fresh response nonce and a one-use ticket remain.
   A separate frame namespace requires explicit provider acknowledgement. Bad
   shape, stage, replay, cancellation or failure cannot revive material.
+- **`request_encoding="stage_packed"`**: also pack masked-input residues to the
+  maximum public output-row bit width per stage. Requires
+  `output_encoding="row_residues"`. Omitted high-bit contributions vanish in
+  every admitted output ring, preserving exact integer results. Masks and
+  corrections retain their original domains. Both peers derive widths from
+  committed stage metadata; bounded decode, canonical padding and a distinct
+  acknowledged frame namespace reject forged layouts and downgrade attempts.
 
-Both options bind the Pipeline digest. Defaults `"none"` and `"raw"` preserve
+These choices bind the Pipeline digest. Defaults `"none"` and `"raw"` preserve
 previous identities. No client body weights are added. These options retain
 the prepared protocol's existing erasure/non-collusion assumptions.
 
@@ -68,6 +76,15 @@ CPU changes from 8.67 to 8.53 seconds; aggregate CPU is nearly equal, while
 request latency rises from 13.27 to 13.46 seconds. This single local cohort
 establishes an incremental byte saving, not a speed claim.
 
+A separate matched 39+8 pair changes only compact to stage-packed requests on
+that combined stack. Covered bodies fall from **234.07 to 229.98 MB**
+(29.26 to 28.75 MB/output), or **1.75%**. Online bodies fall **5.95%**,
+from 68.70 to 64.62 MB. Output digests match; aggregate cold CPU is nearly
+unchanged (36.33 to 36.32 seconds), while request latency rises from 13.12 to
+13.28 seconds. Both runs add zero client body weights and observe zero new swap.
+Checked tiny paging/cache/duplex/verification compositions preserve full logits
+and KV. The option does not reduce issued offline rows.
+
 Whole-process lifetime peaks in a
 sequential cohort are not independent candidate RSS measurements. Neither
 isolated arithmetic nor local HTTP bodies establish full-wire savings or
@@ -82,3 +99,8 @@ See [research and reproduction](https://github.com/blairhudson/pllm/blob/main/do
 [probe evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/aggregate-network-qwen25-2026-10-06.json),
 [SDK cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/aggregate-network-sdk-qwen25-2026-10-06.json),
 and [WAN overlap choices](/sdk/evaluate/wan-tps/).
+
+The [algebra and frontier research](https://github.com/blairhudson/pllm/blob/main/docs/research/network-algebra.md)
+records the stage-packing derivation, rejected alternatives and five further
+100× hypotheses; its [matched SDK pair](https://github.com/blairhudson/pllm/blob/main/docs/evidence/network-algebra-sdk-qwen25-2026-10-06.json)
+retains the exact measured cohort.

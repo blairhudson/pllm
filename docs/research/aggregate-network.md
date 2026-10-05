@@ -144,3 +144,7 @@ caches. Co-located roles do not establish operator independence.
 
 Evidence: [isolated probes](../evidence/aggregate-network-qwen25-2026-10-06.json),
 [ordinary SDK cohort](../evidence/aggregate-network-sdk-qwen25-2026-10-06.json).
+
+The next [exact-ring algebra round](network-algebra.md) adds optional stage-packed
+input, measures its incremental SDK cost, and tests five further whole-decoder
+100× hypotheses.

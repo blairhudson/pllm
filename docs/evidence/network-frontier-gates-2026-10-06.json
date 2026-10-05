@@ -1,0 +1,85 @@
+{
+  "admitted_pipeline": false,
+  "all_link_100x_target_bytes": 1789705,
+  "code_sha256": "b78f84fbac95a888a2bac3f4a40660e3da435e4fee2d1b7159686d44cca2d319",
+  "complete": true,
+  "created_at": "2026-10-05T23:36:08.096685+00:00",
+  "epoch_reusable_encoding": {
+    "exact_private_equality_relations_learned": 12,
+    "label_bytes": 16,
+    "public_epoch_refresh_prevents_linkage": false,
+    "scope": "reuse/public-XOR-refresh counterexample, not an attack on reviewed reusable encodings",
+    "wire_labels": 12
+  },
+  "full_wire_bytes": null,
+  "private_observational_automaton": {
+    "enumerated_states": 35,
+    "finite_horizon_equivalence_classes": {
+      "1": 2,
+      "2": 4,
+      "4": 8,
+      "8": 9
+    },
+    "same_next_token_merger_is_sound": false,
+    "scope": "public affine-state counterexample; universal future/input bisimulation remains unimplemented"
+  },
+  "schema": "pllm.network_frontier_gates.v1",
+  "scope": "five new hypotheses with bounded synthetic vetoes; no executable decoder",
+  "secret_index_tensor_network": {
+    "field_modulus": 257,
+    "flat_public_table_bytes": 512,
+    "input_bits": 8,
+    "minimal_dense_tensor_train_bytes": 1360,
+    "scope": "exact ranks of a stored synthetic gated table; not a Qwen lower bound or private evaluator",
+    "table_sha256": "ebaf9e12bd00ba8b8e58e57fb41bacfbdc12db6433e45833210006c4d235b1fe",
+    "unfolding_ranks": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      8,
+      4,
+      2,
+      1
+    ]
+  },
+  "side_information_codec": {
+    "conditional_entropy_given_correction_bits": 4.0,
+    "mask_choices_per_input": 64,
+    "masked_input_bits": 4,
+    "modulus": 4,
+    "private_inputs_checked": 16,
+    "scope": "exhaustive two-coordinate uniform-mask toy; no worst-case lossless saving"
+  },
+  "target_source": "docs/evidence/prepared-stage-attribution-qwen25-2026-09-29.json",
+  "whole_client_peak_rss_bytes": null,
+  "whole_response_compute": null,
+  "whole_span_polynomial_sharing": {
+    "field_modulus": 2305843009213693951,
+    "one_scalar_evaluation_only": true,
+    "records": [
+      {
+        "degree": 16,
+        "dense_shifted_coefficient_bytes_two_parties": 272,
+        "layers": 4
+      },
+      {
+        "degree": 256,
+        "dense_shifted_coefficient_bytes_two_parties": 4112,
+        "layers": 8
+      },
+      {
+        "degree": 65536,
+        "dense_shifted_coefficient_bytes_two_parties": 1048592,
+        "layers": 16
+      },
+      {
+        "degree": 16777216,
+        "dense_shifted_coefficient_bytes_two_parties": 268435472,
+        "layers": 24
+      }
+    ],
+    "scope": "translated dense-polynomial representation; excludes attention, rounding and all other channels"
+  }
+}

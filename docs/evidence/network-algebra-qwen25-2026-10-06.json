@@ -1,0 +1,6272 @@
+{
+  "complete": true,
+  "created_at": "2026-10-05T23:25:29.408983+00:00",
+  "executed_rows_per_stage": 46,
+  "full_wire_bytes": null,
+  "generated_outputs": 8,
+  "input_rows": 39,
+  "new_swap_bytes": 0,
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "recurrence_leakage": {
+    "exposed_private_relations": 31,
+    "fresh_coordinates": 1,
+    "independent_mask_trials": 4,
+    "privacy_gate": "rejected",
+    "width": 32
+  },
+  "research_process_peak_rss_bytes": 1326497792,
+  "schema": "pllm.network_algebra_hypotheses.v1",
+  "scope": "public source geometry and synthetic integer probes; no live protocol",
+  "source": {
+    "binding_digest": "2395ffab8188d85cb363ad9e7d31b94b2c8978e6ac45801f303f0e85f7d097a5",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "159e35f75f01d5ee0a2167dde11082e6f52f5c7b3c539310dbf90d27f61dcd23",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "schedule_digest": "f07191ffa2f51132e6723096fc3e387c5ca63501b7dcf0e13ea049cbdfc1b529",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "stages": [
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 425851,
+        "coordinate_width_histogram": {
+          "23": 3,
+          "24": 893
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 425868,
+        "uniform_input_bits": 24
+      },
+      "codec_cpu": {
+        "native_odd_ring_three_rows_seconds": 0.0007079999999994868,
+        "native_wrap_three_rows_seconds": 0.0009269999999999001,
+        "radix_pack_three_rows_seconds": 0.00037899999999968514,
+        "raw_pack_seconds": 0.00016800000000039006,
+        "rows": 39,
+        "tight_pack_seconds": 0.00010799999999999699,
+        "tight_unpack_seconds": 5.599999999983396e-05
+      },
+      "control_arithmetic_bytes": 425868,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 425858,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 425858,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 425696,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 432400,
+        "integer_parity": true,
+        "modulus": 8970773
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 425868,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 524288
+      },
+      "stage": "layers.0.self_attn.qkv_proj",
+      "weight_sha256": "9cfa314b1ed2abb2f154fff5b5907a8aee36e4eae33685841cfe507780438583"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 352672,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 352672,
+        "uniform_input_bits": 23
+      },
+      "codec_cpu": {
+        "native_odd_ring_three_rows_seconds": 0.0005619999999995073,
+        "native_wrap_three_rows_seconds": 0.0008960000000000079,
+        "radix_pack_three_rows_seconds": 0.0003819999999992163,
+        "raw_pack_seconds": 0.0001389999999998892,
+        "rows": 39,
+        "tight_pack_seconds": 0.00010599999999971743,
+        "tight_unpack_seconds": 5.499999999969418e-05
+      },
+      "control_arithmetic_bytes": 357824,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 352672,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 352636,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 352406,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 6930137
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 352672,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.0.self_attn.o_proj",
+      "weight_sha256": "ec275e35e5151ff39d6bd57168e3854cf3059e5e73fd59a2b8e1f45d90823fe6"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2692518,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2692518,
+        "uniform_input_bits": 24
+      },
+      "codec_cpu": {
+        "native_odd_ring_three_rows_seconds": 0.004314000000000817,
+        "native_wrap_three_rows_seconds": 0.006388000000000282,
+        "radix_pack_three_rows_seconds": 0.00037700000000029377,
+        "raw_pack_seconds": 0.0001509999999997902,
+        "rows": 39,
+        "tight_pack_seconds": 0.00010699999999985721,
+        "tight_unpack_seconds": 5.500000000058236e-05
+      },
+      "control_arithmetic_bytes": 2692518,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2692496,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2692450,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2692208,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8907781
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2692518,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.0.mlp.gate_up_proj",
+      "weight_sha256": "e22126bf7d445bf7a13353f18ec29740d6ea6b3fb16b9ce531068065e67d99fa"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 985228,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 985228,
+        "uniform_input_bits": 26
+      },
+      "codec_cpu": {
+        "native_odd_ring_three_rows_seconds": 0.002429999999999488,
+        "native_wrap_three_rows_seconds": 0.004442000000000057,
+        "radix_pack_three_rows_seconds": 0.0020449999999998525,
+        "raw_pack_seconds": 0.0008910000000001972,
+        "rows": 39,
+        "tight_pack_seconds": 0.0005910000000000082,
+        "tight_unpack_seconds": 0.0002899999999996794
+      },
+      "control_arithmetic_bytes": 1153036,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 985228,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985218,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985126,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 37987733
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 985228,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.0.mlp.down_proj",
+      "weight_sha256": "1152598dbaaaf29546a9b7471c7987b345819a7adbd5bcd831f5ddffc8a1ed5f"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 425115,
+        "coordinate_width_histogram": {
+          "23": 451,
+          "24": 445
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 427708,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 427708,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 427708,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 427708,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 422522,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 432400,
+        "integer_parity": true,
+        "modulus": 8450327
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 427708,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 520192
+      },
+      "stage": "layers.1.self_attn.qkv_proj",
+      "weight_sha256": "bd9e86f1dd2c393c50b9c3c7aadac026c6f3473374d815653f08ae4b6dc1fdf9"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 357507,
+        "coordinate_width_histogram": {
+          "23": 451,
+          "24": 445
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 360100,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 360100,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 360100,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 360078,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 360032,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 363216,
+        "integer_parity": true,
+        "modulus": 8586979
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 360100,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 455168
+      },
+      "stage": "layers.1.self_attn.o_proj",
+      "weight_sha256": "31892e535141db03ed87af452cd1d507930384c694f6dfeb9052077f764b1d68"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2692840,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2692840,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2692840,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2692806,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2692748,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2692496,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8589011
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2692840,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2719744
+      },
+      "stage": "layers.1.mlp.gate_up_proj",
+      "weight_sha256": "0d3bce78b75c256d53eab9a6ebe05d3c2753ce07c4a324a83722a0020ed68064"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 985770,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 985770,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1153578,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 985746,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985700,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985666,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 38930327
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 985770,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1474560
+      },
+      "stage": "layers.1.mlp.down_proj",
+      "weight_sha256": "a45f44974fa427403a5fd39b88b56c4a3ee8ab1fd2eca4b83488d0c43391d6bc"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421360,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421360,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426512,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421360,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421350,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421234,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7965441
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421360,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 524288
+      },
+      "stage": "layers.2.self_attn.qkv_proj",
+      "weight_sha256": "8efd12aa29644f0d26585cc4a0b58fb8f06fcd4f32128ceff155ae76ed2e86f2"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 353614,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 353614,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 358766,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 353614,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 353614,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 353602,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7764781
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 353614,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 455168
+      },
+      "stage": "layers.2.self_attn.o_proj",
+      "weight_sha256": "5250874fdefaa636829f3f782a4b706fe47e00be00637c4d236ad5e6db50c1c3"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2691392,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2691392,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2691392,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2691392,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2691312,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2691070,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 9081771
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2691392,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2698496
+      },
+      "stage": "layers.2.mlp.gate_up_proj",
+      "weight_sha256": "47ca13e2305af2c4dc546b03e9feb4695a6ca6a5a4971c052c5f0df04454e2d5"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 985390,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 985390,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1153198,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 985378,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985332,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985252,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 39238429
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 985390,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.2.mlp.down_proj",
+      "weight_sha256": "057a11751288cf247b16f4b1a76fc4c5e4e9a9670ea2628e3f4d9e1383b0741f"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 424254,
+        "coordinate_width_histogram": {
+          "23": 453,
+          "24": 443
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 426858,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 426858,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 426858,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 426846,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421626,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 432400,
+        "integer_parity": true,
+        "modulus": 8442199
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 426858,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 520192
+      },
+      "stage": "layers.3.self_attn.qkv_proj",
+      "weight_sha256": "6a5f64cceb4a1dcb72425081147c12c170a9d5feeba271b7fcb40f19b07c3666"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354592,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354592,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359744,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354592,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354592,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354512,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7545833
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354592,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.3.self_attn.o_proj",
+      "weight_sha256": "283a3c20f43147c1eb8b162d27d7b5b104b234d06c8211139daa1c27fac7f39d"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2692065,
+        "coordinate_width_histogram": {
+          "23": 1,
+          "24": 895
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2692070,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2692070,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2692070,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2691966,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2691726,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8684769
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2692070,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2719744
+      },
+      "stage": "layers.3.mlp.gate_up_proj",
+      "weight_sha256": "361b4135b05ae2cfca8d98dc1e1ccb380b42c6b1c65be1da198d464953eb1449"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 985194,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 985194,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1153002,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 985194,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985182,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985126,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 39240715
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 985194,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1463040
+      },
+      "stage": "layers.3.mlp.down_proj",
+      "weight_sha256": "df4fa5ee0baeda138d0e3e083ea4d43777fcb16eadb5c7c031cc28f74d772858"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 422096,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 422096,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 427248,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 422096,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 422086,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 422028,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 8140447
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 422096,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.4.self_attn.qkv_proj",
+      "weight_sha256": "a2d2ce97aaa6b5106d165383cdcae3abe962bf3d086992d96dd0b1b5a7d913f7"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354420,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354420,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359572,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354420,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354420,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354350,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7990079
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354420,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.4.self_attn.o_proj",
+      "weight_sha256": "4c34fe57b62fc937739b54dd726b4a624e07ea62dcfecc66d7508c83282d7344"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2689477,
+        "coordinate_width_histogram": {
+          "23": 1,
+          "24": 895
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2689482,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2689482,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2689460,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2689414,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2689242,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8653781
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2689482,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.4.mlp.gate_up_proj",
+      "weight_sha256": "f2ae24dbed7a04bd8cef9e5604c14867d3152ee97ce39ee2b0273e14822d1ce5"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 983424,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 983424,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1151232,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 983424,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983400,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983354,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 36850575
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 983424,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.4.mlp.down_proj",
+      "weight_sha256": "291eba04204495d49fff6bd09c0ab3c03cfaf53d4fe496666ef4de1df607236c"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 424627,
+        "coordinate_width_histogram": {
+          "23": 450,
+          "24": 446
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 427214,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 427214,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 427214,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 427202,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421948,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 432400,
+        "integer_parity": true,
+        "modulus": 8440421
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 427214,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.5.self_attn.qkv_proj",
+      "weight_sha256": "099b3f9b0891f134269cfb5f2a66008a10ac203754669932f29ce51ffa34fdfe"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354730,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354730,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359882,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354730,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354706,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354672,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 8366253
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354730,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 458752
+      },
+      "stage": "layers.5.self_attn.o_proj",
+      "weight_sha256": "a84dbca7d7d94039eed75adc45983936e1d357dbf7792d0d008e1d6b806c93c6"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2693002,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2693002,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2693002,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2693002,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2692932,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2692668,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8888223
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2693002,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2698496
+      },
+      "stage": "layers.5.mlp.gate_up_proj",
+      "weight_sha256": "c070f0c04dd72251ece02290ff534b66ba19cac836b83e647ef2c4182adbd8a6"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 984344,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 984344,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1152152,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 984344,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 984332,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 984274,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 38199823
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 984344,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.5.mlp.down_proj",
+      "weight_sha256": "f4e23c56a080a022eb43474858d51ee86e6fc4467b5a7adff231d5cf10d247a8"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 424484,
+        "coordinate_width_histogram": {
+          "23": 447,
+          "24": 449
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 427054,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 427054,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 427042,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 427042,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 426996,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 432400,
+        "integer_parity": true,
+        "modulus": 8575803
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 427054,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.6.self_attn.qkv_proj",
+      "weight_sha256": "21a9cc94cf4412dbe495a6b2ade90f79b21f521635174df8280cfe943cacb992"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354592,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354592,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359744,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354592,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354592,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354534,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7552945
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354592,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 458752
+      },
+      "stage": "layers.6.self_attn.o_proj",
+      "weight_sha256": "9bdd3268f285e7500e9bf5464804c5946105d9a70db47bb4257dc2130bd9e77b"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2689552,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2689552,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2689552,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2689518,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2689436,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2689184,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8779765
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2689552,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.6.mlp.gate_up_proj",
+      "weight_sha256": "c2ceedaa5e56f432b6c6e67ade09638e14ad135a71726cddd6b708580a9f613c"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 983998,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 983998,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1151806,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 983998,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983998,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983906,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 38016435
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 983998,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1474560
+      },
+      "stage": "layers.6.mlp.down_proj",
+      "weight_sha256": "8272db0857638b9205bff1f43c272fdd43ba28c5fd55ed55276792d5c380e0c9"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421498,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421498,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426650,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421488,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421476,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421430,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 8234427
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421498,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 524288
+      },
+      "stage": "layers.7.self_attn.qkv_proj",
+      "weight_sha256": "4c1a1e421e2c462f704b6e3640178c002aafd24a295fee5a2fdcf1e20023d1aa"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354292,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354292,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359444,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354282,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354246,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354144,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7740397
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354292,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 455168
+      },
+      "stage": "layers.7.self_attn.o_proj",
+      "weight_sha256": "5d44c9783d71a7e1caca3d5b4981210501fb33a906fc7d12449fb108e3ffa48f"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2690264,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2690264,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2690264,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2690242,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2690172,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2689920,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8754365
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2690264,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2719744
+      },
+      "stage": "layers.7.mlp.gate_up_proj",
+      "weight_sha256": "f59224afe893aa1db4cb2748893a54f1aadf4b712ec73e63a00f5d825a819ad9"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 982744,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 982744,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1150552,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 982744,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982734,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982722,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 36466781
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 982744,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.7.mlp.down_proj",
+      "weight_sha256": "d49b1faedfeb847e116e80f763863db3d105dae936d3ea557f6558c0eb806d45"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421786,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421786,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426938,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421786,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421786,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421752,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 8216393
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421786,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 524288
+      },
+      "stage": "layers.8.self_attn.qkv_proj",
+      "weight_sha256": "4d7c8e99487821af137f8d98447c8c7408005a57f88936e9b93a09741471d06b"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354614,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354614,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359766,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354614,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354614,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354558,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7790181
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354614,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 458752
+      },
+      "stage": "layers.8.self_attn.o_proj",
+      "weight_sha256": "a6a86760f0cda211c0abdf7a27a3992b43f74c32bf89b9d7fb5c8fd9f8c0396c"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2688608,
+        "coordinate_width_histogram": {
+          "23": 64,
+          "24": 832
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2688976,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2688976,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2688954,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688920,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688700,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 9076945
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2688976,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2719744
+      },
+      "stage": "layers.8.mlp.gate_up_proj",
+      "weight_sha256": "c597722a293f9dac7ad63bfe466e73175d1cfaceefeb727641cbed09d90b88c3"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 983848,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 983848,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1151656,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 983848,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983848,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983838,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 36793171
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 983848,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.8.mlp.down_proj",
+      "weight_sha256": "29df02f8ff9180fd3c320f0b091bcfc3872d0c18024f821a7f57842562b9737e"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421338,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421338,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426490,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421338,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421314,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421292,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 8367015
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421338,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.9.self_attn.qkv_proj",
+      "weight_sha256": "d4c1269cc2538130f91d32ed1968fde50714c574981bcd92b4aa97d513cff494"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354292,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354292,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359444,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354282,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354270,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354236,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7620763
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354292,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.9.self_attn.o_proj",
+      "weight_sha256": "20bb5f622823489f860b560048074c80a69ca2d62b3ae79d04612fc0cb56ce0d"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2690869,
+        "coordinate_width_histogram": {
+          "23": 27,
+          "24": 869
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2691024,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2691024,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2691012,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2690908,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2685446,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8442453
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2691024,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2719744
+      },
+      "stage": "layers.9.mlp.gate_up_proj",
+      "weight_sha256": "51ee618d4969684613e3ed95caac2df6c0bbaf327d90a5d86e3e75a8497d5ef3"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 982964,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 982964,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1150772,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 982964,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982964,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982928,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 36106101
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 982964,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.9.mlp.down_proj",
+      "weight_sha256": "416ee29d474a8b0686509347d0c8284cfb86ceb528affa4269858629dd4a0f5a"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 424719,
+        "coordinate_width_histogram": {
+          "23": 442,
+          "24": 454
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 427260,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 427260,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 427238,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 427226,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 427202,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 432400,
+        "integer_parity": true,
+        "modulus": 8606029
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 427260,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 524288
+      },
+      "stage": "layers.10.self_attn.qkv_proj",
+      "weight_sha256": "8c603837da393f84802186b206eff0f6cf8c30cebc34950bbc633065aa63c447"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354016,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354016,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359168,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354016,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354016,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 353914,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7436613
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354016,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.10.self_attn.o_proj",
+      "weight_sha256": "8ae48c97b94da70eabe41b1dddce5ef354c9b8c70849279968c0ab3700d968c5"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2689195,
+        "coordinate_width_histogram": {
+          "23": 36,
+          "24": 860
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2689402,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2689402,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2689380,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2689322,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2689104,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8817357
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2689402,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2719744
+      },
+      "stage": "layers.10.mlp.gate_up_proj",
+      "weight_sha256": "6e4aee7bdd4cf60d47b566446c7fa7399746ae81b9d0017f69742127fd10420d"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 982998,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 982998,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1150806,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 982998,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982986,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982928,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 36969447
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 982998,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.10.mlp.down_proj",
+      "weight_sha256": "965a27f3ffc2ca46f6d969e207261eb7de249aac5adb3add6204e4f936c957b3"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 420912,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 420912,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426064,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 420912,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 420912,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 420798,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7670039
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 420912,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 520192
+      },
+      "stage": "layers.11.self_attn.qkv_proj",
+      "weight_sha256": "123a5e97567529c59ada1648007db5500d26a108b3eb45415a291b4a86907aa5"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354454,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354454,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359606,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354454,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354420,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354292,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7411213
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354454,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 253,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 453376
+      },
+      "stage": "layers.11.self_attn.o_proj",
+      "weight_sha256": "a1f6af189040069663f49c511d3a2534b35618097138b584a47016bae27258f7"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2688771,
+        "coordinate_width_histogram": {
+          "23": 58,
+          "24": 838
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2689104,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2689104,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2689104,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2689092,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688804,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8631937
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2689104,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.11.mlp.gate_up_proj",
+      "weight_sha256": "39813cf73807cea040c69aa463070d6b25f3b375e063b43610e97c7b8a4977a1"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 983032,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 983032,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1150840,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 983032,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983032,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983020,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 37593779
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 983032,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.11.mlp.down_proj",
+      "weight_sha256": "8b36a986e12d54eae55f2e9cafbdbb18f6668688d061a56d57076df8eb1ec717"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 424979,
+        "coordinate_width_histogram": {
+          "23": 433,
+          "24": 463
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 427468,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 427468,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 427468,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 427444,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 422178,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 432400,
+        "integer_parity": true,
+        "modulus": 8453375
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 427468,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.12.self_attn.qkv_proj",
+      "weight_sha256": "82c18973925ef578703b6bbc3d559933e7fb502f4e37e2b77fb69821b102aab7"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354430,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354430,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359582,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354430,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354420,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354304,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7709409
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354430,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 458752
+      },
+      "stage": "layers.12.self_attn.o_proj",
+      "weight_sha256": "686ae6d67c3993e85fe6bfbdcc313a67416e0c5ebef7fbd7a8cddce112531d0a"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2688701,
+        "coordinate_width_histogram": {
+          "23": 12,
+          "24": 884
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2688770,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2688770,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2688758,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688724,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688448,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8679181
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2688770,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.12.mlp.gate_up_proj",
+      "weight_sha256": "f369b91cc47e9e7e33b49e25ac2c0734f7047ffe93a2bc60b70c426f0f12ce18"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 983659,
+        "coordinate_width_histogram": {
+          "25": 9,
+          "26": 4855
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 983710,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1151518,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 983710,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983688,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983688,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 34910015
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 983710,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1463040
+      },
+      "stage": "layers.12.mlp.down_proj",
+      "weight_sha256": "4599769c6722654bbfdc7cfc83cbf116342c9d97b5277704dc90227bed36259d"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421786,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421786,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426938,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421786,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421764,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421740,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7990841
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421786,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.13.self_attn.qkv_proj",
+      "weight_sha256": "0a0e27b62af7f2651c2fba00e75888e4333b2992ba1ce9a56bdea2147e11fe44"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354798,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354798,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359950,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354798,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354788,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354706,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7971029
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354798,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.13.self_attn.o_proj",
+      "weight_sha256": "a5ed6c69c26e658801684f28ae0f1e6f7e1a6295dc58f41d998433473f78cbfe"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2688851,
+        "coordinate_width_histogram": {
+          "23": 26,
+          "24": 870
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2689000,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2689000,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2688988,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688930,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688678,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8574025
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2689000,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.13.mlp.gate_up_proj",
+      "weight_sha256": "6ad0b4ca68fd565001a6d90581d221e3dd054d08c9aee5c6b02dfd77a8732234"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 979405,
+        "coordinate_width_histogram": {
+          "25": 625,
+          "26": 4239
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 982998,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1150806,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 982998,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982998,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982986,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 34195767
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 982998,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.13.mlp.down_proj",
+      "weight_sha256": "f0a31af20d0b02834f10864b1513917a048a129682080ac6a4405d08bf49470c"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421602,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421602,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426754,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421602,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421534,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421464,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7728967
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421602,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 520192
+      },
+      "stage": "layers.14.self_attn.qkv_proj",
+      "weight_sha256": "dbec973d9f0b09ff762ce17ecd9af0ce95a8cd8f44eaad0bbdc7cd9f6560fd8a"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354626,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354626,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359778,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354626,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354614,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354512,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 8029957
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354626,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.14.self_attn.o_proj",
+      "weight_sha256": "fdcfe976eb8534a403a7a1d1e918c1b41b365f383b4eb267e41a1dfe9a090966"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2684992,
+        "coordinate_width_histogram": {
+          "23": 471,
+          "24": 425
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2687700,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2687700,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2682490,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2682456,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2682192,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8389875
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2687700,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2698496
+      },
+      "stage": "layers.14.mlp.gate_up_proj",
+      "weight_sha256": "ffdb570abfbb5a8e91b2e479445179fefdcb51cfe6a5851e82b9a79fde935d4d"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 982100,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 982100,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1149908,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 982100,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982100,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982100,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 35690049
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 982100,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.14.mlp.down_proj",
+      "weight_sha256": "7896e916c54586bd334d9148d80fc3e6de80d93a399f1fe85b92bc3ec8629864"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 424449,
+        "coordinate_width_histogram": {
+          "23": 433,
+          "24": 463
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 426938,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 426938,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 426938,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 426938,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421672,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 432400,
+        "integer_parity": true,
+        "modulus": 8500619
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 426938,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.15.self_attn.qkv_proj",
+      "weight_sha256": "d86f00614b2bd93246ef1d89dff6eb9a0712a9097cf4655f20da4be0f902869c"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354684,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354684,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359836,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354684,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354672,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354580,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 8114793
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354684,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.15.self_attn.o_proj",
+      "weight_sha256": "9d703c4f41ea191962179b3119dcbbf987e8816c25b421a5004a414de3f95fe3"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2682434,
+        "coordinate_width_histogram": {
+          "23": 224,
+          "24": 672
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2683722,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2683722,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2683686,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2683584,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2683216,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8644637
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2683722,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.15.mlp.gate_up_proj",
+      "weight_sha256": "06747e710c8983a680660961bef851114b9d61cf7d69a959bf3e12990d903819"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 982492,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 982492,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1150300,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 982492,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982492,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982468,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 37004753
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 982492,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1474560
+      },
+      "stage": "layers.15.mlp.down_proj",
+      "weight_sha256": "4d29e0bbf21096c95a4ce46e79f29809e3ad3572d9792a5a4f3e102a9d07cd43"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 420510,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 420510,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 425662,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 420510,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 420510,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 420418,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7848093
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 420510,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 524288
+      },
+      "stage": "layers.16.self_attn.qkv_proj",
+      "weight_sha256": "3d4542b33e5e0fa232c6006835ead67404e6826b45f52a0100b94a552697ec5a"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 352188,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 352188,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 357340,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 352188,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 352166,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 352038,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7055613
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 352188,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.16.self_attn.o_proj",
+      "weight_sha256": "a4ca3c98e4ad9809a41cd074e6c3b2564b51bc03beee62d8cb33bf7571ad303e"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2683181,
+        "coordinate_width_histogram": {
+          "23": 28,
+          "24": 868
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2683342,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2683342,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2683308,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2683180,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2682790,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8759191
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2683342,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.16.mlp.gate_up_proj",
+      "weight_sha256": "3d5fe311218f03cce03ec59873fdca11361737533a604bada250f3a59a62abb0"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 982422,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 982422,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1150230,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 982422,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982388,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982354,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 36336225
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 982422,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1474560
+      },
+      "stage": "layers.16.mlp.down_proj",
+      "weight_sha256": "77a3d9dc3156012ddc66737b1269ae41e0bcd299827fdf07b16fa437abb88e77"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421360,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421360,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426512,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421360,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421350,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421258,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 8135621
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421360,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.17.self_attn.qkv_proj",
+      "weight_sha256": "ec57a841a8003152614d4b2b7497f1e03e4c735d213caaa9adad01ef9c0cc0ac"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354822,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354822,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359974,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354810,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354776,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354742,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7685279
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354822,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 458752
+      },
+      "stage": "layers.17.self_attn.o_proj",
+      "weight_sha256": "168cd9e7f46c52bbc3193f7f7fd5f1b1132d1e735a7d6c30ad8c04ee2f40699d"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2691248,
+        "coordinate_width_histogram": {
+          "23": 29,
+          "24": 867
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2691414,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2691414,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2691392,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2691322,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2690978,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 9141461
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2691414,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.17.mlp.gate_up_proj",
+      "weight_sha256": "df7fc3bb02764fcacd9e9e332213e2c1955bba9afce4370170f2d388ee2b491f"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 983884,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 983884,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1151692,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 983884,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983872,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983848,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 37988241
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 983884,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.17.mlp.down_proj",
+      "weight_sha256": "f1f069668e286b6ae7d4279cd0f442fff788dc5eb9de53cb087dce49d1f4d1d5"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 420670,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 420670,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 425822,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 420670,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 420660,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 420532,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 8205979
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 420670,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.18.self_attn.qkv_proj",
+      "weight_sha256": "a1a96c3860f2a5f5b103137ffd9222c2b8fb79a91c80ddfc3605eec0f0177990"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354926,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354926,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 360078,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354914,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354902,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354868,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7652259
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354926,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 458752
+      },
+      "stage": "layers.18.self_attn.o_proj",
+      "weight_sha256": "24cdb26fc080c1e454488398c58a9fbe408455e7e80818cb6d1f14fa10b8800c"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2693300,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2693300,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2693300,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2693300,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2693254,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2693024,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8707375
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2693300,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2719744
+      },
+      "stage": "layers.18.mlp.gate_up_proj",
+      "weight_sha256": "0e861ffd8b10c26774a2e0e5b44253253e2aae2ee682a6bc80b930fe6f47a9d7"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 984896,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 984896,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1152704,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 984896,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 984872,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 984850,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 37939219
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 984896,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1463040
+      },
+      "stage": "layers.18.mlp.down_proj",
+      "weight_sha256": "26c53a97e6567e4eeca644ef29c5a2360fd6b5c4909941431b24430df0a716e1"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421810,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421810,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426962,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421810,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421786,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421740,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 8223505
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421810,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 520192
+      },
+      "stage": "layers.19.self_attn.qkv_proj",
+      "weight_sha256": "ca12ffd8b5a7af2eb963f157b7754ca119cf028f5896dd0ccee5becc3e512886"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354822,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354822,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359974,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354822,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354822,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354696,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7990079
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354822,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.19.self_attn.o_proj",
+      "weight_sha256": "2d5236f4ecbbe12c07597bd3fd41d92d795385db2825223de7f27bd64594cc14"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2687303,
+        "coordinate_width_histogram": {
+          "23": 59,
+          "24": 837
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2687642,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2687642,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2687632,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2682364,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2682168,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8424673
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2687642,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.19.mlp.gate_up_proj",
+      "weight_sha256": "33838e676f6df987772c673d30455b5959b14c6b961c442525fcff5e30c7f2c3"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 982998,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 982998,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1150806,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 982998,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982998,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 982940,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 36655503
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 982998,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1463040
+      },
+      "stage": "layers.19.mlp.down_proj",
+      "weight_sha256": "0459b979f8e5d31920f85fdc213820aafbdc16102b13416a93cce8efeaaf60f2"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 419970,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 419970,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 425122,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 419970,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 419946,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 419842,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7867143
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 419970,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 524288
+      },
+      "stage": "layers.20.self_attn.qkv_proj",
+      "weight_sha256": "8c2b10447e4616f50621d8c33e3ca65f112806ffcd941293dd86479b92db4df9"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 353982,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 353982,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359134,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 353982,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 353970,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 353914,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7907783
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 353982,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 254,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 455168
+      },
+      "stage": "layers.20.self_attn.o_proj",
+      "weight_sha256": "ac14c0691412270e0356816691fa711d8219ed10ffb2921f6eb9ea0778019012"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2688263,
+        "coordinate_width_histogram": {
+          "23": 68,
+          "24": 828
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2688654,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2688654,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2688632,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688586,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2688252,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8553451
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2688654,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.20.mlp.gate_up_proj",
+      "weight_sha256": "2d5ee5213f9de45394d336121df319a0959cd180f3cca02fd4f2e067fa18edfd"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 983366,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 983366,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1151174,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 983366,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983342,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 983286,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 36909249
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 983366,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1474560
+      },
+      "stage": "layers.20.mlp.down_proj",
+      "weight_sha256": "62546c89ff0b765c5ea6ba587128fd7ef43405ce37ec674e298a0df2171d7c36"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 418658,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 418658,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 423810,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 418658,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 418658,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 418544,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7905497
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 418658,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.21.self_attn.qkv_proj",
+      "weight_sha256": "8bb1314393b07955f2fb0f3890cb06955dbbca6296f8927ca183671e44bec547"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354466,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354466,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359618,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354466,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354454,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354420,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7967727
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354466,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.21.self_attn.o_proj",
+      "weight_sha256": "259a15a5685d5d7dcb61c4925971c1b3c005bf57d805a1dbc51405cb4cbe6717"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2693060,
+        "coordinate_width_histogram": {
+          "23": 6,
+          "24": 890
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2693094,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2693094,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2693082,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2693024,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2692922,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8625587
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2693094,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2719744
+      },
+      "stage": "layers.21.mlp.gate_up_proj",
+      "weight_sha256": "c6bd34f12ed29ce3f7fadb0b4db8a7b56cc272068f143c11bfc59c17af1fcaea"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 985148,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 985148,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1152956,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 985148,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985148,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985090,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 37996877
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 985148,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.21.mlp.down_proj",
+      "weight_sha256": "9ea4a53d6e241a369854689dd6062cc3e9e87d71ee20d830aa37e28b09a821d8"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 419256,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 419256,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 424408,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 419256,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 419256,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 419084,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7855205
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 419256,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.22.self_attn.qkv_proj",
+      "weight_sha256": "c555e21a8e842231f6b83f1e552a4fe5ccd82608777715380c6c9b8327dc7a2b"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 355156,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 355156,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 360308,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 355156,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 355144,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 355132,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 8027163
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 355156,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 456960
+      },
+      "stage": "layers.22.self_attn.o_proj",
+      "weight_sha256": "d570980e65d84fe31d705d37eddf68776837c9cce60bad627163479d6e1a73ed"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2691300,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2691300,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2691300,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2691254,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2691208,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2690920,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 8759699
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2691300,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.22.mlp.gate_up_proj",
+      "weight_sha256": "411afd65e57c83677c79c89252f7c8feb19553c7f38e7e3c2bdba43ef8165677"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 985356,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 985356,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1153164,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 985356,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985320,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 985264,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 38558725
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 985356,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.22.mlp.down_proj",
+      "weight_sha256": "2b69e79d687412ccccd605ec1c746e5241c8772bbf68ddbac44bba4419845e75"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 421464,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 421464,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 426616,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 421464,
+          "client_coefficient_and_native_snapshot_bytes": 2304,
+          "client_integer_adds_and_macs": 94208,
+          "coefficient_bytes": 1152,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421430,
+          "client_coefficient_and_native_snapshot_bytes": 9216,
+          "client_integer_adds_and_macs": 253184,
+          "coefficient_bytes": 4608,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 421292,
+          "client_coefficient_and_native_snapshot_bytes": 36864,
+          "client_integer_adds_and_macs": 889088,
+          "coefficient_bytes": 18432,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 423200,
+        "integer_parity": true,
+        "modulus": 7943597
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 421464,
+        "decoder_map_bytes": 5760,
+        "distinct_signed_rows": 1152,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        1152,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 1032192,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 522240
+      },
+      "stage": "layers.23.self_attn.qkv_proj",
+      "weight_sha256": "37c1f2b6bdde31b6253112155b5898f5d9a76ac117d287e74877119c432dc0f4"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 354304,
+        "coordinate_width_histogram": {
+          "23": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 354304,
+        "uniform_input_bits": 23
+      },
+      "control_arithmetic_bytes": 359456,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 354304,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 82432,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354304,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 206080,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 354282,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 700672,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 355488,
+        "integer_parity": true,
+        "modulus": 7562851
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 354304,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 256,
+        "full_weight_coefficients": 802816,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 458752
+      },
+      "stage": "layers.23.self_attn.o_proj",
+      "weight_sha256": "c25df373380d30a4febb42387538733558a90fa8d9ab643a51cca2fee09a00cc"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 2694082,
+        "coordinate_width_histogram": {
+          "24": 896
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 2694082,
+        "uniform_input_bits": 24
+      },
+      "control_arithmetic_bytes": 2694082,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 2694072,
+          "client_coefficient_and_native_snapshot_bytes": 19456,
+          "client_integer_adds_and_macs": 488704,
+          "coefficient_bytes": 9728,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2694014,
+          "client_coefficient_and_native_snapshot_bytes": 77824,
+          "client_integer_adds_and_macs": 1831168,
+          "coefficient_bytes": 38912,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 2693806,
+          "client_coefficient_and_native_snapshot_bytes": 311296,
+          "client_integer_adds_and_macs": 7201024,
+          "coefficient_bytes": 155648,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 2750064,
+        "integer_parity": true,
+        "modulus": 9014715
+      },
+      "ring_bits": 24,
+      "row_dictionary": {
+        "arithmetic_bytes": 2694082,
+        "decoder_map_bytes": 48640,
+        "distinct_signed_rows": 9728,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        9728,
+        896
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 8716288,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 2709120
+      },
+      "stage": "layers.23.mlp.gate_up_proj",
+      "weight_sha256": "2d36426542a56bb27b508c85bba17d1c63e3efb784af878327ed5168d9d67f72"
+    },
+    {
+      "annihilator": {
+        "coordinate_arithmetic_bytes": 984988,
+        "coordinate_width_histogram": {
+          "26": 4864
+        },
+        "integer_parity": true,
+        "uniform_arithmetic_bytes": 984988,
+        "uniform_input_bits": 26
+      },
+      "control_arithmetic_bytes": 1152796,
+      "moment_bypasses": [
+        {
+          "arithmetic_bytes": 984988,
+          "client_coefficient_and_native_snapshot_bytes": 1792,
+          "client_integer_adds_and_macs": 264960,
+          "coefficient_bytes": 896,
+          "groups": 1,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 984988,
+          "client_coefficient_and_native_snapshot_bytes": 7168,
+          "client_integer_adds_and_macs": 388608,
+          "coefficient_bytes": 3584,
+          "groups": 4,
+          "integer_parity": true
+        },
+        {
+          "arithmetic_bytes": 984942,
+          "client_coefficient_and_native_snapshot_bytes": 28672,
+          "client_integer_adds_and_macs": 883200,
+          "coefficient_bytes": 14336,
+          "groups": 16,
+          "integer_parity": true
+        }
+      ],
+      "odd_radix": {
+        "arithmetic_bytes": 975936,
+        "integer_parity": true,
+        "modulus": 37776913
+      },
+      "ring_bits": 32,
+      "row_dictionary": {
+        "arithmetic_bytes": 984988,
+        "decoder_map_bytes": 4480,
+        "distinct_signed_rows": 896,
+        "integer_parity": true,
+        "omitted_rows": 0,
+        "zero_rows": 0
+      },
+      "shape": [
+        896,
+        4864
+      ],
+      "shift_recurrence": {
+        "displacement_rank_lower_bound": 255,
+        "full_weight_coefficients": 4358144,
+        "gf2_minor_size": 256,
+        "optimistic_rank_coefficients_per_update": 1468800
+      },
+      "stage": "layers.23.mlp.down_proj",
+      "weight_sha256": "a2eafb084e2f7904a548c673367427532f5777e775226ac3ebd883d6c3aa2474"
+    }
+  ],
+  "summary": {
+    "control_arithmetic_bytes": 111065294,
+    "coordinate_packed_arithmetic_bytes": 106806469,
+    "minimum_displacement_rank_lower_bound": 253,
+    "moment_bypasses": [
+      {
+        "arithmetic_bytes": 106831224,
+        "client_coefficient_and_native_snapshot_bytes": 608256,
+        "client_integer_adds_and_macs": 22327296,
+        "coefficient_bytes": 304128,
+        "groups": 1
+      },
+      {
+        "arithmetic_bytes": 106823568,
+        "client_coefficient_and_native_snapshot_bytes": 2433024,
+        "client_integer_adds_and_macs": 64296960,
+        "coefficient_bytes": 1216512,
+        "groups": 4
+      },
+      {
+        "arithmetic_bytes": 106781652,
+        "client_coefficient_and_native_snapshot_bytes": 9732096,
+        "client_integer_adds_and_macs": 232175616,
+        "coefficient_bytes": 4866048,
+        "groups": 16
+      }
+    ],
+    "odd_radix_arithmetic_bytes": 108193840,
+    "signed_dictionary_map_bytes": 1520640,
+    "signed_dictionary_omitted_rows": 0,
+    "stage_packed_arithmetic_bytes": 106836974
+  },
+  "whole_client_peak_rss_bytes": null
+}

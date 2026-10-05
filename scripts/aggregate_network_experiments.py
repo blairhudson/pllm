@@ -7,13 +7,13 @@ from pllm.protocols import ClientBundleTransport, MaskedLinear
 from pllm.quantization import SymmetricPerRow
 
 
-def _experiment(name, *, compact=False, pruning=False):
+def _experiment(name, *, compact=False, pruning=False, packed=False):
     return Experiment(name, MaskedLinearCpu(
         Model.hf("Qwen/Qwen2.5-0.5B-Instruct", revision="7ae557604adf67be50417f59c2c2f167def9a775"),
         kernels=Cpu(threads=4),
         quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
         linear=MaskedLinear(output_encoding="row_residues",
-            request_encoding="compact" if compact else "raw",
+            request_encoding="stage_packed" if packed else "compact" if compact else "raw",
             prefill_pruning="terminal" if pruning else "none"),
         inventory=PreparedInventory("request-sized", rows=1, refill="on-demand", stage_window=4),
         delivery=ClientBundleTransport("artifacts", compression="zlib", batch_objects=64, storage="paged")),
@@ -35,3 +35,7 @@ def terminal():
 
 def combined():
     return _experiment("aggregate-combined", compact=True, pruning=True)
+
+
+def stage_packed():
+    return _experiment("algebra-stage-packed", packed=True, pruning=True)
