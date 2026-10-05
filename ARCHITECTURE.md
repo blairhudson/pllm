@@ -786,6 +786,21 @@ are outside the ordinary response counters. This probe-only response-owned
 adapter keeps private queries local and does not activate a Pipeline choice,
 establish broad numeric parity or demonstrate a 10x whole-client improvement.
 
+A second five-candidate client-offload screen uses pinned Qwen3-4B weights and
+16+8-token geometry with synthetic private-value stand-ins. Public RoPE tables
+preserve checked operator bits and save 1.84 ms of response-shaped rotary CPU,
+at 25,093 additional public artifact bytes. Exact private square-root lookups
+project 49.34 MB of bodies and 12.85 worker CPU hours; garbled activation absmax
+projects 7.79 GB of online labels and 62.31 GB of one-use ciphertexts, before
+remaining normalization/quantization work. Both layouts fail the cost gate.
+Two-worker private tied-embedding/head queries preserve checked integer and
+float32 bits and could move a 388.96 MB paged client weight artifact, but add
+10.03 MB of projected online bodies and increase aggregate kernel compute;
+client RSS and whole-response benefits remain unmeasured. Public norm-gamma
+folding changes the W8A8 input codes, weights and outputs and cannot inherit
+the original numeric identity. These isolated references retain non-collusion
+or trusted-issuance assumptions and activate no Pipeline or provider protocol.
+
 A matrix is copied into Rust once at compilation, then reused for later calls.
 `CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that
 immutable owner. Provider stage loading retires the original i8 allocation or

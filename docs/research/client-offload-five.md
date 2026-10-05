@@ -6,6 +6,10 @@ tokenizer/setup allocations dominate its small KV state. The earlier tokenizer
 lifetime experiment changed ownership; this round asks whether public setup or
 private computation/storage can move to another role.
 
+The subsequent [second round](client-offload-round2.md) screens public rotary
+tables, private square-root lookup, a tied embedding/head offload, garbled
+activation maxima and public norm-weight folding.
+
 | Candidate | Work moved | Privacy and numeric gate | Cost gate |
 | --- | --- | --- | --- |
 | Public precompiled BPE index | Vocabulary/merge parsing and index construction to an offline public compiler | The client pins a trusted compiled artifact; all prompt-dependent BPE and decoding queries stay local. Compare exact IDs and decoded text, including normalization and special tokens. | Fresh-process RSS and setup plus execution CPU; count the derived artifact and compiler cost. |

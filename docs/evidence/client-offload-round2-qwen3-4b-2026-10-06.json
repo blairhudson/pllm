@@ -1,0 +1,1112 @@
+{
+  "absmax": {
+    "native_process_peak_rss_bytes": null,
+    "privacy": "offline trusted helper issues one-use encodings; evaluator sees labels, client decodes max",
+    "projection": {
+      "complete_tensor_schedule_admitted": false,
+      "largest_stage_width": 9728,
+      "one_use_half_gate_ciphertext_bytes": 62308678656,
+      "online_input_and_output_label_bytes": 7791878272,
+      "reference_maximum_width": 2560,
+      "scope": "absmax only; excludes circuit instructions, transport, division and quantization",
+      "uncompressed_helper_to_client_encoding_bytes": 15583756544
+    },
+    "python_launcher_memory": {
+      "process_lifetime_peak_rss_bytes": 37208064,
+      "rss_bytes": 37208064
+    },
+    "samples": [
+      {
+        "and_gates": 868,
+        "ciphertext_body_bytes": 27776,
+        "clear_wall_seconds_per_call": 3.833e-09,
+        "client_wall_seconds": 7.417e-06,
+        "evaluator_wall_seconds": 0.00234425,
+        "exact_float32_max": true,
+        "online_input_label_bytes": 3968,
+        "online_output_label_bytes": 496,
+        "prepare_wall_seconds": 0.005202375,
+        "uncompressed_helper_to_client_encoding_bytes": 8928,
+        "width": 8
+      },
+      {
+        "and_gates": 15748,
+        "ciphertext_body_bytes": 503936,
+        "clear_wall_seconds_per_call": 7.2042e-08,
+        "client_wall_seconds": 5.3501e-05,
+        "evaluator_wall_seconds": 0.042202958,
+        "exact_float32_max": true,
+        "online_input_label_bytes": 63488,
+        "online_output_label_bytes": 496,
+        "prepare_wall_seconds": 0.0918965,
+        "uncompressed_helper_to_client_encoding_bytes": 127968,
+        "width": 128
+      },
+      {
+        "and_gates": 317316,
+        "ciphertext_body_bytes": 10154112,
+        "clear_wall_seconds_per_call": 2.2265840000000004e-06,
+        "client_wall_seconds": 0.000977876,
+        "evaluator_wall_seconds": 0.854199625,
+        "exact_float32_max": true,
+        "online_input_label_bytes": 1269760,
+        "online_output_label_bytes": 496,
+        "prepare_wall_seconds": 1.855534167,
+        "uncompressed_helper_to_client_encoding_bytes": 2540512,
+        "width": 2560
+      }
+    ],
+    "schema": "pllm.client_absmax_reference.v1",
+    "scope": "native one-use finite-f32 magnitude circuit; wall time, no network or helper transport"
+  },
+  "absmax_executable_sha256": "05b561ff0a55c63b55c4ab29ecd7e179ef167bde33cfeeb05c8c354fbe25f250",
+  "boundary": {
+    "additional_head_snapshot_disk_bytes_each_worker": 388956160,
+    "client_peak_memory_saving_bytes": null,
+    "client_scales_retained_bytes": 607744,
+    "client_weight_artifact_bytes_potentially_removed": 388956160,
+    "decision": "requires new tied-boundary role graph and full-response compute/transport admission",
+    "embedding_samples": [
+      {
+        "client_cpu_seconds": 0.00010900000000013677,
+        "query_and_reply_body_bytes": 6034,
+        "worker_cpu_seconds": [
+          0.41754599999999975,
+          0.40607599999999966
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.00010099999999990672,
+        "query_and_reply_body_bytes": 6034,
+        "worker_cpu_seconds": [
+          0.393529,
+          0.3957880000000005
+        ]
+      },
+      {
+        "client_cpu_seconds": 9.500000000084441e-05,
+        "query_and_reply_body_bytes": 6034,
+        "worker_cpu_seconds": [
+          0.39401200000000003,
+          0.39342399999999955
+        ]
+      }
+    ],
+    "exact_head_integer_and_logit_bits": true,
+    "exact_scaled_embedding_bits": true,
+    "head_i8_sha256": "b671ec7fd211e1b8bd656b786f6dacc01594c37904158569a4f1016a482426e9",
+    "head_samples": [
+      {
+        "arithmetic_body_bytes": 1235968,
+        "client_cpu_seconds": 0.00039200000000150226,
+        "local_paged_head_cpu_seconds": 0.08975799999999978,
+        "worker_cpu_seconds": [
+          0.16896799999999956,
+          0.15538500000000077
+        ]
+      },
+      {
+        "arithmetic_body_bytes": 1235968,
+        "client_cpu_seconds": 0.00029699999999976967,
+        "local_paged_head_cpu_seconds": 0.07287200000000027,
+        "worker_cpu_seconds": [
+          0.15961800000000004,
+          0.1735710000000008
+        ]
+      },
+      {
+        "arithmetic_body_bytes": 1235968,
+        "client_cpu_seconds": 0.0002849999999998687,
+        "local_paged_head_cpu_seconds": 0.08923099999999984,
+        "worker_cpu_seconds": [
+          0.16853400000000107,
+          0.1632940000000005
+        ]
+      }
+    ],
+    "privacy": "two non-colluding online workers; DPF token keys and fresh exact-ring head shares",
+    "projected_added_online_16_plus_8_bodies": 10026526,
+    "projected_two_worker_embedding_scan_bytes": 17919939584,
+    "public_embedding_record_bytes_each_worker": 389563904,
+    "scope": "real quantized public boundary, synthetic token/hidden queries; no body, network or generation",
+    "source_embedding_f32_sha256": "75599dcbc3345b7aa22c4db6be909c5ae109a710cd3e15d842c5e7bcd00620aa",
+    "worker_memory_all_roles": {
+      "process_lifetime_peak_rss_bytes": 1219362816,
+      "rss_bytes": 1219362816
+    }
+  },
+  "folding": {
+    "client_gamma_multiply_cpu_seconds": 1.1950000000000016e-05,
+    "decision": "numeric contract changes; cannot substitute under original W8A8 plan",
+    "float32_changed_elements": 79745,
+    "float32_max_absolute_error": 7.450580596923828e-08,
+    "original_and_folded_stage_sha256": [
+      "fe8e9801fe1d6e51950032180dd221cb01f10e2c06acb5ee8b78c9b9c413414b",
+      "9d8f76f92eea2705d4f3083859e74f577ab1bbad114479e01852bf7738769aaa"
+    ],
+    "privacy": "only public gamma and public weights enter offline folding",
+    "public_fold_cpu_seconds": 0.005910999999999986,
+    "shape": [
+      4096,
+      2560
+    ],
+    "source": "pinned Qwen3-4B layer-0 input norm and Q projection; synthetic normalized rows",
+    "synthetic_input_rows": 23,
+    "w8a8_changed_elements": 94208,
+    "w8a8_changed_input_codes": 57903,
+    "w8a8_max_absolute_error": 0.01983494684100151,
+    "whole_decoder_or_quality_evidence": false,
+    "worker_memory_all_roles": {
+      "process_lifetime_peak_rss_bytes": 264830976,
+      "rss_bytes": 264830976
+    }
+  },
+  "geometry": {
+    "config_sha256": "8ba006f74fecfaaeb392872a60f4a480e7ec9860153d2e1b769ec81f9a147f8a",
+    "executed_rows": 23,
+    "head_dim": 128,
+    "heads": 32,
+    "hidden": 2560,
+    "input_tokens": 16,
+    "kv_heads": 8,
+    "layers": 36,
+    "model": "Qwen/Qwen3-4B",
+    "output_tokens": 8,
+    "plan_digest": "1409e463de13046367bf16f6527c4ddfbf8d5e44b785bc25af9c7ddb3bb3594b",
+    "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "rmsnorm_sqrt_elements": 34799,
+    "rope_contract": {
+      "arithmetic": "semantic_executor._rotary/default-f32/v1",
+      "attributes": {
+        "coefficient_profile": "pllm.numeric.rope.q30.libm.v1",
+        "input_layout": "batch_heads_sequence_feature",
+        "output_layout": "batch_heads_sequence_feature",
+        "pairing": "split_half",
+        "position_policy": "sequential_absolute",
+        "rotary_dimensions": 128,
+        "tail_policy": "unchanged",
+        "theta": 1000000
+      },
+      "capacity": 24,
+      "dtype": "<f4",
+      "numpy": "2.5.3",
+      "plan_digest": "1409e463de13046367bf16f6527c4ddfbf8d5e44b785bc25af9c7ddb3bb3594b",
+      "schema": "pllm.research.public_rope.v1"
+    },
+    "stages": [
+      {
+        "id": "layers.0.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.0.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.0.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.0.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.1.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.1.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.1.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.1.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.2.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.2.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.2.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.2.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.3.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.3.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.3.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.3.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.4.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.4.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.4.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.4.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.5.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.5.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.5.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.5.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.6.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.6.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.6.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.6.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.7.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.7.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.7.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.7.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.8.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.8.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.8.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.8.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.9.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.9.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.9.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.9.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.10.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.10.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.10.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.10.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.11.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.11.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.11.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.11.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.12.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.12.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.12.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.12.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.13.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.13.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.13.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.13.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.14.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.14.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.14.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.14.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.15.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.15.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.15.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.15.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.16.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.16.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.16.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.16.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.17.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.17.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.17.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.17.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.18.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.18.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.18.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.18.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.19.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.19.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.19.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.19.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.20.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.20.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.20.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.20.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.21.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.21.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.21.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.21.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.22.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.22.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.22.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.22.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.23.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.23.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.23.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.23.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.24.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.24.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.24.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.24.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.25.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.25.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.25.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.25.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.26.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.26.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.26.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.26.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.27.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.27.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.27.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.27.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.28.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.28.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.28.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.28.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.29.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.29.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.29.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.29.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.30.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.30.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.30.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.30.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.31.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.31.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.31.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.31.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.32.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.32.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.32.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.32.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.33.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.33.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.33.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.33.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.34.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.34.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.34.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.34.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      },
+      {
+        "id": "layers.35.self_attn.qkv_proj",
+        "input": 2560,
+        "output": 6144
+      },
+      {
+        "id": "layers.35.self_attn.o_proj",
+        "input": 4096,
+        "output": 2560
+      },
+      {
+        "id": "layers.35.mlp.gate_up_proj",
+        "input": 2560,
+        "output": 19456
+      },
+      {
+        "id": "layers.35.mlp.down_proj",
+        "input": 9728,
+        "output": 2560
+      }
+    ],
+    "vocabulary": 151936
+  },
+  "host_before": {
+    "available": 15767240704,
+    "disk_free": 19604987904,
+    "swap_used": 1490157568,
+    "total": 34359738368
+  },
+  "implementation_sha256": {
+    "crates/pllm-garble/examples/client_absmax_probe.rs": "ba0b85f0a81c2c4d2831c0d36018728c5c629fe7b03a5ecbe8710c6b33c59175",
+    "crates/pllm-garble/src/boolean.rs": "f79b1ada8f3bb58d823c4833b2d01f599543ce03990085f0fee21c480a252c51",
+    "crates/pllm-garble/src/private_pages.rs": "de9bc8eda0929c2a8feada35e6ec53d1452434cd1e31dcfd5a39426f7a40ec67",
+    "python/pllm/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "python/pllm/runtime/semantic_executor.py": "530457d818a825cc244da5506918aef0f29bd1deaaf0aa2e2be2b32676d787b2",
+    "scripts/client_offload_numeric.py": "24623db7379de69e7dba6fb22b77f8b2044fe22a1f696d2961ff55088ed8e3fb",
+    "scripts/probe_client_offload_round2.py": "1369a6cba822f2fd6b4687bf18078df3aa758edc187c3e0574e2515a9662a501"
+  },
+  "maximum_host_swap_growth_bytes": 0,
+  "measured_at": "2026-10-05T21:11:34.730786+00:00",
+  "native_extension_sha256": "9629e155f9be02ff1ff9e913aae101b7d111380d0f1d5d96f5dfa973089c03b6",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "public": {
+    "files": {
+      "embedding.records": {
+        "bytes": 389563904,
+        "sha256": "9fe12f0c94bc496717207623d3f596d81da6a4f687fc76779f44190b91152f23"
+      },
+      "gamma.f32": {
+        "bytes": 10240,
+        "sha256": "9df993c415455e5c9be147051c3f48b56dee735884fd9f83aa12ac947a56fe78"
+      },
+      "head.i8": {
+        "bytes": 388956160,
+        "sha256": "b671ec7fd211e1b8bd656b786f6dacc01594c37904158569a4f1016a482426e9"
+      },
+      "head.scales": {
+        "bytes": 607744,
+        "sha256": "34ee318e06a0cee901a257478ad40d7c15a72894dab7ed2ccb443c118982c783"
+      },
+      "q_weight.f32": {
+        "bytes": 41943040,
+        "sha256": "170a0f1731f15867a9700b3bb8276adb5d715d1c998fda6d3c32956eaef04f5d"
+      },
+      "rope.bin": {
+        "bytes": 25093,
+        "sha256": "6ebd17ba652cbb8f58affb391581ad4132b095dce48e7d408055b86bec9b3a85"
+      },
+      "sqrt.f32": {
+        "bytes": 67108864,
+        "sha256": "dc8926a5eaf26bdc9fb23709a3b4dd101329a7a693afaca7628d5f816f0f4495"
+      }
+    },
+    "memory": {
+      "process_lifetime_peak_rss_bytes": 849149952,
+      "rss_bytes": 135626752
+    },
+    "public_compiler_cpu_seconds": 3.5255929999999998,
+    "public_embedding_f32_sha256": "75599dcbc3345b7aa22c4db6be909c5ae109a710cd3e15d842c5e7bcd00620aa",
+    "q_weight_shape": [
+      4096,
+      2560
+    ],
+    "scope": "public cached-source compilation and derived artifacts; no model download",
+    "worker_memory_all_roles": {
+      "process_lifetime_peak_rss_bytes": 849149952,
+      "rss_bytes": 135626752
+    }
+  },
+  "python": "3.13.15",
+  "rope": {
+    "additional_public_artifact_bytes": 25093,
+    "client_import_cpu_seconds": 0.00029500000000001747,
+    "exact_operator_bits": true,
+    "privacy": "public tables fetched in full; positions and activations stay local",
+    "samples": [
+      {
+        "bitwise_checked_elements": 4239360,
+        "mode": "ordinary",
+        "response_shaped_rotary_cpu_seconds": 0.012734200000000001,
+        "separate_validation_cpu_seconds": 0.04683999999999999
+      },
+      {
+        "bitwise_checked_elements": 4239360,
+        "mode": "precompiled",
+        "response_shaped_rotary_cpu_seconds": 0.010917200000000005,
+        "separate_validation_cpu_seconds": 0.04634099999999999
+      },
+      {
+        "bitwise_checked_elements": 4239360,
+        "mode": "precompiled",
+        "response_shaped_rotary_cpu_seconds": 0.011024200000000007,
+        "separate_validation_cpu_seconds": 0.046343999999999996
+      },
+      {
+        "bitwise_checked_elements": 4239360,
+        "mode": "ordinary",
+        "response_shaped_rotary_cpu_seconds": 0.012893600000000005,
+        "separate_validation_cpu_seconds": 0.04744899999999996
+      }
+    ],
+    "scope": "all response-shaped Q/K rotary operators only; no decoder or provider transport",
+    "worker_memory_all_roles": {
+      "process_lifetime_peak_rss_bytes": 51642368,
+      "rss_bytes": 51625984
+    }
+  },
+  "schema": "pllm.client_offload_round2.v1",
+  "scope": "Five fresh client-work offload screens, with pinned 4B geometry and public weights.\n\nEach worker is a bounded, in-process reference with synthetic private-value stand-ins.\nRole phase CPU and exact query/reply bodies are isolated; RSS covers the entire worker,\nnot a separately deployed client. No Pipeline choice, live protocol or quality claim.\n",
+  "source_commit": "aa6326e1d2e5d88ed7897b164cf4272c9e23a39c",
+  "sqrt": {
+    "clear_response_sqrt_cpu_seconds": 9.709999999998332e-06,
+    "decision": "cost gate only; no full-normalization or serving activation",
+    "exact_float32_cases": 10008,
+    "exact_private_queries": 8,
+    "native_server_query_capacity": 4096,
+    "page_bytes": 256,
+    "privacy": "fresh two-server DPF keys; exponent and page offset remain client-local",
+    "projected_16_plus_8_body_bytes": 49344982,
+    "projected_lookup_count": 34799,
+    "projection_scope": "one fresh page query per RMSNorm scalar; no normalization sums or divisions",
+    "public_table_bytes_each_worker": 67108864,
+    "requires_additional_independent_server_instances": true,
+    "samples": [
+      {
+        "client_cpu_seconds": 0.0001780000000001225,
+        "query_and_reply_body_bytes": 1418,
+        "worker_cpu_seconds": [
+          0.691517,
+          0.6652319999999998
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.000188000000000077,
+        "query_and_reply_body_bytes": 1418,
+        "worker_cpu_seconds": [
+          0.6657040000000003,
+          0.678715
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.00016800000000127824,
+        "query_and_reply_body_bytes": 1418,
+        "worker_cpu_seconds": [
+          0.664142,
+          0.6649450000000003
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.00023300000000059384,
+        "query_and_reply_body_bytes": 1418,
+        "worker_cpu_seconds": [
+          0.6646290000000006,
+          0.6644810000000003
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.0001860000000011297,
+        "query_and_reply_body_bytes": 1418,
+        "worker_cpu_seconds": [
+          0.6640810000000004,
+          0.66446
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.00017499999999870397,
+        "query_and_reply_body_bytes": 1418,
+        "worker_cpu_seconds": [
+          0.6650529999999995,
+          0.6651469999999993
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.00018900000000066086,
+        "query_and_reply_body_bytes": 1418,
+        "worker_cpu_seconds": [
+          0.6648879999999995,
+          0.6647650000000009
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.0003069999999993911,
+        "query_and_reply_body_bytes": 1418,
+        "worker_cpu_seconds": [
+          0.6644240000000003,
+          0.6642599999999987
+        ]
+      }
+    ],
+    "worker_memory_all_roles": {
+      "process_lifetime_peak_rss_bytes": 242384896,
+      "rss_bytes": 242368512
+    }
+  },
+  "status": "complete"
+}
