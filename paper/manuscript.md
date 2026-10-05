@@ -3,8 +3,8 @@ title: "PLLM: A Research Platform for Private LLM Inference"
 description: "A technical introduction to PLLM, its private-inference controls, and an evidence-bound workflow for autonomous optimization research."
 author:
   - "Blair Hudson"
-affiliation: "Independent Researcher, Australia"
-email: "me@blairhudson.com"
+affiliation: "deployscience labs, Sydney NSW Australia"
+email: "blairhudson@me.com"
 date: "5 October 2026"
 documentclass: article
 classoption: [twocolumn, letterpaper]
