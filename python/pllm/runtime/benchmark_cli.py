@@ -800,6 +800,8 @@ def _run_loopback_benchmark(
     memory_budget_bytes: int | None = None,
 ) -> dict[str, Any]:
     from pllm.deployment import WanConditions
+    from .benchmark_memory import process_memory
+    memory_before = process_memory()
     if wan is not None and type(wan) is not WanConditions:
         raise TypeError("wan must be WanConditions")
     if type(emulate_wan) is not bool:
@@ -1111,6 +1113,12 @@ def _run_loopback_benchmark(
             sequence_length=len(prompt_sequence), sequence_repetitions=repetitions
         )
     report["client_body_placement"] = client_body_placement
+    report["client_process_memory"] = {
+        "scope": "client and in-process dashboard; excludes provider processes and OS file cache",
+        "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+        "before": memory_before,
+        "after": process_memory(),
+    }
     report["memory_preflight"] = dashboard_app.state.dashboard_runtime.memory_preflight
     guard = dashboard_app.state.dashboard_runtime._memory_guard
     if guard is not None:

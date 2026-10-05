@@ -316,3 +316,41 @@ async def test_runtime_pressure_abort_retires_real_native_roles(monkeypatch):
     finally:
         await runtime.stop()
     assert not runtime._memory_guard._thread.is_alive()
+
+
+@pytest.mark.integration
+def test_benchmark_retires_response_owned_kv_and_preserves_prefix_reuse(monkeypatch):
+    from pllm.protocols import ClientBundleTransport
+    from pllm.preparation import PreparedInventory
+    from pllm.quantization import SymmetricPerRow
+    from pllm.state import ClientPrefixReuse
+    from pllm.runtime.benchmark_cli import run_loopback_benchmark
+    from pllm.runtime.dashboard import DashboardRuntime
+    experiment = Experiment("bounded-client-history", MaskedLinearCpu(Model.tiny(model_id="bounded-client-history"),
+        delivery=ClientBundleTransport("artifacts", storage="paged"),
+        inventory=PreparedInventory("request-sized", rows=1, refill="on-demand"),
+        quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
+        cache=ClientPrefixReuse(fixed_input_tokens=64, max_bytes=MiB)),
+        Deployment.local(root="local://bounded-client-history"),
+        ExecutionBudget(requests=3, max_input_tokens=64, max_new_tokens=2))
+    observed, errors, audits = [], [], []
+    finish = DashboardRuntime._finish_run
+    def capture(self, run, status, error):
+        core = self._client._core
+        observed.append((len(core._transformer_conversations), len(core.cache)))
+        audits.append(self._client.privacy_audit.to_dict())
+        if error is not None:
+            errors.append(str(error))
+        return finish(self, run, status, error)
+    monkeypatch.setattr(DashboardRuntime, "_finish_run", capture)
+    try:
+        report = run_loopback_benchmark(model="unused", model_id=None, tiny=False,
+            prompt="Hi", max_output_tokens=2, warmups=0, repetitions=3, timeout_seconds=90,
+            experiment=experiment, backend="native", temperature=0, capture_output_digest=True,
+            _cohort_salt=b"bounded-client-history")
+    except RuntimeError as exc:
+        pytest.fail(str(errors) if errors else str(exc))
+    assert not errors and report["checks"]["passed"]
+    assert observed == [(0, 0)] * 3
+    assert len({row["generation"]["output_text_digest"] for row in report["runs"]}) == 1
+    assert audits[1]["prefill_cache_hits"] > 0

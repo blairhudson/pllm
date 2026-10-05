@@ -58,6 +58,24 @@ def host_memory() -> HostMemory:
         raise BenchmarkMemoryError("cannot sample host memory for benchmark admission") from exc
 
 
+def process_memory() -> dict[str, int | None]:
+    """OS process samples. A lifetime high-water mark is not a per-run peak."""
+    import psutil
+    try:
+        rss = int(psutil.Process().memory_info().rss)
+    except (OSError, psutil.Error):
+        rss = None
+    peak = None
+    try:
+        import resource
+        peak = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        if platform.system() != "Darwin":
+            peak *= 1024
+    except (ImportError, OSError, AttributeError):
+        pass
+    return {"rss_bytes": rss, "lifetime_peak_rss_bytes": peak}
+
+
 def _docker_capacity() -> tuple[int, int]:
     """Read existing capacity; never reconfigure Docker Desktop or other containers."""
     try:
@@ -204,10 +222,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     work = max((4096 + rows * (16 * s.in_features + 24 * s.out_features) for s in remote), default=0)
     window = pipeline.components.get("inventory")
     work *= window.params.get("stage_window", 1) if window is not None else 1
-    # Summing graph tensors intentionally prices more than a live DAG traversal.
-    # Includes full-KV, sliding and recurrent state-bearing graph outputs.
-    tensors = 8 * sum(math.prod(op["output_shape"]) for graph in (plan.prefill, plan.decode)
-                      for op in graph["operations"])
+    from .decoder_memory import decoder_memory
+    workspace = decoder_memory(plan, plan.runtime_schedule(pipeline))
+    tensors = workspace["working_bytes"] + workspace["state_bytes"]
     cache_bytes = max(cache_bytes, options.prefix_cache_bytes)
     verification = 0
     if options.verification_target_failure_bits:
@@ -276,6 +293,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "bundle_storage": ("streamed_paged_v1; raw cache and private files are separate disk owners" if paged else
                            "immutable_segments_v1; client import retains conservative copy bounds"),
         "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+        "tensor_storage": workspace["mode"] + "; completed benchmark response histories are retired",
         "native_total_peak_bytes": client_peak + sum(role_peaks.values()),
         "components": {"per_engine_i8_and_native_bytes": cpu_weights,
             "per_role_i8_and_native_bytes": role_weights,
@@ -289,6 +307,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             "client_mask_bytes": masks, "provider_correction_bytes": corrections,
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "client_tensor_work_bytes": tensors,
+            "client_live_tensor_bytes": workspace["working_bytes"],
+            "client_state_work_bytes": workspace["state_bytes"],
+            "legacy_client_tensor_work_bytes": workspace["legacy_working_bytes"],
             "client_cache_bytes": cache_bytes, "per_provider_metal_bytes": gpu_provider,
             "client_metal_bytes": gpu_client, "checkpoint_bytes": checkpoint_bytes,
             "per_engine_compiled_disk_bytes": sum(s.in_features * s.out_features

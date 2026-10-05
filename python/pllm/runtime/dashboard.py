@@ -1092,6 +1092,8 @@ class DashboardRuntime:
         completed_at_ns: int | None = None
         completed_monotonic_ns: int | None = None
         saw_completed = False
+        response_id = None
+        stream = None
         temperature = _validate_request_temperature(
             capture.temperature
             if capture is not None
@@ -1120,6 +1122,10 @@ class DashboardRuntime:
                 for event in cast(Iterable[Any], stream):
                     event_type = event.get("type") if isinstance(event, dict) else event.type
                     now_ns = time.time_ns()
+                    if event_type in {"response.created", "response.completed", "response.incomplete"}:
+                        response_value = event.get("response") if isinstance(event, dict) else event.response
+                        response_id = (response_value.get("id") if isinstance(response_value, dict)
+                                       else getattr(response_value, "id", None)) or response_id
                     if event_type in {"response.completed", "response.incomplete"}:
                         saw_completed = True
                         authoritative_usage = self._completed_usage(event)
@@ -1191,6 +1197,16 @@ class DashboardRuntime:
             capture.output_tokens = delta_count
             self._finish_run(capture, "failed", exc)
             return
+        finally:
+            # Dashboard requests supply complete contexts, never a previous
+            # response ID. Retire response-owned KV/history after collecting the
+            # result; qualified prefix-cache blocks have independent ownership.
+            if stream is not None and callable(getattr(stream, "close", None)):
+                with suppress(Exception):
+                    stream.close()
+            core = getattr(self._client, "_core", None)
+            if response_id and callable(getattr(core, "evict_response", None)):
+                core.evict_response(response_id)
 
         finished_at_ns = completed_at_ns or time.time_ns()
         if capture is None:

@@ -48,6 +48,21 @@ mask claims and token/head operations, with identical bytes/results and zero swa
 growth. Combined CPU increased 15.2%. The probe excludes decoder body, attention,
 KV and provider sessions; it does not establish 10× whole-client memory.
 
+## Complete-response measurement
+
+A matched, fresh-process Qwen2.5 37+8-token cohort measures
+**665.49 → 306.43 MB peak RSS (2.17×)** for eager/resident versus lazy/paged
+clients. Outputs match; all body linear stages remain remote and swap growth is
+zero. This includes the in-process benchmark dashboard and full decoder/KV work,
+but excludes provider RSS and OS file cache. See the
+[complete-response evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/client-runtime-memory-2026-10-05.md).
+
+Ordinary reports expose `client_process_memory` as process-lifetime observations.
+Use fresh processes for candidate peaks. The Qwen3-4B client estimate is now
+**1.07 GiB** after conservative live-root, numeric-scratch and KV/snapshot pricing;
+that estimate correction is separate from allocation savings. **10× whole-client
+memory and the initial 0.83 GiB estimate target remain unmet.**
+
 ## Python SDK example
 
 ```python
