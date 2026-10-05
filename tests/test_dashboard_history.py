@@ -1,6 +1,7 @@
 import sqlite3
 import stat
 import threading
+from contextlib import nullcontext
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -239,6 +240,10 @@ class _Clock:
 
 
 class _BenchmarkClient:
+    @staticmethod
+    def tokenizer_scope():
+        return nullcontext()
+
     def __init__(self) -> None:
         self.privacy_audit = PrivacyAudit()
         self.consumed = 0

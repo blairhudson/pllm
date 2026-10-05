@@ -761,8 +761,19 @@ client/dashboard peak RSS from 390.32 to 350.45 MB (10.21%) with identical outpu
 text and zero observed new swap. It reuses one tokenizer across benchmark input
 admission, preparation sizing and response execution instead of constructing
 three. Retaining that object through process exit increases end-of-run RSS from
-337.54 to 350.19 MB. This probe-only allocation change adds no SDK cache; explicit
-request-lifetime cleanup and a matched resident 4B control remain open.
+337.54 to 350.19 MB. This probe-only allocation change adds no SDK cache. It did
+not implement request-lifetime cleanup; a matched resident 4B control remains open.
+
+The SDK now exposes bounded `tokenizer_scope()` ownership across request sizing,
+preparation and execution, applied automatically by the benchmark. It retains at
+most one admitted bundle's original tokenizer, replaces it on bundle changes,
+and releases scope ownership on exit or failure; async worker calls inherit the
+request context. Prompt-dependent work remains local. The indexed-tokenizer
+memory candidate remains probe-only pending broader coverage and performance
+validation. Compiled unscaled float32 RoPE now also shares exact coefficients
+within a phase under a 16-table/1 MiB bound, priced by admission and cleared on
+completion or failure. It preserves the original vector shapes and arithmetic
+order. These SDK changes have not yet been remeasured in the 4B memory cohort.
 
 A separate five-candidate client-offload screen moves public BPE vocabulary and
 merge compilation into a trusted offline artifact while keeping every

@@ -42,3 +42,24 @@ in advance; active responses never fall back to online preparation.
 
 The async equivalent is `pllm.AsyncOpenAI`; use one client per trust boundary and
 close it to erase live runtime state and release transports.
+
+## Reuse setup within a request
+
+The SDK already uses one tokenizer for response encoding and decoding. When
+sizing preparation separately, wrap `prepared_rows_for_response(...)`, optional
+`preprocess(...)`, and `responses.create(...)` in `with client.tokenizer_scope():`.
+Consume or close streaming responses inside that scope. `AsyncOpenAI` uses the
+same regular `with` block around awaited calls.
+
+The scope reuses at most one admitted bundle's tokenizer. A bundle change
+replaces it; normal exit and exceptions release scope ownership. Nested scopes
+share the outer lifetime. The scope stores no prompts or token IDs, and all
+tokenization stays client-local. The benchmark applies this automatically across
+input admission, preparation sizing and response execution.
+
+Compiled unscaled float32 RoPE also reuses identical sine/cosine coefficients
+across layers within each prefill or decode phase. Tables are bounded to 1 MiB,
+charged to memory admission and released after each phase, including failures.
+This preserves the original vector shapes and arithmetic order. These changes
+use the ordinary SDK path; the experimental indexed tokenizer remains a research
+probe pending broader tokenizer coverage and performance validation.

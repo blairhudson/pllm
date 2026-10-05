@@ -8,6 +8,8 @@ from __future__ import annotations
 from collections import Counter
 import math
 
+from .rotary_coefficients import rotary_coefficient_bound
+
 
 _VIEWS = {"reshape", "permute", "slice", "last_token", "token_feedback",
           "cache_suffix", "kv_cache_append", "causal_mask"}
@@ -90,6 +92,7 @@ def _phase_working_bytes(graph, schedule):
 
 def decoder_memory(plan, schedule):
     graphs = (plan.prefill, plan.decode)
+    rotary = max(rotary_coefficient_bound(graph) for graph in graphs)
     legacy = sum(_bytes(op["output_shape"]) for graph in graphs for op in graph["operations"])
     qualified = all(op["operator"] in _OPERATORS for graph in graphs for op in graph["operations"])
     states = {}
@@ -105,8 +108,9 @@ def decoder_memory(plan, schedule):
                 4 * shape[1] * shape[3] * max(64, 1 << (shape[2] - 1).bit_length()))
     qualified &= bool(states) and all((layer, kind) in states for layer, _ in states for kind in ("key", "value"))
     if not qualified:
-        return {"mode": "unreleased_outputs", "working_bytes": legacy,
-                "state_bytes": 0, "legacy_working_bytes": legacy}
+        return {"mode": "unreleased_outputs", "working_bytes": legacy + rotary,
+                "state_bytes": 0, "legacy_working_bytes": legacy,
+                "rotary_coefficient_bytes": rotary}
     phases = schedule.to_dict()
     working = max(_phase_working_bytes(graph, phases[phase])
                   for phase, graph in zip(("prefill", "decode"), graphs, strict=True))
@@ -115,5 +119,6 @@ def decoder_memory(plan, schedule):
     # payload capacity is charged separately by the caller. Benchmark response
     # snapshots must be retired after each run; arbitrary SDK history is unbounded.
     state = 6 * sum(states.values())
-    return {"mode": "full_kv_live_roots_v1", "working_bytes": working,
-            "state_bytes": state, "legacy_working_bytes": legacy}
+    return {"mode": "full_kv_live_roots_v1", "working_bytes": working + rotary,
+            "state_bytes": state, "legacy_working_bytes": legacy,
+            "rotary_coefficient_bytes": rotary}

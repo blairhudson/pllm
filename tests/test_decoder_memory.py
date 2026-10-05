@@ -46,7 +46,7 @@ def test_unknown_operator_keeps_conservative_unreleased_bound():
     a["operations"][0]["operator"] = "unpriced_operator"
     bound = decoder_memory(SimpleNamespace(prefill=a, decode=b), schedule)
     assert bound["mode"] == "unreleased_outputs"
-    assert bound["working_bytes"] == bound["legacy_working_bytes"]
+    assert bound["working_bytes"] == bound["legacy_working_bytes"] + bound["rotary_coefficient_bytes"]
 
 
 def test_missing_schedule_dependency_fails_instead_of_pricing_zero():

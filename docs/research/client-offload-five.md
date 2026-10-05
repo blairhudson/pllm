@@ -96,6 +96,17 @@ owner cleanup. Both unsuccessful attempts are retained and excluded from the
 comparison. Admission reserves were preserved; both successful candidates use
 the same narrower public workload bound.
 
+## SDK follow-through
+
+The SDK now exposes `OpenAI.tokenizer_scope()` and `AsyncOpenAI.tokenizer_scope()`
+for bounded ownership across input sizing, preparation and complete response
+execution. The ordinary benchmark uses it automatically. One admitted bundle's
+original tokenizer is retained at a time, with context-local ownership, source
+replacement, nested-scope reuse and exit/failure cleanup. Prompt-dependent work
+stays local. This promotes the ownership result; the SQLite index and its 35.08%
+memory measurement remain probe-only. The new SDK implementation has not been
+remeasured on the 4B whole-response cohort.
+
 ## Boundaries
 
 - The BPE experiment is a public, trusted-build artifact reference. A server's

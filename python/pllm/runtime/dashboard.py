@@ -976,6 +976,12 @@ class DashboardRuntime:
 
     def _execute_run(self, run_id: str, prompt: str | list[dict[str, str]], max_output_tokens: int) -> None:
         assert self._client is not None
+        # One worker owns setup through stream closure, including failed admission.
+        with self._client.tokenizer_scope():
+            self._execute_scoped_run(run_id, prompt, max_output_tokens)
+
+    def _execute_scoped_run(self, run_id: str, prompt: str | list[dict[str, str]], max_output_tokens: int) -> None:
+        assert self._client is not None
         capture = self._active_run
         if capture is None or capture.run_id != run_id:
             return

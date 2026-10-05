@@ -149,6 +149,57 @@ def test_dense_gated_decoder_binds_untied_output_head(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3", "llama"])
+def test_phase_rotary_reuse_preserves_every_logit_and_kv_bit(tmp_path, monkeypatch, model_type):
+    from pllm.runtime import rotary_coefficients
+
+    compiled, _, remote = _compiled(tmp_path, model_type=model_type)
+    trajectories = []
+    generated_tables = []
+    original = rotary_coefficients.default_rotary_coefficients
+
+    def counted(*args):
+        generated_tables.append(1)
+        return original(*args)
+
+    monkeypatch.setattr(rotary_coefficients, "default_rotary_coefficients", counted)
+    for limit in (0, 1 << 20):
+        monkeypatch.setattr(rotary_coefficients, "MAX_ROTARY_COEFFICIENT_BYTES", limit)
+        runtime = compiled.runtime(remote)
+        values = []
+        before = len(generated_tables)
+        _, logits, cache = runtime.prepare_ids([2, 3, 5])
+        for step in range(3):
+            values.append(logits.copy())
+            for retained in runtime.caches:
+                values.extend((retained.key[:retained.length].copy(),
+                               retained.value[:retained.length].copy()))
+            assert runtime._phase_rotary is None
+            if step < 2:
+                logits, cache = runtime.decode_step(int(np.argmax(logits)), cache)
+        trajectories.append(values)
+        assert len(generated_tables) - before == (12 if limit == 0 else 3)
+    for old, new in zip(*trajectories, strict=True):
+        np.testing.assert_array_equal(old.view(np.uint32), new.view(np.uint32))
+
+
+def test_phase_rotary_tables_retire_when_a_later_stage_fails(tmp_path):
+    compiled, _, remote = _compiled(tmp_path)
+    retained = []
+
+    def failing(stage, value):
+        if runtime._phase_rotary.retained_bytes:
+            retained.append(runtime._phase_rotary)
+            raise RuntimeError("remote stage failed")
+        return remote(stage, value)
+
+    runtime = compiled.runtime(failing)
+    with pytest.raises(RuntimeError, match="remote stage failed"):
+        runtime.prepare_ids([2, 3, 5])
+    assert retained and runtime._phase_rotary is None
+    assert all(item.retained_bytes == 0 and item.positions is None for item in retained)
+
+
 @pytest.mark.quality
 def test_scaled_rotary_checkpoint_binds_and_decodes_against_torch(tmp_path: Path) -> None:
     transformers = pytest.importorskip("transformers")

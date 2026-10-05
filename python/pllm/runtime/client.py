@@ -14,6 +14,8 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from collections import OrderedDict, defaultdict, deque
 from collections.abc import AsyncIterator, Iterator
+from contextlib import AbstractContextManager, contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, Mapping, TypeVar
@@ -95,7 +97,7 @@ from .transformer_client import (
 from .responses import ResponsesError, normalize_input, prompt_text
 from .tools import ParsedModelOutput, parse_model_output, tool_policy
 from .security import derive_session_key
-from .tokenizer import AlphabetTokenizer
+from .tokenizer import AlphabetTokenizer, Tokenizer
 from .types import Response, ResponseEvent, ResponseUsage, new_id
 
 if TYPE_CHECKING:
@@ -107,6 +109,35 @@ T = TypeVar("T")
 
 _BUNDLE_CACHE_MODES = {"read-write", "read-only", "refresh", "off"}
 _MAX_CLIENT_BUNDLE_BYTES = 8 * 1024 * 1024 * 1024
+
+
+class _ScopedTokenizer:
+    """At most one admitted bundle's tokenizer, owned by an explicit request scope."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._bundle: ClientBundle | None = None
+        self._tokenizer: Tokenizer | None = None
+        self._closed = False
+
+    def get(self, bundle: ClientBundle) -> Tokenizer:
+        with self._lock:
+            if self._closed:
+                raise RuntimeError("tokenizer scope is closed")
+            if self._bundle is not bundle:
+                # A model/bundle change cannot reuse a previous source's vocabulary.
+                self._bundle = None
+                self._tokenizer = None
+                self._tokenizer = bundle.tokenizer()
+                self._bundle = bundle
+            assert self._tokenizer is not None
+            return self._tokenizer
+
+    def close(self) -> None:
+        with self._lock:
+            self._closed = True
+            self._tokenizer = None
+            self._bundle = None
 
 
 def _response_contract_fields(body: dict[str, Any], *, max_output_tokens: int) -> dict[str, Any]:
@@ -1213,6 +1244,9 @@ class RuntimeClient:
         self._crypto_state_lock = threading.Lock()
         self._transformer_states: dict[str, _TransformerCryptoState] = {}
         self._transformer_state_lock = threading.Lock()
+        self._tokenizer_owner: ContextVar[_ScopedTokenizer | None] = ContextVar(
+            "pllm_request_tokenizer", default=None
+        )
         self._activity_lock = threading.Lock()
         self._active_offset_transports: dict[str, Any] = {}
         self._online_active = 0
@@ -2816,12 +2850,30 @@ class RuntimeClient:
                 }
             return state.prepared_inventory.status()
 
+    @contextmanager
+    def tokenizer_scope(self) -> Iterator[None]:
+        """Reuse public tokenizer setup across one request's sizing and execution."""
+        if self._tokenizer_owner.get() is not None:
+            yield
+            return
+        owner = _ScopedTokenizer()
+        token = self._tokenizer_owner.set(owner)
+        try:
+            yield
+        finally:
+            owner.close()
+            self._tokenizer_owner.reset(token)
+
+    def _response_tokenizer(self, bundle: ClientBundle) -> Tokenizer:
+        owner = self._tokenizer_owner.get()
+        return bundle.tokenizer() if owner is None else owner.get(bundle)
+
     def _response_input_tokens(self, model: str, input: str | list[Any]) -> int:
         """Count the complete rendered input, independent of cached-row reuse."""
         state = self._transformer_state(model)
         messages = normalize_input(input)
         rendered = self._render_cached_decoder_prompt(state, messages, add_generation_prompt=True)
-        return max(1, len(state.bundle.tokenizer().encode(
+        return max(1, len(self._response_tokenizer(state.bundle).encode(
             rendered, add_bos=bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True)))))
 
     def prepared_rows_for_response(
@@ -2838,7 +2890,7 @@ class RuntimeClient:
         state = self._transformer_state(model)
         messages = normalize_input(input, instructions=instructions)
         rendered = self._render_cached_decoder_prompt(state, messages, add_generation_prompt=True)
-        tokenizer = state.bundle.tokenizer()
+        tokenizer = self._response_tokenizer(state.bundle)
         add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
         ids = tokenizer.encode(rendered, add_bos=add_bos)
         full_ids = ids or [int(state.bundle.config["bos_token_id"])]
@@ -3343,7 +3395,7 @@ class RuntimeClient:
             tools=policy.prompt_tools() if policy.enabled else None,
         )
         add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
-        tokenizer = state.bundle.tokenizer()
+        tokenizer = self._response_tokenizer(state.bundle)
         input_ids = tokenizer.encode(rendered, add_bos=add_bos)
         if not input_ids and state.bundle.config.get("bos_token_policy") == "nonempty_only":
             raise ModelError("model without a BOS token requires nonempty input")
@@ -4478,6 +4530,16 @@ class OpenAI:
             raise ValueError("model is required")
         return self._core.prepared_inventory_status(model_id)
 
+    def tokenizer_scope(self) -> AbstractContextManager[None]:
+        """Share one source-bound tokenizer across request sizing and execution.
+
+        Use ``with client.tokenizer_scope():`` around preparation sizing and a
+        fully consumed response. Setup remains local. The scope holds no prompt
+        or token IDs, retains at most one bundle's tokenizer, and releases its
+        ownership on normal exit or failure. Nested scopes reuse the outer owner.
+        """
+        return self._core.tokenizer_scope()
+
     def prepared_rows_for_response(
         self,
         input: str,
@@ -4629,6 +4691,10 @@ class AsyncOpenAI:
     @property
     def privacy_audit(self) -> PrivacyAudit:
         return self.sync.privacy_audit
+
+    def tokenizer_scope(self) -> AbstractContextManager[None]:
+        """Use a regular ``with`` block around awaited sizing and response calls."""
+        return self.sync.tokenizer_scope()
 
     async def preprocess(
         self,

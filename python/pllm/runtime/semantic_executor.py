@@ -31,6 +31,7 @@ from .semantic_numeric import (
     float32_rotary_wavelength,
     round_bfloat16,
 )
+from .rotary_coefficients import PhaseRotaryCoefficients, default_rotary_coefficients
 from .semantic_state import SemanticStateError, WindowedLayerCache
 from .semantic_hybrid import (
     HybridStateError, bounded_gated_delta_decay, execute_declared_causal_convolution,
@@ -475,7 +476,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             raise TransformerClientError(str(exc)) from exc
 
     @staticmethod
-    def _rotary(value: np.ndarray, positions: np.ndarray, attributes: dict[str, Any]) -> np.ndarray:
+    def _rotary(value: np.ndarray, positions: np.ndarray, attributes: dict[str, Any], *,
+                _coefficients: PhaseRotaryCoefficients | None = None) -> np.ndarray:
         if "mrope_interleaved" in attributes or "mrope_section" in attributes:
             try:
                 return float32_rotary_text_mrope(value, positions, attributes)
@@ -501,10 +503,11 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         head = value.shape[-1]
         if rotary_dim > head or rotary_dim % 2 or theta <= 0:
             raise TransformerClientError("semantic rotary dimensions are invalid")
-        frequency = 1.0 / (theta ** (np.arange(0, rotary_dim, 2, dtype=np.float32) / rotary_dim))
-        angles = positions.astype(np.float32)[:, None] * frequency[None, :]
-        cos = np.concatenate([np.cos(angles), np.cos(angles)], axis=-1)[None, None, :, :]
-        sin = np.concatenate([np.sin(angles), np.sin(angles)], axis=-1)[None, None, :, :]
+        cos, sin = (
+            default_rotary_coefficients(positions, rotary_dim, theta)
+            if _coefficients is None
+            else _coefficients.get(positions, rotary_dim, theta)
+        )
         current = value[..., :rotary_dim]
         half = rotary_dim // 2
         rotated = np.concatenate([-current[..., half:], current[..., :half]], axis=-1)
@@ -754,7 +757,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 * (weight + offset)
             )
         elif kind == "rotary_embedding":
-            return self._rotary(source, values[inputs[1]], attrs)
+            return self._rotary(source, values[inputs[1]], attrs,
+                                _coefficients=getattr(self, "_phase_rotary", None))
         elif kind == "kv_cache_append":
             if type(layer) is not int:
                 raise TransformerClientError("semantic cache operation lacks a layer")
@@ -962,6 +966,17 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
 
     def _forward(self, ids: np.ndarray, *, final_logits_only: bool = False,
                  continuation: bool = False) -> np.ndarray:
+        self._phase_rotary = None
+        try:
+            return self._forward_phase(ids, final_logits_only=final_logits_only,
+                                       continuation=continuation)
+        finally:
+            if self._phase_rotary is not None:
+                self._phase_rotary.clear()
+                self._phase_rotary = None
+
+    def _forward_phase(self, ids: np.ndarray, *, final_logits_only: bool = False,
+                       continuation: bool = False) -> np.ndarray:
         if self._continuation_failed:
             raise TransformerClientError("continuation session is burned")
         phase = "prefill" if self.position == 0 else "decode"
@@ -982,6 +997,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         ):
             raise TransformerClientError("semantic execution exceeds compiled workload bounds")
         positions = np.arange(self.position, self.position + ids.size, dtype=np.int64)
+        self._phase_rotary = PhaseRotaryCoefficients(positions)
         previous_basis = self._snapshot_basis
         # A partial/failed phase must never retain completed-prefill qualification.
         self._snapshot_basis = None

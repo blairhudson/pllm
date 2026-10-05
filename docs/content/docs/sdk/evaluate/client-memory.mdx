@@ -70,6 +70,12 @@ persistent tokenizer cache. The pairs have different cohort salts, so their
 reduction factors are not multiplied. See the
 [tokenizer evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/tokenizer-memory-2026-10-05.md).
 
+For explicit preparation sizing, [request-scoped setup reuse](/sdk/run/clients/#reuse-setup-within-a-request)
+also shares that tokenizer with admission and preparation sizing, then releases
+scope ownership. Benchmarks apply this automatically. Phase-local unscaled
+float32 RoPE coefficient reuse is bounded to 1 MiB and included in admission.
+These SDK additions have parity/lifecycle checks, without a new 4B RSS measurement.
+
 ## Python SDK example
 
 ```python

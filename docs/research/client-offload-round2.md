@@ -117,6 +117,20 @@ control preserves the outputs. A differently digested numeric component with
 fresh held-out model-quality evidence could test this trade, but algebraic
 equivalence alone cannot authorize the existing W8A8 plan.
 
+## SDK follow-through
+
+The public-coefficient opportunity now has a bounded local SDK implementation:
+unscaled float32 RoPE computes a table once per unique width/theta and current
+phase position vector, then reuses it across Q/K and layers. It preserves the
+original operation's expression order and vector shapes, avoiding a possible
+NumPy SIMD/scalar change from computing a different-sized full-context table.
+At most 16 tables and 1 MiB are retained; larger work uses the existing direct
+arithmetic. Admission prices retained tables, and phase completion or failure
+releases them. Private positions and activation arithmetic remain client-local.
+The archived 1.84 ms result measures the original offline-artifact probe, not
+this SDK implementation. Cross-host compilation/artifact delivery remains a
+separate promotion gate.
+
 ## Privacy and promotion boundary
 
 These are bounded in-process research references. DPF and additive-share workers
