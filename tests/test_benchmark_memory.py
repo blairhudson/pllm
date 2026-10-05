@@ -22,6 +22,27 @@ def _host(**changes):
     return replace(HostMemory(32 * GiB, 24 * GiB, 0, 100 * GiB), **changes)
 
 
+@pytest.mark.parametrize(("total", "reserve", "runtime_floor"), [
+    (4 * GiB, GiB, GiB),
+    (32 * GiB, 4 * GiB, 2 * GiB),
+    (64 * GiB, 8 * GiB, 4 * GiB),
+])
+def test_host_reserve_admission_and_runtime_boundaries(total, reserve, runtime_floor):
+    estimate = _estimate()
+    required = estimate["native_total_peak_bytes"]
+    host = _host(total=total, available=required + reserve)
+    report = memory.admit_memory(estimate, host)
+    assert report["admitted"]
+    assert report["host"]["reserve_bytes"] == reserve
+    assert report["host"]["admission_budget_bytes"] == required
+    assert not memory.admit_memory(estimate, replace(host, available=host.available - 1))["admitted"]
+    samples = iter((replace(host, available=runtime_floor), replace(host, available=runtime_floor - 1)))
+    guard = memory.MemoryWatchdog(report, lambda reason: None, sample=lambda: next(samples))
+    guard.check()
+    with pytest.raises(BenchmarkMemoryError, match="runtime reserve"):
+        guard.check()
+
+
 def test_estimate_prices_complete_graph_and_native_copies():
     value = _estimate()
     assert set(value["provider_peak_bytes"]) == {"inference", "preparation"}
@@ -101,7 +122,7 @@ def test_docker_vm_headroom_and_native_fallback_do_not_change_pipeline():
 def test_swap_and_explicit_budget_cannot_increase_available_ram():
     estimate = _estimate()
     for budget in (None, 100 * GiB):
-        report = memory.admit_memory(estimate, _host(available=8 * GiB, swap_used=64 * GiB),
+        report = memory.admit_memory(estimate, _host(available=4 * GiB, swap_used=64 * GiB),
                                      memory_budget_bytes=budget)
         assert not report["admitted"]
         assert report["host"]["admission_budget_bytes"] == 0
@@ -174,7 +195,7 @@ def test_watchdog_stops_on_pressure_and_new_swap_after_recovery():
     guard.check()
     with pytest.raises(BenchmarkMemoryError, match="swap grew"):
         guard.check()
-    guard = memory.MemoryWatchdog(report, lambda reason: None, sample=lambda: _host(available=3 * GiB))
+    guard = memory.MemoryWatchdog(report, lambda reason: None, sample=lambda: _host(available=GiB))
     with pytest.raises(BenchmarkMemoryError, match="runtime reserve"):
         guard.check()
 

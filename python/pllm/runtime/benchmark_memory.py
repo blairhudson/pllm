@@ -44,7 +44,7 @@ class HostMemory:
 
     @property
     def reserve(self) -> int:
-        return max(2 * GiB, self.total // 4)
+        return max(GiB, self.total // 8)
 
 
 def host_memory() -> HostMemory:
