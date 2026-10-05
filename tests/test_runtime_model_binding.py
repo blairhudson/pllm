@@ -961,11 +961,15 @@ def test_boundary_client_mutation_rejected_at_runtime(tmp_path: Path):
     token = bundle.stages["token_lookup"]
 
     compiled = compile_runtime_model(plan, bundle)
-    saved = token.client_weight[0, 0]
-    token.client_weight[0, 0] = np.int8(int(saved) + 1)
+    original_weight = token.client_weight
+    with pytest.raises(ValueError, match="read-only"):
+        token.client_weight[0, 0] ^= 1
+    forged_weight = original_weight.copy()
+    forged_weight[0, 0] ^= 1
+    object.__setattr__(token, "client_weight", forged_weight)
     with pytest.raises(RuntimeBindingError):
         compiled.runtime(remote)
-    token.client_weight[0, 0] = saved
+    object.__setattr__(token, "client_weight", original_weight)
 
     compiled = compile_runtime_model(plan, bundle)
     saved_scale = token.client_weight_scales[0]

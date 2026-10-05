@@ -153,7 +153,12 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                    if s.role in {"token_lookup", "lm_head"}
                    and not (s.role == "lm_head" and options.remote_output_head))
     raw_config = config.get("text_config", config)
-    if raw_config.get("tie_word_embeddings"):
+    token = next(s for s in stages if s.role == "token_lookup")
+    head = next(s for s in stages if s.role == "lm_head")
+    shared_main_table = bool(raw_config.get("tie_word_embeddings")
+                             and token.weight_keys and head.weight_keys
+                             and token.weight_keys[0] == head.weight_keys[0])
+    if shared_main_table:
         boundary -= next(s.in_features * s.out_features for s in stages if s.role == "lm_head")
     # Descriptors include scales for every stage, not only client-owned weights.
     metadata = 16 * sum(s.out_features + s.in_features for s in stages) + 32 * MiB + local_tensors
@@ -207,6 +212,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             limitations.append("Metal stage exceeds its 512 MiB working-set bound")
     engine = cpu_weights + metadata + _PROCESS_BYTES
     role_peaks, docker_role_peaks = {}, {}
+    role_weights, role_loading = {}, {}
     for role in roles:
         # Preparation never exports a client bundle; inference and either offset
         # worker may. Include retained corrections while preparing new material.
@@ -215,8 +221,19 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         # still pack/unpack full bundles and cache copied artifact objects.
         delivery = 2 * metadata + 8 * MiB if role != "preparation" else 0
         legacy_delivery = 5 * bundle if role != "preparation" else 0
-        role_peaks[role] = _slack(engine + gpu_provider + max(
-            loading, delivery + corrections, work + corrections + verification))
+        retained = {s.id for s in remote} if role == "preparation" else {
+            s.id for s in stages if not (
+                shared_main_table and token.out_features == head.in_features and s.id == token.id)}
+        role_weights[role] = sum(s.in_features * s.out_features for s in stages if s.id in retained)
+        # Omitted weights are still imported and validated. Charge their full
+        # i8 staging array alongside bounded float/metadata work, even though
+        # no native snapshot will be allocated or retained for them.
+        role_loading[role] = max(
+            max(quantization, validation, 2 * s.in_features * s.out_features) if s.id in retained
+            else s.in_features * s.out_features + max(quantization, validation) for s in stages)
+        role_engine = role_weights[role] + metadata + _PROCESS_BYTES
+        role_peaks[role] = _slack(role_engine + gpu_provider + max(
+            role_loading[role], delivery + corrections, work + corrections + verification))
         docker_role_peaks[role] = _slack(engine + weights + gpu_provider + max(
             legacy_loading, legacy_delivery + corrections, work + corrections + verification))
     client = _PROCESS_BYTES + 6 * bundle + masks + verification + tensors + cache_bytes + gpu_client
@@ -236,6 +253,8 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
         "native_total_peak_bytes": client_peak + sum(role_peaks.values()),
         "components": {"per_engine_i8_and_native_bytes": cpu_weights,
+            "per_role_i8_and_native_bytes": role_weights,
+            "per_role_loading_temporary_bytes": role_loading,
             "legacy_per_engine_i8_and_native_bytes": 2 * weights,
             "float_quantization_work_bytes": quantization,
             "legacy_largest_loading_temporary_bytes": legacy_loading,

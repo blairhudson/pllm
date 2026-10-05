@@ -285,6 +285,8 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
         "verification_target_failure_bits": args.verification_target_failure_bits,
         "metal_min_rows": metal_min_rows,
     }
+    if engine_type is MaskedTransformerEngine:
+        engine_kwargs["weight_residency"] = "provider" if preparation else "provider_and_bundle"
     if args.public_equalization_digest is not None:
         if engine_type is not MaskedTransformerEngine:
             raise RuntimeCLIError("public equalization requires a public masked-linear engine")

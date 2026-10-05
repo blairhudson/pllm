@@ -172,7 +172,7 @@ class StageMetadata:
 @dataclass(slots=True)
 class StageRuntime:
     spec: StageSpec
-    weight: QuantizedWeight
+    quantized_weight: QuantizedWeight | None
     modulus: int
     wire_bits: int
     source_keys: tuple[str, ...]
@@ -187,8 +187,12 @@ class StageRuntime:
     _weight_digest: str = field(init=False)
     _signed_output_bound: int = field(init=False)
     _offset_output_bits: bytes | None = field(default=None, init=False, repr=False)
+    weight_scales: np.ndarray = field(init=False, repr=False)
+    weight_bits: int = field(init=False)
 
     def __post_init__(self) -> None:
+        self.weight_scales = self.weight.scales
+        self.weight_bits = self.weight.bits
         digest = hashlib.sha256()
         row_l1 = 0
         for chunk in _weight_chunks(self.weight.values):
@@ -198,17 +202,29 @@ class StageRuntime:
         self._signed_output_bound = signed_qmax(self.spec.activation_bits) * row_l1
 
     @property
+    def weight(self) -> QuantizedWeight:
+        if self.quantized_weight is None:
+            raise TransformerEngineError("stage weights are not resident for this role")
+        return self.quantized_weight
+
+    def release_weight(self) -> None:
+        """Retain checked metadata, never an executable placeholder matrix."""
+        self.quantized_weight = None
+        self.compiled_weight = None
+        self.compiled_cache_entry = None
+
+    @property
     def metadata(self) -> StageMetadata:
         return StageMetadata(
             id=self.spec.id,
             op=self.spec.op,
             in_features=self.spec.in_features,
             out_features=self.spec.out_features,
-            weight_bits=self.weight.bits,
+            weight_bits=self.weight_bits,
             activation_bits=self.spec.activation_bits,
             modulus=self.modulus,
             wire_bits=self.wire_bits,
-            weight_scales=self.weight.scales,
+            weight_scales=self.weight_scales,
             bias=self.bias,
             role=self.spec.role,
             layer_index=self.spec.layer_index,
@@ -260,13 +276,13 @@ class StageRuntime:
             "op": self.spec.op,
             "in_features": self.spec.in_features,
             "out_features": self.spec.out_features,
-            "weight_bits": self.weight.bits,
+            "weight_bits": self.weight_bits,
             "activation_bits": self.spec.activation_bits,
             "ring": "prime",
             "weight_digest": self.weight_digest,
             "modulus": self.modulus,
             "wire_bits": self.wire_bits,
-            "weight_scales": self.weight.scales.astype("<f4", copy=False).tobytes(),
+            "weight_scales": self.weight_scales.astype("<f4", copy=False).tobytes(),
             "bias": None if self.bias is None else self.bias.astype("<f4", copy=False).tobytes(),
             "source_keys": list(self.source_keys),
             "role": self.spec.role,
@@ -316,7 +332,7 @@ def _body_fingerprint(stages: dict[str, StageRuntime]) -> str:
             "weight_bits": runtime.spec.weight_bits,
             "activation_bits": runtime.spec.activation_bits,
             "weight_digest": runtime.weight_digest,
-            "weight_scales": runtime.weight.scales.astype("<f4", copy=False).tobytes(),
+            "weight_scales": runtime.weight_scales.astype("<f4", copy=False).tobytes(),
             "bias": None
             if runtime.bias is None
             else runtime.bias.astype("<f4", copy=False).tobytes(),
@@ -482,10 +498,16 @@ class MaskedTransformerEngine:
         client_prefix_layers: int = 0,
         client_linear_roles: tuple[str, ...] = (),
         prepared_output_encoding: str = "raw",
+        weight_residency: str = "all",
     ) -> None:
         if modulus is not None and (modulus <= 2 or modulus >= 2**31):
             raise ValueError("modulus must satisfy 2 < p < 2^31")
         self.weight_bits = int(weight_bits)
+        if weight_residency not in {"all", "provider", "provider_and_bundle"} or (
+            weight_residency != "all" and type(self) is not MaskedTransformerEngine
+        ):
+            raise ValueError("role weight residency requires the public masked-linear engine")
+        self.weight_residency = weight_residency
         if (type(prepared_output_encoding) is not str
             or prepared_output_encoding not in {"raw", "row_residues"}
             or (prepared_output_encoding != "raw" and type(self) is not MaskedTransformerEngine)):
@@ -810,8 +832,20 @@ class MaskedTransformerEngine:
             )
             if not local_specs or local_bytes > 512 << 20:
                 raise TransformerEngineError("client-owned prefix exceeds its 512 MiB weight bound")
+        retained = {stage.id for stage in stages if self.weight_residency != "provider"
+                    or self._provider_owns_stage(stage)}
+        if self.weight_residency == "provider_and_bundle" and manifest.tied_embeddings:
+            token = next(stage for stage in stages if stage.id == "token_lookup")
+            head = next(stage for stage in stages if stage.id == "lm_head")
+            token_sources = self._resolve_stage_sources(store, token, manifest)
+            head_sources = self._resolve_stage_sources(store, head, manifest)
+            # Schema 2 uses the head orientation for a tied main token table.
+            # Auxiliary slices still need their independently quantized source.
+            if token.out_features == head.in_features and token_sources[0][0] == head_sources[0][0]:
+                retained.remove(token.id)
         runtimes = {
-            stage.id: await asyncio.to_thread(self._load_stage, store, stage, manifest)
+            stage.id: await asyncio.to_thread(self._load_stage, store, stage, manifest,
+                                             retain_weight=stage.id in retained)
             for stage in stages
         }
         metal_stages: dict[str, Any] = {}
@@ -1263,7 +1297,8 @@ class MaskedTransformerEngine:
         return cached
 
     def _load_stage(
-        self, store: SafeTensorStore, stage: StageSpec, manifest: ModelManifest
+        self, store: SafeTensorStore, stage: StageSpec, manifest: ModelManifest,
+        *, retain_weight: bool = True,
     ) -> StageRuntime:
         sources = self._resolve_stage_sources(store, stage, manifest)
         resolved = [key for key, _ in sources]
@@ -1347,13 +1382,14 @@ class MaskedTransformerEngine:
             )
         cache_entry = (Path(quantized.values.filename).parent
                        if isinstance(quantized.values, np.memmap) else None)
-        compiled = self.kernel.compile(quantized.values)
+        compiled = self.kernel.compile(quantized.values) if retain_weight else None
         # Retire the Python weight allocation/mapping. Metadata, preparation and
         # GPU import share a read-only view whose base retains the Rust snapshot.
-        quantized = QuantizedWeight(compiled.weight_view(), quantized.scales, quantized.bits)
-        return StageRuntime(
+        if compiled is not None:
+            quantized = QuantizedWeight(compiled.weight_view(), quantized.scales, quantized.bits)
+        runtime = StageRuntime(
             spec=stage,
-            weight=quantized,
+            quantized_weight=quantized,
             modulus=modulus,
             wire_bits=choose_wire_bits(modulus),
             source_keys=tuple(resolved),
@@ -1367,6 +1403,9 @@ class MaskedTransformerEngine:
                 else None
             ),
         )
+        if not retain_weight:
+            runtime.release_weight()
+        return runtime
 
     @staticmethod
     def _default_weight_keys(stage: StageSpec) -> tuple[str, ...]:

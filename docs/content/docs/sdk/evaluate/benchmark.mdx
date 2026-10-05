@@ -34,6 +34,15 @@ It uses a 25% allocation margin and leaves at least 25% of host RAM (minimum
 These estimates are conservative admission checks, not measured peak memory or
 an OOM guarantee. Crypto/runtime paths without an allocation model reject.
 
+Native public role launchers share immutable Rust weight storage and stream bundle
+segments. Preparation keeps only provider-executed weights; Inference can discard
+the unused orientation of a tied token table. Auxiliary tables remain distinct.
+Preflight still charges import/validation of omitted stages, retained corrections,
+and conservative client mask, workspace and bundle-copy allowances. Summed role
+peaks plus the margin can substantially exceed one checkpoint's file size; inspect
+`estimate.components` and per-role peaks before treating that estimate as residency.
+Older Docker images retain the legacy allocation upper bounds.
+
 Inspect without starting roles:
 
 ```bash

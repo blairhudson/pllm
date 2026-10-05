@@ -565,6 +565,7 @@ def main() -> None:
     kernels = composition.components["kernels"]
     worker = MaskedTransformerEngine(
         threads=1, weight_bits=args.weight_bits, activation_bits=args.activation_bits,
+        weight_residency="provider_and_bundle",
         metal_min_rows=(
             kernels.params["min_rows"] if kernels.component == "pllm/apple-metal-int8/v1" else None
         ),

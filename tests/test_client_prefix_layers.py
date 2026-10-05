@@ -90,7 +90,13 @@ def test_prepared_client_prefix_parity_and_bound_remote_stage_traffic(tmp_path: 
                         stage for stage in state.bundle.stages.values()
                         if stage.layer_index == 0 and stage.client_weight is not None
                     )
-                    local_stage.client_weight.flat[0] ^= 1
+                    with pytest.raises(ValueError, match="read-only"):
+                        local_stage.client_weight.flat[0] ^= 1
+                    # Inject a replacement to retain the binding-tamper gate in
+                    # addition to the immutable transport-storage guarantee.
+                    forged = local_stage.client_weight.copy()
+                    forged.flat[0] ^= 1
+                    object.__setattr__(local_stage, "client_weight", forged)
                     with pytest.raises(RuntimeBindingError, match="client-owned prefix weight"):
                         compiled.validate()
             finally:

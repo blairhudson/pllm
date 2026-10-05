@@ -128,7 +128,11 @@ def test_roles_preserve_two_child_prefill_decode_and_reject_weight_drift(
                         for stage in body
                     )
                     local = next(stage for stage in body if stage.role == "qkv_projection")
-                    local.client_weight.flat[0] ^= 1
+                    with pytest.raises(ValueError, match="read-only"):
+                        local.client_weight.flat[0] ^= 1
+                    forged = local.client_weight.copy()
+                    forged.flat[0] ^= 1
+                    object.__setattr__(local, "client_weight", forged)
                     with pytest.raises(RuntimeBindingError, match="client-owned prefix weight"):
                         compiled.validate()
     assert observations[0][:2] == observations[1][:2]

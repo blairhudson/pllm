@@ -29,6 +29,9 @@ def test_estimate_prices_complete_graph_and_native_copies():
     assert value["native_total_peak_bytes"] == value["client_peak_bytes"] + sum(value["provider_peak_bytes"].values())
     assert value["components"]["client_mask_bytes"] > value["components"]["provider_correction_bytes"] > 0
     assert value["components"]["client_tensor_work_bytes"] > 0
+    residency = value["components"]["per_role_i8_and_native_bytes"]
+    assert residency["preparation"] < residency["inference"] < value["components"]["per_engine_i8_and_native_bytes"]
+    assert all(n > 0 for n in value["components"]["per_role_loading_temporary_bytes"].values())
     json.dumps(value)  # every report field is a scalar/record, not a plan handle
     offset = _estimate(TwoOnlineOffsetCpu(Model.tiny()))
     assert set(offset["provider_peak_bytes"]) == {"worker_a", "worker_b"}

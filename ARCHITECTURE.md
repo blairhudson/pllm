@@ -709,9 +709,14 @@ can fall back from unsafe Docker CPU placement while preserving the Pipeline.
 Enforced WAN/link shaping cannot fall back to an unthrottled measurement.
 `--preflight-only` and `pllm.metrics.benchmark_memory` expose the same admission.
 The attempted Qwen3-4B cohort exhausted a 32 GiB host after Docker was raised to
-20 GiB; no successful result was produced. Single-snapshot stage ownership and
-bounded float loading reduce its lean native allocation estimate from 34.78 to
-23.60 GiB, still above available headroom. Docker retains the legacy allocation
+20 GiB; no successful result was produced. Single-snapshot stage ownership,
+bounded float loading, segmented bundle delivery and role-specific weight retention
+reduce its lean native allocation estimate from 34.78 to 19.75 GiB, still above
+available headroom. That figure includes 5.98 GiB for Inference, 5.52 GiB for
+Preparation and 8.25 GiB for the client, with a 25% margin in each. The client
+still charges conservative bundle-copy, 71-row mask and decoder-workspace bounds;
+the original 7.49 GiB BF16 checkpoint is not a whole-topology memory estimate.
+Docker retains the legacy allocation
 upper bounds for potentially older images. A tiny native
 CPU/Metal control passes functionality and cleanup, with equal outputs and zero
 observed swap growth; it does not establish large-model capacity.
@@ -721,6 +726,14 @@ A matrix is copied into Rust once at compilation, then reused for later calls.
 immutable owner. Provider stage loading retires the original i8 allocation or
 mapping; metadata, preparation and GPU import use the shared CPU snapshot.
 Floating-point stage import and weight validation use bounded row chunks.
+Fresh public role launchers retain checked stage metadata after retiring weights
+unused by that role, without allocating a native snapshot for those stages.
+Preparation retains only provider-executed stages. Inference and offset workers
+retain delivery weights, but drop a tied main-token orientation already supplied
+by the head. Auxiliary token tables keep their separate weights. Body and stage
+commitments remain unchanged; retired stages reject execution. Direct all-stage
+engines retain their existing ownership, and externally supplied engines are not
+pruned by a role adapter.
 Compiled disk-cache entries remain protected while their stages are loaded.
 Direct callers retaining their original arrays still pay for those arrays;
 client bundle, native execution and GPU snapshots retain separate accounting.
