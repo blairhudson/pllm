@@ -40,6 +40,20 @@ def test_estimate_prices_complete_graph_and_native_copies():
     assert offset["components"]["client_mask_bytes"] == 0
 
 
+def test_paged_client_prices_bounded_ram_and_distinct_disk_owners():
+    from pllm.protocols import ClientBundleTransport
+    resident = _estimate(MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport("artifacts")))
+    paged = _estimate(MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport("artifacts", storage="paged")))
+    assert paged["client_peak_bytes"] < resident["client_peak_bytes"]
+    assert paged["provider_peak_bytes"] == resident["provider_peak_bytes"]
+    assert paged["docker_provider_peak_bytes"] == resident["docker_provider_peak_bytes"]
+    assert paged["components"]["raw_client_bundle_bytes"] == resident["components"]["raw_client_bundle_bytes"]
+    assert paged["components"]["client_bundle_work_bytes"] < resident["components"]["client_bundle_work_bytes"]
+    a = memory.admit_memory(resident, _host())["candidates"]["native"]
+    b = memory.admit_memory(paged, _host())["candidates"]["native"]
+    assert b["required_disk_bytes"] - a["required_disk_bytes"] == paged["components"]["client_additional_paged_disk_bytes"] > 0
+
+
 @pytest.mark.parametrize("storage", [None, object(), bytearray(b"\x00"), b"\x00"])
 def test_snapshot_estimate_rejects_reference_stale_or_mutable_backend(monkeypatch, storage):
     from types import SimpleNamespace

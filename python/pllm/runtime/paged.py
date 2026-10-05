@@ -16,7 +16,9 @@ class PagedGEMM:
 
     Local private row gathers support token lookup without a resident vocabulary
     matrix. Source artifacts and the anonymous snapshot are separate disk owners.
-    This direct kernel is not yet a selectable Pipeline storage backend.
+    The SDK selects this storage through
+    ``ClientBundleTransport("artifacts", storage="paged")``. The direct API also
+    accepts explicit standalone artifacts and canonical raw weight files.
     """
 
     __slots__ = ("_matrix",)
@@ -37,6 +39,29 @@ class PagedGEMM:
         if hasattr(self, name):
             raise AttributeError("paged matrix snapshots are immutable")
         object.__setattr__(self, name, value)
+
+    @classmethod
+    def from_raw(cls, path: str | Path, content_digest: str, shape: tuple[int, int], *,
+                 threads: int = 1, simd: bool = True) -> PagedGEMM:
+        """Authenticate canonical raw i8 bytes into an independent private snapshot."""
+        if (type(shape) is not tuple or len(shape) != 2
+                or any(type(n) is not int or n <= 0 for n in shape)
+                or type(threads) is not int or not 1 <= threads <= 32 or type(simd) is not bool):
+            raise NativeKernelError("invalid raw paged geometry or executor policy")
+        native = extension()
+        if native is None:
+            raise NativeKernelError("paged execution requires the native extension")
+        return cls._from_raw_executor(path, content_digest, shape, native.Executor(threads, simd))
+
+    @classmethod
+    def _from_raw_executor(cls, path, content_digest, shape, executor):
+        native = extension()
+        if native is None:
+            raise NativeKernelError("paged execution requires the native extension")
+        result = cls.__new__(cls)
+        result._matrix = native.PagedMatrix.from_raw(
+            os.fspath(path), content_digest, *shape, executor)
+        return result
 
     @staticmethod
     def export(
@@ -134,6 +159,14 @@ class PagedGEMM:
         return np.frombuffer(self._matrix.gather(ids.tobytes()), np.int8).reshape(
             ids.size, self.shape[1]
         )
+
+    def gather_columns(self, indices) -> np.ndarray:
+        """Return original columns as rows without materializing the complete matrix."""
+        ids = _integer_array(indices, "<u8", low=0, high=self.shape[1] - 1, dimensions=1)
+        if not 1 <= ids.size <= 4096 or ids.size * self.shape[0] > 4 * 1024**2:
+            raise NativeKernelError("paged gather exceeds bounded shape policy")
+        return np.frombuffer(self._matrix.gather(ids.tobytes(), True), np.int8).reshape(
+            ids.size, self.shape[0])
 
     def close(self) -> None:
         self._matrix.close()

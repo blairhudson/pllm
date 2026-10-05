@@ -61,6 +61,32 @@ impl Matrix {
             ),
         })
     }
+    #[staticmethod]
+    fn from_raw(
+        py: Python<'_>,
+        path: &str,
+        content_digest: &str,
+        rows: usize,
+        cols: usize,
+        executor: PyRef<'_, crate::Executor>,
+    ) -> PyResult<Self> {
+        let expected = digest(content_digest)?;
+        let executor = std::sync::Arc::clone(&executor.inner);
+        Ok(Self {
+            inner: Some(
+                py.detach(|| {
+                    paged::PagedMatrix::from_raw_with_executor(
+                        Path::new(path),
+                        expected,
+                        rows,
+                        cols,
+                        executor,
+                    )
+                })
+                .map_err(invalid)?,
+            ),
+        })
+    }
     #[getter]
     fn shape(&self) -> PyResult<(usize, usize)> {
         Ok(self.get()?.shape())
@@ -134,7 +160,13 @@ impl Matrix {
             .map_err(invalid)?;
         Ok(PyBytes::new(py, &result))
     }
-    fn gather<'py>(&self, py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
+    #[pyo3(signature=(data, columns=false))]
+    fn gather<'py>(
+        &self,
+        py: Python<'py>,
+        data: &[u8],
+        columns: bool,
+    ) -> PyResult<Bound<'py, PyBytes>> {
         let matrix = self.get()?;
         let result = py
             .detach(|| {
@@ -145,7 +177,11 @@ impl Matrix {
                     .chunks_exact(8)
                     .map(|x| u64::from_le_bytes(x.try_into().unwrap()))
                     .collect();
-                matrix.gather(&ids)
+                if columns {
+                    matrix.gather_columns(&ids)
+                } else {
+                    matrix.gather(&ids)
+                }
             })
             .map_err(invalid)?;
         Ok(PyBytes::new(py, &result))

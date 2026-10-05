@@ -126,6 +126,10 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     options = resolve_runtime_composition(pipeline)
     if options is None or options.privacy_mode not in {"public", "offset_public", "client_only"}:
         raise BenchmarkMemoryError("memory estimation requires an implemented public compiled topology")
+    delivery = pipeline.components.get("delivery")
+    paged = delivery is not None and delivery.params.get("storage") == "paged"
+    if paged and not hasattr(getattr(native, "PagedMatrix", None), "from_raw"):
+        raise BenchmarkMemoryError("paged memory admission requires native authenticated raw snapshots")
     compiled_input_bound = max(max_input_tokens, cache_bound_tokens or 0,
                                options.prefix_cache_bound_tokens or 0)
     plan = lower_model(config, batch=1, max_input_tokens=compiled_input_bound,
@@ -163,6 +167,16 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     # Descriptors include scales for every stage, not only client-owned weights.
     metadata = 16 * sum(s.out_features + s.in_features for s in stages) + 32 * MiB + local_tensors
     bundle = boundary + local_weights + metadata
+    client_stages = [*client_body, token]
+    if not options.remote_output_head:
+        client_stages.append(head)
+    # Raw paged import shares one executor and never creates a whole-matrix
+    # Python array. Metadata is still owned by the decoded document and bundle;
+    # include two copies, page indices/row bounds and bounded I/O/kernel tiles.
+    paged_indices = sum(256 + 128 * math.ceil(s.in_features * s.out_features / MiB)
+                        + 8 * max(s.in_features, s.out_features) for s in client_stages) if paged else 0
+    bundle_work = 2 * metadata + paged_indices + 16 * MiB if paged else 6 * bundle
+    paged_disk = 2 * (boundary + local_weights) if paged else 0
     cpu_weights = weights  # NumPy stage views retain the same immutable Rust owner
     from .transformer_engine import WEIGHT_CHUNK_ELEMENTS
     # Whole-stage i8 staging and its immutable binding input are still charged.
@@ -209,6 +223,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     if metal and not roles:
         gpu_client = weights
     limitations = []
+    if paged and any(s.in_features * s.out_features > 2 * GiB
+                     or max(s.in_features, s.out_features) > 1048576 for s in client_stages):
+        limitations.append("paged client matrix exceeds native snapshot geometry bounds")
     if metal:
         if platform.system() != "Darwin" or platform.machine() != "arm64":
             limitations.append("Metal requires an Apple Silicon native host")
@@ -242,7 +259,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             role_loading[role], delivery + corrections, work + corrections + verification))
         docker_role_peaks[role] = _slack(engine + weights + gpu_provider + max(
             legacy_loading, legacy_delivery + corrections, work + corrections + verification))
-    client = _PROCESS_BYTES + 6 * bundle + masks + verification + tensors + cache_bytes + gpu_client
+    client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client
     if not roles:
         client += engine + loading
     client_peak = _slack(client)
@@ -256,7 +273,8 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "provider_peak_bytes": role_peaks,
         "docker_provider_peak_bytes": docker_role_peaks,
         "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
-        "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+        "bundle_storage": ("streamed_paged_v1; raw cache and private files are separate disk owners" if paged else
+                           "immutable_segments_v1; client import retains conservative copy bounds"),
         "mask_storage": "one_active_stage_v1; one benchmark response at a time",
         "native_total_peak_bytes": client_peak + sum(role_peaks.values()),
         "components": {"per_engine_i8_and_native_bytes": cpu_weights,
@@ -266,6 +284,8 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             "float_quantization_work_bytes": quantization,
             "legacy_largest_loading_temporary_bytes": legacy_loading,
             "largest_loading_temporary_bytes": loading, "raw_client_bundle_bytes": bundle,
+            "client_bundle_work_bytes": bundle_work, "client_paged_metadata_bytes": paged_indices,
+            "client_additional_paged_disk_bytes": paged_disk,
             "client_mask_bytes": masks, "provider_correction_bytes": corrections,
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "client_tensor_work_bytes": tensors,
@@ -317,7 +337,8 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
         # cached objects are not assumed resident without verified cache evidence.
         disk_required = (estimate["components"]["per_engine_compiled_disk_bytes"]
                          * max(1, len(estimate["provider_peak_bytes"]))
-                         + 2 * estimate["components"]["raw_client_bundle_bytes"] + 2 * GiB)
+                         + 2 * estimate["components"]["raw_client_bundle_bytes"] + 2 * GiB
+                         + estimate["components"].get("client_additional_paged_disk_bytes", 0))
         if host.disk_free < disk_required:
             reasons.append("insufficient disk headroom for compiled caches, bundles and 2 GiB reserve")
         candidates[kind] = {"admitted": not reasons, "reasons": reasons,

@@ -563,6 +563,26 @@ def _f32_bytes(value: np.ndarray) -> bytes:
     return np.asarray(value, dtype="<f4").tobytes()
 
 
+def _client_weight_identity(value, storage: str) -> tuple[tuple[int, int], str]:
+    """Bind actual immutable storage without a matrix-sized serialization copy."""
+    from .paged import PagedGEMM
+
+    if isinstance(value, PagedGEMM):
+        if storage != "paged":
+            raise RuntimeBindingError("paged client weight differs from selected storage")
+        return value.shape, value.weight_digest
+    if storage != "memory":
+        raise RuntimeBindingError("selected paged storage requires native file snapshots")
+    array = np.asarray(value)
+    if array.dtype != np.int8 or array.ndim != 2 or min(array.shape) <= 0:
+        raise RuntimeBindingError("client weight is malformed")
+    digest = hashlib.sha256()
+    rows = max(1, (1 << 20) // array.shape[1])
+    for start in range(0, array.shape[0], rows):
+        digest.update(memoryview(np.ascontiguousarray(array[start:start + rows])).cast("B"))
+    return array.shape, digest.hexdigest()
+
+
 def _normalize_weight_key(key: Any) -> str:
     if not isinstance(key, str):
         raise RuntimeBindingError("stage weight key must be a string")
@@ -1613,6 +1633,10 @@ def compile_runtime_model(
     head_stage = stage_by_role[("lm_head", None)]
 
     client_fields: dict[str, dict[str, Any]] = {}
+    delivery = composition.components.get("delivery")
+    weight_storage = delivery.params.get("storage", "memory") if delivery is not None else "memory"
+    if bundle.weight_storage != weight_storage:
+        raise RuntimeBindingError("client bundle weight storage differs from its composition")
     tied = bool(manifest.get("tied_embeddings"))
     for stage in (head_stage, token_stage):
         if stage.id == "lm_head" and remote_output_head:
@@ -1636,9 +1660,7 @@ def compile_runtime_model(
         client_scales = stage.client_weight_scales
         if client_weight is None or client_scales is None:
             raise RuntimeBindingError(f"bundle stage {stage.id!r} must carry a local client weight")
-        weight_values = np.asarray(client_weight)
-        if weight_values.dtype != np.int8 or weight_values.ndim != 2:
-            raise RuntimeBindingError(f"bundle stage {stage.id!r} client weight is malformed")
+        weight_shape, digest = _client_weight_identity(client_weight, weight_storage)
         scale_values = np.asarray(client_scales)
         if scale_values.dtype != np.float32 or scale_values.ndim != 1:
             raise RuntimeBindingError(
@@ -1649,9 +1671,8 @@ def compile_runtime_model(
                 f"bundle stage {stage.id!r} client weight scales must be positive"
             )
         layout = str(stage.client_weight_layout)
-        digest = _sha256(np.ascontiguousarray(weight_values, dtype=np.int8).tobytes())
         if stage.id == "lm_head":
-            if layout != "linear" or weight_values.shape != (
+            if layout != "linear" or weight_shape != (
                 stage.out_features,
                 stage.in_features,
             ):
@@ -1663,8 +1684,8 @@ def compile_runtime_model(
         elif layout == "embedding":
             if not tied:
                 raise RuntimeBindingError("embedding token layout requires tied embeddings")
-            if weight_values.shape[0] != stage.in_features or not (
-                0 < weight_values.shape[1] <= stage.out_features
+            if weight_shape[0] != stage.in_features or not (
+                0 < weight_shape[1] <= stage.out_features
             ):
                 raise RuntimeBindingError("token_lookup client weight shape is inconsistent")
             if digest != head_stage.weight_digest:
@@ -1674,7 +1695,7 @@ def compile_runtime_model(
         elif layout == "transposed_embedding":
             if tied:
                 raise RuntimeBindingError("tied token_lookup must use embedding layout")
-            if weight_values.shape != (stage.out_features, stage.in_features):
+            if weight_shape != (stage.out_features, stage.in_features):
                 raise RuntimeBindingError("token_lookup client weight shape is inconsistent")
             if digest != stage.weight_digest:
                 raise RuntimeBindingError("token_lookup client weight digest mismatch")
@@ -1690,26 +1711,23 @@ def compile_runtime_model(
         if (aux_weight is None) != (aux_scales is None):
             raise RuntimeBindingError(f"bundle stage {stage.id!r} auxiliary weight is incomplete")
         if aux_weight is not None:
-            aux_values = np.asarray(aux_weight)
+            aux_shape, aux_digest = _client_weight_identity(aux_weight, weight_storage)
             aux_scale_values = np.asarray(aux_scales)
             if (
-                aux_values.dtype != np.int8
-                or aux_values.ndim != 2
-                or aux_values.shape[1] != stage.in_features
+                aux_shape[1] != stage.in_features
             ):
                 raise RuntimeBindingError(
                     f"bundle stage {stage.id!r} auxiliary weight is malformed"
                 )
             if (
                 aux_scale_values.dtype != np.float32
-                or aux_scale_values.shape != (aux_values.shape[0],)
+                or aux_scale_values.shape != (aux_shape[0],)
                 or not np.all(np.isfinite(aux_scale_values))
                 or not np.all(aux_scale_values > 0)
             ):
                 raise RuntimeBindingError(
                     f"bundle stage {stage.id!r} auxiliary scales are malformed"
                 )
-            aux_digest = _sha256(np.ascontiguousarray(aux_values, dtype=np.int8).tobytes())
             aux_scales_digest = _sha256(_f32_bytes(aux_scale_values))
         client_fields[stage.id] = {
             "client_weight_layout": layout,
@@ -1727,24 +1745,23 @@ def compile_runtime_model(
             client_linear_roles=client_linear_roles,
         ):
             continue
-        weight = np.asarray(stage.client_weight)
+        weight_shape, weight_digest = _client_weight_identity(stage.client_weight, weight_storage)
         scales = np.asarray(stage.client_weight_scales)
         if (
             stage.client_weight_layout != "linear"
             or stage.seeded_profile is not None
             or stage.client_aux_weight is not None
             or stage.client_aux_scales is not None
-            or weight.dtype != np.int8
-            or weight.shape != (stage.out_features, stage.in_features)
+            or weight_shape != (stage.out_features, stage.in_features)
             or scales.dtype != np.float32
             or scales.shape != (stage.out_features,)
             or not np.all(np.isfinite(scales))
             or not np.all(scales > 0)
-            or _sha256(np.ascontiguousarray(weight).tobytes()) != stage.weight_digest
+            or weight_digest != stage.weight_digest
             or not np.array_equal(scales, np.asarray(stage.weight_scales))
         ):
             raise RuntimeBindingError("client-owned prefix weight or stage commitment is invalid")
-        local_bytes += int(weight.nbytes + scales.nbytes)
+        local_bytes += int(weight_shape[0] * weight_shape[1] + scales.nbytes)
         client_fields[stage.id] = {
             "client_weight_layout": "linear",
             "client_weight_digest": stage.weight_digest,

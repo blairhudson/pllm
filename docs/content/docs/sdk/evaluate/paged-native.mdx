@@ -17,8 +17,11 @@ raised head CPU to 614.07 ms. Keep raw pages for this memory-oriented option.
 
 RSS excludes filesystem cache and total device memory; source artifacts and the
 private snapshot consume separate disk. Measurements cover one matrix, not a
-whole decoder. The direct API is available; compiler-bound streamed bundle
-integration is pending. Existing Pipeline defaults retain resident weights.
+whole decoder. [Streamed SDK import](/sdk/evaluate/client-memory/) now selects
+the same exact kernel through `ClientBundleTransport("artifacts", storage="paged")`.
+Tiny compiled SDK/gateway, cache and verified/offset checks pass; the historical
+single-matrix ratio is not a whole-client measurement. Defaults retain resident
+weights.
 
 ## Python SDK example
 

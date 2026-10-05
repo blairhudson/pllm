@@ -1844,10 +1844,20 @@ fn valid_prefix_cache(component: &ExperimentComponent) -> bool {
 
 fn valid_bundle_transport(component: &ExperimentComponent) -> bool {
     component.component == "pllm/client-bundle-transport/v1"
-        && component
-            .params
-            .keys()
-            .all(|key| matches!(key.as_str(), "encoding" | "compression" | "batch_objects"))
+        && component.params.keys().all(|key| {
+            matches!(
+                key.as_str(),
+                "encoding" | "compression" | "batch_objects" | "storage"
+            )
+        })
+        && component.params.get("storage").is_none_or(|value| {
+            value.as_str() == Some("paged")
+                && component
+                    .params
+                    .get("encoding")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("artifacts")
+        })
         && matches!(
             component
                 .params
@@ -2186,6 +2196,18 @@ fn validate_masked_linear_core(
             "masked-linear composition requires pllm/cpu or public-stage pllm/apple-metal-int8/v1 with bounded parameters"
                 .into(),
         );
+    }
+    if metal
+        && pipeline.components.contains_key("placement")
+        && pipeline.components.get("delivery").is_some_and(|delivery| {
+            delivery
+                .params
+                .get("storage")
+                .and_then(serde_json::Value::as_str)
+                == Some("paged")
+        })
+    {
+        return Err("paged client body weights cannot allocate Metal snapshots".into());
     }
     Ok(())
 }

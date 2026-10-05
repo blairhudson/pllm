@@ -87,6 +87,9 @@ def client_body_placement_snapshot(client: Any, model_id: str) -> dict[str, Any]
         if stage.layer_index is not None and stage.op == "linear"
     }
     local = {key: stage for key, stage in stages.items() if stage.client_weight is not None}
+    from .paged import PagedGEMM
+    paged = {key: stage.client_weight for key, stage in local.items()
+             if isinstance(stage.client_weight, PagedGEMM)}
     with bundle._local_lock:
         snapshots = set(bundle._local_matrices)
         metal_snapshots = dict(bundle._body_metal_matrices)
@@ -97,10 +100,13 @@ def client_body_placement_snapshot(client: Any, model_id: str) -> dict[str, Any]
         "sample_boundary": "after-final-measured-response",
         "local_stage_count": len(local),
         "remote_stage_count": len(stages) - len(local),
-        "client_body_i8_weight_bytes": sum(stage.client_weight.nbytes for stage in local.values()),
+        "client_body_i8_weight_bytes": sum(stage.client_weight.nbytes for key, stage in local.items() if key not in paged),
+        "client_body_paged_weight_bytes": sum(matrix.weight_bytes for matrix in paged.values()),
+        "client_body_paged_metadata_bytes": sum(matrix.metadata_bytes for matrix in paged.values()),
+        "client_body_paged_transient_weight_bytes": max((matrix.transient_weight_bytes for matrix in paged.values()), default=0),
         "client_body_scale_bytes": sum(stage.client_weight_scales.nbytes for stage in local.values()),
         "native_body_i8_snapshot_bytes": sum(
-            stage.client_weight.nbytes for key, stage in local.items() if key in snapshots
+            stage.client_weight.nbytes for key, stage in local.items() if key in snapshots and key not in paged
         ),
         "metal_body_i8_snapshot_bytes": sum(
             matrix.weight_bytes for key, matrix in metal_snapshots.items() if key in local

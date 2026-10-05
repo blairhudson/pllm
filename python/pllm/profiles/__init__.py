@@ -664,7 +664,10 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         if (
             delivery.component != ClientBundleTransport.descriptor.component
             or "encoding" not in delivery.params
-            or set(delivery.params) - {"encoding", "compression", "batch_objects"}
+            or set(delivery.params) - {"encoding", "compression", "batch_objects", "storage"}
+            or ("storage" in delivery.params and (
+                delivery.params["storage"] != "paged" or delivery.params["encoding"] != "artifacts"
+                or "placement" in identities and identities.get("kernels") == "pllm/apple-metal-int8/v1"))
             or delivery.params["encoding"] not in {"none", "zlib", "artifacts"}
             or ("compression" in delivery.params and (
                 delivery.params["encoding"] != "artifacts" or delivery.params["compression"] != "zlib"))

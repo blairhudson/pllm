@@ -16,6 +16,11 @@ negotiation fails closed instead of falling back to raw/zlib.
 missing objects. Each response must acknowledge its encoding and raw size;
 bounded decompression and object/bundle digests are checked before admission.
 Raw and compressed downloads share raw object identities and cached payloads.
+`storage="paged"` streams integer weights into authenticated private file
+snapshots and executes exact CPU page kernels. It requires artifact delivery and
+preserves whole-bundle and source bindings. The default `storage="memory"`
+preserves existing identities. See [client memory](/sdk/evaluate/client-memory/)
+for bounds, composition coverage and the process-RSS versus filesystem-cache scope.
 Proprietary bundles remain unsupported.
 
 ## Python SDK example
@@ -58,8 +63,9 @@ admission, bounded byte/count LRU and verified reader-owned copies preserve
 active imports during eviction. The default public object cap is **2 GiB**; the
 [checked cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/artifact-locality-2026-10-01.md)
 used an explicit **512 MiB** cap. Retained payload, native CPU snapshot payload,
-checkpoint storage and peak RAM are separate quantities; artifact selection does
-not eliminate the native CPU snapshot or measure peak memory.
+checkpoint storage and peak RAM are separate quantities. Ordinary memory storage
+retains a native CPU snapshot; explicitly paged storage uses a private file
+snapshot and bounded page buffers. Neither selection alone measures peak memory.
 
 | Pinned Qwen2.5 SDK import | Object requests | Serialized object bytes | Manifest bytes |
 | --- | ---: | ---: | ---: |

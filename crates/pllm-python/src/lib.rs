@@ -1360,7 +1360,7 @@ fn deployment_benchmark_report<'py>(
 
 #[pyclass(frozen, module = "pllm._native")]
 struct Executor {
-    inner: kernels::Executor,
+    inner: Arc<kernels::Executor>,
 }
 #[pymethods]
 impl Executor {
@@ -1368,7 +1368,7 @@ impl Executor {
     #[pyo3(signature=(threads=1,simd=true))]
     fn new(threads: usize, simd: bool) -> PyResult<Self> {
         Ok(Self {
-            inner: kernels::Executor::new(threads, simd).map_err(invalid)?,
+            inner: Arc::new(kernels::Executor::new(threads, simd).map_err(invalid)?),
         })
     }
     #[getter]

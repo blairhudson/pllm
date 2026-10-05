@@ -14,6 +14,7 @@ import msgpack
 import numpy as np
 
 from .native import CompiledMatrix, MaskedGEMM, mask_prepared_input, unmask_prepared_output
+from .paged import PagedGEMM
 from .preparation_protocol import (
     PreparationAck,
     PreparationRequest,
@@ -275,11 +276,11 @@ class StageMetadata:
     bias: np.ndarray | None = None
     role: str | None = None
     layer_index: int | None = None
-    client_weight: np.ndarray | None = None
+    client_weight: np.ndarray | PagedGEMM | None = None
     weight_digest: str = ""
     client_weight_scales: np.ndarray | None = None
     client_weight_layout: str = "linear"
-    client_aux_weight: np.ndarray | None = None
+    client_aux_weight: np.ndarray | PagedGEMM | None = None
     client_aux_scales: np.ndarray | None = None
     seeded_profile: SeededRingProfile | None = None
     input_equalization: np.ndarray | None = None
@@ -294,6 +295,29 @@ class StageMetadata:
 ClientStage = StageMetadata
 
 
+def _paged_clear_rows(matrix, values):
+    """Tile an admitted SDK tensor without enlarging the native page-call bound."""
+    width = max(1, (4 << 20) // max(matrix.shape))
+    if values.shape[0] <= width:
+        return matrix.clear(values)
+    output = np.empty((values.shape[0], matrix.shape[0]), dtype=np.int32)
+    for start in range(0, values.shape[0], width):
+        output[start:start + width] = matrix.clear(values[start:start + width])
+    return output
+
+
+def _paged_gather_rows(matrix, ids, *, columns=False):
+    features = matrix.shape[0 if columns else 1]
+    width = min(4096, max(1, (4 << 20) // features))
+    gather = matrix.gather_columns if columns else matrix.gather_rows
+    if 0 < ids.size <= width:
+        return gather(ids)
+    output = np.empty((ids.size, features), dtype=np.int8)
+    for start in range(0, ids.size, width):
+        output[start:start + width] = gather(ids[start:start + width])
+    return output
+
+
 @dataclass(slots=True)
 class ClientBundle:
     model_id: str
@@ -304,8 +328,9 @@ class ClientBundle:
     arrays: dict[str, np.ndarray]
     privacy: dict[str, Any]
     schema_version: int = 1
+    weight_storage: str = "memory"
     _local_kernel: MaskedGEMM | None = field(default=None, init=False, repr=False)
-    _local_matrices: dict[str, CompiledMatrix] = field(default_factory=dict, init=False, repr=False)
+    _local_matrices: dict[str, CompiledMatrix | PagedGEMM] = field(default_factory=dict, init=False, repr=False)
     _local_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
     _body_kernel_policy: tuple | None = field(default=None, init=False, repr=False)
     _body_metal_matrices: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
@@ -328,11 +353,28 @@ class ClientBundle:
         return cls._from_document(value)
 
     @classmethod
-    def _from_document(cls, value) -> "ClientBundle":
+    def _from_document(cls, value, *, storage="memory", threads=0) -> "ClientBundle":
         """Same admission for raw parsing and authenticated artifact reconstruction."""
+        snapshots = []
+        try:
+            return cls._import_document(value, storage=storage, threads=threads, snapshots=snapshots)
+        except BaseException:
+            for matrix in snapshots:
+                matrix.close()
+            raise
+
+    @classmethod
+    def _import_document(cls, value, *, storage, threads, snapshots) -> "ClientBundle":
+        from .bundle_storage import FilePayload
+
+        if storage not in {"memory", "paged"}:
+            raise TransformerClientError("unsupported client weight storage")
         if not isinstance(value, dict) or int(value.get("v", 0)) not in {1, 2}:
             raise TransformerClientError("unsupported transformer client bundle")
         version = int(value["v"])
+        if storage == "paged" and version != 2:
+            raise TransformerClientError("paged client weights require schema 2")
+        paged_executor = MaskedGEMM(threads=threads) if storage == "paged" else None
         new_format = {"v", "manifest", "runtime", "tokenizer", "arrays", "stages", "privacy"}
         legacy_format = {
             "v",
@@ -413,7 +455,7 @@ class ClientBundle:
             and (privacy.get("mode") != "public" or value.get("runtime") != "masked_transformer")
         ):
             raise TransformerClientError("invalid client-owned prefix bundle placement")
-        client_weights: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        client_weights: dict[str, tuple[np.ndarray | PagedGEMM, np.ndarray]] = {}
         extra_client_bytes = 0
         for weight_id, weight_row in weight_rows.items():
             if not isinstance(weight_row, dict) or set(weight_row) != {
@@ -434,11 +476,22 @@ class ClientBundle:
                     )
             # MessagePack binary values own immutable bytes. Keep that backing
             # allocation instead of duplicating every matrix during import.
-            matrix = np.frombuffer(weight_row["data"], dtype=np.int8)
             scales = np.frombuffer(weight_row["scales"], dtype="<f4").copy()
-            if matrix.size != int(np.prod(shape, dtype=np.int64)) or scales.shape != (shape[0],):
+            payload = weight_row["data"]
+            if len(payload) != int(np.prod(shape, dtype=np.int64)) or scales.shape != (shape[0],):
                 raise TransformerClientError(f"invalid client weight length for {weight_id}")
-            client_weights[str(weight_id)] = (matrix.reshape(shape), scales)
+            if storage == "paged":
+                if type(payload) is not FilePayload:
+                    raise TransformerClientError("paged weights require verified streamed objects")
+                assert paged_executor is not None
+                matrix = PagedGEMM._from_raw_executor(payload.path, payload.digest, shape,
+                                                      paged_executor._executor)
+                snapshots.append(matrix)
+            else:
+                if type(payload) is FilePayload:
+                    raise TransformerClientError("file weight requires selected paged storage")
+                matrix = np.frombuffer(payload, dtype=np.int8).reshape(shape)
+            client_weights[str(weight_id)] = (matrix, scales)
         stage_specs = {
             str(row["id"]): row for row in manifest.get("stages", []) if isinstance(row, dict)
         }
@@ -649,6 +702,7 @@ class ClientBundle:
             arrays=arrays,
             privacy=privacy,
             schema_version=version,
+            weight_storage=storage,
         )
 
     def _bind_body_kernel(self, kernels, stage_ids: tuple[str, ...]) -> None:
@@ -673,6 +727,8 @@ class ClientBundle:
             if not weights:
                 raise TransformerClientError("client body kernel has no owned stages")
             if kernels.component == "pllm/apple-metal-int8/v1":
+                if self.weight_storage == "paged":
+                    raise TransformerClientError("paged client body weights cannot allocate Metal snapshots")
                 from .metal import MetalGEMM
 
                 matrices = MetalGEMM().bind_stages(weights)
@@ -700,16 +756,20 @@ class ClientBundle:
         with self._local_lock:
             matrix = self._local_matrices.get(stage_id)
             if matrix is None:
-                if self._local_kernel is None:
-                    self._local_kernel = MaskedGEMM()
-                matrix = self._local_kernel.compile(stage.client_weight)
+                if isinstance(stage.client_weight, PagedGEMM):
+                    matrix = stage.client_weight
+                else:
+                    if self._local_kernel is None:
+                        self._local_kernel = MaskedGEMM()
+                    matrix = self._local_kernel.compile(stage.client_weight)
                 self._local_matrices[stage_id] = matrix
         metal = self._body_metal_matrices.get(stage_id)
-        integer = (
-            metal.clear(quantized.values)
-            if metal is not None and quantized.rows >= self._body_metal_min_rows
-            else matrix.clear(quantized.values)
-        )
+        if metal is not None and quantized.rows >= self._body_metal_min_rows:
+            integer = metal.clear(quantized.values)
+        elif isinstance(matrix, PagedGEMM):
+            integer = _paged_clear_rows(matrix, quantized.values)
+        else:
+            integer = matrix.clear(quantized.values)
         result = dequantize_matmul(
             integer,
             quantized.scales,
@@ -728,12 +788,16 @@ class ClientBundle:
         if ids.size and (int(ids.min()) < 0 or int(ids.max()) >= stage.in_features):
             raise TransformerClientError("token id outside model vocabulary")
         if stage.client_weight_layout == "embedding":
+            values = (_paged_gather_rows(stage.client_weight, ids) if isinstance(stage.client_weight, PagedGEMM)
+                      else stage.client_weight[ids])
             result = (
-                stage.client_weight[ids].astype(np.float32) * stage.client_weight_scales[ids, None]
+                values.astype(np.float32) * stage.client_weight_scales[ids, None]
             )
         elif stage.client_weight_layout == "transposed_embedding":
+            values = (_paged_gather_rows(stage.client_weight, ids, columns=True) if isinstance(stage.client_weight, PagedGEMM)
+                      else stage.client_weight[:, ids].T)
             qmax = signed_qmax(stage.activation_bits)
-            integer = stage.client_weight[:, ids].T.astype(np.int32) * qmax
+            integer = values.astype(np.int32) * qmax
             scales = np.full(ids.size, np.float32(1.0 / qmax), dtype=np.float32)
             result = dequantize_matmul(integer, scales, stage.client_weight_scales)
         else:
@@ -741,7 +805,9 @@ class ClientBundle:
         if stage.client_aux_weight is not None:
             assert stage.client_aux_scales is not None
             qmax = signed_qmax(stage.activation_bits)
-            integer = stage.client_aux_weight[:, ids].T.astype(np.int32) * qmax
+            values = (_paged_gather_rows(stage.client_aux_weight, ids, columns=True) if isinstance(stage.client_aux_weight, PagedGEMM)
+                      else stage.client_aux_weight[:, ids].T)
+            integer = values.astype(np.int32) * qmax
             scales = np.full(ids.size, np.float32(1.0 / qmax), dtype=np.float32)
             auxiliary = dequantize_matmul(integer, scales, stage.client_aux_scales)
             result = np.concatenate((result, auxiliary), axis=-1)

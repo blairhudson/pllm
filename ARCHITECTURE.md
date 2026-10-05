@@ -85,8 +85,17 @@ head kernel's raw paging lowers isolated process peak RSS by about 10.9x while
 increasing head CPU 2.42x; filesystem cache and total device memory are outside
 that RSS measurement. Compressed pages save artifact bytes but regress repeated
 online CPU substantially. Source artifacts and private snapshots occupy separate
-disk storage. Compiler-bound streamed bundle integration remains pending, so this
-does not yet reduce the ordinary SDK decoder's retained bundle memory.
+disk storage. The explicit `ClientBundleTransport("artifacts", storage="paged")`
+now streams weight objects into verified private files and binds native paged
+token lookup, head and selected CPU body stages to the ordinary compiled SDK.
+It verifies the original object/bundle/source identities before execution and
+shares one native executor across snapshots. Public weights are fetched in full;
+private token-indexed gathers remain local. Prepared, verified and offset tiny
+prefill/decode, cache and gateway controls preserve exact logits and KV. Raw/zlib
+artifact delivery and batching compose; client-owned paged body weights reject
+Metal snapshot allocation. Admission prices bounded client page buffers and
+separate cache/transient/snapshot disk owners. Whole-client real-checkpoint RSS
+and matched full-response paging costs remain measurement gates.
 The core also owns the bounded `pllm.numeric.silu.quadratic_q7.v1` reference:
 signed Q7 over `[-1, 1]`, deterministic ties-to-even rounding, and an encoded-domain
 absolute SiLU error bound of `0.02285`.

@@ -11,6 +11,8 @@ from typing import Any
 
 import msgpack
 
+from .bundle_storage import FilePayload
+
 CHUNK_BYTES = 1 << 20
 MAX_BUNDLE_BYTES = 8 << 30
 
@@ -64,15 +66,17 @@ def packed_parts(value) -> Iterator[bytes | memoryview]:
             yield packer.pack_array_header(len(node))
             for item in node:
                 yield from visit(item, depth + 1)
-        elif type(node) in (bytes, memoryview):
-            view = binary_view(node)
-            n = len(view)
+        elif type(node) in (bytes, memoryview, FilePayload):
+            n = len(node)
             if n >= 1 << 32:
                 raise ValueError("bundle binary field exceeds MessagePack bin32")
             yield (b"\xc4" + n.to_bytes(1, "big") if n <= 255 else
                    b"\xc5" + n.to_bytes(2, "big") if n <= 65535 else
                    b"\xc6" + n.to_bytes(4, "big"))
-            yield view
+            if type(node) is FilePayload:
+                yield from node.chunks()
+            else:
+                yield binary_view(node)
         elif type(node) in (str, int, float, bool, type(None)):
             yield packer.pack(node)
         else:

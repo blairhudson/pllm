@@ -8,6 +8,7 @@ use std::{
     fs::File,
     io::{Read, Seek, SeekFrom, Write},
     path::Path,
+    sync::Arc,
 };
 
 const MAGIC: &[u8; 8] = b"PLLMWM01";
@@ -222,7 +223,7 @@ fn decode(file: &File, page: Page) -> Result<Vec<u8>, String> {
 pub struct PagedMatrix {
     file: File,
     pages: Vec<Page>,
-    executor: Executor,
+    executor: Arc<Executor>,
     rows: usize,
     cols: usize,
     page_rows: usize,
@@ -239,6 +240,91 @@ impl PagedMatrix {
     }
     pub fn weight_digest(&self) -> [u8; 32] {
         self.weight_digest
+    }
+    /// Import canonical raw i8 bytes without constructing a resident matrix or
+    /// changing its weight identity. The source is copied into a private file;
+    /// geometry, digest and integer bounds are checked before returning a handle.
+    pub fn from_raw(
+        path: &Path,
+        expected: [u8; 32],
+        rows: usize,
+        cols: usize,
+        threads: usize,
+        simd: bool,
+    ) -> Result<Self, String> {
+        Self::from_raw_with_executor(
+            path,
+            expected,
+            rows,
+            cols,
+            Arc::new(Executor::new(threads, simd)?),
+        )
+    }
+    pub fn from_raw_with_executor(
+        path: &Path,
+        expected: [u8; 32],
+        rows: usize,
+        cols: usize,
+        executor: Arc<Executor>,
+    ) -> Result<Self, String> {
+        let page_rows = ((1 << 20) / cols.max(1)).clamp(1, 512);
+        let (size, count) = shape(rows, cols, page_rows)?;
+        let mut source = File::open(path).map_err(error)?;
+        let metadata = source.metadata().map_err(error)?;
+        if !metadata.is_file() || metadata.len() != size as u64 {
+            return Err("raw paged weight source size or type differs".into());
+        }
+        let mut file = tempfile::tempfile().map_err(error)?;
+        let mut hash = Sha256::new();
+        let mut copied = 0;
+        let mut max_weight = 0;
+        let mut buffer = [0; 65536];
+        loop {
+            let limit = buffer.len().min(size + 1 - copied);
+            let n = source.read(&mut buffer[..limit]).map_err(error)?;
+            if n == 0 {
+                break;
+            }
+            copied += n;
+            if copied > size {
+                return Err("raw paged weight source grew during import".into());
+            }
+            file.write_all(&buffer[..n]).map_err(error)?;
+            hash.update(&buffer[..n]);
+            max_weight = max_weight.max(
+                buffer[..n]
+                    .iter()
+                    .map(|&v| (v as i8 as i32).unsigned_abs())
+                    .max()
+                    .unwrap_or(0),
+            );
+        }
+        if copied != size || <[u8; 32]>::from(hash.finalize()) != expected {
+            return Err("raw paged weight digest or length differs".into());
+        }
+        let pages = (0..count)
+            .map(|i| {
+                let offset = i * page_rows * cols;
+                let decoded = (size - offset).min(page_rows * cols);
+                Page {
+                    offset: offset as u64,
+                    stored: decoded,
+                    decoded,
+                    compressed: false,
+                }
+            })
+            .collect();
+        Ok(Self {
+            file,
+            pages,
+            executor,
+            rows,
+            cols,
+            page_rows,
+            artifact_bytes: size as u64,
+            weight_digest: expected,
+            max_weight,
+        })
     }
     pub fn open(
         path: &Path,
@@ -261,7 +347,7 @@ impl PagedMatrix {
             page_rows,
             pages,
         } = metadata(&mut source, length)?;
-        let executor = Executor::new(threads, simd)?;
+        let executor = Arc::new(Executor::new(threads, simd)?);
         source.seek(SeekFrom::Start(0)).map_err(error)?;
         let mut file = tempfile::tempfile().map_err(error)?;
         let mut hash = Sha256::new();
@@ -411,11 +497,67 @@ impl PagedMatrix {
         }
         Ok(out)
     }
+
+    /// Local lookup for transposed embedding layouts. Reads one bounded page at
+    /// a time; preserves the original quantization orientation and digest.
+    pub fn gather_columns(&self, ids: &[u64]) -> Result<Vec<u8>, String> {
+        if ids.is_empty()
+            || ids.len() > 4096
+            || ids
+                .len()
+                .checked_mul(self.rows)
+                .is_none_or(|n| n > MAX_ELEMENTS)
+            || ids.iter().any(|&i| i >= self.cols as u64)
+        {
+            return Err("paged column gather indices exceed bounds".into());
+        }
+        let mut out = vec![0; ids.len() * self.rows];
+        for (page_index, page) in self.pages.iter().enumerate() {
+            let data = decode(&self.file, *page)?;
+            for (row_index, row) in data.chunks_exact(self.cols).enumerate() {
+                for (position, &id) in ids.iter().enumerate() {
+                    out[position * self.rows + page_index * self.page_rows + row_index] =
+                        row[id as usize];
+                }
+            }
+        }
+        Ok(out)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn raw_snapshot_preserves_digest_columns_and_source_isolation() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("raw");
+        let w: Vec<u8> = (0..517 * 17).map(|i| (i * 37) as u8).collect();
+        std::fs::write(&path, &w).unwrap();
+        let hash = Sha256::digest(&w).into();
+        assert!(PagedMatrix::from_raw(&path, [0; 32], 517, 17, 1, true).is_err());
+        assert!(PagedMatrix::from_raw(&path, hash, 518, 17, 1, true).is_err());
+        let matrix = PagedMatrix::from_raw(&path, hash, 517, 17, 1, true).unwrap();
+        std::fs::write(&path, b"changed source").unwrap();
+        let reference = Matrix::new(&w, 517, 17).unwrap();
+        let executor = Executor::new(1, true).unwrap();
+        let x = vec![7; 3 * 17];
+        assert_eq!(
+            matrix.clear(&x, 3).unwrap(),
+            reference.clear(&executor, &x, 3).unwrap()
+        );
+        assert_eq!(matrix.weight_digest(), hash);
+        let expected: Vec<u8> = [16, 0, 16]
+            .iter()
+            .flat_map(|&col| w.chunks_exact(17).map(move |row| row[col]))
+            .collect();
+        assert_eq!(matrix.gather_columns(&[16, 0, 16]).unwrap(), expected);
+        assert!(matrix.gather_columns(&[17]).is_err());
+        assert_eq!(
+            matrix.gather(&[516, 0]).unwrap(),
+            [&w[516 * 17..], &w[..17]].concat()
+        );
+    }
     #[test]
     fn exact_pages_and_immutable_source() {
         let dir = tempfile::tempdir().unwrap();

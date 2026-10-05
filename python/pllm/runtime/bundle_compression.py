@@ -31,9 +31,19 @@ def encode_bundle_frames(payload: bytes | memoryview | BundleDocument) -> Iterat
 def decode_bundle_frames(
     chunks: Iterable[bytes], *, expected_size: int, on_wire_bytes: Callable[[int], None]
 ) -> bytearray:
+    output = bytearray()
+    for block in iter_bundle_frames(chunks, expected_size=expected_size, on_wire_bytes=on_wire_bytes):
+        output.extend(block)
+    return output
+
+
+def iter_bundle_frames(
+    chunks: Iterable[bytes], *, expected_size: int, on_wire_bytes: Callable[[int], None]
+) -> Iterator[bytes]:
+    """Validate complete framing with one bounded decoded block live at a time."""
     if not 0 < expected_size <= 8 * 1024 * 1024 * 1024:
         raise BundleFrameError("compressed bundle size is outside policy")
-    output = bytearray()
+    decoded = 0
     pending = bytearray()
     for chunk in chunks:
         on_wire_bytes(len(chunk))
@@ -41,10 +51,10 @@ def decode_bundle_frames(
             raise BundleFrameError("compressed bundle transport chunk is invalid")
         pending.extend(chunk)
         while len(pending) >= _HEADER.size:
-            if len(output) == expected_size:
+            if decoded == expected_size:
                 raise BundleFrameError("compressed bundle has trailing data")
             raw_size, encoded_size = _HEADER.unpack_from(pending)
-            if raw_size != min(CHUNK_BYTES, expected_size - len(output)) or not (
+            if raw_size != min(CHUNK_BYTES, expected_size - decoded) or not (
                 0 < encoded_size <= raw_size + _MAX_FRAME_OVERHEAD
             ):
                 raise BundleFrameError("compressed bundle frame exceeds declared bounds")
@@ -65,9 +75,9 @@ def decode_bundle_frames(
                 or decoder.unconsumed_tail
             ):
                 raise BundleFrameError("compressed bundle frame has invalid size or trailing data")
-            output.extend(block)
+            decoded += len(block)
+            yield block
         if len(pending) > CHUNK_BYTES + _MAX_FRAME_OVERHEAD + _HEADER.size:
             raise BundleFrameError("compressed bundle frame buffer exceeds policy")
-    if pending or len(output) != expected_size:
+    if pending or decoded != expected_size:
         raise BundleFrameError("compressed bundle is incomplete")
-    return output

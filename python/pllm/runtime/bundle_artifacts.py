@@ -25,6 +25,7 @@ from typing import Any, Callable, Iterator
 import msgpack
 
 from .bundle_document import BundleDocument, binary_view, document_identity
+from .bundle_storage import FilePayload
 
 ENCODING = "pllm-public-artifacts/1"
 MAX_RAW_BYTES = 4 << 30
@@ -77,7 +78,8 @@ def object_batch(exported, keys: str) -> tuple[bytes, str]:
     return b"".join(exported.objects[key] for key in selected), hashlib.sha256(keys.encode("ascii")).hexdigest()
 
 
-def batched_reader(manifest, cache, download_one, download_many, *, maximum: int):
+def batched_reader(manifest, cache, download_one, download_many, *, maximum: int,
+                   paged: bool = False):
     """At most one 1-MiB lookahead group, ordered by first use in the raw bundle."""
     _integer(maximum, 1, MAX_BATCH_OBJECTS)
     ordered, seen = [], set()
@@ -97,14 +99,24 @@ def batched_reader(manifest, cache, download_one, download_many, *, maximum: int
     positions = {row["sha256"]: i for i, row in enumerate(ordered)}
     pending, served = {}, set()
 
+    def file_backed(row):
+        return paged and row["metadata"]["dtype"] == "i1"
+
+    def take(row):
+        # The whole coalesced group is capped at 1 MiB. Small matrices can keep
+        # batching without becoming retained in-memory weight storage.
+        payload = pending.pop(row["sha256"])
+        return (FilePayload([payload], size=row["size"], digest=row["content_sha256"])
+                if file_backed(row) else payload)
+
     def read(row):
         key = row["sha256"]
         if key in pending:
             served.add(key)
-            return pending.pop(key)
+            return take(row)
         if key in served or row["size"] > MAX_BATCH_BYTES:
             served.add(key)
-            return cache.fetch(row, lambda: download_one(row))
+            return cache.fetch(row, lambda: download_one(row), file_backed=file_backed(row))
         if pending:
             raise ArtifactError("artifact batch first-use order differs")
         group, size = [], 0
@@ -115,7 +127,7 @@ def batched_reader(manifest, cache, download_one, download_many, *, maximum: int
             size += candidate["size"]
         pending.update(cache.fetch_group(group, download_many))
         served.add(key)
-        return pending.pop(key)
+        return take(row)
     return read
 
 
@@ -318,12 +330,13 @@ def _key(content_digest: str, domain_hash: str) -> str:
     return hashlib.sha256(_DOMAIN + bytes.fromhex(domain_hash) + bytes.fromhex(content_digest)).hexdigest()
 
 
-def verify_object(row: dict[str, Any], payload: bytes) -> None:
+def verify_object(row: dict[str, Any], payload: bytes | FilePayload) -> None:
     key, content, domain = (_digest(row[k]) for k in ("sha256", "content_sha256", "domain_hash"))
     size = _integer(row["size"], 1, MAX_RAW_BYTES)
     if domain != hashlib.sha256(_canonical(row["metadata"])).hexdigest() or key != _key(content, domain):
         raise ArtifactError("artifact object domain mismatch")
-    if len(payload) != size or hashlib.sha256(payload).hexdigest() != content:
+    actual = payload.digest if type(payload) is FilePayload else hashlib.sha256(payload).hexdigest()
+    if len(payload) != size or actual != content:
         raise ArtifactError("artifact object content digest mismatch")
 
 
@@ -502,7 +515,7 @@ def reconstruct_document(manifest: dict[str, Any], read: Callable[[dict[str, Any
             if index not in loaded:
                 row = manifest["objects"][index]
                 payload = read(row)
-                if type(payload) is not bytes:
+                if type(payload) not in (bytes, FilePayload):
                     raise ArtifactError("artifact reconstruction requires immutable object bytes")
                 verify_object(row, payload)
                 loaded[index] = payload
@@ -588,8 +601,8 @@ def _open_lock(directory: int, name: str, *, create: bool) -> int:
 class ArtifactObjectCache:
     """Byte-capped public objects only; no manifests, KV, masks, or material IDs.
 
-    Reads return verified owned bytes, so eviction cannot invalidate an active
-    reader. Objects larger than cap are used transiently and never admitted.
+    Reads return verified owned bytes or a private file snapshot, so eviction
+    cannot invalidate an active reader. Oversized objects remain transient.
     A single directory flock serializes admission and LRU across SDK processes.
     """
 
@@ -634,12 +647,13 @@ class ArtifactObjectCache:
                         os.unlink(name, dir_fd=directory)
         return sorted(rows)
 
-    def get(self, row: dict[str, Any]) -> bytes | None:
+    def get(self, row: dict[str, Any], *, file_backed=False) -> bytes | FilePayload | None:
         _digest(row["sha256"])
         if self.mode in {"off", "refresh"}:
             self.stats.misses += 1
             return None
         started, cpu_started = time.perf_counter(), time.process_time()
+        payload, transferred = None, False
         try:
             with self._locked(create=self.mode == "read-write") as directory:
                 inventory = self._inventory(directory, clean_pending=self.mode == "read-write")
@@ -665,7 +679,14 @@ class ArtifactObjectCache:
                     if item.st_size != row["size"]:
                         raise ArtifactError("artifact cache object size mismatch")
                     with os.fdopen(fd, "rb", closefd=False) as stream:
-                        payload = stream.read(row["size"] + 1)
+                        if file_backed:
+                            try:
+                                payload = FilePayload(iter(lambda: stream.read(1 << 20), b""),
+                                                      size=row["size"], digest=row["content_sha256"])
+                            except ValueError as exc:
+                                raise ArtifactError(str(exc)) from exc
+                        else:
+                            payload = stream.read(row["size"] + 1)
                     verify_object(row, payload)
                 except ArtifactError:
                     self.stats.corruptions += 1
@@ -678,15 +699,18 @@ class ArtifactObjectCache:
                     os.utime(name, dir_fd=directory, follow_symlinks=False)
                 self.stats.hits += 1
                 self.stats.retained_payload_bytes = sum(r[2] for r in self._inventory(directory))
+                transferred = True
                 return payload
         except FileNotFoundError:
             self.stats.misses += 1
             return None
         finally:
+            if type(payload) is FilePayload and not transferred:
+                payload.close()
             self.stats.hash_io_seconds += time.perf_counter() - started
             self.stats.hash_io_cpu_seconds += time.process_time() - cpu_started
 
-    def put(self, row: dict[str, Any], payload: bytes) -> None:
+    def put(self, row: dict[str, Any], payload: bytes | FilePayload) -> None:
         _digest(row["sha256"])
         started, cpu_started = time.perf_counter(), time.process_time()
         verify_object(row, payload)
@@ -712,7 +736,11 @@ class ArtifactObjectCache:
                          0o600, dir_fd=directory)
             try:
                 with os.fdopen(fd, "wb", closefd=False) as stream:
-                    stream.write(payload)
+                    if type(payload) is FilePayload:
+                        for block in payload.chunks():
+                            stream.write(block)
+                    else:
+                        stream.write(payload)
                     stream.flush()
                     os.fsync(fd)
                 os.rename(temporary, name, src_dir_fd=directory, dst_dir_fd=directory)
@@ -725,10 +753,10 @@ class ArtifactObjectCache:
         self.stats.hash_io_seconds += time.perf_counter() - started
         self.stats.hash_io_cpu_seconds += time.process_time() - cpu_started
 
-    def fetch(self, row: dict[str, Any], download: Callable[[], bytes]) -> bytes:
+    def fetch(self, row: dict[str, Any], download: Callable, *, file_backed=False) -> bytes | FilePayload:
         """Cross-process single-flight admission; no duplicate cold object fetches."""
         if self.mode != "read-write":
-            payload = self.get(row)
+            payload = self.get(row, file_backed=file_backed)
             if payload is None:
                 payload = download()
                 self.put(row, payload)
@@ -737,7 +765,7 @@ class ArtifactObjectCache:
             lock = _open_lock(directory, ".download-lock", create=True)
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX)
-                payload = self.get(row)
+                payload = self.get(row, file_backed=file_backed)
                 if payload is None:
                     payload = download()
                     self.put(row, payload)

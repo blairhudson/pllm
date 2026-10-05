@@ -1,0 +1,82 @@
+---
+title: "Client memory"
+description: "Bound mask inventories and stream authenticated weights into exact paged client kernels."
+---
+
+API: [`ClientBundleTransport`](/sdk/reference/python/pllm/protocols/#objects-and-signatures),
+[`benchmark_memory`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
+
+The client-memory target is **10× lower matched client peak RSS** while preserving
+numeric execution, private inputs and remote body computation. Allocation
+estimates, individual-buffer measurements and whole-client peak RSS are separate
+evidence. The initial Qwen3-4B 64+8 workload had an **8.25 GiB client estimate**;
+the initial estimate target is therefore **0.83 GiB**.
+
+## Seed-backed inventories
+
+Prepared execution retains native SHAKE256 cursors and a one-use row ledger.
+Only the active stage's claimed masks expand. Closing or cancelling a lease burns
+unused ranges without expanding them; byte domains, tickets and the provider
+protocol remain identical. This is the ordinary native implementation.
+
+The [isolated mask probe](https://github.com/blairhudson/pllm/blob/main/docs/evidence/client-mask-memory-2026-10-05.md)
+measured **628.16 → 89.60 MB** process peak RSS with identical mask bytes and
+tickets. That **7.01× mask-process reduction** is not whole-client evidence.
+
+## Authenticated paged weights
+
+`ClientBundleTransport("artifacts", storage="paged")` streams public integer
+weight objects into bounded temporary files, verifies object and whole-bundle
+commitments, then imports independent private native snapshots. It never builds a
+complete client weight array or contiguous raw bundle. Corrupt cache entries are
+repaired; eviction or source mutation cannot alter an admitted snapshot.
+
+Token lookup gathers local rows; the output head and selected client-owned linear
+stages use exact integer page kernels. All matrix objects are downloaded in full,
+independently of private token IDs. Input tokens, activations and KV stay inside
+the existing client boundary. Body placement and one-use provider material retain
+their selected contracts.
+
+Raw/zlib artifact encoding, bounded object batching, prepared/verified/offset
+roles and qualified prefix reuse compose with paging. Client-owned body paging
+uses CPU; a composition requesting GPU snapshots for those same weights rejects.
+The default `storage="memory"` preserves previous composition identities.
+
+The pinned Qwen3-4B [client storage probe](https://github.com/blairhudson/pllm/blob/main/docs/evidence/client-storage-qwen3-4b-2026-10-05.md)
+measured **1,471.61 → 155.98 MB peak RSS (9.44×)** for authenticated import, all
+mask claims and token/head operations, with identical bytes/results and zero swap
+growth. Combined CPU increased 15.2%. The probe excludes decoder body, attention,
+KV and provider sessions; it does not establish 10× whole-client memory.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import ClientBundleTransport
+
+experiment = Experiment(
+    "paged-client",
+    MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport(
+        "artifacts", compression="zlib", batch_objects=64, storage="paged")),
+    Deployment.local(root="local://paged-client"),
+    ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.resolve().bundle_compression == "artifacts-zlib"
+assert experiment.pipeline.delivery.params["storage"] == "paged"
+```
+
+[`examples/benchmarks/client_memory.py`](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/client_memory.py)
+provides matched resident/paged Experiments for the cached Qwen 0.5B and 4B
+checkpoints. Both use native lazy masks; the isolated storage probe additionally
+retains an eager-mask historical control. Use ordinary
+[benchmark memory admission](/sdk/evaluate/benchmark/#memory-admission-and-native-metal)
+before execution. Paging does not authorize a topology that exceeds host headroom.
+
+Paging replaces mandatory resident weight storage with disk access. Public object
+cache, transient files and private snapshots are distinct disk owners; operating
+system filesystem cache is outside process RSS and may still consume reclaimable
+host memory. Benchmark admission charges extra disk space, bounded page buffers,
+metadata and the unchanged provider allocations. Measure import CPU, head CPU and
+complete request latency alongside RAM. Compatibility and tiny exact-parity tests
+alone do not establish a real-checkpoint memory or performance ratio.

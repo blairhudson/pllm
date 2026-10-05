@@ -1104,6 +1104,9 @@ class RuntimeClient:
         self.bundle_batch_objects = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("delivery", {}).get("params", {}).get("batch_objects", 1)
             if self.experiment is not None else 1)
+        self.bundle_weight_storage = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("delivery", {}).get("params", {}).get("storage", "memory")
+            if self.experiment is not None else "memory")
         self.preparation_stage_window = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("inventory", {}).get("params", {}).get("stage_window", 1)
             if self.experiment is not None else 1)
@@ -1480,7 +1483,11 @@ class RuntimeClient:
         headers["X-PLLM-Accept-Bundle-Encoding"] = ARTIFACT_ENCODING
         model_path = quote(model_id, safe="")
 
-        def download(path: str, maximum: int, *, object_key: str | None = None) -> bytes:
+        paged = getattr(self, "bundle_weight_storage", "memory") == "paged"
+        from .bundle_storage import FilePayload
+        public_files = []
+
+        def download(path: str, maximum: int, *, object_key: str | None = None, file_row=None):
             output = bytearray()
             compressed = object_key is not None and self.bundle_compression == "artifacts-zlib"
             request_headers = dict(headers)
@@ -1520,6 +1527,18 @@ class RuntimeClient:
                     else:
                         stats.object_download_bytes += size
 
+                if file_row is not None:
+                    from .bundle_compression import iter_bundle_frames
+
+                    def raw_chunks():
+                        for chunk in chunks:
+                            account(len(chunk))
+                            yield chunk
+                    blocks = (iter_bundle_frames(chunks, expected_size=maximum, on_wire_bytes=account)
+                              if compressed else raw_chunks())
+                    result = FilePayload(blocks, size=maximum, digest=file_row["content_sha256"])
+                    public_files.append(result)
+                    return result
                 if compressed:
                     return bytes(decode_bundle_frames(chunks, expected_size=maximum, on_wire_bytes=account))
                 for chunk in chunks:
@@ -1541,6 +1560,7 @@ class RuntimeClient:
                 return download(
                     f"/v1/runtime/models/{model_path}/client-bundle-objects/{fingerprint}/{row['sha256']}",
                     row["size"], object_key=row["sha256"],
+                    file_row=row if paged and row["metadata"]["dtype"] == "i1" else None,
                 )
 
             def fetch_many(rows):
@@ -1560,19 +1580,28 @@ class RuntimeClient:
             if self.bundle_batch_objects > 1:
                 from .bundle_artifacts import batched_reader
                 group_reader = batched_reader(manifest, cache, fetch_one, fetch_many,
-                                               maximum=self.bundle_batch_objects)
+                                               maximum=self.bundle_batch_objects, paged=paged)
 
             def read(row):
                 before = stats.to_dict()
-                payload = group_reader(row) if group_reader else cache.fetch(row, lambda: fetch_one(row))
+                payload = group_reader(row) if group_reader else cache.fetch(
+                    row, lambda: fetch_one(row), file_backed=paged and row["metadata"]["dtype"] == "i1")
                 self.audit.bundle_cache_corruptions += stats.corruptions - before["corruptions"]
+                if isinstance(payload, FilePayload):
+                    public_files.append(payload)
                 return payload
 
             started, cpu_started = time.perf_counter(), time.process_time()
             value = reconstruct_document(manifest, read)
+            if value.get("model") != model_id or value.get("v") != schema:
+                raise ArtifactError("artifact reconstructed bundle descriptor mismatch")
             stats.reconstruction_seconds += time.perf_counter() - started
             stats.reconstruction_cpu_seconds += time.process_time() - cpu_started
-            bundle = ClientBundle._from_document(value)
+            kernels = (json.loads(self.experiment.canonical_composition)
+                .get("components", {}).get("kernels", {}).get("params", {})
+                if self.experiment is not None else {})
+            bundle = ClientBundle._from_document(value, storage="paged" if paged else "memory",
+                                                  threads=kernels.get("threads", 0))
             if bundle.model_id != model_id or bundle.schema_version != schema:
                 raise ArtifactError("artifact reconstructed bundle descriptor mismatch")
             # Existing audit counters retain bundle-level semantics. Detailed
@@ -1587,6 +1616,9 @@ class RuntimeClient:
             raise _BundleIntegrityError(f"provider client bundle artifacts invalid: {exc}", 409) from exc
         except OSError as exc:
             raise ProtocolError(f"configured public artifact cache is unavailable: {exc}") from exc
+        finally:
+            for payload in public_files:
+                payload.close()
 
     @staticmethod
     def _write_cached_bundle(path: Path, payload: bytes | bytearray) -> None:
