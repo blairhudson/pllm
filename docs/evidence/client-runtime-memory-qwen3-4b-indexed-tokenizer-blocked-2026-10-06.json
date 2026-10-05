@@ -1,0 +1,7 @@
+{
+  "records": {},
+  "schema": "pllm.client_runtime_memory_probe.v1",
+  "status": "blocked_admission",
+  "blocker": "isolated client probe exceeds physical headroom including control allocations",
+  "scope": "64+8 capacity bound; stopped before role launch; no execution measurements"
+}

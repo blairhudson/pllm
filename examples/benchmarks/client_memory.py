@@ -8,15 +8,15 @@ from pllm.quantization import SymmetricPerRow
 from pllm.state import ClientPrefixReuse
 
 
-def candidate(name, source, storage):
+def candidate(name, source, storage, *, max_input_tokens=64):
     return Experiment(name, MaskedLinearCpu(source, kernels=Cpu(threads=1),
         quantization=SymmetricPerRow(weight_bits=8, activation_bits=8, causal_reduction="prefix_f32"),
         linear=MaskedLinear(output_encoding="row_residues"),
         inventory=PreparedInventory("request-sized", rows=1, refill="on-demand", stage_window=4),
-        cache=ClientPrefixReuse(max_bytes=128 << 20, fixed_input_tokens=64, generated_prefixes=True),
+        cache=ClientPrefixReuse(max_bytes=128 << 20, fixed_input_tokens=max_input_tokens, generated_prefixes=True),
         delivery=ClientBundleTransport("artifacts", compression="zlib", batch_objects=64, storage=storage)),
         Deployment.local(root="local://client-memory"),
-        ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8))
+        ExecutionBudget(requests=1, max_input_tokens=max_input_tokens, max_new_tokens=8))
 
 
 source = Model.hf("Qwen/Qwen2.5-0.5B-Instruct", revision="7ae557604adf67be50417f59c2c2f167def9a775")

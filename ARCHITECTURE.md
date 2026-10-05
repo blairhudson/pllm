@@ -764,6 +764,28 @@ three. Retaining that object through process exit increases end-of-run RSS from
 337.54 to 350.19 MB. This probe-only allocation change adds no SDK cache; explicit
 request-lifetime cleanup and a matched resident 4B control remain open.
 
+A separate five-candidate client-offload screen moves public BPE vocabulary and
+merge compilation into a trusted offline artifact while keeping every
+prompt-dependent lookup local. Its bounded SQLite reference cuts isolated
+tokenizer-process peak RSS from 169.57 to 36.18 MB and matches 16 checked public
+cases, but warm tokenization is slower and the derived artifact costs another
+9.29 MB. The other four screens are cost-gated: immutable encrypted KV storage
+adds 48.11 MB of projected bodies to move only 6.78 MB of short-response KV;
+encrypted mask tapes cut sampled expansion CPU but add 329.04 MB all-link at
+16+8 tokens; shallow HE attention and SiLU add large ciphertext bodies and fail
+the existing float32 numeric identity. The encrypted screens are synthetic
+in-process references, not runtime choices. Offloaded public compilation does
+not authorize remote token-text queries, and mask tapes retain Preparation's
+existing erasure and non-collusion assumptions.
+A follow-up fresh-process, 16+8-token prepared Qwen3-4B pair reduces whole
+client/dashboard peak RSS from 347.00 to 225.28 MB (35.08%) against the shared
+original-tokenizer control. Source, Pipeline, numeric body, output text and
+covered transport bodies match, with zero observed swap growth. The 9.29 MB
+public index is pre-positioned; its distribution and separate compiler cost
+are outside the ordinary response counters. This probe-only response-owned
+adapter keeps private queries local and does not activate a Pipeline choice,
+establish broad numeric parity or demonstrate a 10x whole-client improvement.
+
 A matrix is copied into Rust once at compilation, then reused for later calls.
 `CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that
 immutable owner. Provider stage loading retires the original i8 allocation or

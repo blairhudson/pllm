@@ -14,9 +14,10 @@ import tempfile
 MODES = ("eager-resident", "lazy-resident", "lazy-paged")
 TOKENIZER_MODES = ("paged-eager-tokenizer", "lazy-paged")
 TOKENIZER_REUSE_MODES = ("lazy-paged", "paged-shared-tokenizer")
+TOKENIZER_INDEX_MODES = ("paged-shared-tokenizer", "paged-indexed-tokenizer")
 
 
-def experiment(mode, *, tiny=False, four_b=False):
+def experiment(mode, *, tiny=False, four_b=False, max_input_tokens=64):
     from pllm import Model
     if tiny:
         model = Model.tiny(model_id="isolated-client-memory")
@@ -26,7 +27,8 @@ def experiment(mode, *, tiny=False, four_b=False):
         model = Model.hf("Qwen/Qwen2.5-0.5B-Instruct", revision="7ae557604adf67be50417f59c2c2f167def9a775")
     example = runpy.run_path(str(Path(__file__).resolve().parents[1] / "examples/benchmarks/client_memory.py"))
     return example["candidate"](mode, model,
-        "paged" if mode in (*TOKENIZER_MODES, *TOKENIZER_REUSE_MODES) else "memory")
+        "paged" if mode in (*TOKENIZER_MODES, *TOKENIZER_REUSE_MODES, *TOKENIZER_INDEX_MODES) else "memory",
+        max_input_tokens=max_input_tokens)
 
 
 def reuse_one_bundle_tokenizer(factory):
@@ -49,7 +51,18 @@ def reuse_one_bundle_tokenizer(factory):
 def worker(args):
     from pllm.runtime.benchmark_cli import run_loopback_benchmark
     profiles = {}
-    if args.profile_only or args.tokenizer_ablation or args.tokenizer_reuse_ablation:
+    owned_tokenizers = []
+    if args.child == "paged-indexed-tokenizer":
+        from client_offload_tokenizer import IndexedClientTokenizer
+        from pllm.runtime.transformer_client import ClientBundle
+
+        def indexed(bundle):
+            tokenizer = IndexedClientTokenizer(bundle, args.index_root, args.index_contract_digest)
+            owned_tokenizers.append(tokenizer)
+            return tokenizer
+
+        ClientBundle.tokenizer = indexed
+    if args.profile_only or args.tokenizer_ablation or args.tokenizer_reuse_ablation or args.tokenizer_index_ablation:
         from pllm.runtime import client as client_module, model_binding, semantic_executor, transformer_client
         from pllm.runtime.benchmark_memory import process_memory
 
@@ -85,7 +98,7 @@ def worker(args):
         watch(transformer_client.ClientBundle, "tokenizer")
         for name in ("prepare_ids", "forward_ids", "snapshot"):
             watch(semantic_executor.SemanticDecoderRuntime, name)
-    if args.child == "paged-shared-tokenizer":
+    if args.child in TOKENIZER_INDEX_MODES:
         from pllm.runtime.transformer_client import ClientBundle
 
         ClientBundle.tokenizer = reuse_one_bundle_tokenizer(ClientBundle.tokenizer)
@@ -111,11 +124,16 @@ def worker(args):
             return original(*values, **kwargs)
 
         client.PreparedStageRows = eager
-    result = run_loopback_benchmark(model="unused", model_id=None, tiny=False,
-        experiment=experiment(args.child, tiny=args.tiny, four_b=args.four_b),
-        prompt="Explain private inference in one sentence.", max_output_tokens=8,
-        warmups=0, repetitions=1, timeout_seconds=300, temperature=0,
-        capture_output_digest=True, _cohort_salt=bytes.fromhex(os.environ["PLLM_MEMORY_COHORT_SALT"]))
+    try:
+        result = run_loopback_benchmark(model="unused", model_id=None, tiny=False,
+            experiment=experiment(args.child, tiny=args.tiny, four_b=args.four_b,
+                                  max_input_tokens=args.max_input_tokens),
+            prompt="Explain private inference in one sentence.", max_output_tokens=8,
+            warmups=0, repetitions=1, timeout_seconds=300, temperature=0,
+            capture_output_digest=True, _cohort_salt=bytes.fromhex(os.environ["PLLM_MEMORY_COHORT_SALT"]))
+    finally:
+        for tokenizer in owned_tokenizers:
+            tokenizer.close()
     result["client_process_memory"]["isolated_candidate"] = True
     result["client_process_memory"]["allocation_control"] = args.child
     if profiles:
@@ -129,17 +147,26 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--tiny", action="store_true")
     parser.add_argument("--four-b", action="store_true")
+    parser.add_argument("--max-input-tokens", type=int, choices=range(16, 65), default=64,
+                        metavar="16..64", help="public input bound shared by both candidates")
     diagnostic = parser.add_mutually_exclusive_group()
     diagnostic.add_argument("--profile-only", action="store_true", help="single paged diagnostic; no paired comparison")
     diagnostic.add_argument("--tokenizer-ablation", action="store_true", help="matched eager/lazy decoder-tokenizer pair")
     diagnostic.add_argument("--tokenizer-reuse-ablation", action="store_true",
         help="matched probe-only tokenizer reuse across one response's setup and execution")
-    parser.add_argument("--child", choices=(*MODES, "paged-eager-tokenizer", "paged-shared-tokenizer"), help=argparse.SUPPRESS)
+    diagnostic.add_argument("--tokenizer-index-ablation", action="store_true",
+        help="matched 4B shared-tokenizer/indexed-tokenizer complete-response probe")
+    parser.add_argument("--scratch-dir", type=Path)
+    parser.add_argument("--index-root", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--index-contract-digest", help=argparse.SUPPRESS)
+    parser.add_argument("--child", choices=(*MODES, "paged-eager-tokenizer", *TOKENIZER_INDEX_MODES), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.output.exists():
         parser.error("output already exists")
     if args.tiny and args.four_b:
         parser.error("choose one model")
+    if args.tokenizer_index_ablation and not args.four_b:
+        parser.error("tokenizer index probe requires --four-b")
     if args.child:
         def interrupted(*_):
             raise KeyboardInterrupt()
@@ -150,36 +177,65 @@ def main():
     from pllm.metrics import benchmark_memory
     from pllm.runtime.benchmark_memory import BenchmarkMemoryError, require_admission
     records = {}
+    index_metadata = None
     salt = os.urandom(32).hex()
     def checkpoint(document):
         archive.seek(0)
         json.dump(document, archive, indent=2, sort_keys=True)
         archive.truncate()
         archive.flush()
-    with args.output.open("x") as archive, tempfile.TemporaryDirectory(prefix="pllm-client-runtime-memory-") as directory:
+    with args.output.open("x") as archive, tempfile.TemporaryDirectory(
+            prefix="pllm-client-runtime-memory-", dir=args.scratch_dir) as directory:
         checkpoint({"schema": "pllm.client_runtime_memory_probe.v1", "status": "running", "records": records})
         root = Path(directory)
         modes = (("lazy-paged",) if args.profile_only else
-                 TOKENIZER_MODES if args.tokenizer_ablation else
-                 TOKENIZER_REUSE_MODES if args.tokenizer_reuse_ablation else MODES)
+                  TOKENIZER_MODES if args.tokenizer_ablation else
+                  TOKENIZER_REUSE_MODES if args.tokenizer_reuse_ablation else
+                  TOKENIZER_INDEX_MODES if args.tokenizer_index_ablation else MODES)
+        if args.tokenizer_index_ablation:
+            from client_offload_tokenizer import file_digest
+            from huggingface_hub import hf_hub_download
+            from pllm.runtime.benchmark_memory import GiB, host_memory
+
+            host = host_memory()
+            if host.available - host.reserve < 2 * GiB:
+                raise BenchmarkMemoryError("public tokenizer compiler needs 2 GiB admitted headroom")
+            source = hf_hub_download("Qwen/Qwen3-4B", "tokenizer.json",
+                revision="1cfa9a7208912126459214e8b04321603b3df60c", local_files_only=True)
+            index_root = root / "public-tokenizer"
+            compiler = Path(__file__).with_name("probe_client_offload.py")
+            index_metadata = json.loads(subprocess.check_output([sys.executable, str(compiler),
+                "--worker", "compile", "--source", source, "--artifact", str(index_root)], text=True, timeout=60))
+            index_digest = file_digest(index_root / "contract.json")
+            index_metadata["contract_sha256"] = index_digest
+            index_metadata["probe_sha256"] = file_digest(Path(__file__))
+            index_metadata["tokenizer_implementation_sha256"] = file_digest(Path(__file__).with_name("client_offload_tokenizer.py"))
+            index_metadata["scope"] = "public offline compilation; excluded from client process, no artifact transport"
         for mode in modes:
-            preflight = benchmark_memory(experiment(mode, tiny=args.tiny, four_b=args.four_b), backend="native")
-            require_admission(preflight)
-            # The parent remains live and eager control restores historical masks.
-            extra = 256 << 20
-            if mode == "eager-resident":
-                estimates = preflight["estimate"]
-                extra += estimates["components"]["legacy_client_mask_bytes"] * 5 // 4
-            required = preflight["estimate"]["native_total_peak_bytes"] + extra
-            if required > preflight["host"]["admission_budget_bytes"]:
-                raise BenchmarkMemoryError("isolated client probe exceeds physical headroom including control allocations")
+            preflight = benchmark_memory(experiment(mode, tiny=args.tiny, four_b=args.four_b,
+                max_input_tokens=args.max_input_tokens), backend="native")
+            try:
+                require_admission(preflight)
+                # The parent remains live and eager control restores historical masks.
+                extra = 256 << 20
+                if mode == "eager-resident":
+                    estimates = preflight["estimate"]
+                    extra += estimates["components"]["legacy_client_mask_bytes"] * 5 // 4
+                required = preflight["estimate"]["native_total_peak_bytes"] + extra
+                if required > preflight["host"]["admission_budget_bytes"]:
+                    raise BenchmarkMemoryError("isolated client probe exceeds physical headroom including control allocations")
+            except BenchmarkMemoryError as error:
+                checkpoint({"schema": "pllm.client_runtime_memory_probe.v1", "status": "blocked_admission",
+                    "records": records, "mode": mode, "blocker": str(error), "preflight": preflight})
+                raise
             cache = root / mode
             cache.mkdir()
             output = root / f"{mode}.json"
             env = dict(os.environ, XDG_CACHE_HOME=str(cache), HF_HUB_CACHE=HF_HUB_CACHE,
                        HUGGINGFACE_HUB_CACHE=HF_HUB_CACHE, HF_HUB_OFFLINE="1",
                        PLLM_MEMORY_COHORT_SALT=salt)
-            command = [sys.executable, __file__, "--child", mode, "--output", str(output)]
+            command = [sys.executable, __file__, "--child", mode, "--output", str(output),
+                       "--max-input-tokens", str(args.max_input_tokens)]
             if args.tiny:
                 command.append("--tiny")
             if args.four_b:
@@ -190,11 +246,20 @@ def main():
                 command.append("--tokenizer-ablation")
             if args.tokenizer_reuse_ablation:
                 command.append("--tokenizer-reuse-ablation")
+            if args.tokenizer_index_ablation:
+                command.extend(["--tokenizer-index-ablation", "--index-root", str(index_root),
+                                "--index-contract-digest", index_digest])
             print(f"running {mode}", flush=True)
             child = subprocess.Popen(command, env=env)
             try:
                 if child.wait(timeout=420) != 0:
                     raise RuntimeError(f"{mode} failed")
+            except BaseException as error:
+                checkpoint({"schema": "pllm.client_runtime_memory_probe.v1",
+                    "status": "interrupted" if isinstance(error, KeyboardInterrupt) else "failed",
+                    "records": records, "mode": mode, "error_type": type(error).__name__,
+                    "blocker": str(error), "public_tokenizer_index": index_metadata})
+                raise
             finally:
                 if child.poll() is None:
                     child.terminate()
@@ -210,6 +275,8 @@ def main():
     result = {"schema": "pllm.client_runtime_memory_probe.v1", "status": "complete", "records": records,
               "comparison_available": len(controls) > 1,
               "checks_passed": all(record["checks"]["passed"] for record in records.values())}
+    if index_metadata:
+        result["public_tokenizer_index"] = index_metadata
     for key in (() if args.profile_only else ("model_fingerprint", "input_tokens", "output_tokens", "output_text_digest")):
         values = [(run["tokens"].get(key) if key.endswith("_tokens") else
                    run["generation"].get(key) if key == "output_text_digest" else run.get(key)) for run in controls]
