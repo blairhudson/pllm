@@ -13,6 +13,7 @@ import tempfile
 
 MODES = ("eager-resident", "lazy-resident", "lazy-paged")
 TOKENIZER_MODES = ("paged-eager-tokenizer", "lazy-paged")
+TOKENIZER_REUSE_MODES = ("lazy-paged", "paged-shared-tokenizer")
 
 
 def experiment(mode, *, tiny=False, four_b=False):
@@ -24,13 +25,31 @@ def experiment(mode, *, tiny=False, four_b=False):
     else:
         model = Model.hf("Qwen/Qwen2.5-0.5B-Instruct", revision="7ae557604adf67be50417f59c2c2f167def9a775")
     example = runpy.run_path(str(Path(__file__).resolve().parents[1] / "examples/benchmarks/client_memory.py"))
-    return example["candidate"](mode, model, "paged" if mode in TOKENIZER_MODES else "memory")
+    return example["candidate"](mode, model,
+        "paged" if mode in (*TOKENIZER_MODES, *TOKENIZER_REUSE_MODES) else "memory")
+
+
+def reuse_one_bundle_tokenizer(factory):
+    """Probe-only, one-response owner; never reuse across source bundle instances."""
+    owner = None
+    tokenizer = None
+
+    def load(bundle):
+        nonlocal owner, tokenizer
+        if owner is None:
+            tokenizer = factory(bundle)
+            owner = bundle
+        elif owner is not bundle:
+            raise ValueError("tokenizer reuse probe cannot cross bundle identity")
+        return tokenizer
+
+    return load
 
 
 def worker(args):
     from pllm.runtime.benchmark_cli import run_loopback_benchmark
     profiles = {}
-    if args.profile_only or args.tokenizer_ablation:
+    if args.profile_only or args.tokenizer_ablation or args.tokenizer_reuse_ablation:
         from pllm.runtime import client as client_module, model_binding, semantic_executor, transformer_client
         from pllm.runtime.benchmark_memory import process_memory
 
@@ -66,6 +85,10 @@ def worker(args):
         watch(transformer_client.ClientBundle, "tokenizer")
         for name in ("prepare_ids", "forward_ids", "snapshot"):
             watch(semantic_executor.SemanticDecoderRuntime, name)
+    if args.child == "paged-shared-tokenizer":
+        from pllm.runtime.transformer_client import ClientBundle
+
+        ClientBundle.tokenizer = reuse_one_bundle_tokenizer(ClientBundle.tokenizer)
     if args.child in {"eager-resident", "paged-eager-tokenizer"}:
         from pllm.runtime.transformer_client import MaskedTransformerClientRuntime
         runtime_constructor = MaskedTransformerClientRuntime.__init__
@@ -109,7 +132,9 @@ def main():
     diagnostic = parser.add_mutually_exclusive_group()
     diagnostic.add_argument("--profile-only", action="store_true", help="single paged diagnostic; no paired comparison")
     diagnostic.add_argument("--tokenizer-ablation", action="store_true", help="matched eager/lazy decoder-tokenizer pair")
-    parser.add_argument("--child", choices=(*MODES, "paged-eager-tokenizer"), help=argparse.SUPPRESS)
+    diagnostic.add_argument("--tokenizer-reuse-ablation", action="store_true",
+        help="matched probe-only tokenizer reuse across one response's setup and execution")
+    parser.add_argument("--child", choices=(*MODES, "paged-eager-tokenizer", "paged-shared-tokenizer"), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.output.exists():
         parser.error("output already exists")
@@ -134,7 +159,9 @@ def main():
     with args.output.open("x") as archive, tempfile.TemporaryDirectory(prefix="pllm-client-runtime-memory-") as directory:
         checkpoint({"schema": "pllm.client_runtime_memory_probe.v1", "status": "running", "records": records})
         root = Path(directory)
-        modes = (("lazy-paged",) if args.profile_only else TOKENIZER_MODES if args.tokenizer_ablation else MODES)
+        modes = (("lazy-paged",) if args.profile_only else
+                 TOKENIZER_MODES if args.tokenizer_ablation else
+                 TOKENIZER_REUSE_MODES if args.tokenizer_reuse_ablation else MODES)
         for mode in modes:
             preflight = benchmark_memory(experiment(mode, tiny=args.tiny, four_b=args.four_b), backend="native")
             require_admission(preflight)
@@ -161,6 +188,8 @@ def main():
                 command.append("--profile-only")
             if args.tokenizer_ablation:
                 command.append("--tokenizer-ablation")
+            if args.tokenizer_reuse_ablation:
+                command.append("--tokenizer-reuse-ablation")
             print(f"running {mode}", flush=True)
             child = subprocess.Popen(command, env=env)
             try:

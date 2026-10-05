@@ -1,0 +1,275 @@
+{
+  "host": {
+    "available": 21550448640,
+    "disk_free": 20676874240,
+    "swap_used": 1590820864,
+    "total": 34359738368
+  },
+  "maximum_host_swap_growth_bytes": 0,
+  "measured_at": "2026-10-05T11:53:10.261089+00:00",
+  "parity": true,
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "preflight": {
+    "admitted": true,
+    "candidates": {
+      "docker": {
+        "admitted": false,
+        "docker": null,
+        "reasons": [
+          "Docker memory capacity is unavailable"
+        ],
+        "required_disk_bytes": 4616998912,
+        "required_host_bytes": 16578630530
+      },
+      "native": {
+        "admitted": true,
+        "docker": null,
+        "reasons": [],
+        "required_disk_bytes": 4616998912,
+        "required_host_bytes": 16578630530
+      }
+    },
+    "enforced_wan": false,
+    "estimate": {
+      "allocation_slack_percent": 25,
+      "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+      "client_peak_bytes": 4230414210,
+      "compiled_input_bound": 71,
+      "components": {
+        "checkpoint_bytes": 8044982000,
+        "client_additional_paged_disk_bytes": 0,
+        "client_bundle_work_bytes": 2741071872,
+        "client_cache_bytes": 0,
+        "client_live_tensor_bytes": 123016312,
+        "client_mask_bytes": 25315312,
+        "client_mask_cursor_bytes": 305136,
+        "client_metal_bytes": 0,
+        "client_paged_metadata_bytes": 0,
+        "client_state_work_bytes": 226492416,
+        "client_tensor_work_bytes": 349508728,
+        "float_quantization_work_bytes": 25525248,
+        "largest_loading_temporary_bytes": 777912320,
+        "legacy_client_mask_bytes": 2031058944,
+        "legacy_client_tensor_work_bytes": 2123773984,
+        "legacy_largest_loading_temporary_bytes": 1555824640,
+        "legacy_per_engine_i8_and_native_bytes": 8822456320,
+        "per_engine_compiled_disk_bytes": 777912320,
+        "per_engine_i8_and_native_bytes": 4411228160,
+        "per_provider_metal_bytes": 0,
+        "per_role_i8_and_native_bytes": {
+          "inference": 4022272000,
+          "preparation": 3633315840
+        },
+        "per_role_loading_temporary_bytes": {
+          "inference": 777912320,
+          "preparation": 414481408
+        },
+        "provider_correction_bytes": 628162560,
+        "raw_client_bundle_bytes": 456845312,
+        "verifier_bytes": 0
+      },
+      "docker_provider_peak_bytes": {
+        "inference": 15088962560,
+        "preparation": 13393256960
+      },
+      "inventory_rows": 71,
+      "kernel": "cpu",
+      "limitations": [],
+      "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+      "max_input_tokens": 71,
+      "max_output_tokens": 1,
+      "model_plan_digest": "ebe6ddc03684c08cda456507993f2c33099af66adbd92a0080bc0512f69f25f5",
+      "native_total_peak_bytes": 16578630530,
+      "pipeline_digest": "593416e033225e8e1428d888e1100f42d4e1b0a75228dfdc16deeece77c0e1a1",
+      "provider_peak_bytes": {
+        "inference": 6420636160,
+        "preparation": 5927580160
+      },
+      "scope": "conservative allocation estimate; not measured peak RSS",
+      "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+      "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+    },
+    "host": {
+      "admission_budget_bytes": 17255481344,
+      "available": 21550448640,
+      "disk_free": 20676874240,
+      "reserve_bytes": 4294967296,
+      "swap_used": 1590820864,
+      "total": 34359738368
+    },
+    "requested_backend": "native",
+    "schema": "pllm.benchmark_memory.v1",
+    "selected_backend": "native"
+  },
+  "probe_sha256": "ac032f471a1c71d42179bc4ea154a14b9d458a78b7acbc695250a1c6fd4e6cc2",
+  "python": "3.13.15",
+  "required_physical_headroom_bytes": 6464451072,
+  "samples": [
+    {
+      "activation_bits": 8,
+      "after_issuance": {
+        "lifetime_peak_rss_bytes": 4613029888,
+        "rss_bytes": 4290920448
+      },
+      "after_load": {
+        "lifetime_peak_rss_bytes": 4613029888,
+        "rss_bytes": 4236230656
+      },
+      "after_unload": {
+        "lifetime_peak_rss_bytes": 4613029888,
+        "rss_bytes": 4290920448
+      },
+      "body_fingerprint": "8dd9e09f7e920487870d67d30ad38162d9372ac4cad852092ff87fbdc936fefc",
+      "checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586",
+      "correction_body_bytes": 242159493,
+      "correction_digest": "ca52cf5cb1d98aa0d1a10816e396fbb2d11a5bb9ca4e9061d51721e6161b9cf1",
+      "issuance_cpu_seconds": 83.28186600000001,
+      "issuance_seconds": 40.53562291711569,
+      "load_and_issuance_cpu_seconds": 118.133269,
+      "load_and_issuance_seconds": 75.80524583347142,
+      "load_cpu_seconds": 34.846503,
+      "load_seconds": 35.26473237480968,
+      "logical_weight_bytes": 3633315840,
+      "metadata_digest": "fbfa7e29752e12809037974f96b15c33884351deb1a3617d6186a3519ef1d7a4",
+      "mode": "resident",
+      "output_encoding": "row_residues",
+      "paged_metadata_bytes": 0,
+      "paged_weight_buffer_bound_bytes": 0,
+      "private_snapshot_disk_bytes": 0,
+      "process_cpu_seconds": 118.341296,
+      "resident_weight_bytes": 3633315840,
+      "rows_per_stage": 71,
+      "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+      "stage_commitment": "39299516c51025a743f41e9ebdb4457fbe586f8bb4131ffbc21e2a3514388a3b",
+      "stage_count": 144,
+      "stage_window": 4,
+      "threads": 1,
+      "weight_bits": 8
+    },
+    {
+      "activation_bits": 8,
+      "after_issuance": {
+        "lifetime_peak_rss_bytes": 739000320,
+        "rss_bytes": 204177408
+      },
+      "after_load": {
+        "lifetime_peak_rss_bytes": 739000320,
+        "rss_bytes": 273301504
+      },
+      "after_unload": {
+        "lifetime_peak_rss_bytes": 739000320,
+        "rss_bytes": 204177408
+      },
+      "body_fingerprint": "8dd9e09f7e920487870d67d30ad38162d9372ac4cad852092ff87fbdc936fefc",
+      "checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586",
+      "correction_body_bytes": 242159493,
+      "correction_digest": "ca52cf5cb1d98aa0d1a10816e396fbb2d11a5bb9ca4e9061d51721e6161b9cf1",
+      "issuance_cpu_seconds": 82.75239000000002,
+      "issuance_seconds": 40.30163891706616,
+      "load_and_issuance_cpu_seconds": 132.04082400000001,
+      "load_and_issuance_seconds": 90.19072229228914,
+      "load_cpu_seconds": 49.283634,
+      "load_seconds": 49.884293333627284,
+      "logical_weight_bytes": 3633315840,
+      "metadata_digest": "fbfa7e29752e12809037974f96b15c33884351deb1a3617d6186a3519ef1d7a4",
+      "mode": "paged",
+      "output_encoding": "row_residues",
+      "paged_metadata_bytes": 112896,
+      "paged_weight_buffer_bound_bytes": 8388608,
+      "private_snapshot_disk_bytes": 3633315840,
+      "process_cpu_seconds": 132.248263,
+      "resident_weight_bytes": 0,
+      "rows_per_stage": 71,
+      "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+      "stage_commitment": "39299516c51025a743f41e9ebdb4457fbe586f8bb4131ffbc21e2a3514388a3b",
+      "stage_count": 144,
+      "stage_window": 4,
+      "threads": 1,
+      "weight_bits": 8
+    },
+    {
+      "activation_bits": 8,
+      "after_issuance": {
+        "lifetime_peak_rss_bytes": 739180544,
+        "rss_bytes": 228163584
+      },
+      "after_load": {
+        "lifetime_peak_rss_bytes": 739180544,
+        "rss_bytes": 361168896
+      },
+      "after_unload": {
+        "lifetime_peak_rss_bytes": 739180544,
+        "rss_bytes": 228163584
+      },
+      "body_fingerprint": "8dd9e09f7e920487870d67d30ad38162d9372ac4cad852092ff87fbdc936fefc",
+      "checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586",
+      "correction_body_bytes": 242159493,
+      "correction_digest": "ca52cf5cb1d98aa0d1a10816e396fbb2d11a5bb9ca4e9061d51721e6161b9cf1",
+      "issuance_cpu_seconds": 82.560196,
+      "issuance_seconds": 40.241886250674725,
+      "load_and_issuance_cpu_seconds": 131.86610100000001,
+      "load_and_issuance_seconds": 89.85797141678631,
+      "load_cpu_seconds": 49.301018,
+      "load_seconds": 49.61121170781553,
+      "logical_weight_bytes": 3633315840,
+      "metadata_digest": "fbfa7e29752e12809037974f96b15c33884351deb1a3617d6186a3519ef1d7a4",
+      "mode": "paged",
+      "output_encoding": "row_residues",
+      "paged_metadata_bytes": 112896,
+      "paged_weight_buffer_bound_bytes": 8388608,
+      "private_snapshot_disk_bytes": 3633315840,
+      "process_cpu_seconds": 132.075501,
+      "resident_weight_bytes": 0,
+      "rows_per_stage": 71,
+      "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+      "stage_commitment": "39299516c51025a743f41e9ebdb4457fbe586f8bb4131ffbc21e2a3514388a3b",
+      "stage_count": 144,
+      "stage_window": 4,
+      "threads": 1,
+      "weight_bits": 8
+    },
+    {
+      "activation_bits": 8,
+      "after_issuance": {
+        "lifetime_peak_rss_bytes": 4614504448,
+        "rss_bytes": 4289527808
+      },
+      "after_load": {
+        "lifetime_peak_rss_bytes": 4614504448,
+        "rss_bytes": 4237705216
+      },
+      "after_unload": {
+        "lifetime_peak_rss_bytes": 4614504448,
+        "rss_bytes": 4289527808
+      },
+      "body_fingerprint": "8dd9e09f7e920487870d67d30ad38162d9372ac4cad852092ff87fbdc936fefc",
+      "checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586",
+      "correction_body_bytes": 242159493,
+      "correction_digest": "ca52cf5cb1d98aa0d1a10816e396fbb2d11a5bb9ca4e9061d51721e6161b9cf1",
+      "issuance_cpu_seconds": 81.799533,
+      "issuance_seconds": 39.93191883247346,
+      "load_and_issuance_cpu_seconds": 116.641697,
+      "load_and_issuance_seconds": 74.80165808275342,
+      "load_cpu_seconds": 34.837391,
+      "load_seconds": 34.86497466638684,
+      "logical_weight_bytes": 3633315840,
+      "metadata_digest": "fbfa7e29752e12809037974f96b15c33884351deb1a3617d6186a3519ef1d7a4",
+      "mode": "resident",
+      "output_encoding": "row_residues",
+      "paged_metadata_bytes": 0,
+      "paged_weight_buffer_bound_bytes": 0,
+      "private_snapshot_disk_bytes": 0,
+      "process_cpu_seconds": 116.853198,
+      "resident_weight_bytes": 3633315840,
+      "rows_per_stage": 71,
+      "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+      "stage_commitment": "39299516c51025a743f41e9ebdb4457fbe586f8bb4131ffbc21e2a3514388a3b",
+      "stage_count": 144,
+      "stage_window": 4,
+      "threads": 1,
+      "weight_bits": 8
+    }
+  ],
+  "schema": "pllm.preparation_memory_probe.v1",
+  "scope": "Fresh-process resident/paged Preparation engine ablation on locked checkpoints.\n\nThe probe-local loader replaces each retained CPU matrix with an authenticated\nprivate raw-file snapshot. It exercises the ordinary seeded correction method\nand row-residue codec, with a shared native executor and bounded concurrent\nstage requests. This is isolated loader/issuance evidence, not a selectable\nPipeline, HTTP deployment, whole-response benchmark or filesystem-cache bound.\n"
+}

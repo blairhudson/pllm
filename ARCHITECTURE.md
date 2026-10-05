@@ -96,6 +96,11 @@ artifact delivery and batching compose; client-owned paged body weights reject
 Metal snapshot allocation. Admission prices bounded client page buffers and
 separate cache/transient/snapshot disk owners. Whole-client real-checkpoint RSS
 and matched full-response paging costs remain measurement gates.
+A separate Qwen3-4B Preparation-only raw-page probe matches all 144 stages'
+71-row correction frames while reducing median process peak RSS from 4.61 GB to
+739.09 MB (6.24x). Issuance CPU is nearly unchanged; loading plus issuance costs
+12.41% more CPU and adds 3.63 GB of private snapshot disk. This probe-only loader
+does not activate a Pipeline choice or change provider admission estimates.
 The core also owns the bounded `pllm.numeric.silu.quadratic_q7.v1` reference:
 signed Q7 over `[-1, 1]`, deterministic ties-to-even rounding, and an encoded-domain
 absolute SiLU error bound of `0.02285`.
@@ -745,7 +750,19 @@ and zero observed swap growth. A separate tokenizer ablation measures another
 encoded input; token-ID execution does not load a decoder vocabulary, while direct
 string helpers construct one lazily. It adds no persistent tokenizer cache. These
 different cohorts are not multiplied. The separate 9.44x Qwen3-4B storage/import
-result excludes body/KV work; 10x whole-client memory remains unestablished.
+result excludes body/KV work. A subsequent native Qwen3-4B paged-client 16+8-token
+capped response completes with all runtime/audit checks passing, 421.31 MB
+client/dashboard process-lifetime peak RSS and zero observed new swap. Separate
+Preparation and Inference peaks are 4.03 and 4.50 GB. This is one cached-checkpoint
+functionality/resource sample without a matched resident 4B control or a
+generation-quality comparison; 10x whole-client memory remains unestablished.
+A later matched 16+8-token, fresh-process tokenizer-lifetime probe lowers
+client/dashboard peak RSS from 390.32 to 350.45 MB (10.21%) with identical output
+text and zero observed new swap. It reuses one tokenizer across benchmark input
+admission, preparation sizing and response execution instead of constructing
+three. Retaining that object through process exit increases end-of-run RSS from
+337.54 to 350.19 MB. This probe-only allocation change adds no SDK cache; explicit
+request-lifetime cleanup and a matched resident 4B control remain open.
 
 A matrix is copied into Rust once at compilation, then reused for later calls.
 `CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that
@@ -1071,11 +1088,15 @@ do not change with the packaging layout.
 
 Fumadocs lives in `docs` and has its own npm manifest. It is deployed as a static
 site and is not bundled into the Python wheel. `paper/manuscript.md` and
-`paper/whitepaper.md` are the canonical Pandoc Markdown paper sources. Pandoc
+`paper/whitepaper.md` are the canonical Pandoc Markdown paper sources. Builders
+live in `docs/scripts/` and run as part of the docs build. PDFs, source archives,
+figure outputs, rendered publication MDX and download copies are generated and
+ignored by Git; intermediate paper assets live in `docs/build/papers/`. Pandoc
 generates both website articles and the technical PDF, using Tectonic locally or
-pdfLaTeX in CI for the latter. The whitepaper PDF uses a dedicated Pandoc HTML/CSS
+pdfLaTeX in CI for the latter. The two-page whitepaper PDF uses a dedicated Pandoc HTML/CSS
 print layout rendered by Chrome or Chromium; only technical-paper layout details
-remain in TeX. Historical measurements are kept
+remain in TeX. The technical build also emits a standalone, citeproc-resolved TeX
+archive for arXiv without a Pandoc build dependency. Historical measurements are kept
 under `docs/evidence` and are not rewritten as native Rust results.
 
 The loopback benchmark dashboard runs the real client, preparation, and inference

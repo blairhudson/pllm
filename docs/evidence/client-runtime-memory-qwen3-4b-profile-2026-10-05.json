@@ -1,0 +1,1827 @@
+{
+  "checks_passed": true,
+  "comparison_available": false,
+  "records": {
+    "lazy-paged": {
+      "checks": {
+        "all_runs_completed": true,
+        "authoritative_token_usage": true,
+        "memory_guard_passed": true,
+        "model_fingerprint_present": true,
+        "no_online_preparation_requests": true,
+        "no_plaintext_prompt_bytes_sent": true,
+        "no_plaintext_token_ids_sent": true,
+        "passed": true,
+        "sampling_matches_request": true
+      },
+      "client_body_placement": {
+        "client_body_i8_weight_bytes": 0,
+        "client_body_paged_metadata_bytes": 0,
+        "client_body_paged_transient_weight_bytes": 0,
+        "client_body_paged_weight_bytes": 0,
+        "client_body_scale_bytes": 0,
+        "declared_body_linear_macs_per_row_client": 0,
+        "declared_body_linear_macs_per_row_remote": 3633315840,
+        "local_stage_count": 0,
+        "metal_body_i8_snapshot_bytes": 0,
+        "native_body_i8_snapshot_bytes": 0,
+        "peak_client_memory_bytes": null,
+        "remote_stage_count": 144,
+        "sample_boundary": "after-final-measured-response",
+        "schema": "pllm.client_body_placement.v1"
+      },
+      "client_process_memory": {
+        "after": {
+          "lifetime_peak_rss_bytes": 366608384,
+          "rss_bytes": 338886656
+        },
+        "allocation_control": "lazy-paged",
+        "before": {
+          "lifetime_peak_rss_bytes": 66191360,
+          "rss_bytes": 66174976
+        },
+        "isolated_candidate": true,
+        "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+        "scope": "client and in-process dashboard; excludes provider processes and OS file cache"
+      },
+      "communication_per_token": {
+        "byte_unit": "decimal MB (1000000 bytes)",
+        "decode_scope": "online bodies after first output through completion, divided by N-1",
+        "denominator": "authoritative generated output tokens, not input tokens or output cap",
+        "runs": [
+          {
+            "covered_body_bytes": 571576415,
+            "covered_mb_per_output_token": 71.447051875,
+            "decode_online_body_bytes": 43513687,
+            "decode_online_mb_per_output_token": 6.216241,
+            "decode_output_tokens": 7,
+            "generated_output_tokens": 8,
+            "online_body_bytes": 141705107,
+            "online_mb_per_output_token": 17.713138375
+          }
+        ],
+        "schema": "pllm.communication_per_generated_token.v1",
+        "scope": "covered application bodies; no full wire or checkpoint download",
+        "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+        "summary": {
+          "cold_first_response_mb_per_output_token": 71.447051875,
+          "covered_mb_per_output_token": 71.447051875,
+          "decode_online_mb_per_output_token": 6.216241,
+          "generated_output_tokens": 8,
+          "online_mb_per_output_token": 17.713138375,
+          "setup_inclusive_mb_per_output_token": 71.447051875
+        }
+      },
+      "configuration": {
+        "bundle_compression": "artifacts-zlib",
+        "capture_output_digest": true,
+        "inventory_policy": "request-sized",
+        "max_output_tokens": 8,
+        "model_id": "Qwen/Qwen3-4B",
+        "prefill_cache_bound_tokens": 64,
+        "prefill_cache_mib": 128,
+        "prefill_cache_mode": "prefix",
+        "prompt_digest": "c8bbbe85980391f17881d3cf44c6b6f043e932e8f21573f4d746a1312c88bb08",
+        "prompt_sequence_digest": null,
+        "provider_backend": "native",
+        "repetitions": 1,
+        "roles": [
+          "client",
+          "inference",
+          "preparation"
+        ],
+        "sampling": {
+          "effective_temperature": 0.0,
+          "mode": "greedy",
+          "requested_temperature": 0.0,
+          "top_p": null
+        },
+        "source_lock_digest": "6b2609e5ce487f01691cf3c991da6d7b9279f7adf0b018eca4e789d2941215a0",
+        "tiny": false,
+        "warmup_prompt_digest": "c8bbbe85980391f17881d3cf44c6b6f043e932e8f21573f4d746a1312c88bb08",
+        "warmups": 0
+      },
+      "experiment": {
+        "configuration_digest": "ea89eac4b354bcb3d5a251a315c9fb4355957b162834bfe60aa6ad632b4e2f1a",
+        "name": "lazy-paged",
+        "pipeline_digest": "6c660cc9818692241fc7b1b1b2e3e815ad2c3a81c8ce6453dc9559c2a642ffe2"
+      },
+      "limitations": [
+        "single host and loopback network",
+        "diagnostic record, not a canonical EvidenceReport",
+        "does not establish model quality, energy, price, adversarial security, or non-collusion"
+      ],
+      "memory_guard": {
+        "maximum_host_swap_growth_bytes": 0,
+        "minimum_host_available_bytes": 14532706304,
+        "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+        "tripped": false
+      },
+      "memory_phase_diagnostic": {
+        "phases": {
+          "ClientBundle.tokenizer": {
+            "call_sites": [
+              [
+                "threading.py:1015:_bootstrap",
+                "threading.py:1044:_bootstrap_inner",
+                "threading.py:995:run",
+                "dashboard.py:985:_execute_run",
+                "client.py:2824:_response_input_tokens"
+              ],
+              [
+                "threading.py:1015:_bootstrap",
+                "threading.py:1044:_bootstrap_inner",
+                "threading.py:995:run",
+                "dashboard.py:997:_execute_run",
+                "client.py:4493:prepared_rows_for_response",
+                "client.py:2841:prepared_rows_for_response"
+              ],
+              [
+                "threading.py:1044:_bootstrap_inner",
+                "threading.py:995:run",
+                "dashboard.py:1058:_execute_run",
+                "dashboard.py:1122:_run_chat",
+                "client.py:205:__next__",
+                "client.py:3088:events",
+                "client.py:3346:_transformer_events"
+              ]
+            ],
+            "calls": 3,
+            "new_highwater_max": 104185856,
+            "peak_after_max": 331087872,
+            "peak_before_max": 319143936,
+            "rss_after_max": 331087872
+          },
+          "RuntimeClient._load_artifact_bundle": {
+            "calls": 1,
+            "new_highwater_max": 43728896,
+            "peak_after_max": 172359680,
+            "peak_before_max": 128630784,
+            "rss_after_max": 172359680
+          },
+          "SemanticDecoderRuntime.prepare_ids": {
+            "calls": 1,
+            "new_highwater_max": 18219008,
+            "peak_after_max": 366608384,
+            "peak_before_max": 348389376,
+            "rss_after_max": 354746368
+          },
+          "SemanticDecoderRuntime.snapshot": {
+            "calls": 4,
+            "new_highwater_max": 0,
+            "peak_after_max": 366608384,
+            "peak_before_max": 366608384,
+            "rss_after_max": 364118016
+          },
+          "pllm.runtime.model_binding.compile_runtime_model": {
+            "calls": 3,
+            "new_highwater_max": 7782400,
+            "peak_after_max": 345866240,
+            "peak_before_max": 338903040,
+            "rss_after_max": 345849856
+          }
+        },
+        "scope": "nested process samples, non-additive"
+      },
+      "memory_preflight": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 5394911232,
+            "required_host_bytes": 13498754870
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 5394911232,
+            "required_host_bytes": 13498754870
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "streamed_paged_v1; raw cache and private files are separate disk owners",
+          "client_peak_bytes": 1150538550,
+          "compiled_input_bound": 64,
+          "components": {
+            "checkpoint_bytes": 8044982000,
+            "client_additional_paged_disk_bytes": 777912320,
+            "client_bundle_work_bytes": 155081984,
+            "client_cache_bytes": 134217728,
+            "client_live_tensor_bytes": 110887944,
+            "client_mask_bytes": 25315312,
+            "client_mask_cursor_bytes": 305136,
+            "client_metal_bytes": 0,
+            "client_paged_metadata_bytes": 2526464,
+            "client_state_work_bytes": 226492416,
+            "client_tensor_work_bytes": 337380360,
+            "float_quantization_work_bytes": 25525248,
+            "largest_loading_temporary_bytes": 777912320,
+            "legacy_client_mask_bytes": 2031058944,
+            "legacy_client_tensor_work_bytes": 1913178144,
+            "legacy_largest_loading_temporary_bytes": 1555824640,
+            "legacy_per_engine_i8_and_native_bytes": 8822456320,
+            "per_engine_compiled_disk_bytes": 777912320,
+            "per_engine_i8_and_native_bytes": 4411228160,
+            "per_provider_metal_bytes": 0,
+            "per_role_i8_and_native_bytes": {
+              "inference": 4022272000,
+              "preparation": 3633315840
+            },
+            "per_role_loading_temporary_bytes": {
+              "inference": 777912320,
+              "preparation": 414481408
+            },
+            "provider_correction_bytes": 628162560,
+            "raw_client_bundle_bytes": 456845312,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "inference": 15088962560,
+            "preparation": 13393256960
+          },
+          "inventory_rows": 71,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 64,
+          "max_output_tokens": 8,
+          "model_plan_digest": "e6fa4d00a599e5c11a61065375bea541036931ec35cbccaf02e0c08713742af8",
+          "native_total_peak_bytes": 13498754870,
+          "pipeline_digest": "6c660cc9818692241fc7b1b1b2e3e815ad2c3a81c8ce6453dc9559c2a642ffe2",
+          "provider_peak_bytes": {
+            "inference": 6420636160,
+            "preparation": 5927580160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 15101296640,
+          "available": 19396263936,
+          "disk_free": 20612603904,
+          "reserve_bytes": 4294967296,
+          "swap_used": 1540489216,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "prepared_material_accounting": {
+        "conserved": true,
+        "counts": {
+          "burned": 0,
+          "claimed": 3312,
+          "discarded": 0,
+          "issued": 3312,
+          "reserved": 3312
+        },
+        "remaining_stage_rows": 0,
+        "schema": "pllm.prepared_material_accounting.v1",
+        "scope": "sealed stage rows after client close; claims burn on use, not successful output"
+      },
+      "privacy_admission": null,
+      "process_cpu_accounting": {
+        "aggregate_cold_first_response_cpu_seconds": 181.76266038400001,
+        "aggregate_startup_cpu_seconds": 91.584676832,
+        "cold_first_response_cpu_seconds_by_role": {
+          "client": 29.77666,
+          "inference": 83.829308928,
+          "preparation": 68.156691456
+        },
+        "full_response_compute_cap_checked": false,
+        "schema": "pllm.topology_process_cpu.v1",
+        "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+        "startup_cpu_seconds_by_role": {
+          "client": 11.984684,
+          "inference": 41.479397376,
+          "preparation": 38.120595456000004
+        },
+        "unmeasured": [
+          "source resolution before dashboard startup, if any",
+          "accelerator compute, energy, and CPU after the first response",
+          "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+        ]
+      },
+      "runs": [
+        {
+          "cold": true,
+          "context_tokens": 16,
+          "durations": {
+            "full_seconds": 71.084203417,
+            "generation_seconds": 12.170807917,
+            "online_seconds": 37.272899708,
+            "preparation_seconds": 18.835391333,
+            "tokens_per_second": 0.5751466991950884,
+            "transition_seconds": 0.610772292,
+            "ttft_seconds": 25.064068833
+          },
+          "failure": null,
+          "generation": {
+            "output_text_digest": "301f57f82d9e18d4cbf4e42d9f5f569db4c2e410bb1bf5ecd98ba2a96511c2e8",
+            "response_status": "incomplete"
+          },
+          "inventory": {
+            "burned": 0,
+            "consumed": 23,
+            "generated": 23,
+            "required": 23,
+            "reused": 0
+          },
+          "max_output_tokens": 8,
+          "model_fingerprint": "8dd9e09f7e920487870d67d30ad38162d9372ac4cad852092ff87fbdc936fefc",
+          "model_id": "Qwen/Qwen3-4B",
+          "network": {
+            "decode_online_body_bytes": 43513687,
+            "decode_output_tokens": 7,
+            "decode_scope": "after-first-output-through-completion"
+          },
+          "privacy": {
+            "bundle_cache_corruptions": 0,
+            "bundle_cache_hits": 0,
+            "bundle_cache_misses": 1,
+            "bundle_network_bytes": 351131846,
+            "correction_push_bytes": 78707661,
+            "correction_push_ns": 1908583751,
+            "correlation_count": 0,
+            "direct_fhe_download_bytes": 0,
+            "direct_fhe_steps": 0,
+            "direct_fhe_upload_bytes": 0,
+            "encrypted_correlation_download_bytes": 0,
+            "encrypted_correlation_upload_bytes": 0,
+            "generation_completed_responses": 1,
+            "generation_decode_online_body_bytes": 43513687,
+            "generation_decode_output_tokens": 7,
+            "generation_output_tokens": 8,
+            "generation_prefill_online_body_bytes": 98191420,
+            "inference_download_bytes": 78453351,
+            "inference_server_ns": 26000591358,
+            "inference_stage_calls": 1152,
+            "inference_upload_bytes": 63251756,
+            "kv_continuation_batched_hits": 0,
+            "kv_continuation_hits": 0,
+            "kv_continuation_legacy_sequential_hits": 0,
+            "kv_continuation_misses": 0,
+            "masked_online_download_bytes": 78748785,
+            "masked_online_upload_bytes": 63575890,
+            "online_steps": 3312,
+            "plaintext_prompt_bytes_sent": 0,
+            "plaintext_token_ids_sent": 0,
+            "prefill_cache_hits": 0,
+            "prefill_cache_misses": 1,
+            "prefill_prefix_tokens_reused": 0,
+            "preparation_attempts": 144,
+            "preparation_download_bytes": 12884,
+            "preparation_failures": 0,
+            "preparation_requests_during_online": 0,
+            "preparation_rows": 3312,
+            "preparation_server_ns": 26075827457,
+            "preparation_upload_bytes": 14832,
+            "prepared_stage_rows_burned": 0,
+            "prepared_stage_rows_claimed": 3312,
+            "prepared_stage_rows_discarded": 0,
+            "prepared_stage_rows_issued": 3312,
+            "prepared_stage_rows_reserved": 3312,
+            "public_context_bytes": 0,
+            "role_link.worker_a.online_download_bytes": 0,
+            "role_link.worker_a.online_upload_bytes": 0,
+            "role_link.worker_a.setup_download_bytes": 0,
+            "role_link.worker_a.setup_upload_bytes": 0,
+            "role_link.worker_a.teardown_download_bytes": 0,
+            "role_link.worker_a.teardown_upload_bytes": 0,
+            "role_link.worker_b.online_download_bytes": 0,
+            "role_link.worker_b.online_upload_bytes": 0,
+            "role_link.worker_b.setup_download_bytes": 0,
+            "role_link.worker_b.setup_upload_bytes": 0,
+            "role_link.worker_b.teardown_download_bytes": 0,
+            "role_link.worker_b.teardown_upload_bytes": 0,
+            "session_authorization_download_bytes": 44,
+            "session_authorization_upload_bytes": 4041,
+            "token_lookup_cache_hits": 0,
+            "token_lookup_cache_misses": 0
+          },
+          "processes": {
+            "client": {
+              "cpu_seconds": 17.775106,
+              "rss_peak_bytes": null
+            },
+            "inference": {
+              "cpu_seconds": 42.345515008,
+              "rss_peak_bytes": 5203918848
+            },
+            "preparation": {
+              "cpu_seconds": 30.033355775999993,
+              "rss_peak_bytes": 4283416576
+            }
+          },
+          "run_id": "bench-9b5258cd8424c320790d53b42f1fa048",
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "schema_version": 3,
+          "status": "completed",
+          "timestamps": {
+            "finished_at_ns": 1791203623553904000,
+            "first_token_at_ns": 1791203611345401000,
+            "last_token_at_ns": 1791203623515889000,
+            "online_started_at_ns": 1791203586282000000,
+            "preparation_finished_at_ns": 1791203585671247000,
+            "preparation_started_at_ns": 1791203566836354000,
+            "started_at_ns": 1791203552471596000
+          },
+          "tokens": {
+            "authoritative": true,
+            "input_tokens": 16,
+            "output_tokens": 8,
+            "total_tokens": 24
+          },
+          "warm": false
+        }
+      ],
+      "schema_version": "pllm.loopback_benchmark.v1",
+      "scope": "single-host-loopback-diagnostic",
+      "summary": {
+        "accounted_setup_through_first_response_body_bytes": 571576415,
+        "cold_first_response_mb_per_output_token": 71.447051875,
+        "completed_runs": 1,
+        "covered_mb_per_output_token": 71.447051875,
+        "decode_online_mb_per_output_token": 6.216241,
+        "generated_output_tokens": 8,
+        "median_covered_all_link_serialized_body_bytes": 571576415,
+        "median_full_seconds": 71.084203417,
+        "median_online_all_link_serialized_body_bytes": 141705107,
+        "median_online_seconds": 37.272899708,
+        "median_tokens_per_second": 0.5751466991950884,
+        "median_ttft_seconds": 25.064068833,
+        "online_mb_per_output_token": 17.713138375,
+        "setup_inclusive_mb_per_output_token": 71.447051875,
+        "total_accounted_benchmark_body_bytes": 571576415,
+        "total_output_tokens": 8,
+        "total_run_covered_all_link_serialized_body_bytes": 571576415,
+        "total_run_full_seconds": 71.084203417,
+        "total_run_online_all_link_serialized_body_bytes": 141705107
+      },
+      "topology_accounting": {
+        "runs": [
+          {
+            "aggregate_run_window_cpu_seconds": 90.153976784,
+            "all_link_serialized_body_bytes": 571576415,
+            "body_bytes_by_edge": [
+              {
+                "destination": "preparation",
+                "phase": "offline",
+                "serialized_body_bytes": 18873,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "offline",
+                "serialized_body_bytes": 12928,
+                "source": "preparation"
+              },
+              {
+                "destination": "inference",
+                "phase": "offline",
+                "serialized_body_bytes": 78707661,
+                "source": "preparation"
+              },
+              {
+                "destination": "client",
+                "phase": "cold",
+                "serialized_body_bytes": 351131846,
+                "source": "inference"
+              },
+              {
+                "destination": "inference",
+                "phase": "online",
+                "serialized_body_bytes": 63251756,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 78453351,
+                "source": "inference"
+              }
+            ],
+            "client_serialized_body_bytes": 492868754,
+            "full_response_compute_cap_checked": false,
+            "online_all_link_serialized_body_bytes": 141705107,
+            "online_client_serialized_body_bytes": 141705107,
+            "run_window_cpu_seconds_by_role": {
+              "client": 17.775106,
+              "inference": 42.345515008,
+              "preparation": 30.033355775999993
+            },
+            "schema": "pllm.topology_body_accounting.v1",
+            "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only",
+            "total_wire_bytes": null,
+            "tracked_body_counter_set_present": true,
+            "unmeasured": [
+              "HTTP/TLS/WebSocket framing and control traffic",
+              "inference-to-preparation correction acknowledgements",
+              "duplicate or failed transport attempts not represented by client audit counters",
+              "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+              "GPU work, uninstrumented client work, and cold checkpoint distribution"
+            ]
+          }
+        ],
+        "stages": {
+          "runs": [
+            {
+              "body_bytes_by_stage_and_edge": {
+                "layers.0.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 192311,
+                  "preparation->client": 86,
+                  "preparation->inference": 192368
+                },
+                "layers.0.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1379476,
+                  "preparation->client": 89,
+                  "preparation->inference": 1384923
+                },
+                "layers.0.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184369,
+                  "preparation->client": 89,
+                  "preparation->inference": 184170
+                },
+                "layers.0.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 435102,
+                  "preparation->client": 91,
+                  "preparation->inference": 436530
+                },
+                "layers.1.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 190354,
+                  "preparation->client": 86,
+                  "preparation->inference": 190667
+                },
+                "layers.1.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1326823,
+                  "preparation->client": 89,
+                  "preparation->inference": 1332947
+                },
+                "layers.1.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184436,
+                  "preparation->client": 89,
+                  "preparation->inference": 184207
+                },
+                "layers.1.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 433998,
+                  "preparation->client": 91,
+                  "preparation->inference": 435466
+                },
+                "layers.10.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191786,
+                  "preparation->client": 87,
+                  "preparation->inference": 191779
+                },
+                "layers.10.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1377069,
+                  "preparation->client": 90,
+                  "preparation->inference": 1382769
+                },
+                "layers.10.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184498,
+                  "preparation->client": 90,
+                  "preparation->inference": 184327
+                },
+                "layers.10.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431808,
+                  "preparation->client": 92,
+                  "preparation->inference": 433362
+                },
+                "layers.11.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191872,
+                  "preparation->client": 87,
+                  "preparation->inference": 191886
+                },
+                "layers.11.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1377255,
+                  "preparation->client": 90,
+                  "preparation->inference": 1382940
+                },
+                "layers.11.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184705,
+                  "preparation->client": 90,
+                  "preparation->inference": 184461
+                },
+                "layers.11.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431384,
+                  "preparation->client": 92,
+                  "preparation->inference": 432953
+                },
+                "layers.12.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191809,
+                  "preparation->client": 87,
+                  "preparation->inference": 191766
+                },
+                "layers.12.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1374261,
+                  "preparation->client": 90,
+                  "preparation->inference": 1380088
+                },
+                "layers.12.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184145,
+                  "preparation->client": 90,
+                  "preparation->inference": 183978
+                },
+                "layers.12.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431961,
+                  "preparation->client": 92,
+                  "preparation->inference": 433535
+                },
+                "layers.13.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191523,
+                  "preparation->client": 87,
+                  "preparation->inference": 191439
+                },
+                "layers.13.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1372448,
+                  "preparation->client": 90,
+                  "preparation->inference": 1378209
+                },
+                "layers.13.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184739,
+                  "preparation->client": 90,
+                  "preparation->inference": 184473
+                },
+                "layers.13.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431591,
+                  "preparation->client": 92,
+                  "preparation->inference": 433092
+                },
+                "layers.14.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191709,
+                  "preparation->client": 87,
+                  "preparation->inference": 191626
+                },
+                "layers.14.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1372714,
+                  "preparation->client": 90,
+                  "preparation->inference": 1378470
+                },
+                "layers.14.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184358,
+                  "preparation->client": 90,
+                  "preparation->inference": 184226
+                },
+                "layers.14.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432316,
+                  "preparation->client": 92,
+                  "preparation->inference": 433831
+                },
+                "layers.15.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191347,
+                  "preparation->client": 87,
+                  "preparation->inference": 191267
+                },
+                "layers.15.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1371434,
+                  "preparation->client": 90,
+                  "preparation->inference": 1377242
+                },
+                "layers.15.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184672,
+                  "preparation->client": 90,
+                  "preparation->inference": 184415
+                },
+                "layers.15.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432239,
+                  "preparation->client": 92,
+                  "preparation->inference": 433734
+                },
+                "layers.16.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191575,
+                  "preparation->client": 87,
+                  "preparation->inference": 191458
+                },
+                "layers.16.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1372461,
+                  "preparation->client": 90,
+                  "preparation->inference": 1378197
+                },
+                "layers.16.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184605,
+                  "preparation->client": 90,
+                  "preparation->inference": 184414
+                },
+                "layers.16.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432170,
+                  "preparation->client": 92,
+                  "preparation->inference": 433677
+                },
+                "layers.17.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191525,
+                  "preparation->client": 87,
+                  "preparation->inference": 191394
+                },
+                "layers.17.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1372164,
+                  "preparation->client": 90,
+                  "preparation->inference": 1378009
+                },
+                "layers.17.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184513,
+                  "preparation->client": 90,
+                  "preparation->inference": 184342
+                },
+                "layers.17.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432193,
+                  "preparation->client": 92,
+                  "preparation->inference": 433648
+                },
+                "layers.18.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191320,
+                  "preparation->client": 87,
+                  "preparation->inference": 191198
+                },
+                "layers.18.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1369632,
+                  "preparation->client": 90,
+                  "preparation->inference": 1375564
+                },
+                "layers.18.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184586,
+                  "preparation->client": 90,
+                  "preparation->inference": 184393
+                },
+                "layers.18.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432649,
+                  "preparation->client": 92,
+                  "preparation->inference": 434122
+                },
+                "layers.19.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191276,
+                  "preparation->client": 87,
+                  "preparation->inference": 191139
+                },
+                "layers.19.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1367752,
+                  "preparation->client": 90,
+                  "preparation->inference": 1373699
+                },
+                "layers.19.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 183959,
+                  "preparation->client": 90,
+                  "preparation->inference": 183847
+                },
+                "layers.19.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431484,
+                  "preparation->client": 92,
+                  "preparation->inference": 433009
+                },
+                "layers.2.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 188297,
+                  "preparation->client": 86,
+                  "preparation->inference": 188693
+                },
+                "layers.2.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1316711,
+                  "preparation->client": 89,
+                  "preparation->inference": 1325231
+                },
+                "layers.2.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184664,
+                  "preparation->client": 89,
+                  "preparation->inference": 184438
+                },
+                "layers.2.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 434320,
+                  "preparation->client": 91,
+                  "preparation->inference": 435828
+                },
+                "layers.20.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191376,
+                  "preparation->client": 87,
+                  "preparation->inference": 191210
+                },
+                "layers.20.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1370347,
+                  "preparation->client": 90,
+                  "preparation->inference": 1376184
+                },
+                "layers.20.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184329,
+                  "preparation->client": 90,
+                  "preparation->inference": 184154
+                },
+                "layers.20.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431896,
+                  "preparation->client": 92,
+                  "preparation->inference": 433388
+                },
+                "layers.21.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191548,
+                  "preparation->client": 87,
+                  "preparation->inference": 191361
+                },
+                "layers.21.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1368348,
+                  "preparation->client": 90,
+                  "preparation->inference": 1374190
+                },
+                "layers.21.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184017,
+                  "preparation->client": 90,
+                  "preparation->inference": 183850
+                },
+                "layers.21.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431982,
+                  "preparation->client": 92,
+                  "preparation->inference": 433475
+                },
+                "layers.22.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191412,
+                  "preparation->client": 87,
+                  "preparation->inference": 191298
+                },
+                "layers.22.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1368329,
+                  "preparation->client": 90,
+                  "preparation->inference": 1374189
+                },
+                "layers.22.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184082,
+                  "preparation->client": 90,
+                  "preparation->inference": 184026
+                },
+                "layers.22.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432316,
+                  "preparation->client": 92,
+                  "preparation->inference": 433831
+                },
+                "layers.23.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191468,
+                  "preparation->client": 87,
+                  "preparation->inference": 191434
+                },
+                "layers.23.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1371070,
+                  "preparation->client": 90,
+                  "preparation->inference": 1376891
+                },
+                "layers.23.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 183532,
+                  "preparation->client": 90,
+                  "preparation->inference": 183485
+                },
+                "layers.23.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 430771,
+                  "preparation->client": 92,
+                  "preparation->inference": 432232
+                },
+                "layers.24.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191592,
+                  "preparation->client": 87,
+                  "preparation->inference": 191616
+                },
+                "layers.24.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1373324,
+                  "preparation->client": 90,
+                  "preparation->inference": 1378917
+                },
+                "layers.24.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 183756,
+                  "preparation->client": 90,
+                  "preparation->inference": 183666
+                },
+                "layers.24.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 430027,
+                  "preparation->client": 92,
+                  "preparation->inference": 431456
+                },
+                "layers.25.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191673,
+                  "preparation->client": 87,
+                  "preparation->inference": 191727
+                },
+                "layers.25.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1374531,
+                  "preparation->client": 90,
+                  "preparation->inference": 1380159
+                },
+                "layers.25.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184822,
+                  "preparation->client": 90,
+                  "preparation->inference": 184494
+                },
+                "layers.25.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432889,
+                  "preparation->client": 92,
+                  "preparation->inference": 434355
+                },
+                "layers.26.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191782,
+                  "preparation->client": 87,
+                  "preparation->inference": 191865
+                },
+                "layers.26.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1377253,
+                  "preparation->client": 90,
+                  "preparation->inference": 1382729
+                },
+                "layers.26.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184705,
+                  "preparation->client": 90,
+                  "preparation->inference": 184421
+                },
+                "layers.26.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432266,
+                  "preparation->client": 92,
+                  "preparation->inference": 433739
+                },
+                "layers.27.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191579,
+                  "preparation->client": 87,
+                  "preparation->inference": 191692
+                },
+                "layers.27.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1378303,
+                  "preparation->client": 90,
+                  "preparation->inference": 1383791
+                },
+                "layers.27.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184628,
+                  "preparation->client": 90,
+                  "preparation->inference": 184352
+                },
+                "layers.27.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 432318,
+                  "preparation->client": 92,
+                  "preparation->inference": 433781
+                },
+                "layers.28.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191483,
+                  "preparation->client": 87,
+                  "preparation->inference": 191606
+                },
+                "layers.28.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1378562,
+                  "preparation->client": 90,
+                  "preparation->inference": 1384021
+                },
+                "layers.28.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184557,
+                  "preparation->client": 90,
+                  "preparation->inference": 184296
+                },
+                "layers.28.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 433069,
+                  "preparation->client": 92,
+                  "preparation->inference": 434545
+                },
+                "layers.29.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 192108,
+                  "preparation->client": 87,
+                  "preparation->inference": 192285
+                },
+                "layers.29.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1381161,
+                  "preparation->client": 90,
+                  "preparation->inference": 1386496
+                },
+                "layers.29.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184741,
+                  "preparation->client": 90,
+                  "preparation->inference": 184420
+                },
+                "layers.29.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431361,
+                  "preparation->client": 92,
+                  "preparation->inference": 432846
+                },
+                "layers.3.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 191291,
+                  "preparation->client": 86,
+                  "preparation->inference": 191225
+                },
+                "layers.3.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1345555,
+                  "preparation->client": 89,
+                  "preparation->inference": 1351695
+                },
+                "layers.3.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184578,
+                  "preparation->client": 89,
+                  "preparation->inference": 184363
+                },
+                "layers.3.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 433009,
+                  "preparation->client": 91,
+                  "preparation->inference": 434489
+                },
+                "layers.30.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 192173,
+                  "preparation->client": 87,
+                  "preparation->inference": 192400
+                },
+                "layers.30.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1381270,
+                  "preparation->client": 90,
+                  "preparation->inference": 1386566
+                },
+                "layers.30.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184521,
+                  "preparation->client": 90,
+                  "preparation->inference": 184265
+                },
+                "layers.30.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431994,
+                  "preparation->client": 92,
+                  "preparation->inference": 433581
+                },
+                "layers.31.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 192286,
+                  "preparation->client": 87,
+                  "preparation->inference": 192492
+                },
+                "layers.31.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1381199,
+                  "preparation->client": 90,
+                  "preparation->inference": 1386474
+                },
+                "layers.31.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184586,
+                  "preparation->client": 90,
+                  "preparation->inference": 184381
+                },
+                "layers.31.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431386,
+                  "preparation->client": 92,
+                  "preparation->inference": 432896
+                },
+                "layers.32.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 192202,
+                  "preparation->client": 87,
+                  "preparation->inference": 192416
+                },
+                "layers.32.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1379045,
+                  "preparation->client": 90,
+                  "preparation->inference": 1384452
+                },
+                "layers.32.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184672,
+                  "preparation->client": 90,
+                  "preparation->inference": 184455
+                },
+                "layers.32.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 431064,
+                  "preparation->client": 92,
+                  "preparation->inference": 432582
+                },
+                "layers.33.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 192077,
+                  "preparation->client": 87,
+                  "preparation->inference": 192218
+                },
+                "layers.33.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1376875,
+                  "preparation->client": 90,
+                  "preparation->inference": 1382438
+                },
+                "layers.33.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184741,
+                  "preparation->client": 90,
+                  "preparation->inference": 184456
+                },
+                "layers.33.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 429552,
+                  "preparation->client": 92,
+                  "preparation->inference": 431005
+                },
+                "layers.34.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191803,
+                  "preparation->client": 87,
+                  "preparation->inference": 191793
+                },
+                "layers.34.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1376323,
+                  "preparation->client": 90,
+                  "preparation->inference": 1382030
+                },
+                "layers.34.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184751,
+                  "preparation->client": 90,
+                  "preparation->inference": 184459
+                },
+                "layers.34.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 430602,
+                  "preparation->client": 92,
+                  "preparation->inference": 432143
+                },
+                "layers.35.mlp.down_proj": {
+                  "client->inference": 898495,
+                  "client->preparation": 103,
+                  "inference->client": 191755,
+                  "preparation->client": 87,
+                  "preparation->inference": 191652
+                },
+                "layers.35.mlp.gate_up_proj": {
+                  "client->inference": 239060,
+                  "client->preparation": 103,
+                  "inference->client": 1379848,
+                  "preparation->client": 90,
+                  "preparation->inference": 1385458
+                },
+                "layers.35.self_attn.o_proj": {
+                  "client->inference": 380372,
+                  "client->preparation": 103,
+                  "inference->client": 184379,
+                  "preparation->client": 90,
+                  "preparation->inference": 184137
+                },
+                "layers.35.self_attn.qkv_proj": {
+                  "client->inference": 239074,
+                  "client->preparation": 103,
+                  "inference->client": 433569,
+                  "preparation->client": 92,
+                  "preparation->inference": 435038
+                },
+                "layers.4.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 191521,
+                  "preparation->client": 86,
+                  "preparation->inference": 191391
+                },
+                "layers.4.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1372419,
+                  "preparation->client": 89,
+                  "preparation->inference": 1378123
+                },
+                "layers.4.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184641,
+                  "preparation->client": 89,
+                  "preparation->inference": 184395
+                },
+                "layers.4.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 433496,
+                  "preparation->client": 91,
+                  "preparation->inference": 435006
+                },
+                "layers.5.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 191782,
+                  "preparation->client": 86,
+                  "preparation->inference": 191803
+                },
+                "layers.5.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1368827,
+                  "preparation->client": 89,
+                  "preparation->inference": 1374538
+                },
+                "layers.5.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184620,
+                  "preparation->client": 89,
+                  "preparation->inference": 184371
+                },
+                "layers.5.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 433285,
+                  "preparation->client": 91,
+                  "preparation->inference": 434821
+                },
+                "layers.6.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 191860,
+                  "preparation->client": 86,
+                  "preparation->inference": 191947
+                },
+                "layers.6.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1374268,
+                  "preparation->client": 89,
+                  "preparation->inference": 1379710
+                },
+                "layers.6.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184114,
+                  "preparation->client": 89,
+                  "preparation->inference": 183934
+                },
+                "layers.6.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 432848,
+                  "preparation->client": 91,
+                  "preparation->inference": 434444
+                },
+                "layers.7.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 192029,
+                  "preparation->client": 86,
+                  "preparation->inference": 192188
+                },
+                "layers.7.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1374466,
+                  "preparation->client": 89,
+                  "preparation->inference": 1379730
+                },
+                "layers.7.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184507,
+                  "preparation->client": 89,
+                  "preparation->inference": 184295
+                },
+                "layers.7.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 433149,
+                  "preparation->client": 91,
+                  "preparation->inference": 434722
+                },
+                "layers.8.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 191889,
+                  "preparation->client": 86,
+                  "preparation->inference": 191995
+                },
+                "layers.8.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1377856,
+                  "preparation->client": 89,
+                  "preparation->inference": 1383394
+                },
+                "layers.8.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184697,
+                  "preparation->client": 89,
+                  "preparation->inference": 184432
+                },
+                "layers.8.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 432877,
+                  "preparation->client": 91,
+                  "preparation->inference": 434444
+                },
+                "layers.9.mlp.down_proj": {
+                  "client->inference": 898488,
+                  "client->preparation": 103,
+                  "inference->client": 191686,
+                  "preparation->client": 86,
+                  "preparation->inference": 191762
+                },
+                "layers.9.mlp.gate_up_proj": {
+                  "client->inference": 239053,
+                  "client->preparation": 103,
+                  "inference->client": 1376246,
+                  "preparation->client": 89,
+                  "preparation->inference": 1381896
+                },
+                "layers.9.self_attn.o_proj": {
+                  "client->inference": 380365,
+                  "client->preparation": 103,
+                  "inference->client": 184551,
+                  "preparation->client": 89,
+                  "preparation->inference": 184322
+                },
+                "layers.9.self_attn.qkv_proj": {
+                  "client->inference": 239067,
+                  "client->preparation": 103,
+                  "inference->client": 430930,
+                  "preparation->client": 91,
+                  "preparation->inference": 432520
+                }
+              },
+              "expected_stage_body_bytes_by_edge": {
+                "client->inference": 63251756,
+                "client->preparation": 14832,
+                "inference->client": 78453351,
+                "preparation->client": 12884,
+                "preparation->inference": 78707661
+              },
+              "measured_body_bytes_by_edge": {
+                "client->inference": 63251756,
+                "client->preparation": 14832,
+                "inference->client": 78453351,
+                "preparation->client": 12884,
+                "preparation->inference": 78707661
+              },
+              "reconciled_with_protocol_bodies": true,
+              "schema": "pllm.prepared_stage_body_attribution.v1",
+              "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+              "unmeasured": [
+                "session authorization, bundle delivery and other bodies with no semantic stage",
+                "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+              ]
+            }
+          ],
+          "startup": {
+            "body_bytes_by_stage_and_edge": {},
+            "expected_stage_body_bytes_by_edge": {
+              "client->inference": 0,
+              "client->preparation": 0,
+              "inference->client": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "measured_body_bytes_by_edge": {
+              "client->inference": 0,
+              "client->preparation": 0,
+              "inference->client": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "reconciled_with_protocol_bodies": true,
+            "schema": "pllm.prepared_stage_body_attribution.v1",
+            "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+            "unmeasured": [
+              "session authorization, bundle delivery and other bodies with no semantic stage",
+              "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+            ]
+          },
+          "warmups": []
+        },
+        "startup": {
+          "aggregate_run_window_cpu_seconds": null,
+          "all_link_serialized_body_bytes": 0,
+          "body_bytes_by_edge": [
+            {
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 0,
+              "source": "client"
+            },
+            {
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 0,
+              "source": "preparation"
+            },
+            {
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 0,
+              "source": "preparation"
+            },
+            {
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 0,
+              "source": "inference"
+            },
+            {
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 0,
+              "source": "client"
+            },
+            {
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 0,
+              "source": "inference"
+            }
+          ],
+          "client_serialized_body_bytes": 0,
+          "full_response_compute_cap_checked": false,
+          "online_all_link_serialized_body_bytes": 0,
+          "online_client_serialized_body_bytes": 0,
+          "run_window_cpu_seconds_by_role": null,
+          "schema": "pllm.topology_body_accounting.v1",
+          "scope": "initial inventory and client-bundle serialized bodies; startup CPU unmeasured",
+          "total_wire_bytes": null,
+          "tracked_body_counter_set_present": true,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and control traffic",
+            "inference-to-preparation correction acknowledgements",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "model import and checkpoint distribution before initial inventory",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ]
+        },
+        "warmups": []
+      },
+      "wan_readiness": {
+        "assumptions": [
+          "independent full-duplex upload/download ports",
+          "each party's peers share its access port"
+        ],
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "emulation": null,
+        "internet_ready": null,
+        "measured_wan_latency_seconds": null,
+        "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+        "runs": [
+          {
+            "covered": {
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "inference"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 85.9170394,
+              "parties": {
+                "client": {
+                  "download_bytes": 429598125,
+                  "download_mbps": 100.0,
+                  "download_seconds": 34.36785,
+                  "upload_bytes": 63270629,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 12.6541258
+                },
+                "inference": {
+                  "download_bytes": 141959417,
+                  "download_mbps": 100.0,
+                  "download_seconds": 11.35675336,
+                  "upload_bytes": 429585197,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 85.9170394
+                },
+                "preparation": {
+                  "download_bytes": 18873,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00150984,
+                  "upload_bytes": 78720589,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 15.7441178
+                }
+              },
+              "wan_body_bytes": 571576415
+            },
+            "executed_role_parties": null,
+            "generated_output_tokens": 8,
+            "online": {
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "inference"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 15.6906702,
+              "parties": {
+                "client": {
+                  "download_bytes": 78453351,
+                  "download_mbps": 100.0,
+                  "download_seconds": 6.27626808,
+                  "upload_bytes": 63251756,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 12.6503512
+                },
+                "inference": {
+                  "download_bytes": 63251756,
+                  "download_mbps": 100.0,
+                  "download_seconds": 5.06014048,
+                  "upload_bytes": 78453351,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 15.6906702
+                }
+              },
+              "wan_body_bytes": 141705107
+            }
+          }
+        ],
+        "schema": "pllm.wan_readiness.v1",
+        "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+        "summary": {
+          "online": {
+            "bottleneck": {
+              "direction": "upload",
+              "party_id": "inference"
+            },
+            "intra_party_body_bytes": 0,
+            "minimum_transfer_seconds": 15.6906702,
+            "parties": {
+              "client": {
+                "download_bytes": 78453351,
+                "download_mbps": 100.0,
+                "download_seconds": 6.27626808,
+                "upload_bytes": 63251756,
+                "upload_mbps": 40.0,
+                "upload_seconds": 12.6503512
+              },
+              "inference": {
+                "download_bytes": 63251756,
+                "download_mbps": 100.0,
+                "download_seconds": 5.06014048,
+                "upload_bytes": 78453351,
+                "upload_mbps": 40.0,
+                "upload_seconds": 15.6906702
+              }
+            },
+            "wan_body_bytes": 141705107
+          },
+          "online_generated_tokens_per_second_ceiling": 0.5098571251596379,
+          "setup_inclusive": {
+            "bottleneck": {
+              "direction": "upload",
+              "party_id": "inference"
+            },
+            "intra_party_body_bytes": 0,
+            "minimum_transfer_seconds": 85.9170394,
+            "parties": {
+              "client": {
+                "download_bytes": 429598125,
+                "download_mbps": 100.0,
+                "download_seconds": 34.36785,
+                "upload_bytes": 63270629,
+                "upload_mbps": 40.0,
+                "upload_seconds": 12.6541258
+              },
+              "inference": {
+                "download_bytes": 141959417,
+                "download_mbps": 100.0,
+                "download_seconds": 11.35675336,
+                "upload_bytes": 429585197,
+                "upload_mbps": 40.0,
+                "upload_seconds": 85.9170394
+              },
+              "preparation": {
+                "download_bytes": 18873,
+                "download_mbps": 100.0,
+                "download_seconds": 0.00150984,
+                "upload_bytes": 78720589,
+                "upload_mbps": 40.0,
+                "upload_seconds": 15.7441178
+              }
+            },
+            "wan_body_bytes": 571576415
+          },
+          "setup_inclusive_generated_tokens_per_second_ceiling": 0.09311307810264235
+        },
+        "unmeasured": [
+          "RTT and dependent protocol rounds",
+          "headers/TLS/ACKs, loss and retries",
+          "checkpoint distribution",
+          "WAN compute/queueing latency"
+        ]
+      },
+      "warmup_runs": []
+    }
+  },
+  "schema": "pllm.client_runtime_memory_probe.v1",
+  "status": "complete"
+}
