@@ -26,12 +26,19 @@ npm --prefix docs ci
 npm --prefix docs run dev
 ```
 
-The development site runs at <http://localhost:3000>. Edit documentation under
-`docs/content/`. Edit paper sources under `paper/`, then regenerate them with:
+The development site runs at <http://localhost:3000>. Install the paper build
+tools listed in `docs/README.md`. Edit documentation under `docs/content/` and
+canonical paper sources under `paper/`. The docs build regenerates publications;
+to rebuild only the papers:
 
 ```bash
-uv run python scripts/build_papers.py
+npm --prefix docs run papers
 ```
+
+Keep working plans in `docs/plans/`, research notes in `docs/research/`, and
+session handoffs in `docs/handoffs/`. Put measurements and reproduction records
+in `docs/evidence/`; use lower-case kebab-case filenames for new documents.
+Do not commit generated PDFs, archives, figures, publication MDX, or download copies.
 
 ## Check changes
 
@@ -41,7 +48,7 @@ Run checks relevant to your change before opening a pull request:
 cargo test
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
-uv run ruff check python/pllm scripts tests
+uv run ruff check python/pllm scripts docs/scripts docs/tests tests
 uv run pytest
 ```
 

@@ -1122,56 +1122,35 @@ test('public copy uses standard technical English', () => {
   }
 });
 
-test('technical paper keeps historical and tiny verified cohorts separate and reports artifact medians', () => {
+test('rewritten papers bind WAN, compute, and 4B memory claims to distinct artifacts', () => {
   const root = path.join(siteRoot, '..');
   const paper = fs.readFileSync(path.join(root, 'paper/manuscript.md'), 'utf8');
   const whitepaper = fs.readFileSync(path.join(root, 'paper/whitepaper.md'), 'utf8');
   const citation = fs.readFileSync(path.join(root, 'CITATION.cff'), 'utf8');
-  const historical = JSON.parse(fs.readFileSync(path.join(siteRoot, 'evidence/current-runtime-2026-09-11.json'), 'utf8'));
-  const tiny = ['baseline', 'verified'].map((variant) => JSON.parse(fs.readFileSync(
-    path.join(siteRoot, `evidence/slalom-freivalds-tiny-${variant}.json`), 'utf8',
-  )));
-
-  for (const result of historical.results) {
-    const m = result.median;
-    const row = [
-      `${result.context_tokens} / ${result.output_tokens[0]}`,
-      m.ttft_seconds.toFixed(3), m.full_seconds.toFixed(3),
-      (m.client_io_bytes / 1e6).toFixed(2),
-    ];
-    assert.ok(paper.includes(`| ${row.join(' | ')} |`), row.join(' | '));
-    assert.ok(paper.includes(m.online_seconds.toFixed(3)));
-    assert.ok(paper.includes((result.correction_push_bytes[0] / 1e6).toFixed(2)));
+  const evidence = (name) => JSON.parse(fs.readFileSync(path.join(siteRoot, 'evidence', name), 'utf8'));
+  const wan = evidence('wan-tps-qwen25-2026-10-04.json');
+  assert.equal(wan.all_outputs_match, true);
+  assert.equal(wan.cohort.input_tokens, 39);
+  assert.equal(wan.cohort.output_tokens, 8);
+  for (const row of wan.runs) {
+    assert.ok(paper.includes(`| ${row.full_seconds.toFixed(2)} | ${row.decode_tokens_per_second.toFixed(4)} |`));
+    assert.equal(row.decode_output_tokens, row.generated_output_tokens - 1);
   }
-  for (const record of tiny) {
-    assert.ok(paper.includes(`${record.metrics[0].value.toFixed(3)} s`));
-    assert.equal(record.repetitions, 1);
-    assert.equal(record.plan_lock_digest, null);
-  }
-  const topologies = JSON.parse(fs.readFileSync(
-    path.join(siteRoot, 'evidence/slalom-prepared-topologies-2026-09-26.json'), 'utf8',
-  ));
-  assert.equal(topologies.comparison.matched_workload, true);
-  assert.equal(new Set(topologies.results.map((row) => row.configuration_digest)).size, 4);
-  const baseline = topologies.results.find((row) => row.topology === 'prepared baseline');
-  const verified = topologies.results.find((row) => row.topology === 'Freivalds-verified prepared');
-  const offset = topologies.results.find((row) => row.topology === 'two-online-offset comparator');
-  assert.equal(verified.online_all_link_body_bytes, baseline.online_all_link_body_bytes);
-  assert.equal(verified.extra_initial_bodies_over_unverified_prepared,
-    verified.initial_distribution_and_inventory_body_bytes - baseline.initial_distribution_and_inventory_body_bytes);
-  assert.ok(offset.online_all_link_body_bytes > verified.online_all_link_body_bytes);
-  assert.equal(topologies.checks.full_response_compute_cap_checked, false);
-  assert.ok(paper.includes((verified.online_all_link_body_bytes / 1e6).toFixed(2)));
-  assert.ok(paper.includes((offset.online_all_link_body_bytes / 1e6).toFixed(2)));
+  const offset = wan.runs.find((row) => row.name === 'offset-control');
+  const seedFirst = wan.runs.find((row) => row.name === 'seed-first');
+  assert.equal(seedFirst.online_body_bytes, offset.online_body_bytes);
+  const gain = (seedFirst.decode_tokens_per_second / offset.decode_tokens_per_second).toFixed(2);
+  assert.ok(paper.includes(`${gain}×`));
+  assert.ok(whitepaper.includes(`${gain}×`));
   const cold = JSON.parse(fs.readFileSync(
     path.join(siteRoot, 'evidence/slalom-prepared-topologies-cold-cpu-2026-09-26.json'), 'utf8',
   ));
-  assert.equal(cold.source.body_fingerprint, topologies.source.body_fingerprint);
   assert.equal(new Set(cold.results.map((row) => row.configuration_digest)).size, 4);
   for (const row of cold.results) {
     const roleSum = Object.values(row.cpu_seconds_by_role).reduce((sum, value) => sum + value, 0);
     assert.ok(Math.abs(roleSum - row.cold_first_response_cpu_seconds) < 1e-6);
     assert.ok(row.cold_first_response_cpu_seconds >= row.startup_cpu_seconds);
+    assert.ok(paper.includes(`| ${row.cold_first_response_cpu_seconds.toFixed(2)} |`));
   }
   const coldVerified = cold.results.find((row) => row.topology === 'Freivalds-verified prepared');
   const coldOffset = cold.results.find((row) => row.topology === 'two-online-offset comparator');
@@ -1179,36 +1158,43 @@ test('technical paper keeps historical and tiny verified cohorts separate and re
     coldVerified.cold_first_response_cpu_seconds / coldOffset.cold_first_response_cpu_seconds) < 1e-6);
   assert.equal(cold.diagnostic.verified_measured_cpu_below_offset, false);
   assert.equal(cold.diagnostic.full_response_compute_cap_admitted, false);
-  assert.ok(paper.includes(coldVerified.cold_first_response_cpu_seconds.toFixed(2)));
-  assert.ok(paper.includes(coldOffset.cold_first_response_cpu_seconds.toFixed(2)));
-  assert.match(paper, /historical masked-protocol measurements are separate/i);
-  assert.match(paper, /\*\*not\*\* a security proof or a matched external SOTA benchmark/i);
-  assert.match(paper, /measured cpu comparator by 4\.98/i);
-  assert.match(whitepaper, /\*\*has\s+not measured prices, energy, or an economic return\*\*/i);
-  assert.match(whitepaper, /full compute and network cost remain unknown/i);
-  assert.match(whitepaper, /high-performance private LLM multi-party inference runtime and\s+extensible autonomous research harness/i);
-  assert.doesNotMatch(whitepaper, /\$\$/);
-  for (const [title, source] of [
-    ['PLLM: Private Multi-Party Inference and an Extensible Research Harness', whitepaper],
-    ['PLLM: Private Multi-Party LLM Inference and Evidence-Bound Research Composition', paper],
-  ]) {
-    assert.ok(source.includes(`title: "${title}"`));
-    assert.ok(citation.includes(`title: "${title}"`));
+
+  const memory = evidence('preparation-memory-qwen3-4b-2026-10-05.json');
+  assert.equal(memory.parity, true);
+  assert.equal(new Set(memory.samples.map((row) => row.correction_digest)).size, 1);
+  const peak = (mode) => {
+    const rows = memory.samples.filter((row) => row.mode === mode);
+    assert.equal(rows.length, 2);
+    return rows.reduce((sum, row) => sum + row.after_issuance.lifetime_peak_rss_bytes, 0) / rows.length;
+  };
+  const memoryGain = (peak('resident') / peak('paged')).toFixed(2);
+  assert.ok(paper.includes(`${memoryGain}×`));
+  assert.ok(whitepaper.includes(`${memoryGain}×`));
+  const client = evidence('qwen3-4b-client-paged-2026-10-05.json');
+  assert.equal(client.summary.completed_runs, 1);
+  assert.ok(paper.includes((client.client_process_memory.after.lifetime_peak_rss_bytes / 1e6).toFixed(2)));
+  for (const source of [paper, whitepaper]) {
+    assert.match(source, /no matched resident-client control/);
+    assert.match(source, /two(?:\*\*)? matrix products|each outsourced matrix product twice/);
+    assert.match(source, /autonomous.*(?:not|target)|not.*autonomous/);
   }
+  assert.doesNotMatch(whitepaper, /\$\$/);
+  const title = paper.match(/^title: "(.+)"$/m)[1];
+  assert.ok(citation.includes(`title: "${title}"`));
 });
 
 test('paper, whitepaper, evidence, and generated CLI help remain downloadable', () => {
-  for (const file of ['paper.pdf', 'paper-source.zip', 'whitepaper.pdf', 'whitepaper-source.zip', 'current-runtime-2026-09-11.json', 'evidence.zip', 'cli-help.txt']) {
+  for (const file of ['paper.pdf', 'paper-source.zip', 'paper-arxiv-source.zip', 'whitepaper.pdf', 'whitepaper-source.zip', 'current-runtime-2026-09-11.json', 'evidence.zip', 'cli-help.txt']) {
     assert.ok(fs.statSync(path.join(siteRoot, 'public/downloads', file)).size > 0, file);
   }
 });
 
-test('whitepaper figures are readable, exported, and backed by pinned baseline runs', () => {
-  const paperRoot = path.join(siteRoot, '..', 'paper');
+test('whitepaper diagrams are exported and historical chart evidence remains intact', () => {
+  const paperRoot = path.join(siteRoot, 'build/papers');
   const web = fs.readFileSync(path.join(siteRoot, 'content/research/whitepaper.mdx'), 'utf8');
   const record = JSON.parse(fs.readFileSync(path.join(siteRoot, 'evidence/current-runtime-2026-09-11.json'), 'utf8'));
   const svg = fs.readFileSync(path.join(paperRoot, 'figures/qwen-baseline.svg'), 'utf8');
-  for (const name of ['mechanics', 'research-loop', 'qwen-baseline']) {
+  for (const name of ['mechanics', 'research-loop']) {
     const source = fs.readFileSync(path.join(paperRoot, `figures/${name}.png`));
     const published = fs.readFileSync(path.join(siteRoot, `public/downloads/figures/${name}.png`));
     assert.ok(source.length > 1000, name);

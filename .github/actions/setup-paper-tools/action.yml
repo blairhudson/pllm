@@ -1,0 +1,12 @@
+name: Install paper build tools
+description: Install the Linux tools used by the docs paper build.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends \
+          pandoc poppler-utils texlive-latex-extra texlive-fonts-recommended \
+          lmodern imagemagick fontconfig fonts-dejavu-core
+        command -v google-chrome || command -v chromium || command -v chromium-browser

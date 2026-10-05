@@ -20,7 +20,7 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MAP = ROOT / "pllm-paper-module-landing-map-2026-09-23.md"
+MAP = ROOT / "docs/research/paper-module-landing-map-2026-09-23.md"
 RECORDS = ROOT / "docs/data/research/papers.json"
 LIBRARY = ROOT / "docs/data/research/paper-library.json"
 PAPERS = ROOT / "papers"

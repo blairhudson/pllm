@@ -19,7 +19,7 @@ pyproject.toml, uv.lock           `pllm.run` distribution and Python dependency 
 python/pllm/                      Python public facades and orchestration
 crates/                           Rust-owned compiler, execution, benchmark, and assurance code
 schemas/                          Canonical public serialized contracts and fixtures
-design/                           Normative product and engineering contracts
+docs/plans/                       Normative design contracts and implementation plans
 docs/                             Rendered user/developer documentation source and outputs
 research/                         Sources, methods, recipes, assurance models, and evidence
 examples/                         Tested examples; never normative by themselves
@@ -30,7 +30,7 @@ verification/                    Implementation verification assets when present
 paper/                            Manuscript source; claims remain evidence-scoped
 ```
 
-`design/` governs intended invariants. `schemas/` governs accepted machine shapes for its version.
+The [design contracts](design.md) govern intended invariants. `schemas/` governs accepted machine shapes for its version.
 `docs/` explains supported use. `research/` records sources, reproduction work, and evidence. None of
 these directories may silently substitute for another: a research recipe is not runtime code, an
 example is not a schema, and a schema's presence is not implementation evidence.
@@ -185,7 +185,7 @@ MAY be shipped when installed runtime validation requires it. Filenames use `<re
 Fixtures live under `schemas/fixtures/`. Generated copies MAY be shipped to documentation or package
 resources only when CI verifies byte or semantic parity and identifies `schemas/` as source.
 
-Normative engineering contracts live in `design/`. User-facing source lives in `docs/` and follows
+Normative engineering contracts live in `docs/plans/`, indexed by [design.md](design.md). User-facing source lives in `docs/` and follows
 the documentation standard. Generated search indexes, Markdown mirrors, and static output remain
 under docs-owned build paths and are never imported by runtime code.
 

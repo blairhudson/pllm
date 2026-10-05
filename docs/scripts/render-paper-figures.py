@@ -1,8 +1,4 @@
-"""Rebuild paper charts from checked protocol diagrams and pinned evidence.
-
-Requires ImageMagick for SVG-to-PNG rasterization. The PNG outputs are checked in
-so ordinary paper and website builds require only Pandoc and a TeX engine.
-"""
+"""Build untracked paper diagrams and charts from source and pinned evidence."""
 
 from __future__ import annotations
 
@@ -13,8 +9,8 @@ import subprocess
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-ROOT = Path(__file__).resolve().parents[1]
-FIGURES = ROOT / "paper" / "figures"
+ROOT = Path(__file__).resolve().parents[2]
+FIGURES = ROOT / "docs" / "build" / "papers" / "figures"
 EVIDENCE = ROOT / "docs" / "evidence" / "current-runtime-2026-09-11.json"
 
 INK = "#19343c"
@@ -88,27 +84,23 @@ def mechanics() -> str:
 
 def research_loop() -> str:
     steps = [
-        ("LOCK SOURCE", "Pinned paper/source", "provenance only"),
-        ("IMPLEMENT", "Typed local method", "bounded semantics"),
-        ("COMPOSE", "Valid immutable plan", "reject gaps"),
-        ("MEASURE", "Matched cohort", "retain failures"),
-        ("SELECT", "Eligible candidate", "deploy after gates"),
+        ("PROPOSE", "Named objective", "Pinned control"),
+        ("IMPLEMENT", "Bounded method", "Composable plan"),
+        ("CHECK", "Exact behavior", "Explicit contracts"),
+        ("MEASURE", "Matched cohort", "All relevant costs"),
+        ("LEARN", "Retain or reject", "Next hypothesis"),
     ]
-    parts = [text(27, 38, "Research-to-capability loop · evidence grows, claims stay scoped", 26,
+    parts = [text(27, 33, "One experiment surface for researchers and AI agents", 25,
                   weight=700)]
     for index, (label, detail, boundary) in enumerate(steps):
         x = 27 + index * 234
-        parts += [rect(x, 71, 208, 149, fill=TEAL_LIGHT if index == 4 else PANEL),
-                  text(x + 14, 107, label, 20, color=TEAL, weight=700),
-                  text(x + 14, 143, detail, 18),
-                  text(x + 14, 184, boundary, 17, color=MUTED)]
+        parts += [rect(x, 51, 208, 100, fill=TEAL_LIGHT if index == 4 else PANEL),
+                  text(x + 14, 79, label, 20, color=TEAL, weight=700),
+                  text(x + 14, 110, detail, 18),
+                  text(x + 14, 136, boundary, 17, color=MUTED)]
         if index < 4:
-            parts.append(arrow(x + 209, 145, x + 233))
-    parts += [text(27, 261, "Checks: function · privacy contract · quality · trust · numeric policy",
-                   19, color=INK, weight=600),
-              text(27, 291, "No automatic paper-to-code translation or measured SOTA winner yet",
-                   19, color=MUTED)]
-    return svg(1200, 312, parts)
+            parts.append(arrow(x + 209, 102, x + 233))
+    return svg(1200, 166, parts)
 
 
 def baseline() -> str:
@@ -149,7 +141,7 @@ def baseline() -> str:
 
 
 def main() -> None:
-    magick = shutil.which("magick")
+    magick = shutil.which("magick") or shutil.which("convert")
     fontconfig = shutil.which("fc-match")
     if magick is None or fontconfig is None:
         raise SystemExit("ImageMagick and fontconfig required to regenerate paper figures")

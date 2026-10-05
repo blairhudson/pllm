@@ -46,8 +46,8 @@ be measured together; independent percentage gains cannot be added.
 
 ## Outcome
 
-The [matched cohort](docs/evidence/wan-tps-qwen25-2026-10-04.md) and
-[SDK guide](docs/content/docs/sdk/evaluate/wan-tps.mdx) record all five screens.
+The [matched cohort](../evidence/wan-tps-qwen25-2026-10-04.md) and
+[SDK guide](../content/docs/sdk/evaluate/wan-tps.mdx) record all five screens.
 Seed-first improves offset decode TPS 1.94×; public-object coalescing plus bounded
 preparation overlap improves prepared request TPS 17.3% at 100/40 Mbps and 40 ms
 added RTT. Online bodies do not shrink. Native entropy coding loses the byte and

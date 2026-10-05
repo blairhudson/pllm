@@ -1,317 +1,293 @@
 ---
-title: "PLLM: Private Multi-Party LLM Inference and Evidence-Bound Research Composition"
-author: |
-  Blair Hudson  
-  deployscience labs  
-  [blair@deployscience.com](mailto:blair@deployscience.com)
-date: 23 September 2026
-web-date: September 2026
-edition: "08"
-description: A prepared private-inference runtime, independent paper-derived components, and matched evidence for capability selection.
-pdf: paper.pdf
-subject: private language-model inference, multi-party systems, autonomous research harness, reproducible benchmarking, additive masking
-web-note: Paper-derived methods are partial and independently implemented; historical baseline, tiny verification and current pinned four-topology diagnostics have separate scopes.
-abstract: |
-  PLLM is a private LLM multi-party inference runtime and extensible autonomous
-  research harness. Its public-weight path uses trusted Client, non-colluding
-  Preparation, and Inference: offline one-use $Wr-s$ corrections permit online
-  masked linear work while Client retains plaintext, state, and decoding.
-  Model-neutral compilation binds typed component composition to a plan; bounded
-  search and matched evidence enable comparison of eligible candidates. We map
-  six cited research directions to independently implemented *portions* of
-  PLLM, not complete reproductions. Historical CPU-loopback measurements cover
-  nine Qwen2.5-0.5B baseline responses. Optional verified linear work has a
-  separate tiny control and pinned four-topology diagnostics: measured cold CPU
-  rejects the verified option against our two-worker comparator. Full wire
-  remains unmeasured. Garbling and cache components
-  lack whole-model comparative measurements. Thus these data neither establish
-  economic value nor rank PLLM against external state of the art. We define
-  comparability and metric gates required to make such a claim.
-bibliography: paper/references.bib
-link-citations: true
-reference-section-title: References
+title: "PLLM: A Research Platform for Private LLM Inference"
+description: "A technical introduction to PLLM, its private-inference controls, and an evidence-bound workflow for autonomous optimization research."
+author:
+  - "Blair Hudson"
+affiliation: "Independent Researcher, Australia"
+email: "me@blairhudson.com"
+date: "5 October 2026"
 documentclass: article
-classoption: [9pt, twocolumn]
-papersize: letter
-geometry: [margin=0.68in, columnsep=0.24in]
-colorlinks: false
-indent: true
+classoption: [twocolumn, letterpaper]
+fontsize: 10pt
+geometry: [letterpaper, margin=0.72in]
+colorlinks: true
+linkcolor: black
+urlcolor: blue
+citecolor: black
+bibliography: paper/references.bib
+pdf: "paper.pdf"
+source: "paper-source.zip"
+arxiv: "paper-arxiv-source.zip"
+abstract: |
+  Private inference aims to use remote model computation without disclosing a client's inputs and intermediate activations to individual providers. Useful implementations must also control communication, duplicated computation, memory, and numerical error. We introduce PLLM, an open-source runtime and research platform that makes these constraints explicit through model-neutral compilation, composable experiments, and workload-bound evidence. We explain its prepared masked-linear path and two-worker additive-sharing control, then describe how external research agents can propose, implement, and evaluate improvements using the same execution machinery. Local studies illustrate the method: scheduling improves two-worker decode throughput 1.94× under emulated consumer links; a Qwen3-4B Preparation probe reduces peak resident memory 6.24× with a CPU and disk tradeoff; and a cold compute comparison rejects an apparent advantage from moving work offline. These are scoped engineering results, not a new cryptographic proof or an evaluation of autonomous discovery.
 ---
 
-## Introduction
+# Introduction
 
-Ordinary hosted inference gives one operator the user's plaintext prompt, token
-identities, intermediate state, and generated output. Transport encryption
-protects these values in transit but not from the endpoint performing inference.
-Private neural-inference systems distribute computation using homomorphic
-encryption, secret sharing, or secure two-party computation
-[@huang2022cheetah; @chen2022thex; @hao2022iron].
+Hosted language models normally receive the user's plaintext context. Local
+inference avoids that disclosure but requires the user to supply the model's
+memory and compute. Private inference seeks a third option: outsource useful
+computation while protecting inputs and intermediate values from the operators
+performing it. Encryption, secret sharing, and trusted execution offer different
+trust and cost tradeoffs; none makes deployment cost disappear.
 
-PLLM combines a prepared masked-linear runtime with model-neutral compilation
-and an extensible autonomous research harness. Its automation generates bounded
-valid candidates and repeats experiments; researchers still implement methods
-independently. We contribute (1) one-use corrections and explicit trust
-boundaries, (2) canonical component-bound schedules with fail-closed coverage,
-and (3) evidence rules and metrics for comparing eligible alternatives. This
-systems report is **not** a security proof or a matched external SOTA benchmark.
+PLLM is a Python/Rust platform for investigating these tradeoffs on executable
+decoder workloads. Its contribution is the research infrastructure: a common
+model representation, explicit protocol and placement contracts, and matched
+measurements across candidate implementations. The current system outsources
+public-weight linear operations and keeps nonlinear computation and state at the
+trusted client. More ambitious protected compositions remain research candidates.
 
-## Prepared inference protocol
+The same interfaces support human-led and agent-driven work. An external agent
+can change a component, construct an experiment, execute controls, and use the
+reports to choose its next hypothesis. This paper introduces that workflow and
+three motivating problems: WAN communication, the duplicated computation of a
+simple two-worker design, and memory at real-checkpoint scale. It does not claim
+a novel masking construction, fully automated cryptographic review, or an
+established tenfold system improvement.
 
-### Roles and application boundary
+# System and trust model
 
-The **Client** is trusted. It owns plaintext input and output, tokenization,
-one-time root seeds and masks, private activation scales, attention and other
-nonlinear state, sampling, and decoding. For public runtime bundles it also
-evaluates token lookup and the output head locally. The optional `pllm gateway`
-runs on loopback inside this boundary. Applications submit ordinary Responses API
-or Chat Completions API requests to that gateway, which invokes the private PLLM
-client path. Preparation and Inference are protocol services, not
-application-facing OpenAI-compatible endpoints.
+The trusted client holds plaintext input, activation scales, nonlinear operators,
+decoder state, and output selection. An optional application-facing gateway runs
+inside that boundary. Public token lookup and, ordinarily, the output head also
+run locally. Providers hold public transformer-body weights. Moving application
+requests to a different ordinary provider URL does not create this boundary.
 
-**Preparation** holds the public body and offline seeds; it must erase masks
-and not collude with **Inference**, which holds the same body and performs
-online matrix work. Both roles must follow the protocol.
+Python owns application orchestration, source resolution, and role lifecycles.
+Rust owns validated numeric kernels, semantic planning, bounded codecs, and
+one-use material. Model adapters lower into a shared decoder representation;
+compiler passes operate on semantic roles rather than family-specific node names.
+A configuration-only plan and a checkpoint-bound execution are distinct objects.
+Runtime binding checks the source, weights, numeric choices, stage schedule, and
+placement before reserving material.
 
-### Offline preparation and online use
+The baseline assumes honest-but-curious services that follow the protocol and do
+not collude. In the prepared path, Preparation must erase masks; self-hosting it
+keeps this trust client-local. Authenticated transport prevents unrelated callers
+from impersonating roles but does not prove operator independence. Model weights,
+tensor dimensions, timing, lengths, and access patterns are not hidden by the
+baseline. Local child-process experiments test execution, not non-collusion.
 
-For public quantized matrix $W$ and private integer activation $x$, the Client
-sends Preparation a fresh root seed and row count for each remote stage.
-Domain-separated expansion binds model, stage, quantization, arithmetic, and
-inventory identity to fresh input mask $r$, output mask $s$, and ticket per
-row. Preparation computes
+# Private-linear execution
 
-$$c = Wr-s$$
+Let $W$ be a public integer matrix and $x$ a private activation vector. Operations
+below use an admitted exact ring; bounded integer results are reconstructed before
+client-side scaling and nonlinear work. One-use masks must never be recycled.
 
-and pushes $c$ to Inference. The latter acknowledges stage batches and seals
-the inventory after every stage loads. It sees no root seed; Client sees no $c$.
+## Two online offset workers
 
-Online, the Client sends Inference a one-use ticket and masked activation $x-r$.
-Inference atomically consumes the matching correction and returns
+The client samples a uniform share $a$ and constructs $b=x-a$. Distinct workers
+receive one share each and return $Wa$ and $Wb$. The client reconstructs
 
-$$W(x-r)+c=W(x-r)+(Wr-s)=Wx-s.$$
+$$Wa+Wb=Wx.$$
 
-The Client adds $s$ and center-decodes $Wx$. Preparation receives no online
-message. Fresh pseudorandom $r$ masks $x$ from Inference, while fresh $s$ masks
-the correction. Reusing a row would reveal relations between activations, so
-reuse is forbidden.
+An individual share hides $x$ under the stated non-collusion assumption. Both
+workers perform the matrix product, so body-linear arithmetic is doubled relative
+to a single clear execution. This does not imply exactly twice the full request's
+CPU time: client work, communication, loading, and scheduling also contribute.
+PLLM implements this control through the same compiled decoder used by other
+placements.
 
-### Inventory lifecycle
+## Offline Preparation, online Inference
 
-Inventory commits to model/body, stage set, quantization, ring, and attempt
-budget. Responses atomically reserve disjoint rows; cancellation, failure,
-replay, and early completion burn unused reservations. Restart, replacement,
-and idle expiry discard in-memory inventory.
+For each stage row the client supplies fresh seed material to Preparation.
+Domain-separated expansion produces input mask $r$, output mask $s$, and a
+one-use ticket. Preparation computes
 
-Prefill packs stage tickets and masked rows; decode reuses a persistent
-authenticated connection with fresh tickets. Each stage selects an exact
-$2^{16}$, $2^{24}$, or $2^{32}$ ring from its signed output bound.
+$$c=Wr-s$$
 
-## Threat model and limits
+and sends the correction to Inference before the inventory becomes ready.
+Online, the client sends the ticket and $u=x-r$. Inference consumes the row and
+returns
 
-Inference does not receive literal prompt text, token IDs, decoded output, root
-seeds, masks, private activation scales, local attention state, or sampling
-choices. Preparation receives seeds and can derive masks, but does not receive
-online masked activations. Under fresh pseudorandom masks, authenticated channels,
-protocol-conforming execution, Preparation erasure, and non-collusion, neither
-remote role alone has both views needed to reconstruct client activations.
+$$Wu+c=W(x-r)+Wr-s=Wx-s.$$
 
-The split fails if Preparation and Inference collude: Preparation's $r$ and
-Inference's $x-r$ reconstruct $x$. Two services controlled by one operator do not
-establish meaningful non-collusion. Self-hosting Preparation keeps its trust in
-the client environment, but co-locating all roles is only a functional topology,
-not evidence of independent operators.
+The client adds $s$. Preparation is idle during the response. Reservations burn
+on use, cancellation, replay, or failure; idle refill creates fresh material.
+Prefill batches rows and decode reuses an authenticated connection. Numerical
+range bounds determine exact packed ring widths.
 
-Both services see public model identity, tensor shapes, timing, traffic volume,
-and approximate sequence length. Authentication does not prove correct
-execution, independence, secure deletion, or side-channel resistance. Arbitrary
-malicious participants are out of scope; erasure of Preparation's Python memory
-is not established. The local gateway and host remain trusted.
+This moves one matrix product offline but still performs **two matrix products
+in total**. It therefore changes the online critical path without automatically
+beating the two-worker compute control. An optional client-side Freivalds check
+adds authenticated one-use projections supplied by Preparation. It is inspired
+by verified delegation such as Slalom [@tramer2019slalom], but is neither a TEE
+implementation nor a malicious-Preparation guarantee.
 
-## Implementation status
+# An evidence-bound research loop
 
-### Prepared runtime
+PLLM exposes immutable model, pipeline, workload, and deployment specifications.
+Components select protocols, quantization, kernels, state reuse, verification,
+and role placement. Compilation rejects unsupported combinations; it cannot
+silently replace a missing protected operator with a weaker execution path.
+The live SDK, gateway, and benchmark consume the admitted composition.
 
-The `pllm.run` Python distribution includes native Rust kernels. Python owns
-checkpoint import, protocol, gateway, and state; Rust executes immutable,
-validated integer matrices, bounded codecs, and CPU dispatch. Public online
-execution uses prepared masks, **not** homomorphic encryption. Attention,
-normalization, token boundaries, nonlinear state, and sampling remain with
-Client. Historical prepared generation covers Qwen2.5-0.5B; it does not make
-the client-local regions protected components.
+An external research agent can use this interface as follows:
 
-### Semantic IR and compiler
+1. **State a falsifiable hypothesis.** Name the control, objective, workload,
+   trust model, quality tolerance, and resource bounds. For example: overlap
+   independent worker requests to reduce WAN latency without changing bytes.
+2. **Implement the smallest discriminating probe.** Pin literature and upstream
+   revisions as specifications or independent oracles. Implement the candidate
+   within PLLM rather than importing a paper's runtime as the result.
+3. **Check the contract.** Compare against independent numeric references; test
+   malformed, cancelled, and replayed attempts; price retained weights, transient
+   buffers, state, and material before launching larger work.
+4. **Run matched controls.** Lock checkpoint, quantized body, prompt cohort,
+   output counts, cache state, hardware, and network settings. Record generated
+   output identity or a declared quality comparison.
+5. **Retain the evidence.** Keep successful and rejected hypotheses. Promote a
+   method into ordinary component selection only after its execution and resource
+   contracts are implemented.
 
-Adapters lower Qwen2, dense Qwen3, and bounded Qwen3.5, Phi, and Gemma text
-configurations into a model-neutral IR of operators, layers, and persistent
-state. Compiler passes avoid adapter-specific node names. Semantic lowering
-alone proves neither checkpoint import nor executable or private coverage.
+Reports bind configurations and measured bodies to exact cohorts. Private prompts,
+token IDs, masks, and credentials are excluded from the archive; salted cohort
+digests support comparisons within a benchmark invocation. Different invocations
+cannot be retrospectively treated as a matched prompt cohort. Unknown costs stay
+unknown rather than becoming zero.
 
-For untransformed plans, baseline components schedule independent weighted
-operators sharing an input and order local operators by dependency. Binding
-checks tokenizer, runtime, local tensors, quantized stages, scales, and
-preparation commitments. A plan-bound session enforces feedback and bounds.
-The pinned Qwen2.5-0.5B checkpoint passes a **clear native-kernel**
-prefill-to-decode check; historical masked-protocol measurements are separate.
-Pinned Qwen3-0.6B passes the same clear compiled prefill-to-decode functionality
-check; its W4A4 output fails a small FP32 next-token parity probe, so model
-quality remains unestablished. Verified prepared compilation now runs with
-one-use verifier inventory; transformed cache and protected whole-decoder
-composition remain incomplete.
+The shipped planner searches a bounded set of supported placements using explicit
+cost evidence. An agent's broader loop can propose new implementations and run
+experiments, but automatic protocol invention and the productivity of autonomous
+research have not been evaluated. Compiler legality also does not certify a
+candidate's cryptographic security or model quality.
 
-### Cited work versus runnable baseline
+# Optimization objectives
 
-Table 1 maps **independent PLLM adaptations**, not original authors' code, to
-the strongest evidence available. Historical baseline and current pinned
-verified timings are distinct cohorts. A paper citation is neither
-evidence of a whole-paper reimplementation nor a cross-method speedup.
+## WAN: bytes and round trips
 
-| Source | PLLM part | Current measurement | Pinned Qwen? |
-|:---|:---|:---|:---:|
-| PLLM baseline | Prepared masked linear | Nine warm responses | Yes, older revision |
-| DASH [@sander2024dash] | Q7 garbled SiLU reference | Error at most 0.02285 | No |
-| ReDASH [@maurer2025redash] | Bounded Q7 rescale/arithmetic | Numeric tests only | No |
-| CRT garbling [@ball2017garbling] | Q7 multiply gadget | 245,397 B scalar payload | No |
-| Half-gates [@zahur2015halfgates] | Boolean circuit reference | Correctness tests only | No |
-| Slalom [@tramer2019slalom] | Freivalds stage check | One-run four-topology diagnostic | Yes, current revision |
-| MPCache [@zeng2025mpcache] | KV-eviction plan pass | Plan lineage only | No |
+Large activations and repeated stage round trips can dominate local-kernel speed.
+For a party $p$, a simple bandwidth floor is
 
-: Scope of independent research adaptations. The masked baseline is PLLM's
-protocol, not a Slalom reproduction. Payload bytes are not response traffic
-or latency; cold CPU rejects the verified path against the offset comparator,
-while full-wire and independent-operator evidence remain absent.
+$$T_p\geq\max(B_p^\uparrow/R_p^\uparrow,\;B_p^\downarrow/R_p^\downarrow),$$
 
-### Component extensions, search, and evidence
+where bytes and rates use consistent units and the party's peers share its access
+link. Dependent exchanges add latency. Moving bytes from the client to a peer link
+does not remove them from all-link cost; compressing public artifacts does not
+necessarily reduce fresh online activation traffic.
 
-Research methods enter capability families instead of paper-specific runtime
-branches. Canonical `Pipeline` identity uses serialized model and component
-values; the compiler binds operator, numeric, state, method, and schedule
-contracts to the plan and fails closed on gaps. Provider manifests are
-discoverable without importing code, but native provider loading is not
-exposed. Papers are attribution and specification, not executable dependencies.
+PLLM separates online, measured-run, setup-inclusive, and cold-first application
+bodies. These are not complete physical-wire counts. End-to-end throughput uses
+all $N$ generated outputs; decode throughput uses the $N-1$ outputs after the
+first and its corresponding execution window. Link emulation checks actual queue
+settings rather than labeling an unconstrained local run as WAN performance.
 
-`Experiment` binds composition, workload, and deployment. Grid and seeded
-random search generate validated candidates. Evidence records actual results;
-their identity includes plan and environment digests. Historical baseline
-measurements predate those plan locks. The
-[experiment workflow](https://pllm.run/research/recipes/experiments/)
-documents the runnable SDK and CLI paths.
+## Compute: the two-worker control
 
-### Optional verified linear work
+The relevant budget is total work over a declared lifecycle:
 
-`FreivaldsVerify` adapts Slalom's delegated-linear verification
-[@tramer2019slalom] to a **different**, TEE-free trusted-client/preparation
-boundary. For secret uniform $a\in\mathbb F_{2^{32}-5}$, Client checks
-$\langle a,y\rangle=\langle W^\mathsf{T}a,x\rangle$ before dequantization.
-Signed bounds prevent field wrap; independent checks and process-wide attempt
-accounting bound false acceptance. Preparation sends authenticated one-use
-projections bound to inventory and stage; Inference sees no challenge.
-Malicious Preparation and collusion remain out of scope. Verification does
-**not** reduce online traffic. The compiled verified executor admits a session
-only with matching one-use verifier inventory; bare callbacks fail closed.
+$$C_{\mathrm{full}}=C_{\mathrm{client}}+\sum_j C_{\mathrm{role}\,j}.$$
 
-## Evaluation and evidence boundaries
+A cold-first comparison includes loading, initial material, and the first
+response. Warm or amortized comparisons must identify reuse and its horizon.
+Preparation CPU cannot be omitted because it precedes the first token. The
+research objective is $C_{\mathrm{candidate}}<C_{\mathrm{offset}}$ on matched
+hardware, quality, and outsourcing constraints, not merely fewer online products.
+Moving the full model to the client changes the service being compared.
 
-### Method
+## Memory and fidelity are separate gates
 
-**Historical prepared runtime.** `docs/evidence/current-runtime-2026-09-11.json`
-records source revision `277d19f`, CPython 3.13.15, and Qwen2.5-0.5B-Instruct
-checkpoint revision `7ae5576` (full lock in the artifact) [@qwen25] on one
-Apple M5 CPU host (32 GiB). Client, Preparation, and
-Inference ran as separate loopback processes. One excluded warmup preceded
-three warm runs at each exact input length. Output was capped at 16 tokens;
-the 30-token cohort produced only nine. Only completed responses with settled
-telemetry were included. These records **predate** the semantic compiler.
+Weight owners, copies, caches, masks, GPU snapshots, and decoder state have
+different lifetimes. Paging can reduce process resident memory while increasing
+disk and CPU. Fresh-process high-water marks are needed for peak comparisons;
+filesystem cache is outside process RSS. Likewise, matching a tiny checkpoint or
+one greedy output is weaker than representative generation quality. A 10× claim
+must name its baseline, denominator, workload, and cost boundary. Ratios from
+different cohorts cannot be multiplied.
 
-| In/out | TTFT, s | Full, s | Client MB |
-|---:|---:|---:|---:|
-| 30 / 9 | 0.978 | 4.674 | 63.33 |
-| 63 / 16 | 1.374 | 5.347 | 126.29 |
-| 255 / 16 | 5.158 | 13.059 | 432.71 |
+# Measured case studies
 
-: Historical cohort medians (three runs each); decimal MB is total Client
-traffic. TTFT starts after inventory readiness; full time includes offline
-preparation. Online medians were 2.618, 3.194, and 7.442 s; offline correction
-pushes were 59.80, 72.88, and 252.18 MB, respectively.
+The following studies are separate cohorts, not a joint system score. Their JSON
+reports, configurations, source identities, and reproduction commands accompany
+the repository [@pllm2026]. MB and GB below are decimal.
 
-All nine records report zero Preparation requests and protocol operations during
-the online interval, and zero literal plaintext prompt or token-ID bytes in the
-instrumented counters. These observations validate the measured implementation
-path, not a general privacy theorem. Preparation remains real computation and
-traffic despite occurring outside online timing.
+## WAN scheduling
 
-**Verified tiny control.** Separate `docs/evidence/` records named
-`slalom-freivalds-tiny-baseline.json` and
-`slalom-freivalds-tiny-verified.json` share generated model fingerprint,
-workload, environment, and one completed local response per
-composition. The baseline took 0.666 s and verified path 0.627 s full
-latency. With **one sample, no warmup, synthetic weights, and no real-Qwen
-checkpoint**, this comparison shows the optional verification path works in a
-matched tiny topology; it cannot estimate performance or prove security.
-Neither record contains a PlanLock digest. The functional verifier tests cover
-forged stage output, authenticated material import, one-use consumption, and
-session-wide attempt accounting; they do not establish malicious Preparation
-resistance.
+One four-candidate Qwen2.5-0.5B-Instruct cohort used the same W8A8 body, 39 input
+tokens, eight outputs, and matching output digests. Each party had shared 100 Mbps
+download and 40 Mbps upload, with 20 ms added egress delay per party. The local
+emulation therefore added 40 ms request/reply delay; it was not an Internet test.
 
-**Compiled Qwen2.5 diagnostic.** A separate [pinned, four-topology W8A8
-one-response cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/slalom-prepared-topologies-2026-09-26.json)
-matched body fingerprint and 30+1 tokens: verified Preparation exchanged the
-same 47.89 MB covered online bodies as ordinary Preparation, against 95.81 MB
-for two online offset workers. Verification added 92.81 MB covered initial
-material. A separate [matched cold-CPU diagnostic](https://github.com/blairhudson/pllm/blob/main/docs/evidence/slalom-prepared-topologies-cold-cpu-2026-09-26.json)
-measured 142.83 s for verified versus 28.65 s for offset, including 109.87 s
-at Preparation. This **misses** the measured CPU comparator by 4.98× on one
-co-located CPU-only response; full wire, representative compute admission,
-generation parity and independent-party privacy remain unverified.
+| Candidate | Request s | Decode tokens/s |
+|:--|--:|--:|
+| Prepared control | 122.87 | 0.1976 |
+| Batched delivery, windowed issuance | 104.73 | 0.1984 |
+| Seeded offset control | 155.01 | 0.1027 |
+| Seed-first offset | 105.33 | 0.1994 |
 
-**Limits.** No measured concurrent load, physical network, accelerator,
-model-quality study, secure-erasure study, independent operator deployment, or
-cross-system matched cohort exists. Offline preparation incurs substantial
-traffic and full latency. The historical results cannot be extrapolated to
-operating cost or provider-level security.
+Sending the independent worker request first improved offset decode throughput
+**1.94×** without reducing its 112.005 MB online bodies. Prepared overlap
+improved request throughput **17.3%**, with 71.193 MB online bodies unchanged.
+These are single samples; request timing excludes provider startup and checkpoint
+distribution. A public-artifact rANS candidate was rejected: its 127.748 MB
+transfer exceeded zlib's 124.900 MB and increased client decode CPU. The retained
+artifact is `wan-tps-qwen25-2026-10-04.json`.
 
-## Defining an eligible state-of-the-art comparison
+## Whole-lifecycle compute
 
-PLLM's metric definitions cover latency, throughput, communication, memory,
-energy, accuracy, perplexity, and cost with explicit units and optimization
-directions. A defined metric is **not a measured value**. The retained Qwen
-study reports latency and protocol traffic, but no price, energy, quality, or
-external-system result. Search validates candidate configurations; benchmark
-records preserve exact cohorts, and Pareto comparison uses declared metric
-directions without implicitly ranking incomparable evidence.
+A separate Qwen2.5 W8A8 30-input/one-output cold-first cohort measured aggregate
+CPU from benchmark and role startup through the response:
 
-We define an eligible comparison as the *same* checkpoint/body, numeric policy,
-input and output counts, output cap, warm state, hardware/network environment,
-quality threshold, and compatible privacy and assurance contract. Candidates
-must first pass correctness and trust gates. Within that cohort, a candidate
-dominates another only on **measured** metrics with explicit directions and at
-least one strict gain. Absent measurements cannot be imputed; a cheaper
-response must count client work, offline rows used or burned, online compute,
-network, and deployment resources. This defines how a future external SOTA
-claim could be tested, not a claim that one currently exists.
+| Placement | Aggregate CPU s |
+|:--|--:|
+| Client-only clear | 11.71 |
+| Prepared | 34.66 |
+| Two online offset workers | 28.65 |
+| Freivalds-verified prepared | 142.83 |
 
-## Bounded research components
+Prepared execution did not beat the two-worker control. Verification used 109.87
+CPU seconds in Preparation alone and exceeded the comparator 4.98×. This is one
+co-located cohort, not a universal ranking; it illustrates why online-only counts
+cannot establish the compute objective. The artifact is
+`slalom-prepared-topologies-cold-cpu-2026-09-26.json`.
 
-Inspired by arithmetic garbling [@sander2024dash; @maurer2025redash], a
-one-use Q7 SiLU region computes $q(x)=x/2+x^2/4$ on $[-1,1]$ with
-ties-to-even rounding. Exhaustive encoded-domain testing bounds absolute
-SiLU error by 0.02285. Evaluation is limited to 128 elements and burns
-digest-bound material once.
+## Qwen3-4B memory
 
-A separate region jointly garbles SiLU and Q7 multiplication without decoding
-intermediate labels. Selectable methods retain a dense binary-table baseline
-and add compact mixed-modulus multiplication based on CRT projection gadgets
-[@ball2017garbling]. Half-gates supply a separate experimental Boolean
-reference [@zahur2015halfgates]. One-lane evaluator payloads measure
-2,387,674 and 245,397 bytes, respectively; four independent compact lanes
-measure 980,573 bytes. These primitives have no whole-decoder tensor-scale
-execution, cryptographic review, or production-security claim and do not
-replace the prepared additive-masking protocol.
+One cached-source Qwen3-4B W8A8 prepared response completed 16 input tokens and
+eight capped outputs with paged client artifacts. Client/dashboard peak RSS was
+**421.31 MB**; Inference and Preparation peaks were 4.50 and 4.03 GB. No new host
+swap was observed. These lifetime peaks need not occur simultaneously. The run
+establishes functionality and resource observations, not reference quality or a
+10× client-memory reduction: no matched resident-client control was run. Its
+artifact is `qwen3-4b-client-paged-2026-10-05.json`.
 
-## Conclusion
+A separate Preparation-only probe used 144 stages, 71 rows per stage, a four-stage
+window, and two fresh processes per mode. Raw authenticated paging reduced median
+peak RSS from **4,613.77 MB to 739.09 MB (6.24×)**. Correction-frame contents matched
+after excluding the timing field. Issuance CPU changed by +0.14%, while loading
+plus issuance rose from 117.387 to 131.953 CPU seconds (+12.41%). Each paged process
+owned 3.63 GB of private snapshots. This probe is not a selectable live topology;
+filesystem cache and full-response cost remain outside it. The artifact is
+`preparation-memory-qwen3-4b-2026-10-05.json`.
 
-PLLM combines prepared private inference with independently implemented,
-composition-bound research components. Its historical Qwen baseline, tiny
-verified control, pinned four-topology diagnostic and isolated numeric/garbling
-tests are **different evidence levels**.
-Protected whole-decoder execution, matched method measurements on the pinned
-model, and external SOTA and economic comparisons remain open.
+Together, the 4B observations direct research toward weight ownership and loading
+peaks rather than assuming arithmetic kernels alone determine feasibility. They
+also show why isolated reductions must be rechecked in complete responses.
+
+# Related work and limitations
+
+Secure-inference systems such as Cheetah [@huang2022cheetah] optimize two-party
+neural-network evaluation; THE-X [@chen2022thex] investigates encrypted
+Transformer execution. Slalom [@tramer2019slalom] combines trusted execution with
+private, verified delegation. These motivate different parts of PLLM's research
+space; their threat models and benchmarks are not interchangeable with its current
+client-local nonlinear path. PLLM does not claim to outperform these systems.
+
+Current evidence is primarily local, co-located, and workload-specific. Independent
+operators, complete wire accounting, broad model quality, malicious participants,
+and specialist cryptographic review remain separate validation tasks. One-use
+ledgers and compiler checks enforce engineering contracts, not a composable
+security theorem. Future protected nonlinear or resident-share execution must
+pass its own complete numeric, privacy, lifecycle, and cost gates.
+
+# Conclusion
+
+PLLM makes private-inference research executable as a loop: specify, implement,
+check, compare, and retain evidence. Its controls expose the distinction between
+online speed and total work, and its 4B measurements reveal memory costs hidden
+by small-model tests. The opportunity for autonomous research is a reusable,
+auditable experiment surface. The next goal is measured system-level improvement
+under explicit trust, quality, network, and compute constraints.
+
+# References

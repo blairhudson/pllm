@@ -97,7 +97,7 @@ Pinned checkpoint:
 The script rejects mismatch against
 `docs/evidence/latent-response-network-qwen25-2026-09-28.json`. Those locks also
 agree with `compiler-region-contract-qwen25-2026-09-30.json`. Existing unrelated
-worktree edits are retained. Root `NETWORK_IO_10X_RESEARCH.md` was read and is
+worktree edits are retained. `docs/research/network-io-10x.md` was read and is
 not changed by this track.
 
 ## Compiler-derived semantic coverage and counts
@@ -544,7 +544,7 @@ Retrieved via `webfetch` on 2026-10-01:
   Nonzero-epsilon checkpoint behavior is governed by the local compiled/runtime
   contract, rather than inferred from an ideal invariance description.
 
-Local inspected contracts: `NETWORK_IO_10X_RESEARCH.md`,
+Local inspected contracts: `docs/research/network-io-10x.md`,
 `python/pllm/runtime/semantic_executor.py` (actual scalar float32 operators),
 `semantic_numeric.py` (distinct BF16 boundaries, not substituted for Qwen W8A8),
 `semantic_attention.py`, `semantic_stages.py`, `quantization.py`,

@@ -41,7 +41,7 @@ recover the exact pretrained W8A8 result or erase accumulated numerical error.
 
 Read before this review:
 
-- `NETWORK_IO_10X_RESEARCH.md`, especially “Token-boundary encrypted execution”,
+- `docs/research/network-io-10x.md`, especially “Token-boundary encrypted execution”,
   “Gate 3 result”, and the batching/seeded-serialization screens.
 - `python/pllm/runtime/he_layer_feasibility.py`, compiler-dependent four-product
   per-layer path and explicitly unpriced complete operators.

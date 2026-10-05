@@ -1,99 +1,99 @@
 ---
-title: "PLLM: Private Multi-Party Inference and an Extensible Research Harness"
-author: |
-  Blair Hudson  
-  deployscience labs  
-  [blair@deployscience.com](mailto:blair@deployscience.com)
-date: 23 September 2026
-web-date: September 2026
-edition: "08"
-description: How PLLM separates private LLM inference roles and turns independently implemented research into measurable capabilities.
-pdf: whitepaper.pdf
-subject: private LLM inference, multi-party systems, autonomous research harness, reproducible benchmarks
-documentclass: article
-classoption: [10pt]
-papersize: letter
-geometry: [margin=0.74in]
-colorlinks: false
-indent: false
+title: "PLLM: Making Private Inference Practical"
+description: "A two-page introduction to private inference, PLLM's research platform, and measured progress on network, compute, and memory costs."
+author: "Blair Hudson"
+affiliation: "Independent Researcher, Australia"
+date: "5 October 2026"
+edition: "OCTOBER 2026"
+pdf: "whitepaper.pdf"
+source: "whitepaper-source.zip"
+abstract: |
+  PLLM is an open-source private-inference runtime and research platform. It makes privacy, model behavior, deployment choices, and costs explicit so researchers and AI agents can test improvements against reproducible controls. This whitepaper explains the approach, the hardest practical constraints, and what current measurements establish.
 ---
 
-## Why PLLM
+## Use remote compute. Keep sensitive context local.
 
-PLLM is a **high-performance private LLM multi-party inference runtime and
-extensible autonomous research harness**. A hosted endpoint ordinarily receives
-the request it computes on. PLLM instead aims to give separate operators useful
-work without granting either remote role the complete activation. Its second
-job: turn independently implemented research into compatible components that
-can be tested against a common baseline, rather than accepting paper-reported
-speedups across different models and trust assumptions.
+AI applications increasingly work with private conversations, documents, and
+business workflows. Conventional hosted inference exposes that context to the
+serving operator. Running everything locally avoids this disclosure but requires
+enough local memory and compute for the chosen model.
 
-High performance and economic value are **objectives**, not conclusions drawn
-from the present measurements. A faster isolated kernel is not automatically a
-faster, private, deployable model.
+**Private inference offers another route:** use outside compute while protecting
+the inputs and intermediate calculations from individual providers. The hard
+part is making that protection useful at ordinary network speeds and acceptable
+cost. PLLM turns this into a measurable engineering and research problem.
 
-## One private request
+## A working system and a place to improve it
 
-Client keeps prompts, tokenization, nonlinear and attention state, masks,
-sampling, and output. Before generation, trusted Preparation expands fresh
-stage seeds and uploads one-use masked corrections for public model matrices.
-Online, Inference receives a ticket and masked activation; Client reconstructs
-the result. Preparation is idle online. A trusted local gateway can expose
-Responses and Chat Completions APIs without turning the remote roles into
-application endpoints.
+PLLM provides a Python SDK, a local API gateway, a native execution engine, and
+composable experiments. Applications use the trusted client or gateway; researchers
+change the protocol, numerical representation, placement, or delivery method.
+A compiler checks that the selected pieces form an executable plan.
 
-![Offline and online work across Client, Preparation, and Inference. Each correction row is used once.](paper/figures/mechanics.png)
+The current public-weight prepared path keeps prompts, nonlinear calculations,
+model state, and output decoding at the client. Preparation creates fresh masking
+material before a response. Inference then performs matrix calculations on masked
+inputs; only the client removes the output masks. Preparation stays idle online.
 
-Preparation must follow the protocol, erase masks, and **not collude** with
-Inference; co-located loopback processes do not demonstrate independent
-operators. The current public path keeps attention, nonlinear work, and token
-boundaries local to Client. It does not establish malicious-provider security.
+![The prepared path: client supplies fresh masks offline; Preparation precomputes corrections; Inference processes masked activations online.](figures/mechanics.png)
 
-## Research becomes a candidate capability
+The two services must follow the protocol and **not collude**; Preparation must
+erase its masks. Self-hosted Preparation keeps that trust inside the client
+boundary. Public weights are not protected, and timing and traffic patterns remain
+visible. Two processes owned by one operator do not establish this trust model.
 
-Researchers implement pinned papers through typed component or provider
-contracts. Immutable experiments bind model, composition, workload, and
-deployment. Bounded search proposes **valid** candidates; matched benchmarks
-retain failures. Functional, numeric, privacy, quality, and deployment checks
-gate adoption.
+\newpage
 
-![From paper provenance to a typed implementation, compatible plan, matched evidence, and an eligible deployment choice.](paper/figures/research-loop.png)
+## Research with a clear scorecard
 
-This is an autonomous *experiment-enabling* loop, not automatic paper-to-code
-translation or security certification. Papers are provenance, never executable
-dependencies. Static provider manifests support discovery; native provider
-runtime loading is not yet exposed. New research can improve a deployed choice
-only when an implementation passes these gates and beats its **eligible matched
-baseline**. No winner crosses different model, privacy, numeric, hardware,
-input/output-token, output-cap, or warm-state cohorts by assumption.
+Three constraints dominate practical private inference:
 
-## Economic value needs an honest denominator
+- **Network:** reduce bytes and dependent exchanges on both client and provider
+  links. Fewer client bytes can simply move traffic elsewhere.
+- **Compute:** beat a matched two-worker additive-sharing control, which performs
+  each outsourced matrix product twice. Moving one product into offline
+  Preparation changes its timing, not its total cost.
+- **Memory and fidelity:** fit real checkpoints on available machines while
+  preserving the declared model behavior. Smaller memory or traffic bills must
+  be weighed against CPU, disk, and output quality.
 
-A candidate can be economically useful if it meets the same privacy, model
-quality, and service constraints while reducing *total cost per successful
-response*: client work, offline preparation (including burned rows), online
-compute, network, and operator resources. Latency, throughput, traffic, and
-quality have different units; a single speed number cannot replace this
-accounting. PLLM represents metrics and matched benchmark results, but **has
-not measured prices, energy, or an economic return**, nor established an
-external state-of-the-art winner. Economic value is a testable hypothesis.
+## A repeatable loop for people and AI agents
 
-## Measured baseline; open comparison
+An agent can propose a method, implement it, construct an experiment, run a
+matched control, and inspect the resulting evidence. PLLM supplies the reusable
+execution and measurement machinery: pinned sources, immutable configurations,
+bounded resource checks, one-use material, and reports tied to exact workloads.
+Failed ideas remain useful evidence for the next experiment.
 
-One retained study ran Client, Preparation, and Inference on an Apple M5
-loopback host using a pinned Qwen2.5-0.5B-Instruct checkpoint. Three warm
-measurements per *different* input/output-token cohort give these full-response
-medians (including offline preparation). They are historical measurements from
-an earlier runtime revision, not current compiler or WAN results.
+![Research loop: propose a bounded hypothesis, implement and compose it, check correctness and contracts, measure matched controls, retain or reject.](figures/research-loop.png)
 
-![Historical Qwen2.5-0.5B full-response medians for three distinct token cohorts; no cross-system performance claim.](paper/figures/qwen-baseline.png)
+This supports autonomous experimentation. It does not measure an autonomous
+discovery rate or replace specialist security review. A tenfold improvement is
+a research target with a named baseline and cost scope, not a property of PLLM.
 
-Optional client-side verification now also has a separate one-response, pinned
-Qwen2.5 four-topology diagnostic. It kept prepared **online** bodies unchanged
-but added offline material; full compute and network cost remain unknown.
-Garbling and cache transformations remain bounded or uncomposed, not
-whole-model Qwen speedups. Next: complete protected decoder
-coverage, deploy genuinely independent roles, and compare alternatives on the
-same checkpoint and workload with measured cost and quality. The
-[technical paper](https://pllm.run/research/paper/) records precise methods,
-paper-derived components, evidence, and missing comparisons.
+## What the research has shown so far
+
+**Network scheduling helps.** In one matched Qwen2.5-0.5B cohort with shared
+100/40 Mbps access and 40 ms added round-trip delay, overlapping the two-worker
+requests improved decode throughput **1.94×**, with unchanged application bytes.
+Prepared delivery and issuance overlap improved request throughput **17.3%**.
+
+**Larger models expose memory ownership.** A Qwen3-4B response used **421 MB**
+client-process peak RSS with paged weights. A separate Preparation-only probe
+reduced peak RSS **6.24×**, from 4.61 GB to 739 MB, with identical corrections,
+12.4% more loading-plus-issuance CPU, and 3.63 GB of private snapshot files.
+
+**The compute challenge is still open.** One separate cold Qwen2.5 response used
+34.66 aggregate CPU seconds for Preparation plus Inference and the client,
+versus 28.65 for the two-worker control. Lower online work alone is not a
+whole-response compute win.
+
+These are scoped local measurements, not independent-provider deployments or
+representative quality results. The 4B run has no matched resident-client control;
+10× whole-client memory and 10× network reductions remain unestablished.
+
+**Next:** combine promising methods, test complete responses, and retain only
+improvements that survive the full scorecard.
+[Technical paper](https://pllm.run/research/paper/),
+[SDK and experiments](https://pllm.run/sdk/), and
+[reports and reproduction commands](https://github.com/blairhudson/pllm/tree/main/docs/evidence).

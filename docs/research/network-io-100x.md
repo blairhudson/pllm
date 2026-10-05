@@ -52,7 +52,7 @@ Compressed feedback must actually implement hidden lookup and selection.
 
 The next five executable/native experiments prioritize a smaller trusted client:
 [seeded ingress, exact row residues, private token pages, compact head retrieval,
-and bounded file-backed kernels](LOW_CLIENT_NETWORK_RESEARCH.md). Their measured
+and bounded file-backed kernels](low-client-network.md). Their measured
 denominators remain explicit; component compression is not a whole-decoder 100×
 claim.
 
@@ -129,5 +129,5 @@ records, search/accounting, orchestration and independent float oracles.
 This uses cached public configuration and retained quality evidence, without
 loading weights. APIs: `pllm.metrics.TokenNetworkBudgetProbe` and
 `pllm.assurance.PublicPolynomialShiftRegression`. Their
-[SDK guide](docs/content/docs/sdk/evaluate/network-hypotheses.mdx) links canonical
+[SDK guide](../content/docs/sdk/evaluate/network-hypotheses.mdx) links canonical
 API documentation. Neither is an inference Pipeline component.

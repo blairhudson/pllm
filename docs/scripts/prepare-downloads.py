@@ -6,7 +6,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
 

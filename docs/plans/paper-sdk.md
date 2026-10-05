@@ -1,7 +1,7 @@
 # Paper-to-SDK capability plan
 
 Status: staged paper-linked SDK symbols, 23 September 2026. The paper landing map is
-`pllm-paper-module-landing-map-2026-09-23.md`; the 84-entry source/citation
+`docs/research/paper-module-landing-map-2026-09-23.md`; the 84-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
 local research cache; run `uv run python scripts/sync_paper_library.py --fetch`
 to populate it, never during documentation builds. The existing 24 locked

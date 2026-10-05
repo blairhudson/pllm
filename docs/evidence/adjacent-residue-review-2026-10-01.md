@@ -18,7 +18,7 @@ workers must hold only their own shares. Providers receive no plaintext private
 input/activation, and transformer-body computation remains remote. No TEE.
 HE below is a distinct cryptographic contract, not an implicit share conversion.
 
-Read contracts: root `NETWORK_IO_10X_RESEARCH.md`,
+Read contracts: `docs/research/network-io-10x.md`,
 `python/pllm/runtime/{semantic_numeric,semantic_executor,quantization,semantic_stages,region_contract_cost}.py`,
 `crates/pllm-compiler/src/decoder_runtime_schedule.rs`, and
 `docs/content/docs/sdk/plans/numerics.mdx`.

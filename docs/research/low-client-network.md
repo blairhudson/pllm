@@ -17,7 +17,7 @@ The first implementation replaces eager mask inventories with native one-use
 SHAKE cursors. A geometry-only isolated probe reduces process peak RSS from
 628.16 to 89.60 MB with identical masks/tickets and lower combined mask CPU.
 It reduces the client estimate to 5.92 GiB, not the 0.83 GiB target. See
-[`client-mask-memory-2026-10-05.md`](docs/evidence/client-mask-memory-2026-10-05.md).
+[`client-mask-memory-2026-10-05.md`](../evidence/client-mask-memory-2026-10-05.md).
 Next are authenticated paged boundary-weight import/execution and explicit live
 workspace accounting. Existing semantic execution already releases last-use
 tensors; narrowing that estimate must not be reported as newly saved memory.

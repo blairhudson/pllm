@@ -51,7 +51,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
       - run: bash scripts/sync_environment.sh --python 3.13 --extra he --extra sdk --extra quality
-      - run: uv run --no-sync ruff check python/pllm scripts tests
+      - run: uv run --no-sync ruff check python/pllm scripts docs/scripts docs/tests tests
       - run: |
           version="$(uv run --no-sync python -c 'import pllm; print(pllm.__version__)')"
           uv run --no-sync python scripts/release.py check "v$version"
@@ -85,6 +85,7 @@ jobs:
           cache-dependency-path: docs/package-lock.json
       - run: npm ci
         working-directory: docs
+      - uses: ./.github/actions/setup-paper-tools
       - run: uv run --no-sync python scripts/docs_regen.py --check
       - run: npm run build
         working-directory: docs

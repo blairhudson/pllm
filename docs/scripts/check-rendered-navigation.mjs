@@ -65,12 +65,14 @@ assert.ok(page.includes('class="paper-timeline"'), 'Paper timeline did not rende
 assert.ok(!page.includes('Back to the chronological bibliography'));
 
 const whitepaper = rendered('research/whitepaper').page;
-assert.equal((whitepaper.match(/<figure>/g) ?? []).length, 3);
-for (const name of ['mechanics', 'research-loop', 'qwen-baseline']) {
+assert.equal((whitepaper.match(/<figure>/g) ?? []).length, 2);
+for (const name of ['mechanics', 'research-loop']) {
   assert.ok(whitepaper.includes(`src="/downloads/figures/${name}.png"`),
     `Canonical whitepaper figure did not render: ${name}`);
 }
-assert.ok(whitepaper.includes('Economic value needs an honest denominator'));
+assert.ok(whitepaper.includes('Research with a clear scorecard'));
+assert.ok(rendered('research/paper').page.includes('href="/downloads/paper-arxiv-source.zip"'),
+  'Technical paper must link its standalone arXiv source archive');
 
 const experimentGuide = rendered('sdk/experiments').page;
 const exampleCode = [...experimentGuide.matchAll(/<code\b[^>]*>([\s\S]*?)<\/code>/g)].map((match) => match[1]);

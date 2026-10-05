@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "Cite the included research draft when using PLLM or its experimental results."
-title: "PLLM: Private Multi-Party Inference and an Extensible Research Harness"
+title: "PLLM: Private Inference and Autonomous Research"
 type: software
 authors:
   - family-names: Hudson
@@ -8,9 +8,9 @@ authors:
 version: 0.1.0a2
 license: Apache-2.0
 abstract: >-
-  A three-role private language-model runtime using offline seeded preparation,
-  one-use masked integer stages, a client-local Responses interface, and
-  composition-bound experiments with cohort-scoped evidence.
+  A private language-model inference runtime and research platform with
+  model-neutral compilation, composable protocols and placements, and
+  workload-bound evidence for human-led and agent-driven experimentation.
 keywords:
   - private inference
   - additive masking
@@ -18,7 +18,7 @@ keywords:
   - offline correlations
 preferred-citation:
   type: article
-  title: "PLLM: Private Multi-Party LLM Inference and Evidence-Bound Research Composition"
+  title: "PLLM: A Research Platform for Private LLM Inference"
   authors:
     - family-names: Hudson
       given-names: Blair

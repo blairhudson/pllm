@@ -5,7 +5,7 @@ created: 2026-09-18T02:30:47Z
 ---
 # PLLM deep-dive analysis and prioritized roadmap
 
-> Historical audit snapshot. `COMPONENT_COMPOSITION_PLAN.md` supersedes its
+> Historical audit snapshot. `docs/plans/component-composition.md` supersedes its
 > profile-driven compiler and runtime proposals; profile names below describe the
 > repository state observed when this audit was written, not current interfaces.
 
@@ -51,7 +51,7 @@ Two systems share one `pllm.run` distribution (maturin/PyO3, abi3-py311):
 Every surface — README, docs, paper, schemas, code — separates *support claims*: adapter-lowering ≠ checkpoint-import ≠ compiler-coverage ≠ runtime-execution ≠ quality ≠ privacy-evidence ≠ deployment. The status page (`/sdk/reference/status/`) uses 6 explicit labels; `CapabilityStatus` component enforces vocabulary; the paper's IMPLEMENTATION-STATUS.md is candid; `decoder_coverage` reports `complete:false` forever until genuinely closed. For a privacy product this honesty is the moat — keep it sacred.
 
 ### 3.2 Design governance
-`design/` is a real normative contract (MUST/MUST NOT/SHOULD, authority ordering, acceptance gates). `schemas/` holds 24 versioned JSON-Schema records. Research registry (`docs/data/research/papers.json` + 24 note files + source locks with sha256) generates the papers catalog — data-driven, not hand-maintained MDX. Repo tests enforce: GitHub Actions SHA-pinned, no `pull_request_target`, OIDC-only PyPI publish, no `PYPI_TOKEN`, wheel-contents checks, single-namespace packaging, mkdocs-absence, docs-example `ast.parse`.
+The design set indexed by `docs/plans/design.md` is a real normative contract (MUST/MUST NOT/SHOULD, authority ordering, acceptance gates). `schemas/` holds 24 versioned JSON-Schema records. Research registry (`docs/data/research/papers.json` + 24 note files + source locks with sha256) generates the papers catalog — data-driven, not hand-maintained MDX. Repo tests enforce: GitHub Actions SHA-pinned, no `pull_request_target`, OIDC-only PyPI publish, no `PYPI_TOKEN`, wheel-contents checks, single-namespace packaging, mkdocs-absence, docs-example `ast.parse`.
 
 ### 3.3 Code quality in the core path
 - `configuration.py`: frozen dataclasses, canonical JSON digests (`pllm.configuration.v1\0` domain separation), duplicate-key rejection in JSON *and* YAML, 1 MiB doc cap, cycle detection, `__`-path `with_params`, strict `_fields` validation.
@@ -141,7 +141,7 @@ Alignment target (one core, three fronts):
 ### 5.5 Documentation defects found (concrete, fixable)
 1. `docs/content/docs/start/first-private-request.mdx` — tutorial Experiment **fails `resolve()`** (missing `inference` component). First-run breakage.
 2. `deploy/README.md` — tells operators to run `pllm build` (nonexistent).
-3. `design/cli.md` status table stale — lists `serve`, `benchmark run` as "Unavailable" (they're shipped; `reference/status.mdx` is correct).
+3. `docs/plans/cli.md` status table stale — lists `serve`, `benchmark run` as "Unavailable" (they're shipped; `reference/status.mdx` is correct).
 4. `ARCHITECTURE.md` — documents only 3 crates (`pllm-core`, `pllm-python`, `pllm-models`); 5 others (`types`, `compiler`, `bench`, `assurance`, `garble`) undocumented there.
 5. README mentions "historical evidence under `research/`" — dir doesn't exist (it's `docs/evidence`, `docs/data/research`); ruff `extend-exclude = ["research"]` also points at a nonexistent dir.
 6. CONTRIBUTING docs flow says `npm install` + `bun run dev`; README says `bun install --frozen-lockfile` but only `package-lock.json` is committed — pick one tool.
@@ -186,7 +186,7 @@ Ordering rationale: the mission-critical path is **one complete plan-compiled pr
 ### P0 — Land one executable profile + fix broken docs (days)
 1. **Finish the in-flight WIP** (rms_norm/rope/kv/attention primitives), then implement `softmax`, `greedy_token_selection`, `token_feedback`, length-aware `last_token`, and — the actual gap — **whole-decoder scheduling** that chains regions under a `PlanLock`. Target: `coverage().complete == true` for dense Qwen2 on `research.single_evaluator`, executed end-to-end on the real 0.5B checkpoint, with the coverage report generated from code (not hardcoded false).
 2. **Fix the two confirmed doc bugs**: add `inference` component to `first-private-request.mdx` (and add a `pllm`-level runnable `examples/first_request.py` that the test suite `exec()`s so this can't regress — docs currently only `ast.parse` snippets); replace `pllm build` in `deploy/README.md` with the real verify step.
-3. **Refresh stale docs**: `ARCHITECTURE.md` crate table (8 crates), `design/cli.md` status table (or generate it from `_cli/app.py` like the public reference), README `research/` → `docs/evidence`/`docs/data/research`, ruff exclude.
+3. **Refresh stale docs**: `ARCHITECTURE.md` crate table (8 crates), `docs/plans/cli.md` status table (or generate it from `_cli/app.py` like the public reference), README `research/` → `docs/evidence`/`docs/data/research`, ruff exclude.
 4. **One regen command**: `scripts/docs_regen.{sh,py}` = `generate_developer_reference.py` + `npm run generate` + `--check` mode; wire into CI and `scripts/release.py check`.
 
 ### P1 — Unify serve/benchmark/SDK + componentize the existing arms (1–3 weeks)
@@ -213,7 +213,7 @@ Ordering rationale: the mission-critical path is **one complete plan-compiled pr
 
 Placement/marketplace is VirtualDC's layer — PLLM's job is to *emit* what a higher-level router needs, not to route.
 
-19. **Capability & requirements export**: `pllm capabilities` (host features this node can serve: kernel-backend, tenseal-present, gpu, memory, arch) + resolved-plan `role_requirements()` (roles, per-role component IDs, host features, model fingerprint, material lifetimes) — the data contract a VirtualDC scheduler consumes. Design note: `design/` contract for "what a plan requires" vs "what a node offers" — this is the seam between PLLM and VirtualDC.
+19. **Capability & requirements export**: `pllm capabilities` (host features this node can serve: kernel-backend, tenseal-present, gpu, memory, arch) + resolved-plan `role_requirements()` (roles, per-role component IDs, host features, model fingerprint, material lifetimes) — the data contract a VirtualDC scheduler consumes. Design note: `docs/plans/design.md` contract for "what a plan requires" vs "what a node offers" — this is the seam between PLLM and VirtualDC.
 20. **Evidence for routing decisions**: `measurement.v1` records carry enough to price/schedule (per-role CPU/RSS/bytes/energy, region-tagged) — VirtualDC's marketplace maps offers↔requirements on these digests; signed evidence bundles so a node's self-reported capability is backed by an assurance record, not a boolean (`input_privacy: true` self-attestation dies with market.py).
 21. **Node runtime readiness** (what PLLM must be for a VirtualDC node): `wgpu` kernel-backend component (portable to Metal/Vulkan for gaming PCs — `capabilities()["gpu"]=False` today); durable AEAD material store (salvage `shared_*`'s SQLite BurnLedger) so node churn ≠ total inventory loss; `pllm serve` installer profiles (systemd exists → launchd + `pllm-node` packaging); attestation hooks in `capabilities()` output.
 22. **Research backlog execution** in registry order: R01–R03 fidelity completion, R18 activation approximation (cheap win — replaces garbled SiLU cost), R05/R06 conversions, R23 protected cache (structural transform exists), then full-system comparisons R12–R22 in isolated adapters — each lands as a component in the unified taxonomy from P1/P2, so every paper is benchmarkable against every other arm.
@@ -1239,7 +1239,7 @@ Two documents, two audiences, one discipline: the honest-claims register the cur
 | §6 Conclusion | Light edit — end on the research-community ask (components, reproductions, profiles as contributions), not only the runtime roadmap. | Mirrors the new intro arc. |
 | `references.bib` (17 entries) | **+24 entries for the full tracked corpus** — generate from `docs/data/research/papers.json` (each record already has title/authors/year/primary_url/sha256): `sander2024dash` [R01], `redash` [R02], `ball2017garbling` [R03, exists], `zahur2015halfgates` [R04], `logrow` [R05], `dutyfreebits` [R06], `tramer2019slalom` [R07], `carnival` [R08], `buscher2018hycc` [R09], `obliviousdp` [R10], `fevbdd` [R11], `watson2022piranha` [R12], `sigma-fss` [R13], `fusefss` [R14], `ringpcg` [R15], `trapdoored-mat` [R16], `curl` [R17], `compact` [R18], `openweight-verifiable` [R19], `oblivious-compression` [R20], `nexus` [R21], `bumblebee` [R22], `mpcache` [R23], `maverick` [R24]. **+3 toolkit cites**: `pedregosa2011scikit`, `chollet2015keras`, `deepeval`. **+background completes**: `juvekar2018gazelle`, `mishra2020delphi`, `knott2021crypten` (round out the HE/MPC landscape paragraphs). | One bib generated from the registry = citations can't drift from the tracked corpus; same source of truth as the docs papers pages. Verify venue fields against `primary_url` before submission. |
 
-**arXiv mechanics checklist:** pandoc → standalone LaTeX (`--standalone`, embed `.bbl`); figures as committed PNG/TikZ under `paper/figures/`; no external `\input` beyond arXiv-supported packages; strip `web-date`/`web-note`/`edition` fields (docs-site concerns); metadata — `cs.CR` primary, `cs.LG`, `cs.DC`; submission tarball includes `header.tex`, figures, `.bbl`; run `paper/README.md` build steps and add a `make arxiv` target that emits the exact tarball. Also mirror to `docs/content/research/paper.mdx` (134-line web version must track the revision).
+**arXiv mechanics checklist:** Pandoc emits standalone LaTeX with resolved references; figure source lives in `docs/scripts/` and generated assets live under ignored `docs/build/papers/`. The docs build emits `paper-arxiv-source.zip` with its header and references embedded. No external repository inputs may be needed to compile the archive. Follow `paper/README.md`; submission metadata and categories remain author-reviewed. The website MDX is generated from the same canonical source and is never committed.
 
 **Guardrails:** no VirtualDC; no performance claims beyond the retained 9-run study; search remains bounded by human/CI-enforced gates and matched evidence cohorts; every `[Rnn]` citation marked as reproduction status honestly (mostly `reproduction_target` today — the paper cites the *sources*, not completed reimplementations).
 
@@ -1256,7 +1256,7 @@ Two documents, two audiences, one discipline: the honest-claims register the cur
 | 1 | "What PLLM is" (3 sentences, no jargon) → "The problem" (hosted inference sees your data; TLS only protects the wire) → **Figure 1: three-role data-flow** → "How it works" in plain words (client keeps everything sensitive; a trusted prep service pre-computes reusable-looking "unmasking" values; the untrusted provider only ever sees masked numbers) → **Figure 2: privacy-boundary map** |
 | 2 | "The research toolkit" (why a component library — the sklearn analogy in one plain sentence: "the way scikit-learn let every data scientist swap algorithms, PLLM lets privacy researchers swap techniques") → **Figure 3: component-slot swap** → **Figure 4: research loop** → "Status today" honesty box → "What comes next" (runtime completion, more components, broader evaluations — no VirtualDC) |
 
-**Diagram specs** (commit as SVG/PNG under `paper/figures/`; also reused on the docs landing page and whitepaper web route):
+**Diagram specs** (keep authored generators in `docs/scripts/`; build ignored SVG/PNG assets under `docs/build/papers/figures/` for PDF and web reuse):
 
 1. **Three-role data-flow** — three boxes (Client [lock icon] / Preparation / Inference Provider). Arrows labeled in plain words: "random seeds (offline)", "pre-computed unmasking values", "one masked request per step", "masked result". Inside Client box: prompt, output, "model's sensitive numbers". No equations anywhere.
 2. **Privacy-boundary map** — dashed boundary around the client. Inside: prompt, generated text, tokens, the model's internal numbers, decoding choices. Outside: model weights (public), masked numbers, tickets, timing. A "never crosses the boundary" checklist.

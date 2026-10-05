@@ -9,15 +9,28 @@ The paper describes the current public-weight runtime:
 - native exact-ring matrix execution; and
 - immutable text-free dashboard records.
 
-The retained study is `docs/evidence/current-runtime-2026-09-11.json`. It
-contains nine warm Qwen2.5-0.5B loopback runs from source revision `277d19f`,
-with exact public prompts, model identifiers, raw measurements, and limitations.
-It is the evidence source for the paper tables.
+The rewritten October 5 papers use distinct case studies:
 
-The study does not establish WAN or GPU performance, energy use, token price,
-market operation, model quality, malicious security, operator independence, or
-secure erasure. Historical BFV results in the evidence archive are separate and
-are not reused as current-runtime evidence.
+- `docs/evidence/wan-tps-qwen25-2026-10-04.json`: one matched four-candidate
+  Qwen2.5 cohort under enforced 100/40 Mbps access and 40 ms added round-trip
+  delay. Seed-first dispatch improves offset decode throughput 1.94×; prepared
+  overlap improves request throughput 17.3%. Online bodies do not decrease.
+- `docs/evidence/slalom-prepared-topologies-cold-cpu-2026-09-26.json`: one
+  cold response per topology. Prepared aggregate CPU is 34.66 s versus the
+  two-worker control's 28.65 s; verified prepared uses 142.83 s.
+- `docs/evidence/qwen3-4b-client-paged-2026-10-05.json`: one 16+8-token
+  prepared response, 421.31 MB client/dashboard lifetime peak RSS, no new swap.
+  It has no matched resident-client control or independent quality comparison.
+- `docs/evidence/preparation-memory-qwen3-4b-2026-10-05.json`: two fresh
+  processes per mode, 144 stages and 71 rows per stage. Paged Preparation reduces
+  median peak RSS 6.24×, with matching correction content, 12.41% more load-plus-
+  issuance CPU and 3.63 GB private snapshot disk. This is an isolated probe.
+
+The papers introduce the agent-facing research workflow; they do not evaluate
+autonomous discovery rates. Local link emulation is not an Internet deployment.
+Full wire, independent providers, broad quality and tenfold whole-system gains
+remain separate gates. Historical runtime and BFV records stay in the evidence
+archive and are not combined with these cohorts.
 
 The model-neutral compiler binds untransformed Qwen2, dense Qwen3 and the
 text-only Qwen3.5 decoder, among other checked adapters. The public prepared,

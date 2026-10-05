@@ -1,6 +1,6 @@
 # Tenfold network-I/O research: existing-model privacy
 
-The subsequent [WAN/five-method gate](docs/evidence/wan-methods-2026-10-04.md)
+The subsequent [WAN/five-method gate](../evidence/wan-methods-2026-10-04.md)
 adds per-party 100/40 Mbps capacity forecasts and promotes exact prepared output
 residues. On three pinned 32-output requests, the lean stack's covered total falls
 507.46→490.41 MB (3.36%) with matching outputs and nearly equal sampled client cold
@@ -8,7 +8,7 @@ CPU. Projected resharing, bit-plane delivery, batched private retrieval and publ
 orthogonal spreading remain gated. The new first response alone exceeds the
 cohort's tenfold budget; fresh-response 10× remains unmet.
 
-The next five-method round is recorded in [NEXT_FIVE_NETWORK_METHODS.md](NEXT_FIVE_NETWORK_METHODS.md):
+The next five-method round is recorded in [next-five-network-methods.md](next-five-network-methods.md):
 canonical generated-prefix reuse, checked cross-placement state transfer, masked
 output aggregation, token-local projection memoization and progressive head
 certificates. The additional conversation saving is 8.8% over the lean combined
@@ -19,7 +19,7 @@ control; fresh-prompt 10× remains unmet.
 The bounded implemented foundation is a compiler-driven multi-party inference
 network: registered parties advertise capabilities and participation constraints;
 the client selects and admits a compatible execution under explicit privacy and
-resource policy. See [CLI/SDK network design](NETWORK_INFERENCE_DESIGN.md) for the
+resource policy. See [CLI/SDK network design](../plans/network-inference.md) for the
 records, command grammar, versioning, live reservation lifecycle and implementation
 ledger. The broader design remains a roadmap; live admission covers CPU two-offset
 and prepared Inference/Preparation roles, alongside local client-only execution.
@@ -59,7 +59,7 @@ weights. A placement union cuts online bodies **59.8%** but increases total to
 covered total **38.8%** against seeded/packed control. All fifteen corresponding
 outputs match; client peak memory and full wire remain unknown. Real verified
 control hit its 180-second startup limit, so no verified cost win is claimed.
-See [cohort and reproduction](docs/evidence/combined-compatibility-qwen25-2026-10-03.md).
+See [cohort and reproduction](../evidence/combined-compatibility-qwen25-2026-10-03.md).
 Its eight-output denominators differ from the 32-output cohort below.
 
 **2026-10-03 composition update:** Metal now composes with client-owned attention
@@ -71,9 +71,9 @@ is **1.348 vs 1.655 MB/output**. Metal has almost equal request latency to CPU
 and adds a 44.04 MB client GPU snapshot; it should not activate merely because it
 is compatible. Bounded source-locked load-time selection now uses the existing
 planner and retains incumbent choices when benefits are unpriced. See the
-[measurements, SDK workflow and compatibility audit](docs/evidence/metal-placement-qwen25-2026-10-03.md).
+[measurements, SDK workflow and compatibility audit](../evidence/metal-placement-qwen25-2026-10-03.md).
 
-The [100× per-token track](NETWORK_IO_100X_RESEARCH.md) now derives explicit
+The [100× per-token track](network-io-100x.md) now derives explicit
 opening/material budgets and tests sparse exact correction and public polynomial
 handoff hypotheses. It retains fresh dealer costs and private support/capacity
 requirements; neither new construction earns whole-decoder admission.
@@ -86,7 +86,7 @@ channel. The optimistic 24-bit 39+32 cut has 18.20 MB online and 71.97 MB known
 all-link bodies, plus unimplemented numerics/control; body-matrix MACs already
 reach 1.962× the offset comparator. Wider rings raise material costs. This
 does not establish tenfold inference or numeric/compute admission. See
-[design, ablations and full cost caveats](docs/evidence/projected-polynomial-gates-2026-10-02.md).
+[design, ablations and full cost caveats](../evidence/projected-polynomial-gates-2026-10-02.md).
 
 Its subsequent locked eight-prompt float32 gate rejects polynomial-only execution:
 fixed Taylor matches 0/8 prefill and decode; public per-channel quadratic matches
@@ -101,7 +101,7 @@ numeric/material/control obligations. Current quadratic-reference key compositio
 fail all three targets; unknown-generator MLP/24-bit layouts remain inconclusive
 at 25%/50% and fail tenfold on known online floors. Hypothetical 12-bit layouts
 remain unvalidated and incomplete, not admitted. See
-[complete obligation/cost decisions](docs/evidence/protected-region-gates-2026-10-02.md).
+[complete obligation/cost decisions](../evidence/protected-region-gates-2026-10-02.md).
 No new protected method is enabled. Fresh 25%/50% research needs a concrete
 complete MLP mechanism; repeat-workload improvements remain the executable track.
 
@@ -110,7 +110,7 @@ growing-prefix reuse, while default numeric mode keeps its matching-width gate.
 The exhaustive pinned partition cohort covers 88 splits and teacher replay.
 The five-request conversation cohort measures 3.01× setup-inclusive saving at
 eight output tokens and 2.56× at 32; see
-[conversation evidence](docs/evidence/conversation-reuse-2026-10-02.md).
+[conversation evidence](../evidence/conversation-reuse-2026-10-02.md).
 These are exact workload-specific body savings, not fresh-prompt or full-wire claims.
 
 `PreparedInventory(refill="on-demand")` additionally binds refill to the ordinary
@@ -119,7 +119,7 @@ unused sealed stage rows, reducing issued rows by 50%/58.1% and correction push
 bodies from 55.08/82.62 MB to 27.54/34.76 MB. Online bodies and outputs match.
 Artifact cache hits pay a fresh 230,556-byte manifest; one-use material is never
 cached. More preparation control calls and possible next-request waiting remain
-charged. See [horizon evidence](docs/evidence/prepared-horizons-2026-10-02.md).
+charged. See [horizon evidence](../evidence/prepared-horizons-2026-10-02.md).
 
 1. **Fresh prompts, fixed Qwen: role-selective client attention projections.**
    Implemented as `ClientLinearRoles`, selecting
@@ -165,13 +165,13 @@ online. This is a separate model/task-quality decision: its 11/12 W8A8 prefill
 agreement is with its own float32 reference, not evidence it answers as well as
 Qwen. Public task-quality comparison must precede a cross-model winner claim.
 
-Evidence: [incremental SDK/benchmark cohorts](docs/evidence/incremental-network-qwen25-2026-10-01.json),
-[stage attribution](docs/evidence/prepared-stage-attribution-qwen25-2026-09-29.json),
-[prefix reuse](docs/evidence/client-prefix-reuse-qwen25-2026-09-28.json),
-[inventory sizing](docs/evidence/prepared-inventory-cold-sizing-2026-09-27.json),
-[compression](docs/evidence/client-bundle-compression-qwen25-2026-09-27.json),
-[prefix placement](docs/evidence/client-owned-prefix-layers-qwen25-2026-09-28.json),
-[model/cold controls](docs/evidence/prepared-cold-compare-qwen-smol-2026-09-29.json).
+Evidence: [incremental SDK/benchmark cohorts](../evidence/incremental-network-qwen25-2026-10-01.json),
+[stage attribution](../evidence/prepared-stage-attribution-qwen25-2026-09-29.json),
+[prefix reuse](../evidence/client-prefix-reuse-qwen25-2026-09-28.json),
+[inventory sizing](../evidence/prepared-inventory-cold-sizing-2026-09-27.json),
+[compression](../evidence/client-bundle-compression-qwen25-2026-09-27.json),
+[prefix placement](../evidence/client-owned-prefix-layers-qwen25-2026-09-28.json),
+[model/cold controls](../evidence/prepared-cold-compare-qwen-smol-2026-09-29.json).
 All network figures are scoped serialized bodies, not complete wire measurements.
 Do not add percentages from different cohorts or assume optional components compose
 without a matched run.
@@ -214,9 +214,9 @@ less than one tenth). MLP accounts for 148.30 MB, and *even removing all MLP
 stage bodies for free leaves 30.67 MB*. Any proposed win must address attention
 and MLP, pass held-out prefill/decode parity and keep most MACs remote. Full
 wire, cold source distribution and independent operation are **unmeasured**.
-See [compiled attribution](docs/evidence/prepared-stage-attribution-qwen25-2026-09-29.json),
-[pretrained screen](docs/evidence/pretrained-bottleneck-screen-2026-09-29.json)
-and [cold comparison](docs/evidence/prepared-cold-compare-qwen-smol-2026-09-29.json).
+See [compiled attribution](../evidence/prepared-stage-attribution-qwen25-2026-09-29.json),
+[pretrained screen](../evidence/pretrained-bottleneck-screen-2026-09-29.json)
+and [cold comparison](../evidence/prepared-cold-compare-qwen-smol-2026-09-29.json).
 
 These are independently testable PLLM design hypotheses, **not** claims of
 literature novelty or executed tenfold improvements.
@@ -275,7 +275,7 @@ ships **322.24 MB** of client predictor weights once per model and duplicates
 **90%** of the tracked body integer MACs. The observed-prompt residual widths
 are not an exactness certificate. A hypothetical uniform 2-bit schedule would
 cost 13.82 MB arithmetic bodies, but is **not certifiable** by these
-predictors. See [locked evidence](docs/evidence/predictive-modular-qwen25-2026-09-30.json).
+predictors. See [locked evidence](../evidence/predictive-modular-qwen25-2026-09-30.json).
 Reproduce after locally caching the pinned checkpoint:
 
 ```sh
@@ -442,7 +442,7 @@ projection MACs, and directed optimistic serialized bodies from the native
 runtime schedule. It rejects incomplete stage coverage and tracks missing
 work as `body_bytes: null`. The pinned source/configuration, schedule, body
 fingerprint and two workload budgets are locked in
-[`docs/evidence/compiler-region-contract-qwen25-2026-09-30.json`](docs/evidence/compiler-region-contract-qwen25-2026-09-30.json).
+[`docs/evidence/compiler-region-contract-qwen25-2026-09-30.json`](../evidence/compiler-region-contract-qwen25-2026-09-30.json).
 
 | 39-input response | Prepared covered all-link / online | 10× all-link / online budgets | Two-worker MLP cut known online floor | Resident 24-bit known online floor | Resident **hypothetical** 12-bit known online floor |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -538,7 +538,7 @@ are one backend's sampled serialization, **not** ciphertext-size lower bounds
 for all HE schemes. Full-layer latency, memory, numeric fidelity and cold
 checkpoint distribution remain unmeasured because depth vetoes execution.
 
-See [locked HE evidence](docs/evidence/he-token-boundary-feasibility-qwen25-2026-09-30.json).
+See [locked HE evidence](../evidence/he-token-boundary-feasibility-qwen25-2026-09-30.json).
 With pinned config cached, reproduce both cohorts, key/context sizes and depth:
 
 ```sh
@@ -564,7 +564,7 @@ All five were screened against pinned Qwen2.5 dimensions and the same
 39+8/39+32 compiler schedules. The arithmetic/table inputs are **synthetic**;
 this is not real-checkpoint quality evidence or executable protected inference.
 Results and environment are locked in
-[`docs/evidence/interaction-reduction-screen-qwen25-2026-09-30.json`](docs/evidence/interaction-reduction-screen-qwen25-2026-09-30.json).
+[`docs/evidence/interaction-reduction-screen-qwen25-2026-09-30.json`](../evidence/interaction-reduction-screen-qwen25-2026-09-30.json).
 
 ### 1. Specialized secure reductions
 
@@ -694,11 +694,11 @@ independent-worker deployment or tenfold result was established.
 
 | Track | Result | Decision |
 | --- | --- | --- |
-| [Homomorphic secret sharing](docs/evidence/adjacent-hss-review-2026-10-01.md) | Direct HSS removes peer interaction for **restricted** multiplication programs. Computed register × computed register is not a native instruction. Optimistic BKS embedding encodings project 19.96/59.87 MB input bodies. DCR encrypted token bits instead project 2.54/3.87 MB, with lookup, complete program, terminal conversion and KV continuation unpriced. | Most structurally different candidate, but require a legal program and output interface before implementation. Small ingress is not a decoder pass. |
-| [Projective/rational normalization](docs/evidence/adjacent-projective-review-2026-10-01.md) | Exact real identities exist, including epsilon-preserving squared-denominator RMSNorm. Unrestricted delayed division changes float32 and quantized outputs. Naive residual denominator alignment alone projects 31.69/48.22 MB online. | Reject unrestricted cancellation. Investigate bounded rounding-aware norm→quantization predicates instead of creating more secret denominators. |
-| [Collective HE refresh](docs/evidence/adjacent-refresh-review-2026-10-01.md) | Concrete Lattigo/OpenFHE protocols exist, but refresh needs **reserved** modulus capacity. Conditional OpenFHE two-party FIXED layouts with sampled parameters project 390.07/1,560.28 MB uncompressed worker-link bodies even granting one live ciphertext per epoch. | Veto these parameter/layout transfers; other refresh designs need actual primes, serialized bodies, full layer and output-key ownership checks. |
-| [Function-specific joint correlations](docs/evidence/adjacent-correlation-review-2026-10-01.md) | Reusing one masked source within a joint statistic/normalization block really removes an opening. Norms plus token boundary still project 16.15/24.72 MB online at 32 bits. An in-process BFV generator has exact modular parity but unsanitized ciphertext noise, so no circuit-privacy admission. | Keep algebra as incremental optimization; the tested layouts fail before private inverse, attention and SiLU. Material compression alone cannot repair online cost. |
-| [Delayed residue reconstruction](docs/evidence/adjacent-residue-review-2026-10-01.md) | CRT preserves bounded polynomial islands, not signed comparisons or rounded float semantics. A 28-bit two-source layout costs 14.15/21.68 MB online. A hypothetical 14-bit tuple leaves only 154,246/211,846 online bytes for every omitted operation. | Veto tested wide layout. Narrow layouts need exact protected lifting/order/scale transitions; channel-local tables cannot supply those for free. |
+| [Homomorphic secret sharing](../evidence/adjacent-hss-review-2026-10-01.md) | Direct HSS removes peer interaction for **restricted** multiplication programs. Computed register × computed register is not a native instruction. Optimistic BKS embedding encodings project 19.96/59.87 MB input bodies. DCR encrypted token bits instead project 2.54/3.87 MB, with lookup, complete program, terminal conversion and KV continuation unpriced. | Most structurally different candidate, but require a legal program and output interface before implementation. Small ingress is not a decoder pass. |
+| [Projective/rational normalization](../evidence/adjacent-projective-review-2026-10-01.md) | Exact real identities exist, including epsilon-preserving squared-denominator RMSNorm. Unrestricted delayed division changes float32 and quantized outputs. Naive residual denominator alignment alone projects 31.69/48.22 MB online. | Reject unrestricted cancellation. Investigate bounded rounding-aware norm→quantization predicates instead of creating more secret denominators. |
+| [Collective HE refresh](../evidence/adjacent-refresh-review-2026-10-01.md) | Concrete Lattigo/OpenFHE protocols exist, but refresh needs **reserved** modulus capacity. Conditional OpenFHE two-party FIXED layouts with sampled parameters project 390.07/1,560.28 MB uncompressed worker-link bodies even granting one live ciphertext per epoch. | Veto these parameter/layout transfers; other refresh designs need actual primes, serialized bodies, full layer and output-key ownership checks. |
+| [Function-specific joint correlations](../evidence/adjacent-correlation-review-2026-10-01.md) | Reusing one masked source within a joint statistic/normalization block really removes an opening. Norms plus token boundary still project 16.15/24.72 MB online at 32 bits. An in-process BFV generator has exact modular parity but unsanitized ciphertext noise, so no circuit-privacy admission. | Keep algebra as incremental optimization; the tested layouts fail before private inverse, attention and SiLU. Material compression alone cannot repair online cost. |
+| [Delayed residue reconstruction](../evidence/adjacent-residue-review-2026-10-01.md) | CRT preserves bounded polynomial islands, not signed comparisons or rounded float semantics. A 28-bit two-source layout costs 14.15/21.68 MB online. A hypothetical 14-bit tuple leaves only 154,246/211,846 online bytes for every omitted operation. | Veto tested wide layout. Narrow layouts need exact protected lifting/order/scale transitions; channel-local tables cannot supply those for free. |
 
 All paired values refer to **39+8 / 39+32**. Communication projections describe
 specified encodings/layouts, not universal cryptographic lower bounds. Refresh
@@ -788,7 +788,7 @@ collective refresh, distributed dealer generation or a full decoder.
 
 ## Four follow-on Qwen screens — 2026-10-01
 
-Evidence: [`conditional-execution-qwen25-2026-10-01.json`](docs/evidence/conditional-execution-qwen25-2026-10-01.json).
+Evidence: [`conditional-execution-qwen25-2026-10-01.json`](../evidence/conditional-execution-qwen25-2026-10-01.json).
 These are independently runnable, non-selectable research diagnostics. The pinned
 Qwen checkpoint, baseline W8A8 body, semantic schedule and binding are recorded.
 Numeric agreement is with that W8A8 execution, not broad float32 task quality.
@@ -919,8 +919,8 @@ oblivious indexing, control and other operators are additional obligations. Full
 baseline execution supplies this role-filtered screen; no distributed sparse SDK
 candidate was run. Park this coordinate-delta construction.
 
-Evidence: [temporal screen](docs/evidence/temporal-delta-screen-2026-10-01.json)
-and [review](docs/evidence/temporal-delta-review-2026-10-01.md).
+Evidence: [temporal screen](../evidence/temporal-delta-screen-2026-10-01.json)
+and [review](../evidence/temporal-delta-review-2026-10-01.md).
 
 ### Quantizer-aware circuits: useful synthesis, failed material budget
 
@@ -937,8 +937,8 @@ counts projects **1.398 / 2.127 TB**, before missing full-domain, dynamic-scale
 and conversion work. No actual prepared stage crossing is eliminated. Retain
 synthesis as a research tool; park fresh per-element garbling at this cost.
 
-Evidence: [circuit screen](docs/evidence/quantizer-circuit-screen-2026-10-01.json)
-and [review](docs/evidence/quantizer-circuit-review-2026-10-01.md).
+Evidence: [circuit screen](../evidence/quantizer-circuit-screen-2026-10-01.json)
+and [review](../evidence/quantizer-circuit-review-2026-10-01.md).
 
 ### Integer lattices: certified rank, little screened cheap structure
 
@@ -955,8 +955,8 @@ zero network reduction. No tested exact factor or residual meets the interface
 and client-compute objectives. Park these constructions, preserving their modular
 certificates and the explicit distinction between tall and wide matrix rank.
 
-Evidence: [integer screen](docs/evidence/integer-structure-screen-2026-10-01.json)
-and [review](docs/evidence/integer-structure-review-2026-10-01.md).
+Evidence: [integer screen](../evidence/integer-structure-screen-2026-10-01.json)
+and [review](../evidence/integer-structure-review-2026-10-01.md).
 
 ### Trusted-local preparation: trust placement, not a body reduction
 
@@ -968,8 +968,8 @@ does not erase correction generation or transfer. No appliance or multi-host run
 was performed. Local Prep remains a user-trust/placement option, not a large
 network-saving method.
 
-Evidence: [placement screen](docs/evidence/preparation-placement-screen-2026-10-01.json)
-and [review](docs/evidence/preparation-placement-review-2026-10-01.md).
+Evidence: [placement screen](../evidence/preparation-placement-screen-2026-10-01.json)
+and [review](../evidence/preparation-placement-review-2026-10-01.md).
 
 ### Direction after the four screens
 
@@ -1008,8 +1008,8 @@ selected output and usage while reducing online masked bodies from 6.11 to
 batched calls, so latency improvement is unproven. General generated-prefix
 promotion and a compiler-bound batched continuation remain unimplemented.
 
-Evidence: [state screen](docs/evidence/block-shared-state-screen-2026-10-01.json)
-and [review](docs/evidence/block-shared-state-review-2026-10-01.md).
+Evidence: [state screen](../evidence/block-shared-state-screen-2026-10-01.json)
+and [review](../evidence/block-shared-state-review-2026-10-01.md).
 
 ### Placement frontier and explicit compute denominators
 
@@ -1025,8 +1025,8 @@ token/head work. Requiring 80% all-linear remote instead selects attention-outpu
 only (164.93 MB). Cold delivery, native snapshots and scales are charged separately;
 none of these MAC fractions measures whole-response CPU.
 
-Evidence: [screen](docs/evidence/placement-frontier-screen-2026-10-01.json)
-and [review](docs/evidence/placement-frontier-review-2026-10-01.md).
+Evidence: [screen](../evidence/placement-frontier-screen-2026-10-01.json)
+and [review](../evidence/placement-frontier-review-2026-10-01.md).
 
 ### Task-qualified existing models
 
@@ -1044,8 +1044,8 @@ sampling to cohort comparison; historical unreported sampling cannot be silently
 ranked. Default SDK sampling remains preserved. Cohort costs are arithmetic
 projections; four examples measure role bodies, not full wire or broad task quality.
 
-Evidence: [screen](docs/evidence/task-qualified-models-screen-2026-10-01.json)
-and [review](docs/evidence/task-qualified-models-review-2026-10-01.md).
+Evidence: [screen](../evidence/task-qualified-models-screen-2026-10-01.json)
+and [review](../evidence/task-qualified-models-review-2026-10-01.md).
 
 ### Complete protected MLP construction
 
@@ -1061,8 +1061,8 @@ replacement allowances are 61.11 MB for 25% savings and 24.03 MB for 50%. Full-r
 retirement has a different, explicitly conserved budget. This construction misses
 both; no general lower bound on compressed FSS or other protocols is claimed.
 
-Evidence: [screen](docs/evidence/complete-mlp-contract-screen-2026-10-01.json)
-and [complete specification](docs/evidence/complete-mlp-contract-review-2026-10-01.md).
+Evidence: [screen](../evidence/complete-mlp-contract-screen-2026-10-01.json)
+and [complete specification](../evidence/complete-mlp-contract-review-2026-10-01.md).
 
 ### Next gate
 

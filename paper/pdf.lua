@@ -18,40 +18,22 @@ function Table(element)
   if not FORMAT:match("latex") then return nil end
 
   local all_rows = rows(element)
-  local wide = false
-  local widths = {}
-  for _, row in ipairs(all_rows) do
-    for index, cell in ipairs(row.cells) do
-      local length = #pandoc.utils.stringify(cell.contents)
-      widths[index] = math.max(widths[index] or 0, length)
-      if length > 32 then wide = true end
-    end
-  end
-  local total_width = 0
-  for _, width in ipairs(widths) do total_width = total_width + width end
-  if total_width > 55 then wide = true end
-  local spanning = wide or #element.colspecs > 4
+  local spanning = #element.colspecs > 3
 
   local columns = {}
   for _, spec in ipairs(element.colspecs) do
     local alignment = tostring(spec[1])
-    table.insert(columns, alignment == "AlignRight" and "r" or alignment == "AlignCenter" and "c" or "l")
-  end
-  if wide then
-    columns = {}
-    for _ = 1, #element.colspecs do
-      table.insert(columns, ">{\\raggedright\\arraybackslash}X")
-    end
+    table.insert(columns, alignment == "AlignRight" and "r" or alignment == "AlignCenter" and "c" or ">{\\raggedright\\arraybackslash}X")
   end
 
   local output = {
-    spanning and "\\begin{table*}[t]" or "\\begin{table}[htbp]",
+    spanning and "\\begin{table*}[t]" or "\\par\\medskip\\noindent\\begin{minipage}{\\linewidth}",
     "\\centering\\small",
   }
   if #element.caption.long > 0 then
-    table.insert(output, "\\caption{" .. latex(element.caption.long) .. "}")
+    table.insert(output, spanning and "\\caption{" .. latex(element.caption.long) .. "}" or "\\textbf{" .. latex(element.caption.long) .. "}\\par\\smallskip")
   end
-  table.insert(output, wide and "\\begin{tabularx}{\\textwidth}{@{}" .. table.concat(columns) .. "@{}}" or "\\begin{tabular}{@{}" .. table.concat(columns) .. "@{}}")
+  table.insert(output, "\\begin{tabularx}{\\linewidth}{@{}" .. table.concat(columns) .. "@{}}")
   table.insert(output, "\\toprule")
   for index, row in ipairs(all_rows) do
     local cells = {}
@@ -60,22 +42,28 @@ function Table(element)
     if index == #element.head.rows then table.insert(output, "\\midrule") end
   end
   table.insert(output, "\\bottomrule")
-  table.insert(output, wide and "\\end{tabularx}" or "\\end{tabular}")
-  table.insert(output, spanning and "\\end{table*}" or "\\end{table}")
+  table.insert(output, "\\end{tabularx}")
+  table.insert(output, spanning and "\\end{table*}" or "\\end{minipage}\\par\\medskip")
   return pandoc.RawBlock("latex", table.concat(output, "\n"))
+end
+
+function Code(element)
+  if FORMAT:match("latex") and element.text:match("^[%w_.%-]+%.json$") then
+    return pandoc.RawInline("latex", "\\nolinkurl{" .. element.text .. "}")
+  end
 end
 
 function Figure(element)
   if not FORMAT:match("latex") then return nil end
   local block = element.content[1]
   local image = block and block.content and block.content[1]
-  if not image or image.t ~= "Image" or not image.src:match("^paper/figures/[%w%-]+%.png$") then
+  if not image or image.t ~= "Image" or not image.src:match("^figures/[%w%-]+%.png$") then
     return nil
   end
   local caption = latex(element.caption.long)
   return pandoc.RawBlock("latex", table.concat({
     "\\par\\smallskip\\noindent\\begin{minipage}{\\linewidth}\\centering",
-    "\\includegraphics[width=0.89\\linewidth]{" .. image.src .. "}",
+    "\\includegraphics[width=0.89\\linewidth]{docs/build/papers/" .. image.src .. "}",
     "\\par\\smallskip\\footnotesize\\emph{" .. caption .. "}",
     "\\end{minipage}\\par\\smallskip",
   }, "\n"))

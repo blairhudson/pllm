@@ -35,6 +35,7 @@ jobs:
           cache-dependency-path: docs/package-lock.json
       - run: npm ci
         working-directory: docs
+      - uses: ./.github/actions/setup-paper-tools
       - name: Validate tag and build sdist
         env:
           RELEASE_TAG: ${{ github.ref_name }}

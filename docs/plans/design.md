@@ -1,6 +1,6 @@
 # PLLM design
 
-This directory is the canonical design contract for PLLM 0.1. It describes intended
+These pages are the canonical design contract for PLLM 0.1. They describe intended
 interfaces and acceptance gates; it does not claim that every interface or research method is
 implemented. `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
 
@@ -12,10 +12,10 @@ implemented. `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
 - [Documentation standard](documentation-standard.md): one documentation source and evidence-safe claims.
 - [Roadmap](roadmap.md): ordered delivery and promotion gates.
 
-Canonical machine contracts live in [`../schemas/`](../schemas/). Paper records and implementation
-status live in [`../docs/data/research/`](../docs/data/research/), and implementation requirements
+Canonical machine contracts live in [`schemas/`](../../schemas/). Paper records and implementation
+status live in [`docs/data/research/`](../data/research/), and implementation requirements
 live in the public research backlog. Historical measurements remain under
-[`../docs/evidence/`](../docs/evidence/) and are not implied to be current runs.
+[`docs/evidence/`](../evidence/) and are not implied to be current runs.
 
 ## Authority
 
@@ -24,7 +24,7 @@ Apply canonical contracts in this order:
 1. Fail-closed security, freshness, trust, and role-separation rules in
    [architecture](architecture.md), the [component standard](component-standard.md), and repository
    `SECURITY.md`; when rules differ, the stricter constraint wins until resolved.
-2. Topic-specific design pages govern intended semantics and interfaces; this README is only an
+2. Topic-specific design pages govern intended semantics and interfaces; this page is only an
    index and summary.
 3. Versioned schemas govern serialized record shape. Prose governs meaning not expressible in JSON
    Schema. A conflict is an error, not permission to choose the weaker interpretation.

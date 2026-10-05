@@ -6,7 +6,7 @@ Date: 2026-10-01.
 This document retains the original design below. Proposed signatures are not
 automatically supported: the implementation ledger identifies the tested subset.
 Existing network-reduction evidence is linked in
-[NETWORK_IO_10X_RESEARCH.md](NETWORK_IO_10X_RESEARCH.md).
+[network-io-10x.md](../research/network-io-10x.md).
 
 ## Implementation ledger
 
@@ -26,15 +26,15 @@ Existing network-reduction evidence is linked in
 
 Reproducible controls and current APIs:
 
-- [`examples/benchmarks/network_planning.py`](examples/benchmarks/network_planning.py)
-- [`examples/networks/README.md`](examples/networks/README.md)
-- [`network-planner-benchmark-2026-10-01.md`](docs/evidence/network-planner-benchmark-2026-10-01.md)
-- [`batched-continuation-2026-10-01.md`](docs/evidence/batched-continuation-2026-10-01.md)
-- [`artifact-locality-2026-10-01.md`](docs/evidence/artifact-locality-2026-10-01.md)
-- [`exact-linear-he-review-2026-10-01.md`](docs/evidence/exact-linear-he-review-2026-10-01.md)
-- [`metal-placement-qwen25-2026-10-03.md`](docs/evidence/metal-placement-qwen25-2026-10-03.md)
-- [`examples/benchmarks/automatic_planning.py`](examples/benchmarks/automatic_planning.py)
-- [`combined-compatibility-qwen25-2026-10-03.md`](docs/evidence/combined-compatibility-qwen25-2026-10-03.md)
+- [`examples/benchmarks/network_planning.py`](../../examples/benchmarks/network_planning.py)
+- [`examples/networks/README.md`](../../examples/networks/README.md)
+- [`network-planner-benchmark-2026-10-01.md`](../evidence/network-planner-benchmark-2026-10-01.md)
+- [`batched-continuation-2026-10-01.md`](../evidence/batched-continuation-2026-10-01.md)
+- [`artifact-locality-2026-10-01.md`](../evidence/artifact-locality-2026-10-01.md)
+- [`exact-linear-he-review-2026-10-01.md`](../evidence/exact-linear-he-review-2026-10-01.md)
+- [`metal-placement-qwen25-2026-10-03.md`](../evidence/metal-placement-qwen25-2026-10-03.md)
+- [`examples/benchmarks/automatic_planning.py`](../../examples/benchmarks/automatic_planning.py)
+- [`combined-compatibility-qwen25-2026-10-03.md`](../evidence/combined-compatibility-qwen25-2026-10-03.md)
 
 ### Selection and tuning policy
 

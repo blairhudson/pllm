@@ -26,5 +26,5 @@ benchmark, and documentation/promotion. Blocked and negative results remain reco
 scientific manuscripts require a novel method or composition and a matched Pareto-frontier advance;
 reproduction and engineering improvement remain separately labelled outcomes. Full-text-gated work
 cannot claim reproduction until required sources and original artifacts are acquired. The public
-[reimplementation backlog](../docs/content/docs/research/backlog.mdx) and
-[paper catalog](../docs/data/research/papers.json) record that work.
+[reimplementation backlog](../content/docs/research/backlog.mdx) and
+[paper catalog](../data/research/papers.json) record that work.

@@ -1,7 +1,7 @@
 # Five next communication experiments
 
-Completed results: [NEXT_FIVE_NETWORK_METHODS.md](NEXT_FIVE_NETWORK_METHODS.md)
-and [the evidence report](docs/evidence/next-five-network-2026-10-03.md).
+Completed results: [next-five-network-methods.md](next-five-network-methods.md)
+and [the evidence report](../evidence/next-five-network-2026-10-03.md).
 The generated-prefix experiment uses a new message-history cohort with its own
 matched 402.05 MB control. It is not ranked against the historical repeat/extend
 cohort below; the request contexts and token counts differ.

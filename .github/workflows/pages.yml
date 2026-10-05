@@ -34,6 +34,7 @@ jobs:
           cache-dependency-path: docs/package-lock.json
       - run: npm ci
         working-directory: docs
+      - uses: ./.github/actions/setup-paper-tools
       - run: npm run build
         working-directory: docs
       - id: site

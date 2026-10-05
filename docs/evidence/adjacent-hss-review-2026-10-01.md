@@ -72,7 +72,7 @@ are comparators, not a full CPU-cap or independent-provider privacy proof.
 
 Read before this screen:
 
-- `NETWORK_IO_10X_RESEARCH.md`, including the failed Q7 quadratic, 12-bit lift,
+- `docs/research/network-io-10x.md`, including the failed Q7 quadratic, 12-bit lift,
   whole-layer correlation and HE depth gates.
 - `docs/evidence/compiler-region-contract-qwen25-2026-09-30.json`.
 - `docs/evidence/prepared-cold-compare-qwen-smol-2026-09-29.json`.
@@ -494,4 +494,4 @@ rtk git diff --no-index --check /dev/null scripts/probe_hss_feasibility.py
 ```
 
 Both exited 0 with no output. Existing untracked research work, including
-`NETWORK_IO_10X_RESEARCH.md`, was preserved.
+`docs/research/network-io-10x.md`, was preserved.

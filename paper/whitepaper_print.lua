@@ -11,27 +11,19 @@ end
 function Pandoc(doc)
   if not FORMAT:match("html") then return nil end
 
-  local sections = {{}, {}, {}}
+  local sections = {{}}
   local current = 1
-  local seen = {}
-  local breaks = {
-    ["Research becomes a candidate capability"] = 2,
-    ["Measured baseline; open comparison"] = 3,
-  }
   for _, block in ipairs(doc.blocks) do
-    if block.t == "Header" and block.level == 2 then
-      local heading = text(block.content)
-      seen[heading] = true
-      current = breaks[heading] or current
+    if block.t == "RawBlock" and block.format == "tex" and
+       block.text:match("^\\newpage%s*$") then
+      current = current + 1
+      sections[current] = {}
+    else
+      table.insert(sections[current], block)
     end
-    table.insert(sections[current], block)
   end
-  for heading in pairs(breaks) do
-    if not seen[heading] then error("Missing whitepaper print section: " .. heading) end
-  end
-  if not seen["Why PLLM"] or not seen["One private request"] or
-     not seen["Economic value needs an honest denominator"] then
-    error("Whitepaper print sections changed; review page composition")
+  if #sections ~= 2 then
+    error("Whitepaper print layout requires exactly two source sections")
   end
 
   local title = text(doc.meta.title)
@@ -44,15 +36,14 @@ function Pandoc(doc)
     '<div class="cover-rule"></div>',
     '<h1>' .. escape(subject) .. '</h1>',
     '<div class="cover-bottom"><span>' .. escape(doc.meta.author) .. '</span>',
-    '<span>' .. escape(doc.meta["web-date"]) .. '</span></div>',
+    '<span>' .. escape(doc.meta.date) .. '</span></div>',
     '</header>',
   })
   table.insert(sections[1], 1, pandoc.RawBlock("html", hero))
 
   local labels = {
-    "PRIVATE INFERENCE / TWO ROLES ONLINE",
-    "RESEARCH / COMPOSITION & VALUE",
-    "EVIDENCE / WHAT WE HAVE MEASURED",
+    "PRIVATE INFERENCE / PRACTICAL CONSTRAINTS",
+    "RESEARCH / MEASURED PROGRESS",
   }
   local pages = {}
   for index, blocks in ipairs(sections) do

@@ -37,7 +37,7 @@ def test_design_status_matches_parser_visible_command_families() -> None:
     assert set(choices) == {
         "config", "components", "topology", "gateway", "serve", "benchmark", "dev", "network", "plan"
     }
-    status = (ROOT / "design/cli.md").read_text(encoding="utf-8").split(
+    status = (ROOT / "docs/plans/cli.md").read_text(encoding="utf-8").split(
         "## Implementation status", 1
     )[1]
     for shipped in (

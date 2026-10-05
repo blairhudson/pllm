@@ -8,14 +8,17 @@ import re
 import signal
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 PAPER_DIR = ROOT / "paper"
+BUILD_DIR = ROOT / "docs" / "build" / "papers"
+FIGURES = BUILD_DIR / "figures"
 DOWNLOADS = ROOT / "docs" / "public" / "downloads"
 WEB_DIR = ROOT / "docs" / "content" / "research"
 
@@ -31,10 +34,10 @@ class Paper:
 
 PAPERS = {
     "paper": Paper("manuscript.md", "paper.pdf", "paper.mdx", 4, True),
-    "whitepaper": Paper("whitepaper.md", "whitepaper.pdf", "whitepaper.mdx", 3),
+    "whitepaper": Paper("whitepaper.md", "whitepaper.pdf", "whitepaper.mdx", 2),
 }
 
-WHITEPAPER_FIGURES = ("mechanics", "research-loop", "qwen-baseline")
+WHITEPAPER_FIGURES = ("mechanics", "research-loop")
 
 
 def run(command: list[str], *, env: dict[str, str] | None = None) -> None:
@@ -72,7 +75,8 @@ def browser_engine(requested: str | None) -> str:
 
 
 def pandoc_args(spec: Paper) -> list[str]:
-    args = [executable("pandoc"), str(PAPER_DIR / spec.source), "--from=markdown+raw_tex"]
+    args = [executable("pandoc"), str(PAPER_DIR / spec.source),
+            "--from=markdown+raw_tex", "--fail-if-warnings"]
     if spec.bibliography:
         args.append("--citeproc")
     return args
@@ -91,7 +95,7 @@ def validate_pdf(output: Path, spec: Paper) -> None:
 
 
 def build_pdf(spec: Paper, engine: str) -> Path:
-    output = PAPER_DIR / spec.output
+    output = BUILD_DIR / spec.output
     env = os.environ.copy()
     env.setdefault("SOURCE_DATE_EPOCH", "0")
     run(
@@ -110,7 +114,7 @@ def build_pdf(spec: Paper, engine: str) -> Path:
 
 
 def build_whitepaper_pdf(spec: Paper, browser: str) -> Path:
-    output = PAPER_DIR / spec.output
+    output = BUILD_DIR / spec.output
     with tempfile.TemporaryDirectory(prefix="pllm-whitepaper-") as temporary:
         temp = Path(temporary)
         html = temp / "whitepaper.html"
@@ -120,7 +124,7 @@ def build_whitepaper_pdf(spec: Paper, browser: str) -> Path:
             "--standalone",
             "--to=html5",
             "--embed-resources",
-            f"--resource-path={ROOT}",
+            f"--resource-path={BUILD_DIR}",
             f"--template={PAPER_DIR / 'whitepaper_print.html'}",
             f"--css={PAPER_DIR / 'whitepaper_print.css'}",
             f"--lua-filter={PAPER_DIR / 'whitepaper_print.lua'}",
@@ -202,7 +206,7 @@ def source_archive(name: str, spec: Paper) -> Path:
     output = DOWNLOADS / f"{name}-source.zip"
     files = [
         Path("LICENSE"),
-        Path("scripts/build_papers.py"),
+        Path("docs/scripts/build-papers.py"),
         Path("paper") / spec.source,
         Path("paper/web.lua"),
         Path("paper/web.template.md"),
@@ -214,11 +218,11 @@ def source_archive(name: str, spec: Paper) -> Path:
             Path("paper/whitepaper_print.lua"),
             Path("paper/whitepaper_print.html"),
             Path("paper/whitepaper_print.css"),
-            Path("scripts/render_paper_figures.py"),
+            Path("docs/scripts/render-paper-figures.py"),
             Path("docs/evidence/current-runtime-2026-09-11.json"),
         ])
         for figure in WHITEPAPER_FIGURES:
-            files.extend([Path("paper/figures") / f"{figure}.{extension}"
+            files.extend([FIGURES.relative_to(ROOT) / f"{figure}.{extension}"
                           for extension in ("svg", "png")])
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for relative in sorted(files):
@@ -226,6 +230,37 @@ def source_archive(name: str, spec: Paper) -> Path:
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
             archive.writestr(info, (ROOT / relative).read_bytes())
+    return output
+
+
+def arxiv_archive(spec: Paper) -> Path:
+    """Export standalone, citeproc-resolved TeX; arXiv need not run Pandoc."""
+    output = DOWNLOADS / "paper-arxiv-source.zip"
+    with tempfile.TemporaryDirectory(prefix="pllm-arxiv-") as temporary:
+        source = Path(temporary) / "main.tex"
+        run([
+            *pandoc_args(spec), "--standalone", "--to=latex",
+            f"--include-in-header={PAPER_DIR / 'header.tex'}",
+            f"--lua-filter={PAPER_DIR / 'pdf.lua'}", f"--output={source}",
+        ])
+        files = {
+            "main.tex": source.read_bytes(),
+            "LICENSE": (ROOT / "LICENSE").read_bytes(),
+            "README.txt": (
+                "PLLM technical paper: standalone arXiv source\n\n"
+                "Compile main.tex with pdfLaTeX twice. References are already\n"
+                "resolved and embedded; no Pandoc, Python, BibTeX, external\n"
+                "bibliography, or generated figures are required.\n\n"
+                "Canonical authoring source: paper/manuscript.md in the PLLM\n"
+                "repository, https://github.com/blairhudson/pllm\n"
+            ).encode(),
+        }
+        with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+            for name, content in sorted(files.items()):
+                info = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = 0o100644 << 16
+                archive.writestr(info, content)
     return output
 
 
@@ -240,6 +275,9 @@ def main() -> None:
     names = PAPERS if args.target == "all" else (args.target,)
     engine = pdf_engine(args.pdf_engine) if "paper" in names else None
     browser = browser_engine(args.browser) if "whitepaper" in names else None
+    BUILD_DIR.mkdir(parents=True, exist_ok=True)
+    if "whitepaper" in names:
+        run([sys.executable, str(ROOT / "docs/scripts/render-paper-figures.py")])
     if not args.pdf_only:
         DOWNLOADS.mkdir(parents=True, exist_ok=True)
         WEB_DIR.mkdir(parents=True, exist_ok=True)
@@ -257,10 +295,12 @@ def main() -> None:
                 figure_downloads = DOWNLOADS / "figures"
                 figure_downloads.mkdir(parents=True, exist_ok=True)
                 for figure in WHITEPAPER_FIGURES:
-                    shutil.copyfile(PAPER_DIR / "figures" / f"{figure}.png",
+                    shutil.copyfile(FIGURES / f"{figure}.png",
                                     figure_downloads / f"{figure}.png")
             build_web(spec)
             source_archive(name, spec)
+            if name == "paper":
+                arxiv_archive(spec)
         print(f"Built {name} from paper/{spec.source}")
 
 
