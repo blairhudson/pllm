@@ -15,13 +15,15 @@ export function ResearchScorecard() {
   const models = [...new Set(data.cohorts.map((cohort) => cohort.model))];
   const [model, setModel] = useState(models[0]);
   const [cohortId, setCohort] = useState(data.cohorts[0].id);
-  const [metricId, setMetric] = useState('covered');
+  const [metricId, setMetric] = useState('requestTps');
   const [publicPrefix, setPublicPrefix] = useState(true);
+  const [clientWeights, setClientWeights] = useState(true);
   const available = data.cohorts.filter((cohort) => cohort.model === model);
   const cohort = available.find((candidate) => candidate.id === cohortId) ?? available[0];
   const metric = data.metrics.find((candidate) => candidate.id === metricId)!;
   const key = metric.id as keyof typeof cohort.rows[number]['metrics'];
-  const rows = cohort.rows.filter((row) => publicPrefix || row.publicPrefixTokens === 0);
+  const rows = cohort.rows.filter((row) => row.id === cohort.baseline ||
+    ((publicPrefix || row.publicPrefixTokens === 0) && (clientWeights || !row.placement.clientBody)));
   const baseline = rows.find((row) => row.id === cohort.baseline)!;
   const best = leaders(rows, metric);
   const max = Math.max(1, ...rows.map((row) => row.metrics[key] ?? 0));
@@ -51,6 +53,9 @@ export function ResearchScorecard() {
     {cohort.rows.some((row) => row.publicPrefixTokens > 0) &&
       <label className={styles.toggle}><input type="checkbox" checked={publicPrefix}
         onChange={(event) => setPublicPrefix(event.target.checked)} /> Include explicitly public-prefix configurations</label>}
+    {cohort.rows.some((row) => row.placement.clientBody) &&
+      <label className={styles.toggle}><input type="checkbox" checked={clientWeights}
+        onChange={(event) => setClientWeights(event.target.checked)} /> Include client-owned decoder stages</label>}
     <p className={styles.scope}>{cohort.scope}</p>
     <div className={styles.winner} aria-live="polite">
       <span>{metric.direction === 'min' ? 'Lower is better' : 'Higher is better'} · {metric.unit}</span>
@@ -69,7 +74,9 @@ export function ResearchScorecard() {
             {value !== null && <rect x="230" y="0" width={430 * value / max} height="25" rx="2"
               className={best.includes(row.id) ? styles.bestBar : styles.bar} />}
             <text x="755" y="17" textAnchor="end" className={styles.chartValue}>{number(value)}</text>
-            {row.publicPrefixTokens > 0 && <text x="0" y="37" className={styles.chartNote}>{row.publicPrefixTokens} public prefix tokens</text>}
+            <text x="0" y="37" className={styles.chartNote}>{row.placement.topology} · {row.placement.kernel}
+              {row.placement.clientBody ? ' · client body weights' : ''}
+              {row.publicPrefixTokens > 0 ? ` · ${row.publicPrefixTokens} public prefix tokens` : ''}</text>
           </g>;
         })}
       </svg>
@@ -82,6 +89,8 @@ export function ResearchScorecard() {
           const value = row.metrics[key], gain = improvement(value, baselineValue, metric.direction);
           return <tr key={row.id}>
             <th scope="row">{row.label}{row.id === cohort.baseline && <small>Baseline</small>}
+              <small>{row.placement.topology} · {row.placement.kernel} · {row.placement.ownership}</small>
+              {row.placement.clientMacPercent !== null && <small>{number(row.placement.clientMacPercent)}% declared body linear MACs at client</small>}
               {row.publicPrefixTokens > 0 && <small>{row.publicPrefixTokens} public tokens</small>}</th>
             <td>{number(value)}</td><td>{row.id === cohort.baseline ? '—' : gain === null ? 'Unavailable' :
               `${number(Math.abs(gain))}% ${gain >= 0 ? 'better' : 'worse'}`}</td>
@@ -91,10 +100,15 @@ export function ResearchScorecard() {
       </table>
     </div>
     <details className={styles.details}><summary>Scope, identities and every measured value</summary>
-      <p>These local CPU runs do not establish Internet latency, operator independence or representative model quality.
+      <p>These co-located runs do not establish Internet latency, operator independence or representative model quality.
+        Client-only configurations retain all decoder weights and computation locally.
+        Prepared and two-worker configurations keep attention and nonlinear work at the client;
+        placement percentages count body linear operations only.
+        Largest provider RSS is the maximum of the individual role peaks, not a simultaneous topology peak.
         Client lifetime RSS is cumulative across candidates and cannot rank their peaks.
         Pre-positioned public artifact sizes are shown separately; checkpoint distribution and full physical wire are unmeasured.</p>
       <p><a href={repository + cohort.report}>Canonical report ↗</a> · <a href={withBasePath('/research/scorecard/')}>Commands and methodology</a></p>
+      {'selection_report' in cohort && <p><a href={repository + cohort.selection_report}>Search observations and finalist selection ↗</a></p>}
       <p>Report SHA-256: <code>{cohort.reportSha256}</code></p>
       {rows.map((row) => <details key={row.id}><summary>{row.label}</summary>
         <p>Configuration: <code>{row.configurationDigest}</code><br />Python file SHA-256: <code>{row.fileSha256}</code></p>

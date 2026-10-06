@@ -2,6 +2,43 @@
   "schema": "pllm.research_cohorts.v1",
   "cohorts": [
     {
+      "id": "qwen25-sdk-finalists-150-8",
+      "title": "SDK search finalists · 150 input / 8 output tokens",
+      "report": "docs/evidence/research-finalists-qwen25.comparison.json",
+      "selection_report": "docs/evidence/research-finalists-qwen25.selection.json",
+      "publisher_report": "docs/evidence/research-scorecard-publisher.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/artifacts.py": "aa126d3b5a907b43a0580de000e97ff0e5a1da2f8995171b796e71100ce9d72b",
+        "scripts/build_incremental_sdk_experiments.py": "0eeb9cfb43bf095e3cb015c2e8fcb0bed327836dfd54a7c54ea03ef4cb8893d2",
+        "docs/evidence/research-finalists-qwen25.selection.json": "da792d1e0534ccb57ce5619f24b670995b5ccfe7cb7a3e69914f9669ecfe6b56",
+        "docs/evidence/research-search-client-qwen25-v2.json": "926f819a90f905eec7ee590d153dcc1a8ce8475270e8ef886418c801bf6d6512",
+        "docs/evidence/research-search-prepared-qwen25-v3.json": "b8c4b31c441090bbe61b81f3611f681c41688330363640c5a2ac9daa9aa39812",
+        "docs/evidence/research-search-offset-qwen25-v3.json": "560e602833001eaa6c88837a4210f2f575282536eec8ee78522406a281c628e3",
+        "docs/evidence/research-search-public-prefix-qwen25-v2.json": "67c98ac2d89dea093da5b9c14dff209248336b3f5fa6eee71d24991e290f0aaf"
+      },
+      "baseline": "prepared-baseline",
+      "scope": "One cold response per configuration: 13 SDK-search finalists, baseline and two existing stacks. Cached checkpoint; co-located CPU/Metal roles. Request timing excludes pre-run setup; cold CPU includes provider startup. Public-prefix rows reuse 96 public tokens. Artifact distribution and full physical wire remain unmeasured.",
+      "candidates": {
+        "prepared-baseline": {"file": "benchmarks/research/baseline.py", "sha256": "e0361045430188ec2ac02814dd42b3ad5910c9e52d76124ce3e842babf9b36f1", "label": "Prepared baseline", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "prepared-exact-stack": {"file": "benchmarks/research/sota.py", "sha256": "a254c38247d5737e3794f675ae86365039d9909eed8b93a701935850162c9bc1", "label": "Exact prepared stack", "artifact_bytes": 9285336, "public_prefix_tokens": 0},
+        "prepared-public-prefix": {"file": "benchmarks/research/public_prefix.py", "sha256": "65f660b7da670962ad341b6c79e9d8ed9322a40008819dd1280142d6c8e5cadf", "label": "Stack + public prefix", "artifact_bytes": 12252963, "public_prefix_tokens": 96},
+        "searched-client-ee35d158335a": {"file": "benchmarks/research/finalists/searched_client_ee35d158335a.py", "sha256": "dead3e5704ebed57709e62ed1b83cfc295a9a69b6fe7c3859fcfae6284c07af9", "label": "Client-only (CPU)", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-470b45d2837a": {"file": "benchmarks/research/finalists/searched_prepared_470b45d2837a.py", "sha256": "8e6cab8fb0158e369a7d9791b3d201ceef753fd29cf267d61b020166b198fc8e", "label": "Client MLP — speed", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-6d66f2bf566d": {"file": "benchmarks/research/finalists/searched_prepared_6d66f2bf566d.py", "sha256": "2dc342cf1792f789c7524c9da82930e2e0d0e130f9bfd4861bb2843e3f0ceb63", "label": "Client MLP — delivery", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-755220a8dcd9": {"file": "benchmarks/research/finalists/searched_prepared_755220a8dcd9.py", "sha256": "c67811333c0fdfccd467a1a88c29b59564446679ebe3c1d8b7ffa61e69a26f92", "label": "Prepared — Metal", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-99a3fda121bd": {"file": "benchmarks/research/finalists/searched_prepared_99a3fda121bd.py", "sha256": "9157c547c9db337d00d2f3a4e79204e37e2c59eed0bcad0dbcd3ef317b6b6acb", "label": "Prepared — row sizing", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-da149d6ab6b5": {"file": "benchmarks/research/finalists/searched_prepared_da149d6ab6b5.py", "sha256": "4182a48aaf9031903cd7ce41b3616c81b0d5968365f331481f8952c10d4b077b", "label": "Prepared — packed", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-offset-e53a33989ecd": {"file": "benchmarks/research/finalists/searched_offset_e53a33989ecd.py", "sha256": "3fcdc52896b2c20bc0acca2ec58e06d255bfd262dd246af6d355796199c64459", "label": "Two workers — Metal", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-offset-8bb4da6d2818": {"file": "benchmarks/research/finalists/searched_offset_8bb4da6d2818.py", "sha256": "312b0f9d2b0418caad4f0422125f10586e73a405fd4fe646c119cf9a2883e65f", "label": "Two workers — zlib", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-offset-153bd7b811f9": {"file": "benchmarks/research/finalists/searched_offset_153bd7b811f9.py", "sha256": "20530d7a3061806d710b33e36dda3e26ad943347c4f8732c79afa05fdcbcda01", "label": "Two workers — CPU", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-public_prefix-7a8d698e8f76": {"file": "benchmarks/research/finalists/searched_public_prefix_7a8d698e8f76.py", "sha256": "165e8c02922430c00da4cb6419d8416d8d8ff7a9c4f0d6f20c4a47f3cc94b0db", "label": "Prefix + client MLP", "artifact_bytes": 2967627, "public_prefix_tokens": 96},
+        "searched-public_prefix-717a3f5208b9": {"file": "benchmarks/research/finalists/searched_public_prefix_717a3f5208b9.py", "sha256": "8b7302fc1317d5179297577022cf308d621b0f8e49e7b6e6d095296412924bcb", "label": "Prefix + zlib", "artifact_bytes": 2967627, "public_prefix_tokens": 96},
+        "searched-public_prefix-a4e0c08b4380": {"file": "benchmarks/research/finalists/searched_public_prefix_a4e0c08b4380.py", "sha256": "14fc13a37aac6f37b9be2e8c6dc5045fd40646738a675985f3bca8a1ff4ab133", "label": "Prefix + CPU 8T", "artifact_bytes": 2967627, "public_prefix_tokens": 96},
+        "searched-public_prefix-c33450a1cc57": {"file": "benchmarks/research/finalists/searched_public_prefix_c33450a1cc57.py", "sha256": "2c3c259c4e53bfc51be3907994bc5418e0ff9167c419188ec3e02b2aa0c741c0", "label": "Prefix + packed", "artifact_bytes": 2967627, "public_prefix_tokens": 96}
+      }
+    },
+    {
       "id": "qwen25-prepared-150-8",
       "title": "Prepared compositions · 150 input / 8 output tokens",
       "report": "docs/evidence/research-scorecard-qwen25.json",

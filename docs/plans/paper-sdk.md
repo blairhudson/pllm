@@ -1,7 +1,8 @@
 # Paper-to-SDK capability plan
 
-Status: staged paper-linked SDK symbols, 23 September 2026. The paper landing map is
-`docs/research/paper-module-landing-map-2026-09-23.md`; the 84-entry source/citation
+Status: SDK composition search and its matched finalist scorecard are implemented;
+paper-linked executable methods are the next research priority. The paper landing map is
+`docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
 local research cache; run `uv run python scripts/sync_paper_library.py --fetch`
 to populate it, never during documentation builds. The existing 24 locked
@@ -10,6 +11,48 @@ the chronology is **not** an implementation or an eligible inference composition
 The packaged `python/pllm/components/planned_methods.json` binds every paper to one
 importable Python symbol. The [generated research method roadmap](https://pllm.run/sdk/components/research-method-roadmap/)
 lists those symbols and their next gates.
+
+## Next delivery order: a PLLM comparative study
+
+Prioritize recent papers with direct relevance to private LLM execution, established
+published reference systems, and reusable prerequisites. This is an engineering
+priority, not a citation-count or original-paper performance ranking; no current
+bibliometric survey has been performed. Paper versions, authors and source links
+come from `docs/data/research/paper-library.json`, while actual PLLM coverage comes
+from `docs/data/research/implementations.json`.
+
+| Priority | Papers | SDK work to deliver | First decisive gate |
+| --- | --- | --- | --- |
+| 0 — establish comparable controls | SmoothQuant (2023), Slalom (2019) | Put the existing channel-equalization and Freivalds adaptations through saved Qwen2.5 configurations, explicit quality checks and complete response accounting | SmoothQuant needs a separate numeric/quality cohort; Slalom's verified preparation must fit admitted memory. Neither is an original-hardware reproduction |
+| 1 — newest direct linear-delegation target | Maverick (2026) | Implement reusable private matrix delegation and coding verification contracts in protocols/verification; extend beyond the current bounded coding reference | Full-width code/resource bounds, the actual masking/privacy construction, repeated queries and malicious-result rejection. The current Walsh toy lacks input privacy |
+| 2 — shared nonlinear execution foundation | FuseFSS (2026), with SIGMA (2024) as the reference baseline | A party-local fixed-point/FSS backend, then independently selectable mask-aware fusion; save unfused and fused paper configurations | Exact/reviewed rescaling, signedness, preprocessing consumption and two-role transport before a whole decoder. Existing shared-runtime truncation remains inadmissible |
+| 3 — state and long-context costs | MPCache (2025) | Complete the model-neutral retention transform, numeric-state executor and protected dynamic-selection contract | Held-out same-token prefill/decode quality and observable access-pattern tests; ordinary prefix reuse is not MPCache |
+| 4 — compare nonlinear methods on the shared backend | Curl (2024), Compact (2024), LogRow (2024) | Promote the existing bounded references to explicit tensor schedules with transport and material admission | Include protected input conversion/truncation, all one-use material, offline issuance and whole-decoder quality; a lookup table or scalar approximation is insufficient |
+| 5 — additional private transformer systems | CipherPrune (2025), NEXUS (2025), THOR (2025) | Source-specific methods expressed through generic semantic transforms and separately declared HE/hybrid protocols | Private pruning decisions and model-quality changes for CipherPrune; complete autoregressive state/token feedback and ciphertext costs for HE systems |
+
+Bifrost (2026) follows availability of an actual attestation/key-provisioning
+executor and suitable hardware. Euston's analyzed vulnerable transmission remains
+a regression/repair review target. Neither receives a simulated successful SDK score.
+
+Each delivery ends with:
+
+1. A paper-to-method contract stating **full reproduction**, **scoped adaptation**
+   or **component reference**, with deviations from the cited source.
+2. A reusable executable SDK capability, bounded native admission and real role
+   transport for the claimed scope, including failure/cancellation behavior.
+3. A repository Python `Experiment` factory, pinned public calibration where
+   needed, and immutable source/configuration/evidence identities.
+4. A Qwen2.5-0.5B matched cohort against both the relevant baseline and the best
+   eligible SDK combination. Qwen3-4B follows after memory admission. Comparable
+   model/source/workload/lifecycle and trust contracts are explicit.
+5. Quality-gated cohorts for methods that change numerics or semantics. Such
+   methods cannot enter today's exact-body/output scorecard by suppressing its
+   identity checks. Record quality, bytes on every link, setup/material, CPU/GPU,
+   memory and failures separately; unknown measurements remain unknown.
+
+The meta-study should first establish useful head-to-head **methods**, then compose
+compatible methods through SDK search. Do not relabel the fastest PLLM stack as an
+individual paper's reproduction or mix original-paper speedups into PLLM scores.
 
 ## Importable Python stubs are not executable components
 

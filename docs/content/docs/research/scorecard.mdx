@@ -4,11 +4,92 @@ description: "Pinned Python configurations, matched Qwen cohorts, implementation
 ---
 
 The [interactive scorecard and chronology](/research/papers/) connect measured
-SDK configurations to their evidence. **SOTA means the best measured composition
-for a selected metric, model and workload among the displayed configurations.**
-It is not a ranking of papers' original systems or a claim of an exhaustive search.
+SDK configurations to their evidence. **SOTA means the highest-performing measured
+combination of compatible SDK capabilities for a selected metric, model and workload.**
+The search scope and matched comparison determine what the measurements establish.
+Original-paper performance is never substituted for a PLLM measurement.
 
-## Current Qwen2.5 comparison
+## SDK composition search
+
+[`BeamSearch` and `benchmark_search`](/sdk/evaluate/search/) complement grid and
+random search. Bounded beam search measures an incumbent, expands one-axis
+neighbors of the measured leaders and retains incompatible, resource-rejected
+and failed trials. It does not materialize the full Cartesian grid.
+
+The research [search space](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/combinations.py)
+includes CPU thread counts, Metal, preparation scheduling, wire encodings,
+delivery and storage, client linear-stage ownership, indexed tokenization and
+an explicitly public-prefix cohort. Prepared, two-worker and client-only graphs
+are searched separately. Model, numeric and privacy contracts stay fixed within
+each adaptive search.
+
+The [research runner](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/search.py)
+delegates proposal, admission and execution to the SDK. Every completed
+observation retains its exact Python factory. Single-observation adaptive search
+is exploratory; a budget-limited winner is the best observed configuration,
+not proof of a global optimum.
+
+[Finalist confirmation](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/confirm.py)
+uses SDK cohort validation and Pareto ranking to select throughput and byte
+leaders. It also selects leaders with provider-owned body linear stages, then
+remeasures the distinct finalists with the baseline in one ordinary benchmark
+invocation. Its selection manifest binds each factory to the source search and
+selection objective. Separate search salts are never merged into one ranked
+cohort.
+
+Saved finalist factories honor an explicit `PLLM_RESEARCH_ARTIFACTS` directory
+for the published tokenizer and capsule. Their content digests remain required.
+Relocating these plan-bound paths changes the configuration digest; a rerun
+records the new identity rather than attributing it to the original score.
+
+The chart labels topology, CPU/Metal selection and client linear-stage ownership.
+Client-only runs retain the full decoder locally. Prepared and two-worker runs
+retain attention and nonlinear operations at the client even when all body
+linear stages are remote. The ownership toggle can exclude client body weights;
+the public-prefix toggle can exclude that separate workload assumption.
+
+## Current SDK-search confirmation
+
+Four bounded searches made **108 attempts and 72 measurements** across the
+declared CPU/Metal, placement, transport, preparation and public-prefix choices.
+Thirteen selected finalists and three controls were then measured in one fresh
+150+8-token cohort. All 16 passed runtime checks and matched output digests.
+
+| Configuration | Full request | Output tokens/s | Covered bodies | Cold aggregate CPU |
+| --- | ---: | ---: | ---: | ---: |
+| Prepared baseline | 18.91 s | 0.423 | 603.45 MB | 61.47 CPU s |
+| Client-only CPU | 7.72 s | 1.036 | Unmeasured setup total | 18.51 CPU s |
+| Client MLP — delivery | 9.38 s | 0.853 | 535.68 MB | 35.31 CPU s |
+| Prepared — Metal | 15.70 s | 0.509 | 603.45 MB | 34.16 CPU s |
+| Two workers — Metal | 16.53 s | 0.484 | 526.34 MB | 35.03 CPU s |
+| Prefix + CPU 8T | 11.48 s | 0.697 | 303.57 MB | 40.11 CPU s |
+| Existing stack + public prefix | 20.61 s | 0.388 | 266.91 MB | 48.41 CPU s |
+
+Client-only wins observed request throughput, with all computation and weights
+at the client. The two client-MLP finalists place **87.69% of declared body linear
+MACs** locally. Among provider-owned body configurations without public-prefix
+reuse, Metal improves observed throughput **20.4%** over this cohort's baseline.
+Allowing 96 public prefix tokens selects a different throughput leader; the
+existing public-prefix stack remains the covered-byte leader at **55.8% below
+baseline**. The chart includes every finalist, not just this summary.
+
+Each configuration has one observation. Small timing differences do not establish
+statistical superiority, and the search budget does not exhaust all combinations.
+Request timing excludes pre-run setup. Cold process CPU includes provider startup
+but does not measure GPU compute or energy. Client-only online provider bodies
+are zero; its unreported setup total is not silently replaced with zero.
+Client-only ownership follows its role graph: the historical bundle-storage
+sample excludes weights held by its separate local engine.
+
+The original comparison retained a failed aggregate **same-backend** guard while
+all individual checks passed. The published
+[explicit cross-kernel analysis](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-finalists-qwen25.comparison.json)
+uses the SDK's `--compare-kernels` policy, preserving every original measurement
+and binding the original report by SHA-256. Source locks match within each role
+graph; model, numeric body, workload and captured outputs match across graphs.
+This is a whole-response component comparison, not a CPU-only speedup claim.
+
+## Historical initial Qwen2.5 comparison
 
 The first cohort uses pinned Qwen2.5-0.5B-Instruct, W8A8 with `prefix_f32`,
 150 input tokens and eight greedy output tokens. It contains one cold response
@@ -38,6 +119,9 @@ Client/dashboard process lifetime RSS accumulates across candidates in this
 invocation. It cannot rank isolated client peaks. The chart leaves that metric,
 full physical wire, representative quality and energy **unmeasured**. Provider
 peaks belong to each candidate's fresh role children and remain separately labelled.
+Largest provider RSS compares the maximum individual provider peak across role
+graphs, requiring a sample from every provider. It is zero for client-only
+execution and is not a simultaneous whole-topology peak.
 The scorecard preserves N−1 denominators for decode bytes and throughput.
 
 ## Python configurations
@@ -86,6 +170,29 @@ confidence interval. Memory admission and host-pressure checks remain active.
 The [canonical first report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-scorecard-qwen25.json)
 is retained rather than overwritten by the command above.
 
+### Rerun the SDK-selected finalists
+
+After building the same public artifacts, this command replays the saved search
+selection, verifies each immutable Python factory and runs all sixteen choices
+under one new private salt:
+
+```bash
+uv run python -m benchmarks.research.confirm .artifacts/research-finalists-rerun.json \
+  --search client=docs/evidence/research-search-client-qwen25-v2.json \
+  --search prepared=docs/evidence/research-search-prepared-qwen25-v3.json \
+  --search offset=docs/evidence/research-search-offset-qwen25-v3.json \
+  --search public_prefix=docs/evidence/research-search-public-prefix-qwen25-v2.json
+```
+
+The runner explicitly selects cross-kernel comparison. Its `--recompare` option
+instead validates an existing report against those factories and writes a separate
+`.comparison.json`; it does not run inference or change the original observations.
+Saved search trials live under `benchmarks/research/trials/`; final scored factories
+live under `benchmarks/research/finalists/`. Rejected trials remain in each search
+report with reasons. The four searches used budgets of 4 client-only, 48 prepared,
+24 two-worker and 32 public-prefix trials. All targeted full-request throughput;
+byte leaders were additionally selected from their measured observations.
+
 ## Paper reimplementation coverage
 
 The chronology's **Hide unimplemented papers** filter includes scoped SDK
@@ -124,6 +231,15 @@ This is a component reimplementation, not a reviewed transport or an executable
 Qwen Pipeline. See the [Curl record](/research/papers/curl/).
 
 ## Extending the scorecard
+
+The next SDK reimplementation queue prioritizes **Maverick (2026)** and
+**FuseFSS (2026)**, using **SIGMA (2024)** for the latter's unfused comparison,
+then **MPCache (2025)** and tensor-scale Curl/Compact/LogRow. Existing SmoothQuant
+and Slalom adaptations supply the first paper-specific control cohorts. This
+order combines recency, published system coverage and reusable dependencies;
+it is not a citation-count ranking. The
+[paper-to-SDK delivery plan](https://github.com/blairhudson/pllm/blob/main/docs/plans/paper-sdk.md)
+records exact promotion gates and the comparative-study protocol.
 
 Add a Python factory and a canonical matched report, then register the cohort in
 `docs/data/research/benchmark-cohorts.json`. The docs generator validates source,

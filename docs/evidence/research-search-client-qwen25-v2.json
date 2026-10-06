@@ -1,0 +1,3162 @@
+{
+  "admissions": [
+    {
+      "memory": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 3500448768,
+            "required_host_bytes": 6280412810
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 3500448768,
+            "required_host_bytes": 6280412810
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 6280412810,
+          "compiled_input_bound": 256,
+          "components": {
+            "checkpoint_bytes": 988097824,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 3242087424,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 221122568,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 131072,
+            "client_state_work_bytes": 75497472,
+            "client_tensor_work_bytes": 296620040,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 25525248,
+            "largest_loading_temporary_bytes": 272269312,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 2242915872,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_provider_metal_bytes": 0,
+            "per_role_i8_and_native_bytes": {},
+            "per_role_loading_temporary_bytes": {},
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 540347904,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {},
+          "inventory_rows": 263,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 256,
+          "max_output_tokens": 8,
+          "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+          "native_total_peak_bytes": 6280412810,
+          "pipeline_digest": "378c8b6e20fcbc34f1c7b1a2eaa00b5e92e8a7e6906d1563cc619b8b53c31d0a",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {},
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 10869227520,
+          "available": 15164194816,
+          "disk_free": 47905980416,
+          "reserve_bytes": 4294967296,
+          "swap_used": 1397882880,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "trial_id": "qwen25-client:0:ee35d158335adf1b"
+    },
+    {
+      "memory": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 3500448768,
+            "required_host_bytes": 6280412810
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 3500448768,
+            "required_host_bytes": 6280412810
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 6280412810,
+          "compiled_input_bound": 256,
+          "components": {
+            "checkpoint_bytes": 988097824,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 3242087424,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 221122568,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 131072,
+            "client_state_work_bytes": 75497472,
+            "client_tensor_work_bytes": 296620040,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 25525248,
+            "largest_loading_temporary_bytes": 272269312,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 2242915872,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_provider_metal_bytes": 0,
+            "per_role_i8_and_native_bytes": {},
+            "per_role_loading_temporary_bytes": {},
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 540347904,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {},
+          "inventory_rows": 263,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 256,
+          "max_output_tokens": 8,
+          "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+          "native_total_peak_bytes": 6280412810,
+          "pipeline_digest": "e0df55d146a3cf8a879f0158f5e7cd5d17ed2ac7f1e77c91e9e3a82cfb1ba666",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {},
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 10140893184,
+          "available": 14435860480,
+          "disk_free": 47903866880,
+          "reserve_bytes": 4294967296,
+          "swap_used": 1397882880,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "trial_id": "qwen25-client:1:bfb297801563ef0c"
+    },
+    {
+      "memory": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 3500448768,
+            "required_host_bytes": 6280412810
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 3500448768,
+            "required_host_bytes": 6280412810
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 6280412810,
+          "compiled_input_bound": 256,
+          "components": {
+            "checkpoint_bytes": 988097824,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 3242087424,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 221122568,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 131072,
+            "client_state_work_bytes": 75497472,
+            "client_tensor_work_bytes": 296620040,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 25525248,
+            "largest_loading_temporary_bytes": 272269312,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 2242915872,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_provider_metal_bytes": 0,
+            "per_role_i8_and_native_bytes": {},
+            "per_role_loading_temporary_bytes": {},
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 540347904,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {},
+          "inventory_rows": 263,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 256,
+          "max_output_tokens": 8,
+          "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+          "native_total_peak_bytes": 6280412810,
+          "pipeline_digest": "8563301b1ce27725835b01417082f6f28ebbf9706da3b115b8036c0d5651498e",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {},
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 10006986752,
+          "available": 14301954048,
+          "disk_free": 47907594240,
+          "reserve_bytes": 4294967296,
+          "swap_used": 1397882880,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "trial_id": "qwen25-client:2:89eee8d0ff79497d"
+    },
+    {
+      "memory": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Metal requires native provider processes",
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 3500448768,
+            "required_host_bytes": 7068032650
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 3500448768,
+            "required_host_bytes": 7068032650
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 7068032650,
+          "compiled_input_bound": 256,
+          "components": {
+            "checkpoint_bytes": 988097824,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 3242087424,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 221122568,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 630095872,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 131072,
+            "client_state_work_bytes": 75497472,
+            "client_tensor_work_bytes": 296620040,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 25525248,
+            "largest_loading_temporary_bytes": 272269312,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 2242915872,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_provider_metal_bytes": 0,
+            "per_role_i8_and_native_bytes": {},
+            "per_role_loading_temporary_bytes": {},
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 540347904,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {},
+          "inventory_rows": 263,
+          "kernel": "metal",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 256,
+          "max_output_tokens": 8,
+          "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+          "native_total_peak_bytes": 7068032650,
+          "pipeline_digest": "9a25749375f4984995ee640a593d291c66b9e9dc193e66f69752c697fbbfdab4",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {},
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 9395847168,
+          "available": 13690814464,
+          "disk_free": 47916716032,
+          "reserve_bytes": 4294967296,
+          "swap_used": 1397882880,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "trial_id": "qwen25-client:3:d35db29601b93884"
+    }
+  ],
+  "candidates": [
+    {
+      "configuration_digest": "ee35d158335adf1be6e571057745ba87fe381d535e38ef5b6418bddd47c644b2",
+      "configuration_file": "benchmarks/research/trials/research_search_client_qwen25_v2/trial_ee35d158335adf1b.py",
+      "configuration_sha256": "c3505865c1aa872c7be08c400dca26186682725ce009957573271cadebff6f02",
+      "name": "qwen25-client:0:ee35d158335adf1b",
+      "pipeline": {
+        "components": {
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          "linear": {
+            "component": "pllm/cleartext-linear",
+            "params": {}
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 8,
+              "causal_reduction": "prefix_f32",
+              "weight_bits": 8
+            }
+          },
+          "topology": {
+            "component": "pllm/client-only/v1",
+            "params": {}
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "memory_guard_passed": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "no_provider_stage_traffic": true,
+          "passed": true,
+          "sampling_matches_request": true
+        },
+        "client_body_placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_paged_metadata_bytes": 0,
+          "client_body_paged_transient_weight_bytes": 0,
+          "client_body_paged_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "metal_body_i8_snapshot_bytes": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "client_process_memory": {
+          "after": {
+            "lifetime_peak_rss_bytes": 1195048960,
+            "rss_bytes": 1151680512
+          },
+          "before": {
+            "lifetime_peak_rss_bytes": 87867392,
+            "rss_bytes": 87867392
+          },
+          "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+          "scope": "client and in-process dashboard; excludes provider processes and OS file cache"
+        },
+        "communication_per_token": {
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "decode_scope": "online bodies after first output through completion, divided by N-1",
+          "denominator": "authoritative generated output tokens, not input tokens or output cap",
+          "runs": [
+            {
+              "covered_body_bytes": 0,
+              "covered_mb_per_output_token": 0.0,
+              "decode_online_body_bytes": 0,
+              "decode_online_mb_per_output_token": 0.0,
+              "decode_output_tokens": 7,
+              "generated_output_tokens": 8,
+              "online_body_bytes": 0,
+              "online_mb_per_output_token": 0.0
+            }
+          ],
+          "schema": "pllm.communication_per_generated_token.v1",
+          "scope": "covered application bodies; no full wire or checkpoint download",
+          "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+          "summary": {
+            "cold_first_response_mb_per_output_token": null,
+            "covered_mb_per_output_token": 0.0,
+            "decode_online_mb_per_output_token": 0.0,
+            "generated_output_tokens": 8,
+            "online_mb_per_output_token": 0.0,
+            "setup_inclusive_mb_per_output_token": null
+          }
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "inventory_policy": "prewarm",
+          "max_output_tokens": 8,
+          "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "prompt_digest": "8cfebaf4c6a70a4818af1f8712e2f8123f68a5ab30cb97734609cd664bc6e126",
+          "prompt_sequence_digest": null,
+          "provider_backend": "native",
+          "repetitions": 1,
+          "roles": [
+            "client"
+          ],
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "tiny": false,
+          "warmup_prompt_digest": "8cfebaf4c6a70a4818af1f8712e2f8123f68a5ab30cb97734609cd664bc6e126",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "ee35d158335adf1be6e571057745ba87fe381d535e38ef5b6418bddd47c644b2",
+          "name": "qwen25-client-search",
+          "pipeline_digest": "378c8b6e20fcbc34f1c7b1a2eaa00b5e92e8a7e6906d1563cc619b8b53c31d0a"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion"
+        ],
+        "memory_guard": {
+          "maximum_host_swap_growth_bytes": 0,
+          "minimum_host_available_bytes": 14361706496,
+          "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+          "tripped": false
+        },
+        "memory_preflight": {
+          "admitted": true,
+          "candidates": {
+            "docker": {
+              "admitted": false,
+              "docker": null,
+              "reasons": [
+                "Docker memory capacity is unavailable"
+              ],
+              "required_disk_bytes": 3500448768,
+              "required_host_bytes": 6280412810
+            },
+            "native": {
+              "admitted": true,
+              "docker": null,
+              "reasons": [],
+              "required_disk_bytes": 3500448768,
+              "required_host_bytes": 6280412810
+            }
+          },
+          "enforced_wan": false,
+          "estimate": {
+            "allocation_slack_percent": 25,
+            "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+            "client_peak_bytes": 6280412810,
+            "compiled_input_bound": 256,
+            "components": {
+              "checkpoint_bytes": 988097824,
+              "client_additional_paged_disk_bytes": 0,
+              "client_bundle_work_bytes": 3242087424,
+              "client_cache_bytes": 0,
+              "client_live_tensor_bytes": 221122568,
+              "client_mask_bytes": 0,
+              "client_mask_cursor_bytes": 0,
+              "client_metal_bytes": 0,
+              "client_paged_metadata_bytes": 0,
+              "client_public_artifact_work_bytes": 0,
+              "client_rotary_coefficient_bytes": 131072,
+              "client_state_work_bytes": 75497472,
+              "client_tensor_work_bytes": 296620040,
+              "client_tokenizer_snapshot_disk_bytes": 0,
+              "float_quantization_work_bytes": 25525248,
+              "largest_loading_temporary_bytes": 272269312,
+              "legacy_client_mask_bytes": 0,
+              "legacy_client_tensor_work_bytes": 2242915872,
+              "legacy_largest_loading_temporary_bytes": 544538624,
+              "legacy_per_engine_i8_and_native_bytes": 1260191744,
+              "per_engine_compiled_disk_bytes": 272269312,
+              "per_engine_i8_and_native_bytes": 630095872,
+              "per_provider_metal_bytes": 0,
+              "per_role_i8_and_native_bytes": {},
+              "per_role_loading_temporary_bytes": {},
+              "preparation_additional_paged_disk_bytes": 0,
+              "provider_correction_bytes": 0,
+              "raw_client_bundle_bytes": 540347904,
+              "verifier_bytes": 0
+            },
+            "docker_provider_peak_bytes": {},
+            "inventory_rows": 263,
+            "kernel": "cpu",
+            "limitations": [],
+            "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+            "max_input_tokens": 256,
+            "max_output_tokens": 8,
+            "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+            "native_total_peak_bytes": 6280412810,
+            "pipeline_digest": "378c8b6e20fcbc34f1c7b1a2eaa00b5e92e8a7e6906d1563cc619b8b53c31d0a",
+            "preparation_storage": "resident",
+            "provider_peak_bytes": {},
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+            "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+          },
+          "host": {
+            "admission_budget_bytes": 10860134400,
+            "available": 15155101696,
+            "disk_free": 47903678464,
+            "reserve_bytes": 4294967296,
+            "swap_used": 1397882880,
+            "total": 34359738368
+          },
+          "requested_backend": "native",
+          "schema": "pllm.benchmark_memory.v1",
+          "selected_backend": "native"
+        },
+        "privacy_admission": null,
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 9.088408,
+          "aggregate_startup_cpu_seconds": 3.340778,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 9.088408
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 3.340778
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 150,
+            "durations": {
+              "full_seconds": 4.32434675,
+              "generation_seconds": 0.175105791,
+              "online_seconds": 3.569354083,
+              "preparation_seconds": null,
+              "tokens_per_second": 39.975833808945815,
+              "transition_seconds": null,
+              "ttft_seconds": 3.394059875
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "20dc626ea4f5c2bdb0862df4a68be132d0491a3e26ae39ac674682de8f24d9a9",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 0,
+              "generated": 0,
+              "required": 0,
+              "reused": 0
+            },
+            "max_output_tokens": 8,
+            "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "network": {
+              "decode_online_body_bytes": 0,
+              "decode_output_tokens": 7,
+              "decode_scope": "after-first-output-through-completion"
+            },
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 0,
+              "bundle_network_bytes": 0,
+              "correction_push_bytes": 0,
+              "correction_push_ns": 0,
+              "correlation_count": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 0,
+              "generation_decode_output_tokens": 7,
+              "generation_output_tokens": 8,
+              "generation_prefill_online_body_bytes": 0,
+              "inference_download_bytes": 0,
+              "inference_server_ns": 0,
+              "inference_stage_calls": 0,
+              "inference_upload_bytes": 0,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 0,
+              "masked_online_upload_bytes": 0,
+              "online_steps": 0,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 0,
+              "preparation_download_bytes": 0,
+              "preparation_failures": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 0,
+              "preparation_server_ns": 0,
+              "preparation_upload_bytes": 0,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 0,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 0,
+              "prepared_stage_rows_reserved": 0,
+              "public_context_bytes": 0,
+              "public_prefix_artifact_local_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 0,
+              "role_link.worker_a.online_upload_bytes": 0,
+              "role_link.worker_a.setup_download_bytes": 0,
+              "role_link.worker_a.setup_upload_bytes": 0,
+              "role_link.worker_a.teardown_download_bytes": 0,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 0,
+              "role_link.worker_b.online_upload_bytes": 0,
+              "role_link.worker_b.setup_download_bytes": 0,
+              "role_link.worker_b.setup_upload_bytes": 0,
+              "role_link.worker_b.teardown_download_bytes": 0,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 0,
+              "session_authorization_upload_bytes": 0,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0,
+              "tokenizer_artifact_local_bytes": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 5.737355,
+                "rss_peak_bytes": null
+              }
+            },
+            "run_id": "bench-ed381929ca0cadefb79a569ae9a4b106",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1791254390603453000,
+              "first_token_at_ns": 1791254390428161000,
+              "last_token_at_ns": 1791254390603267000,
+              "online_started_at_ns": 1791254387034089000,
+              "preparation_finished_at_ns": null,
+              "preparation_started_at_ns": null,
+              "started_at_ns": 1791254386279102000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 150,
+              "output_tokens": 8,
+              "total_tokens": 158
+            },
+            "warm": false
+          }
+        ],
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": null,
+          "cold_first_response_mb_per_output_token": null,
+          "completed_runs": 1,
+          "covered_mb_per_output_token": 0.0,
+          "decode_online_mb_per_output_token": 0.0,
+          "generated_output_tokens": 8,
+          "median_covered_all_link_serialized_body_bytes": 0,
+          "median_full_seconds": 4.32434675,
+          "median_online_all_link_serialized_body_bytes": 0,
+          "median_online_seconds": 3.569354083,
+          "median_tokens_per_second": 39.975833808945815,
+          "median_ttft_seconds": 3.394059875,
+          "online_mb_per_output_token": 0.0,
+          "setup_inclusive_mb_per_output_token": null,
+          "total_accounted_benchmark_body_bytes": null,
+          "total_output_tokens": 8,
+          "total_run_covered_all_link_serialized_body_bytes": 0,
+          "total_run_full_seconds": 4.32434675,
+          "total_run_online_all_link_serialized_body_bytes": 0
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 5.737355,
+              "all_link_serialized_body_bytes": 0,
+              "body_bytes_by_edge": [],
+              "client_serialized_body_bytes": 0,
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 0,
+              "online_client_serialized_body_bytes": 0,
+              "run_window_cpu_seconds_by_role": {
+                "client": 5.737355
+              },
+              "schema": "pllm.topology_body_accounting.v1",
+              "scope": "client-owned semantic execution; no inference-provider graph links",
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true,
+              "unmeasured": [
+                "client model import and cold checkpoint distribution",
+                "client peak memory, energy, and disk activity",
+                "application/dashboard HTTP traffic outside the inference role graph"
+              ]
+            }
+          ],
+          "startup": {
+            "checkpoint_artifact_bytes": 999586347,
+            "client_peak_memory_bytes": null,
+            "cold_checkpoint_transfer_bytes": null,
+            "loaded_weight_and_local_tensor_bytes": 632209920,
+            "schema": "pllm.topology_model_ownership.v1"
+          },
+          "warmups": []
+        },
+        "wan_readiness": {
+          "assumptions": [
+            "independent full-duplex upload/download ports",
+            "each party's peers share its access port"
+          ],
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "emulation": null,
+          "internet_ready": null,
+          "measured_wan_latency_seconds": null,
+          "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+          "runs": [
+            {
+              "covered": {
+                "bottleneck": null,
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0,
+                "parties": {},
+                "wan_body_bytes": 0
+              },
+              "executed_role_parties": null,
+              "generated_output_tokens": 8,
+              "online": {
+                "bottleneck": null,
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0,
+                "parties": {},
+                "wan_body_bytes": 0
+              }
+            }
+          ],
+          "schema": "pllm.wan_readiness.v1",
+          "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+          "summary": {
+            "online": {
+              "bottleneck": null,
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.0,
+              "parties": {},
+              "wan_body_bytes": 0
+            },
+            "online_generated_tokens_per_second_ceiling": null,
+            "setup_inclusive": null,
+            "setup_inclusive_generated_tokens_per_second_ceiling": null
+          },
+          "unmeasured": [
+            "RTT and dependent protocol rounds",
+            "headers/TLS/ACKs, loss and retries",
+            "checkpoint distribution",
+            "WAN compute/queueing latency"
+          ]
+        },
+        "warmup_runs": []
+      }
+    },
+    {
+      "configuration_digest": "bfb297801563ef0c93646d55f1c48fbdc335db23bc3dadb60b49fbd7d068ea76",
+      "configuration_file": "benchmarks/research/trials/research_search_client_qwen25_v2/trial_bfb297801563ef0c.py",
+      "configuration_sha256": "feb4e658cf7353a78700feb07ecd66e2e1a20e4eb87b73988b9402e03371eee3",
+      "name": "qwen25-client:1:bfb297801563ef0c",
+      "pipeline": {
+        "components": {
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 1
+            }
+          },
+          "linear": {
+            "component": "pllm/cleartext-linear",
+            "params": {}
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 8,
+              "causal_reduction": "prefix_f32",
+              "weight_bits": 8
+            }
+          },
+          "topology": {
+            "component": "pllm/client-only/v1",
+            "params": {}
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "memory_guard_passed": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "no_provider_stage_traffic": true,
+          "passed": true,
+          "sampling_matches_request": true
+        },
+        "client_body_placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_paged_metadata_bytes": 0,
+          "client_body_paged_transient_weight_bytes": 0,
+          "client_body_paged_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "metal_body_i8_snapshot_bytes": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "client_process_memory": {
+          "after": {
+            "lifetime_peak_rss_bytes": 1334591488,
+            "rss_bytes": 1154990080
+          },
+          "before": {
+            "lifetime_peak_rss_bytes": 1195048960,
+            "rss_bytes": 1151762432
+          },
+          "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+          "scope": "client and in-process dashboard; excludes provider processes and OS file cache"
+        },
+        "communication_per_token": {
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "decode_scope": "online bodies after first output through completion, divided by N-1",
+          "denominator": "authoritative generated output tokens, not input tokens or output cap",
+          "runs": [
+            {
+              "covered_body_bytes": 0,
+              "covered_mb_per_output_token": 0.0,
+              "decode_online_body_bytes": 0,
+              "decode_online_mb_per_output_token": 0.0,
+              "decode_output_tokens": 7,
+              "generated_output_tokens": 8,
+              "online_body_bytes": 0,
+              "online_mb_per_output_token": 0.0
+            }
+          ],
+          "schema": "pllm.communication_per_generated_token.v1",
+          "scope": "covered application bodies; no full wire or checkpoint download",
+          "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+          "summary": {
+            "cold_first_response_mb_per_output_token": null,
+            "covered_mb_per_output_token": 0.0,
+            "decode_online_mb_per_output_token": 0.0,
+            "generated_output_tokens": 8,
+            "online_mb_per_output_token": 0.0,
+            "setup_inclusive_mb_per_output_token": null
+          }
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "inventory_policy": "prewarm",
+          "max_output_tokens": 8,
+          "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "prompt_digest": "8cfebaf4c6a70a4818af1f8712e2f8123f68a5ab30cb97734609cd664bc6e126",
+          "prompt_sequence_digest": null,
+          "provider_backend": "native",
+          "repetitions": 1,
+          "roles": [
+            "client"
+          ],
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "tiny": false,
+          "warmup_prompt_digest": "8cfebaf4c6a70a4818af1f8712e2f8123f68a5ab30cb97734609cd664bc6e126",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "bfb297801563ef0c93646d55f1c48fbdc335db23bc3dadb60b49fbd7d068ea76",
+          "name": "qwen25-client-search",
+          "pipeline_digest": "e0df55d146a3cf8a879f0158f5e7cd5d17ed2ac7f1e77c91e9e3a82cfb1ba666"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion"
+        ],
+        "memory_guard": {
+          "maximum_host_swap_growth_bytes": 0,
+          "minimum_host_available_bytes": 14184497152,
+          "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+          "tripped": false
+        },
+        "memory_preflight": {
+          "admitted": true,
+          "candidates": {
+            "docker": {
+              "admitted": false,
+              "docker": null,
+              "reasons": [
+                "Docker memory capacity is unavailable"
+              ],
+              "required_disk_bytes": 3500448768,
+              "required_host_bytes": 6280412810
+            },
+            "native": {
+              "admitted": true,
+              "docker": null,
+              "reasons": [],
+              "required_disk_bytes": 3500448768,
+              "required_host_bytes": 6280412810
+            }
+          },
+          "enforced_wan": false,
+          "estimate": {
+            "allocation_slack_percent": 25,
+            "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+            "client_peak_bytes": 6280412810,
+            "compiled_input_bound": 256,
+            "components": {
+              "checkpoint_bytes": 988097824,
+              "client_additional_paged_disk_bytes": 0,
+              "client_bundle_work_bytes": 3242087424,
+              "client_cache_bytes": 0,
+              "client_live_tensor_bytes": 221122568,
+              "client_mask_bytes": 0,
+              "client_mask_cursor_bytes": 0,
+              "client_metal_bytes": 0,
+              "client_paged_metadata_bytes": 0,
+              "client_public_artifact_work_bytes": 0,
+              "client_rotary_coefficient_bytes": 131072,
+              "client_state_work_bytes": 75497472,
+              "client_tensor_work_bytes": 296620040,
+              "client_tokenizer_snapshot_disk_bytes": 0,
+              "float_quantization_work_bytes": 25525248,
+              "largest_loading_temporary_bytes": 272269312,
+              "legacy_client_mask_bytes": 0,
+              "legacy_client_tensor_work_bytes": 2242915872,
+              "legacy_largest_loading_temporary_bytes": 544538624,
+              "legacy_per_engine_i8_and_native_bytes": 1260191744,
+              "per_engine_compiled_disk_bytes": 272269312,
+              "per_engine_i8_and_native_bytes": 630095872,
+              "per_provider_metal_bytes": 0,
+              "per_role_i8_and_native_bytes": {},
+              "per_role_loading_temporary_bytes": {},
+              "preparation_additional_paged_disk_bytes": 0,
+              "provider_correction_bytes": 0,
+              "raw_client_bundle_bytes": 540347904,
+              "verifier_bytes": 0
+            },
+            "docker_provider_peak_bytes": {},
+            "inventory_rows": 263,
+            "kernel": "cpu",
+            "limitations": [],
+            "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+            "max_input_tokens": 256,
+            "max_output_tokens": 8,
+            "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+            "native_total_peak_bytes": 6280412810,
+            "pipeline_digest": "e0df55d146a3cf8a879f0158f5e7cd5d17ed2ac7f1e77c91e9e3a82cfb1ba666",
+            "preparation_storage": "resident",
+            "provider_peak_bytes": {},
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+            "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+          },
+          "host": {
+            "admission_budget_bytes": 10138140672,
+            "available": 14433107968,
+            "disk_free": 47907926016,
+            "reserve_bytes": 4294967296,
+            "swap_used": 1397882880,
+            "total": 34359738368
+          },
+          "requested_backend": "native",
+          "schema": "pllm.benchmark_memory.v1",
+          "selected_backend": "native"
+        },
+        "privacy_admission": null,
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 8.825859,
+          "aggregate_startup_cpu_seconds": 3.327197,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 8.825859
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 3.327197
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 150,
+            "durations": {
+              "full_seconds": 5.97951275,
+              "generation_seconds": 0.219017792,
+              "online_seconds": 5.243825458,
+              "preparation_seconds": null,
+              "tokens_per_second": 31.960873754037298,
+              "transition_seconds": null,
+              "ttft_seconds": 5.023886916
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "20dc626ea4f5c2bdb0862df4a68be132d0491a3e26ae39ac674682de8f24d9a9",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 0,
+              "generated": 0,
+              "required": 0,
+              "reused": 0
+            },
+            "max_output_tokens": 8,
+            "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "network": {
+              "decode_online_body_bytes": 0,
+              "decode_output_tokens": 7,
+              "decode_scope": "after-first-output-through-completion"
+            },
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 0,
+              "bundle_network_bytes": 0,
+              "correction_push_bytes": 0,
+              "correction_push_ns": 0,
+              "correlation_count": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 0,
+              "generation_decode_output_tokens": 7,
+              "generation_output_tokens": 8,
+              "generation_prefill_online_body_bytes": 0,
+              "inference_download_bytes": 0,
+              "inference_server_ns": 0,
+              "inference_stage_calls": 0,
+              "inference_upload_bytes": 0,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 0,
+              "masked_online_upload_bytes": 0,
+              "online_steps": 0,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 0,
+              "preparation_download_bytes": 0,
+              "preparation_failures": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 0,
+              "preparation_server_ns": 0,
+              "preparation_upload_bytes": 0,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 0,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 0,
+              "prepared_stage_rows_reserved": 0,
+              "public_context_bytes": 0,
+              "public_prefix_artifact_local_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 0,
+              "role_link.worker_a.online_upload_bytes": 0,
+              "role_link.worker_a.setup_download_bytes": 0,
+              "role_link.worker_a.setup_upload_bytes": 0,
+              "role_link.worker_a.teardown_download_bytes": 0,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 0,
+              "role_link.worker_b.online_upload_bytes": 0,
+              "role_link.worker_b.setup_download_bytes": 0,
+              "role_link.worker_b.setup_upload_bytes": 0,
+              "role_link.worker_b.teardown_download_bytes": 0,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 0,
+              "session_authorization_upload_bytes": 0,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0,
+              "tokenizer_artifact_local_bytes": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 5.487307999999999,
+                "rss_peak_bytes": null
+              }
+            },
+            "run_id": "bench-0232e36943ec99c2924201f15fae164d",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1791254402276811000,
+              "first_token_at_ns": 1791254402056875000,
+              "last_token_at_ns": 1791254402275893000,
+              "online_started_at_ns": 1791254397032974000,
+              "preparation_finished_at_ns": null,
+              "preparation_started_at_ns": null,
+              "started_at_ns": 1791254396297291000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 150,
+              "output_tokens": 8,
+              "total_tokens": 158
+            },
+            "warm": false
+          }
+        ],
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": null,
+          "cold_first_response_mb_per_output_token": null,
+          "completed_runs": 1,
+          "covered_mb_per_output_token": 0.0,
+          "decode_online_mb_per_output_token": 0.0,
+          "generated_output_tokens": 8,
+          "median_covered_all_link_serialized_body_bytes": 0,
+          "median_full_seconds": 5.97951275,
+          "median_online_all_link_serialized_body_bytes": 0,
+          "median_online_seconds": 5.243825458,
+          "median_tokens_per_second": 31.960873754037298,
+          "median_ttft_seconds": 5.023886916,
+          "online_mb_per_output_token": 0.0,
+          "setup_inclusive_mb_per_output_token": null,
+          "total_accounted_benchmark_body_bytes": null,
+          "total_output_tokens": 8,
+          "total_run_covered_all_link_serialized_body_bytes": 0,
+          "total_run_full_seconds": 5.97951275,
+          "total_run_online_all_link_serialized_body_bytes": 0
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 5.487307999999999,
+              "all_link_serialized_body_bytes": 0,
+              "body_bytes_by_edge": [],
+              "client_serialized_body_bytes": 0,
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 0,
+              "online_client_serialized_body_bytes": 0,
+              "run_window_cpu_seconds_by_role": {
+                "client": 5.487307999999999
+              },
+              "schema": "pllm.topology_body_accounting.v1",
+              "scope": "client-owned semantic execution; no inference-provider graph links",
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true,
+              "unmeasured": [
+                "client model import and cold checkpoint distribution",
+                "client peak memory, energy, and disk activity",
+                "application/dashboard HTTP traffic outside the inference role graph"
+              ]
+            }
+          ],
+          "startup": {
+            "checkpoint_artifact_bytes": 999586347,
+            "client_peak_memory_bytes": null,
+            "cold_checkpoint_transfer_bytes": null,
+            "loaded_weight_and_local_tensor_bytes": 632209920,
+            "schema": "pllm.topology_model_ownership.v1"
+          },
+          "warmups": []
+        },
+        "wan_readiness": {
+          "assumptions": [
+            "independent full-duplex upload/download ports",
+            "each party's peers share its access port"
+          ],
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "emulation": null,
+          "internet_ready": null,
+          "measured_wan_latency_seconds": null,
+          "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+          "runs": [
+            {
+              "covered": {
+                "bottleneck": null,
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0,
+                "parties": {},
+                "wan_body_bytes": 0
+              },
+              "executed_role_parties": null,
+              "generated_output_tokens": 8,
+              "online": {
+                "bottleneck": null,
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0,
+                "parties": {},
+                "wan_body_bytes": 0
+              }
+            }
+          ],
+          "schema": "pllm.wan_readiness.v1",
+          "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+          "summary": {
+            "online": {
+              "bottleneck": null,
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.0,
+              "parties": {},
+              "wan_body_bytes": 0
+            },
+            "online_generated_tokens_per_second_ceiling": null,
+            "setup_inclusive": null,
+            "setup_inclusive_generated_tokens_per_second_ceiling": null
+          },
+          "unmeasured": [
+            "RTT and dependent protocol rounds",
+            "headers/TLS/ACKs, loss and retries",
+            "checkpoint distribution",
+            "WAN compute/queueing latency"
+          ]
+        },
+        "warmup_runs": []
+      }
+    },
+    {
+      "configuration_digest": "89eee8d0ff79497d6d8b15108bb4e175d5c8023ff4630f23c813f40aaa08aba4",
+      "configuration_file": "benchmarks/research/trials/research_search_client_qwen25_v2/trial_89eee8d0ff79497d.py",
+      "configuration_sha256": "459026ccf5be8cd80c6dc51fdbc2babd2601710d7ce63fbbebb0b16ead285167",
+      "name": "qwen25-client:2:89eee8d0ff79497d",
+      "pipeline": {
+        "components": {
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 8
+            }
+          },
+          "linear": {
+            "component": "pllm/cleartext-linear",
+            "params": {}
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 8,
+              "causal_reduction": "prefix_f32",
+              "weight_bits": 8
+            }
+          },
+          "topology": {
+            "component": "pllm/client-only/v1",
+            "params": {}
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "memory_guard_passed": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "no_provider_stage_traffic": true,
+          "passed": true,
+          "sampling_matches_request": true
+        },
+        "client_body_placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_paged_metadata_bytes": 0,
+          "client_body_paged_transient_weight_bytes": 0,
+          "client_body_paged_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "metal_body_i8_snapshot_bytes": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "client_process_memory": {
+          "after": {
+            "lifetime_peak_rss_bytes": 1337278464,
+            "rss_bytes": 1157857280
+          },
+          "before": {
+            "lifetime_peak_rss_bytes": 1334591488,
+            "rss_bytes": 1154990080
+          },
+          "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+          "scope": "client and in-process dashboard; excludes provider processes and OS file cache"
+        },
+        "communication_per_token": {
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "decode_scope": "online bodies after first output through completion, divided by N-1",
+          "denominator": "authoritative generated output tokens, not input tokens or output cap",
+          "runs": [
+            {
+              "covered_body_bytes": 0,
+              "covered_mb_per_output_token": 0.0,
+              "decode_online_body_bytes": 0,
+              "decode_online_mb_per_output_token": 0.0,
+              "decode_output_tokens": 7,
+              "generated_output_tokens": 8,
+              "online_body_bytes": 0,
+              "online_mb_per_output_token": 0.0
+            }
+          ],
+          "schema": "pllm.communication_per_generated_token.v1",
+          "scope": "covered application bodies; no full wire or checkpoint download",
+          "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+          "summary": {
+            "cold_first_response_mb_per_output_token": null,
+            "covered_mb_per_output_token": 0.0,
+            "decode_online_mb_per_output_token": 0.0,
+            "generated_output_tokens": 8,
+            "online_mb_per_output_token": 0.0,
+            "setup_inclusive_mb_per_output_token": null
+          }
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "inventory_policy": "prewarm",
+          "max_output_tokens": 8,
+          "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "prompt_digest": "8cfebaf4c6a70a4818af1f8712e2f8123f68a5ab30cb97734609cd664bc6e126",
+          "prompt_sequence_digest": null,
+          "provider_backend": "native",
+          "repetitions": 1,
+          "roles": [
+            "client"
+          ],
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "tiny": false,
+          "warmup_prompt_digest": "8cfebaf4c6a70a4818af1f8712e2f8123f68a5ab30cb97734609cd664bc6e126",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "89eee8d0ff79497d6d8b15108bb4e175d5c8023ff4630f23c813f40aaa08aba4",
+          "name": "qwen25-client-search",
+          "pipeline_digest": "8563301b1ce27725835b01417082f6f28ebbf9706da3b115b8036c0d5651498e"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion"
+        ],
+        "memory_guard": {
+          "maximum_host_swap_growth_bytes": 0,
+          "minimum_host_available_bytes": 13430521856,
+          "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+          "tripped": false
+        },
+        "memory_preflight": {
+          "admitted": true,
+          "candidates": {
+            "docker": {
+              "admitted": false,
+              "docker": null,
+              "reasons": [
+                "Docker memory capacity is unavailable"
+              ],
+              "required_disk_bytes": 3500448768,
+              "required_host_bytes": 6280412810
+            },
+            "native": {
+              "admitted": true,
+              "docker": null,
+              "reasons": [],
+              "required_disk_bytes": 3500448768,
+              "required_host_bytes": 6280412810
+            }
+          },
+          "enforced_wan": false,
+          "estimate": {
+            "allocation_slack_percent": 25,
+            "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+            "client_peak_bytes": 6280412810,
+            "compiled_input_bound": 256,
+            "components": {
+              "checkpoint_bytes": 988097824,
+              "client_additional_paged_disk_bytes": 0,
+              "client_bundle_work_bytes": 3242087424,
+              "client_cache_bytes": 0,
+              "client_live_tensor_bytes": 221122568,
+              "client_mask_bytes": 0,
+              "client_mask_cursor_bytes": 0,
+              "client_metal_bytes": 0,
+              "client_paged_metadata_bytes": 0,
+              "client_public_artifact_work_bytes": 0,
+              "client_rotary_coefficient_bytes": 131072,
+              "client_state_work_bytes": 75497472,
+              "client_tensor_work_bytes": 296620040,
+              "client_tokenizer_snapshot_disk_bytes": 0,
+              "float_quantization_work_bytes": 25525248,
+              "largest_loading_temporary_bytes": 272269312,
+              "legacy_client_mask_bytes": 0,
+              "legacy_client_tensor_work_bytes": 2242915872,
+              "legacy_largest_loading_temporary_bytes": 544538624,
+              "legacy_per_engine_i8_and_native_bytes": 1260191744,
+              "per_engine_compiled_disk_bytes": 272269312,
+              "per_engine_i8_and_native_bytes": 630095872,
+              "per_provider_metal_bytes": 0,
+              "per_role_i8_and_native_bytes": {},
+              "per_role_loading_temporary_bytes": {},
+              "preparation_additional_paged_disk_bytes": 0,
+              "provider_correction_bytes": 0,
+              "raw_client_bundle_bytes": 540347904,
+              "verifier_bytes": 0
+            },
+            "docker_provider_peak_bytes": {},
+            "inventory_rows": 263,
+            "kernel": "cpu",
+            "limitations": [],
+            "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+            "max_input_tokens": 256,
+            "max_output_tokens": 8,
+            "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+            "native_total_peak_bytes": 6280412810,
+            "pipeline_digest": "8563301b1ce27725835b01417082f6f28ebbf9706da3b115b8036c0d5651498e",
+            "preparation_storage": "resident",
+            "provider_peak_bytes": {},
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+            "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+          },
+          "host": {
+            "admission_budget_bytes": 10009870336,
+            "available": 14304837632,
+            "disk_free": 47907586048,
+            "reserve_bytes": 4294967296,
+            "swap_used": 1397882880,
+            "total": 34359738368
+          },
+          "requested_backend": "native",
+          "schema": "pllm.benchmark_memory.v1",
+          "selected_backend": "native"
+        },
+        "privacy_admission": null,
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 10.770216,
+          "aggregate_startup_cpu_seconds": 3.346612,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 10.770216
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 3.346612
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 150,
+            "durations": {
+              "full_seconds": 4.984355916,
+              "generation_seconds": 0.1782215,
+              "online_seconds": 4.245446375,
+              "preparation_seconds": null,
+              "tokens_per_second": 39.27696714481698,
+              "transition_seconds": null,
+              "ttft_seconds": 4.067047084
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "20dc626ea4f5c2bdb0862df4a68be132d0491a3e26ae39ac674682de8f24d9a9",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 0,
+              "generated": 0,
+              "required": 0,
+              "reused": 0
+            },
+            "max_output_tokens": 8,
+            "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "network": {
+              "decode_online_body_bytes": 0,
+              "decode_output_tokens": 7,
+              "decode_scope": "after-first-output-through-completion"
+            },
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 0,
+              "bundle_network_bytes": 0,
+              "correction_push_bytes": 0,
+              "correction_push_ns": 0,
+              "correlation_count": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 0,
+              "generation_decode_output_tokens": 7,
+              "generation_output_tokens": 8,
+              "generation_prefill_online_body_bytes": 0,
+              "inference_download_bytes": 0,
+              "inference_server_ns": 0,
+              "inference_stage_calls": 0,
+              "inference_upload_bytes": 0,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 0,
+              "masked_online_upload_bytes": 0,
+              "online_steps": 0,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 0,
+              "preparation_download_bytes": 0,
+              "preparation_failures": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 0,
+              "preparation_server_ns": 0,
+              "preparation_upload_bytes": 0,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 0,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 0,
+              "prepared_stage_rows_reserved": 0,
+              "public_context_bytes": 0,
+              "public_prefix_artifact_local_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 0,
+              "role_link.worker_a.online_upload_bytes": 0,
+              "role_link.worker_a.setup_download_bytes": 0,
+              "role_link.worker_a.setup_upload_bytes": 0,
+              "role_link.worker_a.teardown_download_bytes": 0,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 0,
+              "role_link.worker_b.online_upload_bytes": 0,
+              "role_link.worker_b.setup_download_bytes": 0,
+              "role_link.worker_b.setup_upload_bytes": 0,
+              "role_link.worker_b.teardown_download_bytes": 0,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 0,
+              "session_authorization_upload_bytes": 0,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0,
+              "tokenizer_artifact_local_bytes": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 7.412651,
+                "rss_peak_bytes": null
+              }
+            },
+            "run_id": "bench-fd5e0387827c38b965c3e3d3a88eac42",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1791254412774617000,
+              "first_token_at_ns": 1791254412596218000,
+              "last_token_at_ns": 1791254412774440000,
+              "online_started_at_ns": 1791254408529164000,
+              "preparation_finished_at_ns": null,
+              "preparation_started_at_ns": null,
+              "started_at_ns": 1791254407790254000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 150,
+              "output_tokens": 8,
+              "total_tokens": 158
+            },
+            "warm": false
+          }
+        ],
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": null,
+          "cold_first_response_mb_per_output_token": null,
+          "completed_runs": 1,
+          "covered_mb_per_output_token": 0.0,
+          "decode_online_mb_per_output_token": 0.0,
+          "generated_output_tokens": 8,
+          "median_covered_all_link_serialized_body_bytes": 0,
+          "median_full_seconds": 4.984355916,
+          "median_online_all_link_serialized_body_bytes": 0,
+          "median_online_seconds": 4.245446375,
+          "median_tokens_per_second": 39.27696714481698,
+          "median_ttft_seconds": 4.067047084,
+          "online_mb_per_output_token": 0.0,
+          "setup_inclusive_mb_per_output_token": null,
+          "total_accounted_benchmark_body_bytes": null,
+          "total_output_tokens": 8,
+          "total_run_covered_all_link_serialized_body_bytes": 0,
+          "total_run_full_seconds": 4.984355916,
+          "total_run_online_all_link_serialized_body_bytes": 0
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 7.412651,
+              "all_link_serialized_body_bytes": 0,
+              "body_bytes_by_edge": [],
+              "client_serialized_body_bytes": 0,
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 0,
+              "online_client_serialized_body_bytes": 0,
+              "run_window_cpu_seconds_by_role": {
+                "client": 7.412651
+              },
+              "schema": "pllm.topology_body_accounting.v1",
+              "scope": "client-owned semantic execution; no inference-provider graph links",
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true,
+              "unmeasured": [
+                "client model import and cold checkpoint distribution",
+                "client peak memory, energy, and disk activity",
+                "application/dashboard HTTP traffic outside the inference role graph"
+              ]
+            }
+          ],
+          "startup": {
+            "checkpoint_artifact_bytes": 999586347,
+            "client_peak_memory_bytes": null,
+            "cold_checkpoint_transfer_bytes": null,
+            "loaded_weight_and_local_tensor_bytes": 632209920,
+            "schema": "pllm.topology_model_ownership.v1"
+          },
+          "warmups": []
+        },
+        "wan_readiness": {
+          "assumptions": [
+            "independent full-duplex upload/download ports",
+            "each party's peers share its access port"
+          ],
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "emulation": null,
+          "internet_ready": null,
+          "measured_wan_latency_seconds": null,
+          "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+          "runs": [
+            {
+              "covered": {
+                "bottleneck": null,
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0,
+                "parties": {},
+                "wan_body_bytes": 0
+              },
+              "executed_role_parties": null,
+              "generated_output_tokens": 8,
+              "online": {
+                "bottleneck": null,
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0,
+                "parties": {},
+                "wan_body_bytes": 0
+              }
+            }
+          ],
+          "schema": "pllm.wan_readiness.v1",
+          "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+          "summary": {
+            "online": {
+              "bottleneck": null,
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.0,
+              "parties": {},
+              "wan_body_bytes": 0
+            },
+            "online_generated_tokens_per_second_ceiling": null,
+            "setup_inclusive": null,
+            "setup_inclusive_generated_tokens_per_second_ceiling": null
+          },
+          "unmeasured": [
+            "RTT and dependent protocol rounds",
+            "headers/TLS/ACKs, loss and retries",
+            "checkpoint distribution",
+            "WAN compute/queueing latency"
+          ]
+        },
+        "warmup_runs": []
+      }
+    },
+    {
+      "configuration_digest": "d35db29601b93884c27ac4d843d81567528e9cb772c3cbfa484d741acbfcc0a7",
+      "configuration_file": "benchmarks/research/trials/research_search_client_qwen25_v2/trial_d35db29601b93884.py",
+      "configuration_sha256": "df4d025fda7bac221043dd5b9b0823c81b9fdb51722f31d5df3f7304ec30c709",
+      "name": "qwen25-client:3:d35db29601b93884",
+      "pipeline": {
+        "components": {
+          "kernels": {
+            "component": "pllm/apple-metal-int8/v1",
+            "params": {
+              "min_rows": 8
+            }
+          },
+          "linear": {
+            "component": "pllm/cleartext-linear",
+            "params": {}
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 8,
+              "causal_reduction": "prefix_f32",
+              "weight_bits": 8
+            }
+          },
+          "topology": {
+            "component": "pllm/client-only/v1",
+            "params": {}
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "memory_guard_passed": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "no_provider_stage_traffic": true,
+          "passed": true,
+          "sampling_matches_request": true
+        },
+        "client_body_placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_paged_metadata_bytes": 0,
+          "client_body_paged_transient_weight_bytes": 0,
+          "client_body_paged_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "metal_body_i8_snapshot_bytes": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "client_process_memory": {
+          "after": {
+            "lifetime_peak_rss_bytes": 1711112192,
+            "rss_bytes": 1541947392
+          },
+          "before": {
+            "lifetime_peak_rss_bytes": 1337278464,
+            "rss_bytes": 1157857280
+          },
+          "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+          "scope": "client and in-process dashboard; excludes provider processes and OS file cache"
+        },
+        "communication_per_token": {
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "decode_scope": "online bodies after first output through completion, divided by N-1",
+          "denominator": "authoritative generated output tokens, not input tokens or output cap",
+          "runs": [
+            {
+              "covered_body_bytes": 0,
+              "covered_mb_per_output_token": 0.0,
+              "decode_online_body_bytes": 0,
+              "decode_online_mb_per_output_token": 0.0,
+              "decode_output_tokens": 7,
+              "generated_output_tokens": 8,
+              "online_body_bytes": 0,
+              "online_mb_per_output_token": 0.0
+            }
+          ],
+          "schema": "pllm.communication_per_generated_token.v1",
+          "scope": "covered application bodies; no full wire or checkpoint download",
+          "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+          "summary": {
+            "cold_first_response_mb_per_output_token": null,
+            "covered_mb_per_output_token": 0.0,
+            "decode_online_mb_per_output_token": 0.0,
+            "generated_output_tokens": 8,
+            "online_mb_per_output_token": 0.0,
+            "setup_inclusive_mb_per_output_token": null
+          }
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "inventory_policy": "prewarm",
+          "max_output_tokens": 8,
+          "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "prompt_digest": "8cfebaf4c6a70a4818af1f8712e2f8123f68a5ab30cb97734609cd664bc6e126",
+          "prompt_sequence_digest": null,
+          "provider_backend": "native",
+          "repetitions": 1,
+          "roles": [
+            "client"
+          ],
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "tiny": false,
+          "warmup_prompt_digest": "8cfebaf4c6a70a4818af1f8712e2f8123f68a5ab30cb97734609cd664bc6e126",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "d35db29601b93884c27ac4d843d81567528e9cb772c3cbfa484d741acbfcc0a7",
+          "name": "qwen25-client-search",
+          "pipeline_digest": "9a25749375f4984995ee640a593d291c66b9e9dc193e66f69752c697fbbfdab4"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion"
+        ],
+        "memory_guard": {
+          "maximum_host_swap_growth_bytes": 0,
+          "minimum_host_available_bytes": 13316308992,
+          "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+          "tripped": false
+        },
+        "memory_preflight": {
+          "admitted": true,
+          "candidates": {
+            "docker": {
+              "admitted": false,
+              "docker": null,
+              "reasons": [
+                "Metal requires native provider processes",
+                "Docker memory capacity is unavailable"
+              ],
+              "required_disk_bytes": 3500448768,
+              "required_host_bytes": 7068032650
+            },
+            "native": {
+              "admitted": true,
+              "docker": null,
+              "reasons": [],
+              "required_disk_bytes": 3500448768,
+              "required_host_bytes": 7068032650
+            }
+          },
+          "enforced_wan": false,
+          "estimate": {
+            "allocation_slack_percent": 25,
+            "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+            "client_peak_bytes": 7068032650,
+            "compiled_input_bound": 256,
+            "components": {
+              "checkpoint_bytes": 988097824,
+              "client_additional_paged_disk_bytes": 0,
+              "client_bundle_work_bytes": 3242087424,
+              "client_cache_bytes": 0,
+              "client_live_tensor_bytes": 221122568,
+              "client_mask_bytes": 0,
+              "client_mask_cursor_bytes": 0,
+              "client_metal_bytes": 630095872,
+              "client_paged_metadata_bytes": 0,
+              "client_public_artifact_work_bytes": 0,
+              "client_rotary_coefficient_bytes": 131072,
+              "client_state_work_bytes": 75497472,
+              "client_tensor_work_bytes": 296620040,
+              "client_tokenizer_snapshot_disk_bytes": 0,
+              "float_quantization_work_bytes": 25525248,
+              "largest_loading_temporary_bytes": 272269312,
+              "legacy_client_mask_bytes": 0,
+              "legacy_client_tensor_work_bytes": 2242915872,
+              "legacy_largest_loading_temporary_bytes": 544538624,
+              "legacy_per_engine_i8_and_native_bytes": 1260191744,
+              "per_engine_compiled_disk_bytes": 272269312,
+              "per_engine_i8_and_native_bytes": 630095872,
+              "per_provider_metal_bytes": 0,
+              "per_role_i8_and_native_bytes": {},
+              "per_role_loading_temporary_bytes": {},
+              "preparation_additional_paged_disk_bytes": 0,
+              "provider_correction_bytes": 0,
+              "raw_client_bundle_bytes": 540347904,
+              "verifier_bytes": 0
+            },
+            "docker_provider_peak_bytes": {},
+            "inventory_rows": 263,
+            "kernel": "metal",
+            "limitations": [],
+            "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+            "max_input_tokens": 256,
+            "max_output_tokens": 8,
+            "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+            "native_total_peak_bytes": 7068032650,
+            "pipeline_digest": "9a25749375f4984995ee640a593d291c66b9e9dc193e66f69752c697fbbfdab4",
+            "preparation_storage": "resident",
+            "provider_peak_bytes": {},
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+            "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+          },
+          "host": {
+            "admission_budget_bytes": 9395847168,
+            "available": 13690814464,
+            "disk_free": 47916691456,
+            "reserve_bytes": 4294967296,
+            "swap_used": 1397882880,
+            "total": 34359738368
+          },
+          "requested_backend": "native",
+          "schema": "pllm.benchmark_memory.v1",
+          "selected_backend": "native"
+        },
+        "privacy_admission": null,
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 7.376006,
+          "aggregate_startup_cpu_seconds": 3.433211,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 7.376006
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 3.433211
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 150,
+            "durations": {
+              "full_seconds": 4.593411125,
+              "generation_seconds": 0.335986042,
+              "online_seconds": 3.867258792,
+              "preparation_seconds": null,
+              "tokens_per_second": 20.83419882067601,
+              "transition_seconds": null,
+              "ttft_seconds": 3.531097083
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "20dc626ea4f5c2bdb0862df4a68be132d0491a3e26ae39ac674682de8f24d9a9",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 0,
+              "generated": 0,
+              "required": 0,
+              "reused": 0
+            },
+            "max_output_tokens": 8,
+            "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "network": {
+              "decode_online_body_bytes": 0,
+              "decode_output_tokens": 7,
+              "decode_scope": "after-first-output-through-completion"
+            },
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 0,
+              "bundle_network_bytes": 0,
+              "correction_push_bytes": 0,
+              "correction_push_ns": 0,
+              "correlation_count": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 0,
+              "generation_decode_output_tokens": 7,
+              "generation_output_tokens": 8,
+              "generation_prefill_online_body_bytes": 0,
+              "inference_download_bytes": 0,
+              "inference_server_ns": 0,
+              "inference_stage_calls": 0,
+              "inference_upload_bytes": 0,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 0,
+              "masked_online_upload_bytes": 0,
+              "online_steps": 0,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 0,
+              "preparation_download_bytes": 0,
+              "preparation_failures": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 0,
+              "preparation_server_ns": 0,
+              "preparation_upload_bytes": 0,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 0,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 0,
+              "prepared_stage_rows_reserved": 0,
+              "public_context_bytes": 0,
+              "public_prefix_artifact_local_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 0,
+              "role_link.worker_a.online_upload_bytes": 0,
+              "role_link.worker_a.setup_download_bytes": 0,
+              "role_link.worker_a.setup_upload_bytes": 0,
+              "role_link.worker_a.teardown_download_bytes": 0,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 0,
+              "role_link.worker_b.online_upload_bytes": 0,
+              "role_link.worker_b.setup_download_bytes": 0,
+              "role_link.worker_b.setup_upload_bytes": 0,
+              "role_link.worker_b.teardown_download_bytes": 0,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 0,
+              "session_authorization_upload_bytes": 0,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0,
+              "tokenizer_artifact_local_bytes": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 3.9366470000000007,
+                "rss_peak_bytes": null
+              }
+            },
+            "run_id": "bench-0c37df093f8a675790f8fc3015d9ed2c",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1791254422960552000,
+              "first_token_at_ns": 1791254422624391000,
+              "last_token_at_ns": 1791254422960378000,
+              "online_started_at_ns": 1791254419093287000,
+              "preparation_finished_at_ns": null,
+              "preparation_started_at_ns": null,
+              "started_at_ns": 1791254418367136000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 150,
+              "output_tokens": 8,
+              "total_tokens": 158
+            },
+            "warm": false
+          }
+        ],
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": null,
+          "cold_first_response_mb_per_output_token": null,
+          "completed_runs": 1,
+          "covered_mb_per_output_token": 0.0,
+          "decode_online_mb_per_output_token": 0.0,
+          "generated_output_tokens": 8,
+          "median_covered_all_link_serialized_body_bytes": 0,
+          "median_full_seconds": 4.593411125,
+          "median_online_all_link_serialized_body_bytes": 0,
+          "median_online_seconds": 3.867258792,
+          "median_tokens_per_second": 20.83419882067601,
+          "median_ttft_seconds": 3.531097083,
+          "online_mb_per_output_token": 0.0,
+          "setup_inclusive_mb_per_output_token": null,
+          "total_accounted_benchmark_body_bytes": null,
+          "total_output_tokens": 8,
+          "total_run_covered_all_link_serialized_body_bytes": 0,
+          "total_run_full_seconds": 4.593411125,
+          "total_run_online_all_link_serialized_body_bytes": 0
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 3.9366470000000007,
+              "all_link_serialized_body_bytes": 0,
+              "body_bytes_by_edge": [],
+              "client_serialized_body_bytes": 0,
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 0,
+              "online_client_serialized_body_bytes": 0,
+              "run_window_cpu_seconds_by_role": {
+                "client": 3.9366470000000007
+              },
+              "schema": "pllm.topology_body_accounting.v1",
+              "scope": "client-owned semantic execution; no inference-provider graph links",
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true,
+              "unmeasured": [
+                "client model import and cold checkpoint distribution",
+                "client peak memory, energy, and disk activity",
+                "application/dashboard HTTP traffic outside the inference role graph"
+              ]
+            }
+          ],
+          "startup": {
+            "checkpoint_artifact_bytes": 999586347,
+            "client_peak_memory_bytes": null,
+            "cold_checkpoint_transfer_bytes": null,
+            "loaded_weight_and_local_tensor_bytes": 632209920,
+            "schema": "pllm.topology_model_ownership.v1"
+          },
+          "warmups": []
+        },
+        "wan_readiness": {
+          "assumptions": [
+            "independent full-duplex upload/download ports",
+            "each party's peers share its access port"
+          ],
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "emulation": null,
+          "internet_ready": null,
+          "measured_wan_latency_seconds": null,
+          "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+          "runs": [
+            {
+              "covered": {
+                "bottleneck": null,
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0,
+                "parties": {},
+                "wan_body_bytes": 0
+              },
+              "executed_role_parties": null,
+              "generated_output_tokens": 8,
+              "online": {
+                "bottleneck": null,
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0,
+                "parties": {},
+                "wan_body_bytes": 0
+              }
+            }
+          ],
+          "schema": "pllm.wan_readiness.v1",
+          "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+          "summary": {
+            "online": {
+              "bottleneck": null,
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.0,
+              "parties": {},
+              "wan_body_bytes": 0
+            },
+            "online_generated_tokens_per_second_ceiling": null,
+            "setup_inclusive": null,
+            "setup_inclusive_generated_tokens_per_second_ceiling": null
+          },
+          "unmeasured": [
+            "RTT and dependent protocol rounds",
+            "headers/TLS/ACKs, loss and retries",
+            "checkpoint distribution",
+            "WAN compute/queueing latency"
+          ]
+        },
+        "warmup_runs": []
+      }
+    }
+  ],
+  "environment": {
+    "attributes": {
+      "cpu_count": 10,
+      "machine": "arm64",
+      "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+      "pllm": "0.1.0a2",
+      "python": "3.13.15"
+    },
+    "digest": "ad50bd9ad8d895ebf39e0befb5513b449d81f92dbab4a93681558d0708da0346"
+  },
+  "policy": {
+    "count": null,
+    "identity": "qwen25-client",
+    "max_trials": 4,
+    "seed": null,
+    "space": {
+      "base": {
+        "budget": {
+          "max_input_tokens": 256,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "local://research-scorecard"
+        },
+        "name": "qwen25-client-search",
+        "pipeline": {
+          "components": {
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 4
+              }
+            },
+            "linear": {
+              "component": "pllm/cleartext-linear",
+              "params": {}
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "topology": {
+              "component": "pllm/client-only/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      },
+      "cardinality": 4,
+      "constraints": [],
+      "parameters": {
+        "pipeline__kernels": [
+          {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 1
+            }
+          },
+          {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 8
+            }
+          },
+          {
+            "component": "pllm/apple-metal-int8/v1",
+            "params": {
+              "min_rows": 8
+            }
+          }
+        ]
+      }
+    },
+    "width": 3
+  },
+  "schema_version": "pllm.search_benchmark.v1",
+  "search": {
+    "attempted": 4,
+    "best_configuration_digest": "ee35d158335adf1be6e571057745ba87fe381d535e38ef5b6418bddd47c644b2",
+    "direction": "max",
+    "evaluations": [
+      {
+        "experiment": {
+          "budget": {
+            "max_input_tokens": 256,
+            "max_new_tokens": 8,
+            "requests": 1
+          },
+          "deployment": {
+            "kind": "local",
+            "root": "local://research-scorecard"
+          },
+          "name": "qwen25-client-search",
+          "pipeline": {
+            "components": {
+              "kernels": {
+                "component": "pllm/cpu",
+                "params": {
+                  "threads": 4
+                }
+              },
+              "linear": {
+                "component": "pllm/cleartext-linear",
+                "params": {}
+              },
+              "quantization": {
+                "component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {
+                  "activation_bits": 8,
+                  "causal_reduction": "prefix_f32",
+                  "weight_bits": 8
+                }
+              },
+              "topology": {
+                "component": "pllm/client-only/v1",
+                "params": {}
+              }
+            },
+            "model": {
+              "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+              "source": "Qwen/Qwen2.5-0.5B-Instruct"
+            }
+          },
+          "schema": "pllm.experiment.v2"
+        },
+        "parameters": {
+          "pipeline__kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          }
+        },
+        "result": {
+          "component_ids": [
+            "pllm/cleartext-linear",
+            "pllm/client-only/v1",
+            "pllm/cpu",
+            "pllm/symmetric-per-row-quantization/v1"
+          ],
+          "configuration_digest": "ee35d158335adf1be6e571057745ba87fe381d535e38ef5b6418bddd47c644b2",
+          "created_at": "2026-10-06T02:39:51.453112+00:00",
+          "environment": {
+            "attributes": {
+              "cpu_count": 10,
+              "machine": "arm64",
+              "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+              "pllm": "0.1.0a2",
+              "python": "3.13.15"
+            },
+            "digest": "ad50bd9ad8d895ebf39e0befb5513b449d81f92dbab4a93681558d0708da0346"
+          },
+          "id": "qwen25-client:0:ee35d158335adf1b",
+          "limitations": [
+            "Client lifetime memory is shared across trials and cannot rank isolated peaks.",
+            "Co-located role processes; no independent-provider or full physical wire claim.",
+            "Publisher work and distribution of pre-positioned public artifacts are separate costs.",
+            "Single cold response with cached checkpoints; adaptive observations are exploratory."
+          ],
+          "metrics": [
+            {
+              "component": "pllm/communication",
+              "id": "covered_bytes",
+              "origin": "not_available",
+              "parameters": {
+                "direction": "total",
+                "phase": "full"
+              },
+              "phase": "full",
+              "role": "all-links",
+              "sample_count": 0,
+              "statistic": "sum",
+              "unavailable_reason": "covered body measurement unavailable",
+              "unit": "bytes",
+              "unit_detail": "covered_application_bodies",
+              "value": null
+            },
+            {
+              "component": "pllm/latency",
+              "id": "full_seconds",
+              "origin": "external_measured",
+              "parameters": {
+                "phase": "full",
+                "statistic": "median"
+              },
+              "phase": "full",
+              "role": "client",
+              "sample_count": 1,
+              "statistic": "median",
+              "unavailable_reason": null,
+              "unit": "seconds",
+              "unit_detail": null,
+              "value": 4.32434675
+            },
+            {
+              "component": "pllm/communication",
+              "id": "online_bytes",
+              "origin": "external_measured",
+              "parameters": {
+                "direction": "total",
+                "phase": "online"
+              },
+              "phase": "online",
+              "role": "all-links",
+              "sample_count": 1,
+              "statistic": "sum",
+              "unavailable_reason": null,
+              "unit": "bytes",
+              "unit_detail": "covered_application_bodies",
+              "value": 0.0
+            },
+            {
+              "component": "pllm/throughput",
+              "id": "request_tps",
+              "origin": "external_measured",
+              "parameters": {
+                "basis": "tokens"
+              },
+              "phase": "full",
+              "role": "client",
+              "sample_count": 1,
+              "statistic": "median",
+              "unavailable_reason": null,
+              "unit": "per_second",
+              "unit_detail": "tokens_per_second",
+              "value": 1.8499904060653785
+            }
+          ],
+          "model": {
+            "checkpoint_digest": null,
+            "id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+          },
+          "numeric_cohort": "602baf29350f45c97e67d86ff09a5237de51fae8ae2775a89fe82a5c5ffb7e74",
+          "plan_lock_digest": null,
+          "privacy_cohort": "8da17e68e12981eaf58db03b2d56241ca8404eb001e33f31184bd6b137c45c30",
+          "profile": "baseline.client_only_cpu",
+          "repetitions": 1,
+          "samples": [
+            {
+              "artifact_digest": "118d848048ebe792a017eeba3faa7b6cde78474676c34e6ceaadeff29aad6b2a",
+              "duration_seconds": 4.32434675,
+              "index": 0,
+              "kind": "measurement",
+              "status": "completed"
+            }
+          ],
+          "schema_version": "pllm.benchmark_result.v1",
+          "scope": "deployment",
+          "status": "completed",
+          "warmups": 0,
+          "workload_digest": "f593dcd9d37d16532dc21bb9f560def9aadd53114b1c0b18765354a02c64c601"
+        },
+        "trial_id": "qwen25-client:0:ee35d158335adf1b"
+      },
+      {
+        "experiment": {
+          "budget": {
+            "max_input_tokens": 256,
+            "max_new_tokens": 8,
+            "requests": 1
+          },
+          "deployment": {
+            "kind": "local",
+            "root": "local://research-scorecard"
+          },
+          "name": "qwen25-client-search",
+          "pipeline": {
+            "components": {
+              "kernels": {
+                "component": "pllm/cpu",
+                "params": {
+                  "threads": 1
+                }
+              },
+              "linear": {
+                "component": "pllm/cleartext-linear",
+                "params": {}
+              },
+              "quantization": {
+                "component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {
+                  "activation_bits": 8,
+                  "causal_reduction": "prefix_f32",
+                  "weight_bits": 8
+                }
+              },
+              "topology": {
+                "component": "pllm/client-only/v1",
+                "params": {}
+              }
+            },
+            "model": {
+              "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+              "source": "Qwen/Qwen2.5-0.5B-Instruct"
+            }
+          },
+          "schema": "pllm.experiment.v2"
+        },
+        "parameters": {
+          "pipeline__kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 1
+            }
+          }
+        },
+        "result": {
+          "component_ids": [
+            "pllm/cleartext-linear",
+            "pllm/client-only/v1",
+            "pllm/cpu",
+            "pllm/symmetric-per-row-quantization/v1"
+          ],
+          "configuration_digest": "bfb297801563ef0c93646d55f1c48fbdc335db23bc3dadb60b49fbd7d068ea76",
+          "created_at": "2026-10-06T02:40:03.050274+00:00",
+          "environment": {
+            "attributes": {
+              "cpu_count": 10,
+              "machine": "arm64",
+              "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+              "pllm": "0.1.0a2",
+              "python": "3.13.15"
+            },
+            "digest": "ad50bd9ad8d895ebf39e0befb5513b449d81f92dbab4a93681558d0708da0346"
+          },
+          "id": "qwen25-client:1:bfb297801563ef0c",
+          "limitations": [
+            "Client lifetime memory is shared across trials and cannot rank isolated peaks.",
+            "Co-located role processes; no independent-provider or full physical wire claim.",
+            "Publisher work and distribution of pre-positioned public artifacts are separate costs.",
+            "Single cold response with cached checkpoints; adaptive observations are exploratory."
+          ],
+          "metrics": [
+            {
+              "component": "pllm/communication",
+              "id": "covered_bytes",
+              "origin": "not_available",
+              "parameters": {
+                "direction": "total",
+                "phase": "full"
+              },
+              "phase": "full",
+              "role": "all-links",
+              "sample_count": 0,
+              "statistic": "sum",
+              "unavailable_reason": "covered body measurement unavailable",
+              "unit": "bytes",
+              "unit_detail": "covered_application_bodies",
+              "value": null
+            },
+            {
+              "component": "pllm/latency",
+              "id": "full_seconds",
+              "origin": "external_measured",
+              "parameters": {
+                "phase": "full",
+                "statistic": "median"
+              },
+              "phase": "full",
+              "role": "client",
+              "sample_count": 1,
+              "statistic": "median",
+              "unavailable_reason": null,
+              "unit": "seconds",
+              "unit_detail": null,
+              "value": 5.97951275
+            },
+            {
+              "component": "pllm/communication",
+              "id": "online_bytes",
+              "origin": "external_measured",
+              "parameters": {
+                "direction": "total",
+                "phase": "online"
+              },
+              "phase": "online",
+              "role": "all-links",
+              "sample_count": 1,
+              "statistic": "sum",
+              "unavailable_reason": null,
+              "unit": "bytes",
+              "unit_detail": "covered_application_bodies",
+              "value": 0.0
+            },
+            {
+              "component": "pllm/throughput",
+              "id": "request_tps",
+              "origin": "external_measured",
+              "parameters": {
+                "basis": "tokens"
+              },
+              "phase": "full",
+              "role": "client",
+              "sample_count": 1,
+              "statistic": "median",
+              "unavailable_reason": null,
+              "unit": "per_second",
+              "unit_detail": "tokens_per_second",
+              "value": 1.337901654277767
+            }
+          ],
+          "model": {
+            "checkpoint_digest": null,
+            "id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+          },
+          "numeric_cohort": "602baf29350f45c97e67d86ff09a5237de51fae8ae2775a89fe82a5c5ffb7e74",
+          "plan_lock_digest": null,
+          "privacy_cohort": "8da17e68e12981eaf58db03b2d56241ca8404eb001e33f31184bd6b137c45c30",
+          "profile": "baseline.client_only_cpu",
+          "repetitions": 1,
+          "samples": [
+            {
+              "artifact_digest": "f154b1ea75ef906b21a897e404d8ffaa50e245ba87b2c969315815bfbabc83fb",
+              "duration_seconds": 5.97951275,
+              "index": 0,
+              "kind": "measurement",
+              "status": "completed"
+            }
+          ],
+          "schema_version": "pllm.benchmark_result.v1",
+          "scope": "deployment",
+          "status": "completed",
+          "warmups": 0,
+          "workload_digest": "f593dcd9d37d16532dc21bb9f560def9aadd53114b1c0b18765354a02c64c601"
+        },
+        "trial_id": "qwen25-client:1:bfb297801563ef0c"
+      },
+      {
+        "experiment": {
+          "budget": {
+            "max_input_tokens": 256,
+            "max_new_tokens": 8,
+            "requests": 1
+          },
+          "deployment": {
+            "kind": "local",
+            "root": "local://research-scorecard"
+          },
+          "name": "qwen25-client-search",
+          "pipeline": {
+            "components": {
+              "kernels": {
+                "component": "pllm/cpu",
+                "params": {
+                  "threads": 8
+                }
+              },
+              "linear": {
+                "component": "pllm/cleartext-linear",
+                "params": {}
+              },
+              "quantization": {
+                "component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {
+                  "activation_bits": 8,
+                  "causal_reduction": "prefix_f32",
+                  "weight_bits": 8
+                }
+              },
+              "topology": {
+                "component": "pllm/client-only/v1",
+                "params": {}
+              }
+            },
+            "model": {
+              "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+              "source": "Qwen/Qwen2.5-0.5B-Instruct"
+            }
+          },
+          "schema": "pllm.experiment.v2"
+        },
+        "parameters": {
+          "pipeline__kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 8
+            }
+          }
+        },
+        "result": {
+          "component_ids": [
+            "pllm/cleartext-linear",
+            "pllm/client-only/v1",
+            "pllm/cpu",
+            "pllm/symmetric-per-row-quantization/v1"
+          ],
+          "configuration_digest": "89eee8d0ff79497d6d8b15108bb4e175d5c8023ff4630f23c813f40aaa08aba4",
+          "created_at": "2026-10-06T02:40:13.552899+00:00",
+          "environment": {
+            "attributes": {
+              "cpu_count": 10,
+              "machine": "arm64",
+              "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+              "pllm": "0.1.0a2",
+              "python": "3.13.15"
+            },
+            "digest": "ad50bd9ad8d895ebf39e0befb5513b449d81f92dbab4a93681558d0708da0346"
+          },
+          "id": "qwen25-client:2:89eee8d0ff79497d",
+          "limitations": [
+            "Client lifetime memory is shared across trials and cannot rank isolated peaks.",
+            "Co-located role processes; no independent-provider or full physical wire claim.",
+            "Publisher work and distribution of pre-positioned public artifacts are separate costs.",
+            "Single cold response with cached checkpoints; adaptive observations are exploratory."
+          ],
+          "metrics": [
+            {
+              "component": "pllm/communication",
+              "id": "covered_bytes",
+              "origin": "not_available",
+              "parameters": {
+                "direction": "total",
+                "phase": "full"
+              },
+              "phase": "full",
+              "role": "all-links",
+              "sample_count": 0,
+              "statistic": "sum",
+              "unavailable_reason": "covered body measurement unavailable",
+              "unit": "bytes",
+              "unit_detail": "covered_application_bodies",
+              "value": null
+            },
+            {
+              "component": "pllm/latency",
+              "id": "full_seconds",
+              "origin": "external_measured",
+              "parameters": {
+                "phase": "full",
+                "statistic": "median"
+              },
+              "phase": "full",
+              "role": "client",
+              "sample_count": 1,
+              "statistic": "median",
+              "unavailable_reason": null,
+              "unit": "seconds",
+              "unit_detail": null,
+              "value": 4.984355916
+            },
+            {
+              "component": "pllm/communication",
+              "id": "online_bytes",
+              "origin": "external_measured",
+              "parameters": {
+                "direction": "total",
+                "phase": "online"
+              },
+              "phase": "online",
+              "role": "all-links",
+              "sample_count": 1,
+              "statistic": "sum",
+              "unavailable_reason": null,
+              "unit": "bytes",
+              "unit_detail": "covered_application_bodies",
+              "value": 0.0
+            },
+            {
+              "component": "pllm/throughput",
+              "id": "request_tps",
+              "origin": "external_measured",
+              "parameters": {
+                "basis": "tokens"
+              },
+              "phase": "full",
+              "role": "client",
+              "sample_count": 1,
+              "statistic": "median",
+              "unavailable_reason": null,
+              "unit": "per_second",
+              "unit_detail": "tokens_per_second",
+              "value": 1.6050218192323809
+            }
+          ],
+          "model": {
+            "checkpoint_digest": null,
+            "id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+          },
+          "numeric_cohort": "602baf29350f45c97e67d86ff09a5237de51fae8ae2775a89fe82a5c5ffb7e74",
+          "plan_lock_digest": null,
+          "privacy_cohort": "8da17e68e12981eaf58db03b2d56241ca8404eb001e33f31184bd6b137c45c30",
+          "profile": "baseline.client_only_cpu",
+          "repetitions": 1,
+          "samples": [
+            {
+              "artifact_digest": "424448a00c3f90f3064c8368f32538c8e671d05bcf7503c58803e3f35c72c522",
+              "duration_seconds": 4.984355916,
+              "index": 0,
+              "kind": "measurement",
+              "status": "completed"
+            }
+          ],
+          "schema_version": "pllm.benchmark_result.v1",
+          "scope": "deployment",
+          "status": "completed",
+          "warmups": 0,
+          "workload_digest": "f593dcd9d37d16532dc21bb9f560def9aadd53114b1c0b18765354a02c64c601"
+        },
+        "trial_id": "qwen25-client:2:89eee8d0ff79497d"
+      },
+      {
+        "experiment": {
+          "budget": {
+            "max_input_tokens": 256,
+            "max_new_tokens": 8,
+            "requests": 1
+          },
+          "deployment": {
+            "kind": "local",
+            "root": "local://research-scorecard"
+          },
+          "name": "qwen25-client-search",
+          "pipeline": {
+            "components": {
+              "kernels": {
+                "component": "pllm/apple-metal-int8/v1",
+                "params": {
+                  "min_rows": 8
+                }
+              },
+              "linear": {
+                "component": "pllm/cleartext-linear",
+                "params": {}
+              },
+              "quantization": {
+                "component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {
+                  "activation_bits": 8,
+                  "causal_reduction": "prefix_f32",
+                  "weight_bits": 8
+                }
+              },
+              "topology": {
+                "component": "pllm/client-only/v1",
+                "params": {}
+              }
+            },
+            "model": {
+              "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+              "source": "Qwen/Qwen2.5-0.5B-Instruct"
+            }
+          },
+          "schema": "pllm.experiment.v2"
+        },
+        "parameters": {
+          "pipeline__kernels": {
+            "component": "pllm/apple-metal-int8/v1",
+            "params": {
+              "min_rows": 8
+            }
+          }
+        },
+        "result": {
+          "component_ids": [
+            "pllm/apple-metal-int8/v1",
+            "pllm/cleartext-linear",
+            "pllm/client-only/v1",
+            "pllm/symmetric-per-row-quantization/v1"
+          ],
+          "configuration_digest": "d35db29601b93884c27ac4d843d81567528e9cb772c3cbfa484d741acbfcc0a7",
+          "created_at": "2026-10-06T02:40:23.765056+00:00",
+          "environment": {
+            "attributes": {
+              "cpu_count": 10,
+              "machine": "arm64",
+              "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+              "pllm": "0.1.0a2",
+              "python": "3.13.15"
+            },
+            "digest": "ad50bd9ad8d895ebf39e0befb5513b449d81f92dbab4a93681558d0708da0346"
+          },
+          "id": "qwen25-client:3:d35db29601b93884",
+          "limitations": [
+            "Client lifetime memory is shared across trials and cannot rank isolated peaks.",
+            "Co-located role processes; no independent-provider or full physical wire claim.",
+            "Publisher work and distribution of pre-positioned public artifacts are separate costs.",
+            "Single cold response with cached checkpoints; adaptive observations are exploratory."
+          ],
+          "metrics": [
+            {
+              "component": "pllm/communication",
+              "id": "covered_bytes",
+              "origin": "not_available",
+              "parameters": {
+                "direction": "total",
+                "phase": "full"
+              },
+              "phase": "full",
+              "role": "all-links",
+              "sample_count": 0,
+              "statistic": "sum",
+              "unavailable_reason": "covered body measurement unavailable",
+              "unit": "bytes",
+              "unit_detail": "covered_application_bodies",
+              "value": null
+            },
+            {
+              "component": "pllm/latency",
+              "id": "full_seconds",
+              "origin": "external_measured",
+              "parameters": {
+                "phase": "full",
+                "statistic": "median"
+              },
+              "phase": "full",
+              "role": "client",
+              "sample_count": 1,
+              "statistic": "median",
+              "unavailable_reason": null,
+              "unit": "seconds",
+              "unit_detail": null,
+              "value": 4.593411125
+            },
+            {
+              "component": "pllm/communication",
+              "id": "online_bytes",
+              "origin": "external_measured",
+              "parameters": {
+                "direction": "total",
+                "phase": "online"
+              },
+              "phase": "online",
+              "role": "all-links",
+              "sample_count": 1,
+              "statistic": "sum",
+              "unavailable_reason": null,
+              "unit": "bytes",
+              "unit_detail": "covered_application_bodies",
+              "value": 0.0
+            },
+            {
+              "component": "pllm/throughput",
+              "id": "request_tps",
+              "origin": "external_measured",
+              "parameters": {
+                "basis": "tokens"
+              },
+              "phase": "full",
+              "role": "client",
+              "sample_count": 1,
+              "statistic": "median",
+              "unavailable_reason": null,
+              "unit": "per_second",
+              "unit_detail": "tokens_per_second",
+              "value": 1.7416250760702374
+            }
+          ],
+          "model": {
+            "checkpoint_digest": null,
+            "id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+          },
+          "numeric_cohort": "602baf29350f45c97e67d86ff09a5237de51fae8ae2775a89fe82a5c5ffb7e74",
+          "plan_lock_digest": null,
+          "privacy_cohort": "8da17e68e12981eaf58db03b2d56241ca8404eb001e33f31184bd6b137c45c30",
+          "profile": "baseline.client_only_cpu",
+          "repetitions": 1,
+          "samples": [
+            {
+              "artifact_digest": "3d4543008daee62ec7bc7aefbd75814f3515114f9694550af1d418bad2b50518",
+              "duration_seconds": 4.593411125,
+              "index": 0,
+              "kind": "measurement",
+              "status": "completed"
+            }
+          ],
+          "schema_version": "pllm.benchmark_result.v1",
+          "scope": "deployment",
+          "status": "completed",
+          "warmups": 0,
+          "workload_digest": "f593dcd9d37d16532dc21bb9f560def9aadd53114b1c0b18765354a02c64c601"
+        },
+        "trial_id": "qwen25-client:3:d35db29601b93884"
+      }
+    ],
+    "global_optimum_established": false,
+    "objective": "request_tps",
+    "rejections": [],
+    "schema_version": "pllm.search_outcome.v1",
+    "stop_reason": "budget"
+  },
+  "strategy": "BeamSearch"
+}

@@ -380,6 +380,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/quantization/symmetric-per-row/', 'pllm/symmetric-per-row-quantization/v1', null],
     ['/sdk/components/quantization/public-per-channel-equalized/', 'pllm/public-per-channel-equalized/v1', null],
     ['/sdk/components/kernels/cpu/', 'pllm/cpu', null],
+    ['/sdk/components/kernels/apple-metal/', 'pllm/apple-metal-int8/v1', null],
     ['/sdk/components/nonlinear/arithmetic-garbling-silu-q7/', 'pllm/arithmetic-garbling-silu-q7/v1', '/research/papers/dash/'],
     ['/sdk/components/nonlinear/binary-table/', 'pllm/binary-table/v1', null],
     ['/sdk/components/nonlinear/r03-crt/', 'pllm/r03-crt/v1', '/research/papers/garbling-gadgets/'],
@@ -1197,8 +1198,9 @@ test('whitepaper scores bind to the matched cohort and historical figures remain
     assert.deepEqual(source, published, name);
   }
   const report = JSON.parse(fs.readFileSync(path.join(siteRoot, 'data/research/scorecard.json'), 'utf8'));
-  for (const row of report.cohorts[0].rows) {
-    const bytes = row.metrics.covered * report.cohorts[0].identity.outputs;
+  const cohort = report.cohorts.find((item) => item.id === 'qwen25-prepared-150-8');
+  for (const row of cohort.rows) {
+    const bytes = row.metrics.covered * cohort.identity.outputs;
     assert.ok(web.includes(`${bytes.toFixed(2)} MB`), row.id);
   }
   assert.match(web, /public artifacts add 12.25 MB/);

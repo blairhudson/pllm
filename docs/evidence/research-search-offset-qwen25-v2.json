@@ -1,0 +1,352 @@
+{
+  "admissions": [
+    {
+      "memory": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 3057064960,
+            "required_host_bytes": 4777861130
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 3057064960,
+            "required_host_bytes": 4777861130
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 2075229450,
+          "compiled_input_bound": 256,
+          "components": {
+            "checkpoint_bytes": 988097824,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 1095128064,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 221122568,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 131072,
+            "client_state_work_bytes": 75497472,
+            "client_tensor_work_bytes": 296620040,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 25525248,
+            "largest_loading_temporary_bytes": 272269312,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 2242915872,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_provider_metal_bytes": 0,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 493961216,
+              "worker_b": 493961216
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 272269312,
+              "worker_b": 272269312
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 182521344,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 3109525760,
+            "worker_b": 3109525760
+          },
+          "inventory_rows": 263,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 256,
+          "max_output_tokens": 8,
+          "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+          "native_total_peak_bytes": 4777861130,
+          "pipeline_digest": "c75de1f98ee8b0e85fb44a0e8b0b83f5a5441784d61833e960f6f6a1a233cdeb",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1351315840,
+            "worker_b": 1351315840
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 10000367616,
+          "available": 14295334912,
+          "disk_free": 47912869888,
+          "reserve_bytes": 4294967296,
+          "swap_used": 1397882880,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "trial_id": "qwen25-offset:0:8a9f2958fc7a8b90"
+    }
+  ],
+  "candidates": [],
+  "environment": {
+    "attributes": {
+      "cpu_count": 10,
+      "machine": "arm64",
+      "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+      "pllm": "0.1.0a2",
+      "python": "3.13.15"
+    },
+    "digest": "ad50bd9ad8d895ebf39e0befb5513b449d81f92dbab4a93681558d0708da0346"
+  },
+  "policy": {
+    "count": null,
+    "identity": "qwen25-offset",
+    "max_trials": 24,
+    "seed": null,
+    "space": {
+      "base": {
+        "budget": {
+          "max_input_tokens": 256,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "local://research-scorecard"
+        },
+        "name": "qwen25-offset-search",
+        "pipeline": {
+          "components": {
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "encoding": "none"
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 4
+              }
+            },
+            "linear": {
+              "component": "pllm/two-online-offset-linear/v1",
+              "params": {
+                "dispatch": "seed_first",
+                "input_encoding": "seeded",
+                "output_encoding": "row_residues"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "topology": {
+              "component": "pllm/two-online-offset-workers/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      },
+      "cardinality": 48,
+      "constraints": [],
+      "parameters": {
+        "pipeline__delivery": [
+          {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "encoding": "none"
+            }
+          },
+          {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "batch_objects": 64,
+              "encoding": "artifacts"
+            }
+          },
+          {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "batch_objects": 64,
+              "compression": "zlib",
+              "encoding": "artifacts"
+            }
+          },
+          {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "batch_objects": 64,
+              "compression": "zlib",
+              "encoding": "artifacts",
+              "storage": "paged"
+            }
+          }
+        ],
+        "pipeline__kernels": [
+          {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 1
+            }
+          },
+          {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 8
+            }
+          },
+          {
+            "component": "pllm/apple-metal-int8/v1",
+            "params": {
+              "min_rows": 8
+            }
+          }
+        ],
+        "pipeline__linear": [
+          {
+            "component": "pllm/two-online-offset-linear/v1",
+            "params": {
+              "dispatch": "seed_first",
+              "input_encoding": "seeded",
+              "output_encoding": "row_residues"
+            }
+          },
+          {
+            "component": "pllm/two-online-offset-linear/v1",
+            "params": {
+              "input_encoding": "seeded",
+              "output_encoding": "row_residues"
+            }
+          },
+          {
+            "component": "pllm/two-online-offset-linear/v1",
+            "params": {}
+          }
+        ]
+      }
+    },
+    "width": 3
+  },
+  "schema_version": "pllm.search_benchmark.v1",
+  "search": {
+    "attempted": 1,
+    "best_configuration_digest": null,
+    "direction": "max",
+    "evaluations": [],
+    "global_optimum_established": false,
+    "objective": "request_tps",
+    "rejections": [
+      {
+        "experiment": {
+          "budget": {
+            "max_input_tokens": 256,
+            "max_new_tokens": 8,
+            "requests": 1
+          },
+          "deployment": {
+            "kind": "local",
+            "root": "local://research-scorecard"
+          },
+          "name": "qwen25-offset-search",
+          "pipeline": {
+            "components": {
+              "delivery": {
+                "component": "pllm/client-bundle-transport/v1",
+                "params": {
+                  "encoding": "none"
+                }
+              },
+              "kernels": {
+                "component": "pllm/cpu",
+                "params": {
+                  "threads": 4
+                }
+              },
+              "linear": {
+                "component": "pllm/two-online-offset-linear/v1",
+                "params": {
+                  "dispatch": "seed_first",
+                  "input_encoding": "seeded",
+                  "output_encoding": "row_residues"
+                }
+              },
+              "quantization": {
+                "component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {
+                  "activation_bits": 8,
+                  "causal_reduction": "prefix_f32",
+                  "weight_bits": 8
+                }
+              },
+              "topology": {
+                "component": "pllm/two-online-offset-workers/v1",
+                "params": {}
+              }
+            },
+            "model": {
+              "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+              "source": "Qwen/Qwen2.5-0.5B-Instruct"
+            }
+          },
+          "schema": "pllm.experiment.v2"
+        },
+        "parameters": {
+          "pipeline__delivery": {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "encoding": "none"
+            }
+          },
+          "pipeline__kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          "pipeline__linear": {
+            "component": "pllm/two-online-offset-linear/v1",
+            "params": {
+              "dispatch": "seed_first",
+              "input_encoding": "seeded",
+              "output_encoding": "row_residues"
+            }
+          }
+        },
+        "reason": "role benchmark failed; no completed measurement"
+      }
+    ],
+    "schema_version": "pllm.search_outcome.v1",
+    "stop_reason": "no_measured_objective"
+  },
+  "strategy": "BeamSearch"
+}

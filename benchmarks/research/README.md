@@ -14,13 +14,18 @@ The exact commands, metrics and cost boundaries are documented in
 | `slalom_baseline.py` | 32+1-token control for verified-adaptation admission |
 | `slalom.py` | Slalom-derived trusted-client Freivalds adaptation; current attempt memory-blocked |
 | `curl_reference.py` | Bounded native component probe; not a decoder Experiment |
+| `combinations.py` | Declared CPU/Metal, placement, protocol, delivery and preparation search axes |
+| `search.py` | SDK `BeamSearch` + `benchmark_search`; retains evidence, rejections and exact Python factories |
+| `confirm.py` | SDK-selected throughput/byte finalists, saved factories and one fresh matched baseline cohort |
 
 `PLLM_RESEARCH_ARTIFACTS` points to the explicit output directory of
 `scripts/build_incremental_sdk_experiments.py`. Public artifact publication and
 distribution have their own cost boundary. Generated artifacts belong outside
 version control; report JSON and these configurations are retained.
 
-“SOTA” identifies a tested combination, not an unconditional winner. The
-scorecard chooses leaders separately per metric and matched cohort, and excludes
-unsupported or unknown results. No original-paper performance is used as a PLLM
-measurement.
+SOTA is selected through matched measurements of compatible SDK combinations.
+The scorecard chooses leaders separately per metric and matched cohort. The
+`sota.py` filename retains the earlier exact-stack recipe; the measured search
+can select different configurations. Search winners are exploratory until a
+fresh matched baseline/finalist confirmation. Original-paper performance is
+never substituted for a PLLM measurement.

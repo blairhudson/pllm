@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -17,6 +18,7 @@ export const metrics = [
   { id: 'decodeTps', label: 'Decode throughput (N−1)', unit: 'tokens/s', direction: 'max' },
   { id: 'aggregateCpu', label: 'Cold aggregate process CPU', unit: 'CPU s', direction: 'min' },
   { id: 'clientCpu', label: 'Cold client process CPU', unit: 'CPU s', direction: 'min' },
+  { id: 'providerPeak', label: 'Largest provider process peak RSS', unit: 'MB', direction: 'min' },
   { id: 'preparationPeak', label: 'Preparation lifetime peak RSS', unit: 'MB', direction: 'min' },
   { id: 'inferencePeak', label: 'Inference lifetime peak RSS', unit: 'MB', direction: 'min' },
   { id: 'artifactBytes', label: 'Pre-positioned public artifacts', unit: 'MB', direction: 'min' },
@@ -26,9 +28,55 @@ export const metrics = [
   { id: 'energy', label: 'Whole-response energy', unit: 'J', direction: 'min' },
 ];
 
+export function executionPlacement(pipeline, roles, body = null) {
+  const components = pipeline.components;
+  const declared = [...roles].sort().join(',');
+  const topology = {
+    client: 'Client-only',
+    'client,inference,preparation': 'Prepared',
+    'client,worker_a,worker_b': 'Two workers',
+  }[declared];
+  if (!topology) throw new Error('Unsupported measured role graph');
+  const client = components.placement;
+  const clientBody = topology === 'Client-only' || Boolean(client);
+  const kernel = { 'pllm/cpu': 'CPU', 'pllm/apple-metal-int8/v1': 'CPU + Metal' }[components.kernels?.component];
+  if (!kernel) throw new Error('Unsupported measured kernel');
+  const ownership = topology === 'Client-only' ? 'Full decoder at client' : client
+    ? 'Selected body linear stages at client' : 'Body linear stages at providers';
+  let clientMacPercent = topology === 'Client-only' ? 100 : null;
+  if (body != null) {
+    const local = body.declared_body_linear_macs_per_row_client;
+    const remote = body.declared_body_linear_macs_per_row_remote;
+    if (body.schema !== 'pllm.client_body_placement.v1' ||
+        !Number.isSafeInteger(local) || !Number.isSafeInteger(remote) || local < 0 || remote < 0) {
+      throw new Error('Invalid declared client body placement');
+    }
+    // Historical bundle samples omit the separate client-only engine's weights.
+    if (topology !== 'Client-only' && local + remote > 0) clientMacPercent = 100 * local / (local + remote);
+  }
+  return { topology, kernel, clientBody, ownership, clientMacPercent };
+}
+
+export function providerPeak(roles, processes) {
+  const peaks = roles.filter((role) => role !== 'client').map((role) => processes?.[role]?.rss_peak_bytes);
+  if (peaks.some((value) => value == null)) return null;
+  if (peaks.some((value) => !Number.isSafeInteger(value) || value < 0)) {
+    throw new Error('Invalid provider peak RSS');
+  }
+  return Math.max(0, ...peaks) / 1e6;
+}
+
 export function cohortRows(cohort, document, read = (file) => fs.readFileSync(path.join(root, file))) {
   if (!Array.isArray(document.candidates) || document.candidates.length < 2) {
     throw new Error('Require a canonical multi-Experiment cohort with its shared salt');
+  }
+  if (document.checks?.passed !== true) throw new Error('Comparison policy did not admit rankings');
+  if (document.analysis_of) {
+    const original = read(document.analysis_of.file);
+    if (hash(original) !== document.analysis_of.sha256 ||
+        !isDeepStrictEqual(JSON.parse(original).candidates, document.candidates)) {
+      throw new Error('Reanalysis changed original measurements');
+    }
   }
   for (const [file, expected] of Object.entries(cohort.configuration_sources ?? {})) {
     if (hash(read(file)) !== expected) throw new Error(`Measured configuration source changed: ${file}`);
@@ -103,6 +151,7 @@ export function cohortRows(cohort, document, read = (file) => fs.readFileSync(pa
         ? (run.tokens.output_tokens - 1) / run.durations.generation_seconds : null,
       aggregateCpu: cpu?.aggregate_cold_first_response_cpu_seconds ?? null,
       clientCpu: cpu?.cold_first_response_cpu_seconds_by_role?.client ?? null,
+      providerPeak: providerPeak(config.roles, run.processes),
       preparationPeak: run.processes?.preparation?.rss_peak_bytes == null ? null : run.processes.preparation.rss_peak_bytes / 1e6,
       inferencePeak: run.processes?.inference?.rss_peak_bytes == null ? null : run.processes.inference.rss_peak_bytes / 1e6,
       artifactBytes: artifactBytes / 1e6,
@@ -115,7 +164,7 @@ export function cohortRows(cohort, document, read = (file) => fs.readFileSync(pa
     return { id: candidate.name, label: spec.label, file: spec.file, fileSha256,
       configurationDigest: candidate.configuration_digest, pipeline: candidate.pipeline,
       sourceLock: config.source_lock_digest, paper: spec.paper ?? null,
-      publicPrefixTokens, metrics: metricValues };
+      publicPrefixTokens, placement: executionPlacement(candidate.pipeline, config.roles, report.client_body_placement), metrics: metricValues };
   });
   if (identities.size !== 1) throw new Error('Cohort identity, numeric contract, or outputs differ');
   if (!names.has(cohort.baseline) || names.size !== Object.keys(cohort.candidates).length) {

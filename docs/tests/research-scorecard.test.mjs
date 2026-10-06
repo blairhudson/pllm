@@ -2,19 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { cohortRows, buildScorecard, metrics } from '../scripts/research-scorecard.mjs';
+import { cohortRows, buildScorecard, executionPlacement, providerPeak, metrics } from '../scripts/research-scorecard.mjs';
 import { leaders, improvement } from '../lib/research-rankings.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const cohort = JSON.parse(fs.readFileSync(`${root}docs/data/research/benchmark-cohorts.json`)).cohorts[0];
+const cohort = JSON.parse(fs.readFileSync(`${root}docs/data/research/benchmark-cohorts.json`)).cohorts
+  .find((item) => item.id === 'qwen25-prepared-150-8');
 const report = JSON.parse(fs.readFileSync(root + cohort.report));
 
 test('published metrics conserve output denominators and unknown measurement scope', () => {
   const card = buildScorecard();
-  const rows = card.cohorts[0].rows;
+  const measured = card.cohorts.find((item) => item.id === cohort.id);
+  const rows = measured.rows;
   assert.equal(rows.length, 3);
-  assert.equal(card.cohorts[0].identity.outputs, 8);
-  assert.equal(card.cohorts[0].identity.inputs, 150);
+  assert.equal(measured.identity.outputs, 8);
+  assert.equal(measured.identity.inputs, 150);
   for (const row of rows) {
     assert.equal(row.metrics.clientPeak, null);
     assert.equal(row.metrics.wire, null);
@@ -78,6 +80,27 @@ test('zero, unknown, ties and metric direction retain their meaning', () => {
   assert.equal(improvement(3, 2, 'max'), 50);
 });
 
+test('SDK finalists retain measured placement, filters and original observations', () => {
+  const card = buildScorecard();
+  const finalists = card.cohorts.find((item) => item.id === 'qwen25-sdk-finalists-150-8');
+  const throughput = metrics.find((item) => item.id === 'requestTps');
+  assert.equal(finalists.rows.length, 16);
+  assert.deepEqual(leaders(finalists.rows, throughput), ['searched-client-ee35d158335a']);
+  assert.equal(finalists.rows.find((row) => row.placement.topology === 'Client-only').placement.clientMacPercent, 100);
+  const remote = finalists.rows.filter((row) => !row.placement.clientBody);
+  assert.equal(remote.length, 12);
+  assert.deepEqual(leaders(remote, throughput), ['searched-public_prefix-a4e0c08b4380']);
+  assert.deepEqual(leaders(remote.filter((row) => !row.publicPrefixTokens), throughput), ['searched-prepared-755220a8dcd9']);
+  const raw = JSON.parse(fs.readFileSync(root + finalists.report));
+  const registered = JSON.parse(fs.readFileSync(`${root}docs/data/research/benchmark-cohorts.json`)).cohorts[0];
+  const mutated = structuredClone(raw);
+  mutated.candidates[0].report.runs[0].durations.full_seconds++;
+  assert.throws(() => cohortRows(registered, mutated), /original measurements/);
+  const rejected = structuredClone(raw);
+  rejected.checks.passed = false;
+  assert.throws(() => cohortRows(registered, rejected), /policy/);
+});
+
 test('artifact cost and public-prefix scope bind the measured Pipeline and publisher', () => {
   for (const [key, value] of [['artifact_bytes', 0], ['public_prefix_tokens', 0]]) {
     const copy = structuredClone(cohort);
@@ -96,6 +119,41 @@ test('artifact cost and public-prefix scope bind the measured Pipeline and publi
     assert.throws(() => cohortRows(cohort, report, (file) => file === cohort.publisher_report
       ? JSON.stringify(publisher) : fs.readFileSync(root + file)), /artifact/i);
   }
+});
+
+test('placement distinguishes local work, provider graphs and CPU/Metal', () => {
+  const pipeline = structuredClone(report.candidates[0].pipeline);
+  const body = { schema: 'pllm.client_body_placement.v1',
+    declared_body_linear_macs_per_row_client: 70,
+    declared_body_linear_macs_per_row_remote: 30 };
+  pipeline.components.kernels = { component: 'pllm/apple-metal-int8/v1', params: { min_rows: 8 } };
+  pipeline.components.placement = { component: 'pllm/client-owned-linear-roles/v1' };
+  const mixed = executionPlacement(pipeline, ['client', 'inference', 'preparation'], body);
+  assert.equal(mixed.topology, 'Prepared');
+  assert.equal(mixed.kernel, 'CPU + Metal');
+  assert.equal(mixed.clientBody, true);
+  assert.equal(mixed.clientMacPercent, 70);
+  delete pipeline.components.placement;
+  assert.equal(executionPlacement(pipeline, ['client']).ownership, 'Full decoder at client');
+  const workers = executionPlacement(pipeline, ['worker_b', 'client', 'worker_a']);
+  assert.equal(workers.topology, 'Two workers');
+  assert.equal(workers.clientBody, false);
+  assert.equal(workers.clientMacPercent, null);
+  assert.throws(() => executionPlacement(pipeline, ['unrecognised-role']), /role graph/);
+  assert.throws(() => executionPlacement(pipeline, ['client'], {
+    ...body, declared_body_linear_macs_per_row_client: -1,
+  }), /body placement/);
+});
+
+test('provider memory requires every role sample and excludes cumulative client memory', () => {
+  const processes = { client: { rss_peak_bytes: 900e6 }, worker_a: { rss_peak_bytes: 100e6 },
+    worker_b: { rss_peak_bytes: 120e6 } };
+  assert.equal(providerPeak(['client', 'worker_a', 'worker_b'], processes), 120);
+  assert.equal(providerPeak(['client'], processes), 0);
+  delete processes.worker_b;
+  assert.equal(providerPeak(['client', 'worker_a', 'worker_b'], processes), null);
+  processes.worker_a.rss_peak_bytes = -1;
+  assert.throws(() => providerPeak(['client', 'worker_a'], processes), /provider peak RSS/);
 });
 
 test('chronology exposes real implementation coverage without promoting planned classes', () => {

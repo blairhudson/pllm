@@ -50,9 +50,9 @@ PLLM's research loop is simple: implement a method independently, check its cont
 and model behavior, compare matched configurations, and retain the evidence.
 Each score links to its Python configuration so the benchmark can be rerun.
 
-## One model. Three configurations.
+## Initial evidence. Three configurations.
 
-In a local Qwen2.5-0.5B W8A8 experiment, each configuration processed the same
+In the initial local Qwen2.5-0.5B W8A8 experiment, each configuration processed the same
 150-token input and generated eight tokens. All three output digests matched.
 
 | Configuration | Covered bodies |
@@ -80,8 +80,9 @@ It does not measure private-prefix discovery, Internet latency or representative
 generation quality. Client peak memory needs a fresh-process comparison.
 
 SOTA means the best **measured composition for a particular metric and workload**.
-Baseline wins latency; another configuration wins traffic. Offline preparation still
-costs compute. Larger-model and independent-provider studies remain open.
+In this initial cohort, baseline wins latency; another configuration wins traffic.
+The live scorecard adds measured CPU/Metal and client-placement combinations.
+Offline preparation still costs compute. Independent-provider studies remain open.
 
 [Research scorecard](https://pllm.run/research/papers/) ·
 [Technical paper](https://pllm.run/research/paper/) ·
