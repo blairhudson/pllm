@@ -1,99 +1,88 @@
 ---
-title: "PLLM: Making Private Inference Practical"
-description: "A two-page introduction to private inference, PLLM's research platform, and measured progress on network, compute, and memory costs."
+title: "PLLM: Private inference, measured"
+description: "A short introduction to PLLM, its privacy boundary, and the measured trade-offs of remote inference."
 author: "Blair Hudson"
 affiliation: "Independent Researcher, Australia"
-date: "5 October 2026"
-edition: "OCTOBER 2026"
+date: "October 2026"
+edition: "01 / OCTOBER 2026"
 pdf: "whitepaper.pdf"
 source: "whitepaper-source.zip"
 abstract: |
-  PLLM is an open-source private-inference runtime and research platform. It makes privacy, model behavior, deployment choices, and costs explicit so researchers and AI agents can test improvements against reproducible controls. This whitepaper explains the approach, the hardest practical constraints, and what current measurements establish.
+  Use outside compute. Keep sensitive context local. PLLM is an open-source runtime and research platform for testing how far private inference can go—and what it costs.
 ---
 
-## Use remote compute. Keep sensitive context local.
+## Use outside compute. Keep sensitive context local.
 
-AI applications increasingly work with private conversations, documents, and
-business workflows. Conventional hosted inference exposes that context to the
-serving operator. Running everything locally avoids this disclosure but requires
-enough local memory and compute for the chosen model.
+Hosted AI usually asks us to trust a provider with our conversations and documents.
+Running a model locally changes that bargain, but demands local memory and compute.
+Private inference offers another possibility: let remote services calculate without
+giving any one of them the sensitive context.
 
-**Private inference offers another route:** use outside compute while protecting
-the inputs and intermediate calculations from individual providers. The hard
-part is making that protection useful at ordinary network speeds and acceptable
-cost. PLLM turns this into a measurable engineering and research problem.
+**PLLM makes that possibility testable.** A Python SDK and local API gateway connect
+applications to a native runtime. Researchers compose protocols, numerical methods,
+storage and placement choices into reproducible experiments.
 
-## A working system and a place to improve it
+## A deliberate division of work
 
-PLLM provides a Python SDK, a local API gateway, a native execution engine, and
-composable experiments. Applications use the trusted client or gateway; researchers
-change the protocol, numerical representation, placement, or delivery method.
-A compiler checks that the selected pieces form an executable plan.
+The client keeps plaintext, nonlinear calculations, model state and output decoding.
+Before a response, Preparation computes fresh masking corrections. During the
+response, Inference performs matrix products on masked inputs. The client removes
+the output masks. Preparation stays idle online.
 
-The current public-weight prepared path keeps prompts, nonlinear calculations,
-model state, and output decoding at the client. Preparation creates fresh masking
-material before a response. Inference then performs matrix calculations on masked
-inputs; only the client removes the output masks. Preparation stays idle online.
+> Prepare offline. Calculate on masked inputs. Reconstruct only at the client.
 
-![The prepared path: client supplies fresh masks offline; Preparation precomputes corrections; Inference processes masked activations online.](figures/mechanics.png)
+These services must follow the protocol and **not collude**. Preparation must erase
+its masks. Self-hosting it keeps that trust within the client boundary. Public model
+weights, timing and traffic patterns are not hidden. Co-located benchmark processes
+do not demonstrate independent operators.
 
-The two services must follow the protocol and **not collude**; Preparation must
-erase its masks. Self-hosted Preparation keeps that trust inside the client
-boundary. Public weights are not protected, and timing and traffic patterns remain
-visible. Two processes owned by one operator do not establish this trust model.
+## The question is practical
+
+Privacy alone does not make a system useful. Every improvement must answer three
+questions: how much data moves, how much total computation runs, and how much memory
+each party needs. Model behavior must survive the change.
 
 \newpage
 
-## Research with a clear scorecard
+## Progress is a scorecard, not one number.
 
-Three constraints dominate practical private inference:
+PLLM's research loop is simple: implement a method independently, check its contracts
+and model behavior, compare matched configurations, and retain the evidence.
+Each score links to its Python configuration so the benchmark can be rerun.
 
-- **Network:** reduce bytes and dependent exchanges on both client and provider
-  links. Fewer client bytes can simply move traffic elsewhere.
-- **Compute:** beat a matched two-worker additive-sharing control, which performs
-  each outsourced matrix product twice. Moving one product into offline
-  Preparation changes its timing, not its total cost.
-- **Memory and fidelity:** fit real checkpoints on available machines while
-  preserving the declared model behavior. Smaller memory or traffic bills must
-  be weighed against CPU, disk, and output quality.
+## One model. Three configurations.
 
-## A repeatable loop for people and AI agents
+In a local Qwen2.5-0.5B W8A8 experiment, each configuration processed the same
+150-token input and generated eight tokens. All three output digests matched.
 
-An agent can propose a method, implement it, construct an experiment, run a
-matched control, and inspect the resulting evidence. PLLM supplies the reusable
-execution and measurement machinery: pinned sources, immutable configurations,
-bounded resource checks, one-use material, and reports tied to exact workloads.
-Failed ideas remain useful evidence for the next experiment.
+| Configuration | Covered bodies |
+|:---|---:|
+| Prepared baseline | 603.45 MB |
+| Exact prepared stack | 476.95 MB |
+| Stack + 96 public prefix tokens | 266.91 MB |
 
-![Research loop: propose a bounded hypothesis, implement and compose it, check correctness and contracts, measure matched controls, retain or reject.](figures/research-loop.png)
+The exact stack combines packed inputs, smaller output residues, pruned rows,
+demand-aware preparation, paged weights, compressed delivery and an indexed
+tokenizer. The final configuration imports trusted state for an explicitly public prefix.
 
-This supports autonomous experimentation. It does not measure an autonomous
-discovery rate or replace specialist security review. A tenfold improvement is
-a research target with a named baseline and cost scope, not a property of PLLM.
+**Less traffic is not automatically faster.** The public-prefix configuration used
+55.8% fewer covered application-body bytes, but request latency rose from 11.04 to
+11.72 seconds. Cold aggregate process CPU fell from 37.11 to 27.06 seconds. Its public
+artifacts add 12.25 MB; their distribution and the publisher's 8.03 CPU seconds are
+outside those response measurements.
 
-## What the research has shown so far
+## Keep the comparison honest
 
-**Network scheduling helps.** In one matched Qwen2.5-0.5B cohort with shared
-100/40 Mbps access and 40 ms added round-trip delay, overlapping the two-worker
-requests improved decode throughput **1.94×**, with unchanged application bytes.
-Prepared delivery and issuance overlap improved request throughput **17.3%**.
+This is one cold response per configuration, on one host with cached checkpoints.
+The byte count covers recorded application bodies, not full physical wire or model
+downloads. The public-prefix result applies only when that prefix is available.
+It does not measure private-prefix discovery, Internet latency or representative
+generation quality. Client peak memory needs a fresh-process comparison.
 
-**Larger models expose memory ownership.** A Qwen3-4B response used **421 MB**
-client-process peak RSS with paged weights. A separate Preparation-only probe
-reduced peak RSS **6.24×**, from 4.61 GB to 739 MB, with identical corrections,
-12.4% more loading-plus-issuance CPU, and 3.63 GB of private snapshot files.
+SOTA means the best **measured composition for a particular metric and workload**.
+Baseline wins latency; another configuration wins traffic. Offline preparation still
+costs compute. Larger-model and independent-provider studies remain open.
 
-**The compute challenge is still open.** One separate cold Qwen2.5 response used
-34.66 aggregate CPU seconds for Preparation plus Inference and the client,
-versus 28.65 for the two-worker control. Lower online work alone is not a
-whole-response compute win.
-
-These are scoped local measurements, not independent-provider deployments or
-representative quality results. The 4B run has no matched resident-client control;
-10× whole-client memory and 10× network reductions remain unestablished.
-
-**Next:** combine promising methods, test complete responses, and retain only
-improvements that survive the full scorecard.
-[Technical paper](https://pllm.run/research/paper/),
-[SDK and experiments](https://pllm.run/sdk/), and
-[reports and reproduction commands](https://github.com/blairhudson/pllm/tree/main/docs/evidence).
+[Research scorecard](https://pllm.run/research/papers/) ·
+[Technical paper](https://pllm.run/research/paper/) ·
+[SDK](https://pllm.run/sdk/)

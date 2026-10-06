@@ -3,6 +3,10 @@ title: "Public per-channel equalized W8A8"
 description: "A checkpoint-bound public calibration option for compiled masked-linear stages."
 ---
 
+This independently implemented adaptation follows the public channel-redistribution
+equations in [SmoothQuant](/research/papers/smoothquant/), with the bounded
+differences described below.
+
 [`PublicPerChannelEqualized`](/sdk/reference/python/pllm/quantization/#publicperchannelequalized)
 selects `pllm/public-per-channel-equalized/v1` as an immutable W8A8
 numeric component. Five declared **public** token sequences fit one bounded

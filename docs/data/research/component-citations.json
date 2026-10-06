@@ -50,7 +50,7 @@
     },
     {
       "paper_id": "R04",
-      "summary": "PLLM documents the half-gate circuit category and equations; it does not expose a reviewed half-gate runtime backend.",
+      "summary": "PLLM independently implements bounded one-use Boolean half-gates for private selection and arithmetic references. This is an unreviewed research backend, not a complete protected decoder.",
       "components": [
         {
           "title": "Half-gates",
@@ -110,7 +110,7 @@
     },
     {
       "paper_id": "R24",
-      "summary": "PLLM tests the public-subspace leakage described in Maverick Appendix E for bounded u16/u24/u32 mask bases. It does not implement Maverick's verified delegation or make its field-based soundness claim.",
+      "summary": "PLLM tests Maverick Appendix E public-subspace leakage, a bounded coded-matvec verifier and RAA numeric algebra. It has no LPN input privacy, full-width resource admission or complete Maverick delegation protocol.",
       "components": [
         {
           "title": "Public mask subspace leakage",
@@ -118,6 +118,15 @@
           "source": "content/docs/sdk/components/assurance/public-subspace-mask-regression.mdx"
         }
       ]
+    },
+    {
+      "paper_id": "smoothquant",
+      "summary": "PLLM's source-bound public equalization adapts SmoothQuant equations 3–4 with fixed alpha=3/4, normalized clipped scales and client-local activation scaling. The original fused GPU implementation and performance are not reproduced.",
+      "components": [{
+        "title": "Public per-channel equalized W8A8",
+        "href": "/sdk/components/quantization/public-per-channel-equalized/",
+        "source": "content/docs/sdk/components/quantization/public-per-channel-equalized.mdx"
+      }]
     }
   ]
 }

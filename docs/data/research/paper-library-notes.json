@@ -1,4 +1,8 @@
 {
+  "smoothquant": {
+    "overview": "Moves quantization difficulty from activation outliers into public weights through offline per-channel equalization. The linear transformation is mathematically equivalent before quantization; the resulting W8A8 model requires its own quality measurement.",
+    "reading": "PLLM independently implements a bounded adaptation of equations 3–4: fixed alpha=3/4, geometric normalization, clipped source-locked scales, and client-local activation scaling. Pinned Phi quality and role-backed evidence exist separately; they are not Qwen scores or a reproduction of the paper's fused GPU speedups."
+  },
   "pcf-secret-replication": {
     "overview": "Studies pseudorandom correlation functions built from symmetric cryptography and secret replication to shrink preprocessing communication. The key-distribution step and the expanded correlation that a secure operator consumes are separate costs and security contracts.",
     "reading": "A PLLM candidate must name the correlation distribution, sharing domain, fresh-use rule, and expansion costs before it can replace any existing preparation source."

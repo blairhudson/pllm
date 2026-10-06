@@ -33,7 +33,7 @@ class Paper:
 
 
 PAPERS = {
-    "paper": Paper("manuscript.md", "paper.pdf", "paper.mdx", 4, True),
+    "paper": Paper("manuscript.md", "paper.pdf", "paper.mdx", 5, True),
     "whitepaper": Paper("whitepaper.md", "whitepaper.pdf", "whitepaper.mdx", 2),
 }
 

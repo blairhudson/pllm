@@ -65,12 +65,11 @@ assert.ok(page.includes('class="paper-timeline"'), 'Paper timeline did not rende
 assert.ok(!page.includes('Back to the chronological bibliography'));
 
 const whitepaper = rendered('research/whitepaper').page;
-assert.equal((whitepaper.match(/<figure>/g) ?? []).length, 2);
-for (const name of ['mechanics', 'research-loop']) {
-  assert.ok(whitepaper.includes(`src="/downloads/figures/${name}.png"`),
-    `Canonical whitepaper figure did not render: ${name}`);
-}
-assert.ok(whitepaper.includes('Research with a clear scorecard'));
+assert.ok(whitepaper.includes('Progress is a scorecard, not one number.'));
+assert.ok(whitepaper.includes('266.91 MB'), 'Whitepaper must retain its measured cohort');
+assert.ok(whitepaper.includes('href="/downloads/whitepaper.pdf"'));
+assert.ok(page.includes('aria-label="Measured SDK performance"'), 'Interactive scorecard must render above the chronology');
+assert.ok(page.includes('Hide unimplemented papers'));
 assert.ok(rendered('research/paper').page.includes('href="/downloads/paper-arxiv-source.zip"'),
   'Technical paper must link its standalone arXiv source archive');
 

@@ -85,8 +85,8 @@ def parse_map() -> list[dict]:
             ):
                 if line.startswith(f"**{label}:** "):
                     entries[-1][field] = line.split("** ", 1)[1]
-    if len(entries) != 84 or len({entry.get("id") for entry in entries}) != 84:
-        raise ValueError("Expected 84 distinct paper placements in the pinned landing map")
+    if len(entries) < 84 or len({entry.get("id") for entry in entries}) != len(entries):
+        raise ValueError("Expected distinct paper placements retaining the original library")
     required = {"id", "track", "source_evidence", "contribution", "first_experiment",
                 "promotion_gate", "evidence_boundary"}
     for entry in entries:

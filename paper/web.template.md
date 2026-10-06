@@ -15,6 +15,10 @@ $endif$
 
 To run or extend an experiment, follow the [research workflow](/research/recipes/experiments/).
 
+$if(author)$
+**$for(author)$$author$$sep$, $endfor$**$if(affiliation)$ · $affiliation$$endif$$if(date)$ · $date$$endif$
+$endif$
+
 $if(abstract)$
 ## Abstract
 

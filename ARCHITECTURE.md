@@ -612,6 +612,23 @@ for the live Experiment deployment, and TEE execution remains unavailable.
 
 `pllm.research` keeps attribution, quarantined upstream artifacts, clean-room methods,
 and promotion gates static and non-executable. Public objects are imported on demand.
+The docs research scorecard validates canonical matched cohorts from
+`docs/data/research/benchmark-cohorts.json` and binds scored Python factories plus
+shared configuration sources by SHA-256. It ranks each metric only within one
+model, source, numeric, workload, lifecycle and output identity; cumulative client
+RSS and other unknown measurements remain unranked. Paper implementation coverage
+is independently recorded in `docs/data/research/implementations.json`. The pinned
+Qwen2.5 150+8-token sample reduces covered bodies from 603.45 to 476.95 MB with
+the exact prepared stack, or 266.91 MB when reusing 96 explicitly public prefix
+tokens. Baseline request latency remains lower. Indexed tokenizer and capsule
+artifacts add 9.29 or 12.25 MB separately; their distribution is unmeasured.
+An independent Curl-inspired Rust reference implements bounded one-use shared
+lookup and public Haar compression from the published equations. Each online
+party owns one share; the local research dealer supplies the correlated one-hot
+vector. Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes per
+lookup, with unchanged 136-byte header-inclusive peer openings and up to 0.12888
+encoded SiLU error. Input is already truncated. This reference has no protected
+truncation, distributed dealer, reviewed transport or executable decoder binding.
 `pllm.assurance.PublicSubspaceMaskRegression` independently constructs a bounded
 mod-2 leakage witness for public mask bases over exact u16/u24/u32 rings. It
 follows the Carnival construction and Maverick Appendix E attack but is neither

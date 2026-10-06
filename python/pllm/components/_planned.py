@@ -70,7 +70,7 @@ class PlannedComponent:
 
 @lru_cache(maxsize=1)
 def planned_components() -> tuple[PlannedComponent, ...]:
-    """Return all immutable paper-linked component plans, grouped by 84 sources."""
+    """Return immutable paper-linked component plans, grouped by research source."""
     document = json.loads(_CATALOG.read_text(encoding="utf-8"))
     if document.get("schema") != "pllm.component_plans.v2":
         raise RuntimeError("unsupported packaged component plan schema")
@@ -120,7 +120,7 @@ def planned_components() -> tuple[PlannedComponent, ...]:
             raise RuntimeError(f"invalid component plan contract: {record.paper_id!r}")
         records.append(record)
     if (
-        len({item.paper_id for item in records if not item.method_id}) != 84
+        len({item.paper_id for item in records if not item.method_id}) < 84
         or {item.paper_id for item in records if not item.method_id}
         != {item.paper_id for item in records}
         or len({item.identity for item in records}) != len(records)

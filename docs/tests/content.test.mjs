@@ -124,8 +124,8 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   const papersById = new Map(registry.papers.map((paper) => [paper.id, paper]));
   const publicPapers = library.papers;
   assert.deepEqual([...plannedByPaper.keys()].sort(), publicPapers.map((paper) => paper.id).sort());
-  assert.equal(publicPapers.length, 84);
-  assert.equal(publicPapers.filter((paper) => paper.status === 'available').length, 81);
+  assert.equal(publicPapers.length, 85);
+  assert.equal(publicPapers.filter((paper) => paper.status === 'available').length, 82);
   assert.deepEqual(publicPapers.filter((paper) => paper.status === 'pdf_unavailable').map((paper) => paper.id).sort(),
     ['moai', 'mozzarella']);
   assert.deepEqual(publicPapers.filter((paper) => paper.status === 'unverified_primary').map((paper) => paper.id),
@@ -160,13 +160,13 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
     const method = methods[0];
     const referenceRoute = `/sdk/reference/python/pllm/${method.module.replace('pllm.', '').replaceAll('.', '-').replaceAll('_', '-')}/`;
     const classLink = `${referenceRoute}#${method.name.toLowerCase()}`;
-    const cardStart = index.lastIndexOf('<div className="paper-timeline-entry">', position);
+    const cardStart = index.lastIndexOf('<div className="paper-timeline-entry"', position);
     const cardEnd = index.indexOf('\n\n</div>', position);
     assert.ok(cardStart >= 0 && cardEnd > position, `${paper.id}: timeline card missing`);
     const card = index.slice(cardStart, cardEnd);
     const sdkRow = card.match(/<div className="paper-timeline-links">([\s\S]*?)<\/div>/)?.[1];
     assert.ok(sdkRow, `${paper.id}: SDK quick links missing`);
-    const citation = citations.get(paper.registry_id);
+    const citation = citations.get(paper.registry_id ?? paper.id);
     const guides = citation?.components ?? [];
     assert.deepEqual([...sdkRow.matchAll(/<a href="([^"]+)">/g)].map((link) => link[1]),
       [...guides.map((guide) => guide.href), classLink,
@@ -234,7 +234,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
-  assert.equal(citations.size, 9);
+  assert.equal(citations.size, 10);
   assert.ok(citations.has('R05') && citations.has('R08') && citations.has('R24'));
   const roadmap = byRoute.get('/sdk/components/research-method-roadmap/')?.content;
   assert.ok(roadmap);
@@ -1124,7 +1124,7 @@ test('public copy uses standard technical English', () => {
   }
 });
 
-test('rewritten papers bind WAN, compute, and 4B memory claims to distinct artifacts', () => {
+test('technical draft preserves archived evidence and explicit unfinished gates', () => {
   const root = path.join(siteRoot, '..');
   const paper = fs.readFileSync(path.join(root, 'paper/manuscript.md'), 'utf8');
   const whitepaper = fs.readFileSync(path.join(root, 'paper/whitepaper.md'), 'utf8');
@@ -1142,8 +1142,7 @@ test('rewritten papers bind WAN, compute, and 4B memory claims to distinct artif
   const seedFirst = wan.runs.find((row) => row.name === 'seed-first');
   assert.equal(seedFirst.online_body_bytes, offset.online_body_bytes);
   const gain = (seedFirst.decode_tokens_per_second / offset.decode_tokens_per_second).toFixed(2);
-  assert.ok(paper.includes(`${gain}×`));
-  assert.ok(whitepaper.includes(`${gain}×`));
+  assert.ok(paper.includes(`${gain}\\times`));
   const cold = JSON.parse(fs.readFileSync(
     path.join(siteRoot, 'evidence/slalom-prepared-topologies-cold-cpu-2026-09-26.json'), 'utf8',
   ));
@@ -1152,7 +1151,7 @@ test('rewritten papers bind WAN, compute, and 4B memory claims to distinct artif
     const roleSum = Object.values(row.cpu_seconds_by_role).reduce((sum, value) => sum + value, 0);
     assert.ok(Math.abs(roleSum - row.cold_first_response_cpu_seconds) < 1e-6);
     assert.ok(row.cold_first_response_cpu_seconds >= row.startup_cpu_seconds);
-    assert.ok(paper.includes(`| ${row.cold_first_response_cpu_seconds.toFixed(2)} |`));
+    assert.ok(paper.includes(row.cold_first_response_cpu_seconds.toFixed(2)));
   }
   const coldVerified = cold.results.find((row) => row.topology === 'Freivalds-verified prepared');
   const coldOffset = cold.results.find((row) => row.topology === 'two-online-offset comparator');
@@ -1170,16 +1169,11 @@ test('rewritten papers bind WAN, compute, and 4B memory claims to distinct artif
     return rows.reduce((sum, row) => sum + row.after_issuance.lifetime_peak_rss_bytes, 0) / rows.length;
   };
   const memoryGain = (peak('resident') / peak('paged')).toFixed(2);
-  assert.ok(paper.includes(`${memoryGain}×`));
-  assert.ok(whitepaper.includes(`${memoryGain}×`));
-  const client = evidence('qwen3-4b-client-paged-2026-10-05.json');
-  assert.equal(client.summary.completed_runs, 1);
-  assert.ok(paper.includes((client.client_process_memory.after.lifetime_peak_rss_bytes / 1e6).toFixed(2)));
-  for (const source of [paper, whitepaper]) {
-    assert.match(source, /no matched resident-client control/);
-    assert.match(source, /two(?:\*\*)? matrix products|each outsourced matrix product twice/);
-    assert.match(source, /autonomous.*(?:not|target)|not.*autonomous/);
-  }
+  assert.ok(paper.includes(`${memoryGain}\\times`));
+  for (const gate of ['E1', 'E2', 'E3', 'A1']) assert.ok(paper.includes(`[${gate}: evidence to add]`));
+  assert.ok(paper.includes('Working manuscript; evidence placeholders remain explicit.'));
+  assert.ok(paper.includes('54605c1bcc699d801bc3b62d9b02c17d69a56f0e'));
+  assert.ok(!fs.existsSync(path.join(root, 'pllm-paper-v2.md')));
   assert.doesNotMatch(whitepaper, /\$\$/);
   const title = paper.match(/^title: "(.+)"$/m)[1];
   assert.ok(citation.includes(`title: "${title}"`));
@@ -1191,7 +1185,7 @@ test('paper, whitepaper, evidence, and generated CLI help remain downloadable', 
   }
 });
 
-test('whitepaper diagrams are exported and historical chart evidence remains intact', () => {
+test('whitepaper scores bind to the matched cohort and historical figures remain downloadable', () => {
   const paperRoot = path.join(siteRoot, 'build/papers');
   const web = fs.readFileSync(path.join(siteRoot, 'content/research/whitepaper.mdx'), 'utf8');
   const record = JSON.parse(fs.readFileSync(path.join(siteRoot, 'evidence/current-runtime-2026-09-11.json'), 'utf8'));
@@ -1201,8 +1195,15 @@ test('whitepaper diagrams are exported and historical chart evidence remains int
     const published = fs.readFileSync(path.join(siteRoot, `public/downloads/figures/${name}.png`));
     assert.ok(source.length > 1000, name);
     assert.deepEqual(source, published, name);
-    assert.ok(web.includes(`<img src="/downloads/figures/${name}.png" alt="`), name);
   }
+  const report = JSON.parse(fs.readFileSync(path.join(siteRoot, 'data/research/scorecard.json'), 'utf8'));
+  for (const row of report.cohorts[0].rows) {
+    const bytes = row.metrics.covered * report.cohorts[0].identity.outputs;
+    assert.ok(web.includes(`${bytes.toFixed(2)} MB`), row.id);
+  }
+  assert.match(web, /public artifacts add 12.25 MB/);
+  assert.match(web, /Client peak memory needs a fresh-process comparison/);
+  assert.doesNotMatch(web, /<img/);
   for (const result of record.results) {
     assert.ok(svg.includes(`${result.median.full_seconds.toFixed(3)} s`));
     assert.ok(svg.includes(`${result.context_tokens} in / ${result.output_tokens[0]} out`));

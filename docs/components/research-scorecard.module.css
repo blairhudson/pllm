@@ -1,0 +1,36 @@
+.scorecard { margin-block: 3rem; color: var(--text); font-size: .92rem; }
+.heading { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: end; }
+.heading h2 { margin: .6rem 0 1rem; font-size: clamp(1.9rem, 4vw, 3.2rem); line-height: 1.05; letter-spacing: -.045em; font-weight: 550; }
+.heading p, .scope { color: var(--muted); line-height: 1.7; }
+.eyebrow { color: var(--accent); text-transform: uppercase; font-family: var(--font-mono), monospace; font-size: .7rem; letter-spacing: .12em; }
+.controls { display: grid; grid-template-columns: 1fr 1.4fr 1.2fr; gap: 1rem; margin-block: 1.8rem 1rem; }
+.controls label { display: grid; gap: .5rem; font-size: .75rem; font-weight: 600; }
+.controls select { width: 100%; min-width: 0; padding: .8rem .6rem; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font: inherit; font-weight: 400; }
+.toggle { display: flex; align-items: center; gap: .6rem; font-size: .8rem; }
+.toggle input { width: 1rem; height: 1rem; accent-color: var(--accent); }
+.scope { font-size: .8rem; margin-block: 1.3rem; }
+.winner { border-block: 1px solid var(--line); padding-block: 1.1rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.winner span { color: var(--muted); font-size: .8rem; }
+.winner strong { font-weight: 550; }
+.chart { margin: 2rem 0 1.2rem; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chartLabel, .chartValue { font-size: 13px; fill: var(--text); }
+.chartValue { font-family: var(--font-mono), monospace; }
+.chartNote { font-size: 11px; fill: var(--muted); }
+.track { fill: var(--panel); }
+.bar { fill: var(--muted); }
+.bestBar { fill: var(--accent); }
+.chart figcaption { color: var(--muted); font-size: .75rem; }
+.tableWrap { overflow-x: auto; border-bottom: 1px solid var(--line); }
+.tableWrap table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.tableWrap caption { text-align: left; padding-block: .7rem; color: var(--muted); font-size: .75rem; }
+.tableWrap th, .tableWrap td { padding: .9rem .65rem; text-align: left; border-top: 1px solid var(--line); white-space: nowrap; }
+.tableWrap th { font-weight: 550; }
+.tableWrap th small { display: block; color: var(--muted); font-weight: 400; margin-top: .25rem; }
+.tableWrap a, .details a { text-decoration: underline; text-underline-offset: 3px; }
+.details { margin-top: 1.3rem; color: var(--muted); line-height: 1.7; font-size: .8rem; }
+.details summary { cursor: pointer; color: var(--text); padding-block: .5rem; }
+.details code { overflow-wrap: anywhere; }
+.details pre { overflow-x: auto; max-height: 24rem; padding: 1rem; background: var(--panel); }
+.details dl > div { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); padding-block: .35rem; }
+@media (max-width: 760px) { .heading, .controls { grid-template-columns: 1fr; gap: .9rem; } .chart { overflow-x: auto; } .chart svg { min-width: 570px; } }

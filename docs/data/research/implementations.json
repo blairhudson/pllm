@@ -1,0 +1,77 @@
+{
+  "schema": "pllm.paper_implementations.v1",
+  "papers": {
+    "slalom": {
+      "status": "SDK adaptation",
+      "scope": "Prepared masked linear and one-use trusted-client Freivalds verification. No enclave or attestation reproduction.",
+      "code": ["python/pllm/verification/__init__.py", "python/pllm/runtime/client.py"],
+      "configuration": "benchmarks/research/slalom.py",
+      "evidence": "docs/evidence/research-slalom-admission.json",
+      "result": "New Qwen comparison blocked by memory admission: 10.04 GiB estimated versus 7.74 GiB safe headroom at 32+1 bounds. No score from this attempt. Historical cold CPU results use a different cohort."
+    },
+    "smoothquant": {
+      "status": "SDK adaptation",
+      "scope": "Public per-channel equalization, fixed alpha=3/4, bounded scales and trusted-client activation scaling.",
+      "code": ["python/pllm/runtime/public_equalization.py", "tests/test_public_equalization.py"],
+      "configuration": "examples/benchmarks/phi4mini_equalized_quality.py",
+      "evidence": "docs/evidence/phi4mini-equalization-quality-2026-09-26.json",
+      "result": "Separate Phi diagnostic: 2/2 top-token agreement and 9.59 worst logit error, versus plain W8A8's 1/2 and 29.90. Qwen decoder comparison remains unmeasured."
+    },
+    "curl": {
+      "status": "Component reference",
+      "scope": "Fig. 4 party-local shared lookup plus public Haar compression. Inputs are already truncated; no protected truncation, Biorthogonal protocol or decoder integration.",
+      "code": ["crates/pllm-garble/src/shared_lut_reference.rs"],
+      "configuration": "benchmarks/research/curl_reference.py",
+      "evidence": "docs/evidence/research-curl-reference.json",
+      "result": "512-row Q16 SiLU lookup reconstructs every encoded value. Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes, but add up to 0.12888 absolute error. Peer frames remain 136 bytes per lookup. No Qwen score."
+    },
+    "compact": {
+      "status": "Component reference",
+      "scope": "Public calibration, private interval selection and one-use Chebyshev evaluation with bounded compiler binding.",
+      "code": ["crates/pllm-core/src/compact.rs", "crates/pllm-garble/src/compact_polynomial.rs", "crates/pllm-compiler/src/compact_protected.rs"],
+      "result": "Checked encoded profile parity; polynomial half-gate bodies exceed the direct Q7 lookup for the tested profiles. No tensor transport or Qwen decoder score."
+    },
+    "logrow": {
+      "status": "Component reference",
+      "scope": "One-use masked-index lookup and bounded in-process tensor override, with the earlier two-row setup.",
+      "code": ["crates/pllm-garble/src/logrow.rs", "tests/test_logrow_tensor_native.py"],
+      "result": "Tiny decoder experiments pay more online CPU and offline issuance than clear SiLU. No protected real-checkpoint SDK composition."
+    },
+    "half-gates": {
+      "status": "Component reference",
+      "scope": "Native one-use Boolean half-gates, free XOR and bounded private selection/arithmetic circuits.",
+      "code": ["crates/pllm-garble/src/boolean.rs", "crates/pllm-garble/src/compact_lookup.rs"],
+      "result": "Native circuit correctness and one-use tests; no independent cryptographic review or full-decoder benchmark."
+    },
+    "garbling-gadgets": {
+      "status": "Component reference",
+      "scope": "Bounded CRT arithmetic garbling and Q7 multiplication adaptation.",
+      "code": ["crates/pllm-garble/src/lib.rs", "crates/pllm-garble/src/gated_multiply_q7.rs"],
+      "result": "Primitive parity and material measurements only; no complete protected Qwen decoder score."
+    },
+    "dash": {
+      "status": "Component reference",
+      "scope": "Bounded arithmetic-label and projection-gate adaptation; the paper's complete prepared convolutional network is not implemented.",
+      "code": ["crates/pllm-garble/src/gated_multiply_q7.rs"],
+      "result": "Bounded integer oracle and one-use tests. No whole-model cost comparison."
+    },
+    "maverick": {
+      "status": "Component reference",
+      "scope": "Public coded-matvec verification and RAA numeric algebra, plus Appendix E public-subspace leakage regression. No LPN input privacy or full-width admission.",
+      "code": ["crates/pllm-core/src/coded_linear.rs", "tests/test_public_subspace_mask_regression.py"],
+      "result": "Bounded code-distance and algebra checks. Exponential reference code length prevents decoder admission; no Qwen performance score."
+    },
+    "carnival": {
+      "status": "Security regression",
+      "scope": "Attack against deficient public mask spans, following the later Maverick analysis. Carnival inference is not implemented.",
+      "code": ["tests/test_public_subspace_mask_regression.py"],
+      "result": "Constructs bounded mod-2 leakage witnesses over u16/u24/u32 masks. An attack control has no inference-performance score."
+    },
+    "mpcache": {
+      "status": "Structural adaptation",
+      "scope": "Model-neutral KV eviction transformation and state contracts; protected selection and transformed runtime remain incomplete.",
+      "code": ["crates/pllm-models/src/cache.rs"],
+      "result": "Semantic transformation tests only. No measured transformed decoder."
+    }
+  }
+}

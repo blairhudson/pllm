@@ -1,6 +1,6 @@
 # PLLM paper-to-module landing map
 
-Date: 23 September 2026. **84 paper placements.**
+Original map: 23 September 2026. **85 paper placements**, including the subsequently audited SmoothQuant adaptation.
 
 These are architecture proposals based on the supplied module descriptions, not existing API names, implemented capabilities, security endorsements or a repository audit. All papers retain their locked `pllm.research` records. Source evidence levels and citation edges are preserved from the original catalog; this mapping does not upgrade any evidence.
 
@@ -42,6 +42,17 @@ Separate approximation, protected evaluation and scheduling. Separate correlatio
 | Numeric units/directions and comparable measured outcomes | `pllm.metrics`, `pllm.evidence`, `pllm.search` |
 
 ## Full paper mapping
+
+### `pllm.quantization`
+
+#### [SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models](https://proceedings.mlr.press/v202/xiao23c.html) (2023)
+
+**Paper ID:** `smoothquant` · **Track:** `component_candidate` · **Source evidence:** `key_sections_reviewed`
+
+- **Suggested contribution:** Public offline channel equalization before W8A8 quantization.
+- **First experiment:** Source-locked public calibration and matched quantized-model quality and cost.
+- **Promotion gate:** Separate adapted numeric identity and calibration from original SmoothQuant hardware results.
+- **Original evidence boundary:** PLLM fixes alpha=3/4, normalizes and clips scales, and applies activation scaling at the client; this is a bounded adaptation, not the original fused GPU implementation.
 
 ### `pllm.correlation`
 

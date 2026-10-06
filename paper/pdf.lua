@@ -3,6 +3,26 @@ local function latex(blocks)
   return value
 end
 
+function Meta(metadata)
+  if FORMAT:match("latex") and metadata.affiliation and metadata.email then
+    local author = pandoc.utils.stringify(metadata.author)
+    local affiliation = pandoc.utils.stringify(metadata.affiliation)
+    local email = pandoc.utils.stringify(metadata.email)
+    metadata.author = pandoc.MetaList({pandoc.MetaInlines({pandoc.RawInline("latex",
+      author .. "\\\\{\\small " .. affiliation .. "}\\\\{\\small\\texttt{" .. email .. "}}")})})
+    return metadata
+  end
+end
+
+function Str(element)
+  if FORMAT:match("latex") then
+    -- The manuscript uses six-per-em spaces between values and units; Latin
+    -- Modern does not contain that Unicode glyph in either supported engine.
+    element.text = element.text:gsub(" ", " ")
+    return element
+  end
+end
+
 local function rows(element)
   local result = {}
   for _, row in ipairs(element.head.rows) do table.insert(result, row) end

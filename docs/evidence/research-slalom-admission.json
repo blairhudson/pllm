@@ -1,0 +1,16 @@
+{
+  "schema": "pllm.research_admission_attempt.v1",
+  "status": "blocked",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "configuration": "benchmarks/research/slalom.py",
+  "baseline_configuration": "benchmarks/research/slalom_baseline.py",
+  "max_input_tokens": 32,
+  "max_output_tokens": 1,
+  "target_failure_bits": 40,
+  "backend": "native",
+  "estimated_host_peak_gib": 10.04,
+  "safe_headroom_gib": 7.74,
+  "error": "BenchmarkMemoryError: benchmark memory preflight rejected: native: estimated host peak 10.04 GiB exceeds safe headroom 7.74 GiB",
+  "scope": "Rounded CLI admission estimates, not measured peaks. Verified providers were not launched; no successful paired report or decoder score."
+}

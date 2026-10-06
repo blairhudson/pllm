@@ -1,6 +1,7 @@
 {
   "schema": "pllm.component_plans.v2",
   "entries": [
+    {"paper": "smoothquant", "module": "pllm.quantization", "name": "PublicPerChannelEqualized", "status": "implemented", "title": "Public per-channel equalization", "summary": "A bounded SmoothQuant-style adaptation fits source-locked public scales and evaluates equalized W8A8 through the prepared role protocol.", "gate": "Quality and cost remain checkpoint- and calibration-specific; the adaptation fixes alpha=3/4 and keeps activation scaling at the trusted client"},
     {"paper": "pcf-secret-replication", "module": "pllm.correlation", "name": "SecretReplicationPcf", "title": "Secret-replication PCF", "summary": "Use symmetric-key pseudorandom correlation functions to prepare correlated shares without shipping every expanded value.", "gate": "Specify a bounded PCF contract and test its consuming protocol"},
     {"paper": "finite-field-pcg", "module": "pllm.correlation", "name": "FiniteFieldPcg", "title": "Finite-field correlation generator", "summary": "Generate pseudorandom correlated material in a declared finite field, keeping the field contract explicit.", "gate": "Implement finite-field PCG output and independent consumer tests"},
     {"paper": "ring-pcg", "module": "pllm.correlation", "name": "RingPcg", "title": "Integer-ring correlation generator", "summary": "Expand compact ring keys into correlation shares; PLLM's seeded mask expansion is not this construction.", "gate": "Prove ring and truncation compatibility before prepared execution"},

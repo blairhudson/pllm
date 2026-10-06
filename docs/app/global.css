@@ -372,3 +372,8 @@ body:has(#nd-sidebar-mobile[data-state='open']) { overflow: hidden; }
   grid-area: main;
   min-width: 0;
 }
+.paper-filter { display: flex; align-items: center; gap: .6rem; padding-block: 1rem; font-weight: 550; }
+.paper-filter input { accent-color: var(--accent); width: 1rem; height: 1rem; }
+.paper-filter-scope { font-size: .8rem; color: var(--muted); }
+.paper-browser[data-implemented-only="true"] .paper-timeline-entry[data-implemented="false"],
+.paper-browser[data-implemented-only="true"] .paper-timeline-year:not(:has(.paper-timeline-entry[data-implemented="true"])) { display: none; }

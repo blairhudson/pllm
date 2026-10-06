@@ -3,6 +3,25 @@
   "as_of": "2026-09-23",
   "papers": [
     {
+      "title": "SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models",
+      "source_url": "https://proceedings.mlr.press/v202/xiao23c.html",
+      "year": 2023,
+      "owner": "pllm.quantization",
+      "id": "smoothquant",
+      "track": "component_candidate",
+      "source_evidence": "key_sections_reviewed",
+      "contribution": "Public offline channel equalization before W8A8 quantization.",
+      "first_experiment": "Source-locked public calibration and matched quantized-model quality and cost.",
+      "promotion_gate": "Separate adapted numeric identity and calibration from original SmoothQuant hardware results.",
+      "evidence_boundary": "PLLM fixes alpha=3/4, normalizes and clips scales, and applies activation scaling at the client; this is a bounded adaptation, not the original fused GPU implementation.",
+      "map_year": 2023,
+      "authors": ["Guangxuan Xiao", "Ji Lin", "Mickael Seznec", "Hao Wu", "Julien Demouth", "Song Han"],
+      "file": "papers/smoothquant.pdf",
+      "sha256": "551636e4e0bd9dda9b01186473bc46c72c56e0c190a28fe6b7ed4fa80055372e",
+      "bytes": 5203060,
+      "status": "available"
+    },
+    {
       "title": "ATLAS: Automated Approximation of Transformers for Efficient Homomorphic Inference in One Hour",
       "source_url": "https://arxiv.org/html/2607.23478v2",
       "year": 2026,

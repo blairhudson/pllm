@@ -32,7 +32,7 @@ function Pandoc(doc)
   local hero = table.concat({
     '<header class="cover-hero">',
     '<div class="cover-top"><span class="wordmark">PLLM<span class="wordmark-dot">.</span></span>',
-    '<span class="edition">WHITEPAPER / EDITION ' .. escape(doc.meta.edition) .. '</span></div>',
+    '<span class="edition">RESEARCH NOTE ' .. escape(doc.meta.edition) .. '</span></div>',
     '<div class="cover-rule"></div>',
     '<h1>' .. escape(subject) .. '</h1>',
     '<div class="cover-bottom"><span>' .. escape(doc.meta.author) .. '</span>',

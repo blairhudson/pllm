@@ -82,9 +82,9 @@ function researchDocument(name: string, url: string): Folder {
 
 function researchFolders(): Folder[] {
   return [
-    researchPapers(),
     researchDocument('PLLM Whitepaper', '/research/whitepaper'),
     researchDocument('PLLM Research Paper', '/research/paper'),
+    researchPapers(),
   ];
 }
 

@@ -1,36 +1,41 @@
 <section class="research-hero" aria-labelledby="research-title">
-  <h1 id="research-title">Research for high-performance private LLM inference.</h1>
+  <h1 id="research-title">Private inference,<br>measured.</h1>
   <div class="research-copy">
-    <p><strong>PLLM is a high-performance private LLM multi-party inference runtime and extensible autonomous research harness.</strong> Researchers implement methods behind typed contracts; bounded search and repeatable benchmarks compare compatible experiments under matched evidence.</p>
+    <p><strong>Use outside compute. Keep sensitive context local.</strong> PLLM brings private inference research into a composable SDK, then measures what works: data moved, computation, memory and model behavior.</p>
     <div class="button-row">
-      <a class="button primary" href="/research/papers/">Private Inference Papers <span>→</span></a>
-      <a class="button secondary" href="/research/whitepaper/">PLLM Whitepaper <span>→</span></a>
-      <a class="button secondary" href="/research/paper/">PLLM Research Paper <span>→</span></a>
+      <a class="button primary" href="/research/papers/">Explore the scorecard <span>→</span></a>
+      <a class="button secondary" href="/downloads/whitepaper.pdf">Download whitepaper <span>↓</span></a>
     </div>
   </div>
 </section>
 
-<section class="research-section research-problem" aria-labelledby="system-title">
+<section class="research-section" aria-labelledby="introduction-title">
+  <p class="research-number">01 / INTRODUCTION</p>
   <div class="section-intro">
-    <h2 id="system-title">A runtime and a research system.</h2>
-    <p>The runtime keeps plaintext, model state, masks, and decoding inside the client boundary while separate services perform prepared masked computation. The research system turns pinned methods into reusable extensions, immutable plans, assurance records, and matched benchmark evidence.</p>
+    <h2 id="introduction-title">The idea.<br>The trade-offs.</h2>
+    <div><p>The client keeps plaintext, model state and output decoding. Separate services prepare fresh masks and calculate on masked inputs. Those services must follow the protocol and not collude. The two-page whitepaper explains this division of work and its measured costs.</p>
+      <div class="button-row"><a class="button secondary" href="/research/whitepaper/">Read the introduction →</a><a class="button secondary" href="/downloads/whitepaper.pdf">Whitepaper PDF ↓</a></div>
+    </div>
   </div>
-  <div class="problem-grid">
-    <article><h3>Extend by capability</h3><p>Methods enter through stable component and provider contracts, not paper-specific runtime branches. Implementations remain independent of upstream research code.</p></article>
-    <article><h3>Search valid experiments</h3><p>Immutable configurations support bounded grid and seeded random search without bypassing compatibility, correctness, privacy, or quality gates.</p></article>
-    <article><h3>Compare matched evidence</h3><p>Benchmarks bind results to exact plans and cohorts so eligible state-of-the-art baselines can be compared under equivalent conditions.</p></article>
-  </div>
-  <p><a href="/research/recipes/experiments/">Explore the experimentation system →</a> Follow methods from typed extensions and immutable configurations through valid search to matched benchmark evidence, with links to SDK and CLI workflows.</p>
 </section>
 
-<section class="research-section research-program" aria-labelledby="program-title">
+<section class="research-section" aria-labelledby="paper-title">
+  <p class="research-number">02 / TECHNICAL PAPER</p>
   <div class="section-intro">
-    <h2 id="program-title">Three research sections.</h2>
-    <p>The chronological private-inference library explains mapped publications and flags an unverified research lead; scoped implemented parts link back to their source. The whitepaper covers the system design, and the research paper records current implementation and evidence.</p>
+    <h2 id="paper-title">PLLM,<br>in detail.</h2>
+    <div><p>The technical manuscript covers protocol design, compiler contracts, the research process and retained evidence. Read it online, download the PDF, or inspect the standalone arXiv-ready source archive.</p>
+      <div class="button-row"><a class="button secondary" href="/research/paper/">Read the paper →</a><a class="button secondary" href="/downloads/paper.pdf">Technical PDF ↓</a><a class="button secondary" href="/downloads/paper-arxiv-source.zip">arXiv source ↓</a></div>
+    </div>
   </div>
-  <div class="program-grid">
-    <a href="/research/papers/"><span>01</span><h3>Private Inference Papers</h3><p>Plain-language summaries of mapped sources and an unverified lead, with links to related SDK components where implementations exist.</p><b>Read the paper summaries →</b></a>
-    <a href="/research/whitepaper/"><span>02</span><h3>PLLM Whitepaper</h3><p>The architecture, privacy boundary, protocol design, deployment model, and known limitations.</p><b>Read the whitepaper →</b></a>
-    <a href="/research/paper/"><span>03</span><h3>PLLM Research Paper</h3><p>The current protocol, compiler and component architecture, security limits, implementation status, and retained evidence.</p><b>Read the research paper →</b></a>
+</section>
+
+<section class="research-section" aria-labelledby="frontier-title">
+  <p class="research-number">03 / MEASUREMENTS &amp; LITERATURE</p>
+  <div class="section-intro">
+    <h2 id="frontier-title">The frontier,<br>with receipts.</h2>
+    <div><p>Explore an interactive comparison of SDK compositions against matched baselines, followed by a chronological paper library. Switch measures, inspect Python configurations and hide papers without implemented work. Each card states exactly what has been reimplemented.</p>
+      <div class="button-row"><a class="button primary" href="/research/papers/">Scorecard and paper chronology →</a><a class="button secondary" href="/research/scorecard/">Rerun the benchmarks →</a></div>
+      <p>Start with Qwen2.5-0.5B. Qwen3-4B joins the model selector when a matched cohort is available. To add a method, follow the <a href="/research/recipes/experiments/">experimentation workflow</a>.</p>
+    </div>
   </div>
 </section>

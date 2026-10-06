@@ -28,9 +28,9 @@ from test_providers import provider_fixture
 
 def test_every_mapped_source_exposes_status_bound_component_methods() -> None:
     plans = planned_components()
-    assert len({plan.paper_id for plan in plans}) == 84
-    assert len({plan.paper_id for plan in plans if not plan.method_id}) == 84
-    assert len(plans) > 84
+    assert len({plan.paper_id for plan in plans}) == 85
+    assert len({plan.paper_id for plan in plans if not plan.method_id}) == 85
+    assert len(plans) > 85
     assert len({plan.identity for plan in plans}) == len(plans)
     assert len({(plan.module, plan.name) for plan in plans}) == len(plans)
     assert {descriptor.component for descriptor in list_components()}.isdisjoint(

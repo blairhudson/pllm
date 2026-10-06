@@ -1,0 +1,139 @@
+---
+title: "Reproduce the research scorecard"
+description: "Pinned Python configurations, matched Qwen cohorts, implementation coverage and measurement boundaries."
+---
+
+The [interactive scorecard and chronology](/research/papers/) connect measured
+SDK configurations to their evidence. **SOTA means the best measured composition
+for a selected metric, model and workload among the displayed configurations.**
+It is not a ranking of papers' original systems or a claim of an exhaustive search.
+
+## Current Qwen2.5 comparison
+
+The first cohort uses pinned Qwen2.5-0.5B-Instruct, W8A8 with `prefix_f32`,
+150 input tokens and eight greedy output tokens. It contains one cold response
+per candidate, with cached upstream checkpoints and distinct co-located provider
+processes. All generated-output digests match.
+
+| Configuration | Covered bodies | Request latency | Cold aggregate CPU |
+| --- | ---: | ---: | ---: |
+| Prepared baseline | 603.45 MB | 11.04 s | 37.11 CPU s |
+| Exact prepared stack | 476.95 MB | 15.24 s | 37.79 CPU s |
+| Stack + 96 public prefix tokens | 266.91 MB | 11.72 s | 27.06 CPU s |
+
+These are distinct objectives: the baseline wins request latency; the exact stack
+reduces covered bodies by 21.0%; the public-prefix configuration reduces them by
+55.8% for its explicitly public-prefix workload. The public-prefix toggle removes
+that assumption from the displayed comparison.
+
+Covered bodies include recorded setup and application-body links, not complete
+physical wire, checkpoint downloads or publisher distribution. The indexed
+tokenizer adds 9.29 MB of pre-positioned public artifacts; adding the capsule
+brings that total to 12.25 MB. The publisher measured 8.03 CPU seconds separately.
+Its [publisher report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-scorecard-publisher.json)
+retains the exact artifact digests and source/body commitments.
+Public artifact sizes are not network-transfer measurements.
+
+Client/dashboard process lifetime RSS accumulates across candidates in this
+invocation. It cannot rank isolated client peaks. The chart leaves that metric,
+full physical wire, representative quality and energy **unmeasured**. Provider
+peaks belong to each candidate's fresh role children and remain separately labelled.
+The scorecard preserves N−1 denominators for decode bytes and throughput.
+
+## Python configurations
+
+Every scored row links to a repository Python file and retains its configuration,
+Pipeline, source and report digests. These factories create ordinary `Experiment`
+objects consumed by the SDK, gateway and benchmark runner:
+
+- [Prepared baseline](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/baseline.py)
+- [Exact prepared stack](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/sota.py)
+- [Public-prefix stack](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/public_prefix.py)
+- [Shared checkpoint and workload contract](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/common.py)
+
+The exact stack combines demand-aware inventory, terminal prefill pruning,
+stage-packed requests, row-residue outputs, paged compressed artifact delivery,
+paged Preparation and a source-bound indexed tokenizer. The third configuration
+adds a trusted publisher's public-prefix capsule and qualified prefix reuse.
+All prompt-dependent tokenization and state remain inside the trusted client.
+
+## Rerun the matched cohort
+
+From a built source checkout, publish the public artifacts first. The builder
+uses fixed public text and the pinned checkpoint; it does not inspect private
+prompts. Its output directory contains the tokenizer index, capsule, public
+prompt, canonical Experiment descriptions and a separate publisher report.
+
+```bash
+export PLLM_RESEARCH_ARTIFACTS="$PWD/.artifacts/research-scorecard"
+uv run python scripts/build_incremental_sdk_experiments.py "$PLLM_RESEARCH_ARTIFACTS"
+uv run python -m pllm benchmark run --factory --trust-python \
+  --experiment benchmarks.research.baseline:experiment \
+  --experiment benchmarks.research.sota:experiment \
+  --experiment benchmarks.research.public_prefix:experiment \
+  --prompt-file "$PLLM_RESEARCH_ARTIFACTS/prompt.txt" \
+  --max-output-tokens 8 --warmups 0 --repetitions 1 --temperature 0 \
+  --capture-output-digest --backend native --timeout 900 \
+  --output .artifacts/research-scorecard-rerun.json
+```
+
+Use one invocation for all compared candidates. Each invocation has a fresh
+private cohort salt; separate runs cannot be retrospectively combined as a
+matched prompt cohort. For timing uncertainty, collect a new repeated cohort
+with its own documented lifecycle policy rather than treating this sample as a
+confidence interval. Memory admission and host-pressure checks remain active.
+
+The [canonical first report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-scorecard-qwen25.json)
+is retained rather than overwritten by the command above.
+
+## Paper reimplementation coverage
+
+The chronology's **Hide unimplemented papers** filter includes scoped SDK
+adaptations, component references, structural transformations and attack
+regressions. Each card specifies its actual coverage and links to native code,
+tests and available evidence. An imported planned class or a related citation
+alone does not count as implemented work.
+
+- **Slalom:** the prepared Freivalds adaptation has a
+  [Python configuration](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/slalom.py)
+  and [matched control](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/slalom_baseline.py).
+  This new Qwen attempt was blocked before verified roles launched: 10.04 GiB
+  estimated host allocation exceeded 7.74 GiB safe headroom at 32+1 bounds.
+  It receives no score. The original TEE construction is not reproduced.
+- **Curl:** a new native reference executes one-use, party-local shared lookup
+  from Fig. 4 and public Haar compression. It checks all 512 encoded SiLU rows.
+  Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes per
+  lookup, while header-inclusive peer frames stay at 136 bytes and maximum
+  encoded-domain absolute error rises to 0.12888. The already-truncated input
+  boundary excludes protected truncation and whole-decoder costs.
+- **SmoothQuant:** the previously implemented public channel-equalization
+  adaptation is now included in the library. Its existing Phi evidence remains
+  model-specific; it is not inserted into the Qwen chart.
+
+The native Curl measurement also compares local two-party execution with a clear
+table lookup. Its Python configuration runs the bounded native example:
+
+```bash
+uv run python -m benchmarks.research.curl_reference .artifacts/curl-reference.json
+cargo test -p pllm-garble --lib shared_lut_reference
+```
+
+The dealer is confined to this local research reference. One-use party state
+burns on use and malformed input; peer frames bind the public table and issuance.
+This is a component reimplementation, not a reviewed transport or an executable
+Qwen Pipeline. See the [Curl record](/research/papers/curl/).
+
+## Extending the scorecard
+
+Add a Python factory and a canonical matched report, then register the cohort in
+`docs/data/research/benchmark-cohorts.json`. The docs generator validates source,
+quantized body, prompt, output identity, workload, sampling, backend and network
+conditions before exposing rankings. Missing metrics remain null and ties survive.
+`docs/data/research/implementations.json` separately records paper coverage.
+
+The model selector currently exposes only Qwen2.5-0.5B. Qwen3-4B is next;
+its earlier isolated memory results do not substitute for a matched scorecard.
+
+See [benchmark evaluation](/sdk/evaluate/benchmark/),
+[evidence rules](/research/records/) and
+[the research experimentation workflow](/research/recipes/experiments/).

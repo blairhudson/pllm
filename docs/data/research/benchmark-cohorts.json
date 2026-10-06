@@ -1,0 +1,22 @@
+{
+  "schema": "pllm.research_cohorts.v1",
+  "cohorts": [
+    {
+      "id": "qwen25-prepared-150-8",
+      "title": "Prepared compositions · 150 input / 8 output tokens",
+      "report": "docs/evidence/research-scorecard-qwen25.json",
+      "publisher_report": "docs/evidence/research-scorecard-publisher.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "scripts/build_incremental_sdk_experiments.py": "0eeb9cfb43bf095e3cb015c2e8fcb0bed327836dfd54a7c54ea03ef4cb8893d2"
+      },
+      "baseline": "prepared-baseline",
+      "scope": "One cold response per configuration; cached checkpoint, native CPU, co-located roles. The public-prefix candidate reuses 96 explicitly public tokens. Timing excludes provider launch; aggregate cold CPU includes it. Artifact distribution is outside response counters.",
+      "candidates": {
+        "prepared-baseline": {"file": "benchmarks/research/baseline.py", "sha256": "e0361045430188ec2ac02814dd42b3ad5910c9e52d76124ce3e842babf9b36f1", "label": "Prepared baseline", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "prepared-exact-stack": {"file": "benchmarks/research/sota.py", "sha256": "a254c38247d5737e3794f675ae86365039d9909eed8b93a701935850162c9bc1", "label": "Exact prepared stack", "artifact_bytes": 9285336, "public_prefix_tokens": 0},
+        "prepared-public-prefix": {"file": "benchmarks/research/public_prefix.py", "sha256": "65f660b7da670962ad341b6c79e9d8ed9322a40008819dd1280142d6c8e5cadf", "label": "Stack + public prefix", "artifact_bytes": 12252963, "public_prefix_tokens": 96}
+      }
+    }
+  ]
+}

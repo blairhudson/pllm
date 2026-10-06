@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -15,6 +16,12 @@ DOWNLOADS = ROOT / "docs/public/downloads"
 
 
 class PaperBuildTests(unittest.TestCase):
+    def test_web_citations_remain_markdown_links(self) -> None:
+        web = (ROOT / "docs/content/research/paper.mdx").read_text()
+        self.assertNotIn('class="uri"', web)
+        self.assertIn("[www.usenix.org/conference/", web)
+        self.assertRegex(web, r"```(?:[ \t]*text)?\nSpecification\n")
+
     def test_whitepaper_archive_contains_its_rebuild_inputs(self) -> None:
         with ZipFile(DOWNLOADS / "whitepaper-source.zip") as archive:
             expected = {
@@ -47,11 +54,22 @@ class PaperBuildTests(unittest.TestCase):
         )
         pages = [page for page in text.split("\f") if page.strip()]
         self.assertEqual(len(pages), 2)
-        self.assertIn("Keep sensitive context local", pages[0])
+        self.assertIn("Keep sensitive context", pages[0])
         self.assertIn("not collude", pages[0])
-        self.assertIn("A repeatable loop for people and AI agents", pages[1])
-        self.assertIn("no matched resident-client control", pages[1])
-        self.assertIn("reports and reproduction commands", pages[1])
+        self.assertIn("Progress is a scorecard", pages[1])
+        self.assertIn("Client peak memory needs a fresh-process", pages[1])
+        self.assertIn("266.91 MB", pages[1])
+        self.assertIn("full physical wire", pages[1])
+        layout = ET.fromstring(subprocess.check_output([
+            "pdftotext", "-bbox-layout", str(DOWNLOADS / "whitepaper.pdf"), "-",
+        ]))
+        for index, page in enumerate(layout.findall(".//{*}page"), 1):
+            body_bottom = []
+            for line in page.findall(".//{*}line"):
+                text = " ".join(word.text or "" for word in line.findall("{*}word"))
+                if text not in {"PLLM / PRIVATE INFERENCE, MEASURED", f"{index:02d}"}:
+                    body_bottom.append(float(line.attrib["yMax"]))
+            self.assertLess(max(body_bottom), 738, f"Page {index} overlaps its footer")
 
     def test_arxiv_archive_compiles_without_repository_inputs(self) -> None:
         with tempfile.TemporaryDirectory(prefix="pllm-arxiv-test-") as temporary:
@@ -72,7 +90,7 @@ class PaperBuildTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             info = subprocess.check_output(["pdfinfo", str(directory / "main.pdf")], text=True)
             pages = next(line.split(":")[1] for line in info.splitlines() if line.startswith("Pages:"))
-            self.assertLessEqual(int(pages), 4)
+            self.assertLessEqual(int(pages), 5)
 
     def test_generated_outputs_are_untracked(self) -> None:
         output = subprocess.check_output([
