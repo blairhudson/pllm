@@ -27,6 +27,7 @@ pub mod polynomial_softmax_reference;
 pub mod progressive_head;
 pub mod public_entropy;
 pub mod public_transforms;
+pub mod residual_silu_reference;
 pub mod rms_norm;
 pub mod rope;
 pub mod row_memo;

@@ -76,6 +76,14 @@ selections, despite no range rejection; hypothetical 39+8 still needs 60.10 GB
 material and 465.16 MB peer bodies. Promotion remains rejected. Full source
 deviations, costs and reproduction: `docs/research/piecewise-gated-reference.md`.
 
+The primary-paper audit subsequently replaced that generic baseline with a
+separate SIGMA-style Boolean-DPF/masked-wire reference. Its floor/Q12 contract
+projects 6.93 GB raw material rather than 60.10 GB at 39+8, but fails fresh
+numeric and total-cost gates. FuseFSS's general fusion and distributed-key
+representation have not been reproduced; evaluating those improvements on the
+new baseline is the next source-specific step. See
+`docs/research/masked-wire-reference.md`.
+
 ## Reproduction gates
 
 `R14.acquire → R14.specify → R14.reference → R14.native → R14.assure → R14.benchmark → R14.document`.

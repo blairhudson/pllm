@@ -73,7 +73,19 @@ attention, norms, setup framing or checkpoint distribution. See
 projected lower bounds for this construction, not measured wire bytes or a
 universal bound on two-party inference. Compiler admission remains closed.
 
-The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
+The subsequent native masked-wire reference implements early-terminated Boolean
+DPF comparisons, public-gap floor shifts, the 1,024-entry residual SiLU and
+masked multiplication. Twelve fresh processes check 5,136 outputs. Qwen-shaped
+39+8 MLP geometry projects 6.93 GB combined material and 397.12 MB peer frames;
+the new floor/Q12 mapping matches 10/12 fresh prefill and 34/36 decode selections.
+Numeric/cost gates still fail. Seeds retain 128 secret bits with separate flags;
+the CPU/AES and explicit lookup-correction layout is not the paper's GPU or
+seeded-distribution implementation. Details and reproduction:
+`docs/research/masked-wire-reference.md`. No protected checkpoint execution,
+independent security review or paper-wide reproduction follows.
+
+The original experiments and limitations are under `legacy/`; historical
+component costs retain their original numeric/layout identities.
 
 ## Reproduction gates
 

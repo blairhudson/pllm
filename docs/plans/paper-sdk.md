@@ -47,7 +47,7 @@ Each delivery ends with:
 4. A Qwen2.5-0.5B matched cohort against both the relevant baseline and the best
    eligible SDK combination. Qwen3-4B follows after memory admission. Comparable
    model/source/workload/lifecycle and trust contracts are explicit.
-5. Quality-gated cohorts for methods that change numerics or semantics. Such
+5. Quality-measured cohorts for methods that change numerics or semantics. Such
    methods cannot enter today's exact-body/output scorecard by suppressing its
    identity checks. Record quality, bytes on every link, setup/material, CPU/GPU,
    memory and failures separately; unknown measurements remain unknown.
@@ -55,6 +55,34 @@ Each delivery ends with:
 The meta-study should first establish useful head-to-head **methods**, then compose
 compatible methods through SDK search. Do not relabel the fastest PLLM stack as an
 individual paper's reproduction or mix original-paper speedups into PLLM scores.
+
+### Experimental benchmark eligibility and recommendation are separate
+
+User-driven benchmarking should expose correct, bounded paper methods even when
+their measured cost or quality is poor. A failed optimization screen blocks a
+recommendation or exact-control ranking; it does not by itself block an opt-in
+SDK research benchmark. Preserve the negative result, source attribution and
+replayable configuration so users can measure different supported workloads.
+
+Use three explicit coverage levels:
+
+1. **Operator benchmark:** installed SDK access to the bounded native reference,
+   public numeric contract, resource admission, one-use lifecycle, citations and
+   measured material/CPU/rounds. An in-process dealer stays an explicit local
+   research assumption. This is the immediate delivery for the masked-wire block.
+2. **Experimental whole-model benchmark:** actual admitted tensor schedule,
+   conversions, complete operator/state coverage and declared role transport.
+   Report quality changes and costs under a separate numeric identity. A partial
+   block must not silently activate a decoder or be counted as completing a paper.
+3. **Recommended serving composition:** independently satisfied privacy/security,
+   quality, resource and deployment requirements for the claimed workload.
+
+Correctness in the declared numeric domain, implemented execution coverage and
+bounded resource/lifecycle behavior remain hard requirements at every level.
+Unavailable functionality and unknown costs stay explicit. Source coverage and
+SDK availability are recorded independently of whether a method wins a benchmark.
+References currently callable only from repository scripts still need installed
+SDK bindings, typed reports and checked examples before claiming SDK availability.
 
 ### First control delivery — 2026-10-05
 
@@ -84,7 +112,8 @@ admission. Its source review identifies an unresolved BabyBear applicability gap
 in the quoted distance-failure bound; fresh masks and successful corruption tests
 do not resolve it. See `docs/research/maverick-reference.md` and its saved Python
 reproduction. Concrete code-distance/dual-LPN review and the 22.90 GB Qwen2.5
-preprocessing lower bound still block an executable SDK method.
+preprocessing lower bound still block a recommended delegated-decoder method.
+Bounded local benchmark exposure must retain the unresolved security contract.
 
 SIGMA/FuseFSS now share a native, one-use signed-rescale/nonnegative helper
 reference with fixed public key/frame shapes, an exact ties-to-even extension
@@ -115,16 +144,17 @@ The complete shared Q7 gated-block follow-up composes four exact rescalings and
 two one-use Beaver multiplications. All 11,540 checked outputs match the integer
 oracle, but 36.07% of pinned Qwen gate/up pairs exceed its declared range. The
 39+8-token fused layout projects 41.33 GB of keys and 409.12 MB peer traffic,
-before other decoder work. This closes the current profile's promotion path;
-it does not weaken the numeric gate. See `docs/research/nonlinear-block-reference.md`.
+before other decoder work. This closes the current profile's Qwen recommendation
+path; out-of-domain inputs still reject in research benchmarks. See
+`docs/research/nonlinear-block-reference.md`.
 A separate public Q8/Q9 affine-SiLU follow-up now covers its twelve fresh
 held-out prompts without domain rejection, but the best profile preserves only
 10/12 prefill and 35/36 same-token decode selections. Its complete vector
 coefficient lookup reduces matched raw material 11.51%, while hypothetical
 39+8 still needs 60.10 GB material and 465.16 MB peer bodies. Four rescalings
-consume 86.42% of the material. This is another no-go, with all profiles frozen
+consume 86.42% of the material. This is another optimization no-go, with all profiles frozen
 before evaluation; a new numeric hypothesis needs new held-out data and a
-materially cheaper complete rescale/product protocol before tensor or SDK work.
+materially cheaper complete rescale/product protocol before a decoder recommendation.
 See `docs/research/piecewise-gated-reference.md`.
 A separate joint-output screen now uses fixed Q12/Q16 mappings and one final
 rounding. Q12/2,048 pieces matches 12/12 fresh prefill and 36/36 same-token decode
@@ -135,19 +165,26 @@ whole-response byte comparator. Narrow-ring openings alone exceed a tenfold
 target. This closes those concrete representations before protected issuance,
 not all joint FSS or vector correlation designs. The next gate is a specified,
 costed construction that changes complete material/opening representation;
-promising selected-token agreement alone does not authorize SDK work. These
+promising selected-token agreement alone does not supply an executable protected method. These
 twelve prompts are now spent as held-out evidence. See
 `docs/research/joint-gated-reference.md` for the complete candidate, both-party
 views, native carry/privacy counterexamples and all four numeric results.
 The subsequent primary-paper audit confirms the 60.10 GB arithmetic but limits
 the rejection to our reference: 51.94 GB is generic ties-even rescaling, while
 SIGMA's DPF-based gap shifts, residual SiLU lookup, effective widths and
-masked-wire composition remain unimplemented. **Next: reproduce those published
-primitives before assuming a new joint cryptographic construction is needed.**
-Keep faithful-shift and ties-even numeric identities separate, prove public gap
-assumptions and then cost the complete block. A paper-faithful Qwen total remains
-unknown. See `docs/research/fss-paper-cost-audit.md` for exact source sections,
-published offline costs and reproducible per-party accounting.
+masked-wire composition were missing. The follow-up now independently implements
+that bounded path with proven public gap bounds, one-use party ownership and
+floor/Q12 numerics. Twelve fresh processes check 5,136 protected outputs; 39+8
+MLP geometry projects **6.93 GB combined raw material and 397.12 MB peer frames**,
+8.67 times less material than the old, numerically different layout. The fresh
+Qwen screen matches 10/12 prefill and 34/36 decode selections; both optimization
+gates still fail. **Next: expose the bounded block as an opt-in SDK operator
+benchmark, then compare source-specified FuseFSS fusion and distribution on this
+baseline.** Validate improved numeric mappings on new prompts. Poor measured
+quality/cost stays visible rather than excluding the method from research use.
+Protected conversions, other operators, reviewed transport and the paper's GPU
+system remain open. See `docs/research/masked-wire-reference.md` and
+`docs/research/fss-paper-cost-audit.md` for exact source/accounting boundaries.
 MPCache now has a native selected-view oracle with exact full-cache control and
 8,712 independent index/equation checks. Static retention matches 34/36 same-token
 decode selections; combined selection and adjacent-layer sharing matches 31/36.
@@ -162,8 +199,9 @@ references reject all eight Qwen prompts under the fixed public score range,
 with no candidate quality or ciphertext result. CipherPrune source review makes
 its count/compacted-mask leakage and trained thresholds explicit. See
 `docs/research/he-pruning-gates.md`. Next implementation decisions need a new
-public numeric policy or materially cheaper complete protocol, rather than
-promoting any of these rejected fixed profiles into SDK search.
+public numeric policy or materially cheaper complete protocol before a serving
+recommendation. Correct bounded operators remain candidates for explicit SDK
+research benchmarks with their failures and unresolved contracts retained.
 
 The promoted indexed tokenizer now has a separate ordinary Qwen3-4B SDK pair
 with fresh clients and native 100/40 caps. At 16+8 tokens it lowers client peak

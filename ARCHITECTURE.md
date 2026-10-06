@@ -219,9 +219,22 @@ cost admission; secret float conversion, range enforcement, independent review
 and role transport remain absent. Details: `docs/research/piecewise-gated-reference.md`.
 The primary-paper cost audit confirms that raw payload arithmetic, including
 51.94 GB for generic ties-even rescaling, but does not identify it with SIGMA or
-FuseFSS costs. Their DPF-based shift, residual SiLU lookup and masked-wire
-composition have not been reproduced; a paper-faithful Qwen total remains
-unknown. See `docs/research/fss-paper-cost-audit.md`.
+FuseFSS costs. See `docs/research/fss-paper-cost-audit.md`.
+The subsequent bounded masked-wire reference independently implements
+early-terminated Boolean DPF comparisons, public-gap floor shifts, a 1,024-entry
+Q12 residual SiLU lookup and masked multiplication. Public gate/up ranges prove
+effective widths and every gap assumption. Non-cloneable party-local state burns
+on completion, malformed frames, replay or cancellation; issuance preflights
+at most 256 lanes under a 64 MiB combined allocation estimate. Twelve fresh
+processes check 5,136 protected outputs. Complete-block payload is 5,162 bits
+per party/element, projecting 6.93 GB combined material and 397.12 MB peer frames
+at Qwen 39+8 geometry, before other operators and unimplemented protected float
+conversion. This is 8.67 times less material than the numerically different
+60.10 GB layout. The fresh twelve-prompt clear diagnostic matches 10/12 prefill
+and 34/36 same-token decode selections; no full logits/KV are exact. It remains
+cost/numeric-gated, with in-process issuance, no reviewed transport or executable
+SDK option. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
+Details: `docs/research/masked-wire-reference.md`.
 
 A further clear joint-output reference uses Q12/Q16 inputs, 512/2,048 public
 SiLU secants, explicit tails and one final rounding of the complete gated

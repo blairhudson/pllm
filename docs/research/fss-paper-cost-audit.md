@@ -123,6 +123,18 @@ for their specified layouts. **A paper-faithful Qwen cost remains unknown.**
 Those rejections do not establish that a new cryptographic construction is
 necessary before investigating the existing papers' cheaper primitives.
 
+### Follow-up implemented
+
+The separate [masked-wire reference](masked-wire-reference.md) now implements
+the bounded Boolean-DPF/GapARS/TR, residual SiLU and masked multiplication path.
+It checks 5,136 protected outputs and projects **6.93 GB combined material plus
+397.12 MB peer frames** for the same 39+8 MLP geometry. This is 8.67 times less
+material than the earlier layout, under a different floor/Q12 numeric contract.
+The fresh Qwen screen matches 10/12 prefill and 34/36 decode selections, so
+numeric and cost gates still fail. Paper-wide GPU reproduction and FuseFSS's
+general fused schedule remain unimplemented. The historical audit above and its
+60.10 GB accounting remain unchanged.
+
 ## Reproduce the accounting
 
 ```bash

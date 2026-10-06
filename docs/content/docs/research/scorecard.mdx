@@ -373,9 +373,14 @@ alone does not count as implemented work.
   retains all four profiles and exact carry/privacy counterexamples.
   A [primary-paper cost audit](https://github.com/blairhudson/pllm/blob/main/docs/research/fss-paper-cost-audit.md)
   confirms the earlier **60.10 GB** raw-material projection belongs to PLLM's
-  generic helper composition, with **51.94 GB** in exact rescaling. SIGMA's
-  DPF-based shifts, residual SiLU lookup and masked-wire composition have not
-  been reproduced; the papers' Qwen cost remains unknown.
+  generic helper composition, with **51.94 GB** in exact rescaling. PLLM's
+  [bounded DPF/masked-wire follow-up](https://github.com/blairhudson/pllm/blob/main/docs/research/masked-wire-reference.md)
+  now checks **5,136** protected outputs and projects **6.93 GB combined material
+  plus 397.12 MB peer frames** at 39+8. Its distinct floor/Q12 residual mapping
+  matches **10/12 prefill and 34/36 decode selections** on fresh prompts. Both
+  numeric and cost gates still fail; paper-wide GPU execution and FuseFSS's
+  general fusion remain unimplemented. These component projections do not enter
+  executable decoder rankings.
 - **Curl:** a new native reference executes one-use, party-local shared lookup
   from Fig. 4 and public Haar compression. It checks all 512 encoded SiLU rows.
   Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes per
