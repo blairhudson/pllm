@@ -77,8 +77,13 @@ with client peak RSS 540.85 to 262.96 MB; aggregate CPU rises 34.47 to 37.28 s.
 These pairs are baseline-versus-composition controls, not exhaustive searches
 for the best verified or equalized stack. Whole-generation quality remains open.
 
-Maverick still needs its source/privacy/full-width resource gate before extending
-the non-selectable Walsh reference. Passing these controls does not activate it.
+Maverick now has a separate bounded full-width RAA masked-delegation reference,
+with exact sparse sampling, one-use client ownership and explicit allocation
+admission. Its source review identifies an unresolved BabyBear applicability gap
+in the quoted distance-failure bound; fresh masks and successful corruption tests
+do not resolve it. See `docs/research/maverick-reference.md` and its saved Python
+reproduction. Concrete code-distance/dual-LPN review and the 22.90 GB Qwen2.5
+preprocessing lower bound still block an executable SDK method.
 
 ## Importable Python stubs are not executable components
 

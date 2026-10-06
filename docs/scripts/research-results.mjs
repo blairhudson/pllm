@@ -105,6 +105,13 @@ Profile digest: \`${study.calibration.profile_digest}\`.
 Publisher work and provider profile distribution are outside response counters; client-delivered scales remain in measured bundles.
 These quality observations do not populate the performance chart's unmeasured whole-generation quality metric.
 `);
+  const implementations = JSON.parse(fs.readFileSync(path.join(root, 'docs/data/research/implementations.json'))).papers;
+  const componentReferences = Object.entries(implementations)
+    .filter(([, paper]) => paper.status === 'Component reference' && paper.evidence)
+    .map(([id, paper]) => ({ id, ...paper }));
+  const referenceTable = table(['Paper', 'Scope and observations', 'Replay / evidence'], componentReferences.map((paper) => [
+    `[${paper.id}](/research/papers/${paper.id}/)`, `${paper.scope} ${paper.result}`,
+    `${link('Python', paper.configuration)} · ${link('Report', paper.evidence)}`]));
   const sections = card.cohorts.map((cohort) => {
     const axes = card.defaultMetrics.map((id) => card.metrics.find((metric) => metric.id === id));
     return `## ${cohort.title}
@@ -179,6 +186,13 @@ Changed numeric methods have their own reference-quality evidence. Equal outputs
 
 ${numeric.join('\n\n')}
 
+# Native component references
+
+These bounded references have no executable decoder cohort. Their isolated timings and
+payload counts retain their own measurement scope; they do not populate frontier axes.
+
+${referenceTable}
+
 # Exploratory search ledger
 
 All ${searches.reduce((sum, search) => sum + search.attempted, 0)} attempts and ${searches.reduce((sum, search) => sum + search.trials.length, 0)} measurements are retained below.
@@ -186,7 +200,7 @@ They explain finalist selection; they are not additional matched confirmation sa
 
 ${exploratory.join('\n\n')}
 `;
-  return { text, data: { schema: 'pllm.research_results.v1', cohorts: card.cohorts, metrics: card.metrics, searches, quality } };
+  return { text, data: { schema: 'pllm.research_results.v1', cohorts: card.cohorts, metrics: card.metrics, searches, quality, componentReferences } };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

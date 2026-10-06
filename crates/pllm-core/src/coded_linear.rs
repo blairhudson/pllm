@@ -6,12 +6,15 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use sha2::{Digest as _, Sha256};
+use zeroize::Zeroizing;
 
 /// The BabyBear field used by the bounded reference, not the normal u16/u24/u32 rings.
 pub const CODED_LINEAR_FIELD: u32 = 2_013_265_921;
 pub const CODED_LINEAR_CHALLENGE_WEIGHT: usize = 41;
 pub const CODED_LINEAR_REPETITIONS: usize = 2;
 pub const CODED_LINEAR_MAX_CLAIMS: u32 = 65_536;
+pub const RAA_MAX_DIMENSION: usize = 16_384;
+pub const RAA_MAX_PREPROCESS_BYTES: usize = 256 << 20;
 
 /// Public offline encoding of a signed-int8 matrix, with fresh private checks
 /// sampled only *after* a claimed result is fixed.
@@ -134,15 +137,15 @@ impl CodedMatVecVerifier {
     }
 }
 
-fn field_from_signed(value: i64) -> u32 {
+pub(crate) fn field_from_signed(value: i64) -> u32 {
     value.rem_euclid(i64::from(CODED_LINEAR_FIELD)) as u32
 }
 
-fn field_add(a: u32, b: u32) -> u32 {
+pub(crate) fn field_add(a: u32, b: u32) -> u32 {
     ((u64::from(a) + u64::from(b)) % u64::from(CODED_LINEAR_FIELD)) as u32
 }
 
-fn field_neg(value: u32) -> u32 {
+pub(crate) fn field_neg(value: u32) -> u32 {
     if value == 0 {
         0
     } else {
@@ -150,11 +153,11 @@ fn field_neg(value: u32) -> u32 {
     }
 }
 
-fn field_mul(a: u32, b: u32) -> u32 {
+pub(crate) fn field_mul(a: u32, b: u32) -> u32 {
     ((u64::from(a) * u64::from(b)) % u64::from(CODED_LINEAR_FIELD)) as u32
 }
 
-fn random_below(upper: u32) -> Result<u32, String> {
+pub(crate) fn random_below(upper: u32) -> Result<u32, String> {
     if upper == 0 {
         return Err("coded reference randomness domain is empty".into());
     }
@@ -183,8 +186,8 @@ pub struct RaaNumericCode {
 
 impl RaaNumericCode {
     pub fn from_public_seed(rows: usize, seed: [u8; 32]) -> Result<Self, String> {
-        if !(1..=128).contains(&rows) {
-            return Err("RAA numeric reference supports 1..=128 rows".into());
+        if !(1..=RAA_MAX_DIMENSION).contains(&rows) {
+            return Err("RAA numeric reference supports 1..=16384 rows".into());
         }
         let length = rows * 8;
         let mut random = PublicCodeSampler { seed, counter: 0 };
@@ -251,7 +254,7 @@ impl RaaNumericCode {
         if sparse.is_empty() || sparse.len() > length {
             return Err("RAA syndrome sparsity exceeds encoded dimensions".into());
         }
-        let mut current = vec![0u32; length];
+        let mut current = Zeroizing::new(vec![0u32; length]);
         for &(position, value) in sparse {
             if position >= length || value == 0 || value >= CODED_LINEAR_FIELD {
                 return Err("RAA syndrome contains invalid position or coefficient".into());
@@ -267,7 +270,7 @@ impl RaaNumericCode {
             sum = field_add(sum, *value);
             *value = sum;
         }
-        let mut first = vec![0u32; length];
+        let mut first = Zeroizing::new(vec![0u32; length]);
         for (position, &value) in current.iter().enumerate() {
             let mapped = self.second_permutation[position];
             first[mapped] = field_add(first[mapped], field_mul(value, self.second_scale[position]));
@@ -277,7 +280,7 @@ impl RaaNumericCode {
             sum = field_add(sum, *value);
             *value = sum;
         }
-        let mut repeated = vec![0u32; length];
+        let mut repeated = Zeroizing::new(vec![0u32; length]);
         for (position, &value) in first.iter().enumerate() {
             let mapped = self.first_permutation[position];
             repeated[mapped] = field_add(
@@ -291,10 +294,21 @@ impl RaaNumericCode {
             .collect())
     }
 
-    /// Q = G^T M. Return row-major field values; caller owns resource policy.
+    /// Q = G^T M. Return row-major field values under a fixed allocation ceiling.
     pub fn preprocess_i8(&self, weights: &[i8], columns: usize) -> Result<Vec<u32>, String> {
-        if columns == 0 || columns > 256 || weights.len() != self.rows * columns {
-            return Err("RAA reference weight shape exceeds 128 x 256".into());
+        if columns == 0 || columns > RAA_MAX_DIMENSION {
+            return Err("RAA reference columns exceed 1..=16384".into());
+        }
+        let bytes = self
+            .encoded_rows()
+            .checked_mul(columns)
+            .and_then(|elements| elements.checked_mul(size_of::<u32>()))
+            .ok_or("RAA preprocessing size overflow")?;
+        if bytes > RAA_MAX_PREPROCESS_BYTES {
+            return Err("RAA preprocessing exceeds the 256 MiB payload bound".into());
+        }
+        if weights.len() != self.rows * columns {
+            return Err("RAA reference weight shape mismatch".into());
         }
         let mut encoded = vec![0u32; self.encoded_rows() * columns];
         for column in 0..columns {
@@ -437,7 +451,7 @@ mod tests {
         }
         let other = RaaNumericCode::from_public_seed(64, [28; 32]).unwrap();
         assert_ne!(other.encode(&output).unwrap(), expected);
-        assert!(RaaNumericCode::from_public_seed(129, [27; 32]).is_err());
+        assert!(RaaNumericCode::from_public_seed(RAA_MAX_DIMENSION + 1, [27; 32]).is_err());
         assert!(code.preprocess_i8(&weights, 0).is_err());
         assert!(code.encode(&vec![CODED_LINEAR_FIELD; 64]).is_err());
     }

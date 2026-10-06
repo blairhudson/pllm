@@ -74,6 +74,17 @@ A separate bounded RAA numeric reference checks repeat/permute/weighted
 accumulation, the sparse transpose, and offline mask-correction algebra against
 field matrix products, without secure mask sampling, a code-distance certificate
 or an executable verifier contract.
+The separate Rust-only RAA delegation reference now composes those operations
+at bounded full widths with fresh uniform fixed-weight OS-random sparse noise,
+client-owned corrections, post-response coded challenges and non-cloneable
+one-use query handles. A 256 MiB combined preprocessing/material payload cap and
+eight-live-query limit precede issuance. It does not certify code distance or
+dual-LPN security: the source's quoted finite-field distance-failure bound uses
+`q > 2^31`, outside this reference's BabyBear field. Compiler-derived Qwen2.5
+stage shapes have a synthetic-weight native reproduction, separate from
+checkpoint values, decoder quality, provider transport and WAN evidence. The
+22.90 GB whole-body `P+Q` lower bound remains a storage gate. Source analysis and
+reproduction live in `docs/research/maverick-reference.md`.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The separate direct `pllm.native.PagedGEMM` API owns an authenticated private

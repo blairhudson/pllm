@@ -58,9 +58,11 @@
     },
     "maverick": {
       "status": "Component reference",
-      "scope": "Public coded-matvec verification and RAA numeric algebra, plus Appendix E public-subspace leakage regression. No LPN input privacy or full-width admission.",
-      "code": ["crates/pllm-core/src/coded_linear.rs", "tests/test_public_subspace_mask_regression.py"],
-      "result": "Bounded code-distance and algebra checks. Exponential reference code length prevents decoder admission; no Qwen performance score."
+      "scope": "Bounded full-width RAA masked-delegation algebra, exact fresh sparse sampling and one-use client queries, plus Walsh verification and Appendix E leakage controls. RAA distance and dual-LPN privacy remain uncertified.",
+      "code": ["crates/pllm-core/src/coded_delegation_reference.rs", "crates/pllm-core/src/coded_linear.rs", "tests/test_public_subspace_mask_regression.py"],
+      "configuration": "benchmarks/research/maverick_reference.py",
+      "evidence": "docs/evidence/research-maverick-reference-qwen25.json",
+      "result": "Synthetic full-width attention shapes cover 48/96 Qwen2.5 stages with exact integer outputs and changed-output rejection; 48 MLP stages reject the 256 MiB preprocessing/material cap. Client work takes 1.188/1.398 ms versus 0.031/0.038 ms clear SIMD; persistent payload is 51.72/66.45 MB. Full-body P+Q still needs at least 22.90 GB. The cited q>2^31 distance-failure bound does not directly cover BabyBear. No admitted private/verifiable Qwen decoder or performance score."
     },
     "carnival": {
       "status": "Security regression",
