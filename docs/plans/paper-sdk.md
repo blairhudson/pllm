@@ -117,6 +117,15 @@ oracle, but 36.07% of pinned Qwen gate/up pairs exceed its declared range. The
 39+8-token fused layout projects 41.33 GB of keys and 409.12 MB peer traffic,
 before other decoder work. This closes the current profile's promotion path;
 it does not weaken the numeric gate. See `docs/research/nonlinear-block-reference.md`.
+A separate public Q8/Q9 affine-SiLU follow-up now covers its twelve fresh
+held-out prompts without domain rejection, but the best profile preserves only
+10/12 prefill and 35/36 same-token decode selections. Its complete vector
+coefficient lookup reduces matched raw material 11.51%, while hypothetical
+39+8 still needs 60.10 GB material and 465.16 MB peer bodies. Four rescalings
+consume 86.42% of the material. This is another no-go, with all profiles frozen
+before evaluation; a new numeric hypothesis needs new held-out data and a
+materially cheaper complete rescale/product protocol before tensor or SDK work.
+See `docs/research/piecewise-gated-reference.md`.
 MPCache now has a native selected-view oracle with exact full-cache control and
 8,712 independent index/equation checks. Static retention matches 34/36 same-token
 decode selections; combined selection and adjacent-layer sharing matches 31/36.

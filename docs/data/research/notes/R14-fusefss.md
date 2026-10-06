@@ -63,6 +63,19 @@ The original experiments and limitations are under `legacy/`. This reference
 does **not** reproduce the paper's native two-call implementation or its
 reported cost advantage.
 
+The subsequent native coefficient-lookup adaptation compares independent
+scalar masks/keys with one vector key for public affine SiLU coefficients.
+Both complete blocks retain four exact rescalings, two Beaver products and
+six peer rounds. On the matched Q9/64-piece, 64-lane reference, vector lookup
+reduces complete per-party material from 404,736 to 358,144 bytes and local
+online time from 726.76 to 399.70 ms. This uses universal arithmetic DCF keys;
+it is not the paper's GPU/general packed-comparison implementation. All 1,560
+synthetic shared outputs match an independent integer oracle. The separate
+clear Qwen numeric gate's best profile matches 10/12 prefill and 35/36 decode
+selections, despite no range rejection; hypothetical 39+8 still needs 60.10 GB
+material and 465.16 MB peer bodies. Promotion remains rejected. Full source
+deviations, costs and reproduction: `docs/research/piecewise-gated-reference.md`.
+
 ## Reproduction gates
 
 `R14.acquire → R14.specify → R14.reference → R14.native → R14.assure → R14.benchmark → R14.document`.

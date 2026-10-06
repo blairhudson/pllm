@@ -84,11 +84,11 @@
     },
     "fusefss": {
       "status": "Component reference",
-      "scope": "Mask-aware signed-rescale/predicate fusion and a complete bounded shared Q7 gated block with four rescalings and two one-use Beaver multiplications. PLLM quadratic/ties-even profile, not the paper's spline coefficients, coefficient lookup or general operator compiler.",
-      "code": ["crates/pllm-garble/src/shared_rescale_reference.rs", "crates/pllm-garble/src/interval_fss.rs", "crates/pllm-garble/src/shared_arithmetic_reference.rs", "crates/pllm-garble/src/shared_gated_block_reference.rs"],
-      "configuration": "benchmarks/research/nonlinear_block_reference.py",
-      "evidence": "docs/evidence/research-nonlinear-block-reference-qwen25.json",
-      "result": "All 11,540 complete-block outputs match exact integer oracles. Interval-key fused 64-lane execution uses 246,272 key bytes per party, 4,876 peer bytes and five rounds, with 55.96 ms local online time. Hypothetical Qwen 39+8 costs 41.33 GB keys and 409.12 MB peer bodies; 36.07% of observed W8A8 gate/up pairs exceed the numeric range. Domain and resource gates reject decoder promotion. Earlier helper cohorts remain retained. Notes: docs/research/nonlinear-block-reference.md."
+      "scope": "Signed-rescale fusion and complete one-use shared gated blocks. Public Q8/Q9 affine SiLU compares scalar/vector coefficient lookup through universal DCF, four exact rescalings and two Beaver products. No paper-supplied fit, general packed-comparison compiler, GPU system or protected checkpoint execution.",
+      "code": ["crates/pllm-core/src/piecewise_gated_reference.rs", "crates/pllm-garble/src/shared_affine_lookup_reference.rs", "crates/pllm-garble/src/shared_piecewise_gated_reference.rs", "crates/pllm-garble/src/shared_rescale_reference.rs", "crates/pllm-garble/src/shared_gated_block_reference.rs"],
+      "configuration": "benchmarks/research/piecewise_gated_reference.py",
+      "evidence": "docs/evidence/research-piecewise-gated-reference-qwen25.json",
+      "result": "All 1,560 synthetic shared outputs match independent integer oracles. Q9/64-piece vector lookup reduces complete 64-lane per-party material from 404,736 to 358,144 bytes and local online time from 726.76 to 399.70 ms; six rounds remain. Four fixed profiles fit twelve fresh Qwen prompts without range rejection, but the best matches only 10/12 prefill and 35/36 decode selections; no logits/KV are exact. Hypothetical 39+8 still needs 60.10 GB material and 465.16 MB peer bodies. Both fidelity and resource gates reject promotion. Earlier Q7/helper cohorts remain retained. Notes: docs/research/piecewise-gated-reference.md."
     },
     "fss-mixed": {
       "status": "Component reference",

@@ -204,6 +204,20 @@ the profile's public range; even the separate maximum scaled gate range has
 candidate decoder. Numeric mapping, cost, distributed issuance and independent
 review still block admission. Details: `docs/research/nonlinear-block-reference.md`.
 
+A separate public affine-SiLU reference binds Q8/Q9 precision, 16/64 mathematical
+pieces, explicit zero/identity tails and wider gate/up ranges. Its complete
+32-bit shared block compares scalar and vector coefficient lookup using universal
+DCF, four exact rescalings and two fresh Beaver products. All 1,560 synthetic
+shared outputs match independent integer oracles. On twelve fresh public Qwen
+prompts, no input exceeds the selected ranges, but the best profile matches only
+10/12 prefill and 35/36 same-token decode selections; no full logits or KV state
+are exact. Vector lookup cuts matched complete key payload 11.51%, yet hypothetical
+39+8 MLP material remains 60.10 GB plus 465.16 MB peer bodies across six rounds
+per block. Rescalings occupy 86.42% of that material. This clear-checkpoint
+numeric diagnostic and separate in-process protected block fail fidelity and
+cost admission; secret float conversion, range enforcement, independent review
+and role transport remain absent. Details: `docs/research/piecewise-gated-reference.md`.
+
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,
 `pllm-types`, `pllm-bench`, and `pllm-assurance` through PyO3. The stable Python

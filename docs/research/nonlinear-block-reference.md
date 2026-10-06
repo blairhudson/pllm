@@ -89,3 +89,13 @@ Code: `crates/pllm-garble/src/shared_arithmetic_reference.rs` and
 `shared_gated_block_reference.rs`. Replay and raw report:
 `benchmarks/research/nonlinear_block_reference.py`,
 `docs/evidence/research-nonlinear-block-reference-qwen25.json`.
+
+## Wider-domain follow-up
+
+The separate [public piecewise-gated reference](piecewise-gated-reference.md)
+tests Q8/Q9 affine SiLU with explicit tails and complete scalar/vector coefficient
+lookup costs. All new held-out inputs fit its range, but its best profile matches
+only 10/12 prefill and 35/36 decode selections. Vector lookup reduces matching
+complete-block material by 11.51%; hypothetical 39+8 still needs 60.10 GB raw
+material and 465.16 MB peer bodies. Its numeric identity differs from this Q7
+reference, and neither profile is promoted.

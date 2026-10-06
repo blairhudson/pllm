@@ -21,6 +21,7 @@ pub mod mask_stream;
 pub mod masked_aggregate;
 pub mod offset_transport;
 pub mod paged;
+pub mod piecewise_gated_reference;
 pub mod polynomial_softmax_reference;
 pub mod progressive_head;
 pub mod public_entropy;
