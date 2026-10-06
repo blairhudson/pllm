@@ -29,16 +29,19 @@ class ModelAwareCorrections(PreparationProvider):
         category="pllm/preparation-provider",
         category_version="1",
         lifecycle_phase="preparation",
-        parameter_schema={"type": "object", "additionalProperties": False},
+        parameter_schema={"type": "object", "additionalProperties": False,
+                          "properties": {"storage": {"type": "string", "enum": ["paged"]}}},
         capabilities=("one-use-masked-linear-corrections",),
         role_eligibility=("preparation",),
     )
 
-    def __init__(self) -> None:
-        super().__init__(self.descriptor.component)
+    def __init__(self, *, storage: str = "resident") -> None:
+        if type(storage) is not str or storage not in {"resident", "paged"}:
+            raise ConfigurationError("preparation storage must be resident or paged")
+        super().__init__(self.descriptor.component, {} if storage == "resident" else {"storage": storage})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {}
+        return dict(self.params)
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:
@@ -66,6 +69,7 @@ class PreparedInventory(ComponentRef):
                 "rows": {"type": "integer", "minimum": 1, "maximum": 4096},
                 "refill": {"type": "string", "enum": ["idle", "on-demand"]},
                 "stage_window": {"type": "integer", "minimum": 1, "maximum": 4},
+                "allocation": {"type": "string", "enum": ["demand"]},
             },
         },
         capabilities=("bounded-prepared-inventory", "request-sized-preparation"),
@@ -73,7 +77,7 @@ class PreparedInventory(ComponentRef):
     )
 
     def __init__(self, policy: str = "request-sized", *, rows: int | None = None, refill: str | None = None,
-                 stage_window: int = 1) -> None:
+                 stage_window: int = 1, allocation: str = "uniform") -> None:
         if policy not in {"prewarm", "request-sized"}:
             raise ConfigurationError("inventory policy must be prewarm or request-sized")
         if rows is None:
@@ -82,6 +86,9 @@ class PreparedInventory(ComponentRef):
             raise ConfigurationError("inventory row floor must be in [1, 4096]")
         if type(stage_window) is not int or not 1 <= stage_window <= 4:
             raise ConfigurationError("preparation stage window must be in [1, 4]")
+        if allocation not in {"uniform", "demand"} or (allocation == "demand" and
+            (policy != "request-sized" or rows != 1 or refill != "on-demand")):
+            raise ConfigurationError("demand allocation requires request-sized rows=1 and on-demand refill")
         params = {"policy": policy, "rows": rows}
         if refill is not None:
             if refill not in {"idle", "on-demand"}:
@@ -89,6 +96,8 @@ class PreparedInventory(ComponentRef):
             params["refill"] = refill
         if stage_window != 1:
             params["stage_window"] = stage_window
+        if allocation != "uniform":
+            params["allocation"] = allocation
         super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:

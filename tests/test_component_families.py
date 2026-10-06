@@ -68,7 +68,8 @@ from pllm.schedulers import (
     ScalarProtectedTensorSchedule,
 )
 from pllm.sources import BundleModel, ModelSource, TinyModel
-from pllm.state import ClientLocalKv, ClientPrefixReuse, StateProtocol
+from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, StateProtocol
+from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, LinearIntegrity, VerificationScheme
 
 
@@ -96,6 +97,7 @@ def _instances():
         GuardedLinear(),
         HEAuthenticatedPreprocessing(),
         IndependentLanesProtectedTensorSchedule(),
+        IndexedTokenizer("public-index", digest="a" * 64),
         Inference(),
         KvCacheEviction(),
         Latency(),
@@ -109,6 +111,7 @@ def _instances():
         PreparedInventory(),
         Perplexity(dataset="fixture"),
         PublicPerChannelEqualized(profile_digest="a" * 64),
+        PublicPrefixCapsule("public-prefix", digest="a" * 64, size_bytes=1024),
         R03CrtGatedMultiplyQ7(),
         ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64),
         ScalarProtectedTensorSchedule(),

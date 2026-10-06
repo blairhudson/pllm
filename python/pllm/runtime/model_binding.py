@@ -336,6 +336,31 @@ class CompiledRuntimeModel:
     def client_linear_executor(self, engine: MaskedTransformerEngine) -> ClientLinearExecutor:
         return ClientLinearExecutor._create(self, engine)
 
+    def prepared_stage_rows(self, prefill_rows: int, decode_steps: int, *, continuation: bool = False) -> dict[str, int]:
+        """Public shape demand from the admitted native schedule, never activations."""
+        if any(type(n) is not int or n < 0 for n in (prefill_rows, decode_steps)):
+            raise RuntimeBindingError("invalid prepared row demand")
+        composition = Pipeline.from_spec(json.loads(self._canonical_composition))
+        schedule = self._plan.runtime_schedule(composition).to_dict()
+        bindings = {op: stage for stage in self._stages for op in stage.semantic_operations}
+        result = {}
+        for phase, count in (("prefill", prefill_rows), ("decode", decode_steps)):
+            for step in schedule[phase]["steps"]:
+                if step["executor"] not in {"remote_stage", "verified_remote_stage"}:
+                    continue
+                stage = bindings[f"{phase}:{step['operation_ids'][0]}"]
+                if self._bundle.stages[stage.stage_id].client_weight is not None:
+                    continue
+                rows = count
+                if phase == "prefill" and count and not continuation and (
+                    step.get("terminal_row_only", False) or stage.role == "lm_head"
+                ):
+                    rows = 1
+                result[stage.stage_id] = result.get(stage.stage_id, 0) + rows
+        # A zero-work stage still gets one burn-only row under the existing
+        # all-stage authorization contract. No zero-row mask material is minted.
+        return {stage: max(1, rows) for stage, rows in result.items()}
+
     def to_spec(self) -> dict[str, Any]:
         return json.loads(self._canonical)
 
@@ -529,7 +554,8 @@ def _state_numeric_contract(value: CompiledRuntimeModel) -> dict:
         row.get("layer_index") is not None and k.startswith("client_weight_"))}
         for row in spec["stages"]]
     transparent = {"linear", "kernels", "preparation", "inference", "topology", "placement",
-                   "boundary", "delivery", "inventory", "cache", "verification", "quantization"}
+                   "boundary", "delivery", "inventory", "cache", "verification", "quantization",
+                   "tokenizer", "public_prefix"}
     return {"model_plan_digest": value.model_plan_digest,
         "runtime_config_digest": value.runtime_config_digest, "tokenizer_digest": value.tokenizer_digest,
         "stages": stages, "local_tensors": spec["local_tensors"],

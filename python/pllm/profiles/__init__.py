@@ -32,7 +32,8 @@ from pllm.roles import (
     TwoOnlineOffsetRoles,
 )
 from pllm.sources import ModelSource
-from pllm.state import ClientPrefixReuse
+from pllm.state import ClientPrefixReuse, PublicPrefixCapsule
+from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
 _DEFAULT_MASKED = MaskedLinear()
@@ -117,6 +118,7 @@ class MaskedLinearCpu(_TypedPipeline):
         "placement",
         "inventory",
         "delivery",
+        "tokenizer", "public_prefix",
     )
     __slots__ = ()
 
@@ -134,6 +136,8 @@ class MaskedLinearCpu(_TypedPipeline):
         placement: ClientPlacement | None = None,
         inventory: PreparedInventory | None = None,
         delivery: ClientBundleTransport | None = None,
+        tokenizer: IndexedTokenizer | None = None,
+        public_prefix: PublicPrefixCapsule | None = None,
     ) -> None:
         if quantization is not None:
             _slot("quantization", quantization, QuantizationScheme)
@@ -176,6 +180,8 @@ class MaskedLinearCpu(_TypedPipeline):
                     if delivery is not None
                     else {}
                 ),
+                **({"tokenizer": _slot("tokenizer", tokenizer, IndexedTokenizer)} if tokenizer is not None else {}),
+                **({"public_prefix": _slot("public_prefix", public_prefix, PublicPrefixCapsule)} if public_prefix is not None else {}),
             },
         )
 
@@ -218,6 +224,14 @@ class MaskedLinearCpu(_TypedPipeline):
     @property
     def delivery(self) -> ClientBundleTransport | None:
         return self.components.get("delivery")
+
+    @property
+    def tokenizer(self) -> IndexedTokenizer | None:
+        return self.components.get("tokenizer")
+
+    @property
+    def public_prefix(self) -> PublicPrefixCapsule | None:
+        return self.components.get("public_prefix")
 
 
 class ClientOnlyCpu(_TypedPipeline):
@@ -623,11 +637,39 @@ class RuntimeComposition:
     bundle_compression: str = "none"
     causal_reduction: str | None = None
     prepared_output_encoding: str = "raw"
+    preparation_storage: str = "resident"
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    for slot, cls in (("tokenizer", IndexedTokenizer), ("public_prefix", PublicPrefixCapsule)):
+        component = pipeline.components.get(slot)
+        if component is None:
+            continue
+        if (component.component != cls.descriptor.component
+            or identities.get("linear") != "pllm/masked-linear" or "verification" in identities):
+            return None
+        try:
+            cls(**component.params)
+        except (ValueError, TypeError):
+            return None
+        if slot == "public_prefix" and (
+            "cache" not in pipeline.components or "quantization" not in pipeline.components
+            or pipeline.components["quantization"].params.get("causal_reduction") != "prefix_f32"):
+            return None
+        del identities[slot]
     transport_options: dict[str, Any] = {}
+    preparation = pipeline.components.get("preparation")
+    if preparation is not None:
+        if preparation.params and not (
+            preparation.component == ModelAwareCorrections.descriptor.component
+            and dict(preparation.params) == {"storage": "paged"}
+            and identities.get("kernels") == "pllm/cpu"
+            and "verification" not in identities
+            and identities.get("linear") == "pllm/masked-linear"
+        ):
+            return None
+        transport_options["preparation_storage"] = preparation.params.get("storage", "resident")
     linear = pipeline.components.get("linear")
     if linear is not None and linear.component == "pllm/masked-linear":
         if (set(linear.params) - {"output_encoding", "prefill_chunk_rows", "request_encoding", "prefill_pruning"}
@@ -649,7 +691,10 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         if (
             inventory.component != PreparedInventory.descriptor.component
             or not {"policy", "rows"} <= set(inventory.params)
-            or set(inventory.params) - {"policy", "rows", "refill", "stage_window"}
+            or set(inventory.params) - {"policy", "rows", "refill", "stage_window", "allocation"}
+            or ("allocation" in inventory.params and (
+                inventory.params["allocation"] != "demand" or inventory.params.get("policy") != "request-sized"
+                or inventory.params.get("rows") != 1 or inventory.params.get("refill") != "on-demand"))
             or type(inventory.params.get("stage_window", 1)) is not int
             or not 1 <= inventory.params.get("stage_window", 1) <= 4
             or inventory.params.get("refill", "idle") not in {"idle", "on-demand"}
@@ -927,7 +972,6 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             "kernels": kernel_id,
         }
         and public_kernel_valid
-        and not pipeline.components["preparation"].params
         and not pipeline.components["inference"].params
     ):
         return RuntimeComposition(

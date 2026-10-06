@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
+from .public_prefix import PublicPrefixCapsule
 
 if TYPE_CHECKING:
     from pllm.runtime.semantic_hybrid import (
@@ -148,7 +149,7 @@ class LongRopeCacheRerotation(PendingModelCapability):
 __all__ = [
     "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "HybridStateError",
     "bounded_gated_delta_decay",
-    "ClientLocalKv", "ClientPrefixReuse", "StateProtocol", "EncryptedKvState", "ProtectedKvSelection", "SpeculativePrivateDecode",
+    "ClientLocalKv", "ClientPrefixReuse", "PublicPrefixCapsule", "StateProtocol", "EncryptedKvState", "ProtectedKvSelection", "SpeculativePrivateDecode",
     "GatedDeltaRecurrence", "CausalConvolutionState", "LatentAttentionState", "LongRopeCacheRerotation",
 ]
 

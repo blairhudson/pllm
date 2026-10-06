@@ -287,6 +287,21 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
     }
     if engine_type is MaskedTransformerEngine:
         engine_kwargs["weight_residency"] = "provider" if preparation else "provider_and_bundle"
+        if preparation:
+            from pllm.configuration import Experiment
+            from pllm.profiles import resolve_runtime_composition
+            import json
+
+            experiment = getattr(args, "resolved_experiment", None)
+            raw = os.environ.get("PLLM_ROLE_EXPERIMENT_JSON")
+            if experiment is None and raw is not None:
+                experiment = Experiment.from_spec(json.loads(raw))
+                experiment.resolve()
+            if experiment is not None:
+                selected = resolve_runtime_composition(experiment.pipeline)
+                if selected is None:
+                    raise RuntimeCLIError("unsupported preparation Experiment")
+                engine_kwargs["weight_storage"] = selected.preparation_storage
     if args.public_equalization_digest is not None:
         if engine_type is not MaskedTransformerEngine:
             raise RuntimeCLIError("public equalization requires a public masked-linear engine")

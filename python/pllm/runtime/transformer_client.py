@@ -123,8 +123,9 @@ class PreparedInventoryLease:
             self._verifiers.clear()
             for stage_id, stage in self.stages.items():
                 used = self._offsets.get(stage_id, 0)
-                if used < self.rows:
-                    stage.burn(self.start + used, self.rows - used)
+                limit = stage.request.rows if self._owner.demand else self.rows
+                if used < limit:
+                    stage.burn(self.start + used, limit - used)
         self._owner._finish(self.rows, consumed, stage_claims)
         for verifier in verifiers:
             verifier.cancel()
@@ -144,7 +145,7 @@ class PreparedInventoryLease:
             if self._closed:
                 raise TransformerClientError("prepared inventory lease is closed")
             offset = self._offsets.get(stage_id, 0)
-            if offset + count > self.rows:
+            if offset + count > (stage.request.rows if self._owner.demand else self.rows):
                 raise TransformerClientError(f"prepared inventory exhausted for {stage_id}")
             begin = self.start + offset
             end = begin + count
@@ -174,6 +175,7 @@ class PreparedInventory:
     id: str
     capacity: int
     stages: dict[str, PreparedStageRows]
+    demand: bool = False
     _reserved: int = 0
     _active: int = 0
     _burned: int = 0
@@ -189,7 +191,9 @@ class PreparedInventory:
     _verification_identity: bytes = field(default_factory=lambda: secrets.token_bytes(32), init=False, repr=False)
 
     def __post_init__(self) -> None:
-        self._record("issued", self.capacity * len(self.stages))
+        if self.demand and any(not 1 <= s.request.rows <= self.capacity for s in self.stages.values()):
+            raise TransformerClientError("invalid stage-specific inventory capacity")
+        self._record("issued", sum(s.request.rows for s in self.stages.values()) if self.demand else self.capacity * len(self.stages))
 
     def _record(self, kind: str, count: int) -> None:
         if self._audit is not None:
@@ -221,9 +225,9 @@ class PreparedInventory:
             if self._reserved + rows > self.capacity:
                 raise TransformerClientError("prepared inventory does not have enough rows")
             start = self._reserved
-            self._reserved += rows
+            self._reserved = self.capacity if self.demand else self._reserved + rows
             self._active += rows
-            self._record("reserved", rows * len(self.stages))
+            self._record("reserved", sum(s.request.rows for s in self.stages.values()) if self.demand else rows * len(self.stages))
         return PreparedInventoryLease(self.id, self.stages, start, rows, self)
 
     def _finish(self, rows: int, consumed: int, stage_claims: int) -> None:
@@ -231,7 +235,7 @@ class PreparedInventory:
             self._active -= rows
             self._consumed += consumed
             self._burned += rows - consumed
-            burned = rows * len(self.stages) - stage_claims
+            burned = (sum(s.request.rows for s in self.stages.values()) if self.demand else rows * len(self.stages)) - stage_claims
             self._stage_burned += burned
             self._record("burned", burned)
 
@@ -241,7 +245,8 @@ class PreparedInventory:
                 return
             self._cancelled = True
             self._discarded = self.capacity - self._reserved
-            self._record("discarded", self._discarded * len(self.stages))
+            discarded = (sum(s.request.rows for s in self.stages.values()) if self._discarded else 0) if self.demand else self._discarded * len(self.stages)
+            self._record("discarded", discarded)
         for stage in self.stages.values():
             stage.cancel()
 
@@ -257,7 +262,8 @@ class PreparedInventory:
                 "consumed": self._consumed,
                 "stage_rows_claimed": self._stage_claimed,
                 "stage_rows_burned": self._stage_burned,
-                "stage_rows_discarded": self._discarded * len(self.stages),
+                "stage_rows_discarded": ((sum(s.request.rows for s in self.stages.values()) if self._discarded else 0)
+                                         if self.demand else self._discarded * len(self.stages)),
             }
 
 

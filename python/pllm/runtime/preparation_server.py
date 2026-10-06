@@ -156,7 +156,7 @@ class PreparationSessionRegistry:
                 raise ProtocolError("preparation session is not authorized")
             if (
                 stage_id not in session.authorization.stage_ids
-                or rows != session.authorization.rows
+                or rows != session.authorization.rows_for(stage_id)
             ):
                 raise ProtocolError("preparation request is outside the authorized inventory")
             if attempt in session.attempts:

@@ -135,9 +135,12 @@ def test_prepared_sdk_reuses_setup_and_preserves_response_and_online_bodies(setu
                     response = client.responses.create(input="A", max_output_tokens=2, temperature=0)
                     results.append((response.output_text, response.usage))
                     audit = client.privacy_audit
-                    bodies.append((audit.masked_online_upload_bytes, audit.masked_online_download_bytes))
+                    bodies.append((audit.masked_online_upload_bytes, audit.masked_online_download_bytes,
+                                   audit.inference_stage_calls))
                     assert audit.plaintext_prompt_bytes_sent == audit.plaintext_token_ids_sent == 0
                 assert len(tokenizers) - before == (1 if scoped else 3)
                 assert all(reference() is None for reference in tokenizers[before:])
     assert results[0] == results[1]
-    assert bodies[0] == bodies[1] and all(bodies[0])
+    assert bodies[0][0] == bodies[1][0] and bodies[0][2] == bodies[1][2]
+    # Response envelopes contain variable-width MessagePack server timings.
+    assert all(bodies[0]) and all(bodies[1])

@@ -69,6 +69,8 @@ _PRIVACY_FIELDS = frozenset(
         "bundle_cache_hits",
         "bundle_cache_misses",
         "bundle_cache_corruptions",
+        "tokenizer_artifact_local_bytes",
+        "public_prefix_artifact_local_bytes",
     }
 )
 _PRIVACY_FIELDS |= _ROLE_BODY_FIELDS

@@ -96,6 +96,7 @@ class RuntimeSession:
     execution: str = "runtime"
     inventory_id: str | None = None
     inventory_rows: int = 0
+    inventory_stage_rows: dict[str, int] = field(default_factory=dict)
     inventory_stages: frozenset[str] = frozenset()
     prepared_stages: set[str] = field(default_factory=set)
     inventory_roots: dict[str, PreparationRequest] = field(default_factory=dict)
@@ -1014,6 +1015,7 @@ def create_app(
                     or reservation_rows <= 0
                     or reservation_start + reservation_rows > inventory.inventory_rows
                     or set(inventory.inventory_roots) != set(inventory.inventory_stages)
+                    or (inventory.inventory_stage_rows and reservation_start != 0)
                 ):
                     raise HTTPException(
                         status_code=409,
@@ -1022,9 +1024,12 @@ def create_app(
                 reserved_attempts = frozenset(
                     (stage_id, derive_online_attempt_id(root, row))
                     for stage_id, root in inventory.inventory_roots.items()
-                    for row in range(reservation_start, reservation_start + reservation_rows)
+                    for row in range(reservation_start, root.rows if inventory.inventory_stage_rows
+                                     else reservation_start + reservation_rows)
                 )
                 inventory.inventory_next_row += reservation_rows
+                if inventory.inventory_stage_rows:
+                    inventory.inventory_next_row = inventory.inventory_rows
                 inventory.last_active = time.monotonic()
             session.inventory_id = inventory_id
             session.reservation_start = reservation_start
@@ -1120,10 +1125,15 @@ def create_app(
             raise HTTPException(
                 status_code=400, detail={"error": {"message": "No prepared stages"}}
             )
-        max_attempts = rows * len(stage_ids)
+        stage_rows = body.get("stage_rows", {})
+        if not isinstance(stage_rows, dict) or (stage_rows and (
+            set(stage_rows) != set(stage_ids) or any(type(n) is not int or not 1 <= n <= rows for n in stage_rows.values())
+        )) or ("stage_rows" in body and not stage_rows):
+            raise HTTPException(status_code=400, detail="Invalid stage-specific inventory rows")
+        max_attempts = sum(stage_rows.values()) if stage_rows else rows * len(stage_ids)
         stage_map = {stage.id: stage for stage in manifest.stages}
         reserved_bytes = sum(
-            rows
+            stage_rows.get(stage_id, rows)
             * stage_map[stage_id].out_features
             * (engine.seeded_profile(model_id, stage_id).wire_bits // 8)
             + 8 * PREPARATION_MAX_IDENTIFIER_BYTES
@@ -1154,6 +1164,7 @@ def create_app(
         session = RuntimeSession(session_id, "", model_id, api_key)
         session.execution = "seeded-inventory"
         session.inventory_rows = rows
+        session.inventory_stage_rows = stage_rows
         session.inventory_stages = frozenset(stage_ids)
         session.inventory_reserved_entries = max_attempts
         session.inventory_reserved_bytes = reserved_bytes
@@ -1163,7 +1174,9 @@ def create_app(
                 status_code=503,
                 detail={"error": {"message": "Transformer engine cannot authorize inventory"}},
             )
-        expected = session_authorization(model_id, session_id, max_attempts)
+        expected = (session_authorization(model_id, session_id, max_attempts,
+                    rows=rows, stage_rows=tuple(stage_rows[sid] for sid in stage_ids))
+                    if stage_rows else session_authorization(model_id, session_id, max_attempts))
         try:
             rendezvous.register_session(expected)
         except RendezvousError as exc:
@@ -1184,6 +1197,7 @@ def create_app(
                 "max_attempts": expected.max_attempts,
                 "rows": expected.rows,
                 "stage_ids": list(expected.stage_ids),
+                **({"stage_rows": list(expected.stage_rows)} if expected.stage_rows else {}),
                 "verification_component": expected.verification_component,
                 "verification_target_failure_bits": expected.verification_target_failure_bits,
             },
@@ -1490,7 +1504,7 @@ def create_app(
             raise ProtocolError("correction route mismatch")
         if correction.model != session.model_id:
             raise ProtocolError("correction model mismatch")
-        if correction.rows != session.inventory_rows:
+        if correction.rows != session.inventory_stage_rows.get(correction.stage_id, session.inventory_rows):
             raise ProtocolError("correction inventory row count mismatch")
         if correction.stage_id not in session.inventory_stages:
             raise ProtocolError("correction inventory stage mismatch")

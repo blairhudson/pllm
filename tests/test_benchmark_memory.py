@@ -75,6 +75,29 @@ def test_paged_client_prices_bounded_ram_and_distinct_disk_owners():
     assert b["required_disk_bytes"] - a["required_disk_bytes"] == paged["components"]["client_additional_paged_disk_bytes"] > 0
 
 
+def test_preparation_and_public_artifacts_charge_distinct_disk_owners():
+    from pllm.preparation import ModelAwareCorrections
+    from pllm.quantization import SymmetricPerRow
+    from pllm.state import ClientPrefixReuse, PublicPrefixCapsule
+    from pllm.tokenization import IndexedTokenizer
+
+    baseline = MaskedLinearCpu(Model.tiny(), quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
+                                cache=ClientPrefixReuse(max_bytes=MiB, fixed_input_tokens=32))
+    resident = _estimate(baseline)
+    candidate = _estimate(baseline.with_params(preparation=ModelAwareCorrections(storage="paged"),
+        tokenizer=IndexedTokenizer("index", digest="a" * 64),
+        public_prefix=PublicPrefixCapsule("prefix", digest="b" * 64, size_bytes=4096)))
+    assert candidate["provider_peak_bytes"]["inference"] == resident["provider_peak_bytes"]["inference"]
+    assert candidate["components"]["per_role_i8_and_native_bytes"]["preparation"] == 0
+    assert candidate["client_peak_bytes"] > resident["client_peak_bytes"]
+    before = memory.admit_memory(resident, _host())["candidates"]["native"]["required_disk_bytes"]
+    after = memory.admit_memory(candidate, _host())["candidates"]["native"]["required_disk_bytes"]
+    assert after > before
+    constrained = memory.admit_memory(candidate, _host(disk_free=before))
+    assert not constrained["admitted"]
+    assert any("disk headroom" in reason for reason in constrained["candidates"]["native"]["reasons"])
+
+
 @pytest.mark.parametrize("storage", [None, object(), bytearray(b"\x00"), b"\x00"])
 def test_snapshot_estimate_rejects_reference_stale_or_mutable_backend(monkeypatch, storage):
     from types import SimpleNamespace

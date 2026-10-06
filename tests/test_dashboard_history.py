@@ -279,6 +279,10 @@ class _BenchmarkClient:
         self.privacy_audit.preparation_rows += count
         return {"generated": 0}
 
+    def prepare_response(self, prompt: str, max_output_tokens: int, *, model: str) -> dict[str, object]:
+        count = self.prepared_rows_for_response(prompt, max_output_tokens, model=model)
+        return self.preprocess(model, count=count)
+
     def _create(self, **_kwargs: object) -> list[SimpleNamespace]:
         self.entered.set()
         assert self.release.wait(2)

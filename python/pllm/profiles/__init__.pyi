@@ -15,7 +15,8 @@ from pllm.protocols import (
 )
 from pllm.roles import ClientPlacement, ClientOnlyRoles, InferenceRole, OutputHeadAtInference, RoleTopology, PreparedProviderRoles, TwoOnlineOffsetRoles
 from pllm.sources import ModelSource
-from pllm.state import ClientPrefixReuse
+from pllm.state import ClientPrefixReuse, PublicPrefixCapsule
+from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
 class RuntimeComposition:
@@ -35,6 +36,7 @@ class RuntimeComposition:
     activation_bits: int
     causal_reduction: str | None
     prepared_output_encoding: str
+    preparation_storage: str
     prefix_cache_bytes: int
     prefix_cache_bound_tokens: int | None
     remote_output_head: bool
@@ -83,6 +85,8 @@ class MaskedLinearCpu(Pipeline):
         placement: ClientPlacement | None = ...,
         inventory: PreparedInventory | None = ...,
         delivery: ClientBundleTransport | None = ...,
+        tokenizer: IndexedTokenizer | None = ...,
+        public_prefix: PublicPrefixCapsule | None = ...,
     ) -> None: ...
     @property
     def linear(self) -> ProtocolMethod: ...
@@ -104,6 +108,10 @@ class MaskedLinearCpu(Pipeline):
     def inventory(self) -> PreparedInventory | None: ...
     @property
     def delivery(self) -> ClientBundleTransport | None: ...
+    @property
+    def tokenizer(self) -> IndexedTokenizer | None: ...
+    @property
+    def public_prefix(self) -> PublicPrefixCapsule | None: ...
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> MaskedLinearCpu: ...
 

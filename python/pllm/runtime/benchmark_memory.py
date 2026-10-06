@@ -240,6 +240,11 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     if metal and not roles:
         gpu_client = weights
     limitations = []
+    paged_preparation = options.preparation_storage == "paged"
+    preparation_disk = sum(s.in_features * s.out_features for s in remote) if paged_preparation else 0
+    if paged_preparation and any(s.in_features * s.out_features > 2 * GiB
+                                 or max(s.in_features, s.out_features) > 1048576 for s in remote):
+        limitations.append("paged preparation matrix exceeds native snapshot geometry bounds")
     if paged and any(s.in_features * s.out_features > 2 * GiB
                      or max(s.in_features, s.out_features) > 1048576 for s in client_stages):
         limitations.append("paged client matrix exceeds native snapshot geometry bounds")
@@ -272,11 +277,22 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             max(quantization, validation, 2 * s.in_features * s.out_features) if s.id in retained
             else s.in_features * s.out_features + max(quantization, validation) for s in stages)
         role_engine = role_weights[role] + metadata + _PROCESS_BYTES
+        if role == "preparation" and paged_preparation:
+            page_indices = sum(256 + 128 * math.ceil(s.in_features * s.out_features / MiB)
+                               + 8 * max(s.in_features, s.out_features) for s in remote)
+            active_pages = 16 * MiB * (window.params.get("stage_window", 1) if window else 1)
+            role_weights[role] = 0
+            role_engine = metadata + page_indices + active_pages + _PROCESS_BYTES
         role_peaks[role] = _slack(role_engine + gpu_provider + max(
             role_loading[role], delivery + corrections, work + corrections + verification))
         docker_role_peaks[role] = _slack(engine + weights + gpu_provider + max(
             legacy_loading, legacy_delivery + corrections, work + corrections + verification))
-    client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client
+    tokenizer = pipeline.components.get("tokenizer")
+    capsule = pipeline.components.get("public_prefix")
+    # Public artifacts are pre-positioned. Price bounded index query caches,
+    # authenticated private DB snapshot disk, and capsule parse/copy overlap.
+    public_artifact_work = (32 * MiB if tokenizer else 0) + (4 * capsule.params["size_bytes"] if capsule else 0)
+    client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client + public_artifact_work
     if not roles:
         client += engine + loading
     client_peak = _slack(client)
@@ -290,6 +306,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "provider_peak_bytes": role_peaks,
         "docker_provider_peak_bytes": docker_role_peaks,
         "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+        "preparation_storage": options.preparation_storage,
         "bundle_storage": ("streamed_paged_v1; raw cache and private files are separate disk owners" if paged else
                            "immutable_segments_v1; client import retains conservative copy bounds"),
         "mask_storage": "one_active_stage_v1; one benchmark response at a time",
@@ -304,6 +321,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             "largest_loading_temporary_bytes": loading, "raw_client_bundle_bytes": bundle,
             "client_bundle_work_bytes": bundle_work, "client_paged_metadata_bytes": paged_indices,
             "client_additional_paged_disk_bytes": paged_disk,
+            "client_public_artifact_work_bytes": public_artifact_work,
+            "client_tokenizer_snapshot_disk_bytes": 64 * MiB if tokenizer else 0,
+            "preparation_additional_paged_disk_bytes": preparation_disk + (largest if paged_preparation else 0),
             "client_mask_bytes": masks, "provider_correction_bytes": corrections,
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "client_tensor_work_bytes": tensors,
@@ -361,6 +381,8 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
                          * max(1, len(estimate["provider_peak_bytes"]))
                          + 2 * estimate["components"]["raw_client_bundle_bytes"] + 2 * GiB
                          + estimate["components"].get("client_additional_paged_disk_bytes", 0))
+        disk_required += estimate["components"].get("preparation_additional_paged_disk_bytes", 0)
+        disk_required += estimate["components"].get("client_tokenizer_snapshot_disk_bytes", 0)
         if host.disk_free < disk_required:
             reasons.append("insufficient disk headroom for compiled caches, bundles and 2 GiB reserve")
         candidates[kind] = {"admitted": not reasons, "reasons": reasons,

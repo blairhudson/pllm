@@ -277,9 +277,17 @@ class SessionAuthorization:
     stage_ids: tuple[str, ...]
     verification_component: str = "none"
     verification_target_failure_bits: int = 0
+    stage_rows: tuple[int, ...] = ()
+
+    def rows_for(self, stage_id: str) -> int:
+        try:
+            index = self.stage_ids.index(stage_id)
+        except ValueError:
+            raise ProtocolError("unauthorized preparation stage") from None
+        return self.stage_rows[index] if self.stage_rows else self.rows
 
     def metadata(self) -> tuple[Any, ...]:
-        return (
+        value = (
             self.session_id,
             self.model,
             self.body_fingerprint,
@@ -292,6 +300,7 @@ class SessionAuthorization:
             self.verification_component,
             self.verification_target_failure_bits,
         )
+        return value + (self.stage_rows,) if self.stage_rows else value
 
     def _validate(self) -> None:
         _validate_identifiers(
@@ -316,7 +325,10 @@ class SessionAuthorization:
             raise ProtocolError("unsupported verification component")
         if self.rows <= 0 or not self.stage_ids or len(self.stage_ids) != len(set(self.stage_ids)):
             raise ProtocolError("invalid session authorization inventory shape")
-        if self.max_attempts != self.rows * len(self.stage_ids):
+        if self.stage_rows and (type(self.stage_rows) is not tuple or len(self.stage_rows) != len(self.stage_ids)
+            or any(type(n) is not int or not 1 <= n <= self.rows for n in self.stage_rows)):
+            raise ProtocolError("invalid stage-specific preparation rows")
+        if self.max_attempts != (sum(self.stage_rows) if self.stage_rows else self.rows * len(self.stage_ids)):
             raise ProtocolError("session authorization attempt budget mismatch")
 
     def pack(self) -> bytes:
@@ -335,6 +347,7 @@ class SessionAuthorization:
                 "s": list(self.stage_ids),
                 "vc": self.verification_component,
                 "vf": self.verification_target_failure_bits,
+                **({"sr": list(self.stage_rows)} if self.stage_rows else {}),
             },
             use_bin_type=True,
         )
@@ -346,8 +359,11 @@ class SessionAuthorization:
         except Exception as exc:
             raise ProtocolError("invalid session authorization") from exc
         required = {"v", "h", "m", "b", "t", "wb", "ab", "a", "r", "s", "vc", "vf"}
-        if not isinstance(value, dict) or set(value) != required:
+        if not isinstance(value, dict) or set(value) not in (required, required | {"sr"}):
             raise ProtocolError("invalid session authorization schema")
+        if "sr" in value and (not isinstance(value["sr"], list) or not value["sr"]
+                            or any(type(n) is not int for n in value["sr"])):
+            raise ProtocolError("invalid stage-specific preparation rows")
         if int(value["v"]) != PREPARATION_PROTOCOL_VERSION:
             raise ProtocolError("unsupported preparation protocol")
         result = cls(
@@ -362,6 +378,7 @@ class SessionAuthorization:
             stage_ids=tuple(str(item) for item in value["s"]),
             verification_component=str(value["vc"]),
             verification_target_failure_bits=int(value["vf"]),
+            stage_rows=tuple(value.get("sr", ())),
         )
         result._validate()
         return result

@@ -52,7 +52,7 @@ fn is_false(value: &bool) -> bool {
 
 /// Public graph liveness only. Persistent outputs always demand every row;
 /// unknown/layout/state/attention operations stop last-row propagation.
-fn terminal_demand<'a>(graph: &'a DecoderGraph) -> BTreeMap<&'a str, u8> {
+fn terminal_demand(graph: &DecoderGraph) -> BTreeMap<&str, u8> {
     let operations: BTreeMap<_, _> = graph
         .operations
         .iter()

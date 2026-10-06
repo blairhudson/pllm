@@ -209,6 +209,10 @@ class StageRuntime:
 
     def release_weight(self) -> None:
         """Retain checked metadata, never an executable placeholder matrix."""
+        from .paged import PagedGEMM
+
+        if isinstance(self.compiled_weight, PagedGEMM):
+            self.compiled_weight.close()
         self.quantized_weight = None
         self.compiled_weight = None
         self.compiled_cache_entry = None
@@ -499,6 +503,7 @@ class MaskedTransformerEngine:
         client_linear_roles: tuple[str, ...] = (),
         prepared_output_encoding: str = "raw",
         weight_residency: str = "all",
+        weight_storage: str = "resident",
     ) -> None:
         if modulus is not None and (modulus <= 2 or modulus >= 2**31):
             raise ValueError("modulus must satisfy 2 < p < 2^31")
@@ -508,6 +513,12 @@ class MaskedTransformerEngine:
         ):
             raise ValueError("role weight residency requires the public masked-linear engine")
         self.weight_residency = weight_residency
+        if weight_storage not in {"resident", "paged"} or (
+            weight_storage == "paged" and (weight_residency != "provider"
+                or metal_min_rows is not None or verification_component != "none")
+        ):
+            raise ValueError("paged weights require CPU-only unverified Preparation residency")
+        self.weight_storage = weight_storage
         if (type(prepared_output_encoding) is not str
             or prepared_output_encoding not in {"raw", "row_residues"}
             or (prepared_output_encoding != "raw" and type(self) is not MaskedTransformerEngine)):
@@ -941,8 +952,12 @@ class MaskedTransformerEngine:
         self._trim_compiled_cache()
 
     async def unload(self, model_id: str) -> None:
-        if self.models.pop(model_id, None) is None:
+        model = self.models.pop(model_id, None)
+        if model is None:
             raise TransformerEngineError(f"unknown model {model_id!r}")
+        if self.weight_storage == "paged":
+            for runtime in model.stages.values():
+                runtime.release_weight()
         self._metal_stages.pop(model_id, None)
         self._active_cache_entries.pop(model_id, None)
         self._trim_compiled_cache()
@@ -1382,7 +1397,8 @@ class MaskedTransformerEngine:
             )
         cache_entry = (Path(quantized.values.filename).parent
                        if isinstance(quantized.values, np.memmap) else None)
-        compiled = self.kernel.compile(quantized.values) if retain_weight else None
+        paged = retain_weight and self.weight_storage == "paged"
+        compiled = self.kernel.compile(quantized.values) if retain_weight and not paged else None
         # Retire the Python weight allocation/mapping. Metadata, preparation and
         # GPU import share a read-only view whose base retains the Rust snapshot.
         if compiled is not None:
@@ -1405,6 +1421,21 @@ class MaskedTransformerEngine:
         )
         if not retain_weight:
             runtime.release_weight()
+        elif paged:
+            from .paged import PagedGEMM
+            import tempfile
+
+            # Cache validation and exact bounds run before retiring the staging
+            # array. Native import owns an authenticated private file snapshot.
+            _ = runtime.output_residue_bits
+            with tempfile.TemporaryDirectory(prefix="pllm-preparation-") as directory:
+                path = Path(directory) / "weight.i8"
+                with path.open("xb") as output:
+                    for chunk in _weight_chunks(quantized.values):
+                        output.write(memoryview(chunk))
+                runtime.compiled_weight = PagedGEMM._from_raw_executor(
+                    path, runtime.weight_digest, quantized.values.shape, self.kernel._executor)
+            runtime.quantized_weight = None
         return runtime
 
     @staticmethod
@@ -1607,11 +1638,19 @@ class MaskedTransformerEngine:
         output_mask = expand_output_mask(request)
         started = time.perf_counter_ns()
         matrix = self._public_stage_matrix(request.model, runtime, request.rows)
-        transformed = await asyncio.to_thread(
-            matrix.wrap32 if request.ring == "u32" else matrix.modular,
-            mask,
-            *(() if request.ring == "u32" else (request.modulus,)),
-        )
+        def multiply():
+            from .paged import PagedGEMM
+
+            apply = matrix.wrap32 if request.ring == "u32" else lambda x: matrix.modular(x, request.modulus)
+            if not isinstance(matrix, PagedGEMM):
+                return apply(mask)
+            width = max(1, (4 << 20) // max(matrix.shape))
+            result = np.empty((request.rows, request.out_features), dtype=np.uint32)
+            for start in range(0, request.rows, width):
+                result[start:start + width] = apply(mask[start:start + width])
+            return result
+
+        transformed = await asyncio.to_thread(multiply)
         correction = (transformed.astype(np.int64) - output_mask.astype(np.int64)) % request.modulus
         elapsed = time.perf_counter_ns() - started
         runtime.calls += 1
@@ -1724,6 +1763,7 @@ class MaskedTransformerEngine:
         model_id: str,
         session_id: str,
         max_attempts: int,
+        *, rows: int | None = None, stage_rows: tuple[int, ...] = (),
     ) -> SessionAuthorization:
         model = self._model(model_id)
         remote = [
@@ -1745,16 +1785,18 @@ class MaskedTransformerEngine:
             weight_bits=next(iter(weight_bits)),
             activation_bits=next(iter(activation_bits)),
             max_attempts=max_attempts,
-            rows=max_attempts // len(self.seeded_stage_ids(model_id)),
+            rows=max_attempts // len(self.seeded_stage_ids(model_id)) if rows is None else rows,
             stage_ids=self.seeded_stage_ids(model_id),
             verification_component=self.verification_component,
             verification_target_failure_bits=self.verification_target_failure_bits,
+            stage_rows=stage_rows,
         )
 
     def validate_seeded_session_authorization(
         self,
         authorization: SessionAuthorization,
     ) -> None:
+        authorization._validate()
         model = self._model(authorization.model)
         max_budget = max(1, len(model.manifest.stages)) * (
             max(1, model.manifest.context_length) + 1
@@ -1765,6 +1807,7 @@ class MaskedTransformerEngine:
             authorization.model,
             authorization.session_id,
             authorization.max_attempts,
+            rows=authorization.rows, stage_rows=authorization.stage_rows,
         )
         if authorization != expected:
             raise TransformerEngineError("session authorization model commitment mismatch")

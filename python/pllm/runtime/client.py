@@ -120,15 +120,18 @@ class _ScopedTokenizer:
         self._tokenizer: Tokenizer | None = None
         self._closed = False
 
-    def get(self, bundle: ClientBundle) -> Tokenizer:
+    def get(self, bundle: ClientBundle, factory=None) -> Tokenizer:
         with self._lock:
             if self._closed:
                 raise RuntimeError("tokenizer scope is closed")
             if self._bundle is not bundle:
                 # A model/bundle change cannot reuse a previous source's vocabulary.
                 self._bundle = None
+                close = getattr(self._tokenizer, "close", None)
+                if close is not None:
+                    close()
                 self._tokenizer = None
-                self._tokenizer = bundle.tokenizer()
+                self._tokenizer = bundle.tokenizer() if factory is None else factory(bundle)
                 self._bundle = bundle
             assert self._tokenizer is not None
             return self._tokenizer
@@ -136,6 +139,9 @@ class _ScopedTokenizer:
     def close(self) -> None:
         with self._lock:
             self._closed = True
+            close = getattr(self._tokenizer, "close", None)
+            if close is not None:
+                close()
             self._tokenizer = None
             self._bundle = None
 
@@ -308,6 +314,8 @@ class PrivacyAudit:
     bundle_cache_hits: int = 0
     bundle_cache_misses: int = 0
     bundle_cache_corruptions: int = 0
+    tokenizer_artifact_local_bytes: int = 0
+    public_prefix_artifact_local_bytes: int = 0
     role_link_bodies: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, int]:
@@ -547,6 +555,7 @@ class _TransformerCryptoState:
     token_cache: OrderedDict[int, np.ndarray] = field(default_factory=OrderedDict)
     token_cache_lock: threading.Lock = field(default_factory=threading.Lock)
     prefill_cache: ExactPrefillCache | None = None
+    public_prefix_binding: str | None = None
     prepared_inventory: PreparedInventory | None = None
     prepared_inventory_spare: PreparedInventory | None = None
     retired_inventories: list[PreparedInventory] = field(default_factory=list)
@@ -1141,6 +1150,9 @@ class RuntimeClient:
         self.preparation_stage_window = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("inventory", {}).get("params", {}).get("stage_window", 1)
             if self.experiment is not None else 1)
+        self.preparation_allocation = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("inventory", {}).get("params", {}).get("allocation", "uniform")
+            if self.experiment is not None else "uniform")
         self.prefill_chunk_rows = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("linear", {}).get("params", {}).get("prefill_chunk_rows", 0)
             if self.experiment is not None else 0)
@@ -2136,11 +2148,18 @@ class RuntimeClient:
         reduction = None if numeric is None else numeric.causal_reduction
         verification_bits = 0 if numeric is None else numeric.verification_target_failure_bits
         with self._transformer_state_lock:
-            if state.prefill_cache is None:
-                state.prefill_cache = ExactPrefillCache(self.prefill_cache_bytes, causal_reduction=reduction,
-                                                       verification_failure_bits=verification_bits,
-                                                       generated_prefixes=generated_prefixes)
             cache = state.prefill_cache
+            if cache is None:
+                cache = ExactPrefillCache(self.prefill_cache_bytes, causal_reduction=reduction,
+                                         verification_failure_bits=verification_bits,
+                                         generated_prefixes=generated_prefixes)
+            capsule = composition.components.get("public_prefix")
+            if capsule is not None and state.public_prefix_binding != compiled.digest:
+                from .public_prefix import import_capsule
+                self.audit.public_prefix_artifact_local_bytes += import_capsule(
+                    compiled, capsule, cache, state.bundle_fingerprint)
+                state.public_prefix_binding = compiled.digest
+            state.prefill_cache = cache
         return cache, prefill_key(compiled.digest, state.bundle_fingerprint, ids, causal_reduction=reduction)
 
     @staticmethod
@@ -2197,10 +2216,11 @@ class RuntimeClient:
         model_id: str,
         state: _TransformerCryptoState,
         rows: int,
+        stage_rows: dict[str, int] | None = None,
     ) -> PreparedInventory:
         self._begin_preparation()
         try:
-            return self._prepare_inventory(model_id, state, rows)
+            return self._prepare_inventory(model_id, state, rows, stage_rows)
         finally:
             self._end_preparation()
 
@@ -2209,6 +2229,7 @@ class RuntimeClient:
         model_id: str,
         state: _TransformerCryptoState,
         rows: int,
+        stage_rows: dict[str, int] | None = None,
     ) -> PreparedInventory:
         if self.preparation_http is None:
             raise ProtocolError("public inference requires a preparation service", 400)
@@ -2219,6 +2240,7 @@ class RuntimeClient:
             json={
                 "model": model_id,
                 "rows": rows,
+                **({"stage_rows": stage_rows} if stage_rows is not None else {}),
             },
         )
         _raise(response)
@@ -2272,11 +2294,14 @@ class RuntimeClient:
                 stage_ids=tuple(str(stage_id) for stage_id in descriptor["stage_ids"]),
                 verification_component=str(expected["verification_component"]),
                 verification_target_failure_bits=int(expected["verification_target_failure_bits"]),
+                stage_rows=tuple(descriptor.get("stage_rows", ())),
             )
             if authorization.rows != rows or authorization.stage_ids != tuple(
                 stage.id for stage in remote_stages
             ):
                 raise ModelError("preparation inventory authorization mismatch")
+            if authorization.stage_rows != (tuple(stage_rows[s.id] for s in remote_stages) if stage_rows else ()):
+                raise ModelError("provider did not acknowledge exact preparation demand")
             authorization_payload = authorization.pack()
             self.audit.session_authorization_upload_bytes += len(authorization_payload)
             authorized = self.preparation_http.post(
@@ -2306,7 +2331,7 @@ class RuntimeClient:
                     body_fingerprint=str(state.bundle.privacy["body_fingerprint"]),
                     stage_id=stage.id,
                     weight_digest=stage.weight_digest,
-                    rows=rows,
+                    rows=authorization.rows_for(stage.id),
                     in_features=stage.in_features,
                     out_features=stage.out_features,
                     seed=secrets.token_bytes(32),
@@ -2420,7 +2445,7 @@ class RuntimeClient:
             from .preparation_window import run_preparation_window
             def work_bytes(stage):
                 # Declared transient envelopes/mask work, not a process peak sample.
-                size = 4096 + rows * (16 * stage.in_features + 24 * stage.out_features)
+                size = 4096 + authorization.rows_for(stage.id) * (16 * stage.in_features + 24 * stage.out_features)
                 if verification_policy is not None:
                     size += rows * verification_policy.checks * stage.in_features * 16
                 return size
@@ -2436,7 +2461,8 @@ class RuntimeClient:
             _raise(sealed)
             if sealed.json().get("status") != "ready":
                 raise ModelError("inference did not commit prepared inventory")
-            return PreparedInventory(inventory_id, rows, prepared_stages, _audit=self.audit.record_inventory)
+            return PreparedInventory(inventory_id, rows, prepared_stages, demand=stage_rows is not None,
+                                     _audit=self.audit.record_inventory)
         except BaseException:
             self.audit.preparation_failures += 1
             cancel_remote()
@@ -2694,6 +2720,7 @@ class RuntimeClient:
         count: int,
         *,
         stages: list[str] | None = None,
+        stage_rows: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         if self._local_engine is not None:
             raise ModelError("client-only topology does not use a preparation inventory")
@@ -2709,6 +2736,9 @@ class RuntimeClient:
                 state = self._transformer_state(model_id)
                 selected = set(stages or (stage.id for stage in self._remote_stages(state)))
                 expected = {stage.id for stage in self._remote_stages(state)}
+                if stage_rows is not None and (self.preparation_allocation != "demand"
+                    or set(stage_rows) != expected or any(type(n) is not int or not 1 <= n <= target for n in stage_rows.values())):
+                    raise ModelError("invalid preparation stage demand")
                 if selected != expected:
                     raise ValueError("prepared inventories require every remote stage")
                 with self._transformer_state_lock:
@@ -2717,6 +2747,12 @@ class RuntimeClient:
                     prepared_inventory = state.prepared_inventory
                     if prepared_inventory is not None and not self._prepared_inventory_is_live(
                         prepared_inventory
+                    ):
+                        self._cancel_prepared_inventory(prepared_inventory)
+                        state.prepared_inventory = None
+                        prepared_inventory = None
+                    if prepared_inventory is not None and stage_rows is not None and any(
+                        prepared_inventory.stages[sid].request.rows < count for sid, count in stage_rows.items()
                     ):
                         self._cancel_prepared_inventory(prepared_inventory)
                         state.prepared_inventory = None
@@ -2741,6 +2777,7 @@ class RuntimeClient:
                             model_id,
                             state,
                             max(self.prepared_inventory_rows, target),
+                            stage_rows,
                         )
                         self._install_prepared_inventory_locked(state, prepared_inventory)
                         generated = prepared_inventory.capacity
@@ -2767,7 +2804,8 @@ class RuntimeClient:
                     "protocol": "seeded-inventory/v1",
                     "status": "ready",
                     "generated": generated,
-                    "available_per_stage": {stage_id: available for stage_id in expected},
+                    "available_per_stage": {sid: (prepared_inventory.stages[sid].request.rows if prepared_inventory.demand and available
+                                                  else available) for sid in expected},
                 }
             session, state, provider = self._open_transformer_session(model_id, max_output_tokens=1)
             if state.privacy_mode == "proprietary" and state.privacy_protocol == "direct_bfv_w4a4":
@@ -2876,10 +2914,26 @@ class RuntimeClient:
 
     def _response_tokenizer(self, bundle: ClientBundle) -> Tokenizer:
         owner = self._tokenizer_owner.get()
-        return bundle.tokenizer() if owner is None else owner.get(bundle)
+        return self._make_tokenizer(bundle) if owner is None else owner.get(bundle, self._make_tokenizer)
+
+    def _make_tokenizer(self, bundle: ClientBundle) -> Tokenizer:
+        selection = None
+        if self.experiment is not None:
+            from pllm.configuration import Pipeline
+            selection = Pipeline.from_spec(json.loads(self.experiment.canonical_composition)).components.get("tokenizer")
+        if selection is None:
+            return bundle.tokenizer()
+        from .indexed_tokenizer import IndexedClientTokenizer
+        tokenizer = IndexedClientTokenizer(bundle, selection)
+        self.audit.tokenizer_artifact_local_bytes += tokenizer.artifact_bytes
+        return tokenizer
 
     def _response_input_tokens(self, model: str, input: str | list[Any]) -> int:
         """Count the complete rendered input, independent of cached-row reuse."""
+        with self.tokenizer_scope():
+            return self._count_response_input_tokens(model, input)
+
+    def _count_response_input_tokens(self, model, input):
         state = self._transformer_state(model)
         messages = normalize_input(input)
         rendered = self._render_cached_decoder_prompt(state, messages, add_generation_prompt=True)
@@ -2894,7 +2948,13 @@ class RuntimeClient:
         *,
         instructions: str | None = None,
         store: bool = True,
-    ) -> int:
+        _stage_demand: bool = False,
+    ) -> int | tuple[int, dict[str, int] | None]:
+        with self.tokenizer_scope():
+            return self._prepared_rows_for_response(model, input, max_output_tokens,
+                instructions=instructions, store=store, _stage_demand=_stage_demand)
+
+    def _prepared_rows_for_response(self, model, input, max_output_tokens, *, instructions=None, store=True, _stage_demand=False):
         if self._local_engine is not None:
             raise ModelError("client-only topology does not use a preparation inventory")
         state = self._transformer_state(model)
@@ -2934,24 +2994,43 @@ class RuntimeClient:
         prefix_rows = (
             0 if cached is None else (cached[0] if type(cached[0]) is int else len(full_ids))
         )
-        return max(1, len(full_ids) - prefix_rows + max(0, max_output_tokens - 1))
+        required = max(1, len(full_ids) - prefix_rows + max(0, max_output_tokens - 1))
+        if not _stage_demand:
+            return required
+        demand = None
+        if self.preparation_allocation == "demand":
+            compiled = self._compiled_public_decoder(state, max_input_tokens=len(full_ids), max_new_tokens=max_output_tokens)
+            if compiled is None:
+                raise ModelError("demand preparation requires a complete compiled schedule")
+            demand = compiled.prepared_stage_rows(len(full_ids) - prefix_rows, max(0, max_output_tokens - 1),
+                                                  continuation=prefix_rows > 0)
+        return required, demand
+
+    def prepare_response(self, model: str, input, max_output_tokens: int, *, instructions=None, store=True):
+        """Issue exactly the admitted response demand before online execution."""
+        with self.tokenizer_scope():
+            rows, demand = self.prepared_rows_for_response(model, input, max_output_tokens,
+                instructions=instructions, store=store, _stage_demand=True)
+            return self.preprocess(model, rows, stage_rows=demand)
 
     def _ensure_prepared_inventory(
         self,
         model_id: str,
         state: _TransformerCryptoState,
         required_rows: int,
+        stage_rows: dict[str, int] | None = None,
     ) -> None:
         with self._transformer_state_lock:
             candidates = (state.prepared_inventory, state.prepared_inventory_spare)
             if any(
                 inventory is not None
                 and inventory.available >= required_rows
+                and (stage_rows is None or all(inventory.stages[sid].request.rows >= count for sid, count in stage_rows.items()))
                 and self._prepared_inventory_is_live(inventory)
                 for inventory in candidates
             ):
                 return
-        self.preprocess(model_id, count=required_rows)
+        self.preprocess(model_id, count=required_rows, stage_rows=stage_rows)
 
     def close(self) -> None:
         with self._activity_lock:
@@ -3095,6 +3174,10 @@ class RuntimeClient:
         return final
 
     def events(self, body: dict[str, Any]) -> Iterator[ResponseEvent]:
+        with self.tokenizer_scope():
+            yield from self._events(body)
+
+    def _events(self, body: dict[str, Any]) -> Iterator[ResponseEvent]:
         requested_model = body.get("model")
         if self.experiment is not None:
             model_id = self.experiment.model
@@ -3466,7 +3549,13 @@ class RuntimeClient:
             raise ModelError("selected topology requires complete compiled execution")
         required_rows = max(1, required_input_rows + max(0, max_tokens - 1))
         if state.privacy_mode == "public":
-            self._ensure_prepared_inventory(model_id, state, required_rows)
+            demand = None
+            if self.preparation_allocation == "demand":
+                if compiled is None:
+                    raise ModelError("demand preparation requires a complete compiled schedule")
+                demand = compiled.prepared_stage_rows(required_input_rows, max(0, max_tokens - 1),
+                    continuation=bool(previous_id) or required_input_rows != len(full_prefill_ids))
+            self._ensure_prepared_inventory(model_id, state, required_rows, demand)
         offset_transport = None
         if offset_execution:
             assert compiled is not None
@@ -4541,6 +4630,14 @@ class OpenAI:
             raise ValueError("model is required")
         return self._core.prepared_inventory_status(model_id)
 
+    def prepare_response(self, input, max_output_tokens: int, *, model: str | None = None,
+                         instructions: str | None = None, store: bool = True) -> dict[str, Any]:
+        """Prepare a response's public shape demand while the client is idle."""
+        model_id = model or self._core.default_model
+        if model_id is None:
+            raise ValueError("model is required")
+        return self._core.prepare_response(model_id, input, max_output_tokens, instructions=instructions, store=store)
+
     def tokenizer_scope(self) -> AbstractContextManager[None]:
         """Share one source-bound tokenizer across request sizing and execution.
 
@@ -4737,6 +4834,16 @@ class AsyncOpenAI:
             model=model,
             instructions=instructions,
             store=store,
+        )
+
+    async def prepare_response(
+        self, input: str | list[Any], max_output_tokens: int, *, model: str | None = None,
+        instructions: str | None = None, store: bool = True,
+    ) -> dict[str, Any]:
+        """Prepare exact stage demand while preserving request-scoped ownership."""
+        return await asyncio.to_thread(
+            self.sync.prepare_response, input, max_output_tokens, model=model,
+            instructions=instructions, store=store,
         )
 
     async def close(self) -> None:

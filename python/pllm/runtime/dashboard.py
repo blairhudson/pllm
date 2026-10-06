@@ -1010,7 +1010,7 @@ class DashboardRuntime:
                 admission = getattr(self, "memory_preflight", None)
                 if admission is not None and capture.input_tokens > admission["estimate"]["max_input_tokens"]:
                     raise ValueError("input exceeds the memory-admitted workload")
-                preparation = self._client.preprocess(self.config.model_id, count=required) or {}
+                preparation = self._client.prepare_response(prompt, max_output_tokens, model=self.config.model_id) or {}
                 capture.inventory_generated = max(0, int(preparation.get("generated", 0)))
                 current_inventory = self._client.prepared_inventory_status(self.config.model_id)
                 same_inventory = current_inventory.get("id") == previous_inventory.get("id")

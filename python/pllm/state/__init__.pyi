@@ -1,5 +1,6 @@
 from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.components._planned import PendingComponent as PendingMethod
+from pllm.state.public_prefix import PublicPrefixCapsule as PublicPrefixCapsule
 
 class StateProtocol(ComponentRef): ...
 

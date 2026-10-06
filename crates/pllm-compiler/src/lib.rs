@@ -1630,7 +1630,6 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
         if matches!(
             component.component.as_str(),
             "pllm/cleartext-linear"
-                | "pllm/model-aware-corrections"
                 | "pllm/inference"
                 | "pllm/one-online-provider-offline-preparation/v1"
                 | "pllm/client-only/v1"
@@ -1645,6 +1644,17 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
             return Err(format!(
                 "configuration component {slot} has invalid prepared encoding"
             ));
+        }
+        if component.component == "pllm/model-aware-corrections"
+            && !component.params.is_empty()
+            && !(component.params.len() == 1
+                && component
+                    .params
+                    .get("storage")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("paged"))
+        {
+            return Err("invalid preparation storage parameters".into());
         }
         if component.component == "pllm/two-online-offset-linear/v1"
             && !valid_offset_parameters(component)
@@ -1990,11 +2000,31 @@ fn validate_masked_linear_composition(
     let inventory = pipeline.components.get("inventory");
     if let Some(inventory) = inventory {
         if inventory.component != "pllm/prepared-inventory-policy/v1"
-            || !matches!(inventory.params.len(), 2..=4)
-            || inventory
-                .params
-                .keys()
-                .any(|key| !matches!(key.as_str(), "policy" | "rows" | "refill" | "stage_window"))
+            || !matches!(inventory.params.len(), 2..=5)
+            || inventory.params.keys().any(|key| {
+                !matches!(
+                    key.as_str(),
+                    "policy" | "rows" | "refill" | "stage_window" | "allocation"
+                )
+            })
+            || inventory.params.get("allocation").is_some_and(|value| {
+                value.as_str() != Some("demand")
+                    || inventory
+                        .params
+                        .get("policy")
+                        .and_then(serde_json::Value::as_str)
+                        != Some("request-sized")
+                    || inventory
+                        .params
+                        .get("refill")
+                        .and_then(serde_json::Value::as_str)
+                        != Some("on-demand")
+                    || inventory
+                        .params
+                        .get("rows")
+                        .and_then(serde_json::Value::as_u64)
+                        != Some(1)
+            })
             || inventory
                 .params
                 .get("stage_window")
@@ -2037,6 +2067,52 @@ fn validate_masked_linear_composition(
         if !valid_prefix_cache(cache) {
             return Err("prefix cache requires bounded client-only state and baseline masked-linear placement".into());
         }
+    }
+    let tokenizer = pipeline.components.get("tokenizer");
+    let public_prefix = pipeline.components.get("public_prefix");
+    for (artifact, identity, size) in [
+        (tokenizer, "pllm/indexed-tokenizer/v1", false),
+        (public_prefix, "pllm/public-prefix-capsule/v1", true),
+    ] {
+        if let Some(value) = artifact {
+            if value.component != identity
+                || verification.is_some()
+                || value.params.len() != if size { 3 } else { 2 }
+                || !value
+                    .params
+                    .get("path")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|p| !p.is_empty() && p.chars().count() <= 4096)
+                || !value
+                    .params
+                    .get("digest")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|d| {
+                        d.len() == 64
+                            && d.bytes()
+                                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                    })
+                || (size
+                    && !value
+                        .params
+                        .get("size_bytes")
+                        .and_then(serde_json::Value::as_u64)
+                        .is_some_and(|n| (1..=67_108_864).contains(&n)))
+            {
+                return Err("public client artifact requires a bounded trusted commitment and baseline prepared execution".into());
+            }
+        }
+    }
+    if public_prefix.is_some()
+        && (cache.is_none()
+            || !quantization.is_some_and(|q| {
+                q.params
+                    .get("causal_reduction")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("prefix_f32")
+            }))
+    {
+        return Err("public prefix requires a prefix_f32 client cache".into());
     }
     let placement = pipeline.components.get("placement");
     if let Some(placement) = placement {
@@ -2103,6 +2179,8 @@ fn validate_masked_linear_composition(
             + usize::from(placement.is_some())
             + usize::from(inventory.is_some())
             + usize::from(delivery.is_some())
+            + usize::from(tokenizer.is_some())
+            + usize::from(public_prefix.is_some())
     {
         return Err("unsupported masked-linear component composition; expected exact core and optional quantization, verification, cache, boundary, placement, and prepared topology slots".into());
     }
@@ -2178,7 +2256,22 @@ fn validate_masked_linear_core(
         })?;
         let packed_output =
             allow_public_metal && slot == "linear" && valid_prepared_parameters(component);
-        if component.component != required || (!component.params.is_empty() && !packed_output) {
+        let paged_preparation = allow_public_metal
+            && slot == "preparation"
+            && component.params.len() == 1
+            && component
+                .params
+                .get("storage")
+                .and_then(serde_json::Value::as_str)
+                == Some("paged")
+            && !pipeline.components.contains_key("verification")
+            && pipeline
+                .components
+                .get("kernels")
+                .is_some_and(|k| k.component == "pllm/cpu");
+        if component.component != required
+            || (!component.params.is_empty() && !packed_output && !paged_preparation)
+        {
             return Err(format!(
                 "masked-linear composition requires {slot} component {required} with no parameters"
             ));

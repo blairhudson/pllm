@@ -79,7 +79,8 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         IndependentLanesProtectedTensorSchedule,
         ScalarProtectedTensorSchedule,
     )
-    from pllm.state import ClientLocalKv, ClientPrefixReuse
+    from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
+    from pllm.tokenization import IndexedTokenizer
     from pllm.verification import FreivaldsVerify, LinearIntegrity
 
     classes = (
@@ -94,6 +95,8 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         ClientLocalKv,
         ClientOnlyRoles,
         ClientPrefixReuse,
+        PublicPrefixCapsule,
+        IndexedTokenizer,
         Communication,
         Cost,
         Cpu,

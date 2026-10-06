@@ -62,6 +62,7 @@ async def load_role_adapter(
         client_linear_roles=options.client_linear_roles,
         prepared_output_encoding=options.prepared_output_encoding,
         weight_residency="provider" if role_id == "preparation" else "provider_and_bundle",
+        weight_storage=options.preparation_storage if role_id == "preparation" else "resident",
     )
     if preloaded_engine is None:
         source = resolve_model(experiment.pipeline.model)
