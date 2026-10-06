@@ -1151,6 +1151,22 @@ polynomial-cost, tensor-rank and state-equivalence vetoes. Their scope and
 reproduction live in `docs/research/network-algebra.md`; none activates a new
 protected decoder or establishes a general 10×/100× result.
 
+A further first-principles screen tests five 10× and five 100× hypotheses in
+`docs/research/network-first-principles.md`. Its two-syndrome output codec gives
+a 16× symbol reduction on a publicly promised one-sparse toy domain, but no
+checked Qwen output block qualifies and the syndrome cannot certify its domain.
+Exact activation-span reuse has at most 0.124% arithmetic savings on the checked
+trajectory. A fixed continued-fraction SiLU profile with explicit tails matches
+12/12 checked W8A8 token selections, but no complete logits or KV state; worst
+absolute logit error is about 2.39. Finite-field inversion is not IEEE division.
+An exact finite-field observable lift runs 256 nonlinear toy transitions through
+local additive-share linear updates. Its Qwen feature width, private encoding
+cost and token feedback are unknown. A Hermite-jet counterexample exposes the
+secret when one worker receives a degree-one mask's value and derivative.
+Concrete ramp-sharing, branching-program, log-domain and encrypted bitheap
+layouts retain explicit traffic/compute gates. These independently constructed
+references activate no SDK option or protected decoder.
+
 ## Application boundary
 
 The client owns plaintext input, inventory root seeds and masks, private

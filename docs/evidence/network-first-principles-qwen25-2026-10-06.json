@@ -1,0 +1,2658 @@
+{
+  "algebra": {
+    "coset": {
+      "component_symbol_reduction": 16.0,
+      "domain_membership_certified_by_syndrome": false,
+      "domain_symbols": 32,
+      "field": 257,
+      "nonzero_domain_words_checked": 8192,
+      "scope": "output-side mask side information; promise-domain algebra, not a secure decoder",
+      "syndrome_symbols": 2,
+      "two_sparse_aliases_one_sparse": true,
+      "width": 32
+    },
+    "hermite": {
+      "degree8_hermite_interpolation_exact": true,
+      "private_layouts": [
+        {
+          "composed_degree": 16,
+          "ingress_mask_degree": 1,
+          "jet_multiplicity": 1,
+          "quadratic_layers": 4,
+          "returned_64bit_jet_bytes": 136,
+          "workers_for_generic_interpolation": 17
+        },
+        {
+          "composed_degree": 32,
+          "ingress_mask_degree": 2,
+          "jet_multiplicity": 2,
+          "quadratic_layers": 4,
+          "returned_64bit_jet_bytes": 272,
+          "workers_for_generic_interpolation": 17
+        },
+        {
+          "composed_degree": 64,
+          "ingress_mask_degree": 4,
+          "jet_multiplicity": 4,
+          "quadratic_layers": 4,
+          "returned_64bit_jet_bytes": 544,
+          "workers_for_generic_interpolation": 17
+        },
+        {
+          "composed_degree": 256,
+          "ingress_mask_degree": 1,
+          "jet_multiplicity": 1,
+          "quadratic_layers": 8,
+          "returned_64bit_jet_bytes": 2056,
+          "workers_for_generic_interpolation": 257
+        },
+        {
+          "composed_degree": 512,
+          "ingress_mask_degree": 2,
+          "jet_multiplicity": 2,
+          "quadratic_layers": 8,
+          "returned_64bit_jet_bytes": 4112,
+          "workers_for_generic_interpolation": 257
+        },
+        {
+          "composed_degree": 1024,
+          "ingress_mask_degree": 4,
+          "jet_multiplicity": 4,
+          "quadratic_layers": 8,
+          "returned_64bit_jet_bytes": 8224,
+          "workers_for_generic_interpolation": 257
+        },
+        {
+          "composed_degree": 65536,
+          "ingress_mask_degree": 1,
+          "jet_multiplicity": 1,
+          "quadratic_layers": 16,
+          "returned_64bit_jet_bytes": 524296,
+          "workers_for_generic_interpolation": 65537
+        },
+        {
+          "composed_degree": 131072,
+          "ingress_mask_degree": 2,
+          "jet_multiplicity": 2,
+          "quadratic_layers": 16,
+          "returned_64bit_jet_bytes": 1048592,
+          "workers_for_generic_interpolation": 65537
+        },
+        {
+          "composed_degree": 262144,
+          "ingress_mask_degree": 4,
+          "jet_multiplicity": 4,
+          "quadratic_layers": 16,
+          "returned_64bit_jet_bytes": 2097184,
+          "workers_for_generic_interpolation": 65537
+        },
+        {
+          "composed_degree": 16777216,
+          "ingress_mask_degree": 1,
+          "jet_multiplicity": 1,
+          "quadratic_layers": 24,
+          "returned_64bit_jet_bytes": 134217736,
+          "workers_for_generic_interpolation": 16777217
+        },
+        {
+          "composed_degree": 33554432,
+          "ingress_mask_degree": 2,
+          "jet_multiplicity": 2,
+          "quadratic_layers": 24,
+          "returned_64bit_jet_bytes": 268435472,
+          "workers_for_generic_interpolation": 16777217
+        },
+        {
+          "composed_degree": 67108864,
+          "ingress_mask_degree": 4,
+          "jet_multiplicity": 4,
+          "quadratic_layers": 24,
+          "returned_64bit_jet_bytes": 536870944,
+          "workers_for_generic_interpolation": 16777217
+        }
+      ],
+      "scope": "specified no-refresh generic interpolation; not a universal coded-computation lower bound",
+      "two_jet_degree1_mask_recovers_secret": true
+    },
+    "koopman": {
+      "controlled_example": {
+        "client_public_lift_table_bytes": 7442,
+        "exact_both_operator_closures": true,
+        "field": 61,
+        "input_choices": 2,
+        "lift_width": 61,
+        "private_operator_selection_implemented": false
+      },
+      "examples": [
+        {
+          "all_initial_states": 17,
+          "client_public_lift_table_bytes": 306,
+          "exact_steps_per_initial_state": 256,
+          "field": 17,
+          "lift_width": 9,
+          "linear_share_updates_without_peer_messages": true,
+          "two_party_ingress_and_final_scalar_bytes": 40,
+          "two_workers_nonzero_field_products_per_transition": 2
+        },
+        {
+          "all_initial_states": 61,
+          "client_public_lift_table_bytes": 2074,
+          "exact_steps_per_initial_state": 256,
+          "field": 61,
+          "lift_width": 17,
+          "linear_share_updates_without_peer_messages": true,
+          "two_party_ingress_and_final_scalar_bytes": 72,
+          "two_workers_nonzero_field_products_per_transition": 2
+        },
+        {
+          "all_initial_states": 127,
+          "client_public_lift_table_bytes": 5080,
+          "exact_steps_per_initial_state": 256,
+          "field": 127,
+          "lift_width": 20,
+          "linear_share_updates_without_peer_messages": true,
+          "two_party_ingress_and_final_scalar_bytes": 84,
+          "two_workers_nonzero_field_products_per_transition": 2
+        }
+      ],
+      "qwen_encoding_cost": null,
+      "qwen_lift_width": null,
+      "scope": "autonomous finite-field toy; no new private input, token selection or Qwen state"
+    },
+    "permutation": {
+      "and_truth_table_and_telescoping": true,
+      "bound_kind": "cost of this recursive construction, NOT minimum branching-program size",
+      "recursive_formula_compiler": [
+        {
+          "depth": 4,
+          "instructions": 256,
+          "two_branch_16byte_objects_bytes": 8192,
+          "two_branch_ideal_7bit_permutations_bytes": 448
+        },
+        {
+          "depth": 8,
+          "instructions": 65536,
+          "two_branch_16byte_objects_bytes": 2097152,
+          "two_branch_ideal_7bit_permutations_bytes": 114688
+        },
+        {
+          "depth": 12,
+          "instructions": 16777216,
+          "two_branch_16byte_objects_bytes": 536870912,
+          "two_branch_ideal_7bit_permutations_bytes": 29360128
+        },
+        {
+          "depth": 24,
+          "instructions": 281474976710656,
+          "two_branch_16byte_objects_bytes": 9007199254740992,
+          "two_branch_ideal_7bit_permutations_bytes": 492581209243648
+        }
+      ],
+      "scope": "group identities only; oblivious branch selection and cryptographic encoding absent"
+    },
+    "ramp": {
+      "exact_gate_and_reshare": true,
+      "layouts": [
+        {
+          "degree_reduction_bytes_per_batch": 24,
+          "one_gated_product_per_element_peer_bytes": 128876544,
+          "packed_secrets": 1,
+          "public_linear_work_vs_two_offset": 1.5,
+          "workers": 3
+        },
+        {
+          "degree_reduction_bytes_per_batch": 80,
+          "one_gated_product_per_element_peer_bytes": 214794240,
+          "packed_secrets": 2,
+          "public_linear_work_vs_two_offset": 1.25,
+          "workers": 5
+        },
+        {
+          "degree_reduction_bytes_per_batch": 288,
+          "one_gated_product_per_element_peer_bytes": 386629632,
+          "packed_secrets": 4,
+          "public_linear_work_vs_two_offset": 1.125,
+          "workers": 9
+        },
+        {
+          "degree_reduction_bytes_per_batch": 1088,
+          "one_gated_product_per_element_peer_bytes": 730300416,
+          "packed_secrets": 8,
+          "public_linear_work_vs_two_offset": 1.0625,
+          "workers": 17
+        },
+        {
+          "degree_reduction_bytes_per_batch": 4224,
+          "one_gated_product_per_element_peer_bytes": 1417641984,
+          "packed_secrets": 16,
+          "public_linear_work_vs_two_offset": 1.03125,
+          "workers": 33
+        }
+      ],
+      "one_worker_view_exhausted": true,
+      "scope": "test-local dealer, semi-honest one-corruption ramp model; no decoder"
+    },
+    "rational": {
+      "batch_inverse_products": 12285,
+      "bit_exact_grid_points": 39666,
+      "field_batch_inverses_checked": 4096,
+      "grid_points": 65537,
+      "hypothetical_inverse_products_for_gated_elements": 16109565,
+      "inverse_projection_elements": 5369856,
+      "inverse_projection_word_bytes": 4,
+      "masked_inverse_alternative": {
+        "denominators_checked": 4096,
+        "exhaustive_nonzero_mask_views_per_checked_denominator": 65536,
+        "field": 65537,
+        "nonzero_domain_only": true,
+        "scope": "local algebra; fresh shared nonzero masks, secret multiplication and transport absent"
+      },
+      "masked_inverse_four_byte_field_projection_bytes": 128876544,
+      "maximum_grid_absolute_error": 1.9073486328125e-06,
+      "ordinary_two_party_beaver_inverse_openings_bytes": 257753040,
+      "public_range": [
+        -32,
+        32
+      ],
+      "scope": "grid is not an error certificate; finite-field inverse is not IEEE float division",
+      "terms": 24
+    },
+    "saturation": {
+      "bit_exact_relu_points": 15735,
+      "public_grid_points": 65537
+    },
+    "span": {
+      "basis_rows": 3,
+      "client_basis_and_outputs_bytes": 138,
+      "exact_field_outputs": true,
+      "input_width": 16,
+      "output_width": 7,
+      "rows": 32,
+      "scope": "public fixed-span toy; full-width domain certificate and private miss handling absent"
+    },
+    "zech": {
+      "exact_addition_and_multiplication": true,
+      "field": 257,
+      "input_pairs_exhausted": 66049,
+      "scope": "local exponent algebra, including zero; private Zech/zero tests and domain conversion unimplemented"
+    }
+  },
+  "checkpoint_screen": true,
+  "code_sha256": {
+    "decoder_probe_support.py": "6b102bd674403a431e898ef1d6d411e74a663f063555e021ac56a1159a8a0d3e",
+    "network_first_principles.py": "51c9660d2d61a0a3505000ede8985b0e85afff3fff6ccf8f674e8000203c32c0",
+    "probe_network_first_principles.py": "b4b016f28dd15c3f483f83613397aed08b508b6a059aa1f7319770f50a819dd9"
+  },
+  "complete": true,
+  "created_at": "2026-10-06T00:17:18.532813+00:00",
+  "encrypted_carry_save": {
+    "all_other_work_free_cpu_nanoseconds_per_and_budget": 0.012782965083912048,
+    "body_linear_and_gates": 2841464060456,
+    "fhe_backend_cpu_seconds": null,
+    "fhe_key_distribution_bytes": null,
+    "scope": "specified unsimplified bitheap, not minimum circuit size; FHE is a conditional CPU budget only",
+    "stages": [
+      {
+        "and_gates_per_activation_row": 159274630,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.0.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1015241
+      },
+      {
+        "and_gates_per_activation_row": 123571078,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.0.self_attn.o_proj",
+        "zech_additions_per_activation_row": 787176
+      },
+      {
+        "and_gates_per_activation_row": 1349915082,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.0.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8603597
+      },
+      {
+        "and_gates_per_activation_row": 946419174,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.0.mlp.down_proj",
+        "zech_additions_per_activation_row": 4287751
+      },
+      {
+        "and_gates_per_activation_row": 159224174,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.1.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1017694
+      },
+      {
+        "and_gates_per_activation_row": 124021350,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.1.self_attn.o_proj",
+        "zech_additions_per_activation_row": 790701
+      },
+      {
+        "and_gates_per_activation_row": 1345552506,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.1.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8602489
+      },
+      {
+        "and_gates_per_activation_row": 946645680,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.1.mlp.down_proj",
+        "zech_additions_per_activation_row": 4290178
+      },
+      {
+        "and_gates_per_activation_row": 159258248,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.2.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1015350
+      },
+      {
+        "and_gates_per_activation_row": 123608264,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.2.self_attn.o_proj",
+        "zech_additions_per_activation_row": 788272
+      },
+      {
+        "and_gates_per_activation_row": 1347709662,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.2.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8600844
+      },
+      {
+        "and_gates_per_activation_row": 945100354,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.2.mlp.down_proj",
+        "zech_additions_per_activation_row": 4285474
+      },
+      {
+        "and_gates_per_activation_row": 159135154,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.3.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1015688
+      },
+      {
+        "and_gates_per_activation_row": 123671176,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.3.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789399
+      },
+      {
+        "and_gates_per_activation_row": 1347443096,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.3.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8599679
+      },
+      {
+        "and_gates_per_activation_row": 945997858,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.3.mlp.down_proj",
+        "zech_additions_per_activation_row": 4286322
+      },
+      {
+        "and_gates_per_activation_row": 159693660,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.4.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1017328
+      },
+      {
+        "and_gates_per_activation_row": 123771682,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.4.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789729
+      },
+      {
+        "and_gates_per_activation_row": 1347170300,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.4.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8593574
+      },
+      {
+        "and_gates_per_activation_row": 943563458,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.4.mlp.down_proj",
+        "zech_additions_per_activation_row": 4272113
+      },
+      {
+        "and_gates_per_activation_row": 159302690,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.5.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1016939
+      },
+      {
+        "and_gates_per_activation_row": 123981104,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.5.self_attn.o_proj",
+        "zech_additions_per_activation_row": 790768
+      },
+      {
+        "and_gates_per_activation_row": 1348461928,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.5.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8600964
+      },
+      {
+        "and_gates_per_activation_row": 946064288,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.5.mlp.down_proj",
+        "zech_additions_per_activation_row": 4282007
+      },
+      {
+        "and_gates_per_activation_row": 159386080,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.6.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1016825
+      },
+      {
+        "and_gates_per_activation_row": 123980896,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.6.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789791
+      },
+      {
+        "and_gates_per_activation_row": 1347564344,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.6.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8595284
+      },
+      {
+        "and_gates_per_activation_row": 945867856,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.6.mlp.down_proj",
+        "zech_additions_per_activation_row": 4279741
+      },
+      {
+        "and_gates_per_activation_row": 159130864,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.7.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1016065
+      },
+      {
+        "and_gates_per_activation_row": 123860966,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.7.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789190
+      },
+      {
+        "and_gates_per_activation_row": 1346627932,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.7.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8594915
+      },
+      {
+        "and_gates_per_activation_row": 943090002,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.7.mlp.down_proj",
+        "zech_additions_per_activation_row": 4266545
+      },
+      {
+        "and_gates_per_activation_row": 159541084,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.8.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1016459
+      },
+      {
+        "and_gates_per_activation_row": 123862800,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.8.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789641
+      },
+      {
+        "and_gates_per_activation_row": 1344768326,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.8.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8588052
+      },
+      {
+        "and_gates_per_activation_row": 944640888,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.8.mlp.down_proj",
+        "zech_additions_per_activation_row": 4277073
+      },
+      {
+        "and_gates_per_activation_row": 158989392,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.9.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1012231
+      },
+      {
+        "and_gates_per_activation_row": 123830364,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.9.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789624
+      },
+      {
+        "and_gates_per_activation_row": 1345591944,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.9.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8595242
+      },
+      {
+        "and_gates_per_activation_row": 943617692,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.9.mlp.down_proj",
+        "zech_additions_per_activation_row": 4268620
+      },
+      {
+        "and_gates_per_activation_row": 159534666,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.10.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1016886
+      },
+      {
+        "and_gates_per_activation_row": 123770282,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.10.self_attn.o_proj",
+        "zech_additions_per_activation_row": 788944
+      },
+      {
+        "and_gates_per_activation_row": 1344057784,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.10.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8588517
+      },
+      {
+        "and_gates_per_activation_row": 941015034,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.10.mlp.down_proj",
+        "zech_additions_per_activation_row": 4265606
+      },
+      {
+        "and_gates_per_activation_row": 158568438,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.11.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1010997
+      },
+      {
+        "and_gates_per_activation_row": 124034864,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.11.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789746
+      },
+      {
+        "and_gates_per_activation_row": 1344979160,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.11.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8588542
+      },
+      {
+        "and_gates_per_activation_row": 942230208,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.11.mlp.down_proj",
+        "zech_additions_per_activation_row": 4266866
+      },
+      {
+        "and_gates_per_activation_row": 159450738,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.12.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1017343
+      },
+      {
+        "and_gates_per_activation_row": 123948830,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.12.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789880
+      },
+      {
+        "and_gates_per_activation_row": 1345743880,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.12.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8589650
+      },
+      {
+        "and_gates_per_activation_row": 944596916,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.12.mlp.down_proj",
+        "zech_additions_per_activation_row": 4278703
+      },
+      {
+        "and_gates_per_activation_row": 159111940,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.13.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1014673
+      },
+      {
+        "and_gates_per_activation_row": 124063784,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.13.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789880
+      },
+      {
+        "and_gates_per_activation_row": 1346353922,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.13.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8589716
+      },
+      {
+        "and_gates_per_activation_row": 942659722,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.13.mlp.down_proj",
+        "zech_additions_per_activation_row": 4268691
+      },
+      {
+        "and_gates_per_activation_row": 159333510,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.14.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1015118
+      },
+      {
+        "and_gates_per_activation_row": 123661984,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.14.self_attn.o_proj",
+        "zech_additions_per_activation_row": 790097
+      },
+      {
+        "and_gates_per_activation_row": 1344775446,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.14.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8587985
+      },
+      {
+        "and_gates_per_activation_row": 941180688,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.14.mlp.down_proj",
+        "zech_additions_per_activation_row": 4260969
+      },
+      {
+        "and_gates_per_activation_row": 159447652,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.15.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1016617
+      },
+      {
+        "and_gates_per_activation_row": 123813038,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.15.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789835
+      },
+      {
+        "and_gates_per_activation_row": 1344468626,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.15.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8582555
+      },
+      {
+        "and_gates_per_activation_row": 942381114,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.15.mlp.down_proj",
+        "zech_additions_per_activation_row": 4262690
+      },
+      {
+        "and_gates_per_activation_row": 158831620,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.16.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1010132
+      },
+      {
+        "and_gates_per_activation_row": 123493298,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.16.self_attn.o_proj",
+        "zech_additions_per_activation_row": 786471
+      },
+      {
+        "and_gates_per_activation_row": 1344109900,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.16.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8578346
+      },
+      {
+        "and_gates_per_activation_row": 941900440,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.16.mlp.down_proj",
+        "zech_additions_per_activation_row": 4261538
+      },
+      {
+        "and_gates_per_activation_row": 159339760,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.17.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1015458
+      },
+      {
+        "and_gates_per_activation_row": 123876128,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.17.self_attn.o_proj",
+        "zech_additions_per_activation_row": 790171
+      },
+      {
+        "and_gates_per_activation_row": 1346810448,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.17.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8595910
+      },
+      {
+        "and_gates_per_activation_row": 944269792,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.17.mlp.down_proj",
+        "zech_additions_per_activation_row": 4279568
+      },
+      {
+        "and_gates_per_activation_row": 159257930,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.18.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1014815
+      },
+      {
+        "and_gates_per_activation_row": 124145772,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.18.self_attn.o_proj",
+        "zech_additions_per_activation_row": 790797
+      },
+      {
+        "and_gates_per_activation_row": 1348324130,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.18.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8602198
+      },
+      {
+        "and_gates_per_activation_row": 945375744,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.18.mlp.down_proj",
+        "zech_additions_per_activation_row": 4284889
+      },
+      {
+        "and_gates_per_activation_row": 159696614,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.19.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1016807
+      },
+      {
+        "and_gates_per_activation_row": 123897416,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.19.self_attn.o_proj",
+        "zech_additions_per_activation_row": 790583
+      },
+      {
+        "and_gates_per_activation_row": 1346096690,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.19.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8590059
+      },
+      {
+        "and_gates_per_activation_row": 943628054,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.19.mlp.down_proj",
+        "zech_additions_per_activation_row": 4270617
+      },
+      {
+        "and_gates_per_activation_row": 159071676,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.20.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1011235
+      },
+      {
+        "and_gates_per_activation_row": 123703558,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.20.self_attn.o_proj",
+        "zech_additions_per_activation_row": 788989
+      },
+      {
+        "and_gates_per_activation_row": 1346720142,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.20.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8589627
+      },
+      {
+        "and_gates_per_activation_row": 943181352,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.20.mlp.down_proj",
+        "zech_additions_per_activation_row": 4271921
+      },
+      {
+        "and_gates_per_activation_row": 158614050,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.21.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1008715
+      },
+      {
+        "and_gates_per_activation_row": 123904458,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.21.self_attn.o_proj",
+        "zech_additions_per_activation_row": 789652
+      },
+      {
+        "and_gates_per_activation_row": 1348674868,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.21.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8601918
+      },
+      {
+        "and_gates_per_activation_row": 946697722,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.21.mlp.down_proj",
+        "zech_additions_per_activation_row": 4286974
+      },
+      {
+        "and_gates_per_activation_row": 158860320,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.22.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1011175
+      },
+      {
+        "and_gates_per_activation_row": 124085368,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.22.self_attn.o_proj",
+        "zech_additions_per_activation_row": 791827
+      },
+      {
+        "and_gates_per_activation_row": 1346538106,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.22.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8599640
+      },
+      {
+        "and_gates_per_activation_row": 945967272,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.22.mlp.down_proj",
+        "zech_additions_per_activation_row": 4288421
+      },
+      {
+        "and_gates_per_activation_row": 159012796,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.23.self_attn.qkv_proj",
+        "zech_additions_per_activation_row": 1013421
+      },
+      {
+        "and_gates_per_activation_row": 123660590,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.23.self_attn.o_proj",
+        "zech_additions_per_activation_row": 788291
+      },
+      {
+        "and_gates_per_activation_row": 1346420944,
+        "executed_rows": 46,
+        "ring_bits": 24,
+        "stage": "layers.23.mlp.gate_up_proj",
+        "zech_additions_per_activation_row": 8603267
+      },
+      {
+        "and_gates_per_activation_row": 946700626,
+        "executed_rows": 46,
+        "ring_bits": 32,
+        "stage": "layers.23.mlp.down_proj",
+        "zech_additions_per_activation_row": 4288561
+      }
+    ],
+    "two_16byte_half_gate_ciphertexts_bytes": 90926849934592
+  },
+  "full_wire_bytes": null,
+  "historical_budget": {
+    "artifact": "docs/evidence/network-algebra-sdk-qwen25-2026-10-06.json",
+    "covered_setup_inclusive_bytes": 229983384,
+    "generated_outputs": 8,
+    "historical_cold_cpu_seconds": 36.322335872,
+    "hundredfold_body_target_bytes": 2299833.84,
+    "input_tokens": 39,
+    "scope": "historical budget only; new screens are not matched transport/CPU measurements",
+    "sha256": "cba8a6b1bfd61cf4797e01c4b28b7fc6fb7f49913c6bb27e1b8cc5cead8ebe69",
+    "tenfold_body_target_bytes": 22998338.4
+  },
+  "new_swap_bytes": 0,
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "public_trace": {
+    "aggregate": {
+      "blocks32": 437184,
+      "blocks_with_at_most_one_nonzero": 0,
+      "executed_rows": 4416,
+      "full_input_output_basis_storage_bytes_at_lower_rank": 64222464,
+      "independent_source_rows_lower_bound": 4403,
+      "integer_outputs": 13989888,
+      "nonzero_outputs": 13989284,
+      "optimistic_span_arithmetic_reduction_fraction_upper_bound": 0.0012403321215517383,
+      "possible_dependent_rows_upper_bound": 13
+    },
+    "generated_outputs": 8,
+    "input_tokens": 39,
+    "public_token_cohort_sha256": "3fcf9554720b954cd0499d9fb4ed5d53cfcce8aa33a06e02b4c90a02c0240414",
+    "rational24_bit_exact_elements": 3502139,
+    "rational24_maximum_in_domain_absolute_error": 9.5367431640625e-07,
+    "rational24_outside_public_domain": 3,
+    "scope": "local clear-kernel public trajectory, counts only; source values not archived",
+    "silu_elements": 5369856,
+    "stages": {
+      "layers.0.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41213,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171344
+      },
+      "layers.0.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447469,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468264
+      },
+      "layers.0.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41212,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61334
+      },
+      "layers.0.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 187136,
+        "independent_source_rows_lower_bound": 34,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52988,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 12,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 74064
+      },
+      "layers.1.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171438
+      },
+      "layers.1.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447473,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468320
+      },
+      "layers.1.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41212,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 62626
+      },
+      "layers.1.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52991,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 74384
+      },
+      "layers.10.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170956
+      },
+      "layers.10.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447474,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467722
+      },
+      "layers.10.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61568
+      },
+      "layers.10.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52990,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 74306
+      },
+      "layers.11.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170962
+      },
+      "layers.11.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447471,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467670
+      },
+      "layers.11.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61644
+      },
+      "layers.11.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52987,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73202
+      },
+      "layers.12.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41213,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171080
+      },
+      "layers.12.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447469,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467612
+      },
+      "layers.12.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61640
+      },
+      "layers.12.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52990,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 74342
+      },
+      "layers.13.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170956
+      },
+      "layers.13.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447475,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467652
+      },
+      "layers.13.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61704
+      },
+      "layers.13.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52986,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73354
+      },
+      "layers.14.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170800
+      },
+      "layers.14.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447477,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467426
+      },
+      "layers.14.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61674
+      },
+      "layers.14.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52989,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73322
+      },
+      "layers.15.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170868
+      },
+      "layers.15.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447471,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 466734
+      },
+      "layers.15.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41213,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61684
+      },
+      "layers.15.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52983,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 74250
+      },
+      "layers.16.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170856
+      },
+      "layers.16.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447470,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 466668
+      },
+      "layers.16.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61250
+      },
+      "layers.16.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52991,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73132
+      },
+      "layers.17.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171110
+      },
+      "layers.17.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447469,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468072
+      },
+      "layers.17.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41211,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61708
+      },
+      "layers.17.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52988,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73280
+      },
+      "layers.18.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171286
+      },
+      "layers.18.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447475,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468400
+      },
+      "layers.18.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61726
+      },
+      "layers.18.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52988,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73160
+      },
+      "layers.19.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170956
+      },
+      "layers.19.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447466,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467416
+      },
+      "layers.19.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61708
+      },
+      "layers.19.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52989,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73358
+      },
+      "layers.2.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171372
+      },
+      "layers.2.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447467,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468068
+      },
+      "layers.2.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61498
+      },
+      "layers.2.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52988,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73280
+      },
+      "layers.20.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41213,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171020
+      },
+      "layers.20.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447477,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467592
+      },
+      "layers.20.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41211,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61562
+      },
+      "layers.20.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52991,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73038
+      },
+      "layers.21.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41211,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171330
+      },
+      "layers.21.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447477,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468364
+      },
+      "layers.21.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61646
+      },
+      "layers.21.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52991,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 72810
+      },
+      "layers.22.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41209,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171366
+      },
+      "layers.22.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447476,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468052
+      },
+      "layers.22.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61766
+      },
+      "layers.22.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52990,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 72914
+      },
+      "layers.23.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41211,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171302
+      },
+      "layers.23.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447479,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468536
+      },
+      "layers.23.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61618
+      },
+      "layers.23.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52991,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73298
+      },
+      "layers.3.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 380160,
+        "independent_source_rows_lower_bound": 45,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41136,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 1,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171338
+      },
+      "layers.3.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447471,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468186
+      },
+      "layers.3.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61668
+      },
+      "layers.3.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52988,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 74236
+      },
+      "layers.4.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171030
+      },
+      "layers.4.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447469,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467736
+      },
+      "layers.4.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61638
+      },
+      "layers.4.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52988,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73408
+      },
+      "layers.5.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41212,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171190
+      },
+      "layers.5.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447479,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468348
+      },
+      "layers.5.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61692
+      },
+      "layers.5.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52987,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 74298
+      },
+      "layers.6.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171130
+      },
+      "layers.6.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447477,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467748
+      },
+      "layers.6.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61668
+      },
+      "layers.6.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52987,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 74270
+      },
+      "layers.7.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170912
+      },
+      "layers.7.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447473,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467872
+      },
+      "layers.7.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61616
+      },
+      "layers.7.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52992,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73304
+      },
+      "layers.8.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41213,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 171104
+      },
+      "layers.8.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447468,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 467648
+      },
+      "layers.8.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41216,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61672
+      },
+      "layers.8.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52990,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73354
+      },
+      "layers.9.mlp.down_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 388608,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 4864,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41215,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 2048,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 170950
+      },
+      "layers.9.mlp.gate_up_proj": {
+        "blocks32": 13984,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 1831168,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 447488,
+        "nonzero_outputs": 447475,
+        "output_width": 9728,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 468004
+      },
+      "layers.9.self_attn.o_proj": {
+        "blocks32": 1288,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 206080,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 41216,
+        "nonzero_outputs": 41214,
+        "output_width": 896,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 61616
+      },
+      "layers.9.self_attn.qkv_proj": {
+        "blocks32": 1656,
+        "blocks_with_at_most_one_nonzero": 0,
+        "executed_rows": 46,
+        "full_input_output_basis_storage_bytes_at_lower_rank": 253184,
+        "independent_source_rows_lower_bound": 46,
+        "input_width": 896,
+        "integer_outputs": 52992,
+        "nonzero_outputs": 52992,
+        "output_width": 1152,
+        "possible_dependent_rows_upper_bound": 0,
+        "rank_minor_columns": 896,
+        "rank_minor_rows": 46,
+        "row_arithmetic_bits": 73276
+      }
+    },
+    "tropical_bit_exact_elements": 126
+  },
+  "rational_numeric_diagnostic": {
+    "cases": [
+      {
+        "candidates": [
+          {
+            "complete": false,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "execution_identity": "4336a58bc3bb053c4970f87e59977d5e6352ec59bf913a3d7e19c469d2c34ba1",
+            "outside_core": "reject",
+            "rejection": "outside public rational domain",
+            "research_local_cpu_seconds": 1.1555129999999991,
+            "terms": 16
+          },
+          {
+            "complete": false,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "execution_identity": "3d87a2beb73a2cfc736033c674671269c154ddbc162a74c2af4703ec1e81f043",
+            "outside_core": "reject",
+            "rejection": "outside public rational domain",
+            "research_local_cpu_seconds": 1.1737260000000003,
+            "terms": 24
+          },
+          {
+            "complete": true,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "exact_kv_positions": 0,
+            "exact_logit_positions": 0,
+            "execution_identity": "8ac5deb4e878d638f1aec2ff70b599eae5be6d4e51fc26569d751697a4eb8462",
+            "outside_core": "explicit_identity_signed_zero_tails",
+            "research_local_cpu_seconds": 1.5041720000000005,
+            "terms": 24,
+            "top1_agreements": 3,
+            "worst_absolute_logit_error": 2.112875610589981
+          }
+        ],
+        "input_tokens": 44,
+        "public_cohort_sha256": "5fc868fb0c34aa09858e52d052f62b95b0597df83248954eee1b7985a98988ba",
+        "selected_positions": 3
+      },
+      {
+        "candidates": [
+          {
+            "complete": false,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "execution_identity": "4336a58bc3bb053c4970f87e59977d5e6352ec59bf913a3d7e19c469d2c34ba1",
+            "outside_core": "reject",
+            "rejection": "outside public rational domain",
+            "research_local_cpu_seconds": 1.1563320000000008,
+            "terms": 16
+          },
+          {
+            "complete": false,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "execution_identity": "3d87a2beb73a2cfc736033c674671269c154ddbc162a74c2af4703ec1e81f043",
+            "outside_core": "reject",
+            "rejection": "outside public rational domain",
+            "research_local_cpu_seconds": 1.172968000000001,
+            "terms": 24
+          },
+          {
+            "complete": true,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "exact_kv_positions": 0,
+            "exact_logit_positions": 0,
+            "execution_identity": "8ac5deb4e878d638f1aec2ff70b599eae5be6d4e51fc26569d751697a4eb8462",
+            "outside_core": "explicit_identity_signed_zero_tails",
+            "research_local_cpu_seconds": 1.3886739999999982,
+            "terms": 24,
+            "top1_agreements": 3,
+            "worst_absolute_logit_error": 2.205054759979248
+          }
+        ],
+        "input_tokens": 44,
+        "public_cohort_sha256": "0c707561df60aa3478d4e46c3efa822e626beddb421e18270318901633f1dc0b",
+        "selected_positions": 3
+      },
+      {
+        "candidates": [
+          {
+            "complete": false,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "execution_identity": "4336a58bc3bb053c4970f87e59977d5e6352ec59bf913a3d7e19c469d2c34ba1",
+            "outside_core": "reject",
+            "rejection": "outside public rational domain",
+            "research_local_cpu_seconds": 1.1451519999999995,
+            "terms": 16
+          },
+          {
+            "complete": false,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "execution_identity": "3d87a2beb73a2cfc736033c674671269c154ddbc162a74c2af4703ec1e81f043",
+            "outside_core": "reject",
+            "rejection": "outside public rational domain",
+            "research_local_cpu_seconds": 1.1597000000000008,
+            "terms": 24
+          },
+          {
+            "complete": true,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "exact_kv_positions": 0,
+            "exact_logit_positions": 0,
+            "execution_identity": "8ac5deb4e878d638f1aec2ff70b599eae5be6d4e51fc26569d751697a4eb8462",
+            "outside_core": "explicit_identity_signed_zero_tails",
+            "research_local_cpu_seconds": 1.3734750000000027,
+            "terms": 24,
+            "top1_agreements": 3,
+            "worst_absolute_logit_error": 2.190359115600586
+          }
+        ],
+        "input_tokens": 43,
+        "public_cohort_sha256": "229dddbb1e6960d7bca93a36ea84b0e0c069400dbcf4a9f19116299d563786ce",
+        "selected_positions": 3
+      },
+      {
+        "candidates": [
+          {
+            "complete": false,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "execution_identity": "4336a58bc3bb053c4970f87e59977d5e6352ec59bf913a3d7e19c469d2c34ba1",
+            "outside_core": "reject",
+            "rejection": "outside public rational domain",
+            "research_local_cpu_seconds": 1.1480519999999999,
+            "terms": 16
+          },
+          {
+            "complete": false,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "execution_identity": "3d87a2beb73a2cfc736033c674671269c154ddbc162a74c2af4703ec1e81f043",
+            "outside_core": "reject",
+            "rejection": "outside public rational domain",
+            "research_local_cpu_seconds": 1.15944,
+            "terms": 24
+          },
+          {
+            "complete": true,
+            "core_public_range": [
+              -32,
+              32
+            ],
+            "exact_kv_positions": 0,
+            "exact_logit_positions": 0,
+            "execution_identity": "8ac5deb4e878d638f1aec2ff70b599eae5be6d4e51fc26569d751697a4eb8462",
+            "outside_core": "explicit_identity_signed_zero_tails",
+            "research_local_cpu_seconds": 1.3887590000000003,
+            "terms": 24,
+            "top1_agreements": 3,
+            "worst_absolute_logit_error": 2.390136241912842
+          }
+        ],
+        "input_tokens": 43,
+        "public_cohort_sha256": "43dcdfddef0513738a971c54a342fb113f43dbcc7f9de8ff7ce3643b62367886",
+        "selected_positions": 3
+      }
+    ],
+    "protected_execution": false,
+    "reference": "same pinned W8A8 compiled runtime; not upstream float32 or task quality"
+  },
+  "research_process_peak_rss_bytes": 1304412160,
+  "schema": "pllm.network_first_principles.v1",
+  "sdk_promotion": false,
+  "source": {
+    "binding_digest": "2395ffab8188d85cb363ad9e7d31b94b2c8978e6ac45801f303f0e85f7d097a5",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "159e35f75f01d5ee0a2167dde11082e6f52f5c7b3c539310dbf90d27f61dcd23",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "schedule_digest": "f07191ffa2f51132e6723096fc3e387c5ca63501b7dcf0e13ea049cbdfc1b529",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "whole_client_peak_rss_bytes": null,
+  "zech_cost": {
+    "body_linear_private_addition_lookups": 16201065404,
+    "hundredfold_all_link_bytes_per_lookup_if_everything_else_free": 0.00014195571603779693,
+    "scope": "fully log-domain dot products; omits zero tests, conversion, nonlinear work and transport"
+  }
+}
