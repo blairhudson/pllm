@@ -9,6 +9,18 @@ This is a bounded Rust reference with a separate clear-checkpoint numeric
 diagnostic. It does not execute a protected Qwen decoder or reproduce FuseFSS's
 GPU system.
 
+The [primary-paper cost audit](fss-paper-cost-audit.md) confirms the 60.10 GB
+arithmetic but identifies major protocol differences: 51.94 GB belongs to
+generic exact rescaling helpers. SIGMA's DPF-based shifts, residual SiLU lookup
+and masked-wire composition have not been reproduced. This result rejects the
+PLLM layout, not the papers' optimized methods; their Qwen cost remains unknown.
+
+The separate [joint-output follow-up](joint-gated-reference.md) tests higher
+precision and one final rounding on twelve new prompts. One profile passes its
+narrow selection screen, but concrete joint table/half-gates layouts fail the
+cost gate before protected issuance. These earlier profiles and measurements
+retain their original failed admission status.
+
 ## Source and numeric contract
 
 The pinned [FuseFSS paper](https://arxiv.org/abs/2606.09551), Appendix I.2 and

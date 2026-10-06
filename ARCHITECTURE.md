@@ -217,6 +217,25 @@ per block. Rescalings occupy 86.42% of that material. This clear-checkpoint
 numeric diagnostic and separate in-process protected block fail fidelity and
 cost admission; secret float conversion, range enforcement, independent review
 and role transport remain absent. Details: `docs/research/piecewise-gated-reference.md`.
+The primary-paper cost audit confirms that raw payload arithmetic, including
+51.94 GB for generic ties-even rescaling, but does not identify it with SIGMA or
+FuseFSS costs. Their DPF-based shift, residual SiLU lookup and masked-wire
+composition have not been reproduced; a paper-faithful Qwen total remains
+unknown. See `docs/research/fss-paper-cost-audit.md`.
+
+A further clear joint-output reference uses Q12/Q16 inputs, 512/2,048 public
+SiLU secants, explicit tails and one final rounding of the complete gated
+numerator. Checked i128 arithmetic and an independent segmented-integer oracle
+agree on 253,550,592 checkpoint elements. Q12/2,048 matches all 12 prefill and
+36 same-token decode selections in a fresh cohort, but no logits/KV are exact
+and worst logit error is 2.78; the other three frozen profiles miss selections.
+Its fully specified dense two-input function shares require 8.80 TB of tables
+per Q12 element. An uncompressed per-lane half-gates layout already exceeds the
+116.84 MB historical whole-response control with a one-AND-per-element floor
+of 171.84 MB at 39+8. Mask-wrap, sharewise-rounding and public-coefficient leakage
+counterexamples prevent treating those operations as free. No protected material
+is issued; compressed joint keys, conversions and complete costs remain absent.
+Details: `docs/research/joint-gated-reference.md`.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,

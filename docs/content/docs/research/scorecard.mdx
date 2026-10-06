@@ -362,6 +362,20 @@ alone does not count as implemented work.
   prefix-only and independent-compact cohorts stay retained.
   [Source contracts and full costs](https://github.com/blairhudson/pllm/blob/main/docs/research/interval-rescale-reference.md)
   remain component evidence; no decoder score or executable planned API follows.
+  A separate [joint SiLU × up gate](https://github.com/blairhudson/pllm/blob/main/docs/research/joint-gated-reference.md)
+  tests four frozen higher-precision mappings on twelve new prompts. Q12 with
+  2,048 pieces matches **12/12 prefill and 36/36 decode selections**, but logits/KV
+  differ and worst logit error is **2.78**. Dense joint shares fail storage
+  admission; even a one-AND-per-element uncompressed half-gates floor projects
+  **171.84 MB** at 39+8, above the **116.84 MB** historical whole-response control.
+  No protected material is issued and no new SDK score follows. The
+  [Python reproduction](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/joint_gated_reference.py)
+  retains all four profiles and exact carry/privacy counterexamples.
+  A [primary-paper cost audit](https://github.com/blairhudson/pllm/blob/main/docs/research/fss-paper-cost-audit.md)
+  confirms the earlier **60.10 GB** raw-material projection belongs to PLLM's
+  generic helper composition, with **51.94 GB** in exact rescaling. SIGMA's
+  DPF-based shifts, residual SiLU lookup and masked-wire composition have not
+  been reproduced; the papers' Qwen cost remains unknown.
 - **Curl:** a new native reference executes one-use, party-local shared lookup
   from Fig. 4 and public Haar compression. It checks all 512 encoded SiLU rows.
   Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes per

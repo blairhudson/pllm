@@ -126,6 +126,28 @@ consume 86.42% of the material. This is another no-go, with all profiles frozen
 before evaluation; a new numeric hypothesis needs new held-out data and a
 materially cheaper complete rescale/product protocol before tensor or SDK work.
 See `docs/research/piecewise-gated-reference.md`.
+A separate joint-output screen now uses fixed Q12/Q16 mappings and one final
+rounding. Q12/2,048 pieces matches 12/12 fresh prefill and 36/36 same-token decode
+selections, with non-exact logits/KV and 2.78 worst logit error. Other profiles
+still miss selections. Its direct dense function-sharing representation fails
+storage admission, and even one uncompressed half-gate per element exceeds the
+whole-response byte comparator. Narrow-ring openings alone exceed a tenfold
+target. This closes those concrete representations before protected issuance,
+not all joint FSS or vector correlation designs. The next gate is a specified,
+costed construction that changes complete material/opening representation;
+promising selected-token agreement alone does not authorize SDK work. These
+twelve prompts are now spent as held-out evidence. See
+`docs/research/joint-gated-reference.md` for the complete candidate, both-party
+views, native carry/privacy counterexamples and all four numeric results.
+The subsequent primary-paper audit confirms the 60.10 GB arithmetic but limits
+the rejection to our reference: 51.94 GB is generic ties-even rescaling, while
+SIGMA's DPF-based gap shifts, residual SiLU lookup, effective widths and
+masked-wire composition remain unimplemented. **Next: reproduce those published
+primitives before assuming a new joint cryptographic construction is needed.**
+Keep faithful-shift and ties-even numeric identities separate, prove public gap
+assumptions and then cost the complete block. A paper-faithful Qwen total remains
+unknown. See `docs/research/fss-paper-cost-audit.md` for exact source sections,
+published offline costs and reproducible per-party accounting.
 MPCache now has a native selected-view oracle with exact full-cache control and
 8,712 independent index/equation checks. Static retention matches 34/36 same-token
 decode selections; combined selection and adjacent-layer sharing matches 31/36.

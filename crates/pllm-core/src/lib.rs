@@ -14,6 +14,7 @@ pub mod compact;
 pub mod fixed_point;
 mod freivalds;
 pub mod head_index;
+pub mod joint_gated_reference;
 pub mod kernels;
 pub mod kv_cache;
 pub mod logrow_numeric;
