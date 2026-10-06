@@ -1,0 +1,110 @@
+{
+  "schema": "pllm.curl_lookup_probe.v1",
+  "input_rows": 512,
+  "output_fraction_bits": 16,
+  "cases": [
+    {
+      "haar_levels": 0,
+      "table_rows": 512,
+      "public_table_bytes": 2048,
+      "dealer_share_payload_bytes_per_lookup": 4100,
+      "peer_frame_bytes_per_lookup": 136,
+      "samples": 512,
+      "encoded_exact_rows": 512,
+      "worst_absolute_error": 0,
+      "mean_absolute_error": 0,
+      "mean_issuance_ns": 17151.6015625,
+      "mean_local_two_party_ns": 3045.681640625,
+      "mean_clear_lookup_ns": 28.310546875
+    },
+    {
+      "haar_levels": 1,
+      "table_rows": 256,
+      "public_table_bytes": 1024,
+      "dealer_share_payload_bytes_per_lookup": 2052,
+      "peer_frame_bytes_per_lookup": 136,
+      "samples": 512,
+      "encoded_exact_rows": 1,
+      "worst_absolute_error": 0.00860595703125,
+      "mean_absolute_error": 0.004301875829696655,
+      "mean_issuance_ns": 9947.34375,
+      "mean_local_two_party_ns": 2002.279296875,
+      "mean_clear_lookup_ns": 28.072265625
+    },
+    {
+      "haar_levels": 2,
+      "table_rows": 128,
+      "public_table_bytes": 512,
+      "dealer_share_payload_bytes_per_lookup": 1028,
+      "peer_frame_bytes_per_lookup": 136,
+      "samples": 512,
+      "encoded_exact_rows": 0,
+      "worst_absolute_error": 0.025787353515625,
+      "mean_absolute_error": 0.0086040198802948,
+      "mean_issuance_ns": 6644.373046875,
+      "mean_local_two_party_ns": 1009.482421875,
+      "mean_clear_lookup_ns": 29.068359375
+    },
+    {
+      "haar_levels": 3,
+      "table_rows": 64,
+      "public_table_bytes": 256,
+      "dealer_share_payload_bytes_per_lookup": 516,
+      "peer_frame_bytes_per_lookup": 136,
+      "samples": 512,
+      "encoded_exact_rows": 1,
+      "worst_absolute_error": 0.060150146484375,
+      "mean_absolute_error": 0.017208486795425415,
+      "mean_issuance_ns": 4644.125,
+      "mean_local_two_party_ns": 495.765625,
+      "mean_clear_lookup_ns": 27.080078125
+    },
+    {
+      "haar_levels": 4,
+      "table_rows": 32,
+      "public_table_bytes": 128,
+      "dealer_share_payload_bytes_per_lookup": 260,
+      "peer_frame_bytes_per_lookup": 136,
+      "samples": 512,
+      "encoded_exact_rows": 1,
+      "worst_absolute_error": 0.128875732421875,
+      "mean_absolute_error": 0.034423261880874634,
+      "mean_issuance_ns": 2953.6328125,
+      "mean_local_two_party_ns": 282.72265625,
+      "mean_clear_lookup_ns": 27.666015625
+    }
+  ],
+  "configuration": {
+    "paper": "curl",
+    "paper_sha256": "dc930fdb3219c989106f96eb9ae1f00f28aae16ec5d17eef0c5421eb4f241c1e",
+    "source_sections": [
+      "4.1.1 / Fig. 4",
+      "4.2.1"
+    ],
+    "input_rows": 512,
+    "input_interval": [
+      -4,
+      4
+    ],
+    "upper_endpoint": "excluded",
+    "function": "SiLU",
+    "output_fraction_bits": 16,
+    "haar_levels": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "scope": "in-process party-local u32 shares; client supplies already-truncated index; no protected truncation, transport or Qwen decoder"
+  },
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64"
+  },
+  "source_sha256": {
+    "benchmarks/research/curl_reference.py": "9064a71d167860f1161f62312a3b118541a7063f75948c2ee266038f258da951",
+    "crates/pllm-garble/src/shared_lut_reference.rs": "3c787082352f90969f897b3057db864aee534478629fb6c00651737a44c609ab",
+    "crates/pllm-garble/examples/curl_lookup_probe.rs": "23ee07a520c3dceb76db227ada9c1f63d182c44e4b7e4a29d87ba7c2a9e35910"
+  }
+}
