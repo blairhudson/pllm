@@ -191,7 +191,7 @@ No Qwen numeric mapping, tensor schedule, distributed dealer or SDK component is
 admitted; independent review and complete-operator cost reduction remain gates.
 All three cohorts and exact source contracts are retained in
 `docs/research/interval-rescale-reference.md` and its linked historical controls.
-The installed `pllm.metrics.SharedRescaleProbe` separately benchmarks these
+The installed `pllm.nonlinear.SharedRescale` component separately benchmarks these
 fused/unfused helpers with 1–256 caller-owned or public signed-integer lanes,
 2–32-bit widths, floor or ties-even rounding and all three comparison backends.
 Both original-input sign and rescaled value pass an independent Python oracle;
@@ -245,7 +245,7 @@ conversion. This is 8.67 times less material than the numerically different
 and 34/36 same-token decode selections; no full logits/KV are exact. It remains
 cost/numeric-gated for recommended decoder execution, with in-process issuance
 and no reviewed transport. The installed
-`pllm.metrics.MaskedWireGatedBlockProbe` separately exposes this bounded operator
+`pllm.nonlinear.MaskedWireGatedMultiplyQ12` separately exposes this bounded operator
 for user-driven research benchmarking, even when its quality/cost is poor. It
 accepts public fixtures or caller-owned Q24 inputs, enforces the same range and
 resource bounds, issues fresh material per sample and releases the interpreter
@@ -256,6 +256,10 @@ peer frames. Client mask/boundary estimates and public tables stay separate;
 full wire and peak memory remain unknown. No reusable secret handles escape.
 SDK operator availability, paper coverage and whole-model execution are independent
 claims. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
+Both operator methods use the ordinary immutable `NonlinearProtocol` component
+contract, discovery and serialization. `pllm.metrics.benchmark_operator` owns
+benchmark geometry and samples separately; `replay_operator_benchmark` also
+migrates historical probe-v1 configurations without rewriting their evidence.
 Details: `docs/research/masked-wire-reference.md`.
 
 A further clear joint-output reference uses Q12/Q16 inputs, 512/2,048 public

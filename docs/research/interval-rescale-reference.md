@@ -7,8 +7,10 @@ keys within a single one-use helper. It reduces preprocessing material and
 issuance time; comparison count and peer traffic remain unchanged.
 
 This bounded native component reference is also available through the installed
-`pllm.metrics.SharedRescaleProbe` operator benchmark. It does not activate a
-Pipeline or supply a complete SIGMA/FuseFSS nonlinear operator or Qwen decoder.
+`pllm.nonlinear.SharedRescale` component and `pllm.metrics.benchmark_operator`.
+Method parameters follow ordinary discovery, serialization and `with_params()`
+contracts; lanes/samples belong to the benchmark. Whole-decoder runtime binding
+and complete SIGMA/FuseFSS systems remain unimplemented.
 
 The SDK accepts 1–256 signed integer lanes, 2–32-bit widths, both rounding modes,
 all three backends and both layouts. Each sample uses fresh one-use material and
@@ -19,6 +21,8 @@ See the [SDK guide](https://pllm.run/sdk/evaluate/paper-operators/) and
 `examples/benchmarks/shared_rescale.py`. Its retained installed-wheel cohort is
 `docs/evidence/research-shared-rescale-sdk.json`; the fresh-process historical
 measurements below remain separate.
+`replay_operator_benchmark` accepts those historical probe-v1 configurations,
+emitting new component/SDK identities while preserving the original evidence.
 
 The retained SDK example runs twelve configurations in one installed-wheel process:
 three backends, two layouts and two rounding modes, with 64 lanes and three fresh

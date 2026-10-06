@@ -1,11 +1,9 @@
-"""Installed fused/unfused signed-helper benchmarking with fixed numeric semantics."""
+"""Benchmark executor for the shared-rescale nonlinear component."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Sequence
 import hashlib
-from importlib.resources import files
 import json
 import math
 from numbers import Integral
@@ -13,9 +11,10 @@ import platform
 import secrets
 import struct
 import time
-from typing import Any
 
 from .operator_benchmarks import (
+    _OperatorBenchmark,
+    _sdk_digest,
     OperatorBenchmarkQuality,
     OperatorBenchmarkReport,
     OperatorBenchmarkResources,
@@ -23,7 +22,6 @@ from .operator_benchmarks import (
     OperatorCitation,
 )
 
-_SCHEMA = "pllm.shared_rescale_probe.v1"
 _NUMERIC = "pllm.signed_rescale_original_nonnegative.v1"
 _CITATIONS = (
     OperatorCitation(
@@ -71,71 +69,8 @@ def _fixture(lanes: int, bits: int, shift: int) -> tuple[int, ...]:
     )
 
 
-@dataclass(frozen=True, slots=True)
-class SharedRescaleProbe:
-    """Compare a complete signed shift plus the original input's sign predicate.
-
-    The local trusted client, dealer and two one-use evaluators share a process.
-    Floor and PLLM's ties-even extension have distinct numeric identities.
-    """
-
-    bits: int = 16
-    shift: int = 7
-    rounding: str = "floor"
-    layout: str = "fused"
-    backend: str = "interval_dcf"
-    lanes: int = 64
-    samples: int = 3
-
-    def __post_init__(self) -> None:
-        for name, low, high in (("bits", 2, 32), ("lanes", 1, 256), ("samples", 1, 16)):
-            value = getattr(self, name)
-            if type(value) is not int or not low <= value <= high:
-                raise ValueError(f"{name} must be an integer in [{low}, {high}]")
-        if type(self.shift) is not int or not 1 <= self.shift < self.bits:
-            raise ValueError("shift must be an integer in [1, bits)")
-        for name, choices in (
-            ("rounding", {"floor", "ties_even"}),
-            ("layout", {"fused", "unfused"}),
-            ("backend", {"prefix_dpf", "compact_dcf", "interval_dcf"}),
-        ):
-            if type(getattr(self, name)) is not str or getattr(self, name) not in choices:
-                raise ValueError(f"{name} must be one of {sorted(choices)}")
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "schema": _SCHEMA,
-            "numeric_profile": _NUMERIC,
-            **{
-                name: getattr(self, name)
-                for name in (
-                    "bits",
-                    "shift",
-                    "rounding",
-                    "layout",
-                    "backend",
-                    "lanes",
-                    "samples",
-                )
-            },
-        }
-
-    @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> SharedRescaleProbe:
-        """Replay exactly the declared configuration; reject extra or altered contracts."""
-        fields = {"bits", "shift", "rounding", "layout", "backend", "lanes", "samples"}
-        if (
-            not isinstance(value, Mapping)
-            or set(value) != fields | {"schema", "numeric_profile"}
-            or value["schema"] != _SCHEMA
-            or value["numeric_profile"] != _NUMERIC
-        ):
-            raise ValueError("unsupported shared-rescale benchmark configuration")
-        return cls(**{name: value[name] for name in fields})
-
-    @property
-    def digest(self) -> str:
-        return hashlib.sha256(_canonical(self.to_dict()).encode()).hexdigest()
+class _SharedRescaleBenchmark(_OperatorBenchmark):
+    __slots__ = ()
 
     def run(self, *, values: Sequence[int] | None = None) -> OperatorBenchmarkReport:
         """Benchmark public boundaries or caller-owned signed, already-encoded integers.
@@ -145,13 +80,16 @@ class SharedRescaleProbe:
         """
         from pllm import _native, __version__
 
+        bits, shift, rounding, layout, backend = (
+            self.component.params[name] for name in ("bits", "shift", "rounding", "layout", "backend")
+        )
         if values is None:
-            inputs = _fixture(self.lanes, self.bits, self.shift)
+            inputs = _fixture(self.lanes, bits, shift)
             source = "public-signed-boundary-fixture-v1"
         else:
             if isinstance(values, (str, bytes, bytearray)) or len(values) != self.lanes:
                 raise ValueError(f"values must contain exactly {self.lanes} signed integers")
-            bound = 1 << (self.bits - 1)
+            bound = 1 << (bits - 1)
             checked = []
             for i in range(self.lanes):
                 x = values[i]
@@ -164,14 +102,14 @@ class SharedRescaleProbe:
                 checked.append(int(x))
             inputs = tuple(checked)
             source = "caller-owned; supply inputs again for replay"
-        settings = (self.bits, self.shift, self.rounding, self.layout, self.backend)
+        settings = (bits, shift, rounding, layout, backend)
         resource = json.loads(_native.shared_rescale_resources(settings, self.lanes))
         # Python arbitrary-precision divmod is independent of Rust's ring arithmetic.
-        mask, divisor = (1 << self.bits) - 1, 1 << self.shift
+        mask, divisor = (1 << bits) - 1, 1 << shift
         expected, errors = [], []
         for x in inputs:
             quotient, remainder = divmod(x, divisor)
-            if self.rounding == "ties_even" and (
+            if rounding == "ties_even" and (
                 2 * remainder > divisor or (2 * remainder == divisor and quotient % 2)
             ):
                 quotient += 1
@@ -221,17 +159,11 @@ class SharedRescaleProbe:
         directions = tuple(
             sum(row[p] for row in samples[0].peer_frame_bytes_by_phase) for p in (0, 1)
         )
-        source_hash = hashlib.sha256()
-        for name in ("shared_rescale.py", "operator_benchmarks.py"):
-            contents = files("pllm.metrics").joinpath(name).read_bytes()
-            source_hash.update(name.encode() + b"\0")
-            source_hash.update(len(contents).to_bytes(8, "little"))
-            source_hash.update(contents)
         numeric = {
             "profile": _NUMERIC,
-            "bits": self.bits,
-            "shift": self.shift,
-            "rounding": self.rounding,
+            "bits": bits,
+            "shift": shift,
+            "rounding": rounding,
         }
         return OperatorBenchmarkReport(
             method="shared-signed-rescale",
@@ -239,7 +171,7 @@ class SharedRescaleProbe:
             configuration_digest=self.digest,
             numeric_contract_digest=hashlib.sha256(_canonical(numeric).encode()).hexdigest(),
             native_implementation_digest=resource["native_implementation_digest"],
-            sdk_implementation_digest=source_hash.hexdigest(),
+            sdk_implementation_digest=_sdk_digest("shared_rescale.py"),
             input_source=source,
             resources=OperatorBenchmarkResources(
                 (resource["party_key_payload_bytes"],) * 2,
@@ -260,7 +192,7 @@ class SharedRescaleProbe:
                 math.fsum(errors) / len(errors),
             ),
             samples=tuple(samples),
-            citations=_CITATIONS[:1] if self.backend == "prefix_dpf" else _CITATIONS,
+            citations=_CITATIONS[:1] if backend == "prefix_dpf" else _CITATIONS,
             environment=(
                 ("platform", platform.platform()),
                 ("python", platform.python_version()),

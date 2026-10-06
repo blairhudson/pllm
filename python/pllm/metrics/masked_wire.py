@@ -1,11 +1,9 @@
-"""Installed SDK probe for the bounded SIGMA-derived masked-wire gated block."""
+"""Benchmark executor for the masked-wire gated-multiply component."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Sequence
 import hashlib
-from importlib.resources import files
 import json
 import math
 from numbers import Integral
@@ -13,9 +11,10 @@ import platform
 import secrets
 import struct
 import time
-from typing import Any
 
 from .operator_benchmarks import (
+    _OperatorBenchmark,
+    _sdk_digest,
     OperatorBenchmarkQuality,
     OperatorBenchmarkReport,
     OperatorBenchmarkResources,
@@ -24,7 +23,6 @@ from .operator_benchmarks import (
 )
 
 _PROFILE = "pllm.residual_silu_reference.sigma_gpu_order.q12.v1"
-_SCHEMA = "pllm.masked_wire_gated_block_probe.v1"
 _CITATIONS = (
     OperatorCitation(
         "sigma",
@@ -100,46 +98,8 @@ def _values(value: Sequence[int], lanes: int, bound: int, name: str) -> tuple[in
     return tuple(result)
 
 
-@dataclass(frozen=True, slots=True)
-class MaskedWireGatedBlockProbe:
-    """Benchmark a SIGMA-derived Q24-to-Q12 SiLU × up operator locally.
-
-    Both evaluator roles and the trusted dealer/client execute in this process.
-    Each sample issues fresh material, checks an independent integer oracle and
-    reports approximation error separately. No compiler or provider is selected.
-    """
-
-    lanes: int = 64
-    samples: int = 3
-
-    def __post_init__(self) -> None:
-        for name, maximum in (("lanes", 256), ("samples", 16)):
-            if type(getattr(self, name)) is not int or not 1 <= getattr(self, name) <= maximum:
-                raise ValueError(f"{name} must be an integer in [1, {maximum}]")
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "schema": _SCHEMA,
-            "numeric_profile": _PROFILE,
-            "lanes": self.lanes,
-            "samples": self.samples,
-        }
-
-    @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> MaskedWireGatedBlockProbe:
-        """Reconstruct an exact public configuration, rejecting unknown fields."""
-        if (
-            not isinstance(value, Mapping)
-            or set(value) != {"schema", "numeric_profile", "lanes", "samples"}
-            or value["schema"] != _SCHEMA
-            or value["numeric_profile"] != _PROFILE
-        ):
-            raise ValueError("unsupported masked-wire benchmark configuration")
-        return cls(lanes=value["lanes"], samples=value["samples"])
-
-    @property
-    def digest(self) -> str:
-        return hashlib.sha256(_canonical(self.to_dict()).encode()).hexdigest()
+class _MaskedWireBenchmark(_OperatorBenchmark):
+    __slots__ = ()
 
     def run(
         self,
@@ -232,19 +192,13 @@ class MaskedWireGatedBlockProbe:
             15 * self.lanes,
             25 * self.lanes,
         )
-        source_hash = hashlib.sha256()
-        for name in ("masked_wire.py", "operator_benchmarks.py"):
-            contents = files("pllm.metrics").joinpath(name).read_bytes()
-            source_hash.update(name.encode() + b"\0")
-            source_hash.update(len(contents).to_bytes(8, "little"))
-            source_hash.update(contents)
         return OperatorBenchmarkReport(
             method="masked-wire-gated-block",
             configuration_json=_canonical(self.to_dict()),
             configuration_digest=self.digest,
             numeric_contract_digest=profile_digest,
             native_implementation_digest=resource["native_implementation_digest"],
-            sdk_implementation_digest=source_hash.hexdigest(),
+            sdk_implementation_digest=_sdk_digest("masked_wire.py"),
             input_source=source,
             resources=native,
             quality=OperatorBenchmarkQuality(

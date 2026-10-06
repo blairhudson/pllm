@@ -27,8 +27,10 @@ from pllm.metrics import (
 from pllm.nonlinear import (
     ArithmeticGarblingSiluQ7,
     BinaryTableGatedMultiplyQ7,
+    MaskedWireGatedMultiplyQ12,
     NonlinearProtocol,
     R03CrtGatedMultiplyQ7,
+    SharedRescale,
 )
 from pllm.passes import KvCacheEviction, PlanPass
 from pllm.preparation import (
@@ -104,6 +106,7 @@ def _instances():
         Latency(),
         LinearIntegrity(),
         MaskedLinear(),
+        MaskedWireGatedMultiplyQ12(),
         Memory(),
         ModelAwareCorrections(),
         OutputHeadAtInference(),
@@ -118,6 +121,7 @@ def _instances():
         ScalarProtectedTensorSchedule(),
         SeededExpansion(),
         SecureLinear(),
+        SharedRescale(),
         SymmetricPerRow(),
         Throughput(),
         TwoOnlineOffsetLinear(),

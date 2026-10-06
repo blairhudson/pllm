@@ -9,12 +9,13 @@ import numpy as np
 import pytest
 
 from pllm import _native
-from pllm.metrics import MaskedWireGatedBlockProbe, OperatorBenchmarkReport
+from pllm.metrics import OperatorBenchmarkReport, benchmark_operator, replay_operator_benchmark
+from pllm.nonlinear import MaskedWireGatedMultiplyQ12
 
 
 def test_sdk_public_fixture_accounting_and_replay():
-    probe = MaskedWireGatedBlockProbe(lanes=64, samples=2)
-    report = probe.run()
+    component = MaskedWireGatedMultiplyQ12()
+    report = benchmark_operator(component, lanes=64, samples=2)
     assert isinstance(report, OperatorBenchmarkReport)
     assert report.quality.checked_outputs == report.quality.exact_integer_outputs == 128
     assert report.quality.maximum_absolute_error > 0  # correct approximation is not exact SiLU
@@ -39,17 +40,17 @@ def test_sdk_public_fixture_accounting_and_replay():
     assert value["whole_model_executable"] is False
     assert value["full_wire_bytes"] is value["peak_memory_bytes"] is None
     assert {x["paper_id"] for x in value["citations"]} == {"sigma", "grotto", "pika"}
-    replay = MaskedWireGatedBlockProbe.from_dict(value["configuration"])
-    assert replay == probe and replay.digest == report.configuration_digest
-    replay_report = replay.run()
+    assert value["configuration"]["component"] == component.to_spec()
+    replay_report = replay_operator_benchmark(value["configuration"])
+    assert replay_report.configuration_digest == report.configuration_digest
     assert replay_report.resources == report.resources
     assert replay_report.quality == report.quality
     assert replay_report.numeric_contract_digest == report.numeric_contract_digest
     assert replay_report.native_implementation_digest == report.native_implementation_digest
     assert replay_report.sdk_implementation_digest == report.sdk_implementation_digest
     # Both records are immutable and callers cannot edit their configuration through an alias.
-    with pytest.raises(FrozenInstanceError):
-        probe.lanes = 1
+    with pytest.raises(TypeError):
+        component.params["lanes"] = 1
     with pytest.raises(FrozenInstanceError):
         report.resources.peer_rounds = 0
     value["configuration"]["lanes"] = 1
@@ -90,7 +91,10 @@ def test_native_boundary_exact_floor_tails_and_maximum_batch():
     assert list(struct.unpack("<256q", raw)) == expected
     record = json.loads(metadata)
     assert record["peer_frame_bytes"] == sum(sum(x) for x in record["phase_frame_bytes"])
-    report = MaskedWireGatedBlockProbe(lanes=256, samples=1).run(gate_q24=gates, up_q24=ups)
+    report = benchmark_operator(
+        MaskedWireGatedMultiplyQ12(), lanes=256, samples=1,
+        inputs={"gate_q24": gates, "up_q24": ups},
+    )
     assert report.quality.exact_integer_outputs == 256
     assert report.input_source.startswith("caller-owned")
     assert "gate_q24" not in report.to_dict()
@@ -110,7 +114,7 @@ def test_native_boundary_exact_floor_tails_and_maximum_batch():
 )
 def test_config_rejects_unbounded_or_ambiguous_work(change):
     with pytest.raises(ValueError):
-        MaskedWireGatedBlockProbe(**change)
+        benchmark_operator(MaskedWireGatedMultiplyQ12(), **change)
 
 
 @pytest.mark.parametrize(
@@ -131,7 +135,7 @@ def test_bad_inputs_reject_before_native_issuance(monkeypatch, inputs):
 
     monkeypatch.setattr(_native, "masked_wire_benchmark", forbidden)
     with pytest.raises(ValueError):
-        MaskedWireGatedBlockProbe(lanes=1, samples=1).run(**inputs)
+        benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=1, samples=1, inputs=inputs)
 
 
 def test_native_boundary_rejects_malformed_and_outside_inputs():
@@ -147,7 +151,7 @@ def test_native_boundary_rejects_malformed_and_outside_inputs():
     ):
         with pytest.raises(ValueError):
             _native.masked_wire_benchmark(g, u, config, session)
-    assert MaskedWireGatedBlockProbe(lanes=1, samples=1).run().quality.exact_integer_outputs == 1
+    assert benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=1, samples=1).quality.exact_integer_outputs == 1
 
 
 def test_fail_closed_if_binding_disagrees_and_fresh_session_per_sample(monkeypatch):
@@ -159,7 +163,7 @@ def test_fail_closed_if_binding_disagrees_and_fresh_session_per_sample(monkeypat
         return call(gate, up, config, session)
 
     monkeypatch.setattr(_native, "masked_wire_benchmark", capture)
-    MaskedWireGatedBlockProbe(lanes=1, samples=3).run()
+    benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=1, samples=3)
     assert len(set(sessions)) == 3
 
     def corrupt(*args):
@@ -168,11 +172,11 @@ def test_fail_closed_if_binding_disagrees_and_fresh_session_per_sample(monkeypat
 
     monkeypatch.setattr(_native, "masked_wire_benchmark", corrupt)
     with pytest.raises(RuntimeError, match="integer oracle"):
-        MaskedWireGatedBlockProbe(lanes=1, samples=1).run()
+        benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=1, samples=1)
 
 
 def test_replay_rejects_changed_or_extra_contract_fields():
-    probe = MaskedWireGatedBlockProbe()
+    configuration = benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=1, samples=1).configuration
     for change in (
         {"numeric_profile": "ties-even"},
         {"schema": "new-schema"},
@@ -180,4 +184,4 @@ def test_replay_rejects_changed_or_extra_contract_fields():
         {"lanes": False},
     ):
         with pytest.raises(ValueError):
-            probe.from_dict(probe.to_dict() | change)
+            replay_operator_benchmark(configuration | change)

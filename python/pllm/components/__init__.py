@@ -44,7 +44,9 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     from pllm.nonlinear import (
         ArithmeticGarblingSiluQ7,
         BinaryTableGatedMultiplyQ7,
+        MaskedWireGatedMultiplyQ12,
         R03CrtGatedMultiplyQ7,
+        SharedRescale,
     )
     from pllm.passes import KvCacheEviction
     from pllm.preparation import (
@@ -113,6 +115,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         LinearIntegrity,
         MaskedLinear,
         Memory,
+        MaskedWireGatedMultiplyQ12,
         ModelAwareCorrections,
         OutputHeadAtInference,
         ClientPrefixLayers,
@@ -127,6 +130,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         ScalarProtectedTensorSchedule,
         SeededExpansion,
         SecureLinear,
+        SharedRescale,
         SymmetricPerRow,
         Throughput,
         TwoOnlineOffsetLinear,

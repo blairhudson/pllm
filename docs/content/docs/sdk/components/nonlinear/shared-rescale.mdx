@@ -1,0 +1,38 @@
+---
+title: "Shared signed rescaling"
+description: "Configure matched fused and unfused rescaling with selectable FSS comparison backends."
+---
+
+`SharedRescale` (`pllm/shared-rescale/v1`) returns a signed shifted value and the
+original input's nonnegative predicate. Parameters use the ordinary component
+contract: `bits`, `shift`, `rounding`, `layout` and `backend`.
+
+## Python SDK example
+
+```python
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import SharedRescale
+
+unfused = SharedRescale(bits=16, shift=7, layout="unfused")
+fused = unfused.with_params(layout="fused")
+control = benchmark_operator(unfused, lanes=4, samples=1)
+candidate = benchmark_operator(fused, lanes=4, samples=1)
+assert control.numeric_contract_digest == candidate.numeric_contract_digest
+assert control.quality == candidate.quality
+assert control.resources.peer_rounds == 2
+assert candidate.resources.peer_rounds == 1
+```
+
+Widths are 2–32 bits with `1 <= shift < bits`. Rounding is `floor` or
+`ties_even`; layouts are `fused` or `unfused`; backends are `prefix_dpf`,
+`compact_dcf` or `interval_dcf` (default). Numeric identities distinguish rounding
+contracts while allowing matched layout/backend controls. A local dealer issues
+fresh bounded material to both in-process evaluators for each benchmark sample.
+
+The helper adapts [FuseFSS](/research/papers/fusefss/) mask-aware fusion and
+[Mixed-Mode FSS](/research/papers/fss-mixed/) comparison keys. See the
+[benchmark guide](/sdk/evaluate/paper-operators/) for custom inputs, replay,
+measured costs and exact paper coverage. Configuration can be retained in
+`Pipeline`/`Experiment` documents; a whole-decoder runtime binding remains unimplemented.
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures).

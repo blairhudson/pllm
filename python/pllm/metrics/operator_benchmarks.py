@@ -2,10 +2,143 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
+import hashlib
+from importlib.resources import files
 import json
 import statistics
 from typing import Any
+
+from pllm.configuration import ComponentRef, ConfigurationError
+
+
+_CONFIGURATION_SCHEMA = "pllm.operator_benchmark.v1"
+
+
+@dataclass(frozen=True, slots=True)
+class _OperatorBenchmark:
+    component: ComponentRef
+    lanes: int = 64
+    samples: int = 3
+
+    def __post_init__(self) -> None:
+        for name, maximum in (("lanes", 256), ("samples", 16)):
+            value = getattr(self, name)
+            if type(value) is not int or not 1 <= value <= maximum:
+                raise ConfigurationError(f"{name} must be an integer in [1, {maximum}]")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": _CONFIGURATION_SCHEMA,
+            "component": self.component.to_spec(),
+            "lanes": self.lanes,
+            "samples": self.samples,
+        }
+
+    @property
+    def digest(self) -> str:
+        return hashlib.sha256(
+            json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+        ).hexdigest()
+
+
+def _sdk_digest(runner: str) -> str:
+    digest = hashlib.sha256()
+    for package, name in (
+        ("pllm.nonlinear", "__init__.py"),
+        ("pllm.metrics", "operator_benchmarks.py"),
+        ("pllm.metrics", runner),
+    ):
+        contents = files(package).joinpath(name).read_bytes()
+        digest.update(f"{package}/{name}".encode() + b"\0")
+        digest.update(len(contents).to_bytes(8, "little"))
+        digest.update(contents)
+    return digest.hexdigest()
+
+
+def benchmark_operator(
+    component: ComponentRef,
+    *,
+    lanes: int = 64,
+    samples: int = 3,
+    inputs: Mapping[str, Sequence[int]] | None = None,
+) -> OperatorBenchmarkReport:
+    """Measure a supported nonlinear component with fresh one-use material.
+
+    Method parameters belong to the component; lanes and samples describe this
+    benchmark. Omit inputs for public boundary fixtures, or supply ``gate_q24``
+    and ``up_q24`` for masked-wire multiplication, or ``values`` for rescaling.
+    Input values and their fingerprints are never stored in the report.
+    """
+    from pllm.components import create_component
+    from pllm.nonlinear import MaskedWireGatedMultiplyQ12, SharedRescale
+    from .masked_wire import _MaskedWireBenchmark
+    from .shared_rescale import _SharedRescaleBenchmark
+
+    if not isinstance(component, ComponentRef):
+        raise TypeError("component must be a ComponentRef")
+    component = create_component(component.component, component.params)
+    if isinstance(component, MaskedWireGatedMultiplyQ12):
+        benchmark = _MaskedWireBenchmark(component, lanes, samples)
+        fields = {"gate_q24", "up_q24"}
+    elif isinstance(component, SharedRescale):
+        benchmark = _SharedRescaleBenchmark(component, lanes, samples)
+        fields = {"values"}
+    else:
+        raise ConfigurationError(f"no operator benchmark executor for {component.component}")
+    if inputs is not None and (
+        not isinstance(inputs, Mapping)
+        or set(inputs) != fields
+        or any(value is None for value in inputs.values())
+    ):
+        raise ConfigurationError(f"inputs must contain exactly {sorted(fields)}")
+    return benchmark.run(**({} if inputs is None else inputs))
+
+
+def replay_operator_benchmark(
+    configuration: Mapping[str, Any],
+    *,
+    inputs: Mapping[str, Sequence[int]] | None = None,
+) -> OperatorBenchmarkReport:
+    """Replay a report's configuration; caller-owned inputs must be supplied again.
+
+    Historical probe-v1 records are migrated to the component configuration.
+    Their new configuration/SDK digests identify that migration; retained
+    measurements and their original identities are not rewritten.
+    """
+    from pllm.components import create_component
+    from pllm.nonlinear import MaskedWireGatedMultiplyQ12, SharedRescale
+    from .masked_wire import _PROFILE
+    from .shared_rescale import _NUMERIC
+
+    if not isinstance(configuration, Mapping):
+        raise ConfigurationError("operator benchmark configuration must be a mapping")
+    schema = configuration.get("schema")
+    if schema == _CONFIGURATION_SCHEMA:
+        if set(configuration) != {"schema", "component", "lanes", "samples"}:
+            raise ConfigurationError("unsupported operator benchmark configuration fields")
+        spec = configuration["component"]
+        if not isinstance(spec, Mapping) or set(spec) != {"component", "params"}:
+            raise ConfigurationError("invalid operator benchmark component specification")
+        component = create_component(spec["component"], spec["params"])
+    elif schema in ("pllm.masked_wire_gated_block_probe.v1", "pllm.shared_rescale_probe.v1"):
+        rescale = schema == "pllm.shared_rescale_probe.v1"
+        fields = {"bits", "shift", "rounding", "layout", "backend"} if rescale else set()
+        if (
+            set(configuration) != fields | {"schema", "numeric_profile", "lanes", "samples"}
+            or configuration["numeric_profile"] != (_NUMERIC if rescale else _PROFILE)
+        ):
+            raise ConfigurationError("unsupported historical operator benchmark configuration")
+        component = (
+            SharedRescale(**{name: configuration[name] for name in fields})
+            if rescale else MaskedWireGatedMultiplyQ12()
+        )
+    else:
+        raise ConfigurationError("unsupported operator benchmark configuration schema")
+    return benchmark_operator(
+        component, lanes=configuration["lanes"], samples=configuration["samples"], inputs=inputs,
+    )
 
 
 @dataclass(frozen=True, slots=True)

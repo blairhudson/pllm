@@ -182,15 +182,18 @@ floor/Q12 numerics. Twelve fresh processes check 5,136 protected outputs; 39+8
 MLP geometry projects **6.93 GB combined raw material and 397.12 MB peer frames**,
 8.67 times less material than the old, numerically different layout. The fresh
 Qwen screen matches 10/12 prefill and 34/36 decode selections; both optimization
-gates still fail. The opt-in `pllm.metrics.MaskedWireGatedBlockProbe` now exposes
+gates still fail. The opt-in `pllm.nonlinear.MaskedWireGatedMultiplyQ12` now exposes
 this operator with user-supplied bounded inputs, immutable source-bound reports,
 independent integer parity and separate approximation errors. Paper implementation
 records link its SDK example and measurements without claiming full-model coverage.
-The installed `SharedRescaleProbe` additionally compares three backends, both
+The installed `pllm.nonlinear.SharedRescale` additionally compares three backends, both
 layouts and both rounding modes. Its twelve-configuration wheel cohort checks
 4,608 exact outputs; fusion halves peer frames while increasing keys and local
 runtime. Floor and ties-even are distinct numeric cohorts. Reproduction and
 per-party costs are in `docs/research/interval-rescale-reference.md`.
+Both follow existing `NonlinearProtocol`/`ComponentRef` conventions. The separate
+`pllm.metrics.benchmark_operator` owns lanes, samples and reports; historical
+probe-v1 evidence remains replayable with explicit migrated identities.
 **Next: compare source-specified FuseFSS fusion and distribution on this baseline.**
 Validate improved numeric mappings on new prompts. Poor measured
 quality/cost stays visible rather than excluding the method from research use.

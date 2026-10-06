@@ -76,7 +76,7 @@
     },
     "sigma": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.metrics.MaskedWireGatedBlockProbe", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
+      "sdk_benchmark": {"api": "pllm.nonlinear.MaskedWireGatedMultiplyQ12", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
       "scope": "Bounded early-terminated Boolean DPF, GapARS/TR floor shifts, residual Q12 SiLU and masked-wire multiplication. Public gap/effective-width bounds and one-use party-local state. Independent CPU/128-bit-seed implementation; no GPU system, protected float conversion or complete SIGMA decoder.",
       "code": ["crates/pllm-garble/src/compact_dpf.rs", "crates/pllm-garble/src/masked_wire_reference.rs", "crates/pllm-core/src/residual_silu_reference.rs"],
       "configuration": "benchmarks/research/masked_wire_reference.py",
@@ -85,7 +85,7 @@
     },
     "grotto": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.metrics.MaskedWireGatedBlockProbe", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
+      "sdk_benchmark": {"api": "pllm.nonlinear.MaskedWireGatedMultiplyQ12", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
       "scope": "Internal suffix-parity comparison over early-terminated Boolean DPF keys; one child per level. Reused only within one bound lane/operation. No complete Grotto application or independent security review.",
       "code": ["crates/pllm-garble/src/compact_dpf.rs"],
       "configuration": "benchmarks/research/masked_wire_reference.py",
@@ -94,7 +94,7 @@
     },
     "pika": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.metrics.MaskedWireGatedBlockProbe", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
+      "sdk_benchmark": {"api": "pllm.nonlinear.MaskedWireGatedMultiplyQ12", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
       "scope": "Boolean-DPF signed lookup with full-domain local evaluation, locally derived sign shares and fresh masked sign correction. Explicit correction shares, not seeded distribution or a complete Pika system.",
       "code": ["crates/pllm-garble/src/masked_wire_reference.rs"],
       "configuration": "benchmarks/research/masked_wire_reference.py",
@@ -103,7 +103,7 @@
     },
     "fusefss": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.metrics.SharedRescaleProbe", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/shared_rescale.py", "evidence": "docs/evidence/research-shared-rescale-sdk.json"},
+      "sdk_benchmark": {"api": "pllm.nonlinear.SharedRescale", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/shared_rescale.py", "evidence": "docs/evidence/research-shared-rescale-sdk.json"},
       "scope": "Signed-rescale fusion and complete one-use shared gated blocks. Public Q8/Q9 affine SiLU compares scalar/vector coefficient lookup through universal DCF, four exact rescalings and two Beaver products. No paper-supplied fit, general packed-comparison compiler, GPU system or protected checkpoint execution.",
       "code": ["crates/pllm-core/src/piecewise_gated_reference.rs", "crates/pllm-garble/src/shared_affine_lookup_reference.rs", "crates/pllm-garble/src/shared_piecewise_gated_reference.rs", "crates/pllm-garble/src/shared_rescale_reference.rs", "crates/pllm-garble/src/shared_gated_block_reference.rs", "crates/pllm-python/src/shared_rescale.rs", "python/pllm/metrics/shared_rescale.py"],
       "configuration": "benchmarks/research/piecewise_gated_reference.py",
@@ -112,7 +112,7 @@
     },
     "fss-mixed": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.metrics.SharedRescaleProbe", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/shared_rescale.py", "evidence": "docs/evidence/research-shared-rescale-sdk.json"},
+      "sdk_benchmark": {"api": "pllm.nonlinear.SharedRescale", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/shared_rescale.py", "evidence": "docs/evidence/research-shared-rescale-sdk.json"},
       "scope": "Independent Figure 1 linear-size DCF and Section 4.1/Figure 14 public-boundary interval sharing over Z/(2^32), composed beneath one-use signed helpers. No mixed-mode compiler, reviewed transport or whole-decoder implementation.",
       "code": ["crates/pllm-garble/src/compact_dcf.rs", "crates/pllm-garble/src/interval_fss.rs", "crates/pllm-garble/src/shared_rescale_reference.rs", "crates/pllm-python/src/shared_rescale.rs", "python/pllm/metrics/shared_rescale.py"],
       "configuration": "benchmarks/research/interval_rescale_reference.py",

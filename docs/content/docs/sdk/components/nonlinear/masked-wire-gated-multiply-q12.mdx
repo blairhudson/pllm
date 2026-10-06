@@ -1,0 +1,36 @@
+---
+title: "Masked-wire gated Q12 multiplication"
+description: "Configure the SIGMA-derived residual SiLU × up component and benchmark fresh one-use execution."
+---
+
+`MaskedWireGatedMultiplyQ12` (`pllm/masked-wire-gated-multiply-q12/v1`) selects a
+fixed signed-Q24-to-Q12 gated block. Its immutable component specification is
+discoverable and serializable like other nonlinear methods. Benchmark geometry
+and sample counts are separate arguments to `benchmark_operator`.
+
+## Python SDK example
+
+```python
+from pllm.components import create_component
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import MaskedWireGatedMultiplyQ12
+
+method = MaskedWireGatedMultiplyQ12()
+assert create_component(method.component, method.params) == method
+report = benchmark_operator(method, lanes=4, samples=1)
+assert report.quality.exact_integer_outputs == 4
+```
+
+The fixed numeric contract admits gate in `[-48,48]` and up in `[-128,128]`,
+encoded as Q24 integers. It uses public-gap floor shifts, a 1,024-entry Q12
+residual SiLU table and a masked product. Invalid inputs reject before issuance.
+The local dealer and both evaluators use fresh non-reusable material per sample.
+
+The method independently adapts [SIGMA](/research/papers/sigma/),
+[Grotto](/research/papers/grotto/) and [Pika](/research/papers/pika/).
+Operator integer parity, approximation error, complete material and peer frames
+appear in the [benchmark guide](/sdk/evaluate/paper-operators/).
+`Pipeline`/`Experiment` serialization accepts the component; whole-model
+resolution currently rejects it because the decoder binding is incomplete.
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures).

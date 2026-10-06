@@ -122,27 +122,27 @@
     {
       "paper_id": "sigma",
       "summary": "The bounded CPU/Q12 masked-wire gated operator adapts SIGMA's public-gap floor shifts and residual SiLU. Its installed benchmark preserves negative quality/cost results without claiming a complete SIGMA system.",
-      "components": [{"title": "Masked-wire operator benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+      "components": [{"title": "Masked-wire gated Q12 multiplication", "href": "/sdk/components/nonlinear/masked-wire-gated-multiply-q12/", "source": "content/docs/sdk/components/nonlinear/masked-wire-gated-multiply-q12.mdx"}]
     },
     {
       "paper_id": "grotto",
       "summary": "The masked-wire operator uses Grotto-style suffix-parity comparison over early-terminated Boolean DPFs, retaining independent 128-bit seeds and separate control bits.",
-      "components": [{"title": "Masked-wire operator benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+      "components": [{"title": "Masked-wire gated Q12 multiplication", "href": "/sdk/components/nonlinear/masked-wire-gated-multiply-q12/", "source": "content/docs/sdk/components/nonlinear/masked-wire-gated-multiply-q12.mdx"}]
     },
     {
       "paper_id": "pika",
       "summary": "The masked-wire operator uses Boolean-DPF lookup and sign correction with explicit correction shares; Pika's seeded distribution and complete system are not reproduced.",
-      "components": [{"title": "Masked-wire operator benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+      "components": [{"title": "Masked-wire gated Q12 multiplication", "href": "/sdk/components/nonlinear/masked-wire-gated-multiply-q12/", "source": "content/docs/sdk/components/nonlinear/masked-wire-gated-multiply-q12.mdx"}]
     },
     {
       "paper_id": "R14",
       "summary": "The installed signed-rescale operator exposes matched mask-aware fused and unfused helper layouts. It does not reproduce FuseFSS's general compiler, GPU system or whole-model results.",
-      "components": [{"title": "Fused/unfused rescale benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+      "components": [{"title": "Shared signed rescaling", "href": "/sdk/components/nonlinear/shared-rescale/", "source": "content/docs/sdk/components/nonlinear/shared-rescale.mdx"}]
     },
     {
       "paper_id": "fss-mixed",
       "summary": "The signed-rescale operator independently implements Figure 1 compact DCF and Section 4.1/Figure 14 interval-key sharing as selectable backends with complete material accounting.",
-      "components": [{"title": "Fused/unfused rescale benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+      "components": [{"title": "Shared signed rescaling", "href": "/sdk/components/nonlinear/shared-rescale/", "source": "content/docs/sdk/components/nonlinear/shared-rescale.mdx"}]
     },
     {
       "paper_id": "smoothquant",

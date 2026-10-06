@@ -3,27 +3,35 @@ title: "Benchmark paper operators"
 description: "Measure installed, bounded research operators with paper citations, typed costs and explicit coverage."
 ---
 
-`pllm.metrics.MaskedWireGatedBlockProbe` benchmarks the installed Rust
-SIGMA-derived SiLU × up block. High cost and imperfect approximation remain
+`pllm.metrics.benchmark_operator` measures nonlinear components using their
+ordinary immutable configuration. `pllm.nonlinear.MaskedWireGatedMultiplyQ12`
+selects the installed Rust SIGMA-derived SiLU × up block. High cost and imperfect approximation remain
 visible results. The current scope is **operator benchmarking**, with a trusted
 local dealer/client and two party-local evaluators in one process.
 
 ## Python SDK example
 
 ```python
-from pllm.metrics import MaskedWireGatedBlockProbe, OperatorBenchmarkReport
+from pllm.metrics import benchmark_operator, replay_operator_benchmark, OperatorBenchmarkReport
+from pllm.nonlinear import MaskedWireGatedMultiplyQ12
 
-probe = MaskedWireGatedBlockProbe(lanes=64, samples=3)
-report = probe.run()
+method = MaskedWireGatedMultiplyQ12()
+report = benchmark_operator(method, lanes=64, samples=3)
 assert isinstance(report, OperatorBenchmarkReport)
 assert report.quality.exact_integer_outputs == 192
 assert report.resources.combined_raw_key_payload_bytes == 82_592
 assert report.resources.peer_frame_bytes == 6_020
 
 # Save report.to_json() wherever you keep benchmark evidence.
-replay = MaskedWireGatedBlockProbe.from_dict(report.configuration)
-assert replay.digest == report.configuration_digest
+replay = replay_operator_benchmark(report.configuration)
+assert replay.configuration_digest == report.configuration_digest
 ```
+
+Method configuration uses `ComponentRef`, `describe()`, `to_spec()`, discovery
+and `with_params()`, like other SDK components. Lanes and sample counts belong
+to the benchmark, not the method. `Pipeline` and `Experiment` documents can
+retain these component specifications; whole-model execution still requires a
+compatible compiler/runtime binding and currently rejects these selections.
 
 Each sample gets fresh OS-random one-use material. Python receives aggregate
 reports; the native call releases the interpreter lock and retires both parties
@@ -40,12 +48,16 @@ existing report.
 ## Supply your own bounded data
 
 ```python
-from pllm.metrics import MaskedWireGatedBlockProbe
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import MaskedWireGatedMultiplyQ12
 
 q24 = 1 << 24
-custom = MaskedWireGatedBlockProbe(lanes=4, samples=2).run(
-    gate_q24=[-q24, -1, 0, q24],
-    up_q24=[q24, q24, -q24, -q24],
+custom = benchmark_operator(
+    MaskedWireGatedMultiplyQ12(), lanes=4, samples=2,
+    inputs={
+        "gate_q24": [-q24, -1, 0, q24],
+        "up_q24": [q24, q24, -q24, -q24],
+    },
 )
 assert custom.quality.exact_integer_outputs == 8
 ```
@@ -94,22 +106,22 @@ Key payloads omit dealer metadata and eventual transport framing. Tables,
 client-mask estimates and entry/exit estimates remain separate. Full physical
 wire, peak RSS and whole-checkpoint quality stay null. Compare samples only under
 matching numeric contract, input workload, lane geometry, implementation and
-environment; the probe performs no automatic ranking.
+environment; the benchmark performs no automatic ranking.
 
 ## Compare fused and unfused rescaling
 
-`pllm.metrics.SharedRescaleProbe` exposes the independent signed truncate/reduce
+`pllm.nonlinear.SharedRescale` selects the independent signed truncate/reduce
 plus sign-extension helper used to study FuseFSS-style mask-aware fusion.
 Each lane returns a rescaled signed integer and the **original input's**
 nonnegative predicate. Both layouts use the same selected comparison backend.
 
 ```python
-from dataclasses import replace
-from pllm.metrics import SharedRescaleProbe
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import SharedRescale
 
-unfused = SharedRescaleProbe(bits=16, shift=7, rounding="floor", layout="unfused")
-fused = replace(unfused, layout="fused")
-control, candidate = unfused.run(), fused.run()
+unfused = SharedRescale(bits=16, shift=7, rounding="floor", layout="unfused")
+fused = unfused.with_params(layout="fused")
+control, candidate = benchmark_operator(unfused), benchmark_operator(fused)
 assert control.numeric_contract_digest == candidate.numeric_contract_digest
 assert control.quality == candidate.quality
 assert control.resources.peer_rounds == 2
@@ -118,8 +130,9 @@ assert control.resources.peer_frame_bytes == 1336
 assert candidate.resources.peer_frame_bytes == 668
 
 # Negative ties, zero and signed boundaries; already encoded integers.
-custom = replace(fused, lanes=5, rounding="ties_even").run(
-    values=[-32768, -64, -1, 0, 32767],
+custom = benchmark_operator(
+    fused.with_params(rounding="ties_even"), lanes=5,
+    inputs={"values": [-32768, -64, -1, 0, 32767]},
 )
 assert custom.quality.exact_integer_outputs == 30  # 5 lanes × 2 outputs × 3 samples
 ```
@@ -141,8 +154,12 @@ The [installed comparison example](https://github.com/blairhudson/pllm/blob/main
 runs all twelve rounding/backend/layout combinations. It accepts `--bits`,
 `--shift`, `--lanes`, `--samples` and a fresh `--output` path. Each result uses
 the same immutable report types, records every phase/direction and replays via
-`SharedRescaleProbe.from_dict(report.configuration)`. Numeric comparisons remain
+`replay_operator_benchmark(report.configuration)`. Numeric comparisons remain
 within one rounding contract. Custom inputs must be supplied again for replay.
+
+Historical probe-v1 report configurations also replay through this function.
+Migration emits the new component configuration and SDK digests; original
+measurements and their recorded identities remain historical evidence.
 
 Input sharing and final reconstruction are inside online timing; issuance stays
 separate. The 64 MiB native combined-allocation preflight still applies. Client
@@ -165,7 +182,9 @@ physical wire and measured peak memory remain unknown.
 
 This is a component reference exposed through the SDK. The original GPU systems,
 FuseFSS's general fusion compiler, protected float conversions, full decoder schedule and independent
-role transport remain separate implementation work. The probe is not a Pipeline
-component, serving recommendation, complete-paper reproduction or privacy proof.
+role transport remain separate implementation work. Component availability and
+operator benchmarking do not establish whole-model execution, serving readiness,
+complete-paper reproduction or a privacy proof.
 
-API: [Metric objects](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
+API: [Benchmark functions and reports](/sdk/reference/python/pllm/metrics/#objects-and-signatures),
+[nonlinear components](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures).

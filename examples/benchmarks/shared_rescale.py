@@ -4,7 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
-from pllm.metrics import SharedRescaleProbe
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import SharedRescale
 
 
 def main() -> None:
@@ -21,16 +22,14 @@ def main() -> None:
     for rounding in ("floor", "ties_even"):
         for backend in ("prefix_dpf", "compact_dcf", "interval_dcf"):
             for layout in ("unfused", "fused"):
-                probe = SharedRescaleProbe(
+                component = SharedRescale(
                     bits=args.bits,
                     shift=args.shift,
                     rounding=rounding,
                     layout=layout,
                     backend=backend,
-                    lanes=args.lanes,
-                    samples=args.samples,
                 )
-                reports.append(probe.run().to_dict())
+                reports.append(benchmark_operator(component, lanes=args.lanes, samples=args.samples).to_dict())
     value = {
         "schema": "pllm.operator_benchmark_collection.v1",
         "scope": "public-fixture, in-process helper controls; rank only within one rounding contract",

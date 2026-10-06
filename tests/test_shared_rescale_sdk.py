@@ -1,6 +1,6 @@
 """Signed boundaries, matching controls, installed lifecycle and resource accounting."""
 
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import FrozenInstanceError
 import hashlib
 import json
 from pathlib import Path
@@ -9,7 +9,8 @@ import struct
 import pytest
 
 from pllm import _native
-from pllm.metrics import OperatorBenchmarkReport, SharedRescaleProbe
+from pllm.metrics import OperatorBenchmarkReport, benchmark_operator, replay_operator_benchmark
+from pllm.nonlinear import SharedRescale
 
 
 @pytest.mark.parametrize("bits,shift", [(2, 1), (8, 3), (16, 7), (32, 1), (32, 31)])
@@ -35,8 +36,9 @@ def test_all_backends_and_layouts_preserve_signed_contract(bits, shift, rounding
         }
     )
     reports = [
-        SharedRescaleProbe(bits, shift, rounding, layout, backend, len(values), 1).run(
-            values=values
+        benchmark_operator(
+            SharedRescale(bits=bits, shift=shift, rounding=rounding, layout=layout, backend=backend),
+            lanes=len(values), samples=1, inputs={"values": values},
         )
         for backend in ("prefix_dpf", "compact_dcf", "interval_dcf")
         for layout in ("unfused", "fused")
@@ -55,8 +57,8 @@ def test_all_backends_and_layouts_preserve_signed_contract(bits, shift, rounding
 
 
 def test_replay_coverage_and_historical_material_contract():
-    probe = SharedRescaleProbe(rounding="ties_even", samples=2)
-    report = probe.run()
+    component = SharedRescale(rounding="ties_even")
+    report = benchmark_operator(component, samples=2)
     assert isinstance(report, OperatorBenchmarkReport)
     assert report.quality.exact_integer_outputs == 256
     assert report.resources.raw_key_payload_bytes_per_party == (758 * 64,) * 2
@@ -66,12 +68,12 @@ def test_replay_coverage_and_historical_material_contract():
     assert report.resources.client_mask_payload_estimate_bytes == 256
     assert report.resources.client_entry_exit_payload_estimate_bytes == 1536
     assert report.resources.protocol_allocation_estimate_bytes < 64 << 20
-    unfused = replace(probe, layout="unfused").run()
+    unfused = benchmark_operator(component.with_params(layout="unfused"), samples=2)
     assert unfused.resources.raw_key_payload_bytes_per_party == (620 * 64,) * 2
     assert unfused.resources.peer_frame_bytes == 1336
     assert unfused.numeric_contract_digest == report.numeric_contract_digest
     assert unfused.quality == report.quality
-    replay = SharedRescaleProbe.from_dict(report.configuration).run()
+    replay = replay_operator_benchmark(report.configuration)
     assert replay.configuration_digest == report.configuration_digest
     assert replay.native_implementation_digest == report.native_implementation_digest
     assert replay.sdk_implementation_digest == report.sdk_implementation_digest
@@ -89,9 +91,9 @@ def test_replay_coverage_and_historical_material_contract():
     with pytest.raises(FrozenInstanceError):
         report.quality.checked_outputs = 0
     with pytest.raises(FrozenInstanceError):
-        probe.bits = 8
+        component.params = {}
     assert (
-        replace(probe, rounding="floor").run().numeric_contract_digest
+        benchmark_operator(component.with_params(rounding="floor"), samples=2).numeric_contract_digest
         != report.numeric_contract_digest
     )
 
@@ -105,10 +107,6 @@ def test_replay_coverage_and_historical_material_contract():
         {"shift": 0},
         {"shift": 16},
         {"shift": False},
-        {"lanes": 0},
-        {"lanes": 257},
-        {"samples": 17},
-        {"samples": 0.5},
         {"backend": "boolean_dpf"},
         {"rounding": "nearest"},
         {"layout": []},
@@ -116,7 +114,7 @@ def test_replay_coverage_and_historical_material_contract():
 )
 def test_reject_unbounded_or_ambiguous_configuration(change):
     with pytest.raises(ValueError):
-        SharedRescaleProbe(**change)
+        SharedRescale(**change)
 
 
 @pytest.mark.parametrize("values", [[], [0, 1], [True], [1.0], [32768], [-32769], "x"])
@@ -126,7 +124,7 @@ def test_reject_inputs_before_issuance(monkeypatch, values):
 
     monkeypatch.setattr(_native, "shared_rescale_benchmark", forbidden)
     with pytest.raises(ValueError):
-        SharedRescaleProbe(lanes=1).run(values=values)
+        benchmark_operator(SharedRescale(), lanes=1, inputs={"values": values})
 
 
 def test_boundary_maximum_lanes_and_fresh_sample_sessions(monkeypatch):
@@ -138,7 +136,7 @@ def test_boundary_maximum_lanes_and_fresh_sample_sessions(monkeypatch):
         return run(values, settings, config, session)
 
     monkeypatch.setattr(_native, "shared_rescale_benchmark", capture)
-    report = SharedRescaleProbe(bits=32, shift=12, lanes=256, samples=3).run()
+    report = benchmark_operator(SharedRescale(bits=32, shift=12), lanes=256, samples=3)
     assert report.quality.exact_integer_outputs == 1536
     assert len(set(sessions)) == 3
     settings = (16, 7, "floor", "fused", "interval_dcf")
@@ -168,7 +166,7 @@ def test_corrupt_oracle_and_frames_fail_closed(monkeypatch):
 
     monkeypatch.setattr(_native, "shared_rescale_benchmark", corrupt)
     with pytest.raises(RuntimeError, match="integer oracle"):
-        SharedRescaleProbe(lanes=1, samples=1).run()
+        benchmark_operator(SharedRescale(), lanes=1, samples=1)
 
     def corrupt_frames(*args):
         output, metadata = run(*args)
@@ -178,15 +176,15 @@ def test_corrupt_oracle_and_frames_fail_closed(monkeypatch):
 
     monkeypatch.setattr(_native, "shared_rescale_benchmark", corrupt_frames)
     with pytest.raises(RuntimeError, match="phase accounting"):
-        SharedRescaleProbe(lanes=1, samples=1).run()
+        benchmark_operator(SharedRescale(), lanes=1, samples=1)
 
 
 def test_citations_bind_actual_pinned_papers_and_replay_rejects_edits():
     root = Path(__file__).resolve().parents[1]
     library = json.loads((root / "docs/data/research/paper-library.json").read_text())
     papers = {p["id"]: p for p in library["papers"]}
-    probe = SharedRescaleProbe(lanes=1, samples=1)
-    for citation in probe.run().citations:
+    report = benchmark_operator(SharedRescale(), lanes=1, samples=1)
+    for citation in report.citations:
         paper = papers[citation.paper_id]
         assert citation.source_sha256 == paper["sha256"]
         assert citation.title == paper["title"]
@@ -201,7 +199,7 @@ def test_citations_bind_actual_pinned_papers_and_replay_rejects_edits():
         {"lanes": False},
     ):
         with pytest.raises(ValueError):
-            SharedRescaleProbe.from_dict(probe.to_dict() | change)
+            replay_operator_benchmark(report.configuration | change)
 
 
 def test_retained_sdk_collection_preserves_rounding_groups_and_replays():
@@ -219,21 +217,24 @@ def test_retained_sdk_collection_preserves_rounding_groups_and_replays():
         assert all(r["quality"] == group[0]["quality"] for r in group)
     assert len({r["numeric_contract_digest"] for r in reports}) == 2
     for report in reports:
-        probe = SharedRescaleProbe.from_dict(report["configuration"])
-        assert probe.digest == report["configuration_digest"]
+        configuration = report["configuration"]
+        assert hashlib.sha256(
+            json.dumps(configuration, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest() == report["configuration_digest"]
         assert report["benchmark_status"] == "completed"
         assert report["whole_model_executable"] is False
         assert report["resources_scope"] == "per-sample"
         assert report["full_wire_bytes"] is report["peak_memory_bytes"] is None
         if (
-            probe.backend == "interval_dcf"
-            and probe.rounding == "floor"
-            and probe.layout == "fused"
+            configuration["backend"] == "interval_dcf"
+            and configuration["rounding"] == "floor"
+            and configuration["layout"] == "fused"
         ):
-            replay = probe.run().to_dict()
+            replay = replay_operator_benchmark(configuration).to_dict()
+            assert replay["configuration_digest"] != report["configuration_digest"]
+            assert replay["configuration"]["component"] == SharedRescale().to_spec()
             for key in (
                 "native_implementation_digest",
-                "sdk_implementation_digest",
                 "numeric_contract_digest",
                 "resources",
                 "quality",

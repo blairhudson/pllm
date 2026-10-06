@@ -3,7 +3,8 @@
 import argparse
 from pathlib import Path
 
-from pllm.metrics import MaskedWireGatedBlockProbe
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import MaskedWireGatedMultiplyQ12
 
 
 def main() -> None:
@@ -12,7 +13,7 @@ def main() -> None:
     parser.add_argument("--samples", type=int, default=3)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    report = MaskedWireGatedBlockProbe(lanes=args.lanes, samples=args.samples).run()
+    report = benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=args.lanes, samples=args.samples)
     if args.output is None:
         print(report.to_json(), end="")
     else:
