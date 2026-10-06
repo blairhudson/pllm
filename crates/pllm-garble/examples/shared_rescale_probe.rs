@@ -48,7 +48,7 @@ fn main() {
     let args: Vec<_> = std::env::args().collect();
     assert!(
         (7..=8).contains(&args.len()),
-        "bits shift floor|ties_even fused|unfused lanes samples [prefix_dpf|compact_dcf]"
+        "bits shift floor|ties_even fused|unfused lanes samples [prefix_dpf|compact_dcf|interval_dcf]"
     );
     let bits: u8 = args[1].parse().unwrap();
     let shift: u8 = args[2].parse().unwrap();
@@ -68,6 +68,7 @@ fn main() {
     let backend = match backend_name {
         "prefix_dpf" => Backend::PrefixDpf,
         "compact_dcf" => Backend::CompactDcf,
+        "interval_dcf" => Backend::IntervalDcf,
         _ => panic!("backend"),
     };
     assert!((1..=32).contains(&samples));
@@ -147,7 +148,7 @@ fn main() {
         }
         output_digest = digest;
     }
-    println!("{{\"schema\":\"pllm.shared_rescale_probe.v1\",\"backend\":\"{backend_name}\",\"bits\":{bits},\"shift\":{shift},\"rounding\":\"{}\",\"layout\":\"{}\",\"lanes\":{lanes},\"samples\":{samples},\"checked_outputs\":{},\"output_sha256\":\"{output_digest}\",\"rounds\":{},\"party_key_payload_bytes\":{},\"party_allocation_estimate_bytes\":{},\"total_allocation_estimate_bytes\":{},\"peer_frame_bytes\":{},\"comparison_widths\":{:?},\"issuance_ns\":{issue_ns:?},\"online_ns\":{online_ns:?},\"clear_ns\":{clear_ns:?},\"executable_sdk\":false}}",
+    println!("{{\"schema\":\"pllm.shared_rescale_probe.v1\",\"backend\":\"{backend_name}\",\"bits\":{bits},\"shift\":{shift},\"rounding\":\"{}\",\"layout\":\"{}\",\"lanes\":{lanes},\"samples\":{samples},\"checked_outputs\":{},\"output_sha256\":\"{output_digest}\",\"rounds\":{},\"party_key_payload_bytes\":{},\"party_allocation_estimate_bytes\":{},\"total_allocation_estimate_bytes\":{},\"peer_frame_bytes\":{},\"comparison_widths\":{:?},\"comparison_evaluations_per_lane\":{},\"issuance_ns\":{issue_ns:?},\"online_ns\":{online_ns:?},\"clear_ns\":{clear_ns:?},\"executable_sdk\":false}}",
         args[3], args[4], samples * lanes, cost.rounds, cost.party_key_payload_bytes,
-        cost.party_allocation_estimate_bytes, cost.total_allocation_estimate_bytes, cost.peer_frame_bytes, cost.comparison_widths);
+        cost.party_allocation_estimate_bytes, cost.total_allocation_estimate_bytes, cost.peer_frame_bytes, cost.comparison_widths, cost.comparison_evaluations_per_lane);
 }

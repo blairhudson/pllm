@@ -3,13 +3,13 @@
 //! Sources: SIGMA §4.2.2–4.2.3 (truncate/reduce then sign extension), and
 //! FuseFSS §4.3, §4.5 and Appendix E (mask-aware fused helper evaluation).
 //! Both layouts select the SAME comparison backend: the quadratic prefix-DPF
-//! control or Figure 1's linear-size DCF from FSS for Mixed-Mode Secure
-//! Computation. Neither is a paper-system reproduction. Ties-even extends ARS.
+//! control, Figure 1's linear-size DCF, or §4's public-boundary key sharing
+//! from FSS for Mixed-Mode Secure Computation. Ties-even extends paper ARS.
 //! Each evaluator holds one share; the in-process dealer is research-only.
 //! Framing binds context/phase/issuance but is not transport authentication or
 //! malicious-output verification. No Pipeline, native tensor schedule or decoder.
 
-use crate::{compact_dcf, point_fss};
+use crate::{compact_dcf, interval_fss, point_fss};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
@@ -43,13 +43,14 @@ pub enum Layout {
 pub enum Backend {
     PrefixDpf,
     CompactDcf,
+    IntervalDcf,
 }
 
 impl Backend {
     fn comparison_bytes(self, bits: u8) -> usize {
         match self {
             Self::PrefixDpf => point_fss::Comparison::bytes(bits),
-            Self::CompactDcf => compact_dcf::Comparison::bytes(bits),
+            Self::CompactDcf | Self::IntervalDcf => compact_dcf::Comparison::bytes(bits),
         }
     }
 }
@@ -68,6 +69,7 @@ impl Comparison {
             Backend::CompactDcf => {
                 Ok(compact_dcf::Comparison::issue(bits, threshold)?.map(Self::Compact))
             }
+            Backend::IntervalDcf => Err(Error::Domain),
         }
     }
 
@@ -116,6 +118,7 @@ pub struct Resources {
     /// Actual online frame lengths, summed across both directions and rounds.
     pub peer_frame_bytes: usize,
     pub comparison_widths: Vec<u8>,
+    pub comparison_evaluations_per_lane: usize,
 }
 
 fn mask(bits: u8) -> u32 {
@@ -165,17 +168,21 @@ impl Descriptor {
         if !(1..=MAX_LANES).contains(&lanes) {
             return Err(Error::Resource);
         }
-        let mut widths = match layout {
-            Layout::Fused => vec![self.bits, self.shift, self.bits],
-            Layout::Unfused => vec![self.shift],
-        };
-        if self.rounding == Rounding::TiesEven {
-            widths.extend([self.shift + 1; 4]);
-        }
-        if layout == Layout::Unfused {
-            widths.extend([self.bits - self.shift; 2]);
-        }
         let rounds = if layout == Layout::Fused { 1 } else { 2 };
+        let mut widths = Vec::new();
+        let mut evaluations = 0;
+        for phase in 0..rounds {
+            let mut phase_widths: Vec<_> = query_specs(self, layout, phase as u8)
+                .iter()
+                .map(|&(bits, _)| bits)
+                .collect();
+            evaluations += phase_widths.len();
+            if self.backend == Backend::IntervalDcf {
+                phase_widths.sort_unstable();
+                phase_widths.dedup();
+            }
+            widths.extend(phase_widths);
+        }
         // Each phase/lane retains one mask share and three constant shares.
         let payload = lanes
             * (16 * rounds
@@ -197,6 +204,7 @@ impl Descriptor {
             total_allocation_estimate_bytes: total,
             peer_frame_bytes: 2 * rounds * (OPENING_HEADER_BYTES + 4 * lanes),
             comparison_widths: widths,
+            comparison_evaluations_per_lane: evaluations,
         })
     }
 
@@ -220,8 +228,10 @@ impl Descriptor {
         hash.update(context.session);
         hash.update(context.operation);
         hash.update(context.first_tensor_index.to_le_bytes());
-        if self.backend == Backend::CompactDcf {
-            hash.update(b"compact_dcf.v1\0");
+        match self.backend {
+            Backend::PrefixDpf => (),
+            Backend::CompactDcf => hash.update(b"compact_dcf.v1\0"),
+            Backend::IntervalDcf => hash.update(b"interval_dcf.v1\0"),
         }
         let binding: [u8; 32] = hash.finalize().into();
         let mut nonce = [0; 32];
@@ -266,6 +276,7 @@ struct Lane {
     mask_share: Zeroizing<u32>,
     constants: Zeroizing<[u32; 3]>,
     comparisons: Vec<Comparison>,
+    shared_comparisons: Vec<(u8, interval_fss::Comparison)>,
 }
 
 impl Lane {
@@ -275,6 +286,63 @@ impl Lane {
             .iter()
             .map(Comparison::payload_bytes)
             .sum::<usize>()
+            + self
+                .shared_comparisons
+                .iter()
+                .map(|(_, key)| key.payload_bytes())
+                .sum::<usize>()
+    }
+}
+
+/// Widths and boundaries are public functions of the numeric/layout contract.
+/// Secret programmed thresholds are (r + boundary) in each input ring.
+fn query_specs(d: Descriptor, layout: Layout, phase: u8) -> Vec<(u8, u32)> {
+    let bits = if phase == 1 { d.bits - d.shift } else { d.bits };
+    let mut queries = if phase == 1 {
+        vec![(bits, 1 << (bits - 1)), (bits, 0)]
+    } else if layout == Layout::Fused {
+        vec![(bits, 1 << (bits - 1)), (d.shift, 0), (bits, 0)]
+    } else {
+        vec![(d.shift, 0)]
+    };
+    if phase == 0 && d.rounding == Rounding::TiesEven {
+        let unit = 1u32 << d.shift;
+        queries.extend(
+            [unit, unit / 2 + 1, unit + unit / 2, 0].map(|boundary| (d.shift + 1, boundary)),
+        );
+    }
+    queries
+}
+
+/// Fold Lemma 1's dealer-only corrections into the existing three constants.
+/// No correction depending on the secret input mask enters public metadata.
+fn fold_shift_corrections(
+    d: Descriptor,
+    layout: Layout,
+    phase: u8,
+    c: &[u32],
+    constants: &mut [u32; 3],
+) {
+    let round_start = if phase == 1 {
+        constants[0] = constants[0].wrapping_add((1u32 << (d.bits - d.shift)).wrapping_mul(c[0]));
+        constants[1] = constants[1].wrapping_add(c[0]).wrapping_sub(c[1]);
+        0
+    } else if layout == Layout::Fused {
+        constants[0] = constants[0]
+            .wrapping_add((1u32 << (d.bits - d.shift)).wrapping_mul(c[0]))
+            .wrapping_sub(c[1]);
+        constants[1] = constants[1].wrapping_add(c[0]).wrapping_sub(c[2]);
+        3
+    } else {
+        constants[0] = constants[0].wrapping_sub(c[0]);
+        1
+    };
+    if phase == 0 && d.rounding == Rounding::TiesEven {
+        constants[2] = constants[2]
+            .wrapping_add(c[round_start])
+            .wrapping_sub(c[round_start + 1])
+            .wrapping_sub(c[round_start + 2])
+            .wrapping_add(c[round_start + 3]);
     }
 }
 
@@ -283,24 +351,20 @@ fn issue_lane(d: Descriptor, layout: Layout, phase: u8) -> Result<[Lane; 2], Err
     let ring = 1u64 << bits;
     let r = Zeroizing::new(random_word()? & mask(bits));
     let h = ring / 2;
-    let theta = ((u64::from(*r) + h) % ring) as u32;
     let carry = u32::from(u64::from(*r) + h >= ring);
-    let mut queries = Zeroizing::new(Vec::with_capacity(7));
+    let specs = query_specs(d, layout, phase);
     let mut constants = Zeroizing::new([0u32; 3]);
     if phase == 1 {
-        queries.extend([(bits, theta), (bits, *r)]);
         constants[0] = r
             .wrapping_neg()
             .wrapping_add((ring as u32).wrapping_mul(carry.wrapping_sub(1)));
         constants[1] = carry;
     } else if layout == Layout::Fused {
-        queries.extend([(bits, theta), (d.shift, *r & mask(d.shift)), (bits, *r)]);
         constants[0] = (*r >> d.shift)
             .wrapping_neg()
             .wrapping_add((1u32 << (bits - d.shift)).wrapping_mul(carry.wrapping_sub(1)));
         constants[1] = carry;
     } else {
-        queries.push((d.shift, *r & mask(d.shift)));
         constants[0] = (*r >> d.shift).wrapping_neg();
     }
     if phase == 0 && d.rounding == Rounding::TiesEven {
@@ -312,13 +376,21 @@ fn issue_lane(d: Descriptor, layout: Layout, phase: u8) -> Result<[Lane; 2], Err
         let unit = 1u64 << d.shift;
         let boundaries = [unit, unit / 2 + 1, unit + unit / 2, 0];
         let carries = boundaries.map(|b| u32::from(low_mask + b >= small_ring));
-        for boundary in boundaries {
-            queries.push((width, ((low_mask + boundary) % small_ring) as u32));
-        }
         constants[2] = 1u32
             .wrapping_add(carries[0])
             .wrapping_sub(carries[1])
             .wrapping_sub(carries[2]);
+    }
+    if d.backend == Backend::IntervalDcf {
+        let corrections = Zeroizing::new(
+            specs
+                .iter()
+                .map(|&(width, boundary)| {
+                    interval_fss::correction(width, *r & mask(width), boundary)
+                })
+                .collect::<Vec<_>>(),
+        );
+        fold_shift_corrections(d, layout, phase, &corrections, &mut constants);
     }
     let masks = Zeroizing::new(share(*r)?);
     let constant_shares = Zeroizing::new([
@@ -326,21 +398,41 @@ fn issue_lane(d: Descriptor, layout: Layout, phase: u8) -> Result<[Lane; 2], Err
         share(constants[1])?,
         share(constants[2])?,
     ]);
+    let independent_count = if d.backend == Backend::IntervalDcf {
+        0
+    } else {
+        specs.len()
+    };
     let mut comparisons = [
-        Vec::with_capacity(queries.len()),
-        Vec::with_capacity(queries.len()),
+        Vec::with_capacity(independent_count),
+        Vec::with_capacity(independent_count),
     ];
-    for (bits, threshold) in queries.iter().copied() {
-        let [left, right] = Comparison::issue(d.backend, bits, threshold)?;
-        comparisons[0].push(left);
-        comparisons[1].push(right);
+    let mut shared = [Vec::new(), Vec::new()];
+    for (width, boundary) in specs {
+        if d.backend == Backend::IntervalDcf {
+            if shared[0].iter().any(|(bits, _)| *bits == width) {
+                continue;
+            }
+            let [left, right] = interval_fss::Comparison::issue(width, *r & mask(width))?;
+            shared[0].push((width, left));
+            shared[1].push((width, right));
+        } else {
+            let threshold = Zeroizing::new(r.wrapping_add(boundary) & mask(width));
+            let [left, right] = Comparison::issue(d.backend, width, *threshold)?;
+            comparisons[0].push(left);
+            comparisons[1].push(right);
+        }
     }
     let [left, right] = comparisons;
-    Ok([(0, left), (1, right)].map(|(id, comparisons)| Lane {
-        mask_share: Zeroizing::new(masks[id] & mask(bits)),
-        constants: Zeroizing::new(constant_shares.map(|pair| pair[id])),
-        comparisons,
-    }))
+    let [shared_left, shared_right] = shared;
+    Ok([(0, left, shared_left), (1, right, shared_right)].map(
+        |(id, comparisons, shared_comparisons)| Lane {
+            mask_share: Zeroizing::new(masks[id] & mask(bits)),
+            constants: Zeroizing::new(constant_shares.map(|pair| pair[id])),
+            comparisons,
+            shared_comparisons,
+        },
+    ))
 }
 
 struct Material {
@@ -442,11 +534,23 @@ impl Party {
         let mut scaled = Zeroizing::new(Vec::with_capacity(self.lanes));
         let mut signs = Zeroizing::new(Vec::with_capacity(self.lanes));
         let mut increments = Zeroizing::new(Vec::with_capacity(self.lanes));
+        let specs = query_specs(d, self.layout, phase);
         for (index, lane) in material.current.iter().enumerate() {
             let opened = own[index].wrapping_add(peer_words[index]) & mask(bits);
             let public = if self.id == 0 { opened } else { 0 };
-            let eval =
-                |i: usize, width: u8| lane.comparisons[i].eval(self.id, opened & mask(width));
+            let eval = |i: usize, width: u8| {
+                if d.backend == Backend::IntervalDcf {
+                    let key = &lane
+                        .shared_comparisons
+                        .iter()
+                        .find(|(bits, _)| *bits == width)
+                        .expect("issued public query width")
+                        .1;
+                    key.eval(self.id, opened & mask(width), specs[i].1)
+                } else {
+                    lane.comparisons[i].eval(self.id, opened & mask(width))
+                }
+            };
             let (value, nonnegative, round_start) = if phase == 1 {
                 let upper = eval(0, bits);
                 (
@@ -649,7 +753,11 @@ mod tests {
             for shift in 1..bits {
                 for rounding in [Rounding::Floor, Rounding::TiesEven] {
                     for layout in [Layout::Fused, Layout::Unfused] {
-                        for backend in [Backend::PrefixDpf, Backend::CompactDcf] {
+                        for backend in [
+                            Backend::PrefixDpf,
+                            Backend::CompactDcf,
+                            Backend::IntervalDcf,
+                        ] {
                             run(
                                 Descriptor::new(bits, shift, rounding)
                                     .unwrap()
@@ -688,7 +796,11 @@ mod tests {
             }
             for rounding in [Rounding::Floor, Rounding::TiesEven] {
                 for layout in [Layout::Fused, Layout::Unfused] {
-                    for backend in [Backend::PrefixDpf, Backend::CompactDcf] {
+                    for backend in [
+                        Backend::PrefixDpf,
+                        Backend::CompactDcf,
+                        Backend::IntervalDcf,
+                    ] {
                         run(
                             Descriptor::new(bits, shift, rounding)
                                 .unwrap()
@@ -704,7 +816,11 @@ mod tests {
 
     #[test]
     fn malformed_context_role_phase_domain_and_replay_burn_both_phases() {
-        for backend in [Backend::PrefixDpf, Backend::CompactDcf] {
+        for backend in [
+            Backend::PrefixDpf,
+            Backend::CompactDcf,
+            Backend::IntervalDcf,
+        ] {
             malformed_lifecycle(
                 Descriptor::new(8, 3, Rounding::TiesEven)
                     .unwrap()
@@ -771,19 +887,28 @@ mod tests {
     fn backend_binding_is_independent_of_issuance_nonce() {
         let d = Descriptor::new(16, 7, Rounding::TiesEven).unwrap();
         for layout in [Layout::Fused, Layout::Unfused] {
-            let [mut prefix, _] = d.issue_reference(layout, context(), 1).unwrap();
-            let [_, mut compact] = d
-                .with_backend(Backend::CompactDcf)
-                .issue_reference(layout, context(), 1)
-                .unwrap();
-            // Force equal nonces to exercise the backend commitment itself.
-            compact.nonce = prefix.nonce;
-            let pf = prefix.start(&[0]).unwrap();
-            let cf = compact.start(&[0]).unwrap();
-            assert!(matches!(prefix.advance(&cf), Err(Error::Context)));
-            assert!(matches!(compact.advance(&pf), Err(Error::Context)));
-            assert_eq!(prefix.key_payload_bytes(), 0);
-            assert_eq!(compact.key_payload_bytes(), 0);
+            for (first, second) in [
+                (Backend::PrefixDpf, Backend::CompactDcf),
+                (Backend::PrefixDpf, Backend::IntervalDcf),
+                (Backend::CompactDcf, Backend::IntervalDcf),
+            ] {
+                let [mut a, _] = d
+                    .with_backend(first)
+                    .issue_reference(layout, context(), 1)
+                    .unwrap();
+                let [_, mut b] = d
+                    .with_backend(second)
+                    .issue_reference(layout, context(), 1)
+                    .unwrap();
+                // Force equal nonces to exercise the backend commitment itself.
+                b.nonce = a.nonce;
+                let af = a.start(&[0]).unwrap();
+                let bf = b.start(&[0]).unwrap();
+                assert!(matches!(a.advance(&bf), Err(Error::Context)));
+                assert!(matches!(b.advance(&af), Err(Error::Context)));
+                assert_eq!(a.key_payload_bytes(), 0);
+                assert_eq!(b.key_payload_bytes(), 0);
+            }
         }
     }
 
@@ -806,7 +931,11 @@ mod tests {
             Err(Error::Domain)
         ));
         for layout in [Layout::Fused, Layout::Unfused] {
-            for backend in [Backend::PrefixDpf, Backend::CompactDcf] {
+            for backend in [
+                Backend::PrefixDpf,
+                Backend::CompactDcf,
+                Backend::IntervalDcf,
+            ] {
                 let d = d.with_backend(backend);
                 let costs = d.resources(layout, 1).unwrap();
                 for _ in 0..4 {
@@ -831,5 +960,38 @@ mod tests {
             .resources(Layout::Fused, MAX_LANES)
             .unwrap();
         assert!(compact.total_allocation_estimate_bytes <= MAX_ALLOCATION_ESTIMATE);
+    }
+
+    #[test]
+    fn shared_keys_are_per_width_per_phase() {
+        let d = Descriptor::new(16, 7, Rounding::TiesEven)
+            .unwrap()
+            .with_backend(Backend::IntervalDcf);
+        let fused = d.resources(Layout::Fused, 1).unwrap();
+        assert_eq!(fused.comparison_widths, [7, 8, 16]);
+        assert_eq!(fused.comparison_evaluations_per_lane, 7);
+        assert_eq!(fused.party_key_payload_bytes, 758);
+        let unfused = d.resources(Layout::Unfused, 1).unwrap();
+        assert_eq!(unfused.comparison_widths, [7, 8, 9]);
+        assert_eq!(unfused.comparison_evaluations_per_lane, 7);
+        assert_eq!(unfused.party_key_payload_bytes, 620);
+        // Coincident widths reuse within one phase, never across fresh masks.
+        let narrow = Descriptor::new(2, 1, Rounding::TiesEven)
+            .unwrap()
+            .with_backend(Backend::IntervalDcf);
+        assert_eq!(
+            narrow
+                .resources(Layout::Fused, 1)
+                .unwrap()
+                .comparison_widths,
+            [1, 2]
+        );
+        assert_eq!(
+            narrow
+                .resources(Layout::Unfused, 1)
+                .unwrap()
+                .comparison_widths,
+            [1, 2, 1]
+        );
     }
 }

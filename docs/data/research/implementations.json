@@ -72,27 +72,27 @@
     },
     "sigma": {
       "status": "Component reference",
-      "scope": "One-use party-local signed truncate/reduce plus sign extension and original-input nonnegative predicate, with matched prefix-DPF and compact Figure 1 DCF backends. No SIGMA-optimized DPF/B2A or GPU system; ties-to-even is a PLLM extension.",
-      "code": ["crates/pllm-garble/src/compact_dcf.rs", "crates/pllm-garble/src/point_fss.rs", "crates/pllm-garble/src/shared_rescale_reference.rs"],
-      "configuration": "benchmarks/research/compact_rescale_reference.py",
-      "evidence": "docs/evidence/research-compact-rescale-reference-qwen25.json",
-      "result": "Twenty-four fresh-process helper cases check 7,680 output pairs. Compact DCF reduces unfused 16/7 ties-even keys from 5,888 to 1,426 bytes per party/lane and matched local online time from 58.54 to 8.94 ms per 64 lanes; peer bodies remain 1,336 bytes. Hypothetical 39+8 Qwen geometry still needs 15.31 GB of keys and 112.10 MB peer bodies. No complete nonlinear operator, reviewed cryptography, independent transport or decoder score. The initial prefix-only cohort remains retained. Notes: docs/research/compact-rescale-reference.md."
+      "scope": "One-use party-local signed truncate/reduce plus sign extension and original-input nonnegative predicate, with prefix-DPF, compact DCF and shared universal interval keys. No SIGMA-optimized DPF/B2A or GPU system; ties-to-even is a PLLM extension.",
+      "code": ["crates/pllm-garble/src/interval_fss.rs", "crates/pllm-garble/src/compact_dcf.rs", "crates/pllm-garble/src/shared_rescale_reference.rs"],
+      "configuration": "benchmarks/research/interval_rescale_reference.py",
+      "evidence": "docs/evidence/research-interval-rescale-reference-qwen25.json",
+      "result": "Twenty-four fresh-process cases check 7,680 output pairs. Shared interval keys reduce unfused 16/7 ties-even payload from 1,426 to 620 bytes per party/lane and issuance from 10.82 to 5.01 ms per 64 lanes. Online work stays 8.89 ms and peer bodies 1,336 bytes. Hypothetical 39+8 Qwen geometry still needs 6.66 GB of keys and 112.10 MB peer bodies. Earlier cohorts remain retained; no complete nonlinear operator, reviewed cryptography, independent transport or decoder score. Notes: docs/research/interval-rescale-reference.md."
     },
     "fusefss": {
       "status": "Component reference",
-      "scope": "Mask-aware signed-rescale/predicate fusion with one peer opening instead of two, using matched prefix-DPF or compact Figure 1 DCF keys. No general operator compiler, coefficient lookup or optimized paper-system reproduction; ties-to-even is a PLLM extension.",
-      "code": ["crates/pllm-garble/src/shared_rescale_reference.rs", "crates/pllm-garble/src/compact_dcf.rs", "crates/pllm-garble/src/point_fss.rs"],
-      "configuration": "benchmarks/research/compact_rescale_reference.py",
-      "evidence": "docs/evidence/research-compact-rescale-reference-qwen25.json",
-      "result": "Compact DCF reduces fused 16/7 ties-even keys from 9,428 to 1,718 bytes per party/lane and matched online time from 96.32 to 11.13 ms per 64 lanes, preserving 668 peer bytes and every checked output. Compact unfused uses 1,426 key bytes, 8.94 ms and 1,336 peer bytes: fusion still costs more material/CPU for one fewer opening. Hypothetical 39+8 geometry needs 18.45 GB of keys and 56.05 MB peer bodies. No tensor/SDK or decoder score. Notes: docs/research/compact-rescale-reference.md."
+      "scope": "Mask-aware signed-rescale/predicate fusion with one peer opening instead of two, now sharing compact DCF keys across public interval boundaries within a lane/phase. No general operator compiler, coefficient lookup or optimized paper-system reproduction; ties-to-even is a PLLM extension.",
+      "code": ["crates/pllm-garble/src/shared_rescale_reference.rs", "crates/pllm-garble/src/interval_fss.rs", "crates/pllm-garble/src/compact_dcf.rs"],
+      "configuration": "benchmarks/research/interval_rescale_reference.py",
+      "evidence": "docs/evidence/research-interval-rescale-reference-qwen25.json",
+      "result": "Universal interval keys reduce fused 16/7 ties-even payload from 1,718 to 758 bytes per party/lane and issuance 12.83 to 5.74 ms per 64 lanes. Matched online work is nearly unchanged at 11.30 to 11.03 ms, with 668 peer bytes. Unfused uses 620 key bytes, 8.89 ms and 1,336 peer bytes; fusion still trades material/CPU for a round. Hypothetical 39+8 key payload falls 18.45 to 8.14 GB, while peer bodies remain 56.05 MB. No tensor/SDK or decoder score. Notes: docs/research/interval-rescale-reference.md."
     },
     "fss-mixed": {
       "status": "Component reference",
-      "scope": "Independent Figure 1 linear-size distributed comparison over Z/(2^32), fresh 128-bit roots and byte-aligned controls, composed beneath one-use signed helpers. No mixed-mode compiler, reviewed transport or whole-decoder implementation.",
-      "code": ["crates/pllm-garble/src/compact_dcf.rs", "crates/pllm-garble/src/shared_rescale_reference.rs"],
-      "configuration": "benchmarks/research/compact_rescale_reference.py",
-      "evidence": "docs/evidence/research-compact-rescale-reference-qwen25.json",
-      "result": "A k-bit per-party comparator payload is 20+22k bytes (724 at 32 bits), versus quadratic prefix-DPF's 20k+9k(k+1). Exhaustive thresholds/group payloads, signed-domain and one-use lifecycle controls pass. Twenty-four fresh-process helper cases check 7,680 outputs; fused 16/7 ties-even material falls 5.49x and matched local online time 8.65x. Qwen projections still fail the material gate; independent review remains open. Notes: docs/research/compact-rescale-reference.md."
+      "scope": "Independent Figure 1 linear-size DCF and Section 4.1/Figure 14 public-boundary interval sharing over Z/(2^32), composed beneath one-use signed helpers. No mixed-mode compiler, reviewed transport or whole-decoder implementation.",
+      "code": ["crates/pllm-garble/src/compact_dcf.rs", "crates/pllm-garble/src/interval_fss.rs", "crates/pllm-garble/src/shared_rescale_reference.rs"],
+      "configuration": "benchmarks/research/interval_rescale_reference.py",
+      "evidence": "docs/evidence/research-interval-rescale-reference-qwen25.json",
+      "result": "A k-bit comparator remains 20+22k bytes, but universal shifts let seven ties-even evaluations share at most three keys per one-use helper. Exhaustive masks/boundaries/closed intervals, full-width endpoints and lifecycle checks pass. Twenty-four fresh-process cases check 7,680 outputs. Fused 16/7 key payload drops 55.88% and issuance 55.25%; online work and peer bodies are nearly unchanged. Qwen helper keys still project 8.14 GB; review and complete-operator gates remain. Notes: docs/research/interval-rescale-reference.md."
     },
     "mpcache": {
       "status": "Structural adaptation",

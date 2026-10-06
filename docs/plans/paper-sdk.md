@@ -99,11 +99,17 @@ and lifecycle checks. A separate 24-case matched cohort reduces fused 16/7
 ties-even keys from 9,428 to 1,718 bytes per party/lane and local online time
 from 96.32 to 11.13 ms. The hypothetical 39+8 key total remains 18.45 GB; review
 and complete-operator cost reductions still precede tensor admission or live
-roles. Shared multiple-interval evaluation from the same source is the next
-concrete compression candidate. This primitive does not activate planned APIs.
+roles. A separate multiple-interval follow-up now reuses one universal DCF per
+width within each one-use lane/phase. Its 24-case cohort checks 7,680 outputs,
+reduces fused 16/7 keys from 1,718 to 758 bytes and issuance 12.83 to 5.74 ms,
+with nearly unchanged online work and 668-byte peer bodies. Hypothetical 39+8
+fused payload is still 8.14 GB. Complete-operator numeric mapping and cost,
+review and independent issuance/transport remain gates; this primitive does not
+activate planned APIs.
 See `docs/research/shared-rescale-reference.md` for source deviations, exact
 equations, fresh-process measurements and the rerunnable Python configuration.
 The compact follow-up is in `docs/research/compact-rescale-reference.md`.
+Universal interval keys are in `docs/research/interval-rescale-reference.md`.
 
 ## Importable Python stubs are not executable components
 

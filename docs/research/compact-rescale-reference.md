@@ -114,10 +114,13 @@ not measured decoder CPU. They omit polynomial evaluation, other rescaling,
 attention, token feedback, distribution and complete response work. A compact
 backend alone does not pass the tensor/whole-response cost gate.
 
-Next work needs independent cryptographic review and substantially cheaper
-complete operators. Reusing one comparison key across a published
-multiple-interval construction is a concrete next source-review candidate;
-the current helpers still issue independent comparison keys. Tensor scheduling,
+The separate [multiple-interval follow-up](interval-rescale-reference.md) now
+shares one comparison key per public input width within a one-use helper.
+Its new matched cohort lowers fused 16/7 keys from 1,718 to 758 bytes and
+issuance from 12.83 to 5.74 ms; online work and peer bodies are nearly unchanged.
+The measurements above retain their original independent-key scope.
+Independent cryptographic review and substantially cheaper complete operators
+remain necessary. Tensor scheduling,
 distributed dealer, authenticated independent roles and Qwen numeric admission
 remain unimplemented. Context framing does not verify honest peer values.
 

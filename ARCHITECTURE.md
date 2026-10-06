@@ -165,8 +165,9 @@ performance claim.
 A separate bounded SIGMA/FuseFSS-inspired native reference compares unfused
 truncate/reduce plus sign extension with mask-aware fused signed rescaling and
 an original-input nonnegative predicate. Both layouts select the same comparison
-backend: the initial quadratic arithmetic prefix-DPF, or an independently
-implemented linear-size DCF from FSS for Mixed-Mode Secure Computation, Figure 1.
+backend: the initial quadratic arithmetic prefix-DPF, an independently
+implemented linear-size DCF from FSS for Mixed-Mode Secure Computation, Figure 1,
+or its Section 4.1/Figure 14 universal interval-key construction.
 Floor and the separate PLLM ties-to-even extension pass independent
 integer oracles. Party-local keys are non-cloneable, preflighted under a 64 MiB
 combined allocation estimate and burned on completion, malformed frames, replay
@@ -180,10 +181,16 @@ unfused/fused pair. A separate 24-process backend cohort checks 7,680 output pai
 and reduces fused per-party/lane keys from 9,428 to 1,718 bytes and matched local
 online time from 96.32 to 11.13 ms, with unchanged 668-byte peer bodies. Compact
 39+8 projections still require 15.31/18.45 GB of keys for unfused/fused helpers.
+A further 24-process cohort shares one universal DCF per width within each
+one-use lane/phase and checks 7,680 output pairs. Fused 16/7 keys fall from
+1,718 to 758 bytes and issuance from 12.83 to 5.74 ms per 64 lanes. Seven
+comparisons still execute, so online time barely changes (11.30 to 11.03 ms)
+and peer bodies stay 668 bytes. Hypothetical unfused/fused 39+8 keys still
+require 6.66/8.14 GB; phases, lanes and invocations never share one-use masks.
 No Qwen numeric mapping, tensor schedule, distributed dealer or SDK component is
 admitted; independent review and complete-operator cost reduction remain gates.
-Both cohorts and exact source contracts are retained in
-`docs/research/compact-rescale-reference.md` and its linked initial control.
+All three cohorts and exact source contracts are retained in
+`docs/research/interval-rescale-reference.md` and its linked historical controls.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,

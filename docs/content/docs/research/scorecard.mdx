@@ -329,18 +329,19 @@ alone does not count as implemented work.
   overestimate; it did not change the protocol. The original TEE construction
   is not reproduced.
 - **SIGMA / FuseFSS:** a matched native
-  [helper configuration](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/compact_rescale_reference.py)
+  [helper configuration](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/interval_rescale_reference.py)
   compares exact signed rescaling and the original-input nonnegative predicate.
-  A compact Figure 1 DCF from **FSS for Mixed-Mode Secure Computation** replaces
-  quadratic prefix expansion. All **7,680** checked outputs match integer
-  oracles. For fused 16-bit/seven-bit-shift ties-even helpers, per-party/lane
-  key bytes fall **9,428 → 1,718** and matched local online time
-  **96.32 → 11.13 ms** per 64 lanes, with unchanged **668-byte** peer bodies.
-  Compact unfused helpers take **8.94 ms**, **1,426 bytes** of keys per party/lane
-  and **1,336-byte** peer bodies: fusion still trades material/CPU for a round.
-  Hypothetical Qwen 39+8 geometry needs **15.31 / 18.45 GB** of unfused/fused
-  keys before other decoder work. The initial prefix-only cohort stays retained.
-  [Source contracts and full costs](https://github.com/blairhudson/pllm/blob/main/docs/research/compact-rescale-reference.md)
+  Universal interval keys from **FSS for Mixed-Mode Secure Computation** reuse
+  one compact DCF per width within a one-use helper. All **7,680** checked outputs
+  match integer oracles. For fused 16-bit/seven-bit-shift ties-even helpers,
+  per-party/lane keys fall **1,718 → 758 bytes** and issuance
+  **12.83 → 5.74 ms** per 64 lanes. Online work barely changes,
+  **11.30 → 11.03 ms**, and peer bodies stay **668 bytes**. Unfused shared-key
+  helpers take **8.89 ms**, **620 key bytes** and **1,336 peer bytes**: fusion
+  still trades material/CPU for a round. Hypothetical Qwen 39+8 geometry needs
+  **6.66 / 8.14 GB** of unfused/fused keys before other decoder work. The earlier
+  prefix-only and independent-compact cohorts stay retained.
+  [Source contracts and full costs](https://github.com/blairhudson/pllm/blob/main/docs/research/interval-rescale-reference.md)
   remain component evidence; no decoder score or executable planned API follows.
 - **Curl:** a new native reference executes one-use, party-local shared lookup
   from Fig. 4 and public Haar compression. It checks all 512 encoded SiLU rows.
