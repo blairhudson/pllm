@@ -38,10 +38,45 @@ class SearchCandidate:
     experiment: Experiment
     parameters: Mapping[str, Any]
     configuration_digest: str
+    def python_source(self) -> str: ...
 
 class SearchEvaluation:
     candidate: SearchCandidate
     result: BenchmarkResult
+
+class CandidateRejected(Exception):
+    def __init__(self, reason: str) -> None: ...
+
+class SearchRejection:
+    parameters: Mapping[str, Any]
+    reason: str
+    candidate: SearchCandidate | None
+
+class SearchOutcome:
+    evaluations: tuple[SearchEvaluation, ...]
+    rejections: tuple[SearchRejection, ...]
+    best: SearchEvaluation | None
+    objective: str
+    direction: str
+    stop_reason: str
+    attempted: int
+    def to_dict(self) -> dict[str, Any]: ...
+
+class BeamSearch:
+    identity: str
+    space: SearchSpace
+    objective: str
+    direction: str
+    width: int
+    max_trials: int
+    def __init__(
+        self, identity: str, space: SearchSpace, objective: str, direction: str,
+        width: int = ..., max_trials: int = ...,
+    ) -> None: ...
+    def evaluate(
+        self, evaluator: Callable[[SearchCandidate], BenchmarkResult], *,
+        admit: Callable[[SearchCandidate], str | None] | None = ...,
+    ) -> SearchOutcome: ...
 
 class GridSearch:
     identity: str

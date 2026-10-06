@@ -5,13 +5,16 @@ import json
 import math
 import re
 import secrets
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from pllm.plan import CompiledPlan, _unwrap
+
+if TYPE_CHECKING:
+    from pllm.search import BeamSearch, GridSearch, RandomSearch, SearchCandidate
 
 _BENCHMARK_RESULT_SCHEMA = "pllm.benchmark_result.v1"
 _BENCHMARK_RESULT_DOMAIN = b"pllm.benchmark_result.v1\0"
@@ -605,6 +608,25 @@ def benchmark_network_candidates(
     )
 
 
+def benchmark_search(
+    search: BeamSearch | GridSearch | RandomSearch, prompt: str, *, max_output_tokens: int,
+    objective: str | None = None, direction: str | None = None,
+    timeout_seconds: float = 900, backend: str = "native",
+    progress: Callable[[SearchCandidate, str], None] | None = None,
+) -> EvidenceReport:
+    """Measure grid, random or beam search through ordinary SDK role execution.
+
+    One private cohort salt covers the entire call, including adaptive trials.
+    Each trial is one greedy cold response with fresh roles and memory admission.
+    The immutable report retains typed evidence, rejections and Python factories.
+    Topology, source, numeric and verifier changes require separate searches.
+    """
+    from pllm._search_benchmark import benchmark_search as run
+
+    return run(search, prompt, max_output_tokens=max_output_tokens, objective=objective,
+               direction=direction, timeout_seconds=timeout_seconds, backend=backend, progress=progress)
+
+
 __all__ = [
     "BenchmarkResult",
     "EvidenceRegistry",
@@ -613,6 +635,7 @@ __all__ = [
     "benchmark",
     "benchmark_network_candidates",
     "benchmark_reference_quality",
+    "benchmark_search",
     "deployment_benchmark",
     "environment_digest",
 ]

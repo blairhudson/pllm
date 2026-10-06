@@ -11,7 +11,7 @@ import pllm
 import pllm.components as components
 import pllm.configuration as configuration
 from pllm.correlation import CorrelationSource, SeededExpansion
-from pllm.kernels import Cpu, KernelBackend
+from pllm.kernels import AppleMetal, Cpu, KernelBackend
 from pllm.metrics import (
     Accuracy,
     Communication,
@@ -76,6 +76,7 @@ from pllm.verification import FreivaldsVerify, LinearIntegrity, VerificationSche
 def _instances():
     return (
         Accuracy(dataset="fixture"),
+        AppleMetal(min_rows=32),
         ArithmeticGarblingSiluQ7(),
         BFVCorrelations(),
         BinaryTableGatedMultiplyQ7(),

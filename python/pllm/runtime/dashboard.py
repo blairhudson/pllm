@@ -77,6 +77,9 @@ def client_body_placement_snapshot(client: Any, model_id: str) -> dict[str, Any]
     if client is None:
         return None
     core = client._core
+    # Direct client execution owns body weights in its engine, outside this bundle sampler.
+    if getattr(core, "_local_engine", None) is not None:
+        return None
     with core._transformer_state_lock:
         state = core._transformer_states.get(model_id)
     if state is None:

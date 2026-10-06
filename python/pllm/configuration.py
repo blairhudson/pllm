@@ -787,9 +787,9 @@ class ExperimentProfile:
             resolved = _native.resolve_experiment(experiment.canonical_bytes())
         except ValueError as exc:
             raise ConfigurationError(str(exc)) from exc
-        object.__setattr__(
-            self, "model", experiment.pipeline.model.model_id or resolved.model
-        )
+        from pllm.model_loader import expected_model_id
+
+        object.__setattr__(self, "model", expected_model_id(experiment.pipeline.model))
         object.__setattr__(
             self, "canonical_composition", resolved.canonical_composition
         )

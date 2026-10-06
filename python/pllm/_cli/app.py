@@ -357,6 +357,8 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument("--compare-feasible", action="store_true", help="bounded matched feasible controls")
     benchmark_run.add_argument("--temperature", type=float, help="sampling temperature; omitted preserves SDK default 0.8")
     benchmark_run.add_argument("--capture-output-digest", action="store_true", help="opt-in public-task output fingerprint")
+    benchmark_run.add_argument("--compare-kernels", action="store_true",
+                               help="compare CPU/Metal compositions with matched numeric/output identity; requires --capture-output-digest")
     benchmark_run.add_argument("--docker", action="store_true", help="run local public CPU provider roles in lightweight Linux containers")
     benchmark_run.add_argument("--backend", choices=("native", "docker", "auto"),
                                help="provider backend; auto falls back to admitted native roles without changing kernels or WAN requirements")
@@ -848,6 +850,10 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
             "BENCHMARK_PREFIX_CACHE", "prefix bound requires --prefill-cache-mode prefix"
         )
 
+    if args.compare_kernels and (len(experiments) < 2 or not args.capture_output_digest):
+        raise ResolutionError("BENCHMARK_KERNEL_COMPARISON",
+                              "--compare-kernels requires multiple --experiment targets and --capture-output-digest")
+
     configuration = {
         "model": (
             experiments[0].pipeline.model.source
@@ -1051,7 +1057,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 }
                 candidate_reports.append((experiment, report))
         if len(candidate_reports) > 1:
-            report = build_comparison_report(candidate_reports)
+            report = build_comparison_report(candidate_reports, compare_kernels=args.compare_kernels)
     except (LoopbackBenchmarkError, ValueError, RuntimeError) as exc:
         raise RuntimeFailure("BENCHMARK_FAILED", str(exc)) from exc
     if report is None:

@@ -1001,7 +1001,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": SCHEDULER_EXAMPLE,
     },
     "pllm.search": {
-        "purpose": "Search APIs generate immutable experiment candidates and compare only cohort-compatible evidence with explicit metric directions. optimization_space proposes bounded model-neutral choices while retaining numeric/privacy contracts. PlanningRequest and PlanningPolicy bound offline network placement over exact source and workload identities; unknown required costs fail closed.",
+        "purpose": "GridSearch and RandomSearch generate immutable candidates; bounded BeamSearch expands component combinations from measured leaders. benchmark_search uses ordinary SDK roles for all three and retains exact-cohort evidence, rejections and replayable Python factories. optimization_space proposes bounded model-neutral choices while retaining numeric/privacy contracts. PlanningRequest and PlanningPolicy bound offline network placement over exact source and workload identities; unknown required costs fail closed.",
         "citations": (),
         "example": SEARCH_EXAMPLE,
     },

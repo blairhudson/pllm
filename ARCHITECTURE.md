@@ -350,6 +350,17 @@ separate axis unless an exact schedule, binding and execution test say otherwise
 
 ## Python package
 
+`pllm.search.BeamSearch` complements grid and random search with bounded,
+feedback-guided exploration of immutable `SearchSpace` component combinations.
+The shared `pllm.benchmark_search` facade runs all three through ordinary SDK
+role benchmarks, with per-trial memory admission and one private cohort salt.
+Source, numeric body, workload, output, topology, verifier and metric semantics
+gate ranking; rejected trials and unknown measurements remain explicit. Reports
+retain exact Python factories for replay. Best measured neighborhoods are not a
+global optimum certificate, and finalist confirmation remains separate from
+single-response exploratory tuning. Client process-lifetime peaks and omitted
+public-artifact distribution do not become comparable costs through search.
+
 `pllm.search.optimization_space` generates a bounded ordinary `SearchSpace`
 without changing model, numeric, verifier or topology identity. Client-owned
 body weights and new cache reuse require explicit permission. The explicit

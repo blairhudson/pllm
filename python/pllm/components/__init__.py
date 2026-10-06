@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     """Delay family imports so each family can expose planned component symbols."""
     from pllm.correlation import SeededExpansion
-    from pllm.kernels import Cpu
+    from pllm.kernels import AppleMetal, Cpu
     from pllm.metrics import (
         Accuracy,
         Communication,
@@ -85,6 +85,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
 
     classes = (
         Accuracy,
+        AppleMetal,
         ArithmeticGarblingSiluQ7,
         BFVCorrelations,
         BinaryTableGatedMultiplyQ7,

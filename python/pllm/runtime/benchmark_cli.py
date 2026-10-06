@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
 import math
@@ -458,8 +459,44 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
     return next(iter(keys)) if len(keys) == 1 else None
 
 
+def _matched_kernel_composition(candidates: list[tuple[Experiment, dict[str, Any]]]) -> bool:
+    """Require recorded source, numeric and output identity for cross-kernel ranking."""
+    identities = []
+    source_by_roles: dict[tuple[str, ...], str] = {}
+    for experiment, report in candidates:
+        config = report.get("configuration", {})
+        source = config.get("source_lock_digest")
+        roles = tuple(sorted(config.get("roles", [])))
+        prompt = config.get("prompt_sequence_digest") or config.get("prompt_digest")
+        if not roles or not source or not prompt:
+            return False
+        if source_by_roles.setdefault(roles, source) != source:
+            return False
+        recorded = report.get("experiment", {})
+        if (recorded.get("configuration_digest") != experiment.configuration_digest()
+                or recorded.get("pipeline_digest") != experiment.pipeline.digest()):
+            return False
+        outputs = []
+        for run in report.get("runs", []):
+            digest = run.get("generation", {}).get("output_text_digest")
+            if (not digest or not run.get("model_id") or run.get("status") != "completed"
+                    or run.get("tokens", {}).get("authoritative") is not True):
+                return False
+            outputs.append((run["model_id"], digest))
+        if not outputs:
+            return False
+        pipeline = experiment.pipeline.to_spec()
+        identities.append(json.dumps({
+            "model": pipeline["model"],
+            "numeric": {slot: pipeline["components"].get(slot)
+                        for slot in ("quantization", "nonlinear", "scheduler")},
+            "outputs": outputs,
+        }, sort_keys=True, allow_nan=False))
+    return len(set(identities)) == 1
+
+
 def build_comparison_report(
-    candidates: list[tuple[Experiment, dict[str, Any]]],
+    candidates: list[tuple[Experiment, dict[str, Any]]], *, compare_kernels: bool = False,
 ) -> dict[str, Any]:
     """Build one matched report over independently executed Experiment pipelines."""
     if len(candidates) < 2:
@@ -486,6 +523,7 @@ def build_comparison_report(
         experiment.pipeline.components["kernels"].component for experiment, _ in candidates
     }
     matched_backend = len(kernel_backends) == 1
+    kernel_admitted = _matched_kernel_composition(candidates) if compare_kernels else matched_backend
     comparison_key = cast(tuple[object, ...], keys[0]) if comparable else None
     metrics = {
         "full_seconds": ("median_full_seconds", False),
@@ -524,7 +562,7 @@ def build_comparison_report(
     winners: dict[str, str | None] = {metric: None for metric in metrics}
     if (
         comparable
-        and matched_backend
+        and kernel_admitted
         and all(report.get("checks", {}).get("passed") is True for _, report in candidates)
     ):
         for metric, (summary_key, reverse) in metrics.items():
@@ -556,7 +594,7 @@ def build_comparison_report(
         ),
         "unique_configurations": len(set(digests)) == len(digests),
         "matched_workload": comparable,
-        "matched_kernel_backend": matched_backend,
+        ("matched_kernel_composition" if compare_kernels else "matched_kernel_backend"): kernel_admitted,
     }
     comparison = None
     if comparison_key is not None:
@@ -638,6 +676,11 @@ def build_comparison_report(
         "scope": "single-host-loopback-diagnostic-comparison",
         "checks": {"passed": all(checks.values()), **checks},
         "comparison_key": comparison,
+        "kernel_comparison": {
+            "mode": "explicit-composition" if compare_kernels else "matched-backend",
+            "backends": sorted(kernel_backends),
+            "matched_backend": matched_backend,
+        },
         "compute_cap_diagnostic": cpu_comparison,
         "candidates": records,
         "rankings": rankings,
@@ -645,7 +688,8 @@ def build_comparison_report(
         "limitations": [
             "single host and loopback network",
             "diagnostic comparison, not a canonical EvidenceReport",
-            "rankings require exact matched measured workloads and kernel backends",
+            "rankings require exact matched measured workloads and the declared kernel comparison policy",
+            "cross-kernel composition rankings require source, numeric and captured output identity; they are not CPU-only speedups",
             "does not establish model quality, energy, price, adversarial security, or non-collusion",
         ],
     }
@@ -903,7 +947,9 @@ def _run_loopback_benchmark(
         roles = tuple(role.id for role in graph_for_runtime(runtime_options).roles)
         effective_tiny = experiment.pipeline.model.kind == "tiny"
         model = experiment.pipeline.model.source
-        resolved_model_id = experiment.pipeline.model.model_id or model
+        from pllm.model_loader import expected_model_id
+
+        resolved_model_id = expected_model_id(experiment.pipeline.model)
     else:
         resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
     startup_inventory_rows = (
@@ -1194,6 +1240,9 @@ def run_loopback_benchmark(
 ) -> dict[str, Any]:
     """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
     with _DASHBOARD_LOCK:
+        # Retired dashboards can retain native arrays through Python cycles.
+        # Release them before pricing another candidate's live host headroom.
+        gc.collect()
         return _run_loopback_benchmark(
             model=model,
             model_id=model_id,

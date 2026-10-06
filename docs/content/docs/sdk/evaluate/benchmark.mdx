@@ -77,7 +77,11 @@ per-role GPU-stage bound. Removing Docker does not establish that a model fits.
 The checked `examples/benchmarks/memory_safety.py` CPU/Metal targets complete
 native requests with matching outputs and zero observed swap growth. They use
 generated tiny weights and establish functionality only. CPU/GPU cohorts remain
-unranked because kernel resource scopes differ.
+unranked by default because kernel resource scopes differ. Explicit
+`--compare-kernels --capture-output-digest` admits whole-response composition
+rankings when source, numeric contract, workload and captured outputs match.
+It retains the declared CPU/Metal choices and does not produce a mixed-kernel
+CPU-only compute-cap comparison.
 
 ## Python SDK example: memory admission
 
@@ -121,6 +125,12 @@ combine ordinary prepared W8A8 execution with
 [bundle encoding](/sdk/components/protocols/client-bundle-transport/) and
 shared-prefix reuse. These are selectable Pipeline components in the same SDK,
 role supervisor and benchmark runner.
+
+For feedback-guided component tuning, [`benchmark_search`](/sdk/evaluate/search/)
+uses this same driver with `GridSearch`, `RandomSearch` or `BeamSearch`. It binds
+adaptive trials to one private comparison cohort and returns typed observations,
+rejections and rerunnable Python factories. A bounded search winner needs a
+matched confirmation cohort before becoming a published performance claim.
 
 `--prompt-sequence-file` accepts a JSON array of 1–32 complete, nonempty contexts
 of at most 16,384 UTF-8 bytes each. Each candidate keeps one live client while

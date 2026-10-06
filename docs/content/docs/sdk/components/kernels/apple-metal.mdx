@@ -11,6 +11,9 @@ CPU kernel. Clear and exact u16/u24/u32-ring results match the native integer
 reference; quantized checkpoint and protocol commitments still come from the
 compiled plan. Install `pllm.run[metal]` on Apple Silicon.
 
+The registered component identity is `pllm/apple-metal-int8/v1`. It round-trips
+through saved Experiments and composes with other axes in SDK searches.
+
 `ClientOnlyMetal` places the public body on the client, with no provider child.
 The same kernel slot is selectable in [prepared provider roles](/sdk/components/roles/prepared-provider/),
 Freivalds-verified prepared placement, and the two-worker offset topology. Each
@@ -76,10 +79,11 @@ A generated tiny checkpoint passed prefill/decode through SDK, gateway and the
 ordinary benchmark driver, matching the CPU composition's output. Isolated
 transfer-inclusive 4096-wide, 64-row integer work measured 16.6 ms on Metal
 and 99.5 ms on native NEON; a one-row decode measured 1.73 vs 1.32 ms. These
-are single-stage diagnostics, not whole-response speedups. CPU and GPU
-compositions cannot share latency rankings or CPU-only compute-cap diagnostics;
-measure cold weight transfer, peak unified memory, GPU work and energy before
-making a whole-model resource claim.
+are single-stage diagnostics, not whole-response speedups. SDK search can compare
+end-to-end CPU/Metal latency on the same host under matching source, numeric,
+workload and output identities. CPU accounting alone cannot compare total
+CPU-plus-GPU compute. Cold weight transfer, peak unified memory, GPU work and
+energy need their own measurements.
 
 A [pinned Qwen2.5-0.5B matched cold run](https://github.com/blairhudson/pllm/blob/main/docs/evidence/apple-metal-qwen25-local-2026-09-26.json) on an Apple M5 produced one token after 30 input tokens with the same W8A8 body fingerprint: 5.41/4.79 seconds full latency for CPU/Metal. A [three-run warm cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/apple-metal-qwen25-warm-2026-09-26.json) on the same model/body and token cohort measured median full latency **5.21/4.72 seconds** and online latency **4.60/4.12 seconds**, respectively. A separate real-checkpoint SDK test matched the output token. MLX GPU compute, peak GPU memory and energy were not separately metered. Since the backends differ, the benchmark does **not** rank one as a topology/compute-cap winner; this is evidence of a narrow M5 latency improvement, not a cross-hardware or whole-resource win.
 

@@ -3,6 +3,8 @@ from pllm.runtime.client import AsyncOpenAI as AsyncOpenAI
 from pllm.runtime.authenticated_mpc import AuthenticatedMPC as AuthenticatedMPC
 from pllm.runtime.authenticated_mpc import AuthenticationError as AuthenticationError
 from pllm.evidence import BenchmarkResult as BenchmarkResult
+from pllm.search import BeamSearch as BeamSearch
+from pllm.search import CandidateRejected as CandidateRejected
 from pllm.runtime.blinded_engine import BlindedTransformerEngine as BlindedTransformerEngine
 from pllm.sources import BundleModel as BundleModel
 from pllm.runtime.transformer_client import ClientBundle as ClientBundle
@@ -52,6 +54,8 @@ from pllm.runtime.secure_transformer import SecureDecoderWeights as SecureDecode
 from pllm.search import SearchCandidate as SearchCandidate
 from pllm.search import SearchError as SearchError
 from pllm.search import SearchEvaluation as SearchEvaluation
+from pllm.search import SearchOutcome as SearchOutcome
+from pllm.search import SearchRejection as SearchRejection
 from pllm.search import SearchSpace as SearchSpace
 from pllm.runtime.formal_security import SecurityClaim as SecurityClaim
 from pllm.research import SourceRecord as SourceRecord
@@ -85,6 +89,7 @@ from pllm.configuration import configuration_digest as configuration_digest
 from pllm.compiler import compile as compile
 from pllm.evidence import assure as assure
 from pllm.evidence import benchmark as benchmark
+from pllm.evidence import benchmark_search as benchmark_search
 from pllm.evidence import deployment_benchmark as deployment_benchmark
 from pllm.providers import discover_providers as discover_providers
 from pllm.evidence import environment_digest as environment_digest

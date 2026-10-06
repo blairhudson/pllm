@@ -759,6 +759,42 @@ def test_transport_conditions_cannot_enter_unmatched_ranking(field, value):
     assert build_comparison_report([(first, control), (second, changed)])["checks"]["matched_workload"]
 
 
+@pytest.mark.parametrize("mismatch", [None, "output", "missing-output", "source", "numeric", "binding", "unauthoritative"])
+def test_explicit_kernel_comparison_requires_recorded_identity(mismatch):
+    from pllm.kernels import AppleMetal
+    from pllm.quantization import SymmetricPerRow
+
+    cpu = _experiment("cpu", 4)
+    components = {**cpu.pipeline.components, "kernels": AppleMetal()}
+    if mismatch == "numeric":
+        components["quantization"] = SymmetricPerRow(weight_bits=4)
+    metal = cpu.with_params(name="metal", pipeline__components=components)
+    pairs = [(cpu, _report(full=4.0)), (metal, _report(full=3.0))]
+    for experiment, report in pairs:
+        report["configuration"].update(source_lock_digest="source", prompt_digest="prompt",
+                                       roles=["client", "inference", "preparation"])
+        report["experiment"] = {"configuration_digest": experiment.configuration_digest(),
+                                "pipeline_digest": experiment.pipeline.digest()}
+        report["runs"][0]["generation"] = {"output_text_digest": "same-output"}
+    changed = pairs[1][1]
+    if mismatch == "output":
+        changed["runs"][0]["generation"]["output_text_digest"] = "changed"
+    elif mismatch == "missing-output":
+        changed["runs"][0].pop("generation")
+    elif mismatch == "source":
+        changed["configuration"]["source_lock_digest"] = "changed"
+    elif mismatch == "binding":
+        changed["experiment"]["pipeline_digest"] = "changed"
+    elif mismatch == "unauthoritative":
+        changed["runs"][0]["tokens"]["authoritative"] = False
+    assert not build_comparison_report(pairs)["checks"]["passed"]
+    comparison = build_comparison_report(pairs, compare_kernels=True)
+    assert comparison["checks"]["passed"] is (mismatch is None)
+    assert comparison["winners"]["full_seconds"] == (metal.configuration_digest() if mismatch is None else None)
+    assert comparison["kernel_comparison"]["matched_backend"] is False
+    assert comparison["compute_cap_diagnostic"] is None
+
+
 @pytest.mark.parametrize("options,enforced", [([], False), (["--wan"], True),
     (["--wan-upload-mbps", "8", "--wan-party", "client:20:4"], True),
     (["--wan-estimate", "--wan-upload-mbps", "8"], False)])

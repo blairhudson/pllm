@@ -1,12 +1,11 @@
 ---
 title: "Search"
-description: "Generate deterministic experiment candidates and rank only benchmark results with compatible evidence cohorts."
+description: "Search SDK combinations with grid, random or measured beam search under exact evidence cohorts."
 ---
 
 `pllm.search` searches immutable public configuration, not live sessions or secret
 material. A search space names exact `Experiment.get_params(deep=True)` paths;
-invalid paths, duplicate values, invalid combined configurations, and excessive
-cardinality fail before evaluation.
+invalid paths, duplicate values and excessive cardinality fail before evaluation.
 
 Candidate generation does not benchmark or rank anything. Evaluate candidates
 with a function that returns `BenchmarkResult`, then use an explicit metric
@@ -15,7 +14,9 @@ model, workload, environment, numeric, privacy, or warm-state cohorts.
 
 `GridSearch` enumerates valid finite combinations. `RandomSearch` samples
 without replacement under an explicit seed; constraints filter named public
-parameter paths before evaluation. `evaluate_search` checks each result against
+parameter paths before evaluation. `BeamSearch` starts from the incumbent and
+measures one-axis neighbors of its best-scoring combinations, retaining several
+leaders to explore interacting components. `evaluate_search` checks each result against
 its trial and configuration identity. `ParetoFrontier` requires explicit
 minimize/maximize directions; failed or unavailable records remain visible but
 never enter the frontier. There is no universal scalar score, Bayesian search,
@@ -62,6 +63,80 @@ API: [`pllm.search`](/sdk/reference/python/pllm/search/#objects-and-signatures)
 Persist the exact candidate experiment with each observation. Do not select a
 winner from latency alone when token counts, model fingerprints, environments,
 or other evidence-cohort fields differ.
+
+## Measured combination search
+
+Use ordinary component slots as independent axes. `BeamSearch` constructs only
+visited neighbors, with an explicit attempt budget and beam width. Its base must
+occur on every axis. Constraints, incompatible compositions and evaluator-declared
+`CandidateRejected` failures consume attempts and remain in `SearchOutcome`.
+Unknown or source-reported scores cannot guide the beam; unexpected exceptions
+and evidence mismatches stop execution. Ties retain the earlier observation.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model, benchmark_search
+from pllm.kernels import Cpu
+from pllm.preparation import PreparedInventory
+from pllm.profiles import MaskedLinearCpu
+from pllm.search import BeamSearch, SearchSpace
+
+base = Experiment(
+    "measured-combinations",
+    MaskedLinearCpu(Model.tiny(), kernels=Cpu(threads=1)),
+    Deployment.local(root="local://measured-combinations"),
+    ExecutionBudget(1, 32, 2),
+)
+space = SearchSpace(base, {
+    "pipeline__kernels": [Cpu(threads=1), Cpu(threads=2)],
+    "pipeline__inventory": [None, PreparedInventory("request-sized", rows=1)],
+})
+search = BeamSearch("measured", space, "request_tps", "max", width=2, max_trials=4)
+assert search.max_trials == 4
+
+def measure(prompt):
+    # This call launches admitted local roles and measures each proposed trial.
+    return benchmark_search(search, prompt, max_output_tokens=2, backend="native")
+```
+
+`benchmark_search` also accepts `GridSearch` and `RandomSearch`. Its ordinary SDK
+driver gives all adaptive trials one private cohort salt, checks memory before
+launch, retires each trial's roles and collects unreachable client/dashboard
+owners before the next admission. Interrupting a role benchmark stops the search
+after role cleanup. Each observation is one greedy, cold-client
+response with cached checkpoints. Model/source, numeric body, output digest,
+workload, topology, verifier and environment must match. Profiles and numerics
+that change the comparison boundary require separate searches.
+
+Supported driver objectives are `request_tps` (generated outputs / full request
+seconds), `full_seconds`, `covered_bytes` (setup-inclusive application bodies),
+and `online_bytes`. Set `direction="max"` or `"min"` explicitly on the beam.
+Grid/random default to request throughput; supply `objective` and `direction` to
+change it. Body counters are not physical wire accounting. Sequential client
+lifetime RSS is not an isolated candidate peak. Public artifact publishing and
+distribution remain separately priced costs.
+
+The immutable report retains every completed measurement, admission and explicit
+rejection, plus each exact Experiment's `python_source`. Save that source as a
+`.py` factory and rerun it with ordinary `pllm benchmark run --factory
+--trust-python --experiment saved.py:experiment`. The generic callback path,
+`search.evaluate(evaluator, admit=...)`, accepts typed `BenchmarkResult` evidence
+for other workloads and metrics. Its winner exposes
+`outcome.best.candidate.python_source()`.
+
+The runnable
+[`examples/benchmarks/composition_search.py`](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/composition_search.py)
+uses this API and saves all observed factories:
+
+```bash
+uv run python examples/benchmarks/composition_search.py --tiny --trials 4 --output search.json
+```
+
+Group interdependent choices in a whole-Pipeline axis when individual slot
+changes are not legal. A bounded beam can miss distant combinations; its best
+result is **best measured within this declared search**, not a proof of global
+optimality. Remeasure finalists with their baseline and repetitions before
+publishing a SOTA score. Persisting observations does not create an automatic
+cross-environment tuning cache.
 
 ## Bounded network placement
 

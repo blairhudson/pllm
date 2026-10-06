@@ -142,6 +142,16 @@ class SearchCandidate:
     def __post_init__(self) -> None:
         object.__setattr__(self, "parameters", MappingProxyType(dict(self.parameters)))
 
+    def python_source(self) -> str:
+        """Return a rerunnable public Experiment factory with this exact digest."""
+        spec = _key(self.experiment.to_spec())
+        return (
+            '"""Saved PLLM search candidate; contains public configuration only."""\n'
+            "import json\n\nfrom pllm import Experiment\n\n\n"
+            f"def experiment():\n    value = Experiment.from_spec(json.loads({spec!r}))\n"
+            f"    return value.with_params(pipeline__profile={self.experiment.pipeline.profile!r})\n"
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class SearchEvaluation:
@@ -267,10 +277,9 @@ def evaluate_search(
         if not isinstance(result, BenchmarkResult):
             raise TypeError("evaluator must return BenchmarkResult")
         document = result.to_dict()
-        expected_model = (
-            candidate.experiment.pipeline.model.model_id
-            or candidate.experiment.pipeline.model.source
-        )
+        from pllm.model_loader import expected_model_id
+
+        expected_model = expected_model_id(candidate.experiment.pipeline.model)
         required_components = {
             component.component
             for component in candidate.experiment.pipeline.components.values()
@@ -281,6 +290,8 @@ def evaluate_search(
             raise SearchError("benchmark result configuration does not match candidate")
         if document["model"]["id"] != expected_model:
             raise SearchError("benchmark result model does not match candidate")
+        if document["profile"] != candidate.experiment.pipeline.profile:
+            raise SearchError("benchmark result profile does not match candidate")
         if not required_components.issubset(document["component_ids"]):
             raise SearchError("benchmark result omits candidate components")
         evaluations.append(SearchEvaluation(candidate, result))
@@ -580,8 +591,11 @@ class QualityLockedNetworkSearch:
 
 from pllm.search.placement import ArtifactCostEvidence, CandidateCostEvidence, ClientStateCostEvidence, PlanningPolicy, PlanningRequest
 from pllm.search.optimizations import optimization_space
+from pllm.search.beam import BeamSearch, CandidateRejected, SearchOutcome, SearchRejection
 
 __all__ = [
+    "BeamSearch",
+    "CandidateRejected",
     "CandidateCostEvidence",
     "ArtifactCostEvidence",
     "ClientStateCostEvidence",
@@ -596,6 +610,8 @@ __all__ = [
     "SearchCandidate",
     "SearchError",
     "SearchEvaluation",
+    "SearchOutcome",
+    "SearchRejection",
     "SearchSpace",
     "evaluate_search",
 ]
