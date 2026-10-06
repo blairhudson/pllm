@@ -24,19 +24,23 @@
       "code": ["crates/pllm-garble/src/shared_lut_reference.rs"],
       "configuration": "benchmarks/research/curl_reference.py",
       "evidence": "docs/evidence/research-curl-reference.json",
-      "result": "512-row Q16 SiLU lookup reconstructs every encoded value. Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes, but add up to 0.12888 absolute error. Peer frames remain 136 bytes per lookup. No Qwen score."
+      "result": "512-row Q16 SiLU lookup reconstructs every encoded value. Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes, but add up to 0.12888 absolute error. Peer frames remain 136 bytes per lookup. A separate common Q7-profile screen matches 17/17 uncompressed versus 2/17 four-level outputs; its hypothetical 39+8 activation-only layout needs 1.40 GB material and 730.30 MB peer bodies before conversion/gated multiplication. No Qwen score. Follow-up: docs/research/nonlinear-frontier.md."
     },
     "compact": {
       "status": "Component reference",
       "scope": "Public calibration, private interval selection and one-use Chebyshev evaluation with bounded compiler binding.",
       "code": ["crates/pllm-core/src/compact.rs", "crates/pllm-garble/src/compact_polynomial.rs", "crates/pllm-compiler/src/compact_protected.rs"],
-      "result": "Checked encoded profile parity; polynomial half-gate bodies exceed the direct Q7 lookup for the tested profiles. No tensor transport or Qwen decoder score."
+      "configuration": "benchmarks/research/nonlinear_frontier.py",
+      "evidence": "docs/evidence/research-nonlinear-frontier-qwen25.json",
+      "result": "Common four-piece Q7 profile: 17/17 checked outputs match, but evaluator ciphertext bodies cost 843,392 bytes per element. Hypothetical Qwen 39+8 activation bodies alone project 4.53 TB; conversions, up multiplication and final rescaling are extra. Fixed-domain checkpoint admission fails. No tensor transport or Qwen decoder score. Notes: docs/research/nonlinear-frontier.md."
     },
     "logrow": {
       "status": "Component reference",
       "scope": "One-use masked-index lookup and bounded in-process tensor override, with the earlier two-row setup.",
       "code": ["crates/pllm-garble/src/logrow.rs", "tests/test_logrow_tensor_native.py"],
-      "result": "Tiny decoder experiments pay more online CPU and offline issuance than clear SiLU. No protected real-checkpoint SDK composition."
+      "configuration": "benchmarks/research/nonlinear_frontier.py",
+      "evidence": "docs/evidence/research-nonlinear-frontier-qwen25.json",
+      "result": "Common four-piece Q7 profile: 17/17 checked outputs match with 2,144 evaluator-material bytes per element, projecting 11.51 GB at hypothetical 39+8 Qwen geometry before conversions/gated multiplication. Existing tiny decoder experiments pay more online CPU and offline issuance than clear SiLU. No protected real-checkpoint SDK composition. Notes: docs/research/nonlinear-frontier.md."
     },
     "half-gates": {
       "status": "Component reference",
@@ -76,15 +80,15 @@
       "code": ["crates/pllm-garble/src/interval_fss.rs", "crates/pllm-garble/src/compact_dcf.rs", "crates/pllm-garble/src/shared_rescale_reference.rs"],
       "configuration": "benchmarks/research/interval_rescale_reference.py",
       "evidence": "docs/evidence/research-interval-rescale-reference-qwen25.json",
-      "result": "Twenty-four fresh-process cases check 7,680 output pairs. Shared interval keys reduce unfused 16/7 ties-even payload from 1,426 to 620 bytes per party/lane and issuance from 10.82 to 5.01 ms per 64 lanes. Online work stays 8.89 ms and peer bodies 1,336 bytes. Hypothetical 39+8 Qwen geometry still needs 6.66 GB of keys and 112.10 MB peer bodies. Earlier cohorts remain retained; no complete nonlinear operator, reviewed cryptography, independent transport or decoder score. Notes: docs/research/interval-rescale-reference.md."
+      "result": "Twenty-four fresh-process cases check 7,680 helper outputs. Shared interval keys reduce unfused 16/7 ties-even payload from 1,426 to 620 bytes per party/lane and issuance from 10.82 to 5.01 ms per 64 lanes. Online work stays 8.89 ms and peer bodies 1,336 bytes. The subsequent complete Q7 gated-block baseline needs eight rounds, 34.93 GB keys and 620.22 MB peer bodies at hypothetical 39+8 geometry; its Qwen numeric domain fails. No reviewed cryptography, independent transport or decoder score. Notes: docs/research/interval-rescale-reference.md and docs/research/nonlinear-block-reference.md."
     },
     "fusefss": {
       "status": "Component reference",
-      "scope": "Mask-aware signed-rescale/predicate fusion with one peer opening instead of two, now sharing compact DCF keys across public interval boundaries within a lane/phase. No general operator compiler, coefficient lookup or optimized paper-system reproduction; ties-to-even is a PLLM extension.",
-      "code": ["crates/pllm-garble/src/shared_rescale_reference.rs", "crates/pllm-garble/src/interval_fss.rs", "crates/pllm-garble/src/compact_dcf.rs"],
-      "configuration": "benchmarks/research/interval_rescale_reference.py",
-      "evidence": "docs/evidence/research-interval-rescale-reference-qwen25.json",
-      "result": "Universal interval keys reduce fused 16/7 ties-even payload from 1,718 to 758 bytes per party/lane and issuance 12.83 to 5.74 ms per 64 lanes. Matched online work is nearly unchanged at 11.30 to 11.03 ms, with 668 peer bytes. Unfused uses 620 key bytes, 8.89 ms and 1,336 peer bytes; fusion still trades material/CPU for a round. Hypothetical 39+8 key payload falls 18.45 to 8.14 GB, while peer bodies remain 56.05 MB. No tensor/SDK or decoder score. Notes: docs/research/interval-rescale-reference.md."
+      "scope": "Mask-aware signed-rescale/predicate fusion and a complete bounded shared Q7 gated block with four rescalings and two one-use Beaver multiplications. PLLM quadratic/ties-even profile, not the paper's spline coefficients, coefficient lookup or general operator compiler.",
+      "code": ["crates/pllm-garble/src/shared_rescale_reference.rs", "crates/pllm-garble/src/interval_fss.rs", "crates/pllm-garble/src/shared_arithmetic_reference.rs", "crates/pllm-garble/src/shared_gated_block_reference.rs"],
+      "configuration": "benchmarks/research/nonlinear_block_reference.py",
+      "evidence": "docs/evidence/research-nonlinear-block-reference-qwen25.json",
+      "result": "All 11,540 complete-block outputs match exact integer oracles. Interval-key fused 64-lane execution uses 246,272 key bytes per party, 4,876 peer bytes and five rounds, with 55.96 ms local online time. Hypothetical Qwen 39+8 costs 41.33 GB keys and 409.12 MB peer bodies; 36.07% of observed W8A8 gate/up pairs exceed the numeric range. Domain and resource gates reject decoder promotion. Earlier helper cohorts remain retained. Notes: docs/research/nonlinear-block-reference.md."
     },
     "fss-mixed": {
       "status": "Component reference",
@@ -94,11 +98,29 @@
       "evidence": "docs/evidence/research-interval-rescale-reference-qwen25.json",
       "result": "A k-bit comparator remains 20+22k bytes, but universal shifts let seven ties-even evaluations share at most three keys per one-use helper. Exhaustive masks/boundaries/closed intervals, full-width endpoints and lifecycle checks pass. Twenty-four fresh-process cases check 7,680 outputs. Fused 16/7 key payload drops 55.88% and issuance 55.25%; online work and peer bodies are nearly unchanged. Qwen helper keys still project 8.14 GB; review and complete-operator gates remain. Notes: docs/research/interval-rescale-reference.md."
     },
+    "nexus": {
+      "status": "Component reference",
+      "scope": "Bounded plaintext repeated-squaring exponential with fixed public shift and exact reference normalization. No encrypted reciprocal, CKKS tensor execution or NEXUS system reproduction.",
+      "code": ["crates/pllm-core/src/polynomial_softmax_reference.rs"],
+      "configuration": "benchmarks/research/he_softmax_reference.py",
+      "evidence": "docs/evidence/research-he-softmax-reference-qwen25.json",
+      "result": "Independent equation/probability checks pass in the fixed [-16,16] score domain. All eight pinned Qwen prompts reject that domain before a complete candidate position; quality and ciphertext costs remain unmeasured. This rejects the chosen parameters, not every NEXUS adaptation. Notes: docs/research/he-pruning-gates.md."
+    },
+    "thor": {
+      "status": "Component reference",
+      "scope": "Bounded plaintext Appendix C exponential and Algorithm 3 square/normalize reference with fixed public parameters. Exact normalization omits encrypted reciprocal, CKKS error and bootstrapping.",
+      "code": ["crates/pllm-core/src/polynomial_softmax_reference.rs"],
+      "configuration": "benchmarks/research/he_softmax_reference.py",
+      "evidence": "docs/evidence/research-he-softmax-reference-qwen25.json",
+      "result": "Independent equation/probability checks pass in the fixed [-16,16] score domain. All eight pinned Qwen prompts reject that domain before a complete candidate position. No THOR system reproduction, quality score, ciphertext cost or admitted decoder. Notes: docs/research/he-pruning-gates.md."
+    },
     "mpcache": {
-      "status": "Structural adaptation",
-      "scope": "Model-neutral KV eviction transformation and state contracts; protected selection and transformed runtime remain incomplete.",
-      "code": ["crates/pllm-models/src/cache.rs"],
-      "result": "Semantic transformation tests only. No measured transformed decoder."
+      "status": "Component reference",
+      "scope": "Semantic KV eviction contracts plus bounded native static retention, hierarchical min/max cluster selection and adjacent-layer index reuse. Plaintext client-local selected views retain full backing KV; no protected selection or sparse-state executor.",
+      "code": ["crates/pllm-models/src/cache.rs", "crates/pllm-core/src/cache_selection_reference.rs"],
+      "configuration": "benchmarks/research/mpcache_reference.py",
+      "evidence": "docs/evidence/research-mpcache-reference-qwen25.json",
+      "result": "Twelve pinned Qwen W8A8 prompts pass 8,712 independent equation/index checks. Full-cache logits/KV remain exact; static retention matches 34/36 same-token decode selections, combined selection 32/36 and layer-index sharing 31/36. Combined selection evaluates 42,424 versus 181,944 key rows, but no memory or runtime saving is measured. Selected addresses depend on private queries; protected top-k/gathers, sparse state and numeric quality gate promotion. Notes: docs/research/mpcache-reference.md."
     }
   }
 }

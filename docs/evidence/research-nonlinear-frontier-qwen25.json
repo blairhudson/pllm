@@ -1,0 +1,1151 @@
+{
+  "cases": [
+    {
+      "gated_product_included": false,
+      "input_conversion_included": false,
+      "material_scope": "half-gate evaluator ciphertext body only",
+      "method": "compact",
+      "process_cpu_seconds": 3.715277,
+      "process_peak_rss_bytes": 21397504,
+      "profile_digest": [
+        52,
+        179,
+        144,
+        80,
+        144,
+        118,
+        55,
+        210,
+        6,
+        91,
+        13,
+        25,
+        254,
+        202,
+        47,
+        49,
+        228,
+        67,
+        92,
+        241,
+        163,
+        204,
+        7,
+        152,
+        133,
+        198,
+        126,
+        80,
+        67,
+        169,
+        115,
+        92
+      ],
+      "requested_pieces": 4,
+      "samples": [
+        {
+          "actual_q7": -34,
+          "expected_q7": -34,
+          "issuance_seconds": 0.146489667,
+          "local_online_seconds": 0.070589708,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": -128
+        },
+        {
+          "actual_q7": -33,
+          "expected_q7": -33,
+          "issuance_seconds": 0.147453,
+          "local_online_seconds": 0.070575708,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": -112
+        },
+        {
+          "actual_q7": -31,
+          "expected_q7": -31,
+          "issuance_seconds": 0.147469583,
+          "local_online_seconds": 0.070736416,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": -96
+        },
+        {
+          "actual_q7": -28,
+          "expected_q7": -28,
+          "issuance_seconds": 0.146841209,
+          "local_online_seconds": 0.070525,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": -80
+        },
+        {
+          "actual_q7": -24,
+          "expected_q7": -24,
+          "issuance_seconds": 0.14774375,
+          "local_online_seconds": 0.07073675,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": -64
+        },
+        {
+          "actual_q7": -20,
+          "expected_q7": -20,
+          "issuance_seconds": 0.147287292,
+          "local_online_seconds": 0.070692,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": -48
+        },
+        {
+          "actual_q7": -14,
+          "expected_q7": -14,
+          "issuance_seconds": 0.1472695,
+          "local_online_seconds": 0.070603,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": -32
+        },
+        {
+          "actual_q7": -8,
+          "expected_q7": -8,
+          "issuance_seconds": 0.147481958,
+          "local_online_seconds": 0.070696583,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": -16
+        },
+        {
+          "actual_q7": 0,
+          "expected_q7": 0,
+          "issuance_seconds": 0.147280167,
+          "local_online_seconds": 0.070705584,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 0
+        },
+        {
+          "actual_q7": 8,
+          "expected_q7": 8,
+          "issuance_seconds": 0.147924333,
+          "local_online_seconds": 0.070646625,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 16
+        },
+        {
+          "actual_q7": 18,
+          "expected_q7": 18,
+          "issuance_seconds": 0.14671475,
+          "local_online_seconds": 0.070687875,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 32
+        },
+        {
+          "actual_q7": 28,
+          "expected_q7": 28,
+          "issuance_seconds": 0.147313833,
+          "local_online_seconds": 0.070673792,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 48
+        },
+        {
+          "actual_q7": 40,
+          "expected_q7": 40,
+          "issuance_seconds": 0.14741625,
+          "local_online_seconds": 0.07052375,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 64
+        },
+        {
+          "actual_q7": 52,
+          "expected_q7": 52,
+          "issuance_seconds": 0.147275208,
+          "local_online_seconds": 0.070504666,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 80
+        },
+        {
+          "actual_q7": 65,
+          "expected_q7": 65,
+          "issuance_seconds": 0.147434667,
+          "local_online_seconds": 0.070524708,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 96
+        },
+        {
+          "actual_q7": 79,
+          "expected_q7": 79,
+          "issuance_seconds": 0.147335958,
+          "local_online_seconds": 0.07059875,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 112
+        },
+        {
+          "actual_q7": 94,
+          "expected_q7": 94,
+          "issuance_seconds": 0.147234916,
+          "local_online_seconds": 0.070766333,
+          "material_body_bytes": 843392,
+          "peer_frame_bytes": null,
+          "public_input_q7": 128
+        }
+      ],
+      "schema": "pllm.nonlinear_frontier_probe.v1",
+      "summary": {
+        "encoded_matches": 17,
+        "material_body_bytes_per_element": 843392,
+        "median_issuance_seconds": 0.147313833,
+        "median_local_online_seconds": 0.070646625,
+        "peer_frame_bytes_per_element": null,
+        "worst_encoded_error": 0
+      }
+    },
+    {
+      "gated_product_included": false,
+      "input_conversion_included": false,
+      "material_scope": "LogRow evaluator material body only",
+      "method": "logrow",
+      "process_cpu_seconds": 0.07083999999999999,
+      "process_peak_rss_bytes": 2392064,
+      "profile_digest": [
+        52,
+        179,
+        144,
+        80,
+        144,
+        118,
+        55,
+        210,
+        6,
+        91,
+        13,
+        25,
+        254,
+        202,
+        47,
+        49,
+        228,
+        67,
+        92,
+        241,
+        163,
+        204,
+        7,
+        152,
+        133,
+        198,
+        126,
+        80,
+        67,
+        169,
+        115,
+        92
+      ],
+      "requested_pieces": 4,
+      "samples": [
+        {
+          "actual_q7": -34,
+          "expected_q7": -34,
+          "issuance_seconds": 0.002008042,
+          "local_online_seconds": 0.00162475,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": -128
+        },
+        {
+          "actual_q7": -33,
+          "expected_q7": -33,
+          "issuance_seconds": 0.001977875,
+          "local_online_seconds": 0.001608458,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": -112
+        },
+        {
+          "actual_q7": -31,
+          "expected_q7": -31,
+          "issuance_seconds": 0.00195725,
+          "local_online_seconds": 0.001617667,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": -96
+        },
+        {
+          "actual_q7": -28,
+          "expected_q7": -28,
+          "issuance_seconds": 0.001949792,
+          "local_online_seconds": 0.001598041,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": -80
+        },
+        {
+          "actual_q7": -24,
+          "expected_q7": -24,
+          "issuance_seconds": 0.001959542,
+          "local_online_seconds": 0.001598084,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": -64
+        },
+        {
+          "actual_q7": -20,
+          "expected_q7": -20,
+          "issuance_seconds": 0.001946542,
+          "local_online_seconds": 0.001604542,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": -48
+        },
+        {
+          "actual_q7": -14,
+          "expected_q7": -14,
+          "issuance_seconds": 0.001958667,
+          "local_online_seconds": 0.001606167,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": -32
+        },
+        {
+          "actual_q7": -8,
+          "expected_q7": -8,
+          "issuance_seconds": 0.001960084,
+          "local_online_seconds": 0.001596167,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": -16
+        },
+        {
+          "actual_q7": 0,
+          "expected_q7": 0,
+          "issuance_seconds": 0.001950292,
+          "local_online_seconds": 0.001596333,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 0
+        },
+        {
+          "actual_q7": 8,
+          "expected_q7": 8,
+          "issuance_seconds": 0.001980041,
+          "local_online_seconds": 0.001600833,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 16
+        },
+        {
+          "actual_q7": 18,
+          "expected_q7": 18,
+          "issuance_seconds": 0.00194675,
+          "local_online_seconds": 0.001593875,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 32
+        },
+        {
+          "actual_q7": 28,
+          "expected_q7": 28,
+          "issuance_seconds": 0.001959,
+          "local_online_seconds": 0.001604125,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 48
+        },
+        {
+          "actual_q7": 40,
+          "expected_q7": 40,
+          "issuance_seconds": 0.001964167,
+          "local_online_seconds": 0.001595625,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 64
+        },
+        {
+          "actual_q7": 52,
+          "expected_q7": 52,
+          "issuance_seconds": 0.001940208,
+          "local_online_seconds": 0.001622458,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 80
+        },
+        {
+          "actual_q7": 65,
+          "expected_q7": 65,
+          "issuance_seconds": 0.001969333,
+          "local_online_seconds": 0.001596042,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 96
+        },
+        {
+          "actual_q7": 79,
+          "expected_q7": 79,
+          "issuance_seconds": 0.001951417,
+          "local_online_seconds": 0.001599042,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 112
+        },
+        {
+          "actual_q7": 94,
+          "expected_q7": 94,
+          "issuance_seconds": 0.001980167,
+          "local_online_seconds": 0.001625791,
+          "material_body_bytes": 2144,
+          "peer_frame_bytes": null,
+          "public_input_q7": 128
+        }
+      ],
+      "schema": "pllm.nonlinear_frontier_probe.v1",
+      "summary": {
+        "encoded_matches": 17,
+        "material_body_bytes_per_element": 2144,
+        "median_issuance_seconds": 0.001959,
+        "median_local_online_seconds": 0.001600833,
+        "peer_frame_bytes_per_element": null,
+        "worst_encoded_error": 0
+      }
+    },
+    {
+      "gated_product_included": false,
+      "input_conversion_included": false,
+      "material_scope": "both parties' dealer-share payload",
+      "method": "curl0",
+      "process_cpu_seconds": 0.010557,
+      "process_peak_rss_bytes": 1736704,
+      "profile_digest": [
+        52,
+        179,
+        144,
+        80,
+        144,
+        118,
+        55,
+        210,
+        6,
+        91,
+        13,
+        25,
+        254,
+        202,
+        47,
+        49,
+        228,
+        67,
+        92,
+        241,
+        163,
+        204,
+        7,
+        152,
+        133,
+        198,
+        126,
+        80,
+        67,
+        169,
+        115,
+        92
+      ],
+      "requested_pieces": 4,
+      "samples": [
+        {
+          "actual_q7": -34,
+          "expected_q7": -34,
+          "issuance_seconds": 2.2208e-05,
+          "local_online_seconds": 4.459e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -128
+        },
+        {
+          "actual_q7": -33,
+          "expected_q7": -33,
+          "issuance_seconds": 1.8417e-05,
+          "local_online_seconds": 3.75e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -112
+        },
+        {
+          "actual_q7": -31,
+          "expected_q7": -31,
+          "issuance_seconds": 1.6209e-05,
+          "local_online_seconds": 3.542e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -96
+        },
+        {
+          "actual_q7": -28,
+          "expected_q7": -28,
+          "issuance_seconds": 1.5958e-05,
+          "local_online_seconds": 3.416e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -80
+        },
+        {
+          "actual_q7": -24,
+          "expected_q7": -24,
+          "issuance_seconds": 2.3333e-05,
+          "local_online_seconds": 3.375e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -64
+        },
+        {
+          "actual_q7": -20,
+          "expected_q7": -20,
+          "issuance_seconds": 1.6083e-05,
+          "local_online_seconds": 3.375e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -48
+        },
+        {
+          "actual_q7": -14,
+          "expected_q7": -14,
+          "issuance_seconds": 1.6e-05,
+          "local_online_seconds": 3.334e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -32
+        },
+        {
+          "actual_q7": -8,
+          "expected_q7": -8,
+          "issuance_seconds": 1.5917e-05,
+          "local_online_seconds": 3.333e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -16
+        },
+        {
+          "actual_q7": 0,
+          "expected_q7": 0,
+          "issuance_seconds": 1.6041e-05,
+          "local_online_seconds": 3.333e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 0
+        },
+        {
+          "actual_q7": 8,
+          "expected_q7": 8,
+          "issuance_seconds": 1.6042e-05,
+          "local_online_seconds": 3.292e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 16
+        },
+        {
+          "actual_q7": 18,
+          "expected_q7": 18,
+          "issuance_seconds": 1.6041e-05,
+          "local_online_seconds": 3.291e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 32
+        },
+        {
+          "actual_q7": 28,
+          "expected_q7": 28,
+          "issuance_seconds": 1.6e-05,
+          "local_online_seconds": 3.292e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 48
+        },
+        {
+          "actual_q7": 40,
+          "expected_q7": 40,
+          "issuance_seconds": 1.6041e-05,
+          "local_online_seconds": 3.333e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 64
+        },
+        {
+          "actual_q7": 52,
+          "expected_q7": 52,
+          "issuance_seconds": 1.6e-05,
+          "local_online_seconds": 3.333e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 80
+        },
+        {
+          "actual_q7": 65,
+          "expected_q7": 65,
+          "issuance_seconds": 1.6e-05,
+          "local_online_seconds": 3.292e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 96
+        },
+        {
+          "actual_q7": 79,
+          "expected_q7": 79,
+          "issuance_seconds": 1.6083e-05,
+          "local_online_seconds": 3.291e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 112
+        },
+        {
+          "actual_q7": 94,
+          "expected_q7": 94,
+          "issuance_seconds": 1.6e-05,
+          "local_online_seconds": 3.333e-06,
+          "material_body_bytes": 4100,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 128
+        }
+      ],
+      "schema": "pllm.nonlinear_frontier_probe.v1",
+      "summary": {
+        "encoded_matches": 17,
+        "material_body_bytes_per_element": 4100,
+        "median_issuance_seconds": 1.6041e-05,
+        "median_local_online_seconds": 3.333e-06,
+        "peer_frame_bytes_per_element": 136,
+        "worst_encoded_error": 0
+      }
+    },
+    {
+      "gated_product_included": false,
+      "input_conversion_included": false,
+      "material_scope": "both parties' dealer-share payload",
+      "method": "curl2",
+      "process_cpu_seconds": 0.010688,
+      "process_peak_rss_bytes": 1736704,
+      "profile_digest": [
+        52,
+        179,
+        144,
+        80,
+        144,
+        118,
+        55,
+        210,
+        6,
+        91,
+        13,
+        25,
+        254,
+        202,
+        47,
+        49,
+        228,
+        67,
+        92,
+        241,
+        163,
+        204,
+        7,
+        152,
+        133,
+        198,
+        126,
+        80,
+        67,
+        169,
+        115,
+        92
+      ],
+      "requested_pieces": 4,
+      "samples": [
+        {
+          "actual_q7": -34,
+          "expected_q7": -34,
+          "issuance_seconds": 8.208e-06,
+          "local_online_seconds": 1.792e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -128
+        },
+        {
+          "actual_q7": -33,
+          "expected_q7": -33,
+          "issuance_seconds": 6.208e-06,
+          "local_online_seconds": 1.333e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -112
+        },
+        {
+          "actual_q7": -30,
+          "expected_q7": -31,
+          "issuance_seconds": 6.042e-06,
+          "local_online_seconds": 1.083e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -96
+        },
+        {
+          "actual_q7": -28,
+          "expected_q7": -28,
+          "issuance_seconds": 7.209e-06,
+          "local_online_seconds": 1.041e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -80
+        },
+        {
+          "actual_q7": -24,
+          "expected_q7": -24,
+          "issuance_seconds": 1e-05,
+          "local_online_seconds": 1.125e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -64
+        },
+        {
+          "actual_q7": -19,
+          "expected_q7": -20,
+          "issuance_seconds": 6.167e-06,
+          "local_online_seconds": 1e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -48
+        },
+        {
+          "actual_q7": -14,
+          "expected_q7": -14,
+          "issuance_seconds": 6e-06,
+          "local_online_seconds": 1e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -32
+        },
+        {
+          "actual_q7": -7,
+          "expected_q7": -8,
+          "issuance_seconds": 5.958e-06,
+          "local_online_seconds": 1e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -16
+        },
+        {
+          "actual_q7": 1,
+          "expected_q7": 0,
+          "issuance_seconds": 5.959e-06,
+          "local_online_seconds": 1e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 0
+        },
+        {
+          "actual_q7": 9,
+          "expected_q7": 8,
+          "issuance_seconds": 5.959e-06,
+          "local_online_seconds": 9.58e-07,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 16
+        },
+        {
+          "actual_q7": 19,
+          "expected_q7": 18,
+          "issuance_seconds": 5.958e-06,
+          "local_online_seconds": 9.58e-07,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 32
+        },
+        {
+          "actual_q7": 30,
+          "expected_q7": 28,
+          "issuance_seconds": 6e-06,
+          "local_online_seconds": 1e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 48
+        },
+        {
+          "actual_q7": 41,
+          "expected_q7": 40,
+          "issuance_seconds": 1.3833e-05,
+          "local_online_seconds": 1.209e-06,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 64
+        },
+        {
+          "actual_q7": 54,
+          "expected_q7": 52,
+          "issuance_seconds": 6.041e-06,
+          "local_online_seconds": 9.58e-07,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 80
+        },
+        {
+          "actual_q7": 66,
+          "expected_q7": 65,
+          "issuance_seconds": 6e-06,
+          "local_online_seconds": 9.17e-07,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 96
+        },
+        {
+          "actual_q7": 80,
+          "expected_q7": 79,
+          "issuance_seconds": 5.958e-06,
+          "local_online_seconds": 9.59e-07,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 112
+        },
+        {
+          "actual_q7": 94,
+          "expected_q7": 94,
+          "issuance_seconds": 5.916e-06,
+          "local_online_seconds": 9.58e-07,
+          "material_body_bytes": 1028,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 128
+        }
+      ],
+      "schema": "pllm.nonlinear_frontier_probe.v1",
+      "summary": {
+        "encoded_matches": 6,
+        "material_body_bytes_per_element": 1028,
+        "median_issuance_seconds": 6e-06,
+        "median_local_online_seconds": 1e-06,
+        "peer_frame_bytes_per_element": 136,
+        "worst_encoded_error": 2
+      }
+    },
+    {
+      "gated_product_included": false,
+      "input_conversion_included": false,
+      "material_scope": "both parties' dealer-share payload",
+      "method": "curl4",
+      "process_cpu_seconds": 0.010579,
+      "process_peak_rss_bytes": 1736704,
+      "profile_digest": [
+        52,
+        179,
+        144,
+        80,
+        144,
+        118,
+        55,
+        210,
+        6,
+        91,
+        13,
+        25,
+        254,
+        202,
+        47,
+        49,
+        228,
+        67,
+        92,
+        241,
+        163,
+        204,
+        7,
+        152,
+        133,
+        198,
+        126,
+        80,
+        67,
+        169,
+        115,
+        92
+      ],
+      "requested_pieces": 4,
+      "samples": [
+        {
+          "actual_q7": -34,
+          "expected_q7": -34,
+          "issuance_seconds": 5.875e-06,
+          "local_online_seconds": 2.042e-06,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -128
+        },
+        {
+          "actual_q7": -32,
+          "expected_q7": -33,
+          "issuance_seconds": 3.25e-06,
+          "local_online_seconds": 5.42e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -112
+        },
+        {
+          "actual_q7": -29,
+          "expected_q7": -31,
+          "issuance_seconds": 3.125e-06,
+          "local_online_seconds": 4.59e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -96
+        },
+        {
+          "actual_q7": -26,
+          "expected_q7": -28,
+          "issuance_seconds": 3.042e-06,
+          "local_online_seconds": 3.75e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -80
+        },
+        {
+          "actual_q7": -22,
+          "expected_q7": -24,
+          "issuance_seconds": 3e-06,
+          "local_online_seconds": 3.33e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -64
+        },
+        {
+          "actual_q7": -17,
+          "expected_q7": -20,
+          "issuance_seconds": 3e-06,
+          "local_online_seconds": 4.17e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -48
+        },
+        {
+          "actual_q7": -11,
+          "expected_q7": -14,
+          "issuance_seconds": 4.833e-06,
+          "local_online_seconds": 3.33e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -32
+        },
+        {
+          "actual_q7": -4,
+          "expected_q7": -8,
+          "issuance_seconds": 2.958e-06,
+          "local_online_seconds": 3.75e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": -16
+        },
+        {
+          "actual_q7": 4,
+          "expected_q7": 0,
+          "issuance_seconds": 4.541e-06,
+          "local_online_seconds": 4.59e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 0
+        },
+        {
+          "actual_q7": 13,
+          "expected_q7": 8,
+          "issuance_seconds": 3.125e-06,
+          "local_online_seconds": 3.75e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 16
+        },
+        {
+          "actual_q7": 23,
+          "expected_q7": 18,
+          "issuance_seconds": 3.042e-06,
+          "local_online_seconds": 3.33e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 32
+        },
+        {
+          "actual_q7": 34,
+          "expected_q7": 28,
+          "issuance_seconds": 3.083e-06,
+          "local_online_seconds": 3.34e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 48
+        },
+        {
+          "actual_q7": 46,
+          "expected_q7": 40,
+          "issuance_seconds": 4.208e-06,
+          "local_online_seconds": 3.75e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 64
+        },
+        {
+          "actual_q7": 58,
+          "expected_q7": 52,
+          "issuance_seconds": 3.125e-06,
+          "local_online_seconds": 5.41e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 80
+        },
+        {
+          "actual_q7": 72,
+          "expected_q7": 65,
+          "issuance_seconds": 3e-06,
+          "local_online_seconds": 3.33e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 96
+        },
+        {
+          "actual_q7": 86,
+          "expected_q7": 79,
+          "issuance_seconds": 3.125e-06,
+          "local_online_seconds": 3.33e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 112
+        },
+        {
+          "actual_q7": 94,
+          "expected_q7": 94,
+          "issuance_seconds": 2.958e-06,
+          "local_online_seconds": 3.33e-07,
+          "material_body_bytes": 260,
+          "peer_frame_bytes": 136,
+          "public_input_q7": 128
+        }
+      ],
+      "schema": "pllm.nonlinear_frontier_probe.v1",
+      "summary": {
+        "encoded_matches": 2,
+        "material_body_bytes_per_element": 260,
+        "median_issuance_seconds": 3.125e-06,
+        "median_local_online_seconds": 3.75e-07,
+        "peer_frame_bytes_per_element": 136,
+        "worst_encoded_error": 7
+      }
+    }
+  ],
+  "complete_block_cost": null,
+  "configuration": {
+    "curl_padding": "unused table entries repeat the public upper endpoint before Haar compression",
+    "domain": "signed Q7 [-128,128], representing [-1,1]",
+    "methods": [
+      "compact",
+      "logrow",
+      "curl0",
+      "curl2",
+      "curl4"
+    ],
+    "profile": "uniform public Compact Q7 calibration, four requested pieces",
+    "samples": 17,
+    "scope": "activation component lower bounds; different role/output contracts do not rank"
+  },
+  "domain_evidence": {
+    "path": "docs/evidence/research-nonlinear-block-reference-qwen25.json",
+    "sha256": "267fc5d0ab14a512636ddacf53f0ba08873d80badf96302c4df228ccc52f1a8c"
+  },
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "executable_sdk": false,
+  "geometry_projections": [
+    {
+      "cases": [
+        {
+          "activation_material_body_bytes_lower_bound": 4528893591552,
+          "activation_peer_frame_bytes_lower_bound": null,
+          "method": "compact"
+        },
+        {
+          "activation_material_body_bytes_lower_bound": 11512971264,
+          "activation_peer_frame_bytes_lower_bound": null,
+          "method": "logrow"
+        },
+        {
+          "activation_material_body_bytes_lower_bound": 22016409600,
+          "activation_peer_frame_bytes_lower_bound": 730300416,
+          "method": "curl0"
+        },
+        {
+          "activation_material_body_bytes_lower_bound": 5520211968,
+          "activation_peer_frame_bytes_lower_bound": 730300416,
+          "method": "curl2"
+        },
+        {
+          "activation_material_body_bytes_lower_bound": 1396162560,
+          "activation_peer_frame_bytes_lower_bound": 730300416,
+          "method": "curl4"
+        }
+      ],
+      "gated_elements": 5369856,
+      "input_tokens": 39,
+      "output_tokens": 8
+    },
+    {
+      "cases": [
+        {
+          "activation_material_body_bytes_lower_bound": 6891794595840,
+          "activation_peer_frame_bytes_lower_bound": null,
+          "method": "compact"
+        },
+        {
+          "activation_material_body_bytes_lower_bound": 17519738880,
+          "activation_peer_frame_bytes_lower_bound": null,
+          "method": "logrow"
+        },
+        {
+          "activation_material_body_bytes_lower_bound": 33503232000,
+          "activation_peer_frame_bytes_lower_bound": 1111326720,
+          "method": "curl0"
+        },
+        {
+          "activation_material_body_bytes_lower_bound": 8400322560,
+          "activation_peer_frame_bytes_lower_bound": 1111326720,
+          "method": "curl2"
+        },
+        {
+          "activation_material_body_bytes_lower_bound": 2124595200,
+          "activation_peer_frame_bytes_lower_bound": 1111326720,
+          "method": "curl4"
+        }
+      ],
+      "gated_elements": 8171520,
+      "input_tokens": 39,
+      "output_tokens": 32
+    }
+  ],
+  "limitations": [
+    "fixed Q7 domain already fails the source-locked Qwen gate; no real checkpoint execution here",
+    "Curl leaves output shared; Compact/LogRow output labels decode only at the trusted client",
+    "compression changes the encoded function",
+    "no reviewed cryptography or whole-response benchmark"
+  ],
+  "missing_costs": [
+    "protected input conversion and range enforcement",
+    "output conversion between labels and additive shares",
+    "secret multiplication by up and final rescaling",
+    "complete authenticated transport, offline metadata and key distribution",
+    "full tensor schedule, attention, normalization and private token feedback"
+  ],
+  "schema": "pllm.nonlinear_frontier.v1",
+  "source_sha256": {
+    "benchmarks/research/nonlinear_frontier.py": "df6afb1c39491a244d9095ebf91be923351dcb328fd51a7e8837549387e80e5b",
+    "crates/pllm-core/src/compact.rs": "0efb7db6809ac2f143f4d67b13709ff79d79d5c42aa96a18b3f26d8afca53eac",
+    "crates/pllm-garble/examples/nonlinear_frontier_probe.rs": "abfdfe976aca25895dbf95947978ca4e49c6a4f5bf642422caf43e1140b53e98",
+    "crates/pllm-garble/src/compact_polynomial.rs": "600b3dc610bc89178d44031ab32d12c7efe31141dec1c0a5c1ca35f7a693183b",
+    "crates/pllm-garble/src/logrow.rs": "b982df93d1ffe89158c830d4cbe2c4ebfc7d0269fec4654b43bcd6d89a6169ab",
+    "crates/pllm-garble/src/shared_lut_reference.rs": "3c787082352f90969f897b3057db864aee534478629fb6c00651737a44c609ab"
+  }
+}

@@ -124,6 +124,25 @@ provider-body Metal does not retain its uncapped latency lead. Local bandwidth
 caps, model download exclusions and CPU-versus-GPU accounting remain part of
 the comparison, rather than being hidden in a single combined score.
 
+## Promoted Qwen3-4B tokenizer
+
+The model selector now includes a separate fresh-client **16+8-token Qwen3-4B**
+SDK pair under the same native 100/40 caps. Both use paged client/Preparation
+weights, demand issuance and packed/residue codecs; only `IndexedTokenizer`
+differs. Client peak RSS falls **360.89 → 262.73 MB (27.20%)**, with matching
+outputs and covered application bodies and zero observed swap growth. Latency
+stays about 166 seconds, while sampled aggregate RSS rises **5.57 → 5.82 GB**.
+The chart preserves those opposing results. The **9.29 MB** public index is
+pre-positioned, and its **0.733 CPU-second** compiler cost is separate. This
+cohort establishes neither generation quality nor a 10× whole-client reduction.
+
+Replay factories are `benchmarks/research/qwen3_sdk_control.py` and
+`benchmarks/research/qwen3_sdk_indexed.py`; public setup uses
+`python -m benchmarks.research.qwen3_artifacts DIRECTORY` and
+`PLLM_RESEARCH_ARTIFACTS`. The complete command, source locks and measurement
+scope are in `docs/research/qwen3-sdk-artifacts.md`. Both reports are retained in
+[Research data](/research/results/).
+
 ## SDK composition search
 
 [`BeamSearch` and `benchmark_search`](/sdk/evaluate/search/) complement grid and

@@ -330,7 +330,7 @@ Separate approximation, protected evaluation and scheduling. Separate correlatio
 
 #### [CipherPrune: Efficient and Scalable Private Transformer Inference](https://arxiv.org/html/2502.16782v2) (2025)
 
-**Paper ID:** `cipherprune` · **Track:** `component_candidate` · **Source evidence:** `abstract_or_publication_record_reviewed`
+**Paper ID:** `cipherprune` · **Track:** `component_candidate` · **Source evidence:** `key_sections_reviewed`
 
 **Supporting owners:** `pllm.models`, `pllm.protocols`, `pllm.runtime`, `pllm.plan`, `pllm.evidence`.
 
@@ -340,7 +340,7 @@ Separate approximation, protected evaluation and scheduling. Separate correlatio
 
 **Promotion gate:** Lossy semantic changes and token-dependent leakage must be explicit.
 
-**Original evidence boundary:** Check whether pruning decisions and schedules are private and quantify resulting model changes.
+**Original evidence boundary:** The basic pruning mask is opened; optional oblivious compaction hides original locations but discloses retained counts, and polynomial reduction opens a compacted-order mask. Learned thresholds/model quality and this leakage need explicit contracts.
 
 #### [ReDASH: Fast and efficient Scaling in Arithmetic Garbled Circuits for Secure Outsourced Inference](https://arxiv.org/html/2506.14489v1) (2025)
 
@@ -612,7 +612,7 @@ Separate approximation, protected evaluation and scheduling. Separate correlatio
 
 #### [THOR: Secure Transformer Inference with Homomorphic Encryption](https://eprint.iacr.org/2024/1881) (2025)
 
-**Paper ID:** `thor` · **Track:** `alternate_deployment` · **Source evidence:** `abstract_or_publication_record_reviewed`
+**Paper ID:** `thor` · **Track:** `alternate_deployment` · **Source evidence:** `key_sections_reviewed`
 
 **Supporting owners:** `pllm.nonlinear`, `pllm.passes`, `pllm.models`, `pllm.roles`, `pllm.deployment`, `pllm.profiles`.
 

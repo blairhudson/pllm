@@ -183,6 +183,23 @@
       }
     },
     {
+      "id": "qwen3-sdk-tokenizer-16-8",
+      "title": "Qwen3-4B SDK tokenizer · 16 input / 8 output tokens · native 100/40",
+      "report": "docs/evidence/research-qwen3-sdk-artifacts.json",
+      "publisher_report": "docs/evidence/research-qwen3-sdk-artifacts-publisher.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/qwen3_artifacts.py": "497b736fcc4986b303b86ccf027be08b7485f0ce73154fb5e1e408c2e586524c",
+        "docs/evidence/research-qwen3-sdk-artifacts-publisher.json": "3d39b98f36ba693a62e22ab7774c6e2a86d47f80188d5f118d6d4822f8093939"
+      },
+      "baseline": "qwen3-sdk-paged-control",
+      "scope": "One cold 16+8-token response per ordinary SDK Experiment, fresh native clients and shared 100/40 TCP-stream caps. Both use paged client and Preparation weights, demand issuance and packed/residue codecs; only the indexed tokenizer differs. Client peak RSS falls 27.20%, while sampled aggregate RSS rises and request latency is nearly equal. Outputs and covered application bodies match. The public 9.29 MB tokenizer index is pre-positioned; publication, distribution, checkpoint transfer, full physical wire and generation quality remain separate.",
+      "candidates": {
+        "qwen3-sdk-paged-control": {"file": "benchmarks/research/qwen3_sdk_control.py", "sha256": "279b23b2a3efef2cb1ceb5f15ce39ac57725264eefe04022fd4eef9bf651cb0f", "label": "Paged SDK control", "artifact_bytes": 0},
+        "qwen3-sdk-paged-indexed": {"file": "benchmarks/research/qwen3_sdk_indexed.py", "sha256": "ca2082d9a8589d82a51b275ba248db62b2082deaba593c9a8ee3b891c3527554", "label": "Paged SDK + indexed tokenizer", "artifact_bytes": 9285852}
+      }
+    },
+    {
       "id": "qwen25-prepared-150-8",
       "title": "Uncapped prepared stacks · 150 input / 8 output tokens",
       "report": "docs/evidence/research-scorecard-qwen25.json",

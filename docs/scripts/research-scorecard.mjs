@@ -248,10 +248,23 @@ export function cohortRows(cohort, document, read = (file) => fs.readFileSync(pa
     ]) {
       const selected = candidate.pipeline.components[slot];
       if (!selected) continue;
-      const artifact = publisher?.[key];
-      if (publisher?.schema !== 'pllm.public_artifact_build.v1' ||
-          publisher.body_fingerprint !== run.model_fingerprint ||
-          publisher.input_tokens !== run.tokens.input_tokens || publisher.output_cap !== run.max_output_tokens ||
+      let artifact = publisher?.[key];
+      let publisherMatches = publisher?.schema === 'pllm.public_artifact_build.v1' &&
+        publisher.body_fingerprint === run.model_fingerprint &&
+        publisher.input_tokens === run.tokens.input_tokens && publisher.output_cap === run.max_output_tokens;
+      if (slot === 'tokenizer' && publisher?.schema === 'pllm.public_tokenizer_build.v1') {
+        // Tokenizer-only publication loads no weights and has no numeric body or
+        // workload dependency. The admitted digest binds its original tokenizer;
+        // retain the immutable checkpoint identity and measured artifact cost.
+        artifact = { digest: publisher.tokenizer_contract_sha256, bytes: publisher.artifact_bytes };
+        publisherMatches = publisher.model === run.model_id &&
+          publisher.model === candidate.pipeline.model.source &&
+          publisher.revision === candidate.pipeline.model.revision &&
+          /^[a-f0-9]{40}$/.test(publisher.revision) &&
+          /^[a-f0-9]{64}$/.test(publisher.source_sha256) &&
+          Object.values(cohort.configuration_sources ?? {}).includes(publisher.configuration_source_sha256);
+      }
+      if (!publisherMatches ||
           selected.component !== implementation || selected.params.digest !== artifact?.digest ||
           !Number.isSafeInteger(artifact?.bytes) || artifact.bytes <= 0) {
         throw new Error('Public artifact does not match publisher evidence and measured Pipeline');

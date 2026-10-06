@@ -1,0 +1,277 @@
+{
+  "ciphertext_execution": false,
+  "configuration": {
+    "calibration": "fixed public parameters; no prompt-dependent fitting or clipping",
+    "input_bound": 128,
+    "methods": [
+      "nexus_exp",
+      "thor_exp"
+    ],
+    "nexus": {
+      "public_shift": 16,
+      "squarings": 8
+    },
+    "normalization": "exact f64 reference division; encrypted reciprocal omitted",
+    "output_positions": 3,
+    "public_score_bound": 16,
+    "thor": {
+      "coefficient_source": "Appendix C printed degree-15 exponential",
+      "delta1": 1,
+      "delta2": 32
+    }
+  },
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "executable_sdk": false,
+  "limitations": [
+    "optimistic plaintext exponent/softmax gate, not a reproduction of either HE system",
+    "exact f64 normalization replaces Goldschmidt/aSOR reciprocal; CKKS errors and bootstrapping absent",
+    "fixed [-16,16] bound rejects without clipping or fallback; public causal slots only",
+    "Qwen uses RMSNorm, SiLU, GQA, rotary KV and autoregressive feedback requiring separate contracts",
+    "no packed ciphertext matrix schedule, encrypted persistent state or protected token feedback",
+    "numeric oracles do not supply ciphertext costs or provider performance scores"
+  ],
+  "maximum_swap_growth_bytes": 0,
+  "observations": [
+    {
+      "completed_positions": 0,
+      "input_tokens": 45,
+      "method": "nexus_exp",
+      "operators": 1,
+      "outside_public_range": 14485,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "1b05cdf0c2dc50979c6caadd90e6186419dddb98970277ed8fee8f64f3f7cfaa",
+      "top1_matches": [],
+      "valid_scores": 14490,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 45,
+      "method": "thor_exp",
+      "operators": 1,
+      "outside_public_range": 14485,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "1b05cdf0c2dc50979c6caadd90e6186419dddb98970277ed8fee8f64f3f7cfaa",
+      "top1_matches": [],
+      "valid_scores": 14490,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 43,
+      "method": "nexus_exp",
+      "operators": 1,
+      "outside_public_range": 13239,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "94da0f632abc359245b1dcfa5e75043374630b64d23bfa873b11168ac0d8d55a",
+      "top1_matches": [],
+      "valid_scores": 13244,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 43,
+      "method": "thor_exp",
+      "operators": 1,
+      "outside_public_range": 13239,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "94da0f632abc359245b1dcfa5e75043374630b64d23bfa873b11168ac0d8d55a",
+      "top1_matches": [],
+      "valid_scores": 13244,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 43,
+      "method": "nexus_exp",
+      "operators": 1,
+      "outside_public_range": 13239,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "a6e073bbcca39a4d84792ba0bba3d6772dde4a4452858661d75a5b4574ea8cac",
+      "top1_matches": [],
+      "valid_scores": 13244,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 43,
+      "method": "thor_exp",
+      "operators": 1,
+      "outside_public_range": 13239,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "a6e073bbcca39a4d84792ba0bba3d6772dde4a4452858661d75a5b4574ea8cac",
+      "top1_matches": [],
+      "valid_scores": 13244,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 42,
+      "method": "nexus_exp",
+      "operators": 1,
+      "outside_public_range": 12637,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "5f773c5191bc4a758cf32cbdd0ca24510a4b3a2951877e51e7336b6861582dc8",
+      "top1_matches": [],
+      "valid_scores": 12642,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 42,
+      "method": "thor_exp",
+      "operators": 1,
+      "outside_public_range": 12637,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "5f773c5191bc4a758cf32cbdd0ca24510a4b3a2951877e51e7336b6861582dc8",
+      "top1_matches": [],
+      "valid_scores": 12642,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 40,
+      "method": "nexus_exp",
+      "operators": 1,
+      "outside_public_range": 11475,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "019fe5cc9cb44c570ec089729a206d4569bad4ae9fe700f6b3148addecdf2f5a",
+      "top1_matches": [],
+      "valid_scores": 11480,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 40,
+      "method": "thor_exp",
+      "operators": 1,
+      "outside_public_range": 11475,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "019fe5cc9cb44c570ec089729a206d4569bad4ae9fe700f6b3148addecdf2f5a",
+      "top1_matches": [],
+      "valid_scores": 11480,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 41,
+      "method": "nexus_exp",
+      "operators": 1,
+      "outside_public_range": 12049,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "82133cc13c49f57efc2b116ac2622a5fb3c492c9ea851a65bd2f28275e6356b8",
+      "top1_matches": [],
+      "valid_scores": 12054,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 41,
+      "method": "thor_exp",
+      "operators": 1,
+      "outside_public_range": 12049,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "82133cc13c49f57efc2b116ac2622a5fb3c492c9ea851a65bd2f28275e6356b8",
+      "top1_matches": [],
+      "valid_scores": 12054,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 42,
+      "method": "nexus_exp",
+      "operators": 1,
+      "outside_public_range": 12637,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "0383dcc2975c8382d2cc673ae0eeb8917bbe8a8ddc27c37ff319b03f00fbe1e8",
+      "top1_matches": [],
+      "valid_scores": 12642,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 42,
+      "method": "thor_exp",
+      "operators": 1,
+      "outside_public_range": 12637,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "0383dcc2975c8382d2cc673ae0eeb8917bbe8a8ddc27c37ff319b03f00fbe1e8",
+      "top1_matches": [],
+      "valid_scores": 12642,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 39,
+      "method": "nexus_exp",
+      "operators": 1,
+      "outside_public_range": 10915,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "69fe8b8390d0f845e4250d5172eb409619a313ceca361bf621e3e1e691611ef4",
+      "top1_matches": [],
+      "valid_scores": 10920,
+      "worst_abs_logit_error": []
+    },
+    {
+      "completed_positions": 0,
+      "input_tokens": 39,
+      "method": "thor_exp",
+      "operators": 1,
+      "outside_public_range": 10915,
+      "rejection": "softmax score exceeds fixed public domain",
+      "token_cohort_sha256": "69fe8b8390d0f845e4250d5172eb409619a313ceca361bf621e3e1e691611ef4",
+      "top1_matches": [],
+      "valid_scores": 10920,
+      "worst_abs_logit_error": []
+    }
+  ],
+  "paper_sha256": {
+    "papers/r21-nexus.pdf": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+    "papers/thor.pdf": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd"
+  },
+  "process_peak_rss_bytes": null,
+  "public_prompt_sha256": "ef6d1feb5f5c2570538fe097b262ca3227958444b391b907f974d641195b744d",
+  "reference": "same-token pinned W8A8 clear-kernel; all other operators unchanged",
+  "schema": "pllm.he_softmax_reference.v1",
+  "source": {
+    "binding_digest": "c733e61be567da38b9639611196c9ea07f0ed4638add25591cc8583534415ce6",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "4d36d1a857d7f0f6a97769d39fa9c1295eafe94ee1004dee8346fcde9547f5ff",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "schedule_digest": "f641cb615ec3289d8983517f3e108ade7c1612483b248bde16f1cfc463e12ebb",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "source_sha256": {
+    "benchmarks/research/he_softmax_reference.py": "7cc44c87b72de9167d05bc02670a55d0df3e39421dcb7960fb8dd974c3dd3e16",
+    "benchmarks/research/nonlinear_block_reference.py": "fea6b10309e936007b48423b8c4ffe9a070ab7cc27a0ae80c1127ba820468172",
+    "crates/pllm-core/examples/polynomial_softmax_probe.rs": "714dddf50f66287b82563c45c9eef7f4948023448cd14dd1b399d4e7818e3722",
+    "crates/pllm-core/src/polynomial_softmax_reference.rs": "730ca31bd850994d5b85e9b99e0c3273f62b30f87d4e0c82f6afa158f85fec98",
+    "scripts/decoder_probe_support.py": "6b102bd674403a431e898ef1d6d411e74a663f063555e021ac56a1159a8a0d3e"
+  },
+  "summary": {
+    "nexus_exp": {
+      "attempted_prompts": 8,
+      "completed_positions": 0,
+      "matching_positions": 0,
+      "outside_public_range": 100676,
+      "rejected_prompts": 8,
+      "worst_abs_logit_error": null
+    },
+    "thor_exp": {
+      "attempted_prompts": 8,
+      "completed_positions": 0,
+      "matching_positions": 0,
+      "outside_public_range": 100676,
+      "rejected_prompts": 8,
+      "worst_abs_logit_error": null
+    }
+  },
+  "whole_generation_quality": false,
+  "whole_response_network_bytes": null
+}

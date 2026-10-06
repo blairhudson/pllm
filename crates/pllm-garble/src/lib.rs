@@ -16,6 +16,8 @@ mod point_fss;
 pub mod private_pages;
 pub mod projected_polynomial;
 pub mod projected_reshare;
+pub mod shared_arithmetic_reference;
+pub mod shared_gated_block_reference;
 pub mod shared_lut_reference;
 pub mod shared_rescale_reference;
 

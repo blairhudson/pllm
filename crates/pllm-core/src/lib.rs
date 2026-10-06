@@ -6,6 +6,7 @@
 pub mod activation;
 mod attention;
 mod attention_values;
+pub mod cache_selection_reference;
 pub mod codec;
 pub mod coded_delegation_reference;
 pub mod coded_linear;
@@ -20,6 +21,7 @@ pub mod mask_stream;
 pub mod masked_aggregate;
 pub mod offset_transport;
 pub mod paged;
+pub mod polynomial_softmax_reference;
 pub mod progressive_head;
 pub mod public_entropy;
 pub mod public_transforms;

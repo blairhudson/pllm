@@ -1,0 +1,29 @@
+{
+  "artifact_bytes": 9285852,
+  "checked_public_cases": 8,
+  "configuration_source_sha256": "497b736fcc4986b303b86ccf027be08b7485f0ce73154fb5e1e408c2e586524c",
+  "distribution": "pre-positioned; artifact bytes and compiler CPU additional to response counters",
+  "maximum_swap_growth_bytes": 0,
+  "model": "Qwen/Qwen3-4B",
+  "offline_compiler_cpu_seconds": 0.7328539999999997,
+  "offline_compiler_wall_seconds": 0.7347945421934128,
+  "public_cases_sha256": "983843fc47aa22e7d1d9819b9678bc2553227049c900df99ab52d2c2f235f07d",
+  "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+  "schema": "pllm.public_tokenizer_build.v1",
+  "scope": "public compilation and local tokenizer microprobe; fresh-client response RSS measured separately",
+  "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+  "source_sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+  "tokenizer_contract_sha256": "de306ef96abed3a0870bd523d811d2c9aa0b53b53dd633fe9e7d5c3147815353",
+  "warm_tokenizer_microprobe": {
+    "indexed": {
+      "calls_per_direction": 400,
+      "decode_cpu_seconds": 0.00536599999999865,
+      "encode_cpu_seconds": 0.064585000000001
+    },
+    "original": {
+      "calls_per_direction": 400,
+      "decode_cpu_seconds": 0.000600000000000378,
+      "encode_cpu_seconds": 0.005133999999999972
+    }
+  }
+}

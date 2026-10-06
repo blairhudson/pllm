@@ -111,6 +111,37 @@ equations, fresh-process measurements and the rerunnable Python configuration.
 The compact follow-up is in `docs/research/compact-rescale-reference.md`.
 Universal interval keys are in `docs/research/interval-rescale-reference.md`.
 
+The complete shared Q7 gated-block follow-up composes four exact rescalings and
+two one-use Beaver multiplications. All 11,540 checked outputs match the integer
+oracle, but 36.07% of pinned Qwen gate/up pairs exceed its declared range. The
+39+8-token fused layout projects 41.33 GB of keys and 409.12 MB peer traffic,
+before other decoder work. This closes the current profile's promotion path;
+it does not weaken the numeric gate. See `docs/research/nonlinear-block-reference.md`.
+MPCache now has a native selected-view oracle with exact full-cache control and
+8,712 independent index/equation checks. Static retention matches 34/36 same-token
+decode selections; combined selection and adjacent-layer sharing matches 31/36.
+The runtime retains full KV. Protected selection, sparse-state execution and
+numeric quality remain gates; see `docs/research/mpcache-reference.md`.
+
+The common Compact/LogRow/Curl Q7 screen retains different material and output
+contracts. Even four-level Curl projects 1.40 GB material plus 730.30 MB peer
+bodies for activation alone at 39+8, before protected conversion and the gated
+product; see `docs/research/nonlinear-frontier.md`. NEXUS/THOR plaintext softmax
+references reject all eight Qwen prompts under the fixed public score range,
+with no candidate quality or ciphertext result. CipherPrune source review makes
+its count/compacted-mask leakage and trained thresholds explicit. See
+`docs/research/he-pruning-gates.md`. Next implementation decisions need a new
+public numeric policy or materially cheaper complete protocol, rather than
+promoting any of these rejected fixed profiles into SDK search.
+
+The promoted indexed tokenizer now has a separate ordinary Qwen3-4B SDK pair
+with fresh clients and native 100/40 caps. At 16+8 tokens it lowers client peak
+RSS from 360.89 to 262.73 MB (27.20%); outputs and covered application bodies
+match, but sampled aggregate memory rises and latency remains about 166 seconds.
+Its 9.29 MB public index and offline compiler CPU remain additional. This closes
+the earlier probe-to-SDK measurement gap for this choice, not the resident-weight
+control or generation-quality gates. See `docs/research/qwen3-sdk-artifacts.md`.
+
 ## Importable Python stubs are not executable components
 
 Every pending class has a stable public import, paper URL, reserved identity,

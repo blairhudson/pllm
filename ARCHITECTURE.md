@@ -192,6 +192,18 @@ admitted; independent review and complete-operator cost reduction remain gates.
 All three cohorts and exact source contracts are retained in
 `docs/research/interval-rescale-reference.md` and its linked historical controls.
 
+The complete bounded shared Q7 gated block composes four exact rescalings and
+two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases
+check 11,540 outputs, with all remaining block material burned on failure.
+Interval keys with fusion need five peer rounds, 246,272 key bytes per party and
+4,876 peer bytes per 64 outputs. Hypothetical Qwen 39+8 full-MLP geometry needs
+41.33 GB of keys and 409.12 MB peer bodies, before other decoder operations.
+On eight pinned public W8A8 prefill/decode traces, 36.07% of gate/up pairs exceed
+the profile's public range; even the separate maximum scaled gate range has
+418 violations. The reference neither clips inputs nor executes an unsupported
+candidate decoder. Numeric mapping, cost, distributed issuance and independent
+review still block admission. Details: `docs/research/nonlinear-block-reference.md`.
+
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,
 `pllm-types`, `pllm-bench`, and `pllm-assurance` through PyO3. The stable Python
@@ -363,7 +375,18 @@ There is no `research.single_evaluator` profile. The fixed-Q10 research path is 
 ordinary component composition with executable regions for dense gated-decoder operators, graph-derived
 Q14-to-Q10 edges, clear attention and layer composites, and bounded one-use Q7
 SiLU/multiply material, but those protected and fixed-scale components are not yet
-composed into a real-model whole decoder. Transformed MPCache and compiler-bound
+composed into a real-model whole decoder. A bounded native MPCache selection
+oracle preserves its full-cache Qwen control but static retention matches only
+34/36 same-token decode selections, and combined/layer-shared selection 31/36.
+It retains full backing KV and uses client-local plaintext gathers; selected
+addresses depend on private queries. Sparse-state execution, protected selection
+and numeric quality remain gates. The separate common-profile Compact/LogRow/Curl
+screen counts activation-only material and missing conversions explicitly;
+four-level Curl still projects 1.40 GB material and 730.30 MB peer bodies at
+39+8 before the gated product. NEXUS/THOR plaintext exponential references reject
+eight Qwen prompts under their fixed public score range, producing no candidate
+quality or ciphertext result. These are component/source gates, not admitted
+decoder protocols. Transformed MPCache and compiler-bound
 E4B checkpoint execution remain incomplete. The pinned Qwen3.5 text-only graph
 now compiles through shared convolution, gated-delta recurrence, partial-MRoPE,
 gated normalization and persistent-state contracts. Its generated four-layer
@@ -843,12 +866,20 @@ and releases scope ownership on exit or failure; async worker calls inherit the
 request context. Prompt-dependent work remains local. The explicit
 `pllm.tokenization.IndexedTokenizer` now admits trusted offline byte-level BPE
 indexes under source and artifact digests, bounded local queries and
-request-owned private SQLite snapshots. Unsupported contracts reject; its
-historical 4B memory improvement has not been remeasured in the promoted SDK.
+request-owned private SQLite snapshots. Unsupported contracts reject. A fresh-client
+Qwen3-4B ordinary SDK pair now measures the promoted tokenizer at 16+8 tokens
+under native shared 100/40 caps: client peak RSS falls 360.89 to 262.73 MB (27.20%),
+with identical outputs and covered application bodies and zero observed swap growth.
+Request latency stays about 166 seconds; sampled aggregate RSS rises 5.57 to
+5.82 GB. Both choices use paged client/Preparation weights, demand issuance and
+packed/residue codecs. The 9.29 MB public index and 0.73-second compiler CPU are
+additional; checkpoint distribution, physical wire, quality and a resident 4B
+control remain unmeasured. See `docs/research/qwen3-sdk-artifacts.md`.
 Compiled unscaled float32 RoPE now also shares exact coefficients
 within a phase under a 16-table/1 MiB bound, priced by admission and cleared on
 completion or failure. It preserves the original vector shapes and arithmetic
-order. These SDK changes have not yet been remeasured in the 4B memory cohort.
+order. The tokenizer pair retains these shared SDK choices in both candidates;
+it does not isolate their individual effects.
 
 A separate five-candidate client-offload screen moves public BPE vocabulary and
 merge compilation into a trusted offline artifact while keeping every

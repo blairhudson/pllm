@@ -172,6 +172,44 @@ test('equalized cost evidence requires its locked public calibration and priced 
     ? Buffer.concat([fs.readFileSync(root + file), Buffer.from(' ')]) : fs.readFileSync(root + file)), /source changed/);
 });
 
+test('promoted tokenizer cohort binds source and artifact while preserving aggregate regression', () => {
+  const card = buildScorecard();
+  const measured = card.cohorts.find((item) => item.id === 'qwen3-sdk-tokenizer-16-8');
+  assert.equal(measured.model, 'Qwen/Qwen3-4B');
+  assert.equal(measured.identity.inputs, 16);
+  assert.equal(measured.identity.outputs, 8);
+  assert.equal(measured.identity.clientIsolation, true);
+  assert.equal(measured.identity.wanBackend, 'native-shared-tcp-pacer');
+  const [control, indexed] = measured.rows;
+  assert.ok(indexed.metrics.clientPeak < control.metrics.clientPeak);
+  assert.ok(indexed.metrics.totalPeak > control.metrics.totalPeak);
+  assert.ok(indexed.metrics.full > control.metrics.full);
+  assert.equal(indexed.metrics.covered, control.metrics.covered);
+  assert.equal(indexed.metrics.artifactBytes, 9.285852);
+  assert.equal(control.metrics.artifactBytes, 0);
+  assert.ok(measured.rows.every((row) => row.metrics.quality === null && row.metrics.wire === null));
+  const spec = JSON.parse(fs.readFileSync(`${root}docs/data/research/benchmark-cohorts.json`)).cohorts
+    .find((item) => item.id === measured.id);
+  const document = JSON.parse(fs.readFileSync(root + spec.report));
+  assert.throws(() => cohortRows({ ...spec, publisher_report: undefined }, document), /Public artifact/);
+  const publisher = JSON.parse(fs.readFileSync(root + spec.publisher_report));
+  for (const change of [
+    (p) => { p.model = 'other/model'; },
+    (p) => { p.revision = 'f'.repeat(40); },
+    (p) => { p.tokenizer_contract_sha256 = 'f'.repeat(64); },
+    (p) => { p.artifact_bytes++; },
+    (p) => { p.configuration_source_sha256 = 'f'.repeat(64); },
+  ]) {
+    const altered = structuredClone(publisher);
+    change(altered);
+    const bytes = JSON.stringify(altered);
+    const rebound = structuredClone(spec);
+    rebound.configuration_sources[spec.publisher_report] = createHash('sha256').update(bytes).digest('hex');
+    assert.throws(() => cohortRows(rebound, document, (file) => file === spec.publisher_report
+      ? bytes : fs.readFileSync(root + file)), /Public artifact/);
+  }
+});
+
 test('numeric evidence binds factories, source and calibration without hiding regressions', () => {
   const spec = JSON.parse(fs.readFileSync(`${root}docs/data/research/benchmark-cohorts.json`)).quality_cohorts[0];
   const original = JSON.parse(fs.readFileSync(root + spec.report));
