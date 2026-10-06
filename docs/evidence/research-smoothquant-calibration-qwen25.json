@@ -1,0 +1,141 @@
+{
+  "schema": "pllm.public_equalization_build.v1",
+  "scope": "public offline calibration; separate from online response accounting",
+  "model": {
+    "source": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "profile_digest": "a1024e2b0376a5d8baa57b6c972d18f641a2817a57b204cc1e1c4182dc0f430b",
+  "calibration_digest": "6ab979ed4620a93ee8c1e322bdf50a466db2b2b0e2c07b5d0b3c4bffa3d9ecbf",
+  "calibration_file_sha256": "39e813914bbaea7fb5f06e2fd6243aa4f386b316bc12f569d670e7fbb970c3bc",
+  "calibration_token_counts": [
+    68,
+    66,
+    71,
+    63,
+    68,
+    63,
+    66,
+    64
+  ],
+  "stage_count": 96,
+  "profile_bytes": 729527,
+  "alpha_numerator": 3,
+  "alpha_denominator": 4,
+  "elapsed_seconds": 15.753479832783341,
+  "process_cpu_seconds": 15.780662000000001,
+  "process_peak_rss_bytes": 1532936192,
+  "memory_admission": {
+    "schema": "pllm.benchmark_memory.v1",
+    "admitted": true,
+    "requested_backend": "native",
+    "selected_backend": "native",
+    "host": {
+      "total": 34359738368,
+      "available": 12237209600,
+      "swap_used": 1007681536,
+      "disk_free": 47776841728,
+      "reserve_bytes": 4294967296,
+      "admission_budget_bytes": 7942242304
+    },
+    "estimate": {
+      "scope": "conservative allocation estimate; not measured peak RSS",
+      "model_plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+      "pipeline_digest": "8525ca6a9b0033e3b0ac3adeb94ce8276ec0ffccccf0bd8fa51576ae5f7dcc1d",
+      "max_input_tokens": 128,
+      "max_output_tokens": 8,
+      "compiled_input_bound": 128,
+      "inventory_rows": 135,
+      "kernel": "cpu",
+      "allocation_slack_percent": 25,
+      "client_peak_bytes": 1918788690,
+      "provider_peak_bytes": {
+        "inference": 1548004480,
+        "preparation": 1293206400
+      },
+      "docker_provider_peak_bytes": {
+        "inference": 3520098560,
+        "preparation": 2649440640
+      },
+      "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+      "preparation_storage": "resident",
+      "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+      "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+      "verification_allocation": null,
+      "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+      "native_total_peak_bytes": 4759999570,
+      "components": {
+        "per_engine_i8_and_native_bytes": 630095872,
+        "per_role_i8_and_native_bytes": {
+          "inference": 493961216,
+          "preparation": 357826560
+        },
+        "per_role_loading_temporary_bytes": {
+          "inference": 272269312,
+          "preparation": 161659904
+        },
+        "legacy_per_engine_i8_and_native_bytes": 1260191744,
+        "float_quantization_work_bytes": 25525248,
+        "legacy_largest_loading_temporary_bytes": 544538624,
+        "largest_loading_temporary_bytes": 272269312,
+        "raw_client_bundle_bytes": 182521344,
+        "client_bundle_work_bytes": 1095128064,
+        "client_paged_metadata_bytes": 0,
+        "client_additional_paged_disk_bytes": 0,
+        "client_public_artifact_work_bytes": 0,
+        "client_tokenizer_snapshot_disk_bytes": 0,
+        "preparation_additional_paged_disk_bytes": 0,
+        "client_mask_bytes": 23157408,
+        "provider_correction_bytes": 328458240,
+        "legacy_client_mask_bytes": 1048412160,
+        "client_mask_cursor_bytes": 209568,
+        "verifier_bytes": 0,
+        "legacy_verifier_bytes": 0,
+        "client_tensor_work_bytes": 148310024,
+        "client_live_tensor_bytes": 110561288,
+        "client_rotary_coefficient_bytes": 65536,
+        "client_state_work_bytes": 37748736,
+        "legacy_client_tensor_work_bytes": 949956128,
+        "client_cache_bytes": 0,
+        "per_provider_metal_bytes": 0,
+        "client_metal_bytes": 0,
+        "checkpoint_bytes": 988097824,
+        "per_engine_compiled_disk_bytes": 272269312
+      },
+      "limitations": []
+    },
+    "candidates": {
+      "native": {
+        "admitted": true,
+        "reasons": [],
+        "required_host_bytes": 4759999570,
+        "docker": null,
+        "required_disk_bytes": 3057064960
+      },
+      "docker": {
+        "admitted": false,
+        "reasons": [
+          "Docker memory capacity is unavailable"
+        ],
+        "required_host_bytes": 4759999570,
+        "docker": null,
+        "required_disk_bytes": 3057064960
+      }
+    },
+    "enforced_wan": false
+  },
+  "maximum_swap_growth_bytes": 0,
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15",
+    "numpy": "2.5.3",
+    "transformers": "5.16.1"
+  },
+  "limitations": [
+    "eight public calibration sequences; not representative task-quality evidence",
+    "float32 body calibration with the existing W8 token boundary",
+    "fixed alpha, normalized bounded scales, and explicit client scaling differ from original SmoothQuant",
+    "the public profile is installed beside the cached checkpoint; distribution is accounted separately"
+  ]
+}

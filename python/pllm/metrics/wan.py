@@ -98,7 +98,8 @@ def _measured_emulation(report, conditions):
         raise ValueError("WAN measurement lacks its executed roles")
     assignments = {role: conditions.party_for(role) for role in roles}
     expected = set(assignments.values())
-    samples = (report.get("docker_accounting") or {}).get("samples")
+    native = report.get("native_network_accounting")
+    samples = (native or report.get("docker_accounting") or {}).get("samples")
     records = report.get("runs", [])
     if (not isinstance(samples, Mapping) or not isinstance(samples.get("runs"), list)
             or not isinstance(samples.get("warmups"), list)
@@ -107,9 +108,12 @@ def _measured_emulation(report, conditions):
         raise ValueError("WAN measurement lacks matched kernel sampling windows")
 
     def check(value):
+        data = value.get("wan_emulation", {}) if isinstance(value, Mapping) else {}
+        if native:
+            _check_native_sample(data, conditions, assignments)
+            return
         if roles == ["client"]:
             return
-        data = value.get("wan_emulation", {}) if isinstance(value, Mapping) else {}
         if (data.get("enforced") is not True or data.get("conditions_digest") != conditions.digest
                 or data.get("role_parties") != assignments or set(data.get("parties", {})) != expected):
             raise ValueError("WAN kernel sampling does not cover the executed parties")
@@ -160,13 +164,47 @@ def _measured_emulation(report, conditions):
         summary[f"{label}_tokens_per_second"] = (
             sum(row[tokens] for row in rows) / sum(row[seconds] for row in rows) if valid else None)
     return {"schema": "pllm.measured_wan_throughput.v1",
-            "backend": "client-only-no-wan-links" if roles == ["client"] else "linux-tbf-routed-party-ports",
+            "backend": "client-only-no-wan-links" if roles == ["client"] else
+                "native-shared-tcp-pacer" if native else "linux-tbf-routed-party-ports",
             "scope": "measured local inference under enforced shared party access rates",
-            "kernel_rate_snapshots_checked": roles != ["client"], "conditions_digest": conditions.digest,
+            "kernel_rate_snapshots_checked": not native and roles != ["client"],
+            **({"native_stream_rate_snapshots_checked": True} if native else {}),
+            "conditions_digest": conditions.digest,
             "inter_party_links_present": len(expected) > 1,
             "request_scope": "demand preparation and request execution; excludes provider startup and warmups",
             "decode_scope": "first-to-last output interval with N-1 authoritative outputs",
             "internet_measurement": False, "runs": rows, "summary": summary}
+
+
+def _check_native_sample(data, conditions, assignments):
+    if (data.get("schema") != "pllm.native_wan.v1" or data.get("backend") != "native-shared-tcp-pacer"
+            or data.get("enforced") is not True or data.get("conditions_digest") != conditions.digest
+            or data.get("role_parties") != assignments or set(data.get("parties", {})) != set(assignments.values())):
+        raise ValueError("native WAN sampling does not cover the executed parties")
+    elapsed, burst = data.get("elapsed_seconds"), data.get("burst_bytes")
+    if type(elapsed) not in (int, float) or not math.isfinite(elapsed) or elapsed < 0 or burst != 16384:
+        raise ValueError("native WAN sampling has invalid pacing bounds")
+    totals = {(party, direction): 0 for party in assignments.values() for direction in ("upload", "download")}
+    links = data.get("directed_stream_bytes")
+    if not isinstance(links, Mapping) or len(links) > len(assignments) ** 2:
+        raise ValueError("invalid native WAN link ledger")
+    for link, size in links.items():
+        roles = link.split("->")
+        if len(roles) != 2 or any(role not in assignments for role in roles) or type(size) is not int or size < 0:
+            raise ValueError("invalid native WAN directed counter")
+        a, b = (assignments[role] for role in roles)
+        if a != b:
+            totals[a, "upload"] += size
+            totals[b, "download"] += size
+    if data.get("total_stream_bytes") != sum(links.values()) or data.get("client_stream_bytes") != sum(
+            size for link, size in links.items() if "client" in link.split("->")):
+        raise ValueError("native WAN link conservation failed")
+    for (party, direction), size in totals.items():
+        rate = getattr(conditions.access(party), direction + "_mbps") * 1e6 / 8
+        counter = data["parties"][party].get(direction, {})
+        if (counter.get("bytes_per_second") != rate or counter.get("admitted_bytes") != size
+                or size > elapsed * rate + burst + 1):
+            raise ValueError("native WAN rate or directed counters differ from selected capacity")
 
 
 def _check_link_qdisc(queues, conditions):

@@ -72,6 +72,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--search", action="append", required=True, metavar="LABEL=REPORT")
+    parser.add_argument("--include-naive-offset", action="store_true",
+                        help="remeasure the unoptimized two-worker control in the same cohort")
+    parser.add_argument("--native-wan", action="store_true",
+                        help="fresh native clients with shared 100/40 Mbps TCP-stream pacing")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--export-only", action="store_true")
     mode.add_argument("--recompare", action="store_true",
@@ -81,6 +85,8 @@ def main():
     directory.mkdir(parents=True, exist_ok=True)
     controls = ["benchmarks.research.baseline:experiment", "benchmarks.research.sota:experiment",
                 "benchmarks.research.public_prefix:experiment"]
+    if args.include_naive_offset:
+        controls.append("benchmarks.research.naive_offset:experiment")
     selected, targets, labels = [], list(controls), set()
     for selection in args.search:
         label, separator, filename = selection.partition("=")
@@ -153,6 +159,8 @@ def main():
         "--temperature", "0", "--capture-output-digest", "--compare-kernels", "--backend", "native",
         "--timeout", "900", "--output", str(args.output),
     ])
+    if args.native_wan:
+        command.extend(["--wan", "--isolate-candidates"])
     subprocess.run(command, cwd=ROOT, check=True)
 
 

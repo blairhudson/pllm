@@ -956,6 +956,35 @@ with no added RTT, not measured Internet latency. The reference screens and
 prepared codec are recorded in `docs/evidence/wan-methods-2026-10-04.md`;
 the enforced cohort is in `docs/evidence/wan-emulation-2026-10-04.md`.
 
+Explicit `benchmark run --backend native --wan` additionally enforces the same
+shared per-party access capacities through bounded opaque TCP relays, supporting
+native CPU and Metal without Docker. Startup, client/provider and provider/peer
+service streams share upload/download budgets with a 16 KiB burst; intra-party
+traffic is retained separately. Conserved counters include HTTP/WebSocket framing
+but exclude kernel headers, ACKs, retransmissions, telemetry and checkpoint
+distribution. The relay and sampler belong to measured client CPU/RSS. Kernel
+shaping and native stream pacing retain distinct evidence scopes; automatic
+fallback cannot silently substitute one for the other.
+`--isolate-candidates` starts a fresh native client for each Experiment under
+one private parent-owned cohort salt. Native memory reports additionally sample
+the live client/provider RSS sum every 50 ms; they never sum independent lifetime
+peaks. Samples can miss shorter peaks or double-count shared pages, and do not
+price uncharged GPU allocations or OS cache. The idle launcher is outside the
+measured role graph. Research's parallel-coordinates chart normalizes each
+selected metric with best-at-top, preserves unknown gaps and raw units, identifies
+client-only/naive-offset controls, and links paper attribution to chronology cards.
+Generated research-data tables preserve every registered cohort and all exploratory
+trials with digest-checked Python configurations, without ranking across cohorts.
+A fresh-client 17-configuration Qwen2.5 150+8-token native 100/40 cohort matches
+outputs with zero observed swap growth. Client-only takes 4.26 s, naive offset
+174.48 s and prepared baseline 104.17 s per request. The public-prefix stack
+reduces measured TCP-stream traffic from 604.30 to 267.76 MB, client lifetime
+peak RSS from 605.00 to 222.71 MB and sampled total RSS from 2,272.41 to
+1,173.62 MB, reusing 96 public tokens and excluding delivery of 12.25 MB of
+public artifacts. Native bandwidth-limited results do not preserve the earlier
+uncapped Metal latency lead. These are one-response local samples; full physical
+wire, GPU compute, checkpoint distribution and Internet RTT remain outside scope.
+
 The opt-in `research.verified_masked_linear_cpu` profile adds a trusted-client
 Freivalds check to that prepared path. Preparation returns authenticated,
 per-row projections over the client channel; Inference never receives the root
@@ -964,6 +993,32 @@ outputs before dequantization and burns material on use, cancellation, or
 failure. This is a Slalom-derived engineering adaptation, not a TEE reproduction
 or an actively malicious preparation guarantee. It does not reduce online
 traffic.
+
+Paper-specific Qwen2.5 factories now measure that verifier and public channel
+equalization through the ordinary SDK. A native shared-100/40, fresh-client,
+50+8-token Slalom pair preserves outputs; exact codec/delivery composition
+reduces request latency from 140.95 to 130.69 s and cold TCP-stream traffic from
+374.00 to 334.21 MB, while aggregate CPU increases from 76.61 to 78.95 s.
+Only matching verifier contracts rank. Native memory admission now queries the
+actual Freivalds check count and prices client/Preparation projection owners;
+Inference has no verifier payload. Historical Docker upper bounds remain.
+This corrects accounting rather than weakening verification or optimizing RAM.
+Fixed SmoothQuant-style Qwen calibration uses eight public sequences and a
+separate twelve-prompt prefill diagnostic: top-1 agreement falls from 11/12 to
+10/12 despite a worst-logit-error improvement from 3.6207 to 2.5092. The public
+profile is 729,527 bytes and has its own source and numeric identities. Provider
+CLI startup preserves the original Hub repo/revision when resolving offline,
+shares the selected cache directory and revalidates its pre-launch source lock
+before loading stages. Replacing that source with a local-path spec would
+invalidate the profile. These scoped adaptations are not full paper-system
+reproductions or representative quality results.
+Within the fixed equalized body, one native 100/40, 50+8-token pair preserves
+outputs while exact codec/delivery composition reduces request time from 78.26
+to 70.24 s, TCP-stream traffic from 289.41 to 251.25 MB and client peak RSS from
+540.85 to 262.96 MB. Aggregate CPU increases from 34.47 to 37.28 s. Plain and
+equalized bodies rank separately; profile publication and distribution remain
+outside response counters. All paper controls and the held-out numeric report
+are retained in the Research data with rerunnable, digest-checked Python files.
 
 Public model bundles also carry the quantized token-lookup and output-head
 matrices. The client evaluates token lookup locally and applies the output

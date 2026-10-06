@@ -792,7 +792,8 @@ class DashboardRuntime:
                     "docker_provider_peak_bytes" if use_docker else "provider_peak_bytes"
                 ],
                 **({"docker": True, "docker_image": self.config.docker_image,
-                    "docker_network": self.config.docker_network, "wan": self.config.wan} if use_docker else {}),
+                    "docker_network": self.config.docker_network} if use_docker else {}),
+                wan=self.config.wan,
             )
             def memory_abort(reason):
                 self._stopping.set()

@@ -1,9 +1,153 @@
 {
   "schema": "pllm.research_cohorts.v1",
+  "quality_cohorts": [
+    {
+      "id": "qwen25-smoothquant-prefill",
+      "title": "SmoothQuant adaptation · Qwen2.5 held-out prefill",
+      "paper": "smoothquant",
+      "report": "docs/evidence/research-smoothquant-quality-qwen25.json",
+      "sha256": "292a9a30e58f8dfa8a01d63f88df9574fa9318c56624ef112ad9e88d98f3173a",
+      "calibration_report": "docs/evidence/research-smoothquant-calibration-qwen25.json",
+      "calibration_sha256": "22e31f093139068c181786acb0a7756ec41a5c5520d2c527905030abf492e88d",
+      "calibration_prompts": "benchmarks/research/data/smoothquant-calibration.json",
+      "evaluation_prompts": "benchmarks/research/data/paper-quality-prompts.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/paper_baseline.py": "34d519d6db3ce4ec498d56de928e5b9b0552c68120a98809cc44fff411e6fd88",
+        "benchmarks/research/smoothquant_baseline.py": "b20e9748c57faaaa689148f5ab964a0febe01c5d89a8fdf1a3c11a2f799d6fff",
+        "benchmarks/research/fit_smoothquant.py": "04a9e4ba4848fc737b450224c6dc73e3124737674f18335ea7b512754b364964",
+        "benchmarks/research/data/smoothquant-calibration.json": "39e813914bbaea7fb5f06e2fd6243aa4f386b316bc12f569d670e7fbb970c3bc",
+        "benchmarks/research/data/paper-quality-prompts.json": "5b370390d07b6a12a43e414be83c57425a291ba53d22989c4062eb08d26368f9"
+      },
+      "scope": "Twelve held-out public strings, plain tokenization, local compiled W8A8 prefill against the same float32 checkpoint. Equalization uses eight separate public chat-template calibration sequences with fixed alpha=3/4. Top-token agreement regresses despite lower worst logit error; this is not generation quality or an exact-body performance comparison.",
+      "candidates": {
+        "paper-qwen-w8a8": {"file": "benchmarks/research/smoothquant_baseline.py", "sha256": "b20e9748c57faaaa689148f5ab964a0febe01c5d89a8fdf1a3c11a2f799d6fff", "configuration_digest": "b61115b6dd6f1cc0e8c182ef01057dbb61c77512b683e09991bdb5a61e3535b7", "label": "Plain W8A8"},
+        "paper-qwen-smoothquant": {"file": "benchmarks/research/smoothquant_qwen.py", "sha256": "acfc84913b4306221e78b57981694284396e3ed98090493c67af1ade5b558776", "configuration_digest": "b7e5b553e1c23411fa0804270dc1fe412ab441a9c3653d722f11b9cbbfe5bd29", "label": "Public equalization"}
+      }
+    }
+  ],
+  "search_reports": [
+    {"title": "Client-only search", "file": "docs/evidence/research-search-client-qwen25-v2.json", "sha256": "926f819a90f905eec7ee590d153dcc1a8ce8475270e8ef886418c801bf6d6512"},
+    {"title": "Prepared search", "file": "docs/evidence/research-search-prepared-qwen25-v3.json", "sha256": "b8c4b31c441090bbe61b81f3611f681c41688330363640c5a2ac9daa9aa39812"},
+    {"title": "Offset-worker search", "file": "docs/evidence/research-search-offset-qwen25-v3.json", "sha256": "560e602833001eaa6c88837a4210f2f575282536eec8ee78522406a281c628e3"},
+    {"title": "Public-prefix search", "file": "docs/evidence/research-search-public-prefix-qwen25-v2.json", "sha256": "67c98ac2d89dea093da5b9c14dff209248336b3f5fa6eee71d24991e290f0aaf"}
+  ],
   "cohorts": [
     {
+      "id": "qwen25-native-wan-frontier-150-8",
+      "title": "Native 100/40 · 150 input / 8 output tokens",
+      "report": "docs/evidence/research-frontier-native-wan-qwen25.json",
+      "selection_report": "docs/evidence/research-frontier-native-wan-qwen25.selection.json",
+      "publisher_report": "docs/evidence/research-scorecard-publisher.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/artifacts.py": "aa126d3b5a907b43a0580de000e97ff0e5a1da2f8995171b796e71100ce9d72b",
+        "scripts/build_incremental_sdk_experiments.py": "0eeb9cfb43bf095e3cb015c2e8fcb0bed327836dfd54a7c54ea03ef4cb8893d2",
+        "docs/evidence/research-frontier-native-wan-qwen25.selection.json": "c4a30fa2aa16c8086c2e8c90678314e453694ff6844113f60e7845a0afb93410",
+        "docs/evidence/research-search-client-qwen25-v2.json": "926f819a90f905eec7ee590d153dcc1a8ce8475270e8ef886418c801bf6d6512",
+        "docs/evidence/research-search-prepared-qwen25-v3.json": "b8c4b31c441090bbe61b81f3611f681c41688330363640c5a2ac9daa9aa39812",
+        "docs/evidence/research-search-offset-qwen25-v3.json": "560e602833001eaa6c88837a4210f2f575282536eec8ee78522406a281c628e3",
+        "docs/evidence/research-search-public-prefix-qwen25-v2.json": "67c98ac2d89dea093da5b9c14dff209248336b3f5fa6eee71d24991e290f0aaf"
+      },
+      "baseline": "prepared-baseline",
+      "scope": "Fresh native clients; shared 100 Mbps download / 40 Mbps upload TCP-stream caps per party. One cold 150+8-token response for each of 17 configurations, with matching outputs. Cached checkpoint; co-located CPU/Metal roles; no added RTT. CPU and TCP traffic include startup; request speed excludes provider startup. RSS is process memory; GPU compute and uncharged GPU allocations remain unmeasured. Public-prefix rows reuse 96 public tokens; artifact distribution and physical wire overhead are excluded.",
+      "candidates": {
+        "prepared-baseline": {"file": "benchmarks/research/baseline.py", "sha256": "e0361045430188ec2ac02814dd42b3ad5910c9e52d76124ce3e842babf9b36f1", "label": "Prepared baseline", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "prepared-exact-stack": {"file": "benchmarks/research/sota.py", "sha256": "a254c38247d5737e3794f675ae86365039d9909eed8b93a701935850162c9bc1", "label": "Exact prepared stack", "artifact_bytes": 9285336, "public_prefix_tokens": 0},
+        "prepared-public-prefix": {"file": "benchmarks/research/public_prefix.py", "sha256": "65f660b7da670962ad341b6c79e9d8ed9322a40008819dd1280142d6c8e5cadf", "label": "Stack + public prefix", "artifact_bytes": 12252963, "public_prefix_tokens": 96},
+        "naive-offset-baseline": {"file": "benchmarks/research/naive_offset.py", "sha256": "fd22ae83d162fad11d1d210569b6547eeb4b6387bc418615c20d242793e4d99b", "label": "Naive offset baseline", "reference": "offset", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-client-ee35d158335a": {"file": "benchmarks/research/finalists/searched_client_ee35d158335a.py", "sha256": "dead3e5704ebed57709e62ed1b83cfc295a9a69b6fe7c3859fcfae6284c07af9", "label": "Client-only (CPU)", "reference": "client", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-470b45d2837a": {"file": "benchmarks/research/finalists/searched_prepared_470b45d2837a.py", "sha256": "8e6cab8fb0158e369a7d9791b3d201ceef753fd29cf267d61b020166b198fc8e", "label": "Client MLP — speed", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-6d66f2bf566d": {"file": "benchmarks/research/finalists/searched_prepared_6d66f2bf566d.py", "sha256": "2dc342cf1792f789c7524c9da82930e2e0d0e130f9bfd4861bb2843e3f0ceb63", "label": "Client MLP — delivery", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-755220a8dcd9": {"file": "benchmarks/research/finalists/searched_prepared_755220a8dcd9.py", "sha256": "c67811333c0fdfccd467a1a88c29b59564446679ebe3c1d8b7ffa61e69a26f92", "label": "Prepared — Metal", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-99a3fda121bd": {"file": "benchmarks/research/finalists/searched_prepared_99a3fda121bd.py", "sha256": "9157c547c9db337d00d2f3a4e79204e37e2c59eed0bcad0dbcd3ef317b6b6acb", "label": "Prepared — row sizing", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-prepared-da149d6ab6b5": {"file": "benchmarks/research/finalists/searched_prepared_da149d6ab6b5.py", "sha256": "4182a48aaf9031903cd7ce41b3616c81b0d5968365f331481f8952c10d4b077b", "label": "Prepared — packed", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-offset-e53a33989ecd": {"file": "benchmarks/research/finalists/searched_offset_e53a33989ecd.py", "sha256": "3fcdc52896b2c20bc0acca2ec58e06d255bfd262dd246af6d355796199c64459", "label": "Two workers — Metal", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-offset-8bb4da6d2818": {"file": "benchmarks/research/finalists/searched_offset_8bb4da6d2818.py", "sha256": "312b0f9d2b0418caad4f0422125f10586e73a405fd4fe646c119cf9a2883e65f", "label": "Two workers — zlib", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-offset-153bd7b811f9": {"file": "benchmarks/research/finalists/searched_offset_153bd7b811f9.py", "sha256": "20530d7a3061806d710b33e36dda3e26ad943347c4f8732c79afa05fdcbcda01", "label": "Two workers — CPU", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-public_prefix-7a8d698e8f76": {"file": "benchmarks/research/finalists/searched_public_prefix_7a8d698e8f76.py", "sha256": "165e8c02922430c00da4cb6419d8416d8d8ff7a9c4f0d6f20c4a47f3cc94b0db", "label": "Prefix + client MLP", "artifact_bytes": 2967627, "public_prefix_tokens": 96},
+        "searched-public_prefix-717a3f5208b9": {"file": "benchmarks/research/finalists/searched_public_prefix_717a3f5208b9.py", "sha256": "8b7302fc1317d5179297577022cf308d621b0f8e49e7b6e6d095296412924bcb", "label": "Prefix + zlib", "artifact_bytes": 2967627, "public_prefix_tokens": 96},
+        "searched-public_prefix-a4e0c08b4380": {"file": "benchmarks/research/finalists/searched_public_prefix_a4e0c08b4380.py", "sha256": "14fc13a37aac6f37b9be2e8c6dc5045fd40646738a675985f3bca8a1ff4ab133", "label": "Prefix + CPU 8T", "artifact_bytes": 2967627, "public_prefix_tokens": 96},
+        "searched-public_prefix-c33450a1cc57": {"file": "benchmarks/research/finalists/searched_public_prefix_c33450a1cc57.py", "sha256": "2c3c259c4e53bfc51be3907994bc5418e0ff9167c419188ec3e02b2aa0c741c0", "label": "Prefix + packed", "artifact_bytes": 2967627, "public_prefix_tokens": 96}
+      }
+    },
+    {
+      "id": "qwen25-paper-prepared-50-8",
+      "title": "Native 100/40 · paper prepared controls · 50 + 8 tokens",
+      "report": "docs/evidence/research-paper-prepared-qwen25.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/paper_baseline.py": "34d519d6db3ce4ec498d56de928e5b9b0552c68120a98809cc44fff411e6fd88",
+        "benchmarks/research/data/paper-request.txt": "73b8d57a96937c0c6de50ff767a9ddeab6ec6096724c2ea9afcb4c2511828663"
+      },
+      "baseline": "paper-qwen-prepared",
+      "scope": "Unverified control pair from one four-configuration invocation; verifier contracts remain separate. Fresh native clients, shared 100/40 TCP-stream caps, one cold 50+8-token response, cached checkpoint and matching outputs. Provider-owned CPU body; no public-prefix reuse. Composition adds demand-sized preparation, packed/residue frames, terminal pruning and paged compressed delivery. Full physical wire and independent operators are unmeasured.",
+      "candidates": {
+        "paper-qwen-prepared": {"file": "benchmarks/research/paper_baseline.py", "sha256": "34d519d6db3ce4ec498d56de928e5b9b0552c68120a98809cc44fff411e6fd88", "label": "Paper prepared control", "artifact_bytes": 0},
+        "paper-qwen-prepared-composed": {"file": "benchmarks/research/paper_prepared.py", "sha256": "4bd4a207dec330b2a95b7f77f585b3364a9b155105d622ca41812cf444650abc", "label": "Paper prepared + composition", "artifact_bytes": 0}
+      }
+    },
+    {
+      "id": "qwen25-slalom-50-8",
+      "title": "Native 100/40 · Slalom verified adaptation · 50 + 8 tokens",
+      "report": "docs/evidence/research-slalom-qwen25.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/paper_baseline.py": "34d519d6db3ce4ec498d56de928e5b9b0552c68120a98809cc44fff411e6fd88",
+        "benchmarks/research/paper_prepared.py": "4bd4a207dec330b2a95b7f77f585b3364a9b155105d622ca41812cf444650abc",
+        "benchmarks/research/slalom_qwen.py": "9b1fd3c0d17e6d409ba58f5a69068a381dbd0997111a1e76f5e9ba989d9960af",
+        "benchmarks/research/data/paper-request.txt": "73b8d57a96937c0c6de50ff767a9ddeab6ec6096724c2ea9afcb4c2511828663"
+      },
+      "baseline": "paper-qwen-slalom",
+      "scope": "Slalom-derived trusted-client Freivalds adaptation, fixed 40-bit attempt bound, no enclave or attestation. Fresh native clients; shared 100/40 TCP-stream caps; one cold 50+8-token response with matching outputs. Both lines verify every remote stage. Composition adds exact codecs, demand issuance and paged compressed delivery. Only this same-verifier pair ranks; unverified controls, full wire and independent-operator claims remain separate.",
+      "candidates": {
+        "paper-qwen-slalom": {"file": "benchmarks/research/slalom_qwen.py", "sha256": "9b1fd3c0d17e6d409ba58f5a69068a381dbd0997111a1e76f5e9ba989d9960af", "label": "Slalom adaptation", "paper": "slalom", "artifact_bytes": 0},
+        "paper-qwen-slalom-composed": {"file": "benchmarks/research/slalom_qwen_composed.py", "sha256": "f913a54e93cc489e4a55738c2d14d9dbb065ebba341c48804e5d66dbb9e1f8b2", "label": "Slalom + composition", "paper": "slalom", "artifact_bytes": 0}
+      }
+    },
+    {
+      "id": "qwen25-smoothquant-plain-50-8",
+      "title": "Native 100/40 · SmoothQuant plain controls · 50 + 8 tokens",
+      "report": "docs/evidence/research-smoothquant-plain-qwen25.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/paper_baseline.py": "34d519d6db3ce4ec498d56de928e5b9b0552c68120a98809cc44fff411e6fd88",
+        "benchmarks/research/paper_prepared.py": "4bd4a207dec330b2a95b7f77f585b3364a9b155105d622ca41812cf444650abc",
+        "benchmarks/research/smoothquant_baseline.py": "b20e9748c57faaaa689148f5ab964a0febe01c5d89a8fdf1a3c11a2f799d6fff",
+        "benchmarks/research/data/paper-request.txt": "73b8d57a96937c0c6de50ff767a9ddeab6ec6096724c2ea9afcb4c2511828663"
+      },
+      "baseline": "paper-qwen-w8a8",
+      "scope": "Plain W8A8 controls from the equalization four-configuration invocation. Fresh native clients, shared 100/40 TCP-stream caps, one cold 50+8-token response, cached checkpoint and matching outputs. Full-causal float32 numerics; no prefix reuse or client body placement. Composition adds exact codecs, demand issuance and paged compressed delivery. Equalization changes the body and ranks separately despite matching output text on this prompt.",
+      "candidates": {
+        "paper-qwen-w8a8": {"file": "benchmarks/research/smoothquant_baseline.py", "sha256": "b20e9748c57faaaa689148f5ab964a0febe01c5d89a8fdf1a3c11a2f799d6fff", "label": "Plain W8A8 control", "artifact_bytes": 0},
+        "paper-qwen-w8a8-composed": {"file": "benchmarks/research/smoothquant_prepared.py", "sha256": "71644dac5a3bcb494c2dcfe818ac5db71bfe06500d99a4958d4c603689daffad", "label": "Plain W8A8 + composition", "artifact_bytes": 0}
+      }
+    },
+    {
+      "id": "qwen25-smoothquant-50-8",
+      "title": "Native 100/40 · SmoothQuant equalized adaptation · 50 + 8 tokens",
+      "report": "docs/evidence/research-smoothquant-qwen25.json",
+      "calibration_report": "docs/evidence/research-smoothquant-calibration-qwen25.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/paper_baseline.py": "34d519d6db3ce4ec498d56de928e5b9b0552c68120a98809cc44fff411e6fd88",
+        "benchmarks/research/paper_prepared.py": "4bd4a207dec330b2a95b7f77f585b3364a9b155105d622ca41812cf444650abc",
+        "benchmarks/research/smoothquant_baseline.py": "b20e9748c57faaaa689148f5ab964a0febe01c5d89a8fdf1a3c11a2f799d6fff",
+        "benchmarks/research/smoothquant_prepared.py": "71644dac5a3bcb494c2dcfe818ac5db71bfe06500d99a4958d4c603689daffad",
+        "benchmarks/research/smoothquant_qwen.py": "acfc84913b4306221e78b57981694284396e3ed98090493c67af1ade5b558776",
+        "benchmarks/research/data/paper-request.txt": "73b8d57a96937c0c6de50ff767a9ddeab6ec6096724c2ea9afcb4c2511828663",
+        "docs/evidence/research-smoothquant-calibration-qwen25.json": "22e31f093139068c181786acb0a7756ec41a5c5520d2c527905030abf492e88d"
+      },
+      "baseline": "paper-qwen-smoothquant",
+      "scope": "Fixed source-bound public equalization, alpha=3/4, with a pre-positioned 729,527-byte profile. Fresh native clients, shared 100/40 TCP-stream caps, one cold 50+8-token response and matching outputs. Only matching equalized bodies rank. Exact codec/delivery composition lowers traffic and client RSS but increases aggregate CPU. Held-out prefill top-1 regresses versus plain W8A8; full-generation quality remains unmeasured. Profile publication/distribution, checkpoint download, full wire and independent operators are outside response counters.",
+      "candidates": {
+        "paper-qwen-smoothquant": {"file": "benchmarks/research/smoothquant_qwen.py", "sha256": "acfc84913b4306221e78b57981694284396e3ed98090493c67af1ade5b558776", "label": "SmoothQuant adaptation", "paper": "smoothquant", "artifact_bytes": 729527},
+        "paper-qwen-smoothquant-composed": {"file": "benchmarks/research/smoothquant_qwen_composed.py", "sha256": "253c779444ba4f5920d572a341d98dc8a9a0bac17f9c5f17cc46feda35005511", "label": "SmoothQuant + composition", "paper": "smoothquant", "artifact_bytes": 729527}
+      }
+    },
+    {
       "id": "qwen25-sdk-finalists-150-8",
-      "title": "SDK search finalists · 150 input / 8 output tokens",
+      "title": "Uncapped SDK finalists · 150 input / 8 output tokens",
       "report": "docs/evidence/research-finalists-qwen25.comparison.json",
       "selection_report": "docs/evidence/research-finalists-qwen25.selection.json",
       "publisher_report": "docs/evidence/research-scorecard-publisher.json",
@@ -18,12 +162,12 @@
         "docs/evidence/research-search-public-prefix-qwen25-v2.json": "67c98ac2d89dea093da5b9c14dff209248336b3f5fa6eee71d24991e290f0aaf"
       },
       "baseline": "prepared-baseline",
-      "scope": "One cold response per configuration: 13 SDK-search finalists, baseline and two existing stacks. Cached checkpoint; co-located CPU/Metal roles. Request timing excludes pre-run setup; cold CPU includes provider startup. Public-prefix rows reuse 96 public tokens. Artifact distribution and full physical wire remain unmeasured.",
+      "scope": "Historical uncapped cohort. One cold response per configuration: 13 SDK-search finalists, baseline and two existing stacks. Cached checkpoint; co-located CPU/Metal roles. Request timing excludes pre-run setup; cold CPU includes provider startup. Public-prefix rows reuse 96 public tokens. Artifact distribution and full physical wire remain unmeasured.",
       "candidates": {
         "prepared-baseline": {"file": "benchmarks/research/baseline.py", "sha256": "e0361045430188ec2ac02814dd42b3ad5910c9e52d76124ce3e842babf9b36f1", "label": "Prepared baseline", "artifact_bytes": 0, "public_prefix_tokens": 0},
         "prepared-exact-stack": {"file": "benchmarks/research/sota.py", "sha256": "a254c38247d5737e3794f675ae86365039d9909eed8b93a701935850162c9bc1", "label": "Exact prepared stack", "artifact_bytes": 9285336, "public_prefix_tokens": 0},
         "prepared-public-prefix": {"file": "benchmarks/research/public_prefix.py", "sha256": "65f660b7da670962ad341b6c79e9d8ed9322a40008819dd1280142d6c8e5cadf", "label": "Stack + public prefix", "artifact_bytes": 12252963, "public_prefix_tokens": 96},
-        "searched-client-ee35d158335a": {"file": "benchmarks/research/finalists/searched_client_ee35d158335a.py", "sha256": "dead3e5704ebed57709e62ed1b83cfc295a9a69b6fe7c3859fcfae6284c07af9", "label": "Client-only (CPU)", "artifact_bytes": 0, "public_prefix_tokens": 0},
+        "searched-client-ee35d158335a": {"file": "benchmarks/research/finalists/searched_client_ee35d158335a.py", "sha256": "dead3e5704ebed57709e62ed1b83cfc295a9a69b6fe7c3859fcfae6284c07af9", "label": "Client-only (CPU)", "reference": "client", "artifact_bytes": 0, "public_prefix_tokens": 0},
         "searched-prepared-470b45d2837a": {"file": "benchmarks/research/finalists/searched_prepared_470b45d2837a.py", "sha256": "8e6cab8fb0158e369a7d9791b3d201ceef753fd29cf267d61b020166b198fc8e", "label": "Client MLP — speed", "artifact_bytes": 0, "public_prefix_tokens": 0},
         "searched-prepared-6d66f2bf566d": {"file": "benchmarks/research/finalists/searched_prepared_6d66f2bf566d.py", "sha256": "2dc342cf1792f789c7524c9da82930e2e0d0e130f9bfd4861bb2843e3f0ceb63", "label": "Client MLP — delivery", "artifact_bytes": 0, "public_prefix_tokens": 0},
         "searched-prepared-755220a8dcd9": {"file": "benchmarks/research/finalists/searched_prepared_755220a8dcd9.py", "sha256": "c67811333c0fdfccd467a1a88c29b59564446679ebe3c1d8b7ffa61e69a26f92", "label": "Prepared — Metal", "artifact_bytes": 0, "public_prefix_tokens": 0},
@@ -40,7 +184,7 @@
     },
     {
       "id": "qwen25-prepared-150-8",
-      "title": "Prepared compositions · 150 input / 8 output tokens",
+      "title": "Uncapped prepared stacks · 150 input / 8 output tokens",
       "report": "docs/evidence/research-scorecard-qwen25.json",
       "publisher_report": "docs/evidence/research-scorecard-publisher.json",
       "configuration_sources": {
@@ -48,7 +192,7 @@
         "scripts/build_incremental_sdk_experiments.py": "0eeb9cfb43bf095e3cb015c2e8fcb0bed327836dfd54a7c54ea03ef4cb8893d2"
       },
       "baseline": "prepared-baseline",
-      "scope": "One cold response per configuration; cached checkpoint, native CPU, co-located roles. The public-prefix candidate reuses 96 explicitly public tokens. Timing excludes provider launch; aggregate cold CPU includes it. Artifact distribution is outside response counters.",
+      "scope": "Historical uncapped cohort. One cold response per configuration; cached checkpoint, native CPU, co-located roles. The public-prefix candidate reuses 96 explicitly public tokens. Timing excludes provider launch; aggregate cold CPU includes it. Artifact distribution is outside response counters.",
       "candidates": {
         "prepared-baseline": {"file": "benchmarks/research/baseline.py", "sha256": "e0361045430188ec2ac02814dd42b3ad5910c9e52d76124ce3e842babf9b36f1", "label": "Prepared baseline", "artifact_bytes": 0, "public_prefix_tokens": 0},
         "prepared-exact-stack": {"file": "benchmarks/research/sota.py", "sha256": "a254c38247d5737e3794f675ae86365039d9909eed8b93a701935850162c9bc1", "label": "Exact prepared stack", "artifact_bytes": 9285336, "public_prefix_tokens": 0},

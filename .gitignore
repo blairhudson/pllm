@@ -72,6 +72,8 @@ docs/public/releases/*/docs-manifest.json
 /paper/figures/
 /docs/content/docs/research/papers/
 /docs/data/research/scorecard.json
+/docs/data/research/results.json
+/docs/content/docs/research/results.mdx
 /papers/
 paper/*.aux
 paper/*.bbl

@@ -201,12 +201,15 @@
 }
 
 #nd-page .paper-timeline-entry {
+  scroll-margin-top: 6rem;
   margin: 0 0 1.25rem;
   padding: 1rem 1.1rem;
   border: 1px solid var(--line);
   border-radius: .65rem;
   background: var(--panel);
 }
+
+#nd-page .paper-timeline-entry:target { border-color: var(--accent); }
 
 #nd-page .paper-timeline-title { margin: 0 0 .6rem; font-size: 1.06rem; font-weight: 600; line-height: 1.4; }
 #nd-page .paper-timeline-entry > p { margin: .55rem 0 0; line-height: 1.65; }
@@ -375,5 +378,6 @@ body:has(#nd-sidebar-mobile[data-state='open']) { overflow: hidden; }
 .paper-filter { display: flex; align-items: center; gap: .6rem; padding-block: 1rem; font-weight: 550; }
 .paper-filter input { accent-color: var(--accent); width: 1rem; height: 1rem; }
 .paper-filter-scope { font-size: .8rem; color: var(--muted); }
+#research-frontier { scroll-margin-top: 6rem; min-width: 0; }
 .paper-browser[data-implemented-only="true"] .paper-timeline-entry[data-implemented="false"],
 .paper-browser[data-implemented-only="true"] .paper-timeline-year:not(:has(.paper-timeline-entry[data-implemented="true"])) { display: none; }

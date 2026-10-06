@@ -441,13 +441,17 @@ def test_two_worker_experiment_uses_existing_benchmark_cli(tmp_path: Path) -> No
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("isolated", [False, True])
 def test_client_offset_prepared_topologies_share_one_w8a8_benchmark_cohort(
-    tmp_path: Path,
+    tmp_path: Path, isolated: bool,
 ) -> None:
     from pllm import Deployment, ExecutionBudget, Model
     from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu, TwoOnlineOffsetCpu
     from pllm.quantization import SymmetricPerRow
     from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
+    from pllm.runtime.benchmark_isolation import run_isolated_loopback_benchmark
+
+    benchmark = run_isolated_loopback_benchmark if isolated else run_loopback_benchmark
 
     checkpoint = create_tiny_llama_checkpoint(
         tmp_path / "model", num_hidden_layers=1, model_type="qwen2", with_qkv_bias=True,
@@ -469,16 +473,30 @@ def test_client_offset_prepared_topologies_share_one_w8a8_benchmark_cohort(
     runs = [
         (
             experiment,
-            run_loopback_benchmark(
+            benchmark(
                 model=str(checkpoint), model_id=model_id, tiny=False,
                 prompt="A", max_output_tokens=2, warmups=0,
                 repetitions=1, timeout_seconds=120, experiment=experiment,
                 _cohort_salt=b"matched-ephemeral-cohort".ljust(32, b"\0"),
+                temperature=0, capture_output_digest=True, backend="native", emulate_wan=isolated,
             ),
         )
         for experiment in experiments
     ]
     assert all(report["checks"]["passed"] for _, report in runs)
+    assert len({report["runs"][0]["generation"]["output_text_digest"] for _, report in runs}) == 1
+    if isolated:
+        for _, report in runs:
+            assert report["configuration"]["client_process_isolated"] is True
+            assert report["client_process_memory"]["after"]["lifetime_peak_rss_bytes"] > 0
+            assert report["native_process_memory"]["complete"] is True
+            assert report["native_process_memory"]["sampled_total_peak_rss_bytes"] > 0
+            assert report["wan_readiness"]["emulation"]["native_stream_rate_snapshots_checked"] is True
+        snapshots = [report["native_network_accounting"]["samples"]["runs"][0]["after"]["wan_emulation"] for _, report in runs]
+        assert snapshots[0]["total_stream_bytes"] == 0
+        assert snapshots[1]["total_stream_bytes"] == snapshots[1]["client_stream_bytes"] > 0
+        assert snapshots[2]["directed_stream_bytes"]["preparation->inference"] > 0
+        assert snapshots[2]["total_stream_bytes"] > snapshots[2]["client_stream_bytes"] > 0
     assert len({report["runs"][0]["model_fingerprint"] for _, report in runs}) == 1
     assert len({(
         report["runs"][0]["tokens"]["input_tokens"],
@@ -744,6 +762,28 @@ def test_comparison_report_ranks_only_matched_pipeline_runs() -> None:
     report = build_comparison_report([(slow, _report()), (fast, cached)])
     assert report["checks"]["matched_workload"] is False
     assert report["winners"]["full_seconds"] is None
+
+
+@pytest.mark.parametrize("other_bits", [None, 41, 40])
+def test_verifier_strength_cannot_be_traded_for_a_faster_rank(other_bits):
+    from pllm.verification import FreivaldsVerify
+
+    first, second = _experiment("verified", 1), _experiment("candidate", 4)
+    first = first.with_params(pipeline__components={
+        **first.pipeline.components, "verification": FreivaldsVerify(target_failure_bits=40),
+    })
+    if other_bits is not None:
+        second = second.with_params(pipeline__components={
+            **second.pipeline.components, "verification": FreivaldsVerify(target_failure_bits=other_bits),
+        })
+    report = build_comparison_report([(first, _report(full=5.0)), (second, _report(full=3.0))])
+    matched = other_bits == 40
+    assert report["checks"]["all_candidates_passed"]
+    assert report["checks"]["matched_workload"]
+    assert report["checks"]["matched_verification"] is matched
+    assert report["checks"]["passed"] is matched
+    assert report["winners"]["full_seconds"] == (second.configuration_digest() if matched else None)
+    assert len(report["candidates"]) == 2
 
 
 @pytest.mark.parametrize("field,value", [("provider_backend", "docker"), ("link_conditions_digest", "shaped"),

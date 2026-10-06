@@ -69,8 +69,11 @@ available RAM falls below the runtime reserve or swap grows more than 256 MiB.
 Request input/output bounds remain enforced. Reports retain admission reasons,
 the selected backend and pressure samples separately from process measurements.
 
-Enforced `--wan` and Docker link shaping require Docker. An unsafe Docker WAN
-run fails; choosing native with `--wan-estimate` is explicitly analytical.
+`--backend native --wan` enforces shared per-party 100/40 Mbps caps with bounded
+opaque TCP relays, including CPU/Metal compositions. `--backend docker --wan`
+uses Linux kernel queues; Docker delay/loss profiles still require Docker.
+Automatic fallback cannot silently switch the requested enforcement backend.
+`--wan-estimate` remains explicitly analytical.
 Metal uses unified RAM in addition to CPU snapshots, with the existing 2 GiB
 per-role GPU-stage bound. Removing Docker does not establish that a model fits.
 
@@ -82,6 +85,16 @@ unranked by default because kernel resource scopes differ. Explicit
 rankings when source, numeric contract, workload and captured outputs match.
 It retains the declared CPU/Metal choices and does not produce a mixed-kernel
 CPU-only compute-cap comparison.
+
+Use `--isolate-candidates` for a fresh client process per Experiment while retaining
+the comparison's one private cohort salt. Native reports include
+`native_process_memory`: the largest sampled sum of live client and provider RSS,
+with a 50 ms interval and explicit sampling/shared-page limits. This is not the
+sum of independent role peaks. `native_network_accounting` separately conserves
+TCP-stream bytes across every paced directed link; it includes HTTP/WebSocket
+framing but excludes kernel headers, retransmissions, telemetry and checkpoint
+distribution. Native relay and sampler overhead is included in client CPU/RSS.
+See the [research data](/research/results/) for the matched 100/40 scorecard cohort.
 
 ## Python SDK example: memory admission
 

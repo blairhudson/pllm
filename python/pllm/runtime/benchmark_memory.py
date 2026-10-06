@@ -110,6 +110,51 @@ def _slack(value: int) -> int:
     return (value * 5 + 3) // 4
 
 
+def _freivalds_memory(native, stages, *, rows, failure_bits, stage_window):
+    """Price native u32 projections, their owners, and bounded Python/FFI copies.
+
+    The policy query does not register a session or allocate material. Its failure
+    target already includes any cache-lineage uplift from composition resolution.
+    Uniform rows upper-bound demand allocation's attempt and storage budgets.
+    """
+    if not stages:
+        raise BenchmarkMemoryError("verified memory admission requires remote stages")
+    attempts = rows * len(stages)
+    try:
+        policy = native.FreivaldsPolicy(
+            failure_bits, attempts, 1, 1, 1, 1, 1, 1, bytes(32), False)
+        checks = policy.checks
+        if type(checks) is not int or not 1 <= checks <= 8:
+            raise ValueError("unknown native verification layout")
+    except (AttributeError, TypeError, ValueError, OverflowError) as exc:
+        raise BenchmarkMemoryError("native Freivalds allocation policy is unavailable") from exc
+    projections = 4 * rows * checks * sum(s.in_features for s in stages)
+    largest_projection = 4 * rows * checks * max(s.in_features for s in stages)
+    # Row burns, material identities, bounded bindings and per-stage handle overhead.
+    ledger = len(stages) * (8192 + 32 * rows)
+    # A live inventory and one idle-refill spare can coexist. Challenges are only
+    # expanded for a claimed stage, not for every retained inventory row at once.
+    retained = 2 * (projections + ledger)
+    # Receive bytearray, HTTP/MessagePack frames, parsed payload, binding copy and
+    # native import overlap. Eight full frame copies conservatively bound these.
+    import_work = stage_window * 8 * (4096 + largest_projection)
+    claim_work = max(rows * (4 * checks * (s.in_features + s.out_features)
+                            + 8 * s.in_features + 40 * s.out_features) for s in stages)
+    # Preparation copies one stage's i8 snapshot through bytes and Vec<i8>, holds
+    # one projection batch and frame copies, and expands one row of challenges.
+    preparation = stage_window * max(
+        2 * s.in_features * s.out_features
+        + 8 * (4096 + 4 * rows * checks * s.in_features)
+        + 4 * checks * s.out_features + 8192 + 32 * rows for s in stages)
+    return {"scope": "native_freivalds_u32_owners_v1", "checks": checks,
+            "target_failure_bits": failure_bits, "max_attempts": attempts,
+            "one_inventory_projection_bytes": projections,
+            "client_retained_bytes": retained, "client_import_work_bytes": import_work,
+            "client_claim_work_bytes": claim_work,
+            "client_peak_bytes": retained + max(import_work, claim_work),
+            "preparation_peak_bytes": preparation, "inference_peak_bytes": 0}
+
+
 def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                     inventory_rows=64, cache_bytes=0, cache_bound_tokens=None, checkpoint_bytes=0, store=None):
     """Model-neutral graph geometry; no arrays or checkpoint tensor reads."""
@@ -226,12 +271,16 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     workspace = decoder_memory(plan, plan.runtime_schedule(pipeline))
     tensors = workspace["working_bytes"] + workspace["state_bytes"]
     cache_bytes = max(cache_bytes, options.prefix_cache_bytes)
-    verification = 0
+    verification = legacy_verification = 0
+    verification_allocation = None
     if options.verification_target_failure_bits:
-        # Backend has at most 80 failure bits. Charge one projection round per
-        # requested bit plus the cache union-budget uplift (deliberate overestimate).
-        verification = 8 * rows * sum(s.in_features for s in remote) * (
+        # Keep the historical provider upper bound for potentially older images.
+        legacy_verification = 8 * rows * sum(s.in_features for s in remote) * (
             options.verification_target_failure_bits + (12 if cache_bytes else 0))
+        verification_allocation = _freivalds_memory(native, remote, rows=rows,
+            failure_bits=options.verification_target_failure_bits,
+            stage_window=window.params.get("stage_window", 1) if window else 1)
+        verification = verification_allocation["client_peak_bytes"]
     kernel = pipeline.components.get("kernels")
     metal = kernel is not None and kernel.component == "pllm/apple-metal-int8/v1"
     gpu_provider = sum(s.in_features * s.out_features for s in remote) if metal else 0
@@ -283,10 +332,12 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             active_pages = 16 * MiB * (window.params.get("stage_window", 1) if window else 1)
             role_weights[role] = 0
             role_engine = metadata + page_indices + active_pages + _PROCESS_BYTES
+        role_verification = (verification_allocation["preparation_peak_bytes"]
+                             if verification_allocation and role == "preparation" else 0)
         role_peaks[role] = _slack(role_engine + gpu_provider + max(
-            role_loading[role], delivery + corrections, work + corrections + verification))
+            role_loading[role], delivery + corrections, work + corrections + role_verification))
         docker_role_peaks[role] = _slack(engine + weights + gpu_provider + max(
-            legacy_loading, legacy_delivery + corrections, work + corrections + verification))
+            legacy_loading, legacy_delivery + corrections, work + corrections + legacy_verification))
     tokenizer = pipeline.components.get("tokenizer")
     capsule = pipeline.components.get("public_prefix")
     # Public artifacts are pre-positioned. Price bounded index query caches,
@@ -310,6 +361,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "bundle_storage": ("streamed_paged_v1; raw cache and private files are separate disk owners" if paged else
                            "immutable_segments_v1; client import retains conservative copy bounds"),
         "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+        "verification_allocation": verification_allocation,
         "tensor_storage": workspace["mode"] + "; completed benchmark response histories are retired",
         "native_total_peak_bytes": client_peak + sum(role_peaks.values()),
         "components": {"per_engine_i8_and_native_bytes": cpu_weights,
@@ -326,7 +378,8 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             "preparation_additional_paged_disk_bytes": preparation_disk + (largest if paged_preparation else 0),
             "client_mask_bytes": masks, "provider_correction_bytes": corrections,
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
-            "verifier_bytes": verification, "client_tensor_work_bytes": tensors,
+            "verifier_bytes": verification, "legacy_verifier_bytes": legacy_verification,
+            "client_tensor_work_bytes": tensors,
             "client_live_tensor_bytes": workspace["working_bytes"],
             "client_rotary_coefficient_bytes": workspace["rotary_coefficient_bytes"],
             "client_state_work_bytes": workspace["state_bytes"],
@@ -355,7 +408,10 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
         domain = None
         if kind == "native":
             if enforced_wan:
-                reasons.append("enforced WAN requires Docker; native supports explicit --wan-estimate")
+                if backend == "native":
+                    required += 32 * MiB  # bounded TCP relay buffers and control thread
+                else:
+                    reasons.append("enforced WAN auto fallback requires explicit native TCP pacing selection")
         else:
             if estimate["kernel"] == "metal":
                 reasons.append("Metal requires native provider processes")

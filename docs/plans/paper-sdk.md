@@ -1,7 +1,8 @@
 # Paper-to-SDK capability plan
 
-Status: SDK composition search and its matched finalist scorecard are implemented;
-paper-linked executable methods are the next research priority. The paper landing map is
+Status: SDK composition search, its matched finalist scorecard and the first
+Qwen Slalom/SmoothQuant adaptation controls are implemented. Maverick is the next
+new executable-method target. The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
 local research cache; run `uv run python scripts/sync_paper_library.py --fetch`
@@ -53,6 +54,31 @@ Each delivery ends with:
 The meta-study should first establish useful head-to-head **methods**, then compose
 compatible methods through SDK search. Do not relabel the fastest PLLM stack as an
 individual paper's reproduction or mix original-paper speedups into PLLM scores.
+
+### First control delivery — 2026-10-05
+
+Saved factories under `benchmarks/research/` now run Slalom-derived verification
+and SmoothQuant-derived public equalization on pinned Qwen2.5-0.5B. The verified
+native 100/40 pair completes a 50+8-token response with matching outputs;
+composing exact transport/delivery choices reduces 374.00 to 334.21 MB of
+TCP-stream traffic. Correct native Freivalds check counts and role-local buffers
+replace the historical all-role memory overestimate. This is an accounting fix,
+not a weaker verifier or a memory optimization.
+
+Fixed equalization calibration uses eight public sequences and a separate
+twelve-prompt prefill cohort. Top-1 regresses from 11/12 to 10/12 while worst
+logit error improves from 3.6207 to 2.5092. It cannot be presented as a numeric
+quality win or merged with the original W8A8 performance cohort. Quality,
+offline calibration, native role costs and exact factories are retained in the
+Research data rather than selectively promoting the better statistic.
+Within the fixed equalized body, exact SDK composition reduces one native
+100/40 response from 78.26 to 70.24 s and 289.41 to 251.25 MB TCP-stream traffic,
+with client peak RSS 540.85 to 262.96 MB; aggregate CPU rises 34.47 to 37.28 s.
+These pairs are baseline-versus-composition controls, not exhaustive searches
+for the best verified or equalized stack. Whole-generation quality remains open.
+
+Maverick still needs its source/privacy/full-width resource gate before extending
+the non-selectable Walsh reference. Passing these controls does not activate it.
 
 ## Importable Python stubs are not executable components
 

@@ -359,6 +359,8 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument("--capture-output-digest", action="store_true", help="opt-in public-task output fingerprint")
     benchmark_run.add_argument("--compare-kernels", action="store_true",
                                help="compare CPU/Metal compositions with matched numeric/output identity; requires --capture-output-digest")
+    benchmark_run.add_argument("--isolate-candidates", action="store_true",
+                               help="fresh client process per candidate, preserving one private cohort salt")
     benchmark_run.add_argument("--docker", action="store_true", help="run local public CPU provider roles in lightweight Linux containers")
     benchmark_run.add_argument("--backend", choices=("native", "docker", "auto"),
                                help="provider backend; auto falls back to admitted native roles without changing kernels or WAN requirements")
@@ -369,7 +371,7 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument("--docker-image", help="use an existing runtime image instead of building the checkout")
     benchmark_run.add_argument("--docker-network-profile", help="LinkConditions JSON for provider-egress latency/rate/loss")
     wan_mode = benchmark_run.add_mutually_exclusive_group()
-    wan_mode.add_argument("--wan", action="store_true", help="enforce shared party UP/DOWN rates in local Docker namespaces; default 100/40 Mbps")
+    wan_mode.add_argument("--wan", action="store_true", help="enforce shared 100/40 Mbps party caps: native TCP pacing or Docker kernel shaping")
     wan_mode.add_argument("--wan-estimate", action="store_true", help="calculate WAN bandwidth floors without throttling execution")
     benchmark_run.add_argument("--wan-profile", help="WanConditions JSON; enables local rate enforcement unless --wan-estimate")
     benchmark_run.add_argument("--wan-download-mbps", type=float, help="shared per-party download Mbps (default: 100); implies --wan")
@@ -904,12 +906,10 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
     configuration["wan_conditions"] = wan.to_spec()
     emulate_wan = not args.wan_estimate and bool(args.wan or args.wan_profile or args.wan_party
         or args.wan_download_mbps is not None or args.wan_upload_mbps is not None)
-    configuration["wan_mode"] = "kernel-enforced" if emulate_wan else "analytic-only"
     backend = args.backend or ("docker" if args.docker or emulate_wan else "native")
+    configuration["wan_mode"] = ("native-tcp-paced" if backend == "native" else "kernel-enforced") if emulate_wan else "analytic-only"
     if args.docker and args.backend not in {None, "docker"}:
         raise ResolutionError("BENCHMARK_BACKEND", "choose --docker or --backend, not both")
-    if backend == "native" and emulate_wan:
-        raise ResolutionError("BENCHMARK_BACKEND", "native supports --wan-estimate; enforced WAN requires Docker")
     if args.memory_budget_mib is not None and args.memory_budget_mib < 1:
         raise ResolutionError("BENCHMARK_MEMORY", "memory budget must be positive MiB")
     memory_budget_bytes = None if args.memory_budget_mib is None else args.memory_budget_mib << 20
@@ -983,6 +983,9 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         build_comparison_report,
         run_loopback_benchmark,
     )
+    if args.isolate_candidates:
+        from pllm.runtime.benchmark_isolation import run_isolated_loopback_benchmark
+        run_loopback_benchmark = run_isolated_loopback_benchmark
 
     try:
         from pllm.deployment import LinkConditions

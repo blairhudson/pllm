@@ -289,7 +289,12 @@ def create_preparation_app(
                 raise RuntimeError(
                     f"preparation service does not support model kind {model.kind!r}"
                 )
-            resolved = await asyncio.to_thread(resolve_model, model)
+            resolved = await asyncio.to_thread(
+                resolve_model, model, token=body.get("token"), cache_dir=body.get("cache_dir"),
+            )
+            expected = body.get("source_lock_digest")
+            if expected is not None and resolved.source_lock_digest != expected:
+                raise ValueError("runtime model source lock changed before startup")
             await engine.load(resolved.manifest)
         try:
             yield

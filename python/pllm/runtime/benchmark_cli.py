@@ -524,6 +524,10 @@ def build_comparison_report(
     }
     matched_backend = len(kernel_backends) == 1
     kernel_admitted = _matched_kernel_composition(candidates) if compare_kernels else matched_backend
+    matched_verification = len({
+        json.dumps(experiment.pipeline.to_spec()["components"].get("verification"), sort_keys=True)
+        for experiment, _ in candidates
+    }) == 1
     comparison_key = cast(tuple[object, ...], keys[0]) if comparable else None
     metrics = {
         "full_seconds": ("median_full_seconds", False),
@@ -563,6 +567,7 @@ def build_comparison_report(
     if (
         comparable
         and kernel_admitted
+        and matched_verification
         and all(report.get("checks", {}).get("passed") is True for _, report in candidates)
     ):
         for metric, (summary_key, reverse) in metrics.items():
@@ -594,6 +599,7 @@ def build_comparison_report(
         ),
         "unique_configurations": len(set(digests)) == len(digests),
         "matched_workload": comparable,
+        "matched_verification": matched_verification,
         ("matched_kernel_composition" if compare_kernels else "matched_kernel_backend"): kernel_admitted,
     }
     comparison = None
@@ -689,6 +695,7 @@ def build_comparison_report(
             "single host and loopback network",
             "diagnostic comparison, not a canonical EvidenceReport",
             "rankings require exact matched measured workloads and the declared kernel comparison policy",
+            "rankings require matching verifier contracts; mixed-assurance observations remain available without a winner",
             "cross-kernel composition rankings require source, numeric and captured output identity; they are not CPU-only speedups",
             "does not establish model quality, energy, price, adversarial security, or non-collusion",
         ],
@@ -851,10 +858,8 @@ def _run_loopback_benchmark(
     if type(emulate_wan) is not bool:
         raise TypeError("emulate_wan must be boolean")
     if emulate_wan:
-        if backend == "native":
-            raise ValueError("native benchmarks require --wan-estimate; enforced WAN requires Docker")
         wan = wan or WanConditions()
-        docker = True
+        docker = backend != "native"
         if docker_network is not None and docker_network.bytes_per_second is not None:
             raise ValueError("WAN emulation owns rates; Docker link rate cannot also be set")
     from .dashboard import _validate_output_digest_capture, _validate_request_temperature
@@ -992,6 +997,10 @@ def _run_loopback_benchmark(
     )
     origin = f"http://127.0.0.1:{port}"
     dashboard_app = create_dashboard_app(config)
+    from .benchmark_resources import ProcessMemorySampler
+    memory_sampler = ProcessMemorySampler(dashboard_app.state.dashboard_runtime) if not docker else None
+    if memory_sampler is not None:
+        memory_sampler.start()
 
     def stage_snapshot() -> dict[tuple[str, str, str], int]:
         return dashboard_app.state.dashboard_runtime.store.stage_body_snapshot(
@@ -999,10 +1008,12 @@ def _run_loopback_benchmark(
         )
 
     handle = _DashboardHandle(dashboard_app, port)
-    handle.start()
     try:
+        handle.start()
         _wait_for_dashboard_listener(handle, origin, timeout_seconds)
-    except Exception:
+    except BaseException:
+        if memory_sampler is not None:
+            memory_sampler.stop()
         handle.close()
         _DASHBOARD_PORT = None
         raise
@@ -1037,7 +1048,7 @@ def _run_loopback_benchmark(
                 topology = runtime._topology
                 sampler = getattr(topology, "resource_samples", None)
                 return sampler() if sampler is not None else None
-            docker_samples = {"startup": resources(), "warmups": [], "runs": []} if docker else None
+            docker_samples = {"startup": resources(), "warmups": [], "runs": []} if docker or emulate_wan else None
             if stage_snapshots is not None:
                 stage_snapshots["after_ready"] = stage_snapshot()
             initial_preparation_audit = (
@@ -1055,7 +1066,7 @@ def _run_loopback_benchmark(
                 if progress is not None:
                     progress(f"Running warmup {index + 1}/{warmups}")
                 before = stage_snapshot() if stage_snapshots is not None else None
-                docker_before = resources() if docker else None
+                docker_before = resources() if docker or emulate_wan else None
                 run = _run_once(
                     client,
                     handle,
@@ -1082,7 +1093,7 @@ def _run_loopback_benchmark(
                         f"Running measurement {index + 1}/{repetitions * len(measured_prompts)}"
                     )
                 before = stage_snapshot() if stage_snapshots is not None else None
-                docker_before = resources() if docker else None
+                docker_before = resources() if docker or emulate_wan else None
                 run = _run_once(
                     client,
                     handle,
@@ -1112,6 +1123,7 @@ def _run_loopback_benchmark(
         suffix = f"\n{diagnostic}" if diagnostic else ""
         raise LoopbackBenchmarkError(f"{exc}{suffix}") from exc
     finally:
+        native_memory = memory_sampler.stop() if memory_sampler is not None else None
         if previous_sigterm is not None:
             signal.signal(signal.SIGTERM, previous_sigterm)
         if progress is not None:
@@ -1159,6 +1171,7 @@ def _run_loopback_benchmark(
             sequence_length=len(prompt_sequence), sequence_repetitions=repetitions
         )
     report["client_body_placement"] = client_body_placement
+    report["native_process_memory"] = native_memory
     report["client_process_memory"] = {
         "scope": "client and in-process dashboard; excludes provider processes and OS file cache",
         "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
@@ -1195,6 +1208,11 @@ def _run_loopback_benchmark(
         from pllm.metrics import wan_readiness
         report["configuration"]["wan_emulation"] = True
         report["configuration"]["wan_emulation_digest"] = wan.digest
+        if not docker:
+            report["native_network_accounting"] = {
+                "schema": "pllm.native_network_accounting.v1", "samples": docker_samples,
+                "scope": "native shared TCP-stream caps; kernel headers/retransmissions and telemetry excluded",
+            }
         report["wan_readiness"] = wan_readiness(report, wan)
     if experiment is not None:
         report["experiment"] = {

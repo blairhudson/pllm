@@ -4,18 +4,19 @@
     "slalom": {
       "status": "SDK adaptation",
       "scope": "Prepared masked linear and one-use trusted-client Freivalds verification. No enclave or attestation reproduction.",
+      "scorecard_components": [{"component": "pllm/masked-linear", "scope": "Related masked-linear method only. These lines do not select Slalom's Freivalds verifier or reproduce its TEE system."}],
       "code": ["python/pllm/verification/__init__.py", "python/pllm/runtime/client.py"],
-      "configuration": "benchmarks/research/slalom.py",
-      "evidence": "docs/evidence/research-slalom-admission.json",
-      "result": "New Qwen comparison blocked by memory admission: 10.04 GiB estimated versus 7.74 GiB safe headroom at 32+1 bounds. No score from this attempt. Historical cold CPU results use a different cohort."
+      "configuration": "benchmarks/research/slalom_qwen.py",
+      "evidence": "docs/evidence/research-slalom-qwen25.json",
+      "result": "Qwen2.5 native 100/40, one 50+8-token response per configuration: the verified adaptation takes 140.95 s and 374.00 MB TCP-stream traffic; composing exact codecs, demand issuance and paged compressed delivery gives 130.69 s and 334.21 MB. Client peak RSS falls 624.02 to 345.18 MB, while aggregate CPU rises 76.61 to 78.95 s. Outputs match; only same-verifier lines rank. Corrected native projection ownership removes the prior admission blocker. No TEE reproduction."
     },
     "smoothquant": {
       "status": "SDK adaptation",
       "scope": "Public per-channel equalization, fixed alpha=3/4, bounded scales and trusted-client activation scaling.",
       "code": ["python/pllm/runtime/public_equalization.py", "tests/test_public_equalization.py"],
-      "configuration": "examples/benchmarks/phi4mini_equalized_quality.py",
-      "evidence": "docs/evidence/phi4mini-equalization-quality-2026-09-26.json",
-      "result": "Separate Phi diagnostic: 2/2 top-token agreement and 9.59 worst logit error, versus plain W8A8's 1/2 and 29.90. Qwen decoder comparison remains unmeasured."
+      "configuration": "benchmarks/research/smoothquant_qwen.py",
+      "evidence": "docs/evidence/research-smoothquant-qwen25.json",
+      "result": "Pinned Qwen2.5: twelve held-out prefill prompts give 11/12 plain W8A8 versus 10/12 equalized top-1; top-5 stays 0.8833 and worst logit error improves 3.6207 to 2.5092. The 0.72953 MB profile uses eight public calibration sequences and covers 96 stages. A native 100/40, 50+8-token same-body pair reduces equalized latency 78.26 to 70.24 s, TCP-stream traffic 289.41 to 251.25 MB and client peak RSS 540.85 to 262.96 MB with exact codec/delivery composition; aggregate CPU rises 34.47 to 37.28 s. Outputs match on this cost prompt, but plain/equalized bodies rank separately. This is not a quality win; profile publication/distribution is extra."
     },
     "curl": {
       "status": "Component reference",

@@ -1,0 +1,119 @@
+{
+  "schema": "pllm.benchmark_memory_cohort.v1",
+  "preflight_only": true,
+  "admitted": true,
+  "candidates": [
+    {
+      "schema": "pllm.benchmark_memory.v1",
+      "admitted": true,
+      "requested_backend": "native",
+      "selected_backend": "native",
+      "host": {
+        "total": 34359738368,
+        "available": 11858165760,
+        "swap_used": 1007681536,
+        "disk_free": 47646982144,
+        "reserve_bytes": 4294967296,
+        "admission_budget_bytes": 7563198464
+      },
+      "estimate": {
+        "scope": "conservative allocation estimate; not measured peak RSS",
+        "model_plan_digest": "149d5a2e45bf411300e04050594c03451fdc193ed6903174708b0441f4a341dc",
+        "pipeline_digest": "4e17d1e663c0388d4de7c228f49d0c836b16acf38686151a3d5e5ec8c2207426",
+        "max_input_tokens": 32,
+        "max_output_tokens": 1,
+        "compiled_input_bound": 32,
+        "inventory_rows": 32,
+        "kernel": "cpu",
+        "allocation_slack_percent": 25,
+        "client_peak_bytes": 1895312010,
+        "provider_peak_bytes": {
+          "inference": 1351315840,
+          "preparation": 1042885760
+        },
+        "docker_provider_peak_bytes": {
+          "inference": 4395980160,
+          "preparation": 4395980160
+        },
+        "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+        "preparation_storage": "resident",
+        "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+        "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+        "verification_allocation": {
+          "scope": "native_freivalds_u32_owners_v1",
+          "checks": 2,
+          "target_failure_bits": 40,
+          "max_attempts": 3072,
+          "one_inventory_projection_bytes": 46399488,
+          "client_retained_bytes": 94568448,
+          "client_import_work_bytes": 9994240,
+          "client_claim_work_bytes": 15400960,
+          "client_peak_bytes": 109969408,
+          "preparation_peak_bytes": 19387392,
+          "inference_peak_bytes": 0
+        },
+        "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+        "native_total_peak_bytes": 4289513610,
+        "components": {
+          "per_engine_i8_and_native_bytes": 630095872,
+          "per_role_i8_and_native_bytes": {
+            "inference": 493961216,
+            "preparation": 357826560
+          },
+          "per_role_loading_temporary_bytes": {
+            "inference": 272269312,
+            "preparation": 161659904
+          },
+          "legacy_per_engine_i8_and_native_bytes": 1260191744,
+          "float_quantization_work_bytes": 25525248,
+          "legacy_largest_loading_temporary_bytes": 544538624,
+          "largest_loading_temporary_bytes": 272269312,
+          "raw_client_bundle_bytes": 182521344,
+          "client_bundle_work_bytes": 1095128064,
+          "client_paged_metadata_bytes": 0,
+          "client_additional_paged_disk_bytes": 0,
+          "client_public_artifact_work_bytes": 0,
+          "client_tokenizer_snapshot_disk_bytes": 0,
+          "preparation_additional_paged_disk_bytes": 0,
+          "client_mask_bytes": 5639168,
+          "provider_correction_bytes": 77856768,
+          "legacy_client_mask_bytes": 248512512,
+          "client_mask_cursor_bytes": 199680,
+          "verifier_bytes": 109969408,
+          "legacy_verifier_bytes": 1855979520,
+          "client_tensor_work_bytes": 37077512,
+          "client_live_tensor_bytes": 27640328,
+          "client_rotary_coefficient_bytes": 16384,
+          "client_state_work_bytes": 9437184,
+          "legacy_client_tensor_work_bytes": 210339872,
+          "client_cache_bytes": 0,
+          "per_provider_metal_bytes": 0,
+          "client_metal_bytes": 0,
+          "checkpoint_bytes": 988097824,
+          "per_engine_compiled_disk_bytes": 272269312
+        },
+        "limitations": []
+      },
+      "candidates": {
+        "native": {
+          "admitted": true,
+          "reasons": [],
+          "required_host_bytes": 4323068042,
+          "docker": null,
+          "required_disk_bytes": 3057064960
+        },
+        "docker": {
+          "admitted": false,
+          "reasons": [
+            "Docker memory capacity is unavailable"
+          ],
+          "required_host_bytes": 4289513610,
+          "docker": null,
+          "required_disk_bytes": 3057064960
+        }
+      },
+      "enforced_wan": true,
+      "experiment": "slalom-freivalds-adaptation"
+    }
+  ]
+}

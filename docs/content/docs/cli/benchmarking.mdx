@@ -15,14 +15,14 @@ energy, price, quality, or production non-collusion claims.
 
 ## Enforce consumer Internet rates
 
-`--wan` uses the existing Docker role backend to cap every party, including the
+`--backend native --wan` caps every party's TCP streams, including the
 client, at **100 Mbps down / 40 Mbps up**. Upload and download are shared across
 all that party's peers; they are not per-connection allowances. Override with
 `--wan-download-mbps`, `--wan-upload-mbps`, repeatable `--wan-party ID:DOWN:UP`,
 or `--wan-profile`. Supplying those options also enables enforcement.
 
 ```bash
-pllm benchmark run --tiny --wan --warmups 0 --repetitions 1 \
+pllm benchmark run --tiny --backend native --wan --isolate-candidates --warmups 0 --repetitions 1 \
   --max-output-tokens 4 --temperature 0 --inventory-policy request-sized \
   --output wan-report.json
 ```
@@ -35,6 +35,13 @@ Use `--wan-estimate` for a projection without throttling. See
 [WAN readiness](/sdk/deployment/wan/) for party grouping, kernel evidence and the
 bounded real-Qwen throughput check. Rate-only emulation adds no Internet RTT;
 optional Docker delay/loss controls are separately configured.
+
+Native relays conserve client and all-link stream bytes, including HTTP/WebSocket
+framing. Kernel headers and retransmissions are outside that counter. Explicit
+`--backend docker --wan` uses kernel queues instead. `--isolate-candidates` gives
+each Experiment a fresh client while preserving one shared private comparison
+salt, so client memory peaks are comparable. Reports also sample the total live
+client/provider RSS in one window. [Full definitions](/sdk/deployment/wan/).
 
 ## Account for preparation and delivery
 

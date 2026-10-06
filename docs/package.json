@@ -9,7 +9,7 @@
   "scripts": {
     "papers": "uv run --no-project --python 3.13 python scripts/build-papers.py",
     "downloads": "uv run --no-project --python 3.13 python scripts/prepare-downloads.py",
-    "generate": "npm run papers && npm run downloads && node scripts/research-scorecard.mjs && node scripts/generate-research-papers.mjs && node scripts/discover-pages.mjs && node scripts/generate.mjs",
+    "generate": "npm run papers && npm run downloads && node scripts/research-scorecard.mjs && node scripts/research-results.mjs && node scripts/generate-research-papers.mjs && node scripts/discover-pages.mjs && node scripts/generate.mjs",
     "reference": "uv run --project .. --frozen python ../scripts/generate_developer_reference.py",
     "dev": "npm run reference && npm run generate && next dev",
     "build": "npm run reference && npm run generate && next build && node scripts/check-rendered-navigation.mjs",

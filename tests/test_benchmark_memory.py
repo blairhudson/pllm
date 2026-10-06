@@ -75,6 +75,58 @@ def test_paged_client_prices_bounded_ram_and_distinct_disk_owners():
     assert b["required_disk_bytes"] - a["required_disk_bytes"] == paged["components"]["client_additional_paged_disk_bytes"] > 0
 
 
+def test_verified_memory_prices_native_payloads_and_actual_owners():
+    from types import SimpleNamespace
+    from pllm import _native
+    from pllm.profiles import VerifiedMaskedLinearCpu
+
+    stage = SimpleNamespace(in_features=3, out_features=2)
+    allocation = memory._freivalds_memory(_native, [stage], rows=4, failure_bits=40, stage_window=1)
+    policy = _native.FreivaldsPolicy(40, 4, 6, 100, 100, 100, 1000, 4, b"a" * 32, False)
+    material = _native.prepare_freivalds(bytes([1, 2, 3, 4, 5, 6]), 2, 3, 4,
+        b"s" * 32, b"memory-allocation-test", b"m" * 32, 127, 1905, policy)
+    assert allocation["checks"] == material.checks == 2
+    assert allocation["one_inventory_projection_bytes"] == len(material.payload())
+    assert allocation["client_retained_bytes"] > 2 * len(material.payload())
+    assert allocation["preparation_peak_bytes"] > 2 * 6 + len(material.payload())
+    assert allocation["inference_peak_bytes"] == 0
+    material.cancel()
+
+    baseline = _estimate()
+    verified = _estimate(VerifiedMaskedLinearCpu(Model.tiny()))
+    assert verified["provider_peak_bytes"]["inference"] == baseline["provider_peak_bytes"]["inference"]
+    assert verified["client_peak_bytes"] > baseline["client_peak_bytes"]
+    assert verified["verification_allocation"]["checks"] == 2
+    assert verified["native_total_peak_bytes"] < verified["client_peak_bytes"] + sum(verified["docker_provider_peak_bytes"].values())
+
+
+def test_verified_memory_prices_output_challenges_windows_and_cache_union_once():
+    from types import SimpleNamespace
+    from pllm import _native
+    from pllm.profiles import VerifiedMaskedLinearCpu, resolve_runtime_composition
+    from pllm.state import ClientPrefixReuse
+
+    a = memory._freivalds_memory(_native, [SimpleNamespace(in_features=2, out_features=2)],
+        rows=64, failure_bits=40, stage_window=1)
+    b = memory._freivalds_memory(_native, [SimpleNamespace(in_features=2, out_features=8192)],
+        rows=64, failure_bits=40, stage_window=1)
+    assert a["one_inventory_projection_bytes"] == b["one_inventory_projection_bytes"]
+    assert b["client_claim_work_bytes"] > a["client_peak_bytes"]
+    c = memory._freivalds_memory(_native, [SimpleNamespace(in_features=2, out_features=8192)],
+        rows=64, failure_bits=40, stage_window=4)
+    assert c["preparation_peak_bytes"] == 4 * b["preparation_peak_bytes"]
+    assert c["client_import_work_bytes"] == 4 * b["client_import_work_bytes"]
+
+    pipeline = VerifiedMaskedLinearCpu(Model.tiny(),
+        cache=ClientPrefixReuse(max_bytes=MiB, fixed_input_tokens=32))
+    value = _estimate(pipeline)["verification_allocation"]
+    assert value["target_failure_bits"] == resolve_runtime_composition(pipeline).verification_target_failure_bits == 52
+    assert value["checks"] == 2
+    with pytest.raises(BenchmarkMemoryError, match="allocation policy"):
+        memory._freivalds_memory(SimpleNamespace(), [SimpleNamespace(in_features=2, out_features=2)],
+            rows=64, failure_bits=40, stage_window=1)
+
+
 def test_preparation_and_public_artifacts_charge_distinct_disk_owners():
     from pllm.preparation import ModelAwareCorrections
     from pllm.quantization import SymmetricPerRow

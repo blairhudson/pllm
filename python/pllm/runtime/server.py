@@ -551,6 +551,9 @@ def create_app(
             cache_dir=body.get("cache_dir"),
             allow_config_only=True,
         )
+        expected = body.get("source_lock_digest")
+        if expected is not None and resolved.source_lock_digest != expected:
+            raise ValueError("runtime model source lock changed before startup")
         return resolved.manifest
 
     async def register_engine_model(

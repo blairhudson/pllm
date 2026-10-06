@@ -9,6 +9,121 @@ combination of compatible SDK capabilities for a selected metric, model and work
 The search scope and matched comparison determine what the measurements establish.
 Original-paper performance is never substituted for a PLLM measurement.
 
+The [complete research data](/research/results/) records every confirmed result,
+all 108 exploratory attempts, all 72 measurements and the rejected trials, with
+canonical reports and rerunnable Python files. Separate cohorts remain separate.
+
+## Reading the frontier
+
+One line follows each experiment across nine default axes: **request tokens/s,
+MB/output token, body-linear compute offloaded, client/aggregate CPU,
+client/aggregate memory and client/aggregate network**. Speed and cost axes map
+their observed range to 0–100, with the best at 100; lower-cost axes are inverted.
+Body offload uses its absolute 0–100% scale. Equal values stay tied, including a
+genuine zero, and unmeasured values leave gaps. Every axis is higher-is-better;
+positions are not percentages of baseline or a composite score. Actual units
+and costs appear in line details and the results table.
+Axes are grouped as **Performance → Client → Agg (Aggregate)**, with CPU, memory and
+network together within each cost group. Optional provider metrics form their
+own group; selections retain this grouping when metrics are added or removed.
+
+### Rewarding offload
+
+**Body offload = 100 × remote body-linear MACs / (client + remote body-linear MACs).**
+Counts come from the compiled placement's declared per-row work, with each model
+stage counted once. Client-only scores **0%**, the client-owned MLP candidates
+**12.31%**, and provider-owned body stages **100%**. Its absolute scale prevents
+an all-local cohort from receiving 100 merely because every configuration ties.
+
+This is a plan-derived delegation metric. It excludes attention, nonlinear work
+and token lookup/head execution; 100% is not a claim that all client work is gone.
+It does not count duplicated worker operations, Preparation arithmetic or setup
+overhead as extra useful model work. A provider CPU-time fraction would reward
+that extra overhead. Measured client and aggregate CPU seconds show the actual
+resource cost alongside delegation. Client-only legitimately uses less CPU in
+this small-model cohort because it avoids protocol work, while delegating none
+of its decoder body. Cache reuse and public-prefix work avoidance have their own
+time and traffic effects; they do not change this per-row ownership fraction.
+
+Client-only and naive two-offset controls have distinct line styles. The naive
+offset control uses full input/output shares and sequential CPU execution;
+optimized offset finalists are separate lines. The metric picker also exposes
+decode throughput, body-only traffic, latency and provider memory. Baseline
+controls remain visible when candidate-placement or public-prefix filters change.
+
+Select a line to inspect actual units and its Python configuration. A paper
+selection highlights related configurations and links to its chronology card;
+cards link back to the chart. Component attribution is labelled separately from
+a full-system reproduction. A paper without a matched executable measurement
+has no invented performance line.
+
+## Native 100/40 measurement contract
+
+The new frontier cohort uses `--backend native --wan --isolate-candidates`:
+each Experiment gets a fresh client process under the same parent-owned private
+cohort salt. Native processes run behind opaque TCP relays. Each party shares
+one 100 Mbps download and one 40 Mbps upload budget across its concurrent peers,
+with a bounded 16 KiB burst. Startup, bundle delivery, preparation push and online
+traffic all pass through those budgets. This measures local bandwidth-limited
+execution, without an added Internet RTT.
+
+Client and total network count TCP-stream bytes from role startup through the
+response, including HTTP/WebSocket framing. Each directed link is counted once;
+client network includes both client upload and download, while total adds
+provider-peer links. MB/token divides total bytes by authoritative output tokens.
+Kernel headers, ACKs, retransmissions, telemetry, upstream checkpoint downloads
+and pre-positioned public artifact distribution remain outside this scope.
+
+Client memory is its fresh process's lifetime RSS peak. Total memory is the
+largest 50 ms sampled sum of live client and provider RSS, not the sum of their
+independent lifetime peaks. Short peaks may be missed; shared pages can be
+counted by multiple processes. Process RSS excludes uncharged GPU allocations
+and OS cache. Client/total CPU cover benchmark startup through the response and
+include the relay/sampler; GPU compute is separate. The idle parent launcher is
+outside the measured role graph.
+
+Replay the native frontier after building the public artifacts described below:
+
+```bash
+uv run python -m benchmarks.research.confirm .artifacts/research-native-wan.json \
+  --native-wan --include-naive-offset \
+  --search client=docs/evidence/research-search-client-qwen25-v2.json \
+  --search prepared=docs/evidence/research-search-prepared-qwen25-v3.json \
+  --search offset=docs/evidence/research-search-offset-qwen25-v3.json \
+  --search public_prefix=docs/evidence/research-search-public-prefix-qwen25-v2.json
+```
+
+## Measured native 100/40 frontier
+
+All **17 configurations** completed with matching output digests, fresh client
+processes and zero observed swap growth. The three baselines and selected
+trade-offs are shown below; [research data](/research/results/) contains every
+configuration and every metric.
+
+| Configuration | Request tokens/s | Client / total CPU s | Client / total RSS MB | Client / total network MB |
+| --- | ---: | ---: | ---: | ---: |
+| Client-only CPU baseline | 1.876 | 9.20 / 9.20 | 1,192.76 / 1,192.76 | 0 / 0 |
+| Naive offset baseline | 0.0459 | 24.01 / 58.00 | 621.58 / 2,091.27 | 648.43 / 648.43 |
+| Prepared baseline | 0.0768 | 21.22 / 64.02 | 605.00 / 2,272.41 | 397.82 / 604.30 |
+| Client MLP — delivery | 0.3426 | 26.44 / 43.74 | 1,226.75 / 2,166.31 | 503.71 / 536.34 |
+| Prefix + packed | 0.2836 | 14.76 / 36.65 | 543.13 / 1,870.66 | 235.36 / 291.60 |
+| Stack + public prefix | 0.1074 | 14.88 / 41.23 | 222.71 / 1,173.62 | 214.15 / 267.76 |
+
+Client-only has the highest observed throughput and zero provider traffic, with
+the complete decoder at the client. Moving MLP stages locally also accelerates
+the response, but increases client weight delivery and memory. Among candidates
+whose body linear stages stay remote, public-prefix packed execution has the
+highest observed throughput. The full public-prefix stack instead minimizes
+client RSS and offloaded network totals: **63.2% less client RSS**, **48.4% less
+sampled total RSS** and **55.7% fewer TCP-stream bytes** than the prepared baseline.
+Those two prefix choices reuse 96 explicitly public tokens; the stack additionally
+requires 12.25 MB of pre-positioned public artifacts.
+
+These are single-response observations. In this bandwidth-limited cohort,
+provider-body Metal does not retain its uncapped latency lead. Local bandwidth
+caps, model download exclusions and CPU-versus-GPU accounting remain part of
+the comparison, rather than being hidden in a single combined score.
+
 ## SDK composition search
 
 [`BeamSearch` and `benchmark_search`](/sdk/evaluate/search/) complement grid and
@@ -45,10 +160,11 @@ records the new identity rather than attributing it to the original score.
 The chart labels topology, CPU/Metal selection and client linear-stage ownership.
 Client-only runs retain the full decoder locally. Prepared and two-worker runs
 retain attention and nonlinear operations at the client even when all body
-linear stages are remote. The ownership toggle can exclude client body weights;
-the public-prefix toggle can exclude that separate workload assumption.
+linear stages are remote. The ownership toggle can exclude client-owned body
+candidates while retaining the client-only reference; the public-prefix toggle
+can exclude that separate workload assumption.
 
-## Current SDK-search confirmation
+## Historical uncapped SDK-search confirmation
 
 Four bounded searches made **108 attempts and 72 measurements** across the
 declared CPU/Metal, placement, transport, preparation and public-prefix choices.
@@ -201,21 +317,38 @@ regressions. Each card specifies its actual coverage and links to native code,
 tests and available evidence. An imported planned class or a related citation
 alone does not count as implemented work.
 
-- **Slalom:** the prepared Freivalds adaptation has a
-  [Python configuration](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/slalom.py)
-  and [matched control](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/slalom_baseline.py).
-  This new Qwen attempt was blocked before verified roles launched: 10.04 GiB
-  estimated host allocation exceeded 7.74 GiB safe headroom at 32+1 bounds.
-  It receives no score. The original TEE construction is not reproduced.
+- **Slalom:** the prepared Freivalds adaptation now has a
+  [Qwen Python configuration](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/slalom_qwen.py)
+  and a [composed variant](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/slalom_qwen_composed.py).
+  One native 100/40 response at 50+8 tokens measures **140.95 → 130.69 s**,
+  **374.00 → 334.21 MB** TCP-stream traffic and **624.02 → 345.18 MB** client RSS.
+  Aggregate CPU increases **76.61 → 78.95 s**. Both verify every remote stage
+  under the same 40-bit attempt bound and produce matching outputs. The chart
+  ranks this same-verifier pair separately from unverified controls. Auditing
+  actual native projection counts and memory owners corrected the prior admission
+  overestimate; it did not change the protocol. The original TEE construction
+  is not reproduced.
 - **Curl:** a new native reference executes one-use, party-local shared lookup
   from Fig. 4 and public Haar compression. It checks all 512 encoded SiLU rows.
   Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes per
   lookup, while header-inclusive peer frames stay at 136 bytes and maximum
   encoded-domain absolute error rises to 0.12888. The already-truncated input
   boundary excludes protected truncation and whole-decoder costs.
-- **SmoothQuant:** the previously implemented public channel-equalization
-  adaptation is now included in the library. Its existing Phi evidence remains
-  model-specific; it is not inserted into the Qwen chart.
+- **SmoothQuant:** a [fixed public Qwen calibration](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/fit_smoothquant.py)
+  and [ordinary Experiment](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/smoothquant_qwen.py)
+  test the existing channel-equalization adaptation. Twelve held-out prefill
+  prompts give **11/12 → 10/12** top-token agreement, unchanged 0.8833 top-5
+  recall, and **3.6207 → 2.5092** worst absolute logit error. This mixed result
+  is not a quality win. Its changed numeric body cannot share an exact-performance
+  ranking with plain W8A8. Offline profile costs and quality evidence appear in
+  [Research data](/research/results/).
+  A separate native 100/40 pair compares that fixed equalized body with exact
+  SDK composition: **78.26 → 70.24 s**, **289.41 → 251.25 MB** TCP-stream traffic
+  and **540.85 → 262.96 MB** client RSS. Aggregate CPU increases **34.47 → 37.28 s**.
+  The 0.72953 MB profile is pre-positioned; its offline build costs **15.78 CPU s**
+  separately. Matching output text on this cost prompt does not erase the held-out
+  quality regression. These paper controls are baseline/composition pairs,
+  not exhaustive searches of verified or equalized configurations.
 
 The native Curl measurement also compares local two-party execution with a clear
 table lookup. Its Python configuration runs the bounded native example:
@@ -229,6 +362,78 @@ The dealer is confined to this local research reference. One-use party state
 burns on use and malformed input; peer frames bind the public table and issuance.
 This is a component reimplementation, not a reviewed transport or an executable
 Qwen Pipeline. See the [Curl record](/research/papers/curl/).
+
+### Rerun the paper controls
+
+These factories pin the same Qwen checkpoint, CPU kernels and a 64+8-token
+budget; the committed request renders to 50 input tokens. Each cost run uses a
+fresh native client and shared 100/40 caps. Source locks, one-use material,
+memory admission and output checks remain enforced.
+
+```bash
+uv run python -m pllm benchmark run --factory --trust-python \
+  --experiment benchmarks.research.paper_baseline:experiment \
+  --experiment benchmarks.research.paper_prepared:experiment \
+  --experiment benchmarks.research.slalom_qwen:experiment \
+  --experiment benchmarks.research.slalom_qwen_composed:experiment \
+  --backend native --wan --isolate-candidates --compare-kernels \
+  --temperature 0 --capture-output-digest \
+  --prompt-file benchmarks/research/data/paper-request.txt \
+  --max-output-tokens 8 --warmups 0 --repetitions 1 --timeout 900 \
+  --output .artifacts/paper-controls-rerun.json
+```
+
+The four-way report deliberately retains the aggregate rejection for mixed
+verified/unverified contracts. Individual runtime checks must pass. Extract a
+same-verifier pair through the ordinary SDK comparison policy; extraction checks
+factory identities and binds the unchanged original observations by SHA-256:
+
+```bash
+uv run python -m benchmarks.research.paper_cohorts .artifacts/paper-controls-rerun.json \
+  --experiment benchmarks.research.slalom_qwen:experiment \
+  --experiment benchmarks.research.slalom_qwen_composed:experiment \
+  --output .artifacts/slalom-rerun.json
+```
+
+Equalization first requires the committed public calibration. The builder writes
+the immutable profile beside the cached checkpoint; it does not use held-out
+evaluation prompts. Replay retains the fixed profile digest in the factories.
+
+```bash
+uv run python -m benchmarks.research.fit_smoothquant \
+  --output .artifacts/smoothquant-calibration-rerun.json
+uv run python -m pllm benchmark quality --factory --trust-python \
+  --experiment benchmarks.research.smoothquant_baseline:experiment \
+  --experiment benchmarks.research.smoothquant_qwen:experiment \
+  --prompts-file benchmarks/research/data/paper-quality-prompts.json \
+  --output .artifacts/smoothquant-quality-rerun.json
+uv run python -m pllm benchmark run --factory --trust-python \
+  --experiment benchmarks.research.smoothquant_baseline:experiment \
+  --experiment benchmarks.research.smoothquant_prepared:experiment \
+  --experiment benchmarks.research.smoothquant_qwen:experiment \
+  --experiment benchmarks.research.smoothquant_qwen_composed:experiment \
+  --backend native --wan --isolate-candidates --compare-kernels \
+  --temperature 0 --capture-output-digest \
+  --prompt-file benchmarks/research/data/paper-request.txt \
+  --max-output-tokens 8 --warmups 0 --repetitions 1 --timeout 900 \
+  --output .artifacts/smoothquant-controls-rerun.json
+```
+
+Plain and equalized W8A8 have different numeric bodies, so their mixed aggregate
+also rejects ranking. Extract the two equalized configurations:
+
+```bash
+uv run python -m benchmarks.research.paper_cohorts .artifacts/smoothquant-controls-rerun.json \
+  --experiment benchmarks.research.smoothquant_qwen:experiment \
+  --experiment benchmarks.research.smoothquant_qwen_composed:experiment \
+  --output .artifacts/smoothquant-rerun.json
+```
+
+The plain pair forms its own control cohort. Both original four-way reports are
+retained, including their aggregate comparison rejections. Every individual run
+passed runtime checks; each extracted pair passes the ordinary SDK ranking policy.
+The separate twelve-prompt reference diagnostic remains prefill-only, even if
+the single cost request happens to produce identical text across numeric choices.
 
 ## Extending the scorecard
 

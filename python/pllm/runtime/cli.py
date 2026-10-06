@@ -236,9 +236,10 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
             )
             if resolved.path is None:
                 raise RuntimeCLIError(f"model kind {model.kind!r} has no local runtime source")
-            runtime_model = Model(
-                str(resolved.path),
-                kind=model.kind,
+            # Re-resolve the same source offline at startup. Replacing a Hub
+            # specification with its local path drops repo/revision/commit from
+            # the source lock and invalidates source-bound public artifacts.
+            runtime_model = model.with_params(
                 model_id=resolved.manifest.id,
                 local_files_only=model.kind in {"huggingface", "safetensors", "vllm"},
             )
@@ -252,7 +253,11 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
                 engine_name = "direct-bfv-transformer-proprietary"
             else:
                 raise AssertionError("secure mode must fail before model loading")
-            resolved_models.append({"engine": engine_name, **runtime_model.to_runtime_spec()})
+            resolved_models.append({
+                "engine": engine_name, **runtime_model.to_runtime_spec(),
+                "cache_dir": args.hf_cache_dir,
+                "source_lock_digest": resolved.source_lock_digest,
+            })
         value["engine_models"] = resolved_models
     config = GatewayConfig.from_dict(value)
     loopback = _is_loopback_host(args.host)

@@ -308,7 +308,7 @@ function renderIndex(papers, summaries, citations, stubs) {
 
 ## ${year}
 
-${papers.filter((paper) => paper.year === year).map((paper) => `<div className="paper-timeline-entry" data-implemented="${Boolean(implementations[paper.id])}">
+${papers.filter((paper) => paper.year === year).map((paper) => `<div className="paper-timeline-entry" id="paper-${paper.id}" data-implemented="${Boolean(implementations[paper.id])}">
 
 <div className="paper-timeline-title"><a href="/research/papers/${paper.slug}/">${escapeHtmlText(paper.title)}</a></div>
 
@@ -319,6 +319,8 @@ ${provenance(paper)}
 ${summaries[paper.publicId].overview}
 
 ${implementationStatus(paper)}
+
+<a href="#research-frontier" data-research-paper="${paper.id}">Highlight related experiment lines ↑</a>
 
 ${renderTimelineLinks(citations.get(paper.registry_id ?? paper.id), stubs.get(paper.id), paper.slug)}
 
@@ -332,7 +334,9 @@ description: "Measured SDK performance, paper reimplementation coverage and a ne
 
 ${generatedMarker}
 
+<div id="research-frontier">
 <ResearchScorecard />
+</div>
 
 ## Research chronology
 

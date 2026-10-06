@@ -191,3 +191,75 @@ def test_prepared_numeric_choices_have_matched_online_stage_body_sizes(tmp_path)
             ))
     assert bodies[0] == bodies[1]
     assert bodies[0][0] > 0
+
+
+@pytest.mark.parametrize("preparation", [False, True])
+def test_role_cli_preserves_pinned_hub_profile_and_rejects_changed_source(tmp_path, monkeypatch, preparation):
+    from fastapi.testclient import TestClient
+
+    from pllm import load_model
+    from pllm._cli.app import build_parser
+    from pllm.runtime import cli
+    from pllm.runtime.hf_hub import ResolvedModelSource
+
+    commit = "a" * 40
+    cache = tmp_path / "hub"
+    root = create_tiny_llama_checkpoint(
+        cache / "models--public--tiny" / "snapshots" / commit, num_hidden_layers=1,
+    )
+    calls = []
+
+    def resolve(source, **kwargs):
+        calls.append((source, kwargs))
+        return ResolvedModelSource(
+            path=root, model_id=kwargs["model_id"] or source,
+            repo_id=source, revision=kwargs["revision"],
+        )
+
+    monkeypatch.setattr("pllm.model_loader.resolve_huggingface_source", resolve)
+    source = Model.hf("public/tiny", model_id="hub-profile", revision=commit)
+    profile = fit_public_equalization_profile(source, ((0, 3, 5),))
+    profile_path(root, profile.digest).write_bytes(profile.pack())
+    assert profile.source_lock_digest != load_model(Model.path(str(root))).source_lock_digest
+    engines = []
+
+    def engine(**kwargs):
+        value = MaskedTransformerEngine(**kwargs)
+        engines.append(value)
+        return value
+
+    def serve(app, **kwargs):
+        with TestClient(app):
+            loaded = engines[-1].models["hub-profile"]
+            assert loaded.manifest.source_lock_digest == profile.source_lock_digest
+
+    monkeypatch.setattr(cli, "MaskedTransformerEngine", engine)
+    monkeypatch.setattr(cli.uvicorn, "run", serve)
+    monkeypatch.setattr("pllm.runtime.telemetry.configure_telemetry", lambda *_: None)
+    args = build_parser().parse_args([
+        "serve", "preparation" if preparation else "inference",
+        "--model", source.source, "--model-id", "hub-profile", "--revision", commit,
+        "--hf-cache-dir", str(cache), "--public-equalization-digest", profile.digest,
+        *(["--inference-url", "http://127.0.0.1:9000", "--push-api-key", "test-push"]
+          if preparation else ["--provider-push-api-key", "test-push"]),
+    ])
+    cli.run_server(args, preparation=preparation)
+    assert calls[-1][0] == source.source
+    assert calls[-1][1]["revision"] == commit
+    assert calls[-1][1]["local_files_only"] is True
+    assert calls[-1][1]["cache_dir"] == str(cache)
+
+    # The second resolve must still verify files, not trust the pre-launch lock.
+    def mutate_before_start(app, **kwargs):
+        path = root / "model.safetensors"
+        value = bytearray(path.read_bytes())
+        value[-1] ^= 1
+        path.write_bytes(value)
+        with TestClient(app):
+            pytest.fail("changed source reached ready state")
+
+    monkeypatch.setattr(cli.uvicorn, "run", mutate_before_start)
+    args.public_equalization_digest = None
+    with pytest.raises(ValueError, match="source lock changed"):
+        cli.run_server(args, preparation=preparation)
+    assert not engines[-1].models

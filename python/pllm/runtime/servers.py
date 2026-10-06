@@ -994,7 +994,6 @@ def build_roles(
         from pllm.deployment import WanConditions
         if type(wan) is not WanConditions:
             raise TypeError("wan must be WanConditions")
-        docker = True
     if docker_image is not None and not docker:
         raise ValueError("docker_image requires docker=True")
     if docker_network is not None and not docker:
@@ -1131,6 +1130,10 @@ def build_roles(
         extra["docker_network"] = docker_network
         extra["wan"] = wan
         extra["memory_limits"] = memory_limits
+    elif wan is not None:
+        from .native_wan import NativeWanTopology
+        topology_type = NativeWanTopology
+        extra["wan"] = wan
     return topology_type(
         model,
         model_id=resolved_id,

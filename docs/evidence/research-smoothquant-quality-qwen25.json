@@ -1,0 +1,84 @@
+{
+  "candidates": [
+    {
+      "activation_bits": 8,
+      "configuration_digest": "b61115b6dd6f1cc0e8c182ef01057dbb61c77512b683e09991bdb5a61e3535b7",
+      "kernel_backend": "pllm/cpu",
+      "kernel_threads": 4,
+      "max_abs_logit_error": 3.620694160461426,
+      "name": "paper-qwen-w8a8",
+      "pipeline_digest": "e2013d0ce3fafa80a2982a923db32f44f89904719533a9b85604ad7de1de7033",
+      "sample_count": 12,
+      "top1_agreement": 0.9166666666666666,
+      "top_k_recall": 0.8833333333333333,
+      "weight_bits": 8
+    },
+    {
+      "activation_bits": 8,
+      "configuration_digest": "b7e5b553e1c23411fa0804270dc1fe412ab441a9c3653d722f11b9cbbfe5bd29",
+      "kernel_backend": "pllm/cpu",
+      "kernel_threads": 4,
+      "max_abs_logit_error": 2.5092458724975586,
+      "name": "paper-qwen-smoothquant",
+      "pipeline_digest": "8cf4ba297d8a5b1f8fbc5236028ecda3590c15251cff74292f010a2a896f758b",
+      "public_calibration_digest": "6ab979ed4620a93ee8c1e322bdf50a466db2b2b0e2c07b5d0b3c4bffa3d9ecbf",
+      "public_equalization_profile_digest": "a1024e2b0376a5d8baa57b6c972d18f641a2817a57b204cc1e1c4182dc0f430b",
+      "public_profile_bytes": 729527,
+      "sample_count": 12,
+      "top1_agreement": 0.8333333333333334,
+      "top_k_recall": 0.8833333333333333,
+      "weight_bits": 8
+    }
+  ],
+  "cohort": {
+    "dataset_digest": "24c215e3082f01c874be6ab08eed0ee7f2bd94122f7bce6346ac59411e497cea",
+    "input_token_counts": [
+      7,
+      6,
+      10,
+      8,
+      13,
+      9,
+      8,
+      9,
+      9,
+      6,
+      8,
+      5
+    ],
+    "metric": {
+      "component": "pllm/reference-agreement/v1",
+      "params": {
+        "dataset_digest": "24c215e3082f01c874be6ab08eed0ee7f2bd94122f7bce6346ac59411e497cea",
+        "reference_checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+        "top_k": 5
+      }
+    },
+    "phase": "prefill",
+    "prompt_count": 12,
+    "token_cohort_digest": "29060d7b85a138426113922d3ba8790263b1efd663b9e8f471886f2ed8a7a4a0"
+  },
+  "environment": {
+    "machine": "arm64",
+    "numpy": "2.5.3",
+    "python_reference": "transformers/5.16.1",
+    "reference_attention": "eager",
+    "reference_dtype": "float32",
+    "reference_threads": 4,
+    "system": "Darwin",
+    "torch": "2.14.0"
+  },
+  "environment_digest": "166317d6511596fabc36f80da2c4878f3fb7bc8b2b90f96bb7ae28dde49e7d2b",
+  "limitations": [
+    "local clear integer kernels, not a provider transport or privacy measurement",
+    "prefill next-token reference agreement, not full-generation or task accuracy",
+    "float32 reference loading and evaluation excluded from provider latency and cost"
+  ],
+  "model": {
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "schema_version": "pllm.reference_quality_benchmark.v1",
+  "scope": "local-compiled-clear-kernel-prefill-reference"
+}

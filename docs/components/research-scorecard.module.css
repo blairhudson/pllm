@@ -1,26 +1,60 @@
-.scorecard { margin-block: 3rem; color: var(--text); font-size: .92rem; }
+.scorecard { margin-block: 3rem; color: var(--text); font-size: .92rem; min-width: 0; scroll-margin-top: 6rem; }
 .heading { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: end; }
 .heading h2 { margin: .6rem 0 1rem; font-size: clamp(1.9rem, 4vw, 3.2rem); line-height: 1.05; letter-spacing: -.045em; font-weight: 550; }
 .heading p, .scope { color: var(--muted); line-height: 1.7; }
 .eyebrow { color: var(--accent); text-transform: uppercase; font-family: var(--font-mono), monospace; font-size: .7rem; letter-spacing: .12em; }
 .controls { display: grid; grid-template-columns: 1fr 1.4fr 1.2fr; gap: 1rem; margin-block: 1.8rem 1rem; }
-.controls label { display: grid; gap: .5rem; font-size: .75rem; font-weight: 600; }
+.controls label { display: grid; min-width: 0; gap: .5rem; font-size: .75rem; font-weight: 600; }
 .controls select { width: 100%; min-width: 0; padding: .8rem .6rem; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font: inherit; font-weight: 400; }
-.toggle { display: flex; align-items: center; gap: .6rem; font-size: .8rem; margin-block: .6rem; }
-.toggle input { width: 1rem; height: 1rem; accent-color: var(--accent); }
+.filters { display: flex; gap: .6rem 1.5rem; flex-wrap: wrap; font-size: .78rem; margin-top: 1rem; }
+.filters label, .metricPicker label { display: flex; align-items: center; gap: .55rem; }
+.filters > span { color: var(--muted); }
+.scope a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.scorecard input { width: 1rem; height: 1rem; flex-shrink: 0; accent-color: var(--accent); }
 .scope { font-size: .8rem; margin-block: 1.3rem; }
-.winner { border-block: 1px solid var(--line); padding-block: 1.1rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.winner span { color: var(--muted); font-size: .8rem; }
-.winner strong { font-weight: 550; }
 .chart { margin: 2rem 0 1.2rem; }
+.chartScroll { overflow-x: auto; border-block: 1px solid var(--line); }
 .chart svg { width: 100%; height: auto; display: block; }
-.chartLabel, .chartValue { font-size: 13px; fill: var(--text); }
+.axisLabel, .chartValue { font-size: 13px; fill: var(--text); }
+.axisLabel { font-weight: 600; }
 .chartValue { font-family: var(--font-mono), monospace; }
 .chartNote { font-size: 11px; fill: var(--muted); }
-.track { fill: var(--panel); }
-.bar { fill: var(--muted); }
-.bestBar { fill: var(--accent); }
-.chart figcaption { color: var(--muted); font-size: .75rem; }
+.metricGroup text { fill: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+.metricGroup line { stroke: var(--line); }
+.metricGroup .groupBoundary { stroke-dasharray: 3 5; }
+.grid { stroke: var(--line); stroke-dasharray: 2 5; }
+.axis { stroke: var(--line); }
+.frontier { stroke: var(--accent); stroke-opacity: .55; }
+.experimentLine { cursor: pointer; transition: opacity .15s; }
+.chart figcaption { color: var(--muted); font-size: .75rem; margin-top: .8rem; line-height: 1.6; }
+.metricPicker { border-block: 1px solid var(--line); padding-block: .6rem; font-size: .78rem; }
+.metricPicker summary { cursor: pointer; font-weight: 600; }
+.metricPicker summary span { color: var(--muted); font-weight: 400; margin-left: .6rem; }
+.metricPicker > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem 1.5rem; margin-block: 1rem; }
+.metricPicker fieldset { display: grid; align-content: start; gap: .7rem; min-width: 0; border: 0; padding: 0; margin: 0; }
+.metricPicker legend { padding: 0; margin-bottom: .7rem; color: var(--accent); font-weight: 600; }
+.scorecard button { font: inherit; color: inherit; cursor: pointer; }
+.scorecard button:focus-visible, .scorecard select:focus-visible, .chartScroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.metricPicker button, .selection p button, .paperNotice button, .tableWrap button { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.paperNotice { border-left: 2px solid var(--accent); padding: .2rem 1rem; font-size: .8rem; }
+.paperNotice p { color: var(--muted); margin-block: .3rem; }
+.legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem .8rem; }
+.legend button { display: flex; align-items: flex-start; gap: .55rem; padding: .55rem; background: transparent; border: 1px solid transparent; border-radius: 4px; font-size: .75rem; text-align: left; }
+.legend button[aria-pressed=true] { border-color: var(--line); background: var(--panel); }
+.legend small { display: block; color: var(--muted); font-size: .65rem; line-height: 1.6; margin-top: .15rem; }
+.swatch { width: 1.5rem; flex: 0 0 1.5rem; border-top: 2px solid var(--line-color); margin-top: .6rem; }
+.swatch[data-reference=client] { border-top-style: dashed; }
+.swatch[data-reference=offset] { border-top-style: dotted; border-top-width: 3px; }
+.muted { opacity: .4; }
+.selection { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1rem; margin-block: 1.2rem; font-size: .8rem; }
+.selection > div { display: flex; gap: .5rem 1.5rem; align-items: baseline; flex-wrap: wrap; }
+.selection span, .selection p, .selection small { color: var(--muted); }
+.selection p { margin-block: .35rem; }
+.selection a { margin-left: auto; text-decoration: underline; }
+.selection dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin-block: 1rem; }
+.selection dt { color: var(--muted); font-size: .7rem; }
+.selection dd { margin: .2rem 0 0; font-family: var(--font-mono), monospace; }
+.leadingValue { color: var(--accent); font-weight: 600; }
 .tableWrap { overflow-x: auto; border-bottom: 1px solid var(--line); }
 .tableWrap table { width: 100%; border-collapse: collapse; font-size: .83rem; }
 .tableWrap caption { text-align: left; padding-block: .7rem; color: var(--muted); font-size: .75rem; }
@@ -33,4 +67,10 @@
 .details code { overflow-wrap: anywhere; }
 .details pre { overflow-x: auto; max-height: 24rem; padding: 1rem; background: var(--panel); }
 .details dl > div { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); padding-block: .35rem; }
-@media (max-width: 760px) { .heading, .controls { grid-template-columns: 1fr; gap: .9rem; } .chart { overflow-x: auto; } .chart svg { min-width: 570px; } }
+@media (max-width: 760px) {
+  .heading, .controls { grid-template-columns: 1fr; gap: .9rem; }
+  .legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .selection dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metricPicker > div { grid-template-columns: 1fr; }
+  .metricPicker summary span { display: block; margin: .3rem 0 0; }
+}

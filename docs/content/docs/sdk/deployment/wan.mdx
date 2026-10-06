@@ -3,8 +3,8 @@ title: "WAN readiness"
 description: "Enforce shared party upload/download limits and measure token throughput."
 ---
 
-`pllm benchmark run --wan` enforces **100 Mbps download and 40 Mbps upload per
-party**, including the client, through Docker-backed Linux queues. Rates are
+`pllm benchmark run --backend native --wan` enforces **100 Mbps download and 40 Mbps upload per
+party**, including the client, through shared opaque TCP-stream budgets. Rates are
 decimal megabits per second: **12.5 MB/s down and 5 MB/s up**. Each party shares
 one upload and one download budget across all peers and connections.
 
@@ -20,7 +20,7 @@ with two peers does not get two independent 40 Mbps uplinks.
 ## CLI
 
 ```bash
-pllm benchmark run --tiny --wan --max-output-tokens 4 --warmups 0 --repetitions 1 \
+pllm benchmark run --tiny --backend native --wan --max-output-tokens 4 --warmups 0 --repetitions 1 \
   --temperature 0 --inventory-policy request-sized --output wan-report.json
 ```
 
@@ -31,8 +31,14 @@ Supplying any rate, party override or profile enables enforcement unless
 document illustrated by `examples/benchmarks/consumer-wan.json` (which reduces
 Preparation's upload to 10 Mbps); profile and inline overrides cannot be mixed.
 
-Enforcement selects the existing local Docker CPU backend. A running Linux Docker
-engine is required. It does not change an independently deployed HTTP network.
+Explicit native enforcement supports CPU and Metal, with at most 32 relay
+connections and a 16 KiB per-direction burst. Each directed stream is counted
+once, including HTTP/WebSocket framing; TCP/IP headers, ACKs and retransmissions
+are excluded. Relay CPU/RSS belongs to the measured client process. This local
+supervisor does not reshape independently deployed HTTP networks.
+
+`--backend docker --wan` selects Linux kernel queues and requires a running Docker
+engine. Omitting `--backend` preserves the existing Docker enforcement default.
 Optional Docker delay/loss settings compose with the party caps; a second
 Docker bandwidth setting is rejected. Zero additional delay/loss is the default.
 `--docker-network-profile examples/benchmarks/wan-40ms.json` selects 20 ms
@@ -60,6 +66,7 @@ Pass this immutable profile as `wan=consumer` to the existing
 `pllm.runtime.build_roles(experiment, wan=consumer)` factory for enforced local
 execution. The ordinary benchmark driver accepts the same profile and
 `emulate_wan=True`; supplying only its `wan` argument requests a projection.
+The role factory uses native pacing by default; add `docker=True` for Linux queues.
 
 Use `pllm.metrics.wan_readiness(report, conditions)` to evaluate another scenario
 against an existing canonical report. Live network records use their actual
@@ -80,7 +87,12 @@ emulation subsection rather than attributing old timings to the new rates.
   throughput is `N / online_seconds`; decode throughput is `(N-1)` divided by
   the first-to-last output interval. Provider startup and discarded warmups are
   outside these request clocks. One-output responses have no decode rate.
-- The measured subsection requires matching kernel queue readbacks before and
+- Native measured throughput requires matching shared budgets and conserved
+  directed counters before and after execution. `native_network_accounting`
+  retains startup, warmup and request snapshots. Client-only has no provider links.
+  `--isolate-candidates` enables comparable fresh-client peaks; native total RSS
+  is a same-window sampled sum, excluding uncharged GPU memory and OS cache.
+- Docker measurements require matching kernel queue readbacks before and
   after execution. Rate queues include service control, ACKs and retransmissions;
   benchmark management and telemetry use a separate path. Helper CPU/memory is
   recorded separately. Cleanup removes only the run's owned namespaces/queues.
@@ -89,7 +101,8 @@ emulation subsection rather than attributing old timings to the new rates.
   checkpoint distribution can add time and bytes.
 - `link_conditions()` supplies a single-flow capacity for existing controlled
   network experiments. Independent per-link shapers do not enforce a shared
-  aggregate access cap; `--wan` uses routed party namespaces instead. Docker IP-hook measurements retain their own measured
+  aggregate access cap; native `--wan` shares budgets across relays and Docker
+  `--wan` uses routed party namespaces. Docker IP-hook measurements retain their own measured
   scope and must not be relabeled as these WAN estimates or complete wire.
 
 See [communication metrics](/sdk/evaluate/metrics/communication/) and
