@@ -4,7 +4,26 @@ This independently implemented **bounded component reference** follows the
 primary-paper cost audit. It replaces the earlier generic ties-even/Beaver
 layout with early-terminated Boolean DPF comparisons, public-gap floor shifts,
 the residual SiLU lookup and masked-wire composition. It is not a complete
-SIGMA or FuseFSS system, protected Qwen decoder or executable SDK component.
+SIGMA or FuseFSS system or protected Qwen decoder. The bounded operator is now
+available through `pllm.metrics.MaskedWireGatedBlockProbe`; its installed SDK
+benchmark status is independent of its cost/quality and whole-model coverage.
+
+## Installed operator benchmark
+
+`MaskedWireGatedBlockProbe(lanes=64, samples=3).run()` returns an immutable
+`OperatorBenchmarkReport`, with independent integer parity, separate float64
+approximation error, both-party raw keys, phase/direction peer frames, local wall
+and process CPU measurements, public-table storage and client-boundary estimates.
+Unknown full wire and peak memory remain null. `from_dict(report.configuration)`
+replays the public configuration. Custom Q24 inputs are checked before issuance
+and are not retained in reports; they must be supplied again for replay.
+Every sample consumes fresh material. No reusable keys leave the native binding.
+
+The SDK guide is `docs/content/docs/sdk/evaluate/paper-operators.mdx`, the installed
+example is `examples/benchmarks/masked_wire.py`, and the saved SDK evidence is
+`docs/evidence/research-masked-wire-sdk.json`. These local operator timings are
+separate from the historical fresh-process Qwen projection below. Operator
+availability does not activate a Pipeline or replace the retained negative quality result.
 
 Implementation:
 

@@ -109,9 +109,12 @@ These quality observations do not populate the performance chart's unmeasured wh
   const componentReferences = Object.entries(implementations)
     .filter(([, paper]) => paper.status === 'Component reference' && paper.evidence)
     .map(([id, paper]) => ({ id, ...paper }));
-  const referenceTable = table(['Paper', 'Scope and observations', 'Replay / evidence'], componentReferences.map((paper) => [
+  const referenceTable = table(['Paper', 'Scope and observations', 'Replay / evidence', 'Installed operator benchmark'], componentReferences.map((paper) => [
     `[${paper.id}](/research/papers/${paper.id}/)`, `${paper.scope} ${paper.result}`,
-    `${link('Python', paper.configuration)} · ${link('Report', paper.evidence)}`]));
+    `${link('Python', paper.configuration)} · ${link('Report', paper.evidence)}`,
+    paper.sdk_benchmark
+      ? `[${paper.sdk_benchmark.api}](${paper.sdk_benchmark.guide}) · ${link('Example', paper.sdk_benchmark.configuration)} · ${link('SDK report', paper.sdk_benchmark.evidence)}`
+      : 'Not exposed by this reference record']));
   const sections = card.cohorts.map((cohort) => {
     const axes = card.defaultMetrics.map((id) => card.metrics.find((metric) => metric.id === id));
     return `## ${cohort.title}

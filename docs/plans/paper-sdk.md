@@ -3,7 +3,8 @@
 Status: SDK composition search, its matched finalist scorecard and the first
 Qwen Slalom/SmoothQuant adaptation controls are implemented. Maverick and
 SIGMA/FuseFSS have bounded native component references with explicit unresolved
-resource/security gates. The paper landing map is
+resource/security gates. The SIGMA-derived masked-wire block also has an installed
+SDK operator benchmark. The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
 local research cache; run `uv run python scripts/sync_paper_library.py --fetch`
@@ -36,7 +37,7 @@ Bifrost (2026) follows availability of an actual attestation/key-provisioning
 executor and suitable hardware. Euston's analyzed vulnerable transmission remains
 a regression/repair review target. Neither receives a simulated successful SDK score.
 
-Each delivery ends with:
+Each whole-model delivery ends with:
 
 1. A paper-to-method contract stating **full reproduction**, **scoped adaptation**
    or **component reference**, with deviations from the cited source.
@@ -69,7 +70,8 @@ Use three explicit coverage levels:
 1. **Operator benchmark:** installed SDK access to the bounded native reference,
    public numeric contract, resource admission, one-use lifecycle, citations and
    measured material/CPU/rounds. An in-process dealer stays an explicit local
-   research assumption. This is the immediate delivery for the masked-wire block.
+    research assumption. The masked-wire block now has this installed SDK boundary,
+    typed reports and the checked `examples/benchmarks/masked_wire.py` example.
 2. **Experimental whole-model benchmark:** actual admitted tensor schedule,
    conversions, complete operator/state coverage and declared role transport.
    Report quality changes and costs under a separate numeric identity. A partial
@@ -178,9 +180,12 @@ floor/Q12 numerics. Twelve fresh processes check 5,136 protected outputs; 39+8
 MLP geometry projects **6.93 GB combined raw material and 397.12 MB peer frames**,
 8.67 times less material than the old, numerically different layout. The fresh
 Qwen screen matches 10/12 prefill and 34/36 decode selections; both optimization
-gates still fail. **Next: expose the bounded block as an opt-in SDK operator
-benchmark, then compare source-specified FuseFSS fusion and distribution on this
-baseline.** Validate improved numeric mappings on new prompts. Poor measured
+gates still fail. The opt-in `pllm.metrics.MaskedWireGatedBlockProbe` now exposes
+this operator with user-supplied bounded inputs, immutable source-bound reports,
+independent integer parity and separate approximation errors. Paper implementation
+records link its SDK example and measurements without claiming full-model coverage.
+**Next: compare source-specified FuseFSS fusion and distribution on this baseline.**
+Validate improved numeric mappings on new prompts. Poor measured
 quality/cost stays visible rather than excluding the method from research use.
 Protected conversions, other operators, reviewed transport and the paper's GPU
 system remain open. See `docs/research/masked-wire-reference.md` and

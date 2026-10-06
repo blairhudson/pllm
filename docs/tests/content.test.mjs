@@ -234,8 +234,9 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
-  assert.equal(citations.size, 10);
+  assert.equal(citations.size, 13);
   assert.ok(citations.has('R05') && citations.has('R08') && citations.has('R24'));
+  assert.ok(citations.has('sigma') && citations.has('grotto') && citations.has('pika'));
   const roadmap = byRoute.get('/sdk/components/research-method-roadmap/')?.content;
   assert.ok(roadmap);
   for (const method of planned) {

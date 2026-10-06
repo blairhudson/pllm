@@ -1,0 +1,113 @@
+---
+title: "Benchmark paper operators"
+description: "Measure installed, bounded research operators with paper citations, typed costs and explicit coverage."
+---
+
+`pllm.metrics.MaskedWireGatedBlockProbe` benchmarks the installed Rust
+SIGMA-derived SiLU × up block. High cost and imperfect approximation remain
+visible results. The current scope is **operator benchmarking**, with a trusted
+local dealer/client and two party-local evaluators in one process.
+
+## Python SDK example
+
+```python
+from pllm.metrics import MaskedWireGatedBlockProbe, OperatorBenchmarkReport
+
+probe = MaskedWireGatedBlockProbe(lanes=64, samples=3)
+report = probe.run()
+assert isinstance(report, OperatorBenchmarkReport)
+assert report.quality.exact_integer_outputs == 192
+assert report.resources.combined_raw_key_payload_bytes == 82_592
+assert report.resources.peer_frame_bytes == 6_020
+
+# Save report.to_json() wherever you keep benchmark evidence.
+replay = MaskedWireGatedBlockProbe.from_dict(report.configuration)
+assert replay.digest == report.configuration_digest
+```
+
+Each sample gets fresh OS-random one-use material. Python receives aggregate
+reports; the native call releases the interpreter lock and retires both parties
+on completion or error. The default public fixture includes signed boundaries,
+floor-division cases and residual-table tails. Allowed limits are 1–256 lanes and
+1–16 samples. The protocol preflights a 64 MiB allocation-estimate ceiling before
+issuance. This is not a measurement of process peak memory.
+
+The [standalone Python example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/masked_wire.py)
+runs against an installed wheel without Cargo or checkout imports. It accepts
+`--lanes`, `--samples` and an optional `--output` path, refusing to overwrite an
+existing report.
+
+## Supply your own bounded data
+
+```python
+from pllm.metrics import MaskedWireGatedBlockProbe
+
+q24 = 1 << 24
+custom = MaskedWireGatedBlockProbe(lanes=4, samples=2).run(
+    gate_q24=[-q24, -1, 0, q24],
+    up_q24=[q24, q24, -q24, -q24],
+)
+assert custom.quality.exact_integer_outputs == 8
+```
+
+Inputs are signed **Q24 integers**: gate in `[-48,48]`, up in `[-128,128]`.
+Floating-point inputs and out-of-domain values reject before issuance. The
+profile uses floor shifts to Q12, an effective 19-bit gate, a 1,024-entry residual
+table and a 40-bit multiplication ring. It returns a Q12 gated value.
+
+An independent Python integer oracle checks every output; disagreement aborts the
+benchmark. The report separately measures approximation error against Python
+float64 `SiLU(gate) × up` on the same supplied values. Exact integer parity does
+not imply exact SiLU, checkpoint quality or representative generation quality.
+The fixed profile previously matched 10/12 prefill and 34/36 same-token decode
+selections in the retained Qwen diagnostic.
+
+Reports omit input/output values and their hashes, and retain aggregate errors
+derived from the inputs. Configuration replay uses the public fixture by default;
+custom-input replay requires supplying your inputs again.
+
+## Read the costs
+
+`OperatorBenchmarkReport` retains immutable `OperatorBenchmarkResources`,
+`OperatorBenchmarkQuality`, `OperatorBenchmarkSample` and `OperatorCitation`
+records. JSON includes configuration, numeric-contract, native-source and SDK-source
+digests, package/environment identity and paper source hashes.
+
+For 64 lanes, one sample has:
+
+| Category | Scope | Bytes |
+| --- | --- | ---: |
+| Raw evaluator keys | Both parties; 41,296 each | 82,592 |
+| Peer frames | Both directions; all eleven phases, including frame headers | 6,020 |
+| Public residual table | Per party; separate storage | 8,192 |
+| Client masks | Unframed 40-bit payload estimate | 960 |
+| Client entry/exit | Non-resident unframed payload estimate | 1,600 |
+
+Resource counts are **per sample**; timing records cover each fresh issuance.
+`issuance_seconds`, `online_seconds` and `clear_seconds` measure local wall time.
+The clear control evaluates the same fixed integer profile. Online timing includes
+the trusted client's local encoding/decoding; both evaluators execute sequentially.
+`native_call_process_cpu_seconds` also includes native boundary, validation and
+report metadata work. Timings are not two-host latency or GPU performance.
+
+Key payloads omit dealer metadata and eventual transport framing. Tables,
+client-mask estimates and entry/exit estimates remain separate. Full physical
+wire, peak RSS and whole-checkpoint quality stay null. Compare samples only under
+matching numeric contract, input workload, lane geometry, implementation and
+environment; the probe performs no automatic ranking.
+
+## Paper coverage
+
+- [SIGMA](/research/papers/sigma/): public-gap floor shifts, residual SiLU and
+  masked-wire composition, independently reimplemented as a bounded CPU/Q12 block.
+- [Grotto](/research/papers/grotto/): suffix-parity comparisons using
+  early-terminated Boolean DPFs.
+- [Pika](/research/papers/pika/): Boolean-DPF lookup/sign correction, with explicit
+  correction shares and full-domain local lookup.
+
+This is a component reference exposed through the SDK. The original GPU systems,
+FuseFSS fusion, protected float conversions, full decoder schedule and independent
+role transport remain separate implementation work. The probe is not a Pipeline
+component, serving recommendation, complete-paper reproduction or privacy proof.
+
+API: [Metric objects](/sdk/reference/python/pllm/metrics/#objects-and-signatures).

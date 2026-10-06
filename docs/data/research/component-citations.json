@@ -120,6 +120,21 @@
       ]
     },
     {
+      "paper_id": "sigma",
+      "summary": "The bounded CPU/Q12 masked-wire gated operator adapts SIGMA's public-gap floor shifts and residual SiLU. Its installed benchmark preserves negative quality/cost results without claiming a complete SIGMA system.",
+      "components": [{"title": "Masked-wire operator benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+    },
+    {
+      "paper_id": "grotto",
+      "summary": "The masked-wire operator uses Grotto-style suffix-parity comparison over early-terminated Boolean DPFs, retaining independent 128-bit seeds and separate control bits.",
+      "components": [{"title": "Masked-wire operator benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+    },
+    {
+      "paper_id": "pika",
+      "summary": "The masked-wire operator uses Boolean-DPF lookup and sign correction with explicit correction shares; Pika's seeded distribution and complete system are not reproduced.",
+      "components": [{"title": "Masked-wire operator benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+    },
+    {
       "paper_id": "smoothquant",
       "summary": "PLLM's source-bound public equalization adapts SmoothQuant equations 3–4 with fixed alpha=3/4, normalized clipped scales and client-local activation scaling. The original fused GPU implementation and performance are not reproduced.",
       "components": [{

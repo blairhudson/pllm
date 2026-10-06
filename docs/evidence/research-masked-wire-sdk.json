@@ -1,0 +1,251 @@
+{
+  "benchmark_status": "completed",
+  "checkpoint_quality": null,
+  "citations": [
+    {
+      "paper_id": "sigma",
+      "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+      "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+      "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+      "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+    },
+    {
+      "paper_id": "grotto",
+      "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+      "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+      "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+      "url": "https://eprint.iacr.org/2023/108"
+    },
+    {
+      "paper_id": "pika",
+      "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+      "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+      "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+      "url": "https://eprint.iacr.org/2022/826"
+    }
+  ],
+  "configuration": {
+    "lanes": 64,
+    "numeric_profile": "pllm.residual_silu_reference.sigma_gpu_order.q12.v1",
+    "samples": 3,
+    "schema": "pllm.masked_wire_gated_block_probe.v1"
+  },
+  "configuration_digest": "2c250a9fa753c8d7e877a5e16e8e87fac9d35d1db14e00d60433a7ede3779b2f",
+  "environment": {
+    "native": "0.1.0-alpha.2",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "full_wire_bytes": null,
+  "independent_role_transport": false,
+  "input_source": "public-boundary-fixture-v1",
+  "limitations": [
+    "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+    "Fixed floor/Q12 approximation; original papers' GPU systems and FuseFSS fusion are not reproduced",
+    "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+    "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+    "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+    "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+    "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+  ],
+  "median_issuance_seconds": 0.014255917,
+  "median_online_seconds": 0.007369333,
+  "method": "masked-wire-gated-block",
+  "native_implementation_digest": "fa867031e1d3cc18a5fe8ee02262c256761e540fb463e60b7b295688c61e43cb",
+  "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+  "paper_coverage": "component-reference",
+  "peak_memory_bytes": null,
+  "privacy_reviewed": false,
+  "quality": {
+    "checked_outputs": 192,
+    "exact_integer_outputs": 192,
+    "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+    "maximum_absolute_error": 0.8940394474525616,
+    "mean_absolute_error": 0.02808263955087901
+  },
+  "resources": {
+    "client_entry_exit_payload_estimate_bytes": 1600,
+    "client_mask_payload_estimate_bytes": 960,
+    "peer_frame_bytes_by_direction": [
+      3010,
+      3010
+    ],
+    "peer_payload_bits": 34432,
+    "peer_rounds": 11,
+    "protocol_allocation_estimate_bytes": 5875712,
+    "public_table_bytes_per_party": 8192,
+    "raw_key_payload_bits_per_party": [
+      330368,
+      330368
+    ],
+    "raw_key_payload_bytes_per_party": [
+      41296,
+      41296
+    ]
+  },
+  "resources_scope": "per-sample",
+  "samples": [
+    {
+      "clear_seconds": 5.6042e-05,
+      "issuance_seconds": 0.018399792,
+      "native_call_process_cpu_seconds": 0.027608,
+      "online_seconds": 0.008968542,
+      "peer_frame_bytes_by_phase": [
+        [
+          94,
+          94
+        ],
+        [
+          718,
+          718
+        ],
+        [
+          86,
+          86
+        ],
+        [
+          182,
+          182
+        ],
+        [
+          94,
+          94
+        ],
+        [
+          158,
+          158
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          86,
+          86
+        ],
+        [
+          398,
+          398
+        ]
+      ]
+    },
+    {
+      "clear_seconds": 2.083e-06,
+      "issuance_seconds": 0.014255917,
+      "native_call_process_cpu_seconds": 0.021812,
+      "online_seconds": 0.007369333,
+      "peer_frame_bytes_by_phase": [
+        [
+          94,
+          94
+        ],
+        [
+          718,
+          718
+        ],
+        [
+          86,
+          86
+        ],
+        [
+          182,
+          182
+        ],
+        [
+          94,
+          94
+        ],
+        [
+          158,
+          158
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          86,
+          86
+        ],
+        [
+          398,
+          398
+        ]
+      ]
+    },
+    {
+      "clear_seconds": 7.09e-07,
+      "issuance_seconds": 0.0128675,
+      "native_call_process_cpu_seconds": 0.020271,
+      "online_seconds": 0.007293792,
+      "peer_frame_bytes_by_phase": [
+        [
+          94,
+          94
+        ],
+        [
+          718,
+          718
+        ],
+        [
+          86,
+          86
+        ],
+        [
+          182,
+          182
+        ],
+        [
+          94,
+          94
+        ],
+        [
+          158,
+          158
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          398,
+          398
+        ],
+        [
+          86,
+          86
+        ],
+        [
+          398,
+          398
+        ]
+      ]
+    }
+  ],
+  "schema": "pllm.operator_benchmark_report.v1",
+  "scope": "bounded in-process operator; fresh one-use material per sample",
+  "sdk_availability": "operator-benchmark",
+  "sdk_implementation_digest": "e2a55fc21608921e901b89d0abe7f70135d687ff2f5e973bd705817540456eff",
+  "whole_model_executable": false
+}

@@ -1,11 +1,88 @@
 from collections.abc import Mapping, Sequence
 from typing import Any
+from dataclasses import dataclass
 import numpy as np
 from pllm.configuration import ComponentDescriptor, ComponentRef, Experiment, Model, Pipeline
 from pllm.modeling import ModelPlan
 from pllm.deployment.wan import WanConditions
 
 class Metric(ComponentRef): ...
+
+@dataclass(frozen=True)
+class OperatorCitation:
+    paper_id: str
+    title: str
+    url: str
+    source_sha256: str
+    scope: str
+
+@dataclass(frozen=True)
+class OperatorBenchmarkSample:
+    issuance_seconds: float
+    online_seconds: float
+    clear_seconds: float
+    native_call_process_cpu_seconds: float
+    peer_frame_bytes_by_phase: tuple[tuple[int, int], ...]
+
+@dataclass(frozen=True)
+class OperatorBenchmarkResources:
+    raw_key_payload_bytes_per_party: tuple[int, int]
+    raw_key_payload_bits_per_party: tuple[int, int]
+    peer_frame_bytes_by_direction: tuple[int, int]
+    peer_payload_bits: int
+    peer_rounds: int
+    public_table_bytes_per_party: int
+    protocol_allocation_estimate_bytes: int
+    client_mask_payload_estimate_bytes: int
+    client_entry_exit_payload_estimate_bytes: int
+    @property
+    def combined_raw_key_payload_bytes(self) -> int: ...
+    @property
+    def peer_frame_bytes(self) -> int: ...
+
+@dataclass(frozen=True)
+class OperatorBenchmarkQuality:
+    checked_outputs: int
+    exact_integer_outputs: int
+    float_reference: str
+    maximum_absolute_error: float
+    mean_absolute_error: float
+
+@dataclass(frozen=True)
+class OperatorBenchmarkReport:
+    method: str
+    configuration_json: str
+    configuration_digest: str
+    numeric_contract_digest: str
+    native_implementation_digest: str
+    sdk_implementation_digest: str
+    input_source: str
+    resources: OperatorBenchmarkResources
+    quality: OperatorBenchmarkQuality
+    samples: tuple[OperatorBenchmarkSample, ...]
+    citations: tuple[OperatorCitation, ...]
+    environment: tuple[tuple[str, str], ...]
+    limitations: tuple[str, ...]
+    @property
+    def configuration(self) -> dict[str, Any]: ...
+    @property
+    def median_online_seconds(self) -> float: ...
+    @property
+    def median_issuance_seconds(self) -> float: ...
+    def to_dict(self) -> dict[str, Any]: ...
+    def to_json(self) -> str: ...
+
+class MaskedWireGatedBlockProbe:
+    lanes: int
+    samples: int
+    def __init__(self, lanes: int = 64, samples: int = 3) -> None: ...
+    @property
+    def digest(self) -> str: ...
+    def to_dict(self) -> dict[str, Any]: ...
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> MaskedWireGatedBlockProbe: ...
+    def run(self, *, gate_q24: Sequence[int] | None = None,
+            up_q24: Sequence[int] | None = None) -> OperatorBenchmarkReport: ...
 
 def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]: ...
 def wan_readiness(report: Mapping[str, Any], conditions: WanConditions | None = None) -> dict[str, Any]: ...

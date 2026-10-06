@@ -76,6 +76,7 @@
     },
     "sigma": {
       "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.metrics.MaskedWireGatedBlockProbe", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
       "scope": "Bounded early-terminated Boolean DPF, GapARS/TR floor shifts, residual Q12 SiLU and masked-wire multiplication. Public gap/effective-width bounds and one-use party-local state. Independent CPU/128-bit-seed implementation; no GPU system, protected float conversion or complete SIGMA decoder.",
       "code": ["crates/pllm-garble/src/compact_dpf.rs", "crates/pllm-garble/src/masked_wire_reference.rs", "crates/pllm-core/src/residual_silu_reference.rs"],
       "configuration": "benchmarks/research/masked_wire_reference.py",
@@ -84,6 +85,7 @@
     },
     "grotto": {
       "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.metrics.MaskedWireGatedBlockProbe", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
       "scope": "Internal suffix-parity comparison over early-terminated Boolean DPF keys; one child per level. Reused only within one bound lane/operation. No complete Grotto application or independent security review.",
       "code": ["crates/pllm-garble/src/compact_dpf.rs"],
       "configuration": "benchmarks/research/masked_wire_reference.py",
@@ -92,6 +94,7 @@
     },
     "pika": {
       "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.metrics.MaskedWireGatedBlockProbe", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
       "scope": "Boolean-DPF signed lookup with full-domain local evaluation, locally derived sign shares and fresh masked sign correction. Explicit correction shares, not seeded distribution or a complete Pika system.",
       "code": ["crates/pllm-garble/src/masked_wire_reference.rs"],
       "configuration": "benchmarks/research/masked_wire_reference.py",

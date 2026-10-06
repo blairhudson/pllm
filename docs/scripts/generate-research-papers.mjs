@@ -111,9 +111,25 @@ function validate(registry, library, citationRegistry, summaries, libraryNotes, 
         !['SDK adaptation', 'Component reference', 'Structural adaptation', 'Security regression'].includes(record.status)) {
       throw new Error(`Invalid implementation claim: ${id}`);
     }
-    for (const file of [...record.code, record.configuration, record.evidence].filter(Boolean)) {
+    const sdk = record.sdk_benchmark;
+    if (sdk && (sdk.coverage !== 'operator' || !/^pllm\.[\w.]+$/.test(sdk.api) ||
+        !/^\/sdk\/[a-z0-9/-]+\/$/.test(sdk.guide) || !sdk.configuration || !sdk.evidence)) {
+      throw new Error(`Invalid SDK operator benchmark: ${id}`);
+    }
+    for (const file of [...record.code, record.configuration, record.evidence,
+      sdk?.configuration, sdk?.evidence].filter(Boolean)) {
       if (file.includes('..') || path.isAbsolute(file) || !fs.existsSync(path.resolve(dataRoot, '../../..', file))) {
         throw new Error(`Missing implementation evidence: ${id} / ${file}`);
+      }
+    }
+    if (sdk) {
+      const report = JSON.parse(fs.readFileSync(path.resolve(dataRoot, '../../..', sdk.evidence), 'utf8'));
+      const citation = report.citations?.find((item) => item.paper_id === id);
+      if (report.schema !== 'pllm.operator_benchmark_report.v1' ||
+          report.sdk_availability !== 'operator-benchmark' || report.benchmark_status !== 'completed' ||
+          report.paper_coverage !== 'component-reference' || report.whole_model_executable !== false ||
+          citation?.source_sha256 !== papersById.get(id)?.sha256) {
+        throw new Error(`SDK operator report scope/source mismatch: ${id}`);
       }
     }
   }
@@ -213,7 +229,11 @@ function implementationStatus(paper) {
   const links = record.code.map((file) => `[\`${file}\`](${repository}${file})`);
   if (record.configuration) links.push(`[Python configuration](${repository}${record.configuration})`);
   if (record.evidence) links.push(`[Evidence](${repository}${record.evidence})`);
-  return `**PLLM status: ${record.status}.** ${record.scope}\n\n${record.result}\n\n${links.join(' · ')}`;
+  const sdk = record.sdk_benchmark;
+  const availability = sdk
+    ? `\n\n**SDK availability: Operator benchmark.** [\`${sdk.api}\`](${sdk.guide}) · [Installed Python example](${repository}${sdk.configuration}) · [SDK report](${repository}${sdk.evidence}). Whole-model coverage remains separate.`
+    : '';
+  return `**PLLM status: ${record.status}.** ${record.scope}${availability}\n\n${record.result}\n\n${links.join(' · ')}`;
 }
 
 function renderPaperPage(paper, citation, summary, methods) {

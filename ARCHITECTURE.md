@@ -232,8 +232,19 @@ at Qwen 39+8 geometry, before other operators and unimplemented protected float
 conversion. This is 8.67 times less material than the numerically different
 60.10 GB layout. The fresh twelve-prompt clear diagnostic matches 10/12 prefill
 and 34/36 same-token decode selections; no full logits/KV are exact. It remains
-cost/numeric-gated, with in-process issuance, no reviewed transport or executable
-SDK option. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
+cost/numeric-gated for recommended decoder execution, with in-process issuance
+and no reviewed transport. The installed
+`pllm.metrics.MaskedWireGatedBlockProbe` separately exposes this bounded operator
+for user-driven research benchmarking, even when its quality/cost is poor. It
+accepts public fixtures or caller-owned Q24 inputs, enforces the same range and
+resource bounds, issues fresh material per sample and releases the interpreter
+lock during native execution. Immutable reports retain replayable configuration,
+source/profile digests, SIGMA/Grotto/Pika citations, independent integer parity,
+separate float64 approximation errors, both-party material and phase/direction
+peer frames. Client mask/boundary estimates and public tables stay separate;
+full wire and peak memory remain unknown. No reusable secret handles escape.
+SDK operator availability, paper coverage and whole-model execution are independent
+claims. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
 Details: `docs/research/masked-wire-reference.md`.
 
 A further clear joint-output reference uses Q12/Q16 inputs, 512/2,048 public

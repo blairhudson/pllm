@@ -424,6 +424,14 @@ from .network_probes import (
     ResidentQuadraticGateCostProbe,
 )
 from .projected_polynomial import ProjectedPolynomialCostProbe
+from .masked_wire import MaskedWireGatedBlockProbe
+from .operator_benchmarks import (
+    OperatorBenchmarkReport,
+    OperatorBenchmarkResources,
+    OperatorBenchmarkSample,
+    OperatorBenchmarkQuality,
+    OperatorCitation,
+)
 from .private_pages import PrivatePageLookupProbe
 from .head_retrieval import PrivateHeadRetrievalProbe
 from .token_budget import TokenNetworkBudgetProbe
@@ -453,6 +461,12 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
 
 
 __all__ = [
+    "MaskedWireGatedBlockProbe",
+    "OperatorBenchmarkReport",
+    "OperatorBenchmarkResources",
+    "OperatorBenchmarkSample",
+    "OperatorBenchmarkQuality",
+    "OperatorCitation",
     "benchmark_memory",
     "ProjectedResharingProbe",
     "PreparedResidueProbe",
