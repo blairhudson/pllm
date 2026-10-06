@@ -4,7 +4,7 @@ description: "A technical introduction to PLLM, its private-inference controls, 
 author:
   - "Blair Hudson"
 affiliation: "deployscience labs, Sydney NSW Australia"
-email: "blairhudson@me.com"
+email: "blair@deployscience.com"
 date: "5 October 2026"
 documentclass: article
 classoption: [twocolumn, letterpaper]
