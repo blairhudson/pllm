@@ -18,6 +18,7 @@ mod progressive_head;
 mod projected_polynomial;
 mod public_transforms;
 mod row_memo;
+mod shared_rescale;
 
 use pyo3::exceptions::{PyBufferError, PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -1699,6 +1700,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     offset_transport::register(module)?;
     masked_aggregate::register(module)?;
     masked_wire::register(module)?;
+    shared_rescale::register(module)?;
     mask_stream::register(module)?;
     row_memo::register(module)?;
     public_transforms::register(module)?;

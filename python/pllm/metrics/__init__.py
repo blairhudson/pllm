@@ -425,6 +425,7 @@ from .network_probes import (
 )
 from .projected_polynomial import ProjectedPolynomialCostProbe
 from .masked_wire import MaskedWireGatedBlockProbe
+from .shared_rescale import SharedRescaleProbe
 from .operator_benchmarks import (
     OperatorBenchmarkReport,
     OperatorBenchmarkResources,
@@ -461,6 +462,7 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
 
 
 __all__ = [
+    "SharedRescaleProbe",
     "MaskedWireGatedBlockProbe",
     "OperatorBenchmarkReport",
     "OperatorBenchmarkResources",

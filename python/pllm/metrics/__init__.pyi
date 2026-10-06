@@ -72,6 +72,31 @@ class OperatorBenchmarkReport:
     def to_dict(self) -> dict[str, Any]: ...
     def to_json(self) -> str: ...
 
+class SharedRescaleProbe:
+    bits: int
+    shift: int
+    rounding: str
+    layout: str
+    backend: str
+    lanes: int
+    samples: int
+    def __init__(
+        self,
+        bits: int = 16,
+        shift: int = 7,
+        rounding: str = "floor",
+        layout: str = "fused",
+        backend: str = "interval_dcf",
+        lanes: int = 64,
+        samples: int = 3,
+    ) -> None: ...
+    @property
+    def digest(self) -> str: ...
+    def to_dict(self) -> dict[str, Any]: ...
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> SharedRescaleProbe: ...
+    def run(self, *, values: Sequence[int] | None = None) -> OperatorBenchmarkReport: ...
+
 class MaskedWireGatedBlockProbe:
     lanes: int
     samples: int

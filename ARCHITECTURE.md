@@ -191,6 +191,17 @@ No Qwen numeric mapping, tensor schedule, distributed dealer or SDK component is
 admitted; independent review and complete-operator cost reduction remain gates.
 All three cohorts and exact source contracts are retained in
 `docs/research/interval-rescale-reference.md` and its linked historical controls.
+The installed `pllm.metrics.SharedRescaleProbe` separately benchmarks these
+fused/unfused helpers with 1–256 caller-owned or public signed-integer lanes,
+2–32-bit widths, floor or ties-even rounding and all three comparison backends.
+Both original-input sign and rescaled value pass an independent Python oracle;
+each sample issues and burns fresh native party-local material with the
+interpreter lock released. It reuses the immutable operator benchmark report,
+including source citations, exact configuration replay, both-party material,
+per-phase/direction frames and separate local issuance/online timings. The
+in-process dealer, generic arithmetic-comparison contract and unknown wire/RSS
+remain explicit. This exposes negative cost results without activating the
+general FuseFSS compiler or a decoder.
 
 The complete bounded shared Q7 gated block composes four exact rescalings and
 two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases

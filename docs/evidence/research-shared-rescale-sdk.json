@@ -1,0 +1,1622 @@
+{
+  "reports": [
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        }
+      ],
+      "configuration": {
+        "backend": "prefix_dpf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "unfused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "floor",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "bf119c35315934c022db5b291e638e2e1499b0e422bbeec7eb93e697d0381393",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.032373458,
+      "median_online_seconds": 0.02738425,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "ae96dbdd2e7b919a522b1ab58e100d9302ec6ed0e78685a09eb3b75d18e435fb",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.9921875,
+        "mean_absolute_error": 0.4793701171875
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          668,
+          668
+        ],
+        "peer_payload_bits": 8192,
+        "peer_rounds": 2,
+        "protocol_allocation_estimate_bytes": 1609728,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          1359872,
+          1359872
+        ],
+        "raw_key_payload_bytes_per_party": [
+          169984,
+          169984
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 2.92e-07,
+          "issuance_seconds": 0.032436334,
+          "native_call_process_cpu_seconds": 0.05989,
+          "online_seconds": 0.02738425,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 3.33e-07,
+          "issuance_seconds": 0.032373458,
+          "native_call_process_cpu_seconds": 0.059767,
+          "online_seconds": 0.027350875,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.66e-07,
+          "issuance_seconds": 0.03229875,
+          "native_call_process_cpu_seconds": 0.059721,
+          "online_seconds": 0.027385458,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        }
+      ],
+      "configuration": {
+        "backend": "prefix_dpf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "fused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "floor",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "2c1a9ef9cb4dc12758d9815624efb9c693faf230c1b2223d93d48c25d2dff7c7",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.073821458,
+      "median_online_seconds": 0.066929292,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "ae96dbdd2e7b919a522b1ab58e100d9302ec6ed0e78685a09eb3b75d18e435fb",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.9921875,
+        "mean_absolute_error": 0.4793701171875
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          334,
+          334
+        ],
+        "peer_payload_bits": 4096,
+        "peer_rounds": 1,
+        "protocol_allocation_estimate_bytes": 2969088,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          3172352,
+          3172352
+        ],
+        "raw_key_payload_bytes_per_party": [
+          396544,
+          396544
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 2.583e-06,
+          "issuance_seconds": 0.074164292,
+          "native_call_process_cpu_seconds": 0.141322,
+          "online_seconds": 0.067086,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 3.33e-07,
+          "issuance_seconds": 0.073821458,
+          "native_call_process_cpu_seconds": 0.140773,
+          "online_seconds": 0.06688225,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 2.09e-07,
+          "issuance_seconds": 0.073716625,
+          "native_call_process_cpu_seconds": 0.140691,
+          "online_seconds": 0.066929292,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 1 compact DCF; Section 4.1/Figure 14 universal interval-key backend when selected",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "backend": "compact_dcf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "unfused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "floor",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "ba6d2996b8dd10783a9e26b8cf40c6206a211cc29a2a51f94e84b2d49bebb0b4",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.005270125,
+      "median_online_seconds": 0.004040625,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "ae96dbdd2e7b919a522b1ab58e100d9302ec6ed0e78685a09eb3b75d18e435fb",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.9921875,
+        "mean_absolute_error": 0.4793701171875
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          668,
+          668
+        ],
+        "peer_payload_bits": 8192,
+        "peer_rounds": 2,
+        "protocol_allocation_estimate_bytes": 836352,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          328704,
+          328704
+        ],
+        "raw_key_payload_bytes_per_party": [
+          41088,
+          41088
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.005291375,
+          "native_call_process_cpu_seconds": 0.009357,
+          "online_seconds": 0.004041458,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 2.09e-07,
+          "issuance_seconds": 0.005255459,
+          "native_call_process_cpu_seconds": 0.009317,
+          "online_seconds": 0.004040625,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.005270125,
+          "native_call_process_cpu_seconds": 0.009325,
+          "online_seconds": 0.004036625,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 1 compact DCF; Section 4.1/Figure 14 universal interval-key backend when selected",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "backend": "compact_dcf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "fused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "floor",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "a46df58807301512e33e80f09e9af3cb3a4c95b6984512d8d2c67f9ca9a3cd8e",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.007165459,
+      "median_online_seconds": 0.006275333,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "ae96dbdd2e7b919a522b1ab58e100d9302ec6ed0e78685a09eb3b75d18e435fb",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.9921875,
+        "mean_absolute_error": 0.4793701171875
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          334,
+          334
+        ],
+        "peer_payload_bits": 4096,
+        "peer_rounds": 1,
+        "protocol_allocation_estimate_bytes": 948480,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          478208,
+          478208
+        ],
+        "raw_key_payload_bytes_per_party": [
+          59776,
+          59776
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.007184208,
+          "native_call_process_cpu_seconds": 0.013501,
+          "online_seconds": 0.006300083,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.25e-07,
+          "issuance_seconds": 0.007165459,
+          "native_call_process_cpu_seconds": 0.013455,
+          "online_seconds": 0.006275333,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.66e-07,
+          "issuance_seconds": 0.007148917,
+          "native_call_process_cpu_seconds": 0.013435,
+          "online_seconds": 0.006272584,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 1 compact DCF; Section 4.1/Figure 14 universal interval-key backend when selected",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "backend": "interval_dcf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "unfused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "floor",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "d680bd8c4ef348153b3d7783d40cd77fd7552d4efcbfef9c8a86b52ce5dafbb2",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.003656542,
+      "median_online_seconds": 0.004033416,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "ae96dbdd2e7b919a522b1ab58e100d9302ec6ed0e78685a09eb3b75d18e435fb",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.9921875,
+        "mean_absolute_error": 0.4793701171875
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          668,
+          668
+        ],
+        "peer_payload_bits": 8192,
+        "peer_rounds": 2,
+        "protocol_allocation_estimate_bytes": 752640,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          217088,
+          217088
+        ],
+        "raw_key_payload_bytes_per_party": [
+          27136,
+          27136
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.003679709,
+          "native_call_process_cpu_seconds": 0.007738,
+          "online_seconds": 0.004042916,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.25e-07,
+          "issuance_seconds": 0.003656542,
+          "native_call_process_cpu_seconds": 0.007701,
+          "online_seconds": 0.004030375,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.66e-07,
+          "issuance_seconds": 0.003645667,
+          "native_call_process_cpu_seconds": 0.007692,
+          "online_seconds": 0.004033416,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 1 compact DCF; Section 4.1/Figure 14 universal interval-key backend when selected",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "backend": "interval_dcf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "fused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "floor",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "76075ad55973b3e985fe761462d3cc3f3f2b99a0ec3f0b679614e41d4a55e1e3",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.004419041,
+      "median_online_seconds": 0.006287375,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "ae96dbdd2e7b919a522b1ab58e100d9302ec6ed0e78685a09eb3b75d18e435fb",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.9921875,
+        "mean_absolute_error": 0.4793701171875
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          334,
+          334
+        ],
+        "peer_payload_bits": 4096,
+        "peer_rounds": 1,
+        "protocol_allocation_estimate_bytes": 805632,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          287744,
+          287744
+        ],
+        "raw_key_payload_bytes_per_party": [
+          35968,
+          35968
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.004419041,
+          "native_call_process_cpu_seconds": 0.010712,
+          "online_seconds": 0.006280125,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.25e-07,
+          "issuance_seconds": 0.004433958,
+          "native_call_process_cpu_seconds": 0.010739,
+          "online_seconds": 0.006291833,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.004403083,
+          "native_call_process_cpu_seconds": 0.010703,
+          "online_seconds": 0.006287375,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        }
+      ],
+      "configuration": {
+        "backend": "prefix_dpf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "unfused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "ties_even",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "e750838fee53d6b67ca0d5c417624ddb38158638c538bb177f21ec7efe57b253",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.071505625,
+      "median_online_seconds": 0.061091833,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "706901edde859a23b43ee29492708e97193aefbdd192efe97e2ecb9d1b58b7b3",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.5,
+        "mean_absolute_error": 0.2271728515625
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          668,
+          668
+        ],
+        "peer_payload_bits": 8192,
+        "peer_rounds": 2,
+        "protocol_allocation_estimate_bytes": 2850816,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          3014656,
+          3014656
+        ],
+        "raw_key_payload_bytes_per_party": [
+          376832,
+          376832
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 7.5e-07,
+          "issuance_seconds": 0.071562041,
+          "native_call_process_cpu_seconds": 0.132676,
+          "online_seconds": 0.061091833,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 3.75e-07,
+          "issuance_seconds": 0.071505625,
+          "native_call_process_cpu_seconds": 0.132633,
+          "online_seconds": 0.06109275,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 2.5e-07,
+          "issuance_seconds": 0.07126125,
+          "native_call_process_cpu_seconds": 0.132297,
+          "online_seconds": 0.060993792,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        }
+      ],
+      "configuration": {
+        "backend": "prefix_dpf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "fused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "ties_even",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "64425f8388dc4217b3a6d3e6965aa449c8aeb1f5a5f9193719cdcb796386088c",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.112893292,
+      "median_online_seconds": 0.100611083,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "706901edde859a23b43ee29492708e97193aefbdd192efe97e2ecb9d1b58b7b3",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.5,
+        "mean_absolute_error": 0.2271728515625
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          334,
+          334
+        ],
+        "peer_payload_bits": 4096,
+        "peer_rounds": 1,
+        "protocol_allocation_estimate_bytes": 4210176,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          4827136,
+          4827136
+        ],
+        "raw_key_payload_bytes_per_party": [
+          603392,
+          603392
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 4.58e-07,
+          "issuance_seconds": 0.112893292,
+          "native_call_process_cpu_seconds": 0.21357,
+          "online_seconds": 0.100653625,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 2.91e-07,
+          "issuance_seconds": 0.112925333,
+          "native_call_process_cpu_seconds": 0.213578,
+          "online_seconds": 0.100611083,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 7.92e-07,
+          "issuance_seconds": 0.1127775,
+          "native_call_process_cpu_seconds": 0.21343,
+          "online_seconds": 0.100596958,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 1 compact DCF; Section 4.1/Figure 14 universal interval-key backend when selected",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "backend": "compact_dcf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "unfused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "ties_even",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "faeee35607b7d21b23aed93450bde17abce28a8541a8ee5c744fb2745332627c",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.011136542,
+      "median_online_seconds": 0.009208875,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "706901edde859a23b43ee29492708e97193aefbdd192efe97e2ecb9d1b58b7b3",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.5,
+        "mean_absolute_error": 0.2271728515625
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          668,
+          668
+        ],
+        "peer_payload_bits": 8192,
+        "peer_rounds": 2,
+        "protocol_allocation_estimate_bytes": 1137408,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          730112,
+          730112
+        ],
+        "raw_key_payload_bytes_per_party": [
+          91264,
+          91264
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 2.09e-07,
+          "issuance_seconds": 0.011186125,
+          "native_call_process_cpu_seconds": 0.02042,
+          "online_seconds": 0.009216833,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.011136542,
+          "native_call_process_cpu_seconds": 0.02036,
+          "online_seconds": 0.009208875,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.011093791,
+          "native_call_process_cpu_seconds": 0.020313,
+          "online_seconds": 0.009205125,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 1 compact DCF; Section 4.1/Figure 14 universal interval-key backend when selected",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "backend": "compact_dcf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "fused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "ties_even",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "2795e9aa02fdf2f024f33c058d646c9a7b4c5ff8cb4dfed61b12908ab538779b",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.013052584,
+      "median_online_seconds": 0.011436209,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "706901edde859a23b43ee29492708e97193aefbdd192efe97e2ecb9d1b58b7b3",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.5,
+        "mean_absolute_error": 0.2271728515625
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          334,
+          334
+        ],
+        "peer_payload_bits": 4096,
+        "peer_rounds": 1,
+        "protocol_allocation_estimate_bytes": 1249536,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          879616,
+          879616
+        ],
+        "raw_key_payload_bytes_per_party": [
+          109952,
+          109952
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.013043167,
+          "native_call_process_cpu_seconds": 0.024524,
+          "online_seconds": 0.011466708,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.013052584,
+          "native_call_process_cpu_seconds": 0.024503,
+          "online_seconds": 0.011436209,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 2.08e-07,
+          "issuance_seconds": 0.013056208,
+          "native_call_process_cpu_seconds": 0.024495,
+          "online_seconds": 0.011424875,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 1 compact DCF; Section 4.1/Figure 14 universal interval-key backend when selected",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "backend": "interval_dcf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "unfused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "ties_even",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "1d8a9f89d543fa5f0403d3cc83e2bb900fde4c973a771d89843fa4bd5f346c06",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.005116292,
+      "median_online_seconds": 0.009203375,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "706901edde859a23b43ee29492708e97193aefbdd192efe97e2ecb9d1b58b7b3",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.5,
+        "mean_absolute_error": 0.2271728515625
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          668,
+          668
+        ],
+        "peer_payload_bits": 8192,
+        "peer_rounds": 2,
+        "protocol_allocation_estimate_bytes": 827904,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          317440,
+          317440
+        ],
+        "raw_key_payload_bytes_per_party": [
+          39680,
+          39680
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.005121042,
+          "native_call_process_cpu_seconds": 0.014322,
+          "online_seconds": 0.009180375,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 2.08e-07,
+          "issuance_seconds": 0.005084333,
+          "native_call_process_cpu_seconds": 0.014302,
+          "online_seconds": 0.009203375,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 2.08e-07,
+          "issuance_seconds": 0.005116292,
+          "native_call_process_cpu_seconds": 0.01436,
+          "online_seconds": 0.009230792,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ],
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fusefss",
+          "scope": "Signed truncate/reduce and sign-extension fusion; bounded helper adaptation, not the general compiler or paper wire layout",
+          "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+          "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+          "url": "https://arxiv.org/abs/2606.09551"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 1 compact DCF; Section 4.1/Figure 14 universal interval-key backend when selected",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "backend": "interval_dcf",
+        "bits": 16,
+        "lanes": 64,
+        "layout": "fused",
+        "numeric_profile": "pllm.signed_rescale_original_nonnegative.v1",
+        "rounding": "ties_even",
+        "samples": 3,
+        "schema": "pllm.shared_rescale_probe.v1",
+        "shift": 7
+      },
+      "configuration_digest": "1290e1727afc5741f3d1e6f028d0b5e0728eef5732f838a4a2214325f6522c1f",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-signed-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or role transport",
+        "Bounded truncate/reduce plus sign-extension fusion; no FuseFSS general compiler or GPU-system reproduction",
+        "Floor is paper-derived; ties-even is PLLM's extension; original-input sign is a separate output",
+        "Generic 32-bit additive comparison outputs; these are not SIGMA's Boolean-DPF GapARS costs",
+        "Raw keys omit dealer metadata and offline framing; peer bytes include local frame headers, not physical wire",
+        "Client estimates count a transient input share and 32-bit input/output shares; no measured client transport",
+        "Online wall time includes input sharing and client reconstruction; issuance is separate; local roles run sequentially",
+        "Allocation is an estimate; no measured peak memory, Qwen numeric mapping, whole-decoder execution or serving recommendation",
+        "Inputs and outputs are omitted; aggregate rounding error is retained; custom inputs must be supplied for replay"
+      ],
+      "median_issuance_seconds": 0.005903041,
+      "median_online_seconds": 0.011434833,
+      "method": "shared-signed-rescale",
+      "native_implementation_digest": "29288fb3c65978237b5743d03b376c5e8a39bd5e55fa8046b4d0a9d8aef7db63",
+      "numeric_contract_digest": "706901edde859a23b43ee29492708e97193aefbdd192efe97e2ecb9d1b58b7b3",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "checked_outputs": 384,
+        "exact_integer_outputs": 384,
+        "float_reference": "Float64 x / 2**shift in output integer units; original-input sign checked independently",
+        "maximum_absolute_error": 0.5,
+        "mean_absolute_error": 0.2271728515625
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 256,
+        "peer_frame_bytes_by_direction": [
+          334,
+          334
+        ],
+        "peer_payload_bits": 4096,
+        "peer_rounds": 1,
+        "protocol_allocation_estimate_bytes": 880896,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          388096,
+          388096
+        ],
+        "raw_key_payload_bytes_per_party": [
+          48512,
+          48512
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 2.08e-07,
+          "issuance_seconds": 0.005919958,
+          "native_call_process_cpu_seconds": 0.017367,
+          "online_seconds": 0.011432958,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 1.67e-07,
+          "issuance_seconds": 0.005903041,
+          "native_call_process_cpu_seconds": 0.017385,
+          "online_seconds": 0.011468333,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        },
+        {
+          "clear_seconds": 2.08e-07,
+          "issuance_seconds": 0.0058685,
+          "native_call_process_cpu_seconds": 0.017316,
+          "online_seconds": 0.011434833,
+          "peer_frame_bytes_by_phase": [
+            [
+              334,
+              334
+            ]
+          ]
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "d269179326af71cd6b1f66b4e1e3e535a92b8ced51e70b0e2655214236e829c8",
+      "whole_model_executable": false
+    }
+  ],
+  "schema": "pllm.operator_benchmark_collection.v1",
+  "scope": "public-fixture, in-process helper controls; rank only within one rounding contract"
+}

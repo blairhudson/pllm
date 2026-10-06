@@ -135,6 +135,16 @@
       "components": [{"title": "Masked-wire operator benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
     },
     {
+      "paper_id": "R14",
+      "summary": "The installed signed-rescale operator exposes matched mask-aware fused and unfused helper layouts. It does not reproduce FuseFSS's general compiler, GPU system or whole-model results.",
+      "components": [{"title": "Fused/unfused rescale benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+    },
+    {
+      "paper_id": "fss-mixed",
+      "summary": "The signed-rescale operator independently implements Figure 1 compact DCF and Section 4.1/Figure 14 interval-key sharing as selectable backends with complete material accounting.",
+      "components": [{"title": "Fused/unfused rescale benchmark", "href": "/sdk/evaluate/paper-operators/", "source": "content/docs/sdk/evaluate/paper-operators.mdx"}]
+    },
+    {
       "paper_id": "smoothquant",
       "summary": "PLLM's source-bound public equalization adapts SmoothQuant equations 3–4 with fixed alpha=3/4, normalized clipped scales and client-local activation scaling. The original fused GPU implementation and performance are not reproduced.",
       "components": [{

@@ -123,12 +123,17 @@ function validate(registry, library, citationRegistry, summaries, libraryNotes, 
       }
     }
     if (sdk) {
-      const report = JSON.parse(fs.readFileSync(path.resolve(dataRoot, '../../..', sdk.evidence), 'utf8'));
-      const citation = report.citations?.find((item) => item.paper_id === id);
-      if (report.schema !== 'pllm.operator_benchmark_report.v1' ||
+      const document = JSON.parse(fs.readFileSync(path.resolve(dataRoot, '../../..', sdk.evidence), 'utf8'));
+      const reports = document.schema === 'pllm.operator_benchmark_report.v1' ? [document]
+        : document.schema === 'pllm.operator_benchmark_collection.v1' && Array.isArray(document.reports)
+          ? document.reports : [];
+      if (!reports.length || reports.length > 256 || reports.some((report) =>
+          report?.schema !== 'pllm.operator_benchmark_report.v1' ||
           report.sdk_availability !== 'operator-benchmark' || report.benchmark_status !== 'completed' ||
           report.paper_coverage !== 'component-reference' || report.whole_model_executable !== false ||
-          citation?.source_sha256 !== papersById.get(id)?.sha256) {
+          !report.citations?.length || report.citations.some((citation) =>
+            citation.source_sha256 !== papersById.get(citation.paper_id)?.sha256)) ||
+          !reports.some((report) => report.citations.some((citation) => citation.paper_id === id))) {
         throw new Error(`SDK operator report scope/source mismatch: ${id}`);
       }
     }

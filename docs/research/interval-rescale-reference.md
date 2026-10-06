@@ -6,8 +6,37 @@ One universal compact comparison key per bit width replaces separate threshold
 keys within a single one-use helper. It reduces preprocessing material and
 issuance time; comparison count and peer traffic remain unchanged.
 
-This is a bounded native component reference. It does not activate a Pipeline
-or supply a complete SIGMA/FuseFSS nonlinear operator or Qwen decoder.
+This bounded native component reference is also available through the installed
+`pllm.metrics.SharedRescaleProbe` operator benchmark. It does not activate a
+Pipeline or supply a complete SIGMA/FuseFSS nonlinear operator or Qwen decoder.
+
+The SDK accepts 1–256 signed integer lanes, 2–32-bit widths, both rounding modes,
+all three backends and both layouts. Each sample uses fresh one-use material and
+an independent Python integer oracle. Frozen reports retain source citations,
+replayable configuration, both-party keys, per-phase/per-direction frames and
+separate issuance/online timings. Full wire and peak memory remain unknown.
+See the [SDK guide](https://pllm.run/sdk/evaluate/paper-operators/) and
+`examples/benchmarks/shared_rescale.py`. Its retained installed-wheel cohort is
+`docs/evidence/research-shared-rescale-sdk.json`; the fresh-process historical
+measurements below remain separate.
+
+The retained SDK example runs twelve configurations in one installed-wheel process:
+three backends, two layouts and two rounding modes, with 64 lanes and three fresh
+samples each. All 4,608 reconstructed integer outputs match the independent
+oracle. Floor and ties-even retain separate numeric identities. The interval
+backend's per-sample results are:
+
+| Rounding | Layout | Key bytes per party | Peer frame bytes, both directions | Median issuance ms | Median local online ms |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Floor | Unfused | 27,136 | 1,336 | 3.657 | 4.033 |
+| Floor | Fused | 35,968 | 668 | 4.419 | 6.287 |
+| Ties-even | Unfused | 39,680 | 1,336 | 5.116 | 9.203 |
+| Ties-even | Fused | 48,512 | 668 | 5.903 | 11.435 |
+
+Fusion halves peer frames but increases keys and local execution time. These
+sequential CPU operator measurements exclude role transport and full wire; they
+do not reproduce FuseFSS's complete compiler or SIGMA's GPU system. The example
+was executed outside the source checkout with Cargo unavailable.
 
 ## Published identity and ownership
 

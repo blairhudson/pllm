@@ -3,8 +3,9 @@
 Status: SDK composition search, its matched finalist scorecard and the first
 Qwen Slalom/SmoothQuant adaptation controls are implemented. Maverick and
 SIGMA/FuseFSS have bounded native component references with explicit unresolved
-resource/security gates. The SIGMA-derived masked-wire block also has an installed
-SDK operator benchmark. The paper landing map is
+resource/security gates. The SIGMA-derived masked-wire block and FuseFSS-inspired
+fused/unfused signed-rescale helper also have installed SDK operator benchmarks.
+The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
 local research cache; run `uv run python scripts/sync_paper_library.py --fetch`
@@ -70,8 +71,9 @@ Use three explicit coverage levels:
 1. **Operator benchmark:** installed SDK access to the bounded native reference,
    public numeric contract, resource admission, one-use lifecycle, citations and
    measured material/CPU/rounds. An in-process dealer stays an explicit local
-    research assumption. The masked-wire block now has this installed SDK boundary,
-    typed reports and the checked `examples/benchmarks/masked_wire.py` example.
+    research assumption. The masked-wire block and fused/unfused rescale helper now
+    have this installed SDK boundary and typed reports. Checked examples live in
+    `examples/benchmarks/masked_wire.py` and `examples/benchmarks/shared_rescale.py`.
 2. **Experimental whole-model benchmark:** actual admitted tensor schedule,
    conversions, complete operator/state coverage and declared role transport.
    Report quality changes and costs under a separate numeric identity. A partial
@@ -184,6 +186,11 @@ gates still fail. The opt-in `pllm.metrics.MaskedWireGatedBlockProbe` now expose
 this operator with user-supplied bounded inputs, immutable source-bound reports,
 independent integer parity and separate approximation errors. Paper implementation
 records link its SDK example and measurements without claiming full-model coverage.
+The installed `SharedRescaleProbe` additionally compares three backends, both
+layouts and both rounding modes. Its twelve-configuration wheel cohort checks
+4,608 exact outputs; fusion halves peer frames while increasing keys and local
+runtime. Floor and ties-even are distinct numeric cohorts. Reproduction and
+per-party costs are in `docs/research/interval-rescale-reference.md`.
 **Next: compare source-specified FuseFSS fusion and distribution on this baseline.**
 Validate improved numeric mappings on new prompts. Poor measured
 quality/cost stays visible rather than excluding the method from research use.

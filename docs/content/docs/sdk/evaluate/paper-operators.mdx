@@ -96,6 +96,60 @@ wire, peak RSS and whole-checkpoint quality stay null. Compare samples only unde
 matching numeric contract, input workload, lane geometry, implementation and
 environment; the probe performs no automatic ranking.
 
+## Compare fused and unfused rescaling
+
+`pllm.metrics.SharedRescaleProbe` exposes the independent signed truncate/reduce
+plus sign-extension helper used to study FuseFSS-style mask-aware fusion.
+Each lane returns a rescaled signed integer and the **original input's**
+nonnegative predicate. Both layouts use the same selected comparison backend.
+
+```python
+from dataclasses import replace
+from pllm.metrics import SharedRescaleProbe
+
+unfused = SharedRescaleProbe(bits=16, shift=7, rounding="floor", layout="unfused")
+fused = replace(unfused, layout="fused")
+control, candidate = unfused.run(), fused.run()
+assert control.numeric_contract_digest == candidate.numeric_contract_digest
+assert control.quality == candidate.quality
+assert control.resources.peer_rounds == 2
+assert candidate.resources.peer_rounds == 1
+assert control.resources.peer_frame_bytes == 1336
+assert candidate.resources.peer_frame_bytes == 668
+
+# Negative ties, zero and signed boundaries; already encoded integers.
+custom = replace(fused, lanes=5, rounding="ties_even").run(
+    values=[-32768, -64, -1, 0, 32767],
+)
+assert custom.quality.exact_integer_outputs == 30  # 5 lanes × 2 outputs × 3 samples
+```
+
+Allowed widths are 2–32 bits, with `1 <= shift < bits`, 1–256 lanes and 1–16
+fresh samples. Inputs must be signed integers within that width. Floor and
+PLLM's separate `ties_even` extension carry different numeric identities.
+The nonnegative predicate remains tied to the input even when rounding returns
+zero. Float64 error measures only the rescaled value against unrounded division,
+in output integer units; integer-oracle checks cover both outputs.
+
+Backends are `prefix_dpf`, `compact_dcf` and `interval_dcf` (default).
+The first is a quadratic prefix control; the others use the Mixed-Mode FSS
+Figure 1 DCF and Section 4.1/Figure 14 universal interval construction.
+These generic arithmetic comparisons have different costs and contracts from
+the SIGMA Boolean-DPF gap shifts used by the masked-wire block above.
+
+The [installed comparison example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/shared_rescale.py)
+runs all twelve rounding/backend/layout combinations. It accepts `--bits`,
+`--shift`, `--lanes`, `--samples` and a fresh `--output` path. Each result uses
+the same immutable report types, records every phase/direction and replays via
+`SharedRescaleProbe.from_dict(report.configuration)`. Numeric comparisons remain
+within one rounding contract. Custom inputs must be supplied again for replay.
+
+Input sharing and final reconstruction are inside online timing; issuance stays
+separate. The 64 MiB native combined-allocation preflight still applies. Client
+estimates count one transient 32-bit input share per lane and 24 bytes per lane
+for hypothetical unframed input/output share delivery. The evaluators run locally;
+physical wire and measured peak memory remain unknown.
+
 ## Paper coverage
 
 - [SIGMA](/research/papers/sigma/): public-gap floor shifts, residual SiLU and
@@ -104,9 +158,13 @@ environment; the probe performs no automatic ranking.
   early-terminated Boolean DPFs.
 - [Pika](/research/papers/pika/): Boolean-DPF lookup/sign correction, with explicit
   correction shares and full-domain local lookup.
+- [FuseFSS](/research/papers/fusefss/): the separately benchmarked rescale/sign
+  helper adapts mask-aware fusion with matched unfused controls.
+- [Mixed-Mode FSS](/research/papers/fss-mixed/): compact DCF and universal interval
+  backends for that rescale helper.
 
 This is a component reference exposed through the SDK. The original GPU systems,
-FuseFSS fusion, protected float conversions, full decoder schedule and independent
+FuseFSS's general fusion compiler, protected float conversions, full decoder schedule and independent
 role transport remain separate implementation work. The probe is not a Pipeline
 component, serving recommendation, complete-paper reproduction or privacy proof.
 
