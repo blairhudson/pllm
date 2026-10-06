@@ -420,6 +420,7 @@ PUBLIC_MODULES = (
     "pllm.server",
     "pllm.sources",
     "pllm.state",
+    "pllm.tokenization",
     "pllm.verification",
     "pllm.pipeline",
     "pllm.deployment",
@@ -1019,6 +1020,18 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "citations": (MPCACHE_CITATION,),
         "example": STATE_EXAMPLE,
     },
+    "pllm.tokenization": {
+        "purpose": "Trusted offline compilation produces a source-bound public BPE index; the client verifies its pinned digest and keeps all prompt-dependent tokenization local. The indexed representation is opt-in and bounded to admitted BPE contracts.",
+        "citations": (),
+        "example": _example('''
+            from pllm.tokenization import IndexedTokenizer
+
+            # Supply the digest returned by your trusted offline compiler.
+            tokenizer = IndexedTokenizer("public-index", digest="a" * 64)
+            assert tokenizer.component == "pllm/indexed-tokenizer/v1"
+            assert tokenizer.describe().role_eligibility == ("client",)
+        '''),
+    },
     "pllm.verification": {
         "purpose": "Verification components and checks bind optional result verification to explicit soundness and one-use material policies.",
         "citations": (SLALOM_CITATION,),
@@ -1612,6 +1625,7 @@ MODULE_USER_GUIDES = {
     "pllm.server": "/sdk/run/gateway/",
     "pllm.sources": "/sdk/models/sources/",
     "pllm.state": "/sdk/components/state/",
+    "pllm.tokenization": "/sdk/components/tokenization/",
     "pllm.verification": "/sdk/components/verification/",
     "pllm.pipeline": "/sdk/experiments/",
     "pllm.deployment": "/sdk/deployment/",

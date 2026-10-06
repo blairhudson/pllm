@@ -1,0 +1,20 @@
+{
+  "schema": "pllm.public_artifact_build.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "public_prefix_tokens": 96,
+  "input_tokens": 150,
+  "output_cap": 8,
+  "tokenizer": {
+    "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+    "bytes": 9281536
+  },
+  "capsule": {
+    "digest": "169c8d59966ab88263667983a180ee0d5e98dbb68acf676ddd834a502f7ea97a",
+    "bytes": 2967627
+  },
+  "offline_publisher_wall_seconds": 7.46576145850122,
+  "offline_publisher_cpu_seconds": 8.431498,
+  "observed_new_swap_bytes": 0,
+  "scope": "trusted public compilation including checkpoint load; pre-positioned artifact distribution unmeasured"
+}

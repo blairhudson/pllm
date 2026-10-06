@@ -1,0 +1,48 @@
+---
+title: "Indexed tokenizer"
+description: "Select a source-bound public BPE index with bounded, client-local queries."
+---
+
+[`IndexedTokenizer`](/sdk/reference/python/pllm/tokenization/#indexedtokenizer)
+(`pllm/indexed-tokenizer/v1`) is an optional `tokenizer` component for ordinary
+prepared `MaskedLinearCpu` execution. `IndexedTokenizer.compile(source, directory)`
+compiles a public `tokenizer.json` offline and returns the pinned selection.
+The digest must come from a trusted publisher independently of serving providers.
+
+The client verifies the artifact and original tokenizer identity, takes a private
+SQLite snapshot and performs text-dependent queries locally. Inputs are bounded
+to 4,096 UTF-8 bytes, BPE pieces to 1,024 symbols and decoding to 4,096 IDs.
+Unsupported tokenizer semantics reject. Request-scoped ownership releases the
+connection, query caches and private snapshot on exit or failure, including
+async SDK execution.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.tokenization import IndexedTokenizer
+
+# Configuration example; execution needs the trusted compiler's actual files
+# and digest, matching the selected model's tokenizer.json.
+tokenizer = IndexedTokenizer("public-index", digest="a" * 64)
+experiment = Experiment(
+    "indexed-tokenizer",
+    MaskedLinearCpu(Model.tiny(), tokenizer=tokenizer),
+    Deployment.local(root="local://indexed-tokenizer"),
+    ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.pipeline.tokenizer == tokenizer
+assert experiment.resolve().requires_preparation
+```
+
+Bounded SQLite lookup trades memory for tokenization CPU; warm encoding can be
+slower. Offline compilation, public distribution and private snapshot disk are
+separate costs. `tokenizer_artifact_local_bytes` counts local artifact reads,
+not network transfers. The original 4B memory probe remains distinct from the
+newly promoted SDK benchmark.
+
+See [incremental optimizations](/sdk/evaluate/incremental-sdk/) for trusted
+artifact construction, six matched Experiments and measurement scope.
+
+API: [`IndexedTokenizer`](/sdk/reference/python/pllm/tokenization/#objects-and-signatures).

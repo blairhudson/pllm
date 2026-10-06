@@ -1,0 +1,141 @@
+---
+title: "Incremental SDK optimizations"
+description: "Compose indexed tokenization, demand-sized corrections, paged Preparation and trusted public-prefix state."
+---
+
+Four opt-in choices use the ordinary compiled prepared SDK, local role
+supervisor and `benchmark run` Experiment path. They share the existing
+honest-but-curious, erasing Preparation and non-colluding Inference contract.
+
+## Python SDK example
+
+```python
+from pllm import Model
+from pllm.preparation import ModelAwareCorrections, PreparedInventory
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import ClientBundleTransport, MaskedLinear
+from pllm.quantization import SymmetricPerRow
+from pllm.state import ClientPrefixReuse, PublicPrefixCapsule
+from pllm.tokenization import IndexedTokenizer
+
+# These illustrative artifact commitments are checked when execution loads
+# the files. Replace them with your trusted publisher's returned selections.
+pipeline = MaskedLinearCpu(
+    Model.tiny(),
+    preparation=ModelAwareCorrections(storage="paged"),
+    inventory=PreparedInventory(refill="on-demand", allocation="demand"),
+    linear=MaskedLinear(prefill_pruning="terminal"),
+    quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
+    cache=ClientPrefixReuse(max_bytes=32 << 20, fixed_input_tokens=256),
+    delivery=ClientBundleTransport("artifacts", storage="paged"),
+    tokenizer=IndexedTokenizer("public-index", digest="a" * 64),
+    public_prefix=PublicPrefixCapsule(
+        "public-prefix.msgpack", digest="b" * 64, size_bytes=4096,
+    ),
+)
+assert pipeline.preparation.params["storage"] == "paged"
+assert pipeline.inventory.params["allocation"] == "demand"
+```
+
+API: [preparation](/sdk/reference/python/pllm/preparation/#objects-and-signatures),
+[tokenization](/sdk/reference/python/pllm/tokenization/#objects-and-signatures),
+[state](/sdk/reference/python/pllm/state/#objects-and-signatures).
+
+## Contracts and costs
+
+- **Indexed tokenizer:** `IndexedTokenizer.compile(tokenizer_json, directory)`
+  writes a bounded SQLite BPE index and returns its committed selection. A
+  trusted publisher compiles public vocabulary and merges offline. The client
+  authenticates the index, verifies its tokenizer-source identity, takes a
+  private snapshot and runs every text-dependent lookup locally. Unsupported
+  normalization, pre-tokenization or added-token semantics reject explicitly.
+  Private queries are never sent to the publisher. SQLite's bounded page cache
+  trades memory for lookup CPU. Snapshot disk, cold public distribution and
+  compiler work are separate costs. Request-scoped ownership closes the
+  connection and removes the private snapshot on exit and failure.
+- **Demand-sized corrections:** `allocation="demand"` requires request-sized,
+  on-demand inventory with a one-row floor. `client.prepare_response(input,
+  max_output_tokens, ...)` uses compiled stage demand and qualified cache reuse
+  to size each stage, including decode. Row-independent terminal pruning can
+  then save offline issuance as well as online work. Continuations use their
+  admitted full-row schedule. Each stage's reservation remains atomic and
+  one-use; cancellation and early completion burn unused rows. Low-level
+  `preprocess()` remains conservative when request demand is unknown.
+- **Paged Preparation:** `ModelAwareCorrections(storage="paged")` gives the
+  CPU Preparation role authenticated private raw weight snapshots and a shared
+  native executor. It retires in-memory stage weights, retaining metadata and
+  bounded page/work buffers. Native clear/modular corrections match the resident
+  path. Inference's ownership is separate. Snapshot disk and loading/issuance
+  CPU remain charged; selected Metal and Freivalds Preparation are rejected.
+- **Public-prefix capsule:** `PublicPrefixCapsule.publish(compiled,
+  public_token_ids=..., snapshot=..., logits=..., path=...)` publishes only an
+  explicitly public, completed prefill and returns the trusted artifact digest.
+  Import checks source, numeric state contract, full-KV layout, lengths and
+   finite values before cache admission. It requires `prefix_f32`, a fixed input
+   bound, matching compiled output bound and ordinary unverified prepared
+   execution. Private suffixes stay local;
+  native continuation acknowledgement precedes masked execution. A digest must
+  come from the trusted publisher: it authenticates the approved state, not an
+  arbitrary server's claim of correct computation. Capsule construction and
+  initial delivery count separately; a prefix match is workload-specific.
+
+Artifacts are pre-positioned local files selected in the Experiment. Their
+paths and commitments bind its identity. Client audit and ordinary benchmark
+history expose `tokenizer_artifact_local_bytes` and
+`public_prefix_artifact_local_bytes` separately from network counters. These
+are local artifact reads, **not measured transfer bytes**. Whole-topology
+admission prices cache/transient/page buffers and snapshot disk ownership.
+
+## Reproduce through ordinary benchmarks
+
+From the repository, with the pinned Qwen2.5-0.5B checkpoint already cached:
+
+```bash
+HF_HUB_OFFLINE=1 uv run python scripts/build_incremental_sdk_experiments.py /absolute/new/public-artifacts
+HF_HUB_OFFLINE=1 uv run pllm benchmark run \
+  --experiment /absolute/new/public-artifacts/control.json \
+  --experiment /absolute/new/public-artifacts/demand.json \
+  --experiment /absolute/new/public-artifacts/paged.json \
+  --experiment /absolute/new/public-artifacts/indexed.json \
+  --experiment /absolute/new/public-artifacts/capsule.json \
+  --experiment /absolute/new/public-artifacts/combined.json \
+  --prompt-file /absolute/new/public-artifacts/prompt.txt \
+  --max-output-tokens 8 --warmups 0 --repetitions 1 \
+  --temperature 0 --capture-output-digest --backend native \
+  --timeout 900 --output incremental-sdk.json
+```
+
+The builder publishes a fixed public prefix, compiler cost record and six
+canonical Experiments. Memory admission precedes checkpoint-value loading.
+The benchmark uses one private cohort salt across all six. Compare exact
+input/output counts, body/source identities and output digests before costs.
+Use fresh processes for independent client peak-RSS measurements; sequential
+cohort lifetime peaks cannot establish per-candidate memory improvements.
+
+## Checked Qwen cohort
+
+One matched 150-input/8-output-token Qwen2.5-0.5B response per Experiment used
+two local role children and an isolated cold client-bundle cache. All six output
+digests match; no plaintext prompt/token-ID bytes or new swap were observed.
+
+| Choice | Covered bodies (MB) | Online bodies (MB) | Issued stage rows | Preparation peak RSS (MB) |
+| --- | ---: | ---: | ---: | ---: |
+| Control | 481.92 | 219.20 | 15,072 | 581.21 |
+| Demand allocation | 476.95 | 219.20 | 14,625 | 584.99 |
+| Paged Preparation | 481.92 | 219.20 | 15,072 | 217.86 |
+| Indexed tokenizer | 481.92 | 219.20 | 15,072 | 587.73 |
+| Public-prefix capsule | 266.91 | 88.39 | 5,856 | 532.61 |
+| All four | 266.91 | 88.39 | 5,856 | 164.51 |
+
+The capsule reuses 96 **public** prefix tokens. Combined covered bodies fall
+44.61%; adding one index-plus-capsule payload of 12.25 MB gives 279.17 MB,
+a 42.07% reduction. That addition is payload pricing, not a measured download.
+The trusted publisher separately used 8.43 CPU seconds including checkpoint
+loading. Single-sample response latency falls from 16.39 to 11.78 seconds;
+aggregate startup-through-response CPU falls from 38.55 to 26.83 seconds,
+excluding that public compilation. These are workload-specific local results.
+Independent client memory, full-wire traffic, cold checkpoint distribution,
+WAN timing and non-colluding operators remain separate measurements.
+
+Reproduction and full scope: `docs/research/incremental-sdk.md`;
+canonical report: `docs/evidence/incremental-sdk-qwen25.json`.

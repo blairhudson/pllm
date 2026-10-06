@@ -1,0 +1,56 @@
+---
+title: "Public-prefix capsule"
+description: "Import trusted, explicitly public prefill state under an exact numeric contract."
+---
+
+[`PublicPrefixCapsule`](/sdk/reference/python/pllm/state/#publicprefixcapsule)
+(`pllm/public-prefix-capsule/v1`) selects a pre-positioned, trusted-publisher
+artifact in `MaskedLinearCpu(public_prefix=...)`. It composes with
+[`ClientPrefixReuse`](/sdk/components/state/client-prefix-reuse/) and requires
+`SymmetricPerRow(causal_reduction="prefix_f32")`.
+
+`PublicPrefixCapsule.publish(compiled, public_token_ids=..., snapshot=...,
+logits=..., path=...)` publishes an explicitly public completed prefill and
+returns its pinned selection. The client authenticates the artifact, checks
+source/numeric identity, compiled workload, full-KV ownership, tensor lengths
+and finite values, then imports it into its bounded prefix cache. A matching
+prefix uses the admitted continuation schedule with fresh one-use material.
+Private suffix state remains client-owned and is never implicitly published.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.quantization import SymmetricPerRow
+from pllm.state import ClientPrefixReuse, PublicPrefixCapsule
+
+# Configuration example; execution requires the trusted publisher's actual
+# artifact, length and digest matching the compiled model and workload.
+capsule = PublicPrefixCapsule("public-prefix.msgpack", digest="a" * 64, size_bytes=4096)
+experiment = Experiment(
+    "public-prefix",
+    MaskedLinearCpu(
+        Model.tiny(), public_prefix=capsule,
+        cache=ClientPrefixReuse(max_bytes=8 << 20, fixed_input_tokens=128),
+        quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
+    ),
+    Deployment.local(root="local://public-prefix"),
+    ExecutionBudget(requests=1, max_input_tokens=128, max_new_tokens=8),
+)
+assert experiment.pipeline.public_prefix == capsule
+assert experiment.resolve().requires_preparation
+```
+
+The artifact digest must come from the trusted publisher, independently of
+serving providers. It authenticates approved state, not an arbitrary server's
+claim of correct computation. This choice currently admits ordinary unverified
+prepared full-KV execution. Prefix equality remains visible through reuse
+patterns. Public compilation and initial distribution are separate costs;
+`public_prefix_artifact_local_bytes` measures local reads only.
+
+See [incremental optimizations](/sdk/evaluate/incremental-sdk/) for the
+public-prefix builder, exact tiny logits/KV checks and matched checkpoint
+benchmark. Savings depend on the explicitly public prefix.
+
+API: [`PublicPrefixCapsule`](/sdk/reference/python/pllm/state/#objects-and-signatures).

@@ -396,6 +396,8 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/roles/client-linear-roles/', 'pllm/client-owned-linear-roles/v1', null],
     ['/sdk/components/state/client-local-kv/', 'pllm/client-local-kv', null],
     ['/sdk/components/state/client-prefix-reuse/', 'pllm/client-prefix-reuse/v1', null],
+    ['/sdk/components/state/public-prefix-capsule/', 'pllm/public-prefix-capsule/v1', null],
+    ['/sdk/components/tokenization/indexed-tokenizer/', 'pllm/indexed-tokenizer/v1', null],
     ['/sdk/components/verification/freivalds/', 'pllm/freivalds-verify/v1', '/research/papers/slalom/'],
     ['/sdk/components/verification/linear-integrity/', 'pllm/linear-integrity', null],
     ['/sdk/components/passes/kv-cache-eviction/', 'pllm/kv-cache-eviction', '/research/papers/mpcache/'],

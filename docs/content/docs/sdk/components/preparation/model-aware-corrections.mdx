@@ -12,6 +12,13 @@ accepts every stage before sealing inventory READY; reserved unused rows burn on
 failure or early termination. Preparation must follow the protocol, erase masks,
 and not collude with inference. A descriptor alone never creates inventory.
 
+`ModelAwareCorrections(storage="paged")` optionally replaces CPU Preparation's
+resident weights with authenticated private raw-page snapshots and a shared
+native executor. Bounded page buffers remain in memory; snapshot disk and
+loading/issuance CPU are separately priced. This storage choice rejects Metal
+and Freivalds Preparation. Omitting it preserves resident storage and existing
+component identities. See the [SDK comparison](/sdk/evaluate/incremental-sdk/).
+
 ## Python SDK example
 
 ```python

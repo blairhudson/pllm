@@ -43,7 +43,8 @@ API: [protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures).
   known. Layout, attention, state and unknown operators stop propagation.
   Decode and batched continuation retain their full contracts. Local shapes and
   conservative memory admission remain intact. Reserved unused rows are burned;
-  this option does not yet reduce offline inventory issuance.
+  adding [`PreparedInventory(allocation="demand", refill="on-demand")`](/sdk/evaluate/incremental-sdk/)
+  also sizes offline issuance from compiled stage demand.
 - **`request_encoding="compact"`**: single-row messages reuse the admitted
   inventory's model, weight, shape and numeric commitments. Authenticated outer
   session/stage binding, a fresh response nonce and a one-use ticket remain.
@@ -65,7 +66,8 @@ the prepared protocol's existing erasure/non-collusion assumptions.
 
 Pinned Qwen2.5 isolated demand slicing preserves every checked logit and KV bit
 on three prompts. At 39+8 tokens it projects a 3.13% arithmetic-body reduction,
-including unimplemented per-stage offline sizing. Compact request encoding alone
+including per-stage offline sizing that was not implemented in that cohort.
+Compact request encoding alone
 saves 277 kB over seven decode rows in its isolated byte comparison.
 
 Use the separate ordinary four-Experiment cohort for actual covered all-link
@@ -83,7 +85,7 @@ from 68.70 to 64.62 MB. Output digests match; aggregate cold CPU is nearly
 unchanged (36.33 to 36.32 seconds), while request latency rises from 13.12 to
 13.28 seconds. Both runs add zero client body weights and observe zero new swap.
 Checked tiny paging/cache/duplex/verification compositions preserve full logits
-and KV. The option does not reduce issued offline rows.
+and KV. Those measurements did not select demand-sized offline rows.
 
 Whole-process lifetime peaks in a
 sequential cohort are not independent candidate RSS measurements. Neither
@@ -93,7 +95,8 @@ WAN throughput. Savings from separate probes must not be added together.
 A public-prefix capsule probe has a larger 17–21× narrow arithmetic-and-capsule
 ratio, but only for a fixed 256-token explicitly public prefix. Charging cold
 client and provider model distribution reduces it to about 1.30×. It remains
-research-only pending a portable authenticated state contract.
+a historical probe; an opt-in [trusted public-state importer](/sdk/evaluate/incremental-sdk/)
+now binds source, numeric and full-KV commitments through the SDK.
 
 See [research and reproduction](https://github.com/blairhudson/pllm/blob/main/docs/research/aggregate-network.md),
 [probe evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/aggregate-network-qwen25-2026-10-06.json),

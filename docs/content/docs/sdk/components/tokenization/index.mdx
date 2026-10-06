@@ -1,0 +1,25 @@
+---
+title: "Tokenization"
+description: "Compile public tokenizer data offline while keeping text-dependent work client-local."
+---
+
+The optional `tokenizer` slot in `MaskedLinearCpu` selects
+[indexed tokenization](/sdk/components/tokenization/indexed-tokenizer/). A trusted
+publisher compiles public vocabulary and merge rules; the client authenticates
+the artifact and performs every private query locally. Without this selection,
+the SDK uses the model bundle's original tokenizer.
+
+## Python SDK example
+
+```python
+from pllm.tokenization import IndexedTokenizer
+
+# Illustrative selection: execution requires a real, trusted artifact digest.
+tokenizer = IndexedTokenizer("public-index", digest="a" * 64)
+assert tokenizer.describe().role_eligibility == ("client",)
+```
+
+For artifact construction and a complete SDK benchmark, follow
+[incremental optimizations](/sdk/evaluate/incremental-sdk/).
+
+API: [Tokenization objects](/sdk/reference/python/pllm/tokenization/#objects-and-signatures).

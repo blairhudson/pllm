@@ -99,8 +99,11 @@ and matched full-response paging costs remain measurement gates.
 A separate Qwen3-4B Preparation-only raw-page probe matches all 144 stages'
 71-row correction frames while reducing median process peak RSS from 4.61 GB to
 739.09 MB (6.24x). Issuance CPU is nearly unchanged; loading plus issuance costs
-12.41% more CPU and adds 3.63 GB of private snapshot disk. This probe-only loader
-does not activate a Pipeline choice or change provider admission estimates.
+12.41% more CPU and adds 3.63 GB of private snapshot disk. That historical
+probe-only loader did not activate a Pipeline choice. The separately admitted
+`ModelAwareCorrections(storage="paged")` now exposes CPU Preparation snapshots
+through ordinary Experiments and prices their buffers and separate disk owners;
+Metal and Freivalds Preparation reject this selection.
 The core also owns the bounded `pllm.numeric.silu.quadratic_q7.v1` reference:
 signed Q7 over `[-1, 1]`, deterministic ties-to-even rounding, and an encoded-domain
 absolute SiLU error bound of `0.02285`.
@@ -768,9 +771,12 @@ The SDK now exposes bounded `tokenizer_scope()` ownership across request sizing,
 preparation and execution, applied automatically by the benchmark. It retains at
 most one admitted bundle's original tokenizer, replaces it on bundle changes,
 and releases scope ownership on exit or failure; async worker calls inherit the
-request context. Prompt-dependent work remains local. The indexed-tokenizer
-memory candidate remains probe-only pending broader coverage and performance
-validation. Compiled unscaled float32 RoPE now also shares exact coefficients
+request context. Prompt-dependent work remains local. The explicit
+`pllm.tokenization.IndexedTokenizer` now admits trusted offline byte-level BPE
+indexes under source and artifact digests, bounded local queries and
+request-owned private SQLite snapshots. Unsupported contracts reject; its
+historical 4B memory improvement has not been remeasured in the promoted SDK.
+Compiled unscaled float32 RoPE now also shares exact coefficients
 within a phase under a 16-table/1 MiB bound, priced by admission and cleared on
 completion or failure. It preserves the original vector shapes and arithmetic
 order. These SDK changes have not yet been remeasured in the 4B memory cohort.
@@ -793,7 +799,7 @@ client/dashboard peak RSS from 347.00 to 225.28 MB (35.08%) against the shared
 original-tokenizer control. Source, Pipeline, numeric body, output text and
 covered transport bodies match, with zero observed swap growth. The 9.29 MB
 public index is pre-positioned; its distribution and separate compiler cost
-are outside the ordinary response counters. This probe-only response-owned
+are outside the ordinary response counters. This historical probe-only response-owned
 adapter keeps private queries local and does not activate a Pipeline choice,
 establish broad numeric parity or demonstrate a 10x whole-client improvement.
 
@@ -1112,7 +1118,7 @@ full physical wire and a tenfold network improvement remain unestablished.
 `MaskedLinear(prefill_pruning="terminal")` uses native backward row demand from
 logits and persistent state to prune only whole row-independent linear groups.
 It preserves state roots and local tensor layouts; batched continuation retains
-all rows. Current inventory admission still issues and burns the full reservation,
+all rows. Default uniform inventory still issues and burns the full reservation,
 so isolated arithmetic projections overstate its live offline savings.
 `MaskedLinear(request_encoding="compact")` additionally uses a separately
 negotiated single-row frame namespace with fresh nonce/ticket and authenticated
@@ -1126,12 +1132,32 @@ slightly higher; independent peak-memory and WAN speed benefits are unmeasured.
 A distinct public-prefix capsule
 oracle preserves checked Qwen logits/KV and reduces arithmetic plus capsule
 delivery 17–21× for a fixed 256-token public prefix; adding cold client and two
-provider checkpoint artifacts reduces the ratio to about 1.30×. It has no portable
-authenticated state importer. Exact integer anchors and output lifting fail the
+provider checkpoint artifacts reduces the ratio to about 1.30×. Its portable
+authenticated importer was subsequently implemented as `PublicPrefixCapsule`
+described below. Exact integer anchors and output lifting fail the
 client-cost/byte gate. Five separately scoped 100× constructions include a tiny
 finite-task lookup, explicit basis-leakage and rounding counterexamples, and two
 unimplemented architecture hypotheses. These are recorded in
 `docs/research/aggregate-network.md`; no general 10× or 100× improvement follows.
+
+Four incremental choices now compose through ordinary prepared SDK Experiments
+and benchmarks: the indexed tokenizer, paged Preparation weights, compiler-demand
+`PreparedInventory(allocation="demand", refill="on-demand")`, and
+`PublicPrefixCapsule` under an exact source/numeric/full-KV `prefix_f32` contract.
+Demand allocation binds per-stage counts to authorization and reserves each
+inventory once; cancellation and early completion burn unused material. The
+capsule imports only explicitly public, trusted-publisher state, never discovers
+or exports a prefix from private prompts. Artifact commitments and local paths
+bind the Pipeline, with local read bytes separated from network accounting.
+A matched six-Experiment Qwen2.5 150+8-token cohort preserves output digests
+with zero observed swap. Demand alone removes 447 unused correction rows;
+paged Preparation lowers its child peak from 581.21 to 217.86 MB. Reusing 96
+public prefix tokens with all four reduces covered bodies from 481.92 to
+266.91 MB; pricing 12.25 MB of pre-positioned public artifacts once gives
+279.17 MB. Publisher CPU is separately recorded. Single-sample local results,
+sequential client lifetime peaks and covered bodies do not establish independent
+client-memory, whole-wire or WAN improvements. Reproduction and full costs are
+in `docs/research/incremental-sdk.md`.
 
 `MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues")`
 further packs masked inputs to each stage's maximum public output-residue width.

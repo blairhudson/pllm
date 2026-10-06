@@ -1,4 +1,4 @@
 {
   "title": "State",
-  "pages": ["index", "client-local-kv", "client-prefix-reuse"]
+  "pages": ["index", "client-local-kv", "client-prefix-reuse", "public-prefix-capsule"]
 }

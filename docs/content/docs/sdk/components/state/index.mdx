@@ -12,6 +12,9 @@ shipped typed inference constructors.
 An optional [`ClientPrefixReuse`](/sdk/components/state/client-prefix-reuse/)
 cache slot is available for bounded client-owned prefill snapshots; its
 digest-bound selection is separate from the live KV state contract.
+The optional [public-prefix capsule](/sdk/components/state/public-prefix-capsule/)
+imports trusted, explicitly public completed-prefill state into that cache under
+the canonical full-KV numeric contract.
 
 ## Python SDK example
 
