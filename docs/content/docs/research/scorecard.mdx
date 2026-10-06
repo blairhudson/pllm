@@ -328,6 +328,20 @@ alone does not count as implemented work.
   actual native projection counts and memory owners corrected the prior admission
   overestimate; it did not change the protocol. The original TEE construction
   is not reproduced.
+- **SIGMA / FuseFSS:** a matched native
+  [helper configuration](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/compact_rescale_reference.py)
+  compares exact signed rescaling and the original-input nonnegative predicate.
+  A compact Figure 1 DCF from **FSS for Mixed-Mode Secure Computation** replaces
+  quadratic prefix expansion. All **7,680** checked outputs match integer
+  oracles. For fused 16-bit/seven-bit-shift ties-even helpers, per-party/lane
+  key bytes fall **9,428 → 1,718** and matched local online time
+  **96.32 → 11.13 ms** per 64 lanes, with unchanged **668-byte** peer bodies.
+  Compact unfused helpers take **8.94 ms**, **1,426 bytes** of keys per party/lane
+  and **1,336-byte** peer bodies: fusion still trades material/CPU for a round.
+  Hypothetical Qwen 39+8 geometry needs **15.31 / 18.45 GB** of unfused/fused
+  keys before other decoder work. The initial prefix-only cohort stays retained.
+  [Source contracts and full costs](https://github.com/blairhudson/pllm/blob/main/docs/research/compact-rescale-reference.md)
+  remain component evidence; no decoder score or executable planned API follows.
 - **Curl:** a new native reference executes one-use, party-local shared lookup
   from Fig. 4 and public Haar compression. It checks all 512 encoded SiLU rows.
   Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes per
@@ -445,6 +459,10 @@ order combines recency, published system coverage and reusable dependencies;
 it is not a citation-count ranking. The
 [paper-to-SDK delivery plan](https://github.com/blairhudson/pllm/blob/main/docs/plans/paper-sdk.md)
 records exact promotion gates and the comparative-study protocol.
+Maverick's reference still needs field-specific security justification and a
+viable preprocessing-storage design. SIGMA/FuseFSS's compact helper pair still
+needs independent review and lower complete-operator costs before tensor and
+transport admission.
 
 Add a Python factory and a canonical matched report, then register the cohort in
 `docs/data/research/benchmark-cohorts.json`. The docs generator validates source,

@@ -162,6 +162,29 @@ half-gate ciphertext body exceeds the 257-row lookup oracle's body. The
 polynomial reference has not earned tensor-scale resource admission or a
 performance claim.
 
+A separate bounded SIGMA/FuseFSS-inspired native reference compares unfused
+truncate/reduce plus sign extension with mask-aware fused signed rescaling and
+an original-input nonnegative predicate. Both layouts select the same comparison
+backend: the initial quadratic arithmetic prefix-DPF, or an independently
+implemented linear-size DCF from FSS for Mixed-Mode Secure Computation, Figure 1.
+Floor and the separate PLLM ties-to-even extension pass independent
+integer oracles. Party-local keys are non-cloneable, preflighted under a 64 MiB
+combined allocation estimate and burned on completion, malformed frames, replay
+or cancellation. The dealer remains in-process; context framing is not
+authenticated transport or malicious-output verification. The initial twelve fresh-process
+cases check 3,840 helper outputs. For 64 16-bit/seven-bit-shift ties-even lanes, fusion halves peer
+bodies from 1,336 to 668 bytes but increases local online time from 29.98 to
+49.32 ms and per-party/lane key payload from 5,888 to 9,428 bytes. A hypothetical
+39+8-token Qwen2.5 SiLU-width placement projects 63.24/101.25 GB of keys for the
+unfused/fused pair. A separate 24-process backend cohort checks 7,680 output pairs
+and reduces fused per-party/lane keys from 9,428 to 1,718 bytes and matched local
+online time from 96.32 to 11.13 ms, with unchanged 668-byte peer bodies. Compact
+39+8 projections still require 15.31/18.45 GB of keys for unfused/fused helpers.
+No Qwen numeric mapping, tensor schedule, distributed dealer or SDK component is
+admitted; independent review and complete-operator cost reduction remain gates.
+Both cohorts and exact source contracts are retained in
+`docs/research/compact-rescale-reference.md` and its linked initial control.
+
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,
 `pllm-types`, `pllm-bench`, and `pllm-assurance` through PyO3. The stable Python

@@ -1,8 +1,9 @@
 # Paper-to-SDK capability plan
 
 Status: SDK composition search, its matched finalist scorecard and the first
-Qwen Slalom/SmoothQuant adaptation controls are implemented. Maverick is the next
-new executable-method target. The paper landing map is
+Qwen Slalom/SmoothQuant adaptation controls are implemented. Maverick and
+SIGMA/FuseFSS have bounded native component references with explicit unresolved
+resource/security gates. The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
 local research cache; run `uv run python scripts/sync_paper_library.py --fetch`
@@ -84,6 +85,25 @@ in the quoted distance-failure bound; fresh masks and successful corruption test
 do not resolve it. See `docs/research/maverick-reference.md` and its saved Python
 reproduction. Concrete code-distance/dual-LPN review and the 22.90 GB Qwen2.5
 preprocessing lower bound still block an executable SDK method.
+
+SIGMA/FuseFSS now share a native, one-use signed-rescale/nonnegative helper
+reference with fixed public key/frame shapes, an exact ties-to-even extension
+and complete key-payload accounting. The initial cohort uses one quadratic
+prefix-DPF backend for both layouts, not either paper's optimized implementation.
+Twelve fresh-process cases check 3,840 outputs. For 64 16-bit/seven-bit-shift ties-even lanes,
+fusion halves peer bodies to 668 bytes but increases local online elapsed time
+from 29.98 to 49.32 ms and key payload from 5,888 to 9,428 bytes per party/lane.
+A hypothetical 39+8-token SiLU-width placement projects 63.24/101.25 GB of keys.
+The independently implemented Figure 1 compact DCF now passes the same numeric
+and lifecycle checks. A separate 24-case matched cohort reduces fused 16/7
+ties-even keys from 9,428 to 1,718 bytes per party/lane and local online time
+from 96.32 to 11.13 ms. The hypothetical 39+8 key total remains 18.45 GB; review
+and complete-operator cost reductions still precede tensor admission or live
+roles. Shared multiple-interval evaluation from the same source is the next
+concrete compression candidate. This primitive does not activate planned APIs.
+See `docs/research/shared-rescale-reference.md` for source deviations, exact
+equations, fresh-process measurements and the rerunnable Python configuration.
+The compact follow-up is in `docs/research/compact-rescale-reference.md`.
 
 ## Importable Python stubs are not executable components
 

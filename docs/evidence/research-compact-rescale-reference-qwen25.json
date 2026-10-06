@@ -1,0 +1,2009 @@
+{
+  "schema": "pllm.compact_rescale_reference.v1",
+  "configuration": {
+    "papers": {
+      "sigma": {
+        "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php",
+        "sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+        "sections": [
+          "2.4",
+          "4.2.2",
+          "4.2.3",
+          "4.3"
+        ]
+      },
+      "fusefss": {
+        "url": "https://arxiv.org/abs/2606.09551",
+        "sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+        "sections": [
+          "3.5",
+          "4.3",
+          "4.5",
+          "Appendix E"
+        ]
+      },
+      "fss-mixed": {
+        "url": "https://eprint.iacr.org/2020/1392",
+        "sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+        "sections": [
+          "3",
+          "Figure 1",
+          "Theorem 2"
+        ]
+      }
+    },
+    "shapes": [
+      [
+        16,
+        7
+      ],
+      [
+        24,
+        12
+      ],
+      [
+        32,
+        12
+      ]
+    ],
+    "rounding": [
+      "floor",
+      "ties_even"
+    ],
+    "layouts": [
+      "unfused",
+      "fused"
+    ],
+    "lanes": 64,
+    "samples": 5,
+    "backend": "matched quadratic prefix-DPF control and linear-size Figure 1 DCF over Z/(2^32)",
+    "function": "signed rescale plus original-input nonnegative predicate",
+    "source_deviations": [
+      "SIGMA-inspired truncate/reduce and sign extension, not the paper's optimized DPF/B2A protocol",
+      "FuseFSS-inspired arithmetic masked comparisons; no general operator compiler or coefficient lookup",
+      "ties-to-even is an explicit PLLM extension; paper ARS uses floor",
+      "128-bit AES-keyed counter expansion with separate seed/control bits; no early termination or GPU backend",
+      "compact DCF has separate byte controls (20 + 22n bytes/party), not the paper's bit-packed key format"
+    ],
+    "model": {
+      "source": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+    },
+    "workloads": [
+      {
+        "input_tokens": 39,
+        "output_tokens": 8
+      },
+      {
+        "input_tokens": 39,
+        "output_tokens": 32
+      }
+    ],
+    "projection": "hypothetical one helper per semantic SiLU element; no checkpoint values or Qwen numeric mapping",
+    "backends": [
+      "prefix_dpf",
+      "compact_dcf"
+    ],
+    "execution_order": "adjacent backend pairs, alternating which backend runs first; fresh process per case"
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "model_config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+  "cases": [
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "879c3eb7cec754e4c52f907ec0af9e2a806855388e512d1c1910b26c782eebe7",
+      "rounds": 2,
+      "party_key_payload_bytes": 169984,
+      "party_allocation_estimate_bytes": 772096,
+      "total_allocation_estimate_bytes": 1609728,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        7,
+        9,
+        9
+      ],
+      "issuance_ns": [
+        39283250,
+        31366667,
+        31225250,
+        31302708,
+        31262542
+      ],
+      "online_ns": [
+        26293458,
+        26303875,
+        26249583,
+        26162583,
+        26186375
+      ],
+      "clear_ns": [
+        166,
+        292,
+        3333,
+        708,
+        209
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.30293099999999995,
+      "process_peak_rss_bytes": 2473984,
+      "median_seconds": {
+        "issuance": 0.031302708,
+        "online": 0.026249583,
+        "clear": 2.92e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "879c3eb7cec754e4c52f907ec0af9e2a806855388e512d1c1910b26c782eebe7",
+      "rounds": 2,
+      "party_key_payload_bytes": 41088,
+      "party_allocation_estimate_bytes": 385408,
+      "total_allocation_estimate_bytes": 836352,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        7,
+        9,
+        9
+      ],
+      "issuance_ns": [
+        5169167,
+        5123458,
+        5120833,
+        5154584,
+        5134916
+      ],
+      "online_ns": [
+        3937583,
+        3968166,
+        3934792,
+        3917833,
+        3922583
+      ],
+      "clear_ns": [
+        250,
+        292,
+        167,
+        208,
+        166
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.049046,
+      "process_peak_rss_bytes": 1916928,
+      "median_seconds": {
+        "issuance": 0.005134916,
+        "online": 0.003934792,
+        "clear": 2.08e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "879c3eb7cec754e4c52f907ec0af9e2a806855388e512d1c1910b26c782eebe7",
+      "rounds": 1,
+      "party_key_payload_bytes": 59776,
+      "party_allocation_estimate_bytes": 441472,
+      "total_allocation_estimate_bytes": 948480,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        16,
+        7,
+        16
+      ],
+      "issuance_ns": [
+        7071709,
+        6995584,
+        6997500,
+        6996958,
+        6995834
+      ],
+      "online_ns": [
+        6114167,
+        6132250,
+        6142083,
+        6115542,
+        6097709
+      ],
+      "clear_ns": [
+        250,
+        208,
+        2500,
+        209,
+        208
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.069546,
+      "process_peak_rss_bytes": 1933312,
+      "median_seconds": {
+        "issuance": 0.006996958,
+        "online": 0.006115542,
+        "clear": 2.09e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "879c3eb7cec754e4c52f907ec0af9e2a806855388e512d1c1910b26c782eebe7",
+      "rounds": 1,
+      "party_key_payload_bytes": 396544,
+      "party_allocation_estimate_bytes": 1451776,
+      "total_allocation_estimate_bytes": 2969088,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        16,
+        7,
+        16
+      ],
+      "issuance_ns": [
+        71383375,
+        71170166,
+        71354333,
+        71327167,
+        71073875
+      ],
+      "online_ns": [
+        63886042,
+        63933542,
+        63956458,
+        63864208,
+        63823291
+      ],
+      "clear_ns": [
+        459,
+        792,
+        541,
+        208,
+        250
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.679356,
+      "process_peak_rss_bytes": 3080192,
+      "median_seconds": {
+        "issuance": 0.071327167,
+        "online": 0.063886042,
+        "clear": 4.59e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "dae883c01df4909ae1440289cf944ff4120700168a5f67f4c44774a1a81fef41",
+      "rounds": 2,
+      "party_key_payload_bytes": 376832,
+      "party_allocation_estimate_bytes": 1392640,
+      "total_allocation_estimate_bytes": 2850816,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        7,
+        8,
+        8,
+        8,
+        8,
+        9,
+        9
+      ],
+      "issuance_ns": [
+        69285584,
+        69031583,
+        69171042,
+        69308917,
+        68990666
+      ],
+      "online_ns": [
+        58554458,
+        58380167,
+        58542792,
+        58391375,
+        59134291
+      ],
+      "clear_ns": [
+        875,
+        791,
+        9667,
+        958,
+        834
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.642588,
+      "process_peak_rss_bytes": 3096576,
+      "median_seconds": {
+        "issuance": 0.069171042,
+        "online": 0.058542792,
+        "clear": 8.75e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "dae883c01df4909ae1440289cf944ff4120700168a5f67f4c44774a1a81fef41",
+      "rounds": 2,
+      "party_key_payload_bytes": 91264,
+      "party_allocation_estimate_bytes": 535936,
+      "total_allocation_estimate_bytes": 1137408,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        7,
+        8,
+        8,
+        8,
+        8,
+        9,
+        9
+      ],
+      "issuance_ns": [
+        10961417,
+        10847084,
+        10887125,
+        10879000,
+        10871459
+      ],
+      "online_ns": [
+        8949708,
+        8930875,
+        8940542,
+        8967917,
+        8910042
+      ],
+      "clear_ns": [
+        709,
+        750,
+        2458,
+        792,
+        458
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.103338,
+      "process_peak_rss_bytes": 2048000,
+      "median_seconds": {
+        "issuance": 0.010879,
+        "online": 0.008940542,
+        "clear": 7.5e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "dae883c01df4909ae1440289cf944ff4120700168a5f67f4c44774a1a81fef41",
+      "rounds": 1,
+      "party_key_payload_bytes": 109952,
+      "party_allocation_estimate_bytes": 592000,
+      "total_allocation_estimate_bytes": 1249536,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        16,
+        7,
+        16,
+        8,
+        8,
+        8,
+        8
+      ],
+      "issuance_ns": [
+        12784750,
+        12713250,
+        12704250,
+        12686917,
+        12689666
+      ],
+      "online_ns": [
+        11131041,
+        11128500,
+        11163958,
+        11121417,
+        11141917
+      ],
+      "clear_ns": [
+        709,
+        458,
+        167,
+        208,
+        208
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.12303899999999998,
+      "process_peak_rss_bytes": 2048000,
+      "median_seconds": {
+        "issuance": 0.01270425,
+        "online": 0.011131041,
+        "clear": 2.08e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "dae883c01df4909ae1440289cf944ff4120700168a5f67f4c44774a1a81fef41",
+      "rounds": 1,
+      "party_key_payload_bytes": 603392,
+      "party_allocation_estimate_bytes": 2072320,
+      "total_allocation_estimate_bytes": 4210176,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        16,
+        7,
+        16,
+        8,
+        8,
+        8,
+        8
+      ],
+      "issuance_ns": [
+        109288833,
+        109126000,
+        109028875,
+        110275666,
+        109057375
+      ],
+      "online_ns": [
+        96316667,
+        96207500,
+        97986084,
+        96742125,
+        96080875
+      ],
+      "clear_ns": [
+        708,
+        709,
+        750,
+        750,
+        417
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 1.03233,
+      "process_peak_rss_bytes": 3719168,
+      "median_seconds": {
+        "issuance": 0.109126,
+        "online": 0.096316667,
+        "clear": 7.09e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "e679d76dc673f67fb935e09c711fa703a5e3e75c1fa1873f2fce578f838f9f5d",
+      "rounds": 2,
+      "party_key_payload_bytes": 317696,
+      "party_allocation_estimate_bytes": 1215232,
+      "total_allocation_estimate_bytes": 2496000,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        12,
+        12
+      ],
+      "issuance_ns": [
+        57720250,
+        57565292,
+        57542583,
+        57521375,
+        57425084
+      ],
+      "online_ns": [
+        50475083,
+        50416000,
+        50415667,
+        50525708,
+        50477708
+      ],
+      "clear_ns": [
+        375,
+        208,
+        4583,
+        208,
+        417
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.543734,
+      "process_peak_rss_bytes": 2883584,
+      "median_seconds": {
+        "issuance": 0.057542583,
+        "online": 0.050475083,
+        "clear": 3.75e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "e679d76dc673f67fb935e09c711fa703a5e3e75c1fa1873f2fce578f838f9f5d",
+      "rounds": 2,
+      "party_key_payload_bytes": 56576,
+      "party_allocation_estimate_bytes": 431872,
+      "total_allocation_estimate_bytes": 929280,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        12,
+        12
+      ],
+      "issuance_ns": [
+        6929417,
+        6848375,
+        6857208,
+        6876791,
+        6853542
+      ],
+      "online_ns": [
+        5645667,
+        5660125,
+        5635500,
+        5646834,
+        5621792
+      ],
+      "clear_ns": [
+        417,
+        292,
+        2375,
+        209,
+        209
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.066157,
+      "process_peak_rss_bytes": 1949696,
+      "median_seconds": {
+        "issuance": 0.006857208,
+        "online": 0.005645667,
+        "clear": 2.92e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "e679d76dc673f67fb935e09c711fa703a5e3e75c1fa1873f2fce578f838f9f5d",
+      "rounds": 1,
+      "party_key_payload_bytes": 89344,
+      "party_allocation_estimate_bytes": 530176,
+      "total_allocation_estimate_bytes": 1125888,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        24,
+        12,
+        24
+      ],
+      "issuance_ns": [
+        10379792,
+        10287542,
+        10304708,
+        10291792,
+        10283375
+      ],
+      "online_ns": [
+        9402291,
+        9378709,
+        9386208,
+        9400625,
+        9382917
+      ],
+      "clear_ns": [
+        417,
+        167,
+        2458,
+        250,
+        208
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.10225599999999999,
+      "process_peak_rss_bytes": 2064384,
+      "median_seconds": {
+        "issuance": 0.010291792,
+        "online": 0.009386208,
+        "clear": 2.5e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "e679d76dc673f67fb935e09c711fa703a5e3e75c1fa1873f2fce578f838f9f5d",
+      "rounds": 1,
+      "party_key_payload_bytes": 858880,
+      "party_allocation_estimate_bytes": 2838784,
+      "total_allocation_estimate_bytes": 5743104,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        24,
+        12,
+        24
+      ],
+      "issuance_ns": [
+        152792583,
+        152287333,
+        152505667,
+        152425500,
+        154933500
+      ],
+      "online_ns": [
+        141392792,
+        141897625,
+        141542083,
+        142815292,
+        142568458
+      ],
+      "clear_ns": [
+        292,
+        209,
+        3791,
+        1208,
+        458
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 1.47743,
+      "process_peak_rss_bytes": 4227072,
+      "median_seconds": {
+        "issuance": 0.152505667,
+        "online": 0.141897625,
+        "clear": 4.58e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "1e75f8431c45f2dcaf817f2e19e0e1996984360aa9f16b3e44d9208866ac078a",
+      "rounds": 2,
+      "party_key_payload_bytes": 803584,
+      "party_allocation_estimate_bytes": 2672896,
+      "total_allocation_estimate_bytes": 5411328,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        13,
+        13,
+        13,
+        13,
+        12,
+        12
+      ],
+      "issuance_ns": [
+        145822584,
+        144896500,
+        144896541,
+        144775042,
+        144729125
+      ],
+      "online_ns": [
+        129285292,
+        128602125,
+        128392375,
+        128503791,
+        128447583
+      ],
+      "clear_ns": [
+        1041,
+        875,
+        667,
+        1167,
+        5625
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 1.372486,
+      "process_peak_rss_bytes": 4161536,
+      "median_seconds": {
+        "issuance": 0.1448965,
+        "online": 0.128503791,
+        "clear": 1.041e-06
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "1e75f8431c45f2dcaf817f2e19e0e1996984360aa9f16b3e44d9208866ac078a",
+      "rounds": 2,
+      "party_key_payload_bytes": 134912,
+      "party_allocation_estimate_bytes": 666880,
+      "total_allocation_estimate_bytes": 1399296,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        13,
+        13,
+        13,
+        13,
+        12,
+        12
+      ],
+      "issuance_ns": [
+        15798583,
+        15741500,
+        15768875,
+        15722958,
+        15759292
+      ],
+      "online_ns": [
+        13782542,
+        13812166,
+        13778708,
+        13778583,
+        13788375
+      ],
+      "clear_ns": [
+        791,
+        458,
+        375,
+        375,
+        292
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.151423,
+      "process_peak_rss_bytes": 2129920,
+      "median_seconds": {
+        "issuance": 0.015759292,
+        "online": 0.013782542,
+        "clear": 3.75e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "1e75f8431c45f2dcaf817f2e19e0e1996984360aa9f16b3e44d9208866ac078a",
+      "rounds": 1,
+      "party_key_payload_bytes": 167680,
+      "party_allocation_estimate_bytes": 765184,
+      "total_allocation_estimate_bytes": 1595904,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        24,
+        12,
+        24,
+        13,
+        13,
+        13,
+        13
+      ],
+      "issuance_ns": [
+        19215708,
+        19143125,
+        19175750,
+        19147375,
+        19132833
+      ],
+      "online_ns": [
+        17563667,
+        17583917,
+        17558833,
+        17502417,
+        17578375
+      ],
+      "clear_ns": [
+        875,
+        500,
+        2875,
+        334,
+        208
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.18720699999999998,
+      "process_peak_rss_bytes": 2244608,
+      "median_seconds": {
+        "issuance": 0.019147375,
+        "online": 0.017563667,
+        "clear": 5e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "1e75f8431c45f2dcaf817f2e19e0e1996984360aa9f16b3e44d9208866ac078a",
+      "rounds": 1,
+      "party_key_payload_bytes": 1344768,
+      "party_allocation_estimate_bytes": 4296448,
+      "total_allocation_estimate_bytes": 8658432,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        24,
+        12,
+        24,
+        13,
+        13,
+        13,
+        13
+      ],
+      "issuance_ns": [
+        240329750,
+        240017875,
+        240032000,
+        239783083,
+        239639792
+      ],
+      "online_ns": [
+        219863000,
+        219805375,
+        219745291,
+        219727291,
+        219757708
+      ],
+      "clear_ns": [
+        833,
+        791,
+        10542,
+        1542,
+        417
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 2.302085,
+      "process_peak_rss_bytes": 5554176,
+      "median_seconds": {
+        "issuance": 0.240017875,
+        "online": 0.219757708,
+        "clear": 8.33e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "c64b4fb8b2a8404ad517d0cbccb8c6a989c0a928ada943f747a1dc4c961690d7",
+      "rounds": 2,
+      "party_key_payload_bytes": 642304,
+      "party_allocation_estimate_bytes": 2189056,
+      "total_allocation_estimate_bytes": 4443648,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        20,
+        20
+      ],
+      "issuance_ns": [
+        114994458,
+        114662625,
+        114706834,
+        114678833,
+        114646708
+      ],
+      "online_ns": [
+        104650125,
+        104605750,
+        104908750,
+        104447166,
+        104447834
+      ],
+      "clear_ns": [
+        250,
+        625,
+        750,
+        250,
+        125
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 1.1007019999999998,
+      "process_peak_rss_bytes": 3702784,
+      "median_seconds": {
+        "issuance": 0.114678833,
+        "online": 0.10460575,
+        "clear": 2.5e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "c64b4fb8b2a8404ad517d0cbccb8c6a989c0a928ada943f747a1dc4c961690d7",
+      "rounds": 2,
+      "party_key_payload_bytes": 79104,
+      "party_allocation_estimate_bytes": 499456,
+      "total_allocation_estimate_bytes": 1064448,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        20,
+        20
+      ],
+      "issuance_ns": [
+        9421542,
+        9369625,
+        9376958,
+        9383875,
+        9371875
+      ],
+      "online_ns": [
+        8146083,
+        8138792,
+        8158625,
+        8121584,
+        8157875
+      ],
+      "clear_ns": [
+        208,
+        292,
+        167,
+        167,
+        208
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.091324,
+      "process_peak_rss_bytes": 2048000,
+      "median_seconds": {
+        "issuance": 0.009376958,
+        "online": 0.008146083,
+        "clear": 2.08e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "c64b4fb8b2a8404ad517d0cbccb8c6a989c0a928ada943f747a1dc4c961690d7",
+      "rounds": 1,
+      "party_key_payload_bytes": 111872,
+      "party_allocation_estimate_bytes": 597760,
+      "total_allocation_estimate_bytes": 1261056,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        32,
+        12,
+        32
+      ],
+      "issuance_ns": [
+        12876125,
+        12829625,
+        12768416,
+        12816417,
+        12789167
+      ],
+      "online_ns": [
+        11917208,
+        11917750,
+        11902375,
+        11905167,
+        11930667
+      ],
+      "clear_ns": [
+        291,
+        208,
+        5333,
+        209,
+        167
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.12745499999999998,
+      "process_peak_rss_bytes": 2113536,
+      "median_seconds": {
+        "issuance": 0.012816417,
+        "online": 0.011917208,
+        "clear": 2.09e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "c64b4fb8b2a8404ad517d0cbccb8c6a989c0a928ada943f747a1dc4c961690d7",
+      "rounds": 1,
+      "party_key_payload_bytes": 1404672,
+      "party_allocation_estimate_bytes": 4476160,
+      "total_allocation_estimate_bytes": 9017856,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        32,
+        12,
+        32
+      ],
+      "issuance_ns": [
+        248669834,
+        247848709,
+        248136500,
+        247984625,
+        247934958
+      ],
+      "online_ns": [
+        234094333,
+        234226250,
+        234050333,
+        234044792,
+        233936250
+      ],
+      "clear_ns": [
+        958,
+        500,
+        333,
+        417,
+        208
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 2.41465,
+      "process_peak_rss_bytes": 5488640,
+      "median_seconds": {
+        "issuance": 0.247984625,
+        "online": 0.234050333,
+        "clear": 4.17e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "39dc8af3790c90820842be592b76895a98cee6972df09e5fb9de672e2f9eaf1f",
+      "rounds": 2,
+      "party_key_payload_bytes": 1128192,
+      "party_allocation_estimate_bytes": 3646720,
+      "total_allocation_estimate_bytes": 7358976,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        13,
+        13,
+        13,
+        13,
+        20,
+        20
+      ],
+      "issuance_ns": [
+        202383333,
+        202027541,
+        202009125,
+        201822833,
+        201507292
+      ],
+      "online_ns": [
+        186378250,
+        183020292,
+        182812042,
+        182689958,
+        183122583
+      ],
+      "clear_ns": [
+        1000,
+        458,
+        375,
+        1042,
+        1083
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 1.92802,
+      "process_peak_rss_bytes": 4997120,
+      "median_seconds": {
+        "issuance": 0.202009125,
+        "online": 0.183020292,
+        "clear": 1e-06
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "39dc8af3790c90820842be592b76895a98cee6972df09e5fb9de672e2f9eaf1f",
+      "rounds": 2,
+      "party_key_payload_bytes": 157440,
+      "party_allocation_estimate_bytes": 734464,
+      "total_allocation_estimate_bytes": 1534464,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        13,
+        13,
+        13,
+        13,
+        20,
+        20
+      ],
+      "issuance_ns": [
+        18333208,
+        18255542,
+        18251333,
+        18241333,
+        18236875
+      ],
+      "online_ns": [
+        16245916,
+        16323750,
+        16251917,
+        16221375,
+        16299792
+      ],
+      "clear_ns": [
+        750,
+        542,
+        2834,
+        292,
+        334
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.176429,
+      "process_peak_rss_bytes": 2244608,
+      "median_seconds": {
+        "issuance": 0.018251333,
+        "online": 0.016251917,
+        "clear": 5.42e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "compact_dcf",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "39dc8af3790c90820842be592b76895a98cee6972df09e5fb9de672e2f9eaf1f",
+      "rounds": 1,
+      "party_key_payload_bytes": 190208,
+      "party_allocation_estimate_bytes": 832768,
+      "total_allocation_estimate_bytes": 1731072,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        32,
+        12,
+        32,
+        13,
+        13,
+        13,
+        13
+      ],
+      "issuance_ns": [
+        21819000,
+        21706333,
+        21681708,
+        21643500,
+        21691375
+      ],
+      "online_ns": [
+        20086417,
+        20043000,
+        20113750,
+        20011333,
+        20055375
+      ],
+      "clear_ns": [
+        750,
+        583,
+        333,
+        250,
+        209
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.212284,
+      "process_peak_rss_bytes": 2277376,
+      "median_seconds": {
+        "issuance": 0.021691375,
+        "online": 0.020055375,
+        "clear": 3.33e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "backend": "prefix_dpf",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "39dc8af3790c90820842be592b76895a98cee6972df09e5fb9de672e2f9eaf1f",
+      "rounds": 1,
+      "party_key_payload_bytes": 1890560,
+      "party_allocation_estimate_bytes": 5933824,
+      "total_allocation_estimate_bytes": 11933184,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        32,
+        12,
+        32,
+        13,
+        13,
+        13,
+        13
+      ],
+      "issuance_ns": [
+        336084583,
+        335341167,
+        335381916,
+        335453375,
+        335253375
+      ],
+      "online_ns": [
+        312045750,
+        312591334,
+        312532000,
+        313806292,
+        312629916
+      ],
+      "clear_ns": [
+        833,
+        1292,
+        7458,
+        1125,
+        542
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 3.244548,
+      "process_peak_rss_bytes": 6815744,
+      "median_seconds": {
+        "issuance": 0.335381916,
+        "online": 0.312591334,
+        "clear": 1.125e-06
+      }
+    }
+  ],
+  "geometry_projections": [
+    {
+      "input_tokens": 39,
+      "output_tokens": 8,
+      "semantic_plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "semantic_silu_operations_per_phase": 24,
+      "silu_elements": {
+        "prefill": 4552704,
+        "decode": 116736
+      },
+      "hypothetical_helper_evaluations": 5369856,
+      "hypothetical_batches": 83904,
+      "cases": [
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 28524675072,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 2626.422412032,
+          "two_party_local_seconds_linear_projection": 2202.445012032,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 6894895104,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 430.839992064,
+          "two_party_local_seconds_linear_projection": 330.144787968,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 10030891008,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 587.072764032,
+          "two_party_local_seconds_linear_projection": 513.118435968,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 66543255552,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 5984.634619968,
+          "two_party_local_seconds_linear_projection": 5360.294467968,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 63235424256,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 5803.727107968,
+          "two_party_local_seconds_linear_projection": 4911.974419968,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 15314829312,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 912.791616,
+          "two_party_local_seconds_linear_projection": 750.1472359679999,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 18450825216,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 1065.937392,
+          "two_party_local_seconds_linear_projection": 933.938864064,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 101254004736,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 9156.107904,
+          "two_party_local_seconds_linear_projection": 8081.353627967999,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 53311930368,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 4828.052884032,
+          "two_party_local_seconds_linear_projection": 4235.061364032,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 9493905408,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 575.347180032,
+          "two_party_local_seconds_linear_projection": 473.694043968,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 14992637952,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 863.522515968,
+          "two_party_local_seconds_linear_projection": 787.540396032,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 144126935040,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 12795.835483968001,
+          "two_party_local_seconds_linear_projection": 11905.778328,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 134847823872,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 12157.395936,
+          "two_party_local_seconds_linear_projection": 10781.982080064001,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 22639312896,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 1322.2676359680001,
+          "two_party_local_seconds_linear_projection": 1156.410403968,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 28138045440,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 1606.5413520000002,
+          "two_party_local_seconds_linear_projection": 1473.6619159680001,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 225662828544,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 20138.459784,
+          "two_party_local_seconds_linear_projection": 18438.550732032,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 107783749632,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 9622.012804032,
+          "two_party_local_seconds_linear_projection": 8776.840848,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 13274284032,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 786.764284032,
+          "two_party_local_seconds_linear_projection": 683.488948032,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 18773016576,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 1075.348651968,
+          "two_party_local_seconds_linear_projection": 999.901420032,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 235715198976,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 20806.901975999997,
+          "two_party_local_seconds_linear_projection": 19637.759140032,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 189319643136,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 16949.373624,
+          "two_party_local_seconds_linear_projection": 15356.134579968,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 26419691520,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 1531.3598440320002,
+          "two_party_local_seconds_linear_projection": 1363.6008439680002,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 31918424064,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 1819.9931279999998,
+          "two_party_local_seconds_linear_projection": 1682.726184,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 317251092480,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 28139.884280064,
+          "two_party_local_seconds_linear_projection": 26227.663287936,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        }
+      ]
+    },
+    {
+      "input_tokens": 39,
+      "output_tokens": 32,
+      "semantic_plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "semantic_silu_operations_per_phase": 24,
+      "silu_elements": {
+        "prefill": 4552704,
+        "decode": 116736
+      },
+      "hypothetical_helper_evaluations": 8171520,
+      "hypothetical_batches": 127680,
+      "cases": [
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 43407114240,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 3996.72975744,
+          "two_party_local_seconds_linear_projection": 3351.54675744,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 10492231680,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 655.6260748799999,
+          "two_party_local_seconds_linear_projection": 502.39424256000007,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 15264399360,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 893.3715974400001,
+          "two_party_local_seconds_linear_projection": 780.83240256,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 101261475840,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 9107.052682559999,
+          "two_party_local_seconds_linear_projection": 8156.969842560001,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 96227819520,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 8831.75864256,
+          "two_party_local_seconds_linear_projection": 7474.743682560001,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 23305175040,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 1389.03072,
+          "two_party_local_seconds_linear_projection": 1141.52840256,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 28077342720,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 1622.07864,
+          "two_party_local_seconds_linear_projection": 1421.21131488,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 154082181120,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 13933.20768,
+          "two_party_local_seconds_linear_projection": 12297.712042559999,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 81126850560,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 7347.03699744,
+          "two_party_local_seconds_linear_projection": 6444.6585974399995,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 14447247360,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 875.52831744,
+          "two_party_local_seconds_linear_projection": 720.83876256,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 22814883840,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 1314.0560025599998,
+          "two_party_local_seconds_linear_projection": 1198.43103744,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 219323596800,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 19471.92356256,
+          "two_party_local_seconds_linear_projection": 18117.48876,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 205203210240,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 18500.385120000003,
+          "two_party_local_seconds_linear_projection": 16407.36403488,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 34451128320,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 2012.14640256,
+          "two_party_local_seconds_linear_projection": 1759.75496256,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 42818764800,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 2444.73684,
+          "two_party_local_seconds_linear_projection": 2242.52900256,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 343399956480,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 30645.48228,
+          "two_party_local_seconds_linear_projection": 28058.66415744,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 164018749440,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 14642.19339744,
+          "two_party_local_seconds_linear_projection": 13356.06216,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 20199997440,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 1197.24999744,
+          "two_party_local_seconds_linear_projection": 1040.09187744,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 28567633920,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 1636.40012256,
+          "two_party_local_seconds_linear_projection": 1521.58911744,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 358697041920,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 31662.676919999998,
+          "two_party_local_seconds_linear_projection": 29883.54651744,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 288095109120,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 25792.525080000003,
+          "two_party_local_seconds_linear_projection": 23368.03088256,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 40203878400,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 2330.33019744,
+          "two_party_local_seconds_linear_projection": 2075.04476256,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 48571514880,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 2769.55476,
+          "two_party_local_seconds_linear_projection": 2560.67028,
+          "executable_decoder": false,
+          "backend": "compact_dcf"
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 482773401600,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 42821.56303488,
+          "two_party_local_seconds_linear_projection": 39911.66152512,
+          "executable_decoder": false,
+          "backend": "prefix_dpf"
+        }
+      ]
+    }
+  ],
+  "executable_sdk": false,
+  "privacy_reviewed": false,
+  "whole_decoder_numeric_parity": false,
+  "memory_guard": {
+    "host": {
+      "total": 34359738368,
+      "available": 13950156800,
+      "swap_used": 990904320,
+      "disk_free": 53752639488
+    },
+    "required_headroom_bytes": 1073741824,
+    "maximum_swap_growth_bytes": 0
+  },
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "rustc": "rustc 1.85.1 (4eb161250 2025-03-15)"
+  },
+  "source_sha256": {
+    "benchmarks/research/compact_rescale_reference.py": "3852d555515b545cfff8623c55d8395182ac9a343ec9c7f4104c23e62003f2a8",
+    "benchmarks/research/shared_rescale_reference.py": "aaee4f2b861a7ef289bf12c7306835309b9d3ce1a542fa0f3f3528f0ede58277",
+    "crates/pllm-garble/src/compact_dcf.rs": "1219c6e09aa54cad92f7127bb4d7fe9fca5fb414d3733c8f1b2844e6e1c33225",
+    "crates/pllm-garble/src/point_fss.rs": "9734d77a82cb15e707d83186502ef54787db7da326faad5ed2e3cab4e90bd35d",
+    "crates/pllm-garble/src/shared_rescale_reference.rs": "cb240d8921c0e3393346d5cea64201bd268ce51eba00eb5404681318b72af2f6",
+    "crates/pllm-garble/examples/shared_rescale_probe.rs": "1975eb5e2877b22d00b7ef0f383086baa780edaded91b200c542981e4670747f",
+    "crates/pllm-garble/src/lib.rs": "f4796e40c37eb390ef13cc06e4b63ce1e3de9ce028978de0d87c88c63f070bb6",
+    "Cargo.toml": "98ccfa49ed86e7f000cf3ca6b4e16ff858716fe1d94dc2196019abc4804a40ff",
+    "Cargo.lock": "99f08cd55b09b52c1b3f9f3e81d5b7180b8e429aac1d9359699c9b2c3c9b103b"
+  },
+  "limitations": [
+    "bounded published-DCF reimplementation, not a complete SIGMA/FuseFSS system or security review",
+    "phase timers are local elapsed time; process CPU includes issuance, evaluation, clear oracle and lifecycle checks",
+    "source resolution and native build are outside timings; no model values, logits or KV are evaluated",
+    "key payload counts roots, corrections, mask and constant shares; offline metadata/transport and allocator overhead are extra",
+    "process peak RSS contains trusted local dealer plus both parties; not independent-role or client memory",
+    "no GPU, WAN, distributed dealer, authenticated transport, malicious-output verification or whole-response measurement",
+    "Qwen projections are hypothetical helper counts; there is no Qwen W8A8 numeric mapping or admitted tensor schedule"
+  ]
+}

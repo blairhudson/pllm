@@ -6,14 +6,17 @@ pub mod boolean;
 pub mod boolean_stream;
 pub mod compact;
 pub mod compact_coordinate;
+mod compact_dcf;
 pub mod compact_lookup;
 pub mod compact_polynomial;
 pub mod gated_multiply_q7;
 pub mod logrow;
+mod point_fss;
 pub mod private_pages;
 pub mod projected_polynomial;
 pub mod projected_reshare;
 pub mod shared_lut_reference;
+pub mod shared_rescale_reference;
 
 pub use gated_multiply_q7::{
     Method as GatedMultiplyQ7Method,

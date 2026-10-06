@@ -1,0 +1,1031 @@
+{
+  "schema": "pllm.shared_rescale_reference.v1",
+  "configuration": {
+    "papers": {
+      "sigma": {
+        "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php",
+        "sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+        "sections": [
+          "2.4",
+          "4.2.2",
+          "4.2.3",
+          "4.3"
+        ]
+      },
+      "fusefss": {
+        "url": "https://arxiv.org/abs/2606.09551",
+        "sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+        "sections": [
+          "3.5",
+          "4.3",
+          "4.5",
+          "Appendix E"
+        ]
+      }
+    },
+    "shapes": [
+      [
+        16,
+        7
+      ],
+      [
+        24,
+        12
+      ],
+      [
+        32,
+        12
+      ]
+    ],
+    "rounding": [
+      "floor",
+      "ties_even"
+    ],
+    "layouts": [
+      "unfused",
+      "fused"
+    ],
+    "lanes": 64,
+    "samples": 5,
+    "backend": "arithmetic prefix-DPF, quadratic in comparison bit width; same backend for both layouts",
+    "function": "signed rescale plus original-input nonnegative predicate",
+    "source_deviations": [
+      "SIGMA-inspired truncate/reduce and sign extension, not the paper's optimized DPF/B2A protocol",
+      "FuseFSS-inspired arithmetic masked comparisons; no general operator compiler or coefficient lookup",
+      "ties-to-even is an explicit PLLM extension; paper ARS uses floor",
+      "128-bit AES-keyed counter expansion with separate seed/control bits; no early termination or GPU backend"
+    ],
+    "model": {
+      "source": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+    },
+    "workloads": [
+      {
+        "input_tokens": 39,
+        "output_tokens": 8
+      },
+      {
+        "input_tokens": 39,
+        "output_tokens": 32
+      }
+    ],
+    "projection": "hypothetical one helper per semantic SiLU element; no checkpoint values or Qwen numeric mapping"
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "model_config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+  "cases": [
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "879c3eb7cec754e4c52f907ec0af9e2a806855388e512d1c1910b26c782eebe7",
+      "rounds": 2,
+      "party_key_payload_bytes": 169984,
+      "party_allocation_estimate_bytes": 772096,
+      "total_allocation_estimate_bytes": 1609728,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        7,
+        9,
+        9
+      ],
+      "issuance_ns": [
+        41494583,
+        20325833,
+        16067041,
+        16038792,
+        15992125
+      ],
+      "online_ns": [
+        22589209,
+        14232333,
+        13478541,
+        13441416,
+        13358583
+      ],
+      "clear_ns": [
+        167,
+        125,
+        83,
+        83,
+        167
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.191637,
+      "process_peak_rss_bytes": 2539520,
+      "median_seconds": {
+        "issuance": 0.016067041,
+        "online": 0.013478541,
+        "clear": 1.25e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "879c3eb7cec754e4c52f907ec0af9e2a806855388e512d1c1910b26c782eebe7",
+      "rounds": 1,
+      "party_key_payload_bytes": 396544,
+      "party_allocation_estimate_bytes": 1451776,
+      "total_allocation_estimate_bytes": 2969088,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        16,
+        7,
+        16
+      ],
+      "issuance_ns": [
+        36310833,
+        37147500,
+        36485166,
+        36461125,
+        36253416
+      ],
+      "online_ns": [
+        32851958,
+        32807625,
+        32638292,
+        32607750,
+        32706417
+      ],
+      "clear_ns": [
+        208,
+        334,
+        83,
+        250,
+        208
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.347589,
+      "process_peak_rss_bytes": 3112960,
+      "median_seconds": {
+        "issuance": 0.036461125,
+        "online": 0.032706417,
+        "clear": 2.08e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "dae883c01df4909ae1440289cf944ff4120700168a5f67f4c44774a1a81fef41",
+      "rounds": 2,
+      "party_key_payload_bytes": 376832,
+      "party_allocation_estimate_bytes": 1392640,
+      "total_allocation_estimate_bytes": 2850816,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        7,
+        8,
+        8,
+        8,
+        8,
+        9,
+        9
+      ],
+      "issuance_ns": [
+        35430083,
+        35249916,
+        35492291,
+        35284167,
+        35310750
+      ],
+      "online_ns": [
+        30125792,
+        29924583,
+        29983708,
+        29976917,
+        29884708
+      ],
+      "clear_ns": [
+        417,
+        417,
+        375,
+        291,
+        334
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.328182,
+      "process_peak_rss_bytes": 3162112,
+      "median_seconds": {
+        "issuance": 0.03531075,
+        "online": 0.029976917,
+        "clear": 3.75e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 16,
+      "shift": 7,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "dae883c01df4909ae1440289cf944ff4120700168a5f67f4c44774a1a81fef41",
+      "rounds": 1,
+      "party_key_payload_bytes": 603392,
+      "party_allocation_estimate_bytes": 2072320,
+      "total_allocation_estimate_bytes": 4210176,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        16,
+        7,
+        16,
+        8,
+        8,
+        8,
+        8
+      ],
+      "issuance_ns": [
+        56468375,
+        55937042,
+        55738875,
+        56120042,
+        55889500
+      ],
+      "online_ns": [
+        49868834,
+        49320834,
+        49210000,
+        49346333,
+        49308833
+      ],
+      "clear_ns": [
+        333,
+        416,
+        541,
+        334,
+        375
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.5286679999999999,
+      "process_peak_rss_bytes": 3801088,
+      "median_seconds": {
+        "issuance": 0.055937042,
+        "online": 0.049320834,
+        "clear": 3.75e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "e679d76dc673f67fb935e09c711fa703a5e3e75c1fa1873f2fce578f838f9f5d",
+      "rounds": 2,
+      "party_key_payload_bytes": 317696,
+      "party_allocation_estimate_bytes": 1215232,
+      "total_allocation_estimate_bytes": 2496000,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        12,
+        12
+      ],
+      "issuance_ns": [
+        29523833,
+        29394625,
+        29477125,
+        29417792,
+        29491667
+      ],
+      "online_ns": [
+        25841333,
+        25860500,
+        25817250,
+        25992292,
+        25964750
+      ],
+      "clear_ns": [
+        166,
+        166,
+        167,
+        167,
+        166
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.278265,
+      "process_peak_rss_bytes": 2867200,
+      "median_seconds": {
+        "issuance": 0.029477125,
+        "online": 0.0258605,
+        "clear": 1.66e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "e679d76dc673f67fb935e09c711fa703a5e3e75c1fa1873f2fce578f838f9f5d",
+      "rounds": 1,
+      "party_key_payload_bytes": 858880,
+      "party_allocation_estimate_bytes": 2838784,
+      "total_allocation_estimate_bytes": 5743104,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        24,
+        12,
+        24
+      ],
+      "issuance_ns": [
+        78461459,
+        78488334,
+        78517416,
+        77962792,
+        77901209
+      ],
+      "online_ns": [
+        72410458,
+        72724708,
+        72406166,
+        72529792,
+        72417917
+      ],
+      "clear_ns": [
+        166,
+        83,
+        208,
+        125,
+        167
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.7553259999999999,
+      "process_peak_rss_bytes": 4259840,
+      "median_seconds": {
+        "issuance": 0.078461459,
+        "online": 0.072417917,
+        "clear": 1.66e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "1e75f8431c45f2dcaf817f2e19e0e1996984360aa9f16b3e44d9208866ac078a",
+      "rounds": 2,
+      "party_key_payload_bytes": 803584,
+      "party_allocation_estimate_bytes": 2672896,
+      "total_allocation_estimate_bytes": 5411328,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        13,
+        13,
+        13,
+        13,
+        12,
+        12
+      ],
+      "issuance_ns": [
+        74452375,
+        74263458,
+        74257875,
+        74013584,
+        74166125
+      ],
+      "online_ns": [
+        66044083,
+        66217833,
+        66128417,
+        65982833,
+        66024583
+      ],
+      "clear_ns": [
+        375,
+        458,
+        375,
+        334,
+        583
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.702997,
+      "process_peak_rss_bytes": 4276224,
+      "median_seconds": {
+        "issuance": 0.074257875,
+        "online": 0.066044083,
+        "clear": 3.75e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 24,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "1e75f8431c45f2dcaf817f2e19e0e1996984360aa9f16b3e44d9208866ac078a",
+      "rounds": 1,
+      "party_key_payload_bytes": 1344768,
+      "party_allocation_estimate_bytes": 4296448,
+      "total_allocation_estimate_bytes": 8658432,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        24,
+        12,
+        24,
+        13,
+        13,
+        13,
+        13
+      ],
+      "issuance_ns": [
+        122947041,
+        123257750,
+        122868375,
+        122833500,
+        123119416
+      ],
+      "online_ns": [
+        113074625,
+        112562500,
+        112920125,
+        112418958,
+        112497334
+      ],
+      "clear_ns": [
+        333,
+        542,
+        458,
+        375,
+        209
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 1.179736,
+      "process_peak_rss_bytes": 5668864,
+      "median_seconds": {
+        "issuance": 0.122947041,
+        "online": 0.1125625,
+        "clear": 3.75e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "c64b4fb8b2a8404ad517d0cbccb8c6a989c0a928ada943f747a1dc4c961690d7",
+      "rounds": 2,
+      "party_key_payload_bytes": 642304,
+      "party_allocation_estimate_bytes": 2189056,
+      "total_allocation_estimate_bytes": 4443648,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        20,
+        20
+      ],
+      "issuance_ns": [
+        58900708,
+        58773459,
+        58715542,
+        58750958,
+        59006083
+      ],
+      "online_ns": [
+        53702458,
+        53810000,
+        53654083,
+        53720291,
+        54691167
+      ],
+      "clear_ns": [
+        125,
+        167,
+        125,
+        125,
+        125
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.565053,
+      "process_peak_rss_bytes": 3735552,
+      "median_seconds": {
+        "issuance": 0.058773459,
+        "online": 0.053720291,
+        "clear": 1.25e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "floor",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "c64b4fb8b2a8404ad517d0cbccb8c6a989c0a928ada943f747a1dc4c961690d7",
+      "rounds": 1,
+      "party_key_payload_bytes": 1404672,
+      "party_allocation_estimate_bytes": 4476160,
+      "total_allocation_estimate_bytes": 9017856,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        32,
+        12,
+        32
+      ],
+      "issuance_ns": [
+        128075250,
+        127347958,
+        127396000,
+        127137958,
+        127005208
+      ],
+      "online_ns": [
+        119919291,
+        119776292,
+        119951458,
+        119982500,
+        119819916
+      ],
+      "clear_ns": [
+        292,
+        209,
+        291,
+        209,
+        167
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 1.237919,
+      "process_peak_rss_bytes": 5537792,
+      "median_seconds": {
+        "issuance": 0.127347958,
+        "online": 0.119919291,
+        "clear": 2.09e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "unfused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "39dc8af3790c90820842be592b76895a98cee6972df09e5fb9de672e2f9eaf1f",
+      "rounds": 2,
+      "party_key_payload_bytes": 1128192,
+      "party_allocation_estimate_bytes": 3646720,
+      "total_allocation_estimate_bytes": 7358976,
+      "peer_frame_bytes": 1336,
+      "comparison_widths": [
+        12,
+        13,
+        13,
+        13,
+        13,
+        20,
+        20
+      ],
+      "issuance_ns": [
+        103687167,
+        103689291,
+        103550667,
+        103836458,
+        103621542
+      ],
+      "online_ns": [
+        94121958,
+        93816959,
+        94012833,
+        93889542,
+        94083417
+      ],
+      "clear_ns": [
+        583,
+        292,
+        541,
+        500,
+        375
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 0.98964,
+      "process_peak_rss_bytes": 5111808,
+      "median_seconds": {
+        "issuance": 0.103687167,
+        "online": 0.094012833,
+        "clear": 5e-07
+      }
+    },
+    {
+      "schema": "pllm.shared_rescale_probe.v1",
+      "bits": 32,
+      "shift": 12,
+      "rounding": "ties_even",
+      "layout": "fused",
+      "lanes": 64,
+      "samples": 5,
+      "checked_outputs": 320,
+      "output_sha256": "39dc8af3790c90820842be592b76895a98cee6972df09e5fb9de672e2f9eaf1f",
+      "rounds": 1,
+      "party_key_payload_bytes": 1890560,
+      "party_allocation_estimate_bytes": 5933824,
+      "total_allocation_estimate_bytes": 11933184,
+      "peer_frame_bytes": 668,
+      "comparison_widths": [
+        32,
+        12,
+        32,
+        13,
+        13,
+        13,
+        13
+      ],
+      "issuance_ns": [
+        172306041,
+        173155375,
+        172556917,
+        172007708,
+        172235042
+      ],
+      "online_ns": [
+        160045417,
+        161159583,
+        159960042,
+        160324166,
+        160227500
+      ],
+      "clear_ns": [
+        334,
+        416,
+        333,
+        459,
+        375
+      ],
+      "executable_sdk": false,
+      "process_cpu_seconds": 1.66468,
+      "process_peak_rss_bytes": 6963200,
+      "median_seconds": {
+        "issuance": 0.172306041,
+        "online": 0.1602275,
+        "clear": 3.75e-07
+      }
+    }
+  ],
+  "geometry_projections": [
+    {
+      "input_tokens": 39,
+      "output_tokens": 8,
+      "semantic_plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "semantic_silu_operations_per_phase": 24,
+      "silu_elements": {
+        "prefill": 4552704,
+        "decode": 116736
+      },
+      "hypothetical_helper_evaluations": 5369856,
+      "hypothetical_batches": 83904,
+      "cases": [
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 28524675072,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 1348.0890080640002,
+          "two_party_local_seconds_linear_projection": 1130.9035040640001,
+          "executable_decoder": false
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 66543255552,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 3059.234232,
+          "two_party_local_seconds_linear_projection": 2744.1992119680003,
+          "executable_decoder": false
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 63235424256,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 2962.713168,
+          "two_party_local_seconds_linear_projection": 2515.1832439679997,
+          "executable_decoder": false
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 101254004736,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 4693.341571968,
+          "two_party_local_seconds_linear_projection": 4138.215255936,
+          "executable_decoder": false
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 53311930368,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 2473.248696,
+          "two_party_local_seconds_linear_projection": 2169.7993920000004,
+          "executable_decoder": false
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 144126935040,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 6583.230255936,
+          "two_party_local_seconds_linear_projection": 6076.152907967999,
+          "executable_decoder": false
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 134847823872,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 6230.532744,
+          "two_party_local_seconds_linear_projection": 5541.362740032,
+          "executable_decoder": false
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 225662828544,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 10315.748528064001,
+          "two_party_local_seconds_linear_projection": 9444.444,
+          "executable_decoder": false
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 107783749632,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 4931.328303936,
+          "two_party_local_seconds_linear_projection": 4507.347296064,
+          "executable_decoder": false
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 235715198976,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 10685.003068032001,
+          "two_party_local_seconds_linear_projection": 10061.708192064,
+          "executable_decoder": false
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 189319643136,
+          "peer_frame_bytes_at_64_lane_batches": 112095744,
+          "issuance_seconds_linear_projection": 8699.768059967999,
+          "two_party_local_seconds_linear_projection": 7888.052740032001,
+          "executable_decoder": false
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 317251092480,
+          "peer_frame_bytes_at_64_lane_batches": 56047872,
+          "issuance_seconds_linear_projection": 14457.166064064,
+          "two_party_local_seconds_linear_projection": 13443.728159999999,
+          "executable_decoder": false
+        }
+      ]
+    },
+    {
+      "input_tokens": 39,
+      "output_tokens": 32,
+      "semantic_plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "semantic_silu_operations_per_phase": 24,
+      "silu_elements": {
+        "prefill": 4552704,
+        "decode": 116736
+      },
+      "hypothetical_helper_evaluations": 8171520,
+      "hypothetical_batches": 127680,
+      "cases": [
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 43407114240,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 2051.43979488,
+          "two_party_local_seconds_linear_projection": 1720.94011488,
+          "executable_decoder": false
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 101261475840,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 4655.35644,
+          "two_party_local_seconds_linear_projection": 4175.95532256,
+          "executable_decoder": false
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 96227819520,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 4508.47656,
+          "two_party_local_seconds_linear_projection": 3827.45276256,
+          "executable_decoder": false
+        },
+        {
+          "bits": 16,
+          "shift": 7,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 154082181120,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 7142.04152256,
+          "two_party_local_seconds_linear_projection": 6297.28408512,
+          "executable_decoder": false
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 81126850560,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 3763.6393199999998,
+          "two_party_local_seconds_linear_projection": 3301.86864,
+          "executable_decoder": false
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 219323596800,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 10017.95908512,
+          "two_party_local_seconds_linear_projection": 9246.31964256,
+          "executable_decoder": false
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 205203210240,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 9481.24548,
+          "two_party_local_seconds_linear_projection": 8432.508517440001,
+          "executable_decoder": false
+        },
+        {
+          "bits": 24,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 343399956480,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 15697.87819488,
+          "two_party_local_seconds_linear_projection": 14371.98,
+          "executable_decoder": false
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 164018749440,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 7504.19524512,
+          "two_party_local_seconds_linear_projection": 6859.006754880001,
+          "executable_decoder": false
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "floor",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 358697041920,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 16259.787277440002,
+          "two_party_local_seconds_linear_projection": 15311.29507488,
+          "executable_decoder": false
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "unfused",
+          "both_party_key_payload_bytes": 288095109120,
+          "peer_frame_bytes_at_64_lane_batches": 170580480,
+          "issuance_seconds_linear_projection": 13238.777482559999,
+          "two_party_local_seconds_linear_projection": 12003.55851744,
+          "executable_decoder": false
+        },
+        {
+          "bits": 32,
+          "shift": 12,
+          "rounding": "ties_even",
+          "layout": "fused",
+          "both_party_key_payload_bytes": 482773401600,
+          "peer_frame_bytes_at_64_lane_batches": 85290240,
+          "issuance_seconds_linear_projection": 22000.03531488,
+          "two_party_local_seconds_linear_projection": 20457.8472,
+          "executable_decoder": false
+        }
+      ]
+    }
+  ],
+  "executable_sdk": false,
+  "privacy_reviewed": false,
+  "whole_decoder_numeric_parity": false,
+  "memory_guard": {
+    "host": {
+      "total": 34359738368,
+      "available": 13694828544,
+      "swap_used": 990904320,
+      "disk_free": 54093004800
+    },
+    "required_headroom_bytes": 1073741824,
+    "maximum_swap_growth_bytes": 0
+  },
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "rustc": "rustc 1.85.1 (4eb161250 2025-03-15)"
+  },
+  "source_sha256": {
+    "benchmarks/research/shared_rescale_reference.py": "aaee4f2b861a7ef289bf12c7306835309b9d3ce1a542fa0f3f3528f0ede58277",
+    "crates/pllm-garble/src/point_fss.rs": "9734d77a82cb15e707d83186502ef54787db7da326faad5ed2e3cab4e90bd35d",
+    "crates/pllm-garble/src/shared_rescale_reference.rs": "d17108a948b5408529eb63a3b2ce56e08c46c1fcdb7ac04dac6028fd3bf9e0da",
+    "crates/pllm-garble/examples/shared_rescale_probe.rs": "1fd88868546943d34309757323a862af18c2195eff9c442b8b631943076b1946",
+    "Cargo.lock": "99f08cd55b09b52c1b3f9f3e81d5b7180b8e429aac1d9359699c9b2c3c9b103b"
+  },
+  "limitations": [
+    "component reference, not either paper's complete protocol/backend or optimized performance reproduction",
+    "fresh-process single-thread native CPU: no GPU, WAN, role transport, model values, logits or KV",
+    "phase timers are elapsed time; process CPU includes issuance, evaluation, clear oracle and lifecycle checks",
+    "party key payload counts every seed, correction, mask and constant; offline metadata/transport and allocator overhead are extra",
+    "observed process RSS contains dealer and both parties together; not independent-role or client memory",
+    "framing is context binding, not authentication or malicious-output verification; no distributed dealer or reviewed cryptography",
+    "Qwen geometry is a hypothetical helper placement, not compatibility with its current W8A8 floating-point nonlinear execution",
+    "projections exclude attention, polynomial/nonlinear evaluation, token feedback and complete response work"
+  ]
+}
