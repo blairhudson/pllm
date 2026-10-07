@@ -524,10 +524,18 @@ Q14-to-Q10 edges, clear attention and layer composites, and bounded one-use Q7
 SiLU/multiply material, but those protected and fixed-scale components are not yet
 composed into a real-model whole decoder. A bounded native MPCache selection
 oracle preserves its full-cache Qwen control but static retention matches only
-34/36 same-token decode selections, and combined/layer-shared selection 31/36.
+34/36 same-token decode selections, combined selection 32/36 and layer-shared
+selection 31/36.
 It retains full backing KV and uses client-local plaintext gathers; selected
-addresses depend on private queries. Sparse-state execution, protected selection
-and numeric quality remain gates. The separate common-profile Compact/LogRow/Curl
+addresses depend on private queries. A separate native retained-row KV owner now
+physically stores only selected float32 rows plus bounded decode capacity and
+original token positions. Its 64 MiB per-owner payload limit, atomic append and
+compaction, zeroizing retirement and absolute-position attention pass independent
+storage/numeric controls. Caller conversions, exports and compaction overlap are
+additional owners. This isolated client-local primitive does not activate a
+whole-decoder sparse schedule or establish checkpoint quality or peak-RSS savings.
+Compiler-bound sparse execution, protected selection and numeric quality remain
+gates. The separate common-profile Compact/LogRow/Curl
 screen counts activation-only material and missing conversions explicitly;
 four-level Curl still projects 1.40 GB material and 730.30 MB peer bodies at
 39+8 before the gated product. NEXUS/THOR plaintext exponential references reject

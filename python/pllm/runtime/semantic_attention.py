@@ -160,9 +160,45 @@ def mask_causal_scores(
     return np.where(allowed, scores, np.float32(-np.inf))
 
 
+def mask_retained_scores(
+    scores: np.ndarray,
+    query_positions: np.ndarray,
+    key_positions: np.ndarray,
+    *,
+    maximum_position: int,
+) -> np.ndarray:
+    """Client-local numeric mask for explicitly retained original positions.
+
+    Physical cache slots are not token positions. This isolated operator does
+    not authorize sparse state in an existing full-KV compiler schedule.
+    """
+    if (
+        scores.dtype != np.float32 or scores.ndim != 4 or scores.shape[0] != 1
+        or min(scores.shape) < 1 or scores.size > _MAX_ELEMENTS
+        or not np.all(np.isfinite(scores))
+        or query_positions.dtype != np.int64 or query_positions.ndim != 1
+        or query_positions.size != scores.shape[2]
+        or key_positions.dtype not in {np.dtype(np.int64), np.dtype(np.uint32)}
+        or key_positions.ndim != 1 or key_positions.size != scores.shape[3]
+        or type(maximum_position) is not int or not 1 <= maximum_position <= 1 << 20
+    ):
+        raise SemanticAttentionError("retained attention shapes or position bound are invalid")
+    if (
+        np.any(query_positions < 0) or np.any(query_positions >= maximum_position)
+        or np.any(np.diff(query_positions) != 1)
+        or np.any(key_positions < 0) or np.any(key_positions >= maximum_position)
+        or np.any(key_positions[1:] <= key_positions[:-1])
+        or key_positions[0] > query_positions[0]
+    ):
+        raise SemanticAttentionError("retained attention requires ordered original token positions")
+    allowed = key_positions[None, None, None, :] <= query_positions[None, None, :, None]
+    return np.where(allowed, scores, np.float32(-np.inf))
+
+
 __all__ = [
     "SemanticAttentionError",
     "mask_causal_scores",
+    "mask_retained_scores",
     "semantic_attention_scores",
     "semantic_attention_values",
 ]

@@ -51,6 +51,48 @@ pub fn clusters(
     keep_clusters: usize,
     alpha: Option<f32>,
 ) -> Result<(Vec<usize>, Vec<f64>), &'static str> {
+    cluster_selection(
+        keys,
+        query,
+        None,
+        candidates,
+        cluster_rows,
+        keep_clusters,
+        alpha,
+    )
+}
+
+/// The same equations over physically retained rows. Candidate and result
+/// indices remain ORIGINAL positions; a sparse slot is never a cluster ID.
+pub fn clusters_at_positions(
+    keys: &[f32],
+    query: &[f32],
+    positions: &[usize],
+    candidates: &[usize],
+    cluster_rows: usize,
+    keep_clusters: usize,
+    alpha: Option<f32>,
+) -> Result<(Vec<usize>, Vec<f64>), &'static str> {
+    cluster_selection(
+        keys,
+        query,
+        Some(positions),
+        candidates,
+        cluster_rows,
+        keep_clusters,
+        alpha,
+    )
+}
+
+fn cluster_selection(
+    keys: &[f32],
+    query: &[f32],
+    positions: Option<&[usize]>,
+    candidates: &[usize],
+    cluster_rows: usize,
+    keep_clusters: usize,
+    alpha: Option<f32>,
+) -> Result<(Vec<usize>, Vec<f64>), &'static str> {
     let width = query.len();
     if width == 0 || width > MAX_FEATURES || keys.is_empty() || keys.len() % width != 0 {
         return Err("invalid key/query shape");
@@ -61,15 +103,36 @@ pub fn clusters(
         || cluster_rows == 0
         || cluster_rows > MAX_ROWS
         || candidates.windows(2).any(|v| v[0] >= v[1])
-        || *candidates.last().unwrap() >= rows
+        || candidates.len() > rows
         || alpha.is_some_and(|v| !v.is_finite() || !(0.0..=1.0).contains(&v))
     {
         return Err("invalid cluster domain");
     }
     finite(keys)?;
     finite(query)?;
-    let groups: Vec<_> = candidates
-        .chunk_by(|a, b| a / cluster_rows == b / cluster_rows)
+    if positions.is_some_and(|p| {
+        p.len() != rows
+            || p.windows(2).any(|v| v[0] >= v[1])
+            || p.last()
+                .is_some_and(|&v| v >= crate::retained_kv::MAX_POSITION)
+    }) {
+        return Err("invalid retained key positions");
+    }
+    let indexed: Vec<_> = candidates
+        .iter()
+        .map(|&position| {
+            let slot = match positions {
+                Some(p) => p
+                    .binary_search(&position)
+                    .map_err(|_| "candidate position was evicted")?,
+                None if position < rows => position,
+                None => return Err("invalid cluster domain"),
+            };
+            Ok((slot, position))
+        })
+        .collect::<Result<_, _>>()?;
+    let groups: Vec<_> = indexed
+        .chunk_by(|a, b| a.1 / cluster_rows == b.1 / cluster_rows)
         .collect();
     if keep_clusters == 0 || keep_clusters > groups.len() {
         return Err("invalid cluster count");
@@ -81,11 +144,11 @@ pub fn clusters(
                 .map(|col| {
                     let lo = group
                         .iter()
-                        .map(|&row| keys[row * width + col])
+                        .map(|&(row, _)| keys[row * width + col])
                         .fold(f32::INFINITY, f32::min);
                     let hi = group
                         .iter()
-                        .map(|&row| keys[row * width + col])
+                        .map(|&(row, _)| keys[row * width + col])
                         .fold(f32::NEG_INFINITY, f32::max);
                     let q = f64::from(query[col]);
                     match alpha {
@@ -101,7 +164,7 @@ pub fn clusters(
         .collect();
     let selected = ranked(&scores, keep_clusters)
         .into_iter()
-        .flat_map(|i| groups[i].iter().copied())
+        .flat_map(|i| groups[i].iter().map(|&(_, position)| position))
         .collect();
     Ok((selected, scores))
 }
@@ -162,5 +225,28 @@ mod tests {
             .unwrap()
             .0;
         assert_ne!(a, b); // Publicly indexed remote gathers are not a protected protocol.
+    }
+
+    #[test]
+    fn physical_retention_preserves_original_cluster_boundaries() {
+        let full: Vec<_> = (0..24).map(|i| (i as f32 - 11.0) / 2.0).collect();
+        let positions = [1, 6, 7, 11, 16, 23];
+        let sparse: Vec<_> = positions.iter().map(|&p| full[p]).collect();
+        for q in [[-1.0], [0.0], [1.0]] {
+            for alpha in [None, Some(0.6)] {
+                for width in [4, 8] {
+                    assert_eq!(
+                        clusters(&full, &q, &positions, width, 2, alpha).unwrap(),
+                        clusters_at_positions(&sparse, &q, &positions, &positions, width, 2, alpha)
+                            .unwrap()
+                    );
+                }
+            }
+        }
+        assert!(clusters_at_positions(&sparse, &[1.0], &positions, &[0], 4, 1, None).is_err());
+        assert!(
+            clusters_at_positions(&sparse, &[1.0], &[1, 6, 7, 11, 16, 16], &[1], 4, 1, None)
+                .is_err()
+        );
     }
 }

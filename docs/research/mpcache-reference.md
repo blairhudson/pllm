@@ -51,9 +51,52 @@ diagnostic elapsed time as a runtime performance measurement.
   production full-KV contract rejects truncated backing state; this probe does
   not bypass that check or activate a fallback Pipeline.
 
-The numeric regressions, sparse-state contract and protected selection remain
+The numeric regressions, whole-decoder sparse-state contract and protected selection remain
 promotion gates. No whole-generation quality, independent-provider privacy,
 matched WAN throughput, or whole-response resource claim follows.
+
+## Physical retained-state primitive
+
+The separate native `RetainedKvCache` now owns only selected float32 key/value
+rows and their original token positions. The internal Python
+`pllm.runtime.retained_state.RetainedLayerCache` binds this owner with the
+interpreter lock released. It has no reference to the dense input arrays.
+Construction copies selected rows; subsequent compaction allocates a smaller
+owner, preserves retained bits and erases the replaced native buffers.
+
+The public-to-the-caller bounds are at most 8,192 rows, 8,192 flattened features,
+64 MiB of owned payload and an exclusive logical-position limit of 2^20.
+Capacity includes future decode rows. Owned payload is exactly
+`capacity * (8 * flattened_features + 4)` bytes; allocator/owner overhead,
+constructor conversions, returned arrays and old/new compaction overlap are
+additional costs. These counts are allocation accounting, not peak RSS.
+Input key/value payload is capped at 128 MiB. Whole-decoder admission would also
+have to price all layers and transient owners together.
+
+Appends start at the original prefill length, not the number of retained rows.
+They reject rewinds, gaps, nonfinite values and exhausted capacity before
+mutation. Gathers use original positions and return independent read-only
+arrays. A separate causal-mask primitive compares absolute query/key positions,
+including multi-row decode and grouped-query attention. Native cluster scoring
+also accepts physically retained rows with original-position cluster identities;
+its existing 1,024-feature selection limit remains separate from storage bounds.
+Close/drop erases native state; already exported caller-owned copies have their
+own lifetime.
+
+The storage and equation tests cover source release, signed-zero bit preservation,
+capacity-priced appends, transactional failures, physical compaction, min/max
+selection against an independent scalar oracle, and attention against an
+independent dense calculation. Full retention is a control. This is an isolated
+client-local storage/operator slice; the historical checkpoint cohort above still
+retained full backing KV. Its quality or projected memory results do not become
+measurements of this new owner.
+
+Next integration binds retained-position ownership and causal state to the
+semantic/compiler contract, then checks whole-decoder full-retention parity and
+fresh held-out retention quality. Protected top-k and oblivious gather must bind
+the exact layer/state revision before any provider-owned selected state can run.
+The existing changed-query address-leakage witness remains a required negative
+control. No full-KV Pipeline or snapshot can silently substitute this owner.
 
 ## Reproduce
 
@@ -64,7 +107,18 @@ cargo test -p pllm-core cache_selection_reference
 uv run pytest -q tests/test_mpcache_reference.py
 ```
 
+For the physical state/operator slice:
+
+```sh
+uv run maturin develop --release --locked
+cargo test --locked --release -p pllm-core --lib
+uv run pytest -q tests/test_retained_state.py tests/test_semantic_state.py
+```
+
 The canonical report is `docs/evidence/research-mpcache-reference-qwen25.json`.
 Configuration/source/checkpoint/paper digests and every rejected claim remain
 explicit. Native code: `crates/pllm-core/src/cache_selection_reference.rs`;
 orchestration: `benchmarks/research/mpcache_reference.py`.
+Physical ownership: `crates/pllm-core/src/retained_kv.rs`; native binding:
+`crates/pllm-python/src/retained_kv.rs`; position-aware attention:
+`python/pllm/runtime/semantic_attention.py`.

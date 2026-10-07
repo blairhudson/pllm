@@ -18,6 +18,7 @@ mod private_pages;
 mod progressive_head;
 mod projected_polynomial;
 mod public_transforms;
+mod retained_kv;
 mod row_memo;
 mod shared_rescale;
 
@@ -1705,6 +1706,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     shared_rescale::register(module)?;
     mask_stream::register(module)?;
     row_memo::register(module)?;
+    retained_kv::register(module)?;
     public_transforms::register(module)?;
     progressive_head::register(module)?;
     polynomial_shift::register(module)?;

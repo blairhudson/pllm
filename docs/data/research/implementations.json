@@ -141,11 +141,11 @@
     },
     "mpcache": {
       "status": "Component reference",
-      "scope": "Semantic KV eviction contracts plus bounded native static retention, hierarchical min/max cluster selection and adjacent-layer index reuse. Plaintext client-local selected views retain full backing KV; no protected selection or sparse-state executor.",
-      "code": ["crates/pllm-models/src/cache.rs", "crates/pllm-core/src/cache_selection_reference.rs"],
+      "scope": "Semantic KV eviction contracts plus bounded native static retention, hierarchical min/max cluster selection and adjacent-layer index reuse. The historical checkpoint diagnostic retains full backing KV. A separate native retained-row owner now releases discarded storage and preserves absolute causal positions; whole-decoder sparse execution and protected selection remain unimplemented.",
+      "code": ["crates/pllm-models/src/cache.rs", "crates/pllm-core/src/cache_selection_reference.rs", "crates/pllm-core/src/retained_kv.rs", "crates/pllm-python/src/retained_kv.rs", "python/pllm/runtime/retained_state.py"],
       "configuration": "benchmarks/research/mpcache_reference.py",
       "evidence": "docs/evidence/research-mpcache-reference-qwen25.json",
-      "result": "Twelve pinned Qwen W8A8 prompts pass 8,712 independent equation/index checks. Full-cache logits/KV remain exact; static retention matches 34/36 same-token decode selections, combined selection 32/36 and layer-index sharing 31/36. Combined selection evaluates 42,424 versus 181,944 key rows, but no memory or runtime saving is measured. Selected addresses depend on private queries; protected top-k/gathers, sparse state and numeric quality gate promotion. Notes: docs/research/mpcache-reference.md."
+      "result": "Twelve pinned Qwen W8A8 prompts pass 8,712 independent equation/index checks. Full-cache logits/KV remain exact; static retention matches 34/36 same-token decode selections, combined selection 32/36 and layer-index sharing 31/36. Combined selection evaluates 42,424 versus 181,944 key rows, but no memory or runtime saving is measured. Separate retained-owner tests check bit preservation, dense-source release, bounded allocation, transactional append/compaction and absolute-position attention against independent oracles. Selected addresses depend on private queries; protected top-k/gathers, compiler-bound sparse execution and numeric quality gate promotion. Notes: docs/research/mpcache-reference.md."
     }
   }
 }

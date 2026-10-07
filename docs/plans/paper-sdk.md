@@ -69,6 +69,36 @@ Bifrost (2026) follows availability of an actual attestation/key-provisioning
 executor and suitable hardware. Euston's analyzed vulnerable transmission remains
 a regression/repair review target. Neither receives a simulated successful SDK score.
 
+### Current follow-on queue
+
+After the SIGMA/FuseFSS material comparison, prioritize these ten paper
+reimplementations by client-memory benefit, communication cost and readiness for
+reusable SDK integration. This updates the delivery sequence above; completed
+Slalom/SmoothQuant controls and historical failed gates retain their evidence.
+
+| Order | Paper | Next bounded delivery |
+| --- | --- | --- |
+| 1 | MPCache | Physical retained-state ownership, compiler-bound causal execution, then protected top-k/gather and fresh held-out quality |
+| 2 | Curl | Complete gated-block composition, conversion costs and compression/quality tradeoffs |
+| 3 | LogRow | Tensor scheduling and party transport with full conversion/product accounting |
+| 4 | Compact | Protected polynomial evaluation costs and checkpoint-range coverage |
+| 5 | Compressing Correlations via Secret Replication | Establish exact arithmetic/party assumptions, then a bounded independently implemented PCF construction and complete correlation costs |
+| 6 | FastQuery | Private embedding queries, including retained output-head ownership and measured client-memory impact |
+| 7 | CipherPrune | Protected pruning/degree decisions and held-out quality under explicit new numeric identities |
+| 8 | Maverick | Resolve code/field security assumptions and the 22.90 GB preprocessing gate |
+| 9 | MOAI | Reusable packing/operators for an actual non-interactive encrypted baseline |
+| 10 | NEXUS | Actual ciphertext execution, complete decode state and token feedback after the HE foundation |
+
+The first MPCache slice implements bounded native retained-row storage and an
+internal GIL-released Python binding. Original token positions survive physical
+compaction, causal masking and cluster selection; discarded native storage is
+erased and released. Independent controls cover source release, exact retained
+bits, atomic append/compaction failures and dense-versus-retained attention.
+Owned payload and transient costs stay explicit. Compiler activation, fresh
+checkpoint quality, protected selection and whole-response memory measurement
+are subsequent work; the prior selected-view cohort retains its original scope.
+Details: `docs/research/mpcache-reference.md`.
+
 Each whole-model delivery ends with:
 
 1. A paper-to-method contract stating **full reproduction**, **scoped adaptation**
