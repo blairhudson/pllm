@@ -41,7 +41,27 @@ enforcement and any float conversion are trusted-client responsibilities.
 The two-row one-hot setup and the half-gates arithmetic composition are PLLM
 adaptations; this is not the paper's optimized complete system.
 
-## Measure complete costs
+## Mixed arithmetic backend
+
+`LogRowGatedMultiplyQ9(backend="mixed")` retains the same lookup and Q9 numeric
+profile. One garbled bridge performs private index reduction, lookup and up
+rescaling; a fresh ring64 Beaver triple performs multiplication; a second bridge
+rounds the product exactly. Workers retain separate shares throughout.
+
+The trusted in-process dealer issues fresh random-OT correlations, garbling
+and triples. The garbler retains input encodings and the free-XOR offset;
+the evaluator receives selected labels and hash-based output decoding for
+freshly masked results. It never receives encoding pairs or unmasked outputs.
+This differs from the default `backend="half_gates"` ownership contract.
+
+Serial lanes burn complete material before the next issuance, under a combined
+64 MiB allocation estimate. Reports include every conversion, both material
+owners and all serial peer rounds. See the
+[matched study](https://github.com/blairhudson/pllm/blob/main/docs/research/mixed-gated-reference.md)
+and [installed replay example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/mixed_gated.py).
+Distributed setup, reviewed transport and compiler tensor scheduling remain absent.
+
+## Measure default half-gates costs
 
 The runner admits 1–256 serial lanes and 1–16 samples. A 16 MiB serial-live
 allocation bound is enforced by a per-circuit wire limit; it is not measured RSS.

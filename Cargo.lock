@@ -381,6 +381,7 @@ dependencies = [
  "pllm-models",
  "pllm-types",
  "pyo3",
+ "serde",
  "serde_json",
  "zeroize",
 ]

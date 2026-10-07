@@ -1123,6 +1123,31 @@ pub struct BooleanCircuitClient {
 }
 
 impl BooleanCircuitClient {
+    /// Dealer-only split for the two-party mixed-arithmetic adapter. The
+    /// garbler keeps input pairs; the evaluator receives output commitments,
+    /// never an encoding pair or the free-XOR delta.
+    pub(crate) fn into_shared_parts(self) -> (SharedInputEncodings, SharedOutputDecoder) {
+        let commitments = self
+            .output_encodings
+            .iter()
+            .enumerate()
+            .map(|(i, encoding)| {
+                [false, true]
+                    .map(|bit| output_commitment(&self.circuit_id, i, &encoding.encode(bit).0))
+            })
+            .collect();
+        (
+            SharedInputEncodings {
+                circuit_id: self.circuit_id,
+                encodings: self.input_encodings,
+            },
+            SharedOutputDecoder {
+                circuit_id: self.circuit_id,
+                commitments,
+            },
+        )
+    }
+
     pub fn encode(
         self,
         values: &[bool],
@@ -1150,6 +1175,61 @@ impl BooleanCircuitClient {
                 output_encodings: self.output_encodings,
             },
         ))
+    }
+}
+
+fn output_commitment(id: &[u8; 32], index: usize, label: &[u8; 16]) -> [u8; 32] {
+    let mut hash = Sha256::new();
+    hash.update(b"pllm.boolean.shared_output.v1\0");
+    hash.update(id);
+    hash.update((index as u64).to_le_bytes());
+    hash.update(label);
+    hash.finalize().into()
+}
+
+pub(crate) struct SharedInputEncodings {
+    circuit_id: [u8; 32],
+    encodings: Vec<BooleanWireEncoding>,
+}
+
+impl SharedInputEncodings {
+    pub(crate) fn id(&self) -> [u8; 32] {
+        self.circuit_id
+    }
+    pub(crate) fn encode(&self, index: usize, bit: bool) -> Result<[u8; 16], String> {
+        self.encodings
+            .get(index)
+            .map(|e| e.encode(bit).0)
+            .ok_or_else(|| "shared input index exceeds the circuit".into())
+    }
+}
+
+pub(crate) struct SharedOutputDecoder {
+    circuit_id: [u8; 32],
+    commitments: Vec<[[u8; 32]; 2]>,
+}
+
+impl SharedOutputDecoder {
+    pub(crate) fn decode(self, outputs: BooleanCircuitOutputs) -> Result<Vec<bool>, String> {
+        if outputs.circuit_id != self.circuit_id || outputs.labels.len() != self.commitments.len() {
+            return Err("shared output context or length mismatch".into());
+        }
+        outputs
+            .labels
+            .iter()
+            .enumerate()
+            .zip(self.commitments)
+            .map(|((i, label), pair)| {
+                let hash = output_commitment(&self.circuit_id, i, &label.0);
+                let zero = bool::from(hash.ct_eq(&pair[0]));
+                let one = bool::from(hash.ct_eq(&pair[1]));
+                if zero == one {
+                    Err("shared output label is invalid".into())
+                } else {
+                    Ok(one)
+                }
+            })
+            .collect()
     }
 }
 
@@ -1193,6 +1273,17 @@ pub struct BooleanCircuitProgram {
 }
 
 impl BooleanCircuitProgram {
+    pub(crate) fn evaluate_shared(
+        self,
+        id: [u8; 32],
+        labels: zeroize::Zeroizing<Vec<[u8; 16]>>,
+    ) -> Result<BooleanCircuitOutputs, String> {
+        self.evaluate(BooleanCircuitInputs {
+            circuit_id: id,
+            labels: labels.iter().copied().map(BooleanLabel).collect(),
+        })
+    }
+
     /// Hash only public instruction kinds and wire addresses, never label bits,
     /// gate ciphertexts or the fresh issuance ID. Useful for fixed-access audits.
     pub(crate) fn public_schedule_digest(&self) -> [u8; 32] {

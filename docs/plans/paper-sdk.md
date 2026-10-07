@@ -47,6 +47,32 @@ The packaged `python/pllm/components/planned_methods.json` binds every paper to 
 importable Python symbol. The [generated research method roadmap](https://pllm.run/sdk/components/research-method-roadmap/)
 lists those symbols and their next gates.
 
+## Current round: shared prerequisites and complete consumers
+
+1. **Mixed arithmetic — implemented bounded operator slice.** Curl, LogRow and
+   Compact accept an explicit mixed backend without changing numeric profiles or
+   default identities. Thirty-six fresh processes check 2,916 exact outputs.
+   LogRow/Compact combined material improves 24.9%/12.2–29.6%; Curl regresses.
+   Whole-MLP costs remain 203 GB–3.02 TB before remaining decoder work, and fresh
+   twelve-prompt quality checks preserve no complete logits/KV. See
+   `docs/research/mixed-gated-reference.md`. No tensor/provider promotion follows.
+2. **FastQuery — current implementation target.** Add ciphertext coefficient
+   repacking and independently supplied party-local share conversion; measure
+   all setup keys, conversions and tied embedding/head ownership together.
+3. **MPCache / CipherPrune.** Screen cheaper private selection with complete-record
+   movement, fixed public schedules and full-width material admission.
+4. **Encrypted linear foundation / MOAI.** Implement bounded packed encrypted
+   operators with explicit key ownership and reusable layouts. MOAI attribution
+   requires acquiring and reviewing its full source; the OpenReview browser
+   challenge remains unresolved.
+5. **NEXUS, then THOR.** Compose encrypted nonlinear/attention operations on that
+   foundation; public ranges, persistent decode state and private token feedback
+   need explicit executable contracts and costs.
+
+Each slice uses installed SDK replay, complete ownership/cost records, independent
+numeric validation and a validated commit. Whole-response measurements require
+an admitted complete consumer; bounded operator availability is a separate claim.
+
 ## Next delivery order: a PLLM comparative study
 
 Prioritize recent papers with direct relevance to private LLM execution, established

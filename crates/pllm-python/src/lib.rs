@@ -13,6 +13,7 @@ mod logrow_product;
 mod mask_stream;
 mod masked_aggregate;
 mod masked_wire;
+mod mixed_gated;
 mod network;
 mod offset_transport;
 mod packed_embedding;
@@ -1713,6 +1714,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     activation_benchmarks::register(module)?;
     wavelet_gated::register(module)?;
     logrow_product::register(module)?;
+    mixed_gated::register(module)?;
     secret_replication::register(module)?;
     packed_embedding::register(module)?;
     token_pruning::register(module)?;

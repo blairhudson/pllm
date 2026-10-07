@@ -54,6 +54,9 @@ def _sdk_digest(runner: str) -> str:
         sources += (("pllm.protocols", "__init__.py"), ("pllm.components", "_q7_activation.py"))
     if runner in ("logrow_product.py", "compact_product.py"):
         sources += (("pllm.metrics", "wavelet_gated.py"), ("pllm.metrics", "activations.py"))
+    if runner == "mixed_gated.py":
+        sources += tuple(("pllm.metrics", name) for name in
+                         ("compact_product.py", "wavelet_gated.py", "activations.py"))
     if runner == "secret_replication.py":
         sources += (("pllm.correlation", "__init__.py"),)
     if runner in ("packed_embedding.py", "coded_delegation.py"):
@@ -110,6 +113,7 @@ def benchmark_operator(
     from .packed_embedding import _PackedEmbeddingBenchmark
     from .token_pruning import _TokenPruningBenchmark
     from .coded_delegation import _CodedDelegationBenchmark
+    from .mixed_gated import _MixedGatedBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
@@ -141,6 +145,9 @@ def benchmark_operator(
             raise ConfigurationError("overlap dispatch requires a compiled two-worker benchmark")
         benchmark = _MaskedWireBenchmark(component, lanes, samples)
         fields = {"gate_q24", "up_q24"}
+    elif isinstance(component, (CurlWaveletGatedMultiplyQ9, LogRowGatedMultiplyQ9, CompactGatedMultiplyQ12)) and component.params.get("backend") == "mixed":
+        benchmark = _MixedGatedBenchmark(component, lanes, samples)
+        fields = {"gate_q18", "up_q18"}
     elif isinstance(component, CurlWaveletGatedMultiplyQ9):
         benchmark = _WaveletGatedBenchmark(component, lanes, samples)
         fields = {"gate_q18", "up_q18"}

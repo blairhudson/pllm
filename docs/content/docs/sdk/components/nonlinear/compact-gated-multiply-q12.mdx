@@ -32,6 +32,8 @@ assert custom.quality.exact_integer_outputs == 2
   can stop early when no split improves that objective.
 - `degree`: 2 or 3, default 3. Chebyshev interpolation coefficients are converted
   to a power basis before integer quantization and Horner evaluation.
+- `backend`: `"half_gates"` (default) or `"mixed"`. Mixed execution uses fresh
+  arithmetic products and exact garbled conversions without changing the profile.
 - `public_calibration_counts`: 1,024 nonnegative counts over `[-8,8)`, at most
   1,000,000 per bin and 100,000,000 total. Omission means uniform weights. A unit
   pseudocount covers every bin. Only public offline information may supply counts.
@@ -41,14 +43,34 @@ uses exact ties-to-even to Q12. The SiLU profile has zero/identity tails at ±8;
 inside the interval, private comparisons select a normalized coordinate and
 coefficients. Q20-coordinate Horner arithmetic, SiLU rescaling, signed product
 and final Q12 output all use exact rounding. The complete intermediate result
-stays in opaque labels; only the trusted client decodes the final output.
+stays in opaque labels in the default backend; only the trusted client decodes
+the final output.
 
 The degree, dyadic refinement, tails and fixed-point rules are explicit PLLM
 adaptations. They replace the paper's batch-normalization density assumptions,
 adaptive error threshold and simulated-annealing configuration search. Each
 source/calibration/coefficient set has its own numeric identity.
 
-## Resource ownership
+## Mixed arithmetic backend
+
+`CompactGatedMultiplyQ12(backend="mixed")` privately selects the same coordinate,
+coefficients and explicit tails, then runs Horner products with fresh ring64
+Beaver triples. Each exact rounding step reconstructs only inside a garbled
+circuit and returns independent arithmetic shares. No intermediate is opened.
+
+The trusted in-process dealer supplies fresh random-OT correlations, circuits
+and triples. The two workers each hold one share. Hash-based output decoding
+reveals only freshly masked values and never exposes the garbler's free-XOR
+offset. This ownership differs from the default client-garbler/evaluator layout.
+Each lane retires before the next under a combined 64 MiB allocation estimate;
+reports charge every conversion, both parties' keys and serial peer rounds.
+
+See the [matched study](https://github.com/blairhudson/pllm/blob/main/docs/research/mixed-gated-reference.md)
+and [installed replay example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/mixed_gated.py).
+The changed execution backend does not improve the fixed profile's numeric
+fidelity. Distributed setup, role transport and decoder scheduling remain absent.
+
+## Default half-gates resource ownership
 
 The runner admits 1–256 lanes and 1–16 samples, issuing and burning one circuit
 before the next lane. A 131,072-wire bound preflights 64 MiB of serial-live

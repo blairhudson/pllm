@@ -289,6 +289,17 @@ encodings. Polynomial arithmetic dominates this Boolean adaptation's costs.
 Operator availability, clear checkpoint numerics and protected decoder execution
 remain separate; tensor scheduling, role transport and protected float conversion
 are absent. Details: `docs/research/compact-product-reference.md`.
+The optional `backend="mixed"` on the Curl, LogRow and Compact complete gated
+operators composes party-local arithmetic products with explicit half-gates
+conversion, selection and exact rounding. A local trusted dealer supplies fresh
+random-OT correlations and Beaver triples; output-label hash commitments keep the
+free-XOR delta with the garbler. Thirty-six fresh processes check 2,916 protected
+outputs. LogRow material falls 24.9% and Compact 12.2–29.6%, while Curl regresses.
+Whole-MLP projections remain 203 GB–3.02 TB plus peer traffic. A fresh twelve-prompt
+Qwen diagnostic checks 128,876,544 independent integer outputs per frozen profile
+but preserves no complete candidate logits/KV. Defaults and numeric identities
+stay unchanged; distributed setup, transport and decoder scheduling remain absent.
+See `docs/research/mixed-gated-reference.md` for ownership, full costs and replay.
 The masked-wire component now also selects experimental CPU two-offset gated
 regions. A native model-neutral pass binds each dense float32 SiLU/multiply pair,
 the fixed numeric profile, floor float32-to-Q24 and Q12-to-float32 client boundaries,

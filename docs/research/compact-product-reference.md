@@ -6,6 +6,11 @@ signed multiplication. Only the trusted garbler-client decodes the final result.
 The immutable component uses the ordinary `benchmark_operator` and
 `replay_operator_benchmark` contracts.
 
+The separately selected `backend="mixed"` uses arithmetic Horner products with
+explicit private selection and exact conversion/rounding. See
+[the mixed arithmetic reference](mixed-gated-reference.md) for matched complete
+costs and fresh quality evidence. The default Boolean cohort below is unchanged.
+
 ## Primary source and explicit adaptations
 
 Compact, <https://arxiv.org/abs/2309.04664>, Sections 4.2.1–4.2.2 and 4.2.6,

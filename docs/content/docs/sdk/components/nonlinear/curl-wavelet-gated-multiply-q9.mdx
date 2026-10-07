@@ -53,6 +53,26 @@ and rescale the shared product to Q9. Three exact rescalings use the
 [Mixed-Mode FSS](/research/papers/fss-mixed/) universal interval-key backend.
 This replaces Curl's probabilistic truncation and has a different cost contract.
 
+## Mixed arithmetic backend
+
+`CurlWaveletGatedMultiplyQ9(levels=4, backend="mixed")` keeps the same numeric
+profile, but replaces interval-key rescaling with exact garbled conversions.
+The lookup remains shared; a fresh ring64 Beaver product and a final garbled
+rounding bridge complete the block. Every intermediate remains shared.
+
+The trusted in-process dealer supplies fresh random-OT correlations, garbling
+and triples. Each online worker receives only its own input and output shares;
+the garbler alone retains the free-XOR offset. The evaluator decodes freshly
+masked outputs through hash commitments rather than receiving label pairs.
+This is a different ownership contract from the default `backend="interval"`.
+
+Mixed execution retires each lane before issuing the next, under a combined
+64 MiB allocation estimate. Reports charge both owners, every conversion,
+both peer directions and serial-lane rounds. Distributed setup, transport and
+compiler tensor scheduling remain unimplemented. See the
+[matched mixed-mode study](https://github.com/blairhudson/pllm/blob/main/docs/research/mixed-gated-reference.md)
+and [installed replay example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/mixed_gated.py).
+
 ## Resources and scope
 
 The runner admits 1–256 lanes and 1–16 fresh samples under a combined 64 MiB
@@ -60,7 +80,7 @@ allocation estimate. Every party owns only its local shares. Context, session,
 phase and lane bindings reject substitution; completion, malformed frames,
 replay and cancellation retire remaining material.
 
-Reports charge both parties' complete keys and four phase/direction frames.
+The default interval backend charges both parties' complete keys and four phase/direction frames.
 `key_payload_bytes_by_operation` separates index reduction, up rescaling,
 lookup, multiplication and output rescaling. Public tables and metadata,
 client sharing and input/output boundary estimates remain separate. Issuance,

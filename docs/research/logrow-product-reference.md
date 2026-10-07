@@ -6,6 +6,12 @@ half-gates circuit. Intermediate lookup labels feed arithmetic directly; only
 the trusted client decodes the final Q9 result. The installed operator and
 replay configuration are separate from compiler or provider execution.
 
+The separately selected `backend="mixed"` replaces the Boolean product with a
+fresh arithmetic product and explicit private conversions. Its matched costs,
+changed role ownership and fresh numeric cohort are in
+[the mixed arithmetic reference](mixed-gated-reference.md). Historical default
+results below retain their original scope.
+
 ## Sources and adaptation
 
 - LogRow, <https://eprint.iacr.org/2024/369>: masked one-hot row selection and

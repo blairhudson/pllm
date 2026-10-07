@@ -288,7 +288,9 @@ class CompactGatedMultiplyQ12(NonlinearProtocol):
     has zero/identity tails at ±8 and exact ties-even arithmetic. Public
     calibration supplies 1,024 bin counts over [-8,8), or uniform defaults.
     Dyadic refinement replaces Compact's annealing. Private selection,
-    polynomial evaluation and multiplication use one fresh half-gates circuit.
+    polynomial evaluation and multiplication default to a fresh half-gates
+    circuit. ``backend="mixed"`` uses arithmetic products with exact garbled
+    rounding and dealer-aided conversions, preserving the numeric profile.
     """
 
     __slots__ = ()
@@ -299,6 +301,7 @@ class CompactGatedMultiplyQ12(NonlinearProtocol):
         parameter_schema={"type": "object", "properties": {
             "max_pieces": {"type": "integer", "minimum": 1, "maximum": 16},
             "degree": {"type": "integer", "enum": [2, 3]},
+            "backend": {"type": "string", "enum": ["half_gates", "mixed"]},
             "public_calibration_counts": {"type": "array", "minItems": 1024, "maxItems": 1024,
                 "items": {"type": "integer", "minimum": 0, "maximum": 1_000_000}}},
             "required": ["max_pieces", "degree", "public_calibration_counts"], "additionalProperties": False},
@@ -308,11 +311,13 @@ class CompactGatedMultiplyQ12(NonlinearProtocol):
     )
 
     def __init__(self, *, max_pieces: int = 8, degree: int = 3,
-                 public_calibration_counts: Sequence[int] | None = None) -> None:
+                 public_calibration_counts: Sequence[int] | None = None, backend: str = "half_gates") -> None:
         if type(max_pieces) is not int or not 1 <= max_pieces <= 16:
             raise ConfigurationError("max_pieces must be an integer in [1, 16]")
         if type(degree) is not int or degree not in (2, 3):
             raise ConfigurationError("degree must be 2 or 3")
+        if type(backend) is not str or backend not in ("half_gates", "mixed"):
+            raise ConfigurationError("Compact backend must be half_gates or mixed")
         if public_calibration_counts is None:
             counts = [0] * 1024
         else:
@@ -325,10 +330,11 @@ class CompactGatedMultiplyQ12(NonlinearProtocol):
                     or sum(counts) > 100_000_000):
                 raise ConfigurationError("public calibration exceeds the bounded fitting contract")
         super().__init__(self.descriptor.component, {
-            "max_pieces": max_pieces, "degree": degree, "public_calibration_counts": counts})
+            "max_pieces": max_pieces, "degree": degree, "public_calibration_counts": counts,
+            **({"backend": backend} if backend != "half_gates" else {})})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return self.to_spec()["params"]
+        return {"backend": "half_gates", **self.to_spec()["params"]}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:
@@ -342,6 +348,8 @@ class LogRowGatedMultiplyQ9(NonlinearProtocol):
     numeric profile matches Curl's level-zero adaptation. One-use LogRow
     labels feed exact half-gates rescaling and multiplication without an
     intermediate plaintext boundary. Only bounded operator execution exists.
+    ``backend="mixed"`` selects party-local arithmetic multiplication and
+    exact garbled conversions, supplied by a trusted in-process dealer.
     """
 
     __slots__ = ()
@@ -349,17 +357,20 @@ class LogRowGatedMultiplyQ9(NonlinearProtocol):
         component="pllm/logrow-gated-multiply-q9/v1", provider="pllm",
         distribution="pllm.run", version="1", category="pllm/nonlinear-protocol",
         category_version="1", lifecycle_phase="runtime",
-        parameter_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        parameter_schema={"type": "object", "properties": {
+            "backend": {"type": "string", "enum": ["half_gates", "mixed"]}}, "additionalProperties": False},
         capabilities=("protected-gated-multiply-q9", "bounded-operator-benchmark"),
         required_host_features=("native-core", "local-garbler"),
         role_eligibility=("client", "inference"),
     )
 
-    def __init__(self) -> None:
-        super().__init__(self.descriptor.component, {})
+    def __init__(self, *, backend: str = "half_gates") -> None:
+        if type(backend) is not str or backend not in ("half_gates", "mixed"):
+            raise ConfigurationError("LogRow backend must be half_gates or mixed")
+        super().__init__(self.descriptor.component, {"backend": backend} if backend != "half_gates" else {})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {}
+        return {"backend": "half_gates", **self.to_spec()["params"]}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:
@@ -374,6 +385,8 @@ class CurlWaveletGatedMultiplyQ9(NonlinearProtocol):
     index reduction uses exact floor, while up and output rescaling use exact
     ties-even. Output is Q9. This bounded two-share operator uses a local dealer
     and fresh Beaver material; it does not bind a decoder or provider transport.
+    ``backend="mixed"`` replaces interval-key rescalings with exact garbled
+    conversions and keeps the same Haar table and numeric profile.
     """
 
     __slots__ = ()
@@ -382,6 +395,7 @@ class CurlWaveletGatedMultiplyQ9(NonlinearProtocol):
         distribution="pllm.run", version="1", category="pllm/nonlinear-protocol",
         category_version="1", lifecycle_phase="runtime",
         parameter_schema={"type": "object", "properties": {
+            "backend": {"type": "string", "enum": ["interval", "mixed"]},
             "levels": {"type": "integer", "minimum": 0, "maximum": 8}},
             "required": ["levels"], "additionalProperties": False},
         capabilities=("protected-gated-multiply-q9", "bounded-operator-benchmark"),
@@ -389,13 +403,16 @@ class CurlWaveletGatedMultiplyQ9(NonlinearProtocol):
         role_eligibility=("client", "worker_a", "worker_b"),
     )
 
-    def __init__(self, *, levels: int = 0) -> None:
+    def __init__(self, *, levels: int = 0, backend: str = "interval") -> None:
         if type(levels) is not int or not 0 <= levels <= 8:
             raise ConfigurationError("levels must be an integer in [0, 8]")
-        super().__init__(self.descriptor.component, {"levels": levels})
+        if type(backend) is not str or backend not in ("interval", "mixed"):
+            raise ConfigurationError("Curl backend must be interval or mixed")
+        super().__init__(self.descriptor.component, {"levels": levels,
+            **({"backend": backend} if backend != "interval" else {})})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return self.to_spec()["params"]
+        return {"backend": "interval", **self.to_spec()["params"]}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

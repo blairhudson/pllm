@@ -7,6 +7,12 @@ up/output rescaling and fresh Beaver multiplication. It evaluates complete
 and separate clear checkpoint diagnostic are available for user-driven research;
 there is no compiler tensor schedule or protected decoder transport binding.
 
+The optional `backend="mixed"` replaces exact interval-key rescaling with
+garbled conversions while preserving this numeric profile. Its matched complete
+costs regress despite retaining arithmetic products; see
+[the mixed arithmetic reference](mixed-gated-reference.md). It remains explicit
+and does not change the default backend or historical cohorts below.
+
 ## Source contract and adaptation
 
 - Curl, <https://eprint.iacr.org/2024/1127>, Sections 4.1.1 and 4.2.1,
