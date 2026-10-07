@@ -141,11 +141,11 @@
     },
     "mpcache": {
       "status": "Component reference",
-      "scope": "Semantic KV eviction contracts plus bounded native static retention, hierarchical min/max cluster selection and adjacent-layer index reuse. The historical checkpoint diagnostic retains full backing KV. A separate native retained-row owner now releases discarded storage and preserves absolute causal positions; whole-decoder sparse execution and protected selection remain unimplemented.",
-      "code": ["crates/pllm-models/src/cache.rs", "crates/pllm-core/src/cache_selection_reference.rs", "crates/pllm-core/src/retained_kv.rs", "crates/pllm-python/src/retained_kv.rs", "python/pllm/runtime/retained_state.py"],
-      "configuration": "benchmarks/research/mpcache_reference.py",
-      "evidence": "docs/evidence/research-mpcache-reference-qwen25.json",
-      "result": "Twelve pinned Qwen W8A8 prompts pass 8,712 independent equation/index checks. Full-cache logits/KV remain exact; static retention matches 34/36 same-token decode selections, combined selection 32/36 and layer-index sharing 31/36. Combined selection evaluates 42,424 versus 181,944 key rows, but no memory or runtime saving is measured. Separate retained-owner tests check bit preservation, dense-source release, bounded allocation, transactional append/compaction and absolute-position attention against independent oracles. Selected addresses depend on private queries; protected top-k/gathers, compiler-bound sparse execution and numeric quality gate promotion. Notes: docs/research/mpcache-reference.md."
+      "scope": "Semantic KV eviction contracts, bounded native selection references and an internal compiler-bound client-local static-retention decoder. Native owners physically release discarded KV and preserve absolute positions under a separate response-state identity. The general MPCache transform, protected selection and an ordinary Experiment remain unimplemented.",
+      "code": ["crates/pllm-models/src/cache.rs", "crates/pllm-core/src/cache_selection_reference.rs", "crates/pllm-core/src/retained_kv.rs", "crates/pllm-compiler/src/retained_decoder.rs", "crates/pllm-python/src/retained_decoder.rs", "crates/pllm-python/src/retained_kv.rs", "python/pllm/runtime/retained_state.py", "python/pllm/runtime/retained_execution.py"],
+      "configuration": "benchmarks/research/retained_decoder.py",
+      "evidence": "docs/evidence/research-retained-decoder-qwen25.json",
+      "result": "Fresh pinned Qwen W8A8 full retention preserves all 48 logit vectors and twelve final KV states. Median owned KV falls from 6.29 to 5.16 MB through capacity sizing. Keeping 75%/50% uses 3.90/2.62 MB but each matches only 35/36 decode selections, with no exact decode logits or final KV. Fresh local-clear diagnostic peaks remain 1.21–1.23 GB including full body weights; CPU rises and no SDK-client memory or speed benefit follows. Generated Qwen2/Qwen3/Llama controls match an independent selected-view oracle and reject state substitution, incompatible snapshots and partial failures. The historical full-backing oracle retains its separate 8,712 equation checks and 34/36 static, 32/36 combined, 31/36 layer-shared selections. Protected top-k/gathers and SDK transport remain open. Notes: docs/research/mpcache-reference.md."
     }
   }
 }

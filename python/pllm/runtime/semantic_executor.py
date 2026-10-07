@@ -52,6 +52,17 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
     """Execute validated semantic steps with client-owned attention and cache state."""
 
     _causal_reduction: str | None = None
+    _retained = None
+
+    def _install_retained(self, contract) -> None:
+        from .retained_execution import RetainedExecution
+        if self._retained is not None:
+            raise TransformerClientError("retained decoder already has a state contract")
+        self._retained = RetainedExecution(self, contract)
+        import hashlib
+        self._state_binding_digest = hashlib.sha256(
+            b"pllm.retained-decoder-binding.v1\0" + self._state_binding_digest.encode() + contract.digest.encode()
+        ).hexdigest()
 
     def __init__(
         self,
@@ -223,6 +234,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         return total
 
     def reset(self) -> None:
+        if self._retained is not None:
+            self._retained.reset()
         super().reset()
         self._snapshot_basis = None
         self._continuation_owner = None
@@ -231,6 +244,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             self.caches[layer] = WindowedLayerCache(window=window)
 
     def snapshot(self) -> RuntimeSnapshot:
+        if self._retained is not None:
+            raise TransformerClientError("retained state is response-owned and cannot enter full-KV snapshots")
         saved = super().snapshot()
         saved.semantic_binding_digest = self._state_binding_digest
         saved.state_basis = self._snapshot_basis
@@ -238,6 +253,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
 
     def install_continuation(self, contract: DecoderContinuationSchedule) -> None:
         """Bind a native extension without changing the original stage schema."""
+        if self._retained is not None:
+            raise TransformerClientError("retained state cannot enter full-KV continuation")
         if not isinstance(contract, DecoderContinuationSchedule):
             raise TransformerClientError("continuation requires a native schedule contract")
         document = contract.to_dict()
@@ -260,6 +277,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         self._continuation_contract = contract
 
     def _validate_full_snapshot(self, snapshot: RuntimeSnapshot) -> None:
+        if self._retained is not None:
+            raise TransformerClientError("retained execution rejects full-KV snapshots")
         if (
             type(snapshot.position) is not int or snapshot.position < 1
             or snapshot.position > self._graphs["decode"]["maximum_key_sequence"]
@@ -414,6 +433,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         tokens = np.asarray(ids, dtype=np.int64).reshape(-1)
         if tokens.size == 0:
             raise TransformerClientError("at least one token is required")
+        if self._retained is not None and tokens.size != 1:
+            raise TransformerClientError("retained execution requires prepare_ids then one-token decode")
         if tokens.size == 1:
             return self._forward(tokens)
         phase = "prefill" if self.position == 0 else "decode"
@@ -775,12 +796,18 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             state_kind = state_kinds.get(operation["id"])
             if state_kind == "key":
                 pending_keys[layer] = (operation["id"], tensor)
+                if self._retained is not None and self.position:
+                    return cache
                 if isinstance(cache, WindowedLayerCache):
                     return source
                 prior = cache.key[: cache.length] if cache.key is not None else tensor[:0]
                 return np.concatenate((prior, tensor), axis=0).transpose(1, 0, 2)[None]
             if state_kind == "value" and layer in pending_keys:
                 key_id, key_tensor = pending_keys.pop(layer)
+                if self._retained is not None and self.position:
+                    key_view, value_view = self._retained.append(layer, self.position, key_tensor, tensor)
+                    values[key_id] = key_view
+                    return value_view
                 if isinstance(cache, WindowedLayerCache):
                     try:
                         key_view, value_view = cache.append_windows(key_tensor, tensor)
@@ -842,6 +869,10 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             return source * float(1.0 / math.sqrt(int(attrs["head_dim"])))
         elif kind == "causal_mask":
             try:
+                if self._retained is not None and self.position:
+                    from .semantic_attention import mask_retained_scores
+                    return mask_retained_scores(source, values[inputs[1]], self._retained.positions[layer],
+                        maximum_position=self._retained.input_rows + self._retained.document["max_decode_steps"])
                 return mask_causal_scores(
                     source,
                     values[inputs[1]],
@@ -968,8 +999,14 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                  continuation: bool = False) -> np.ndarray:
         self._phase_rotary = None
         try:
+            if self._retained is not None:
+                self._retained.begin(self, int(ids.size))
             return self._forward_phase(ids, final_logits_only=final_logits_only,
-                                       continuation=continuation)
+                                        continuation=continuation)
+        except BaseException:
+            if self._retained is not None:
+                self._retained.burn(self)
+            raise
         finally:
             if self._phase_rotary is not None:
                 self._phase_rotary.clear()
@@ -1031,6 +1068,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             "input.attention_mask": np.ones((1, ids.size), dtype=np.bool_),
         }
         for state in graph["state_inputs"]:
+            if self._retained is not None:
+                values[state["id"]] = self.caches[int(state["layer"])]
+                continue
             if state["kind"] in {"convolution", "recurrent"}:
                 identity = (int(state["layer"]), state["kind"])
                 retained = self._hybrid_states.get(identity)
@@ -1086,6 +1126,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 values[op_ids[0]] = self._numeric_output(
                     operation, self._local(operation, values, state_kinds, pending_keys)
                 )
+                if self._retained is not None:
+                    self._retained.observe(operation, values[op_ids[0]], self)
             elif step["executor"] == "remote_gated_block":
                 from .offset_reference import TwoOnlineOffsetTransport
 
@@ -1190,6 +1232,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             raise TransformerClientError("verified phase did not check every remote stage")
         self._hybrid_states = pending_hybrid
         self.position += ids.size
+        if self._retained is not None:
+            self._retained.finish(self.position)
         import hashlib
         import json
 
@@ -1207,7 +1251,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             or self._causal_reduction is None and previous_basis.prefill_extent != self.position
         ))
         self._snapshot_basis = _snapshot_state_basis(
-            ("unqualified" if self.nonlinear_evaluator is not None else
+            ("unqualified" if self.nonlinear_evaluator is not None or self._retained is not None else
              "incremental" if incremental else "completed_prefill"), self.position,
             self._state_binding_digest, native_phase, execution, self._continuation_owner,
             self.position if previous_basis is None or self._causal_reduction and not incremental

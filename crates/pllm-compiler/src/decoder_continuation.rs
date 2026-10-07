@@ -261,7 +261,7 @@ pub fn lower_decoder_continuation(
 /// element; a step additionally receives eight four-byte output-sized scratch
 /// arrays. This bounds declared array ownership, not allocator/process RSS,
 /// immutable weights, tokenizers or cryptographic inventory storage.
-fn live_working_bytes(schedule: &DecoderRuntimePhaseSchedule) -> Result<u64, String> {
+pub(crate) fn live_working_bytes(schedule: &DecoderRuntimePhaseSchedule) -> Result<u64, String> {
     let mut remaining = std::collections::BTreeMap::<&str, u64>::new();
     for input in schedule.steps.iter().flat_map(|step| &step.input_ids) {
         *remaining.entry(input).or_default() += 1;

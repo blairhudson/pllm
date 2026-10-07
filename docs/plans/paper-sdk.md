@@ -94,9 +94,19 @@ internal GIL-released Python binding. Original token positions survive physical
 compaction, causal masking and cluster selection; discarded native storage is
 erased and released. Independent controls cover source release, exact retained
 bits, atomic append/compaction failures and dense-versus-retained attention.
-Owned payload and transient costs stay explicit. Compiler activation, fresh
-checkpoint quality, protected selection and whole-response memory measurement
-are subsequent work; the prior selected-view cohort retains its original scope.
+Owned payload and transient costs stay explicit. The next internal slice binds
+static client-local retention to the native semantic schedule, validates per-layer
+causal state and bounded decode, and rejects full-KV snapshot/continuation reuse.
+Generated Qwen2/Qwen3/Llama whole-decoder controls preserve every logit and KV bit
+at full retention; sparse execution matches an independent selected-view oracle
+and releases discarded backing arrays. Protected selection and whole-response
+SDK memory measurement remain open; the prior selected-view cohort retains its
+original scope. A new fixed twelve-prompt Qwen cohort preserves all 48 checked
+logit vectors and final KV at full retention, reducing median owned KV from 6.29
+to 5.16 MB. Keeping 75%/50% uses 3.90/2.62 MB but each matches only 35/36
+same-token decode selections. Diagnostic process peaks remain 1.21–1.23 GB and
+CPU rises; no SDK-client memory or speed improvement follows. Static-retention
+quality, SDK binding and protected provider-held selection remain distinct work.
 Details: `docs/research/mpcache-reference.md`.
 
 Each whole-model delivery ends with:

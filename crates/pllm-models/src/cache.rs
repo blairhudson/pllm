@@ -77,7 +77,7 @@ impl MpcachePolicy {
         }
     }
 
-    fn validate(&self) -> Result<(), MpcacheError> {
+    pub fn validate(&self) -> Result<(), MpcacheError> {
         self.observation_window.validate("observation_window")?;
         self.static_keep.validate("static_keep")?;
         self.dynamic_keep.validate("dynamic_keep")?;

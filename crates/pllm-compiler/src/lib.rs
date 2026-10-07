@@ -22,10 +22,12 @@ use std::sync::{Mutex, OnceLock};
 mod compact_protected;
 mod decoder_continuation;
 mod decoder_runtime_schedule;
+mod retained_decoder;
 pub use decoder_continuation::{
     admit_decoder_continuation, decoder_continuation_bytes, lower_decoder_continuation,
     DecoderContinuation, DECODER_CONTINUATION_SCHEMA,
 };
+pub use retained_decoder::retained_decoder_bytes;
 mod dense_qwen_attention;
 mod dense_qwen_layer;
 mod dense_qwen_mlp;

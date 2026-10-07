@@ -532,10 +532,21 @@ physically stores only selected float32 rows plus bounded decode capacity and
 original token positions. Its 64 MiB per-owner payload limit, atomic append and
 compaction, zeroizing retirement and absolute-position attention pass independent
 storage/numeric controls. Caller conversions, exports and compaction overlap are
-additional owners. This isolated client-local primitive does not activate a
-whole-decoder sparse schedule or establish checkpoint quality or peak-RSS savings.
-Compiler-bound sparse execution, protected selection and numeric quality remain
-gates. The separate common-profile Compact/LogRow/Curl
+additional owners. The internal compiler-bound retained-state extension now
+executes static client-local retention through the same semantic decoder, with
+a separate source, policy, state and execution identity. It admits bounded
+exclusive dense KV owners, prices retained/dense/transient/workspace payloads
+together, preserves original causal positions and retires every response owner
+on failure. Full-KV snapshots and continuation reject retained state. Generated
+Qwen2/Qwen3/Llama full-retention prefill/decode preserves every logit and KV bit;
+static retention matches an independent selected-view oracle and releases dense
+backing arrays. A fresh twelve-prompt pinned Qwen cohort preserves all 48 logit
+vectors and final KV at full retention, reducing median owned KV from 6.29 to
+5.16 MB through capacity sizing. Keeping 75%/50% uses 3.90/2.62 MB but each matches
+only 35/36 same-token decode selections and no complete decode logits or final KV.
+Local-clear process peaks, including full body weights, remain 1.21–1.23 GB while
+diagnostic CPU rises. Protected selection, an executable Experiment and
+whole-response SDK memory remain gates. The separate common-profile Compact/LogRow/Curl
 screen counts activation-only material and missing conversions explicitly;
 four-level Curl still projects 1.40 GB material and 730.30 MB peer bodies at
 39+8 before the gated product. NEXUS/THOR plaintext exponential references reject
