@@ -72,12 +72,17 @@
     },
     {
       "paper_id": "R17",
-      "summary": "The installed CurlWaveletEncodedTable component combines party-local additive-share lookup with public Haar low-pass compression. It reports both parties' material and peer frames, changed numeric identities and profile/SiLU error. Input quantization and compressed-index reduction remain client-local.",
+      "summary": "The installed CurlWaveletEncodedTable retains its bounded Q7 activation contract. CurlWaveletGatedMultiplyQ9 separately composes private Haar lookup with protected index reduction, exact up/output rescaling and a fresh product. It reports complete both-party material and four peer rounds; exact truncation replaces the paper's probabilistic protocol. Float conversion, distributed issuance and decoder transport remain open.",
       "components": [
         {
           "title": "Curl wavelet-encoded table",
           "href": "/sdk/components/nonlinear/curl-wavelet-encoded-table/",
           "source": "content/docs/sdk/components/nonlinear/curl-wavelet-encoded-table.mdx"
+        },
+        {
+          "title": "Complete Curl Haar gated block",
+          "href": "/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/",
+          "source": "content/docs/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9.mdx"
         }
       ]
     },

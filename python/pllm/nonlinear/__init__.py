@@ -281,6 +281,42 @@ class CompactPiecewiseActivation(NonlinearProtocol):
         return cls.descriptor
 
 
+class CurlWaveletGatedMultiplyQ9(NonlinearProtocol):
+    """Complete Haar-table ``SiLU(gate) * up`` on signed Q18 inputs.
+
+    Public gate/up bounds are ±48/±128. A 4,096-row table covers [-64, 64)
+    at 1/32 spacing; ``levels`` discards Haar detail coefficients. Protected
+    index reduction uses exact floor, while up and output rescaling use exact
+    ties-even. Output is Q9. This bounded two-share operator uses a local dealer
+    and fresh Beaver material; it does not bind a decoder or provider transport.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/curl-wavelet-gated-multiply-q9/v1", provider="pllm",
+        distribution="pllm.run", version="1", category="pllm/nonlinear-protocol",
+        category_version="1", lifecycle_phase="runtime",
+        parameter_schema={"type": "object", "properties": {
+            "levels": {"type": "integer", "minimum": 0, "maximum": 8}},
+            "required": ["levels"], "additionalProperties": False},
+        capabilities=("protected-gated-multiply-q9", "bounded-operator-benchmark"),
+        required_host_features=("native-core", "local-correlation-dealer"),
+        role_eligibility=("client", "worker_a", "worker_b"),
+    )
+
+    def __init__(self, *, levels: int = 0) -> None:
+        if type(levels) is not int or not 0 <= levels <= 8:
+            raise ConfigurationError("levels must be an integer in [0, 8]")
+        super().__init__(self.descriptor.component, {"levels": levels})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return self.to_spec()["params"]
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class CurlWaveletEncodedTable(NonlinearProtocol):
     """Haar-compressed Q7 activation table with one-use party-local private lookup.
 
@@ -330,7 +366,7 @@ class WaveletHomomorphicLookup(PendingMethod):
 
 
 __all__ += [
-    "ShaftFixedPointTransformerOps", "CompactPiecewiseActivation", "CurlWaveletEncodedTable",
+    "ShaftFixedPointTransformerOps", "CompactPiecewiseActivation", "CurlWaveletEncodedTable", "CurlWaveletGatedMultiplyQ9",
     "LlamaSecureMath", "SirnnSecureMath", "WaveletHomomorphicLookup",
 ]
 

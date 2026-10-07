@@ -1,0 +1,79 @@
+---
+title: "Curl Haar gated block"
+description: "Benchmark complete SiLU × up with protected index reduction, Haar lookup, fresh multiplication and exact rescaling."
+---
+
+`pllm.nonlinear.CurlWaveletGatedMultiplyQ9` composes [Curl's](/research/papers/curl/)
+Figure 6 private Haar lookup with exact protected index reduction, a fresh Beaver
+product and final rescaling. It uses the ordinary immutable component contract
+and [operator benchmark runner](/sdk/evaluate/paper-operators/).
+
+Component identity: `pllm/curl-wavelet-gated-multiply-q9/v1`.
+
+## Python SDK example
+
+```python
+from pllm.metrics import benchmark_operator, replay_operator_benchmark
+from pllm.nonlinear import CurlWaveletGatedMultiplyQ9
+
+method = CurlWaveletGatedMultiplyQ9()
+control = benchmark_operator(method, lanes=5, samples=1)
+compressed = benchmark_operator(method.with_params(levels=4), lanes=5, samples=1)
+assert control.quality.exact_integer_outputs == compressed.quality.exact_integer_outputs == 5
+assert control.numeric_contract_digest != compressed.numeric_contract_digest
+assert control.resources.peer_rounds == compressed.resources.peer_rounds == 4
+assert control.resources.peer_frame_bytes == compressed.resources.peer_frame_bytes
+assert compressed.resources.combined_raw_key_payload_bytes < control.resources.combined_raw_key_payload_bytes
+assert replay_operator_benchmark(compressed.configuration).resources == compressed.resources
+
+custom = benchmark_operator(method, lanes=3, samples=1, inputs={
+    "gate_q18": [-262144, 0, 262144],
+    "up_q18": [524288, 262144, -524288],
+})
+assert custom.quality.exact_integer_outputs == 3
+```
+
+## Numeric contract
+
+Inputs are signed Q18 integers: gate magnitude at most `48 * 2**18`, up magnitude
+at most `128 * 2**18`. Output uses Q9. Inputs outside those public ranges reject;
+they are never clipped. Float conversion and private range enforcement remain
+trusted-client responsibilities.
+
+The public SiLU table has 4,096 samples on `[-64,64)` at 1/32 spacing, each rounded
+to Q9 with ties-to-even. `levels=0` keeps it unchanged; levels 1–8 replace each
+power-of-two block with its mean, rounded once. The profile digest binds all
+coefficients, ranges and rounding. Compression changes the function.
+
+One worker adds the public gate offset to its share. Both workers run exact
+protected floor reduction to the compressed index and exact ties-even up
+rescaling, in parallel. They then open the fresh masked index, evaluate the
+shared one-hot lookup, multiply the result by up using fresh Beaver material,
+and rescale the shared product to Q9. Three exact rescalings use the
+[Mixed-Mode FSS](/research/papers/fss-mixed/) universal interval-key backend.
+This replaces Curl's probabilistic truncation and has a different cost contract.
+
+## Resources and scope
+
+The runner admits 1–256 lanes and 1–16 fresh samples under a combined 64 MiB
+allocation estimate. Every party owns only its local shares. Context, session,
+phase and lane bindings reject substitution; completion, malformed frames,
+replay and cancellation retire remaining material.
+
+Reports charge both parties' complete keys and four phase/direction frames.
+`key_payload_bytes_by_operation` separates index reduction, up rescaling,
+lookup, multiplication and output rescaling. Public tables and metadata,
+client sharing and input/output boundary estimates remain separate. Issuance,
+public fitting, local online and clear execution have separate timings.
+Physical wire and measured peak memory remain unknown.
+
+Use this operator to reproduce the compression/fidelity/cost tradeoff. The
+[complete-block study](https://github.com/blairhudson/pllm/blob/main/docs/research/wavelet-gated-reference.md)
+retains fresh Qwen numeric diagnostics separately from protected synthetic
+operator measurements. This component has no compiler tensor schedule,
+provider transport or executable decoder binding.
+
+The earlier [Q7 activation component](/sdk/components/nonlinear/curl-wavelet-encoded-table/)
+retains its own calibration, numeric identity and activation-only scope.
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)

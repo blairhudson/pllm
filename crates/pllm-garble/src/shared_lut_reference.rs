@@ -106,6 +106,12 @@ pub struct Pending {
 }
 
 impl Party {
+    pub fn key_payload_bytes(&self) -> usize {
+        self.secret
+            .as_ref()
+            .map_or(0, |secret| 2 + 4 * secret.vector.len())
+    }
+
     /// Burns the key before checking the input-share domain.
     pub fn start(&mut self, input_share: u16) -> Result<(Pending, [u8; OPENING_BYTES]), Error> {
         let secret = self.secret.take().ok_or(Error::Consumed)?;
@@ -134,6 +140,10 @@ impl Party {
 }
 
 impl Pending {
+    pub fn key_payload_bytes(&self) -> usize {
+        2 + 4 * self.secret.vector.len()
+    }
+
     /// Consumes pending state even if peer framing/context validation fails.
     /// The returned word is one opaque output share, not a reconstructed value.
     pub fn finish(self, peer: &[u8]) -> Result<u32, Error> {

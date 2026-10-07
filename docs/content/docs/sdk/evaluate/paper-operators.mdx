@@ -301,6 +301,36 @@ Compact's conservative wire/gate ceiling and 1 MiB for the lookup methods.
 These estimates are not peak-RSS measurements. Operator reports retain unknown
 physical wire, checkpoint quality and decoder coverage.
 
+## Complete Curl Haar gated block
+
+```python
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import CurlWaveletGatedMultiplyQ9
+
+report = benchmark_operator(CurlWaveletGatedMultiplyQ9(levels=4), lanes=8, samples=1)
+assert report.quality.exact_integer_outputs == 8
+assert report.resources.peer_rounds == 4
+parts = report.resources.key_payload_bytes_by_operation
+assert sum(a + b for _, a, b in parts) == report.resources.combined_raw_key_payload_bytes
+```
+
+The [complete-block component](/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/)
+accepts `gate_q18` and `up_q18` integer arrays, with gate/up bounds ±48/±128,
+and returns Q9. It charges protected index reduction, up/output rescaling,
+Haar lookup and a fresh product. Exact floor/ties-even rescaling replaces the
+paper's probabilistic protocol; this adaptation has separate numeric and cost
+identities. Levels 0–8 are supported; samples and lanes use the same bounds as
+the other helpers. Float conversion and range admission stay client-local.
+
+The [installed example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/wavelet_gated.py)
+saves levels zero, two and four. The
+[complete cost report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-wavelet-gated-cost.json)
+retains all five material owners and every frame; the
+[Qwen diagnostic](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-wavelet-gated-quality-qwen25.json)
+separately tests same-token logits/KV and free-running generation. Neither is a
+protected whole-response measurement. Independent role transport, full wire,
+protected float conversion and cryptographic review remain open.
+
 ## Paper coverage
 
 - [SIGMA](/research/papers/sigma/): public-gap floor shifts, residual SiLU and
@@ -315,7 +345,8 @@ physical wire, checkpoint quality and decoder coverage.
   backends for that rescale helper.
 - [Compact](/research/papers/compact/): public density-aware Q7 fitting with
   independently implemented private polynomial evaluation.
-- [Curl](/research/papers/curl/): party-local shared lookup and public Haar compression.
+- [Curl](/research/papers/curl/): party-local shared lookup and public Haar compression;
+  a separate complete Q9 gated adaptation adds exact protected rescaling and multiplication.
 - [LogRow](/research/papers/logrow/): masked-index table lookup with the earlier
   two-row one-hot setup and complete masked-table payload.
 

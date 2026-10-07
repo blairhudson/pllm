@@ -249,6 +249,7 @@ def test_retained_sdk_collection_preserves_rounding_groups_and_replays():
             for field in (
                 "public_metadata_bytes_estimate", "public_profile_bytes_estimate",
                 "evaluator_ciphertext_bytes", "evaluator_constant_label_bytes",
+                "key_payload_bytes_by_operation",
             ):
                 assert replay["resources"][field] is None
             assert replay["quality"]["base_profile_exact_outputs"] is None

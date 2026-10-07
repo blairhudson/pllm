@@ -46,4 +46,8 @@ The [operator runner](/sdk/evaluate/paper-operators/) executes both workers and
 the trusted dealer locally. It exposes reproducible negative results without
 claiming protected input reduction, Curl's complete system or decoder execution.
 
+The separate [complete Haar gated block](/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/)
+adds protected reduction, up multiplication and output rescaling with a wider
+Q18-to-Q9 contract. Its results do not rewrite this Q7 activation evidence.
+
 API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)

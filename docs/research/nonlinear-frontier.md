@@ -52,6 +52,11 @@ execution, complete-block cost or reviewed security claim in this historical scr
 
 ## Installed operator components
 
+The subsequent [complete Haar gated block](wavelet-gated-reference.md) has a
+distinct wider Q18-to-Q9 contract, protected index/up/output rescaling and fresh
+multiplication. Its full costs and new checkpoint cohort are separate from this
+historical activation-only screen.
+
 `pllm.nonlinear.CompactPiecewiseActivation`,
 `pllm.nonlinear.CurlWaveletEncodedTable` and
 `pllm.protocols.LogRowGarbledLookup` now use the ordinary immutable component

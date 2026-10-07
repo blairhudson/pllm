@@ -9,11 +9,11 @@ from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline, _nati
 from pllm.components import create_component, get, list_components
 from pllm.configuration import ComponentRef, ConfigurationError
 from pllm.metrics import benchmark_operator, replay_operator_benchmark
-from pllm.nonlinear import MaskedWireGatedMultiplyQ12, NonlinearProtocol, SharedRescale
+from pllm.nonlinear import CurlWaveletGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, NonlinearProtocol, SharedRescale
 from pllm.profiles import MaskedLinearCpu
 
 
-@pytest.mark.parametrize("component", [MaskedWireGatedMultiplyQ12(), MaskedWireGatedMultiplyQ12(layout="fused"), MaskedWireGatedMultiplyQ12(material_encoding="seeded"), SharedRescale()])
+@pytest.mark.parametrize("component", [MaskedWireGatedMultiplyQ12(), MaskedWireGatedMultiplyQ12(layout="fused"), MaskedWireGatedMultiplyQ12(material_encoding="seeded"), SharedRescale(), CurlWaveletGatedMultiplyQ9()])
 def test_components_round_trip_through_discovery_and_experiment(component):
     assert isinstance(component, NonlinearProtocol)
     assert get(component.component) is type(component)

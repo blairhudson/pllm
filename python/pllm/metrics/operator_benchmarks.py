@@ -72,18 +72,20 @@ def benchmark_operator(
     Method parameters belong to the component; lanes and samples describe this
     benchmark. Omit inputs for public boundary fixtures, or supply ``gate_q24``
     and ``up_q24`` for masked-wire multiplication, ``values`` for rescaling,
-    or ``values_q7`` for the bounded Compact, Curl and LogRow activations.
+    ``gate_q18`` and ``up_q18`` for the complete Haar gated block, or
+    ``values_q7`` for the bounded Compact, Curl and LogRow activations.
     Input values and their fingerprints are never stored in the report.
     """
     from pllm.components import create_component
     from pllm.nonlinear import (
-        CompactPiecewiseActivation, CurlWaveletEncodedTable,
+        CompactPiecewiseActivation, CurlWaveletEncodedTable, CurlWaveletGatedMultiplyQ9,
         MaskedWireGatedMultiplyQ12, SharedRescale,
     )
     from pllm.protocols import LogRowGarbledLookup
     from .activations import _ActivationBenchmark
     from .masked_wire import _MaskedWireBenchmark
     from .shared_rescale import _SharedRescaleBenchmark
+    from .wavelet_gated import _WaveletGatedBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
@@ -93,6 +95,9 @@ def benchmark_operator(
             raise ConfigurationError("overlap dispatch requires a compiled two-worker benchmark")
         benchmark = _MaskedWireBenchmark(component, lanes, samples)
         fields = {"gate_q24", "up_q24"}
+    elif isinstance(component, CurlWaveletGatedMultiplyQ9):
+        benchmark = _WaveletGatedBenchmark(component, lanes, samples)
+        fields = {"gate_q18", "up_q18"}
     elif isinstance(component, SharedRescale):
         benchmark = _SharedRescaleBenchmark(component, lanes, samples)
         fields = {"values"}
@@ -196,6 +201,7 @@ class OperatorBenchmarkResources:
     public_profile_bytes_estimate: int | None = None
     evaluator_ciphertext_bytes: int | None = None
     evaluator_constant_label_bytes: int | None = None
+    key_payload_bytes_by_operation: tuple[tuple[str, int, int], ...] | None = None
 
     @property
     def combined_raw_key_payload_bytes(self) -> int:

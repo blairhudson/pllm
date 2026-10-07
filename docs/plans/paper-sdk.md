@@ -138,6 +138,21 @@ price oblivious routing, protected scores and all boundary owners before transpo
 the current substrate stays Rust-only.
 Details: `docs/research/mpcache-reference.md`.
 
+The next Curl slice is now the installed `CurlWaveletGatedMultiplyQ9` operator:
+private Haar lookup, protected compressed-index reduction, exact up/output
+rescaling and fresh Beaver multiplication. Exact interval-key helpers replace
+the paper's probabilistic truncation. Nine fresh processes check 2,889 outputs;
+levels 0/2/4 project 213.08/81.58/49.06 GB combined keys and 971.27 MB peer frames
+at historical 39+8 geometry. The four-level rescaling subtotal alone is 37.91 GB.
+A fresh twelve-prompt W8A8 Qwen cohort fits the fixed ranges but matches only
+10/7/8 prefill selections, 35/33/33 same-token decode selections and 10/5/4
+eight-token trajectories; no logits/KV are exact. Each native clear profile
+checks 130,043,904 independent integer outputs. SDK operator availability is
+implemented; fidelity, complete cost, protected float conversion, review and
+distributed role execution still gate decoder admission. Historical Q7 evidence
+is unchanged. Next compare LogRow's complete product/conversion costs before
+transport. Details: `docs/research/wavelet-gated-reference.md`.
+
 Each whole-model delivery ends with:
 
 1. A paper-to-method contract stating **full reproduction**, **scoped adaptation**

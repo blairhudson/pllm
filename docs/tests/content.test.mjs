@@ -391,6 +391,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/nonlinear/shared-rescale/', 'pllm/shared-rescale/v1', '/research/papers/fusefss/'],
     ['/sdk/components/nonlinear/compact-piecewise-activation/', 'pllm/compact-piecewise-activation-q7/v1', '/research/papers/compact/'],
     ['/sdk/components/nonlinear/curl-wavelet-encoded-table/', 'pllm/curl-wavelet-encoded-table-q7/v1', '/research/papers/curl/'],
+    ['/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/', 'pllm/curl-wavelet-gated-multiply-q9/v1', '/research/papers/curl/'],
     ['/sdk/components/schedulers/bounded-independent-elements/', 'pllm/bounded-independent-elements/v1', null],
     ['/sdk/components/schedulers/scalar/', 'pllm/scalar/v1', null],
     ['/sdk/components/schedulers/independent-lanes/', 'pllm/independent-lanes/v1', null],

@@ -21,6 +21,10 @@ and [LogRow fitted-table lookup](/sdk/components/protocols/logrow-reference/)
 benchmark one shared publicly calibrated Q7 profile, with different ownership
 and compression contracts. The [numeric fitter](/sdk/components/nonlinear/compact-q7-reference/)
 remains separately inspectable.
+[`CurlWaveletGatedMultiplyQ9`](/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/)
+adds a complete wider-range Haar gated block, including exact protected index
+reduction, up/output rescaling and fresh multiplication, under its own Q9 numeric
+identity. It has bounded operator execution and separate Qwen clear diagnostics.
 The masked-wire Q12 method has an experimental two-worker decoder binding;
 the bounded Q7 methods have operator execution only. Consult
 [current support](/sdk/reference/status/) and

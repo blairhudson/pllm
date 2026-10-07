@@ -22,6 +22,7 @@ mod retained_decoder;
 mod retained_kv;
 mod row_memo;
 mod shared_rescale;
+mod wavelet_gated;
 
 use pyo3::exceptions::{PyBufferError, PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -1704,6 +1705,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     masked_aggregate::register(module)?;
     masked_wire::register(module)?;
     activation_benchmarks::register(module)?;
+    wavelet_gated::register(module)?;
     shared_rescale::register(module)?;
     mask_stream::register(module)?;
     row_memo::register(module)?;

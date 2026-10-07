@@ -337,6 +337,23 @@ lanes burn material before the next issuance. These operator APIs do not yet
 bind whole-decoder execution or transport. Historical ciphertext-only evidence
 retains its original scope; see `docs/research/nonlinear-frontier.md`.
 
+The separate installed `pllm.nonlinear.CurlWaveletGatedMultiplyQ9` composes Haar
+lookup with protected index reduction, exact up/output rescaling and fresh Beaver
+multiplication. It admits 1–256 Q18 lanes with gate/up bounds ±48/±128 and Q9
+output, under a 64 MiB combined allocation estimate. Party-local material burns
+on completion, malformed frames, replay or cancellation. Its exact interval-key
+helpers replace Curl's probabilistic truncation. Nine fresh processes check 2,889
+protected outputs. At hypothetical Qwen 39+8 geometry, levels 0/2/4 require
+213.08/81.58/49.06 GB of combined keys and unchanged 971.27 MB peer frames;
+four-level exact rescaling alone costs 37.91 GB. A fresh twelve-prompt compiled
+W8A8 diagnostic fits the fixed ranges but matches only 10/7/8 prefill selections,
+35/33/33 same-token decode selections and 10/5/4 eight-token trajectories. No
+candidate logits/KV are exact. Each clear mapping matches 130,043,904 independent
+integer outputs. This bounded operator keeps negative results benchmarkable;
+complete cost, fidelity, protected float conversion, distributed issuance,
+independent review and compiler/transport binding remain decoder gates. Details:
+`docs/research/wavelet-gated-reference.md`.
+
 A further clear joint-output reference uses Q12/Q16 inputs, 512/2,048 public
 SiLU secants, explicit tails and one final rounding of the complete gated
 numerator. Checked i128 arithmetic and an independent segmented-integer oracle

@@ -35,6 +35,7 @@ pub mod row_memo;
 mod softmax;
 pub mod tensor;
 mod token_lookup;
+pub mod wavelet_gated_reference;
 pub use activation::{silu_quadratic_q7, silu_quadratic_q7_tensor};
 pub use attention::{
     attention_scale_q30, attention_scores_q20, attention_scores_window_q20, AttentionScoreQ20Error,

@@ -20,12 +20,12 @@
     },
     "curl": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.nonlinear.CurlWaveletEncodedTable", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/activations.py", "evidence": "docs/evidence/research-activation-operators-sdk.json"},
-      "scope": "Fig. 4 party-local shared lookup plus public Haar compression. Inputs are already truncated; no protected truncation, Biorthogonal protocol or decoder integration.",
-      "code": ["crates/pllm-garble/src/shared_lut_reference.rs", "crates/pllm-python/src/activation_benchmarks.rs", "python/pllm/metrics/activations.py"],
-      "configuration": "benchmarks/research/curl_reference.py",
-      "evidence": "docs/evidence/research-curl-reference.json",
-      "result": "512-row Q16 SiLU lookup reconstructs every encoded value. Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes, but add up to 0.12888 absolute error. Peer frames remain 136 bytes per lookup. A separate common Q7-profile screen matches 17/17 uncompressed versus 2/17 four-level outputs; its hypothetical 39+8 activation-only layout needs 1.40 GB material and 730.30 MB peer bodies before conversion/gated multiplication. No Qwen score. Follow-up: docs/research/nonlinear-frontier.md."
+      "sdk_benchmark": {"api": "pllm.nonlinear.CurlWaveletGatedMultiplyQ9", "coverage": "operator", "guide": "/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/", "configuration": "examples/benchmarks/wavelet_gated.py", "evidence": "docs/evidence/research-wavelet-gated-operators-sdk.json"},
+      "scope": "Fig. 4/6 party-local shared lookup and public Haar compression, now composed with exact protected index/up/output rescaling and fresh Beaver multiplication in a bounded Q18-to-Q9 operator. Exact universal-interval helpers replace Curl's probabilistic truncation. No protected float conversion, Biorthogonal protocol, distributed issuance or decoder transport.",
+      "code": ["crates/pllm-core/src/wavelet_gated_reference.rs", "crates/pllm-garble/src/wavelet_gated_reference.rs", "crates/pllm-garble/src/shared_lut_reference.rs", "crates/pllm-python/src/wavelet_gated.rs", "python/pllm/metrics/wavelet_gated.py"],
+      "configuration": "benchmarks/research/wavelet_gated.py",
+      "evidence": "docs/evidence/research-wavelet-gated-quality-qwen25.json",
+      "result": "Nine fresh operator processes check 2,889 protected outputs. At hypothetical 39+8 Qwen geometry, levels 0/2/4 need 213.08/81.58/49.06 GB combined keys and unchanged 971.27 MB peer frames. The four-level exact-rescaling subtotal is 37.91 GB. Twelve fresh public Qwen prompts have no range violations; levels 0/2/4 match 10/7/8 of 12 prefill selections, 35/33/33 of 36 same-token decode selections and 10/5/4 of 12 eight-token trajectories. No logits/KV are exact. Each clear candidate checks 130,043,904 integer outputs. Fidelity and complete-cost gates fail. Historical Q7/Q16 activation-only evidence stays separate; details: docs/research/wavelet-gated-reference.md."
     },
     "compact": {
       "status": "Component reference",
