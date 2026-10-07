@@ -107,6 +107,13 @@ measurements retain their original source hashes.
 
 ## Remaining decoder boundary
 
+The later explicit `backend="mixed"` selection is documented in
+`docs/research/shared-selection-reference.md`. It preserves this numeric and
+disclosure contract, uses garbled decisions plus arithmetic complete-record
+movement, and separately admits a 39×896 synthetic invocation. Fresh matched
+small controls include its negative keep-all/empty results. The default
+half-gates costs and failed full-width admission above retain their original scope.
+
 Qwen uses causal rotary/GQA attention and response-owned persistent KV. Pruning
 the current token array alone cannot define original positions, logits ownership,
 or which cached rows survive into later decode. CipherPrune additionally trains
@@ -114,7 +121,7 @@ its model/thresholds offline. No such source-locked trained Qwen candidate or
 selected-polynomial implementation exists here. A held-out quality number would
 therefore measure an invented incomplete decoder, so quality remains unknown.
 
-Full-width resource admission, trained source/numeric identity, causal-state
+Complete cost admission, trained source/numeric identity, causal-state
 mapping, protected conversion, distributed input encoding and complete transport
 costs must precede an Experiment. This slice establishes bounded operator
 correctness and negative full-layout costs, not paper-system performance or

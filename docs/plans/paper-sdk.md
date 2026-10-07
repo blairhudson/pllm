@@ -64,8 +64,15 @@ lists those symbols and their next gates.
    234.32 MB online plus 409.73 MB conversion keys and setup. Tied-head ownership
    releases zero weights. Full-width noise, distributed setup and transport remain
    open; see `docs/research/packed-embedding-reference.md`.
-3. **MPCache / CipherPrune — current implementation target.** Screen cheaper private selection with complete-record
-   movement, fixed public schedules and full-width material admission.
+3. **MPCache / CipherPrune — implemented bounded mixed selector.** Garbled
+   predicates and fresh arithmetic complete-record moves check 171,303 outputs
+   across 33 fresh processes. Partial pruning improves its matched small control;
+   empty/keep-all cases regress. Full 256-row/128-feature K/V selection fits a
+   15.45 MB live-allocation estimate, but needs 295.26 MB keys, 78.59 MB peer frames
+   and 19,200 serial rounds to retire 131,584 clear-state bytes. Protected scoring,
+   authoritative owner binding and provider transport remain open. CipherPrune's
+   mixed backend has ordinary SDK/replay; top-k is an internal measurement binding.
+   Details: `docs/research/shared-selection-reference.md`.
 4. **Encrypted linear foundation / MOAI.** Implement bounded packed encrypted
    operators with explicit key ownership and reusable layouts. MOAI attribution
    requires acquiring and reviewing its full source; the OpenReview browser

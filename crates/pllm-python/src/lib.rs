@@ -28,6 +28,7 @@ mod retained_kv;
 mod row_memo;
 mod secret_replication;
 mod shared_rescale;
+mod shared_selection;
 mod token_pruning;
 mod wavelet_gated;
 
@@ -1718,6 +1719,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     secret_replication::register(module)?;
     packed_embedding::register(module)?;
     token_pruning::register(module)?;
+    shared_selection::register(module)?;
     coded_delegation::register(module)?;
     compact_product::register(module)?;
     shared_rescale::register(module)?;

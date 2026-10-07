@@ -284,6 +284,14 @@ SDK policy is unchanged, and no provider-state transport is activated.
 
 ## Fresh pinned-checkpoint allocation and quality
 
+The later mixed arithmetic selector in `docs/research/shared-selection-reference.md`
+passes complete 256-row/128-feature K/V geometry under a 15.45 MB live-allocation
+estimate. Its stable top-k result preserves every selected position and word,
+but costs 295.26 MB of both-party keys, 78.59 MB peer frames and 19,200 serial
+peer rounds to retire 131,584 bytes of clear state. Protected scoring and live
+owner/revision binding remain absent. This is a separate in-process measurement
+binding, not provider-held MPCache or an update to the historical layouts above.
+
 `docs/evidence/research-retained-decoder-qwen25.json` records four fresh-process
 candidates over twelve new fixed public rainfall-log prompts, 203–209 input
 tokens and four output positions (one prefill, three teacher-forced decode).

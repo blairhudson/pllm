@@ -647,6 +647,22 @@ and 128 features, half retention projects 1.77/8.71 GB per layer for full/compac
 layouts, before public metadata. All complete-state Qwen shapes reject before
 issuance, so no provider transport is activated. Details:
 `docs/research/mpcache-reference.md`.
+The later mixed-mode selector replaces complete-record Boolean multiplexers with
+fresh ring32 Beaver products; one-shot garbled predicates retain explicit
+random-OT conversion costs. Thirty-three fresh processes check 171,303 complete
+output words. Top-k admits 256 rows of 128-feature K/V plus absolute positions
+under a 15.45 MB live-allocation estimate, but needs 295.26 MB of both-party keys,
+78.59 MB peer frames and 19,200 serial rounds to retire 131,584 clear-state bytes.
+Protected scoring, live owner/revision binding and provider transport remain
+absent. The same substrate exposes `CipherPruneTokenPruning(backend="mixed")`
+through ordinary operator benchmarks and replay. Partial pruning improves the
+matched small half-gates control; empty and keep-all cases regress. Count and
+degree disclosure remain explicit, and every possible count is preflighted
+under 64 MiB live allocation, 512 MiB cumulative material and bounded product
+work. Complete 39×896 synthetic pruning executes with 13.09 MB keys and 8.39 MB
+peer frames; 150-row worst-case admission rejects. These are independent bounded
+operator results, not decoder memory savings or reviewed role transport.
+Details: `docs/research/shared-selection-reference.md`.
 The separate common-profile Compact/LogRow/Curl
 screen counts activation-only material and missing conversions explicitly;
 four-level Curl still projects 1.40 GB material and 730.30 MB peer bodies at

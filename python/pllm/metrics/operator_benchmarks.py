@@ -66,6 +66,8 @@ def _sdk_digest(runner: str) -> str:
                     ("pllm.runtime", "coefficient_repacking.py"))
     if runner == "token_pruning.py":
         sources += (("pllm.passes", "__init__.py"),)
+    if runner == "shared_selection.py":
+        sources += (("pllm.passes", "__init__.py"), ("pllm.metrics", "token_pruning.py"))
     for package, name in sources:
         contents = files(package).joinpath(name).read_bytes()
         digest.update(f"{package}/{name}".encode() + b"\0")

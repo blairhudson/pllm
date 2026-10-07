@@ -31,6 +31,7 @@ pub mod shared_gated_block_reference;
 pub mod shared_lut_reference;
 pub mod shared_piecewise_gated_reference;
 pub mod shared_rescale_reference;
+pub mod shared_selection;
 pub mod shared_wide_product;
 pub mod token_pruning;
 pub mod wavelet_gated_reference;

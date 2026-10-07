@@ -38,8 +38,9 @@ is available for this component; those paths reject its unsupported transformati
 | --- | --- |
 | `threshold_q16` | Integer in `[0, 65535]`; strict `score > threshold` |
 | `reduction_threshold_q16` | Integer in `(threshold_q16, 65536]`; strict high-degree comparison |
+| `backend` | `"half_gates"` (default) or `"mixed"`; same numeric/disclosure contract, separately identified execution |
 | `geometry` | Benchmark-only mapping with exactly `tokens` (1–256) and `heads` (1–32) |
-| `lanes` | Benchmark-only complete 32-bit feature words per token (1–256) |
+| `lanes` | Benchmark-only complete 32-bit feature words per token; 1–256 for half-gates, 1–8192 for mixed, subject to aggregate admission |
 | `samples` | 1–16 fresh independent invocations |
 
 Custom `inputs` contains `attention_q16` and `words`. Attention has
@@ -71,6 +72,16 @@ bit avoids overwriting a signed token word. Empty output skips compaction; retai
 all tokens preserves the original shares and skips compaction and degree selection,
 matching the selected source branch.
 
+`method.with_params(backend="mixed")` selects one-shot garbled decisions with
+dealer-aided random-OT input encoding, followed by fresh arithmetic Beaver
+products for every complete-record move. Each primitive party holds only its own
+shares; the issuer receives no party input. The benchmark harness still owns the
+original inputs and trusted in-process setup. Its exact attention-column sums
+are computed client-locally before sharing. Distributed scoring, setup and role
+transport remain separate work. Every retained count is preflighted before any
+disclosure; the backend admits at most 8,388,608 products, 512 MiB of cumulative
+both-party keys and a 64 MiB live-allocation estimate.
+
 ## Costs and evidence
 
 Worst-case counts across every possible retained size must fit a **64 MiB combined
@@ -79,12 +90,17 @@ evaluator ciphertexts, constant labels, boundary estimates and public metadata
 separately. Local input-sharing, issuance and online timings remain separate.
 No inter-evaluator frames exist in this half-gates adaptation; that is not a
 zero-network claim. Process peak memory and physical wire are unknown.
+The mixed backend reports each direction and phase of its actual local peer
+frames, including OT conversions, record movement and count/degree disclosure.
+Keys retire serially, so cumulative material and live allocation are distinct.
 
 - [Fresh-process cost and disclosure screen](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-token-pruning-cost.json)
 - [Installed-wheel operator report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-token-pruning-sdk.json)
 - [Source contract and resource gates](https://github.com/blairhudson/pllm/blob/main/docs/research/token-pruning-reference.md)
+- [Mixed selection and complete-record costs](https://github.com/blairhudson/pllm/blob/main/docs/research/shared-selection-reference.md)
 
-Declared Qwen-shaped full-width layouts reject resource admission. Learned
+The default half-gates full-width layouts reject resource admission. The mixed
+backend separately admits bounded full-width synthetic records. Learned
 thresholds, selected-polynomial execution, protected float conversion, original
 causal positions/KV mapping and held-out model quality remain absent. Operator
 correctness is not a CipherPrune system reproduction or a decoder memory saving.

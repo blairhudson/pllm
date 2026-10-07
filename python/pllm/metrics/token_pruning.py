@@ -29,11 +29,28 @@ class _TokenPruningBenchmark(_OperatorBenchmark):
     heads: int = 1
 
     def __post_init__(self):
-        _OperatorBenchmark.__post_init__(self)
+        mixed = self.component.params.get("backend") == "mixed"
+        if mixed:
+            for name, maximum in (("lanes", 8192), ("samples", 16)):
+                value = getattr(self, name)
+                if type(value) is not int or not 1 <= value <= maximum:
+                    raise ConfigurationError(f"{name} must be an integer in [1, {maximum}]")
+        else:
+            _OperatorBenchmark.__post_init__(self)
         if (type(self.tokens) is not int or not 1 <= self.tokens <= 256
                 or type(self.heads) is not int or not 1 <= self.heads <= 32
                 or self.heads * self.tokens * self.tokens > 1 << 20):
             raise ConfigurationError("pruning geometry exceeds bounded attention dimensions")
+        if mixed:
+            from pllm import _native
+            params = self.component.get_params()
+            factor = self.heads * self.tokens
+            plan = {"rows": self.tokens, "words": self.lanes, "selection": {
+                "method": "threshold", "threshold": params["threshold_q16"] * factor,
+                "reduction": params["reduction_threshold_q16"] * factor,
+            }}
+            if not json.loads(_native.shared_selection_projection(json.dumps(plan), 0))["admitted"]:
+                raise ConfigurationError("mixed pruning exceeds worst-count native allocation/material/work admission")
 
     def to_dict(self):
         result = _OperatorBenchmark.to_dict(self)
@@ -64,7 +81,10 @@ class _TokenPruningBenchmark(_OperatorBenchmark):
         selected = [i for i, score in enumerate(scores) if score > params["threshold_q16"] * factor]
         expected = [value for i in selected for value in words[i * self.lanes:(i + 1) * self.lanes]]
         degrees = ([scores[i] > params["reduction_threshold_q16"] * factor for i in selected]
-                   if len(selected) < self.tokens else [])
+                    if len(selected) < self.tokens else [])
+        if params["backend"] == "mixed":
+            from .shared_selection import run_pruning
+            return run_pruning(self, scores, words, source, expected, degrees, len(selected), sizes)
         packed = [struct.pack(f"<{len(v)}I", *v) for v in (attention_q16, words)]
         samples, resources = [], None
         for _ in range(self.samples):
@@ -89,7 +109,8 @@ class _TokenPruningBenchmark(_OperatorBenchmark):
         assert resources is not None
         phases = resources["phases"]
         keys = tuple(sum(p[name] for p in phases) for name in ("issuer_key_bytes", "evaluator_material_bytes"))
-        numeric = {"schema": "pllm.numeric.token_pruning.q16.v1", "parameters": params,
+        numeric = {"schema": "pllm.numeric.token_pruning.q16.v1", "parameters": {
+                       k: v for k, v in params.items() if k != "backend"},
                    "score": "exact nonnegative Q16 column-sum numerator", "comparison": "strict greater",
                    "records": "stable opaque 32-bit words", "degree_selection": "only after pruning"}
         digest = hashlib.sha256(json.dumps(numeric, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
