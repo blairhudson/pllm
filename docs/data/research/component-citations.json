@@ -1,6 +1,17 @@
 {
   "citations": [
     {
+      "paper_id": "pcf-secret-replication",
+      "summary": "Bounded two-party line correlations, GGM punctured keys and a full-field scalar/vector consumer. Reports distinguish dealer issuance, worker expansion, raw keys and expanded storage. Restricted-domain opening counterexamples and ring32/elementwise incompatibility remain explicit; distributed setup and decoder execution are absent.",
+      "components": [
+        {
+          "title": "Secret-replication PCF",
+          "href": "/sdk/components/correlation/secret-replication-pcf/",
+          "source": "content/docs/sdk/components/correlation/secret-replication-pcf.mdx"
+        }
+      ]
+    },
+    {
       "paper_id": "R01",
       "summary": "PLLM's bounded arithmetic-garbling references adapt mixed-modulus labels and projection-gate ideas under separate one-use and plan-binding contracts.",
       "components": [

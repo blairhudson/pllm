@@ -356,6 +356,26 @@ this fixed-profile CPU adaptation has separate
 It has no tensor schedule or role transport. Zero evaluator-peer frames excludes
 material delivery, and float conversion remains at the trusted client.
 
+## Secret Replication scalar/vector correlations
+
+```python
+from pllm.correlation import SecretReplicationPcf
+from pllm.metrics import benchmark_operator
+
+report = benchmark_operator(SecretReplicationPcf(), lanes=64, samples=3)
+assert report.quality.exact_integer_outputs == 192
+assert report.resources.expanded_correlation_bytes_per_party == (516, 516)
+```
+
+The [correlation component](/sdk/components/correlation/secret-replication-pcf/)
+consumes one full-field scalar against a vector. Expanded and punctured encodings
+share that numeric contract. Reports separate dealer issuance, worker expansion,
+online openings, both-party raw keys and expanded storage. Restricted scalar
+masks, independent elementwise inputs and ring32 substitutions are rejected by
+this contract. Its [complete evidence](https://github.com/blairhudson/pllm/blob/main/docs/research/secret-replication-reference.md)
+includes exact opening-leakage counterexamples. It has a local dealer and no
+compiler-bound decoder consumer or authenticated role transport.
+
 ## Paper coverage
 
 - [SIGMA](/research/papers/sigma/): public-gap floor shifts, residual SiLU and
@@ -374,6 +394,8 @@ material delivery, and float conversion remains at the trusted client.
   a separate complete Q9 gated adaptation adds exact protected rescaling and multiplication.
 - [LogRow](/research/papers/logrow/): masked-index table lookup with the earlier
   two-row one-hot setup and complete masked-table payload.
+- [Secret Replication](/research/papers/pcf-secret-replication/): two-party line
+  correlations, punctured GGM keys and a bounded full-field scalar/vector consumer.
 
 This is a component reference exposed through the SDK. The original GPU systems,
 FuseFSS's general fusion compiler, protected float conversions and independent

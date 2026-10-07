@@ -234,10 +234,11 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
-  assert.equal(citations.size, 17);
+  assert.equal(citations.size, 18);
   assert.ok(citations.has('R05') && citations.has('R08') && citations.has('R24'));
   assert.ok(citations.has('sigma') && citations.has('grotto') && citations.has('pika'));
   assert.ok(citations.has('R14') && citations.has('fss-mixed'));
+  assert.ok(citations.has('pcf-secret-replication'));
   const roadmap = byRoute.get('/sdk/components/research-method-roadmap/')?.content;
   assert.ok(roadmap);
   for (const method of planned) {
@@ -380,6 +381,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/preparation/bfv-correlations/', 'pllm/bfv-correlations/v1', null],
     ['/sdk/components/preparation/he-authenticated-preprocessing/', 'pllm/he-authenticated-preprocessing', null],
     ['/sdk/components/correlation/seeded-expansion/', 'pllm/seeded-expansion', null],
+    ['/sdk/components/correlation/secret-replication-pcf/', 'pllm/secret-replication-pcf/v1', '/research/papers/pcf-secret-replication/'],
     ['/sdk/components/quantization/symmetric-per-row/', 'pllm/symmetric-per-row-quantization/v1', null],
     ['/sdk/components/quantization/public-per-channel-equalized/', 'pllm/public-per-channel-equalized/v1', null],
     ['/sdk/components/kernels/cpu/', 'pllm/cpu', null],

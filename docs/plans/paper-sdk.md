@@ -175,9 +175,19 @@ client encodings. Polynomial arithmetic dominates. These are negative costs of
 the Boolean adaptation, not Compact's paper system. Details:
 `docs/research/compact-product-reference.md`.
 
-Next approved sequence: evaluate Secret Replication PCFs with a compatible
-consuming protocol; test
-FastQuery embedding ownership including a tied output head; screen CipherPrune
+Secret Replication now has the installed `SecretReplicationPcf` scalar/vector
+operator: two independent line-PCF directions, expanded/punctured keys and a
+one-use full-field consumer. Eighteen fresh processes check 5,778 exact outputs.
+At field 257 and 64 lanes, combined keys fall 16,424 to 328 bytes while expanded
+correlations remain 1,032 bytes and peer frames 676 bytes. Expansion still needs
+65,664 combined field-output PRFs; compact keys do not remove that work.
+Restricted-domain masks fail exact arbitrary-input privacy checks, and one shared
+scalar mask leaks differences if reused for independent elementwise inputs.
+The local dealer and prime-field consumer therefore do not replace ring32 triples
+or FSS keys. Full-width expansion, distributed setup and a compatible decoder
+consumer remain open. Details: `docs/research/secret-replication-reference.md`.
+
+Next approved sequence: test FastQuery embedding ownership including a tied output head; screen CipherPrune
 quality and observable execution shape; then revisit Maverick's actual field,
 code-distance assumptions and preprocessing storage. Each slice retains paper
 deviations, complete costs and explicit unsupported decoder coverage.

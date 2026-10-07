@@ -751,6 +751,21 @@ The 24-bit source range, Qwen numeric parity, protected output truncation,
 whole-layer schedule, distributed dealer and independent role transport are
 unimplemented. These test-local references do not activate an Experiment.
 
+The installed `pllm.correlation.SecretReplicationPcf` separately benchmarks
+two-party line correlations and punctured GGM keys through a one-use full-field
+scalar/vector consumer. Fields 2/17/257, 1–256 SDK lanes and a native 16 MiB
+combined allocation estimate bound the local dealer and party states. Eighteen
+fresh processes check 5,778 exact outputs. At field 257 and 64 lanes, combined
+raw keys fall from 16,424 to 328 bytes, while expanded correlations remain 1,032
+bytes and peer frames 676 bytes. Reports separate dealer issuance, worker
+expansion, online exchange and client-boundary estimates. Full-field expansion
+still performs 65,664 combined field-output PRFs; near-32-bit symbolic counts
+exceed one trillion and are not executed. Exact restricted-domain and mask-reuse
+counterexamples prevent treating this as ring32 elementwise triples or FSS-key
+compression. Distributed setup, reviewed transport, measured peak memory and a
+compiler-bound decoder consumer remain absent. Details:
+`docs/research/secret-replication-reference.md`.
+
 The separate `pllm.metrics.ProjectedPolynomialCostProbe` combines mask-derived
 linear coefficients, offline projection of constant coefficients and seeded
 one-party correlation shares for a modular quadratic-gated MLP numerator.

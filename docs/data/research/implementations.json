@@ -1,6 +1,15 @@
 {
   "schema": "pllm.paper_implementations.v1",
   "papers": {
+    "pcf-secret-replication": {
+      "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.correlation.SecretReplicationPcf", "coverage": "operator", "guide": "/sdk/components/correlation/secret-replication-pcf/", "configuration": "examples/benchmarks/secret_replication.py", "evidence": "docs/evidence/research-secret-replication-sdk.json"},
+      "scope": "Sections 4.1–4.2 two-party line PCF/SVMT with Remark 25 GGM puncturing and a full-field scalar/vector consumer. Local AES/dealer adaptation; restricted domains reject generic openings. No ring32 elementwise/FSS substitution, distributed setup or decoder execution.",
+      "code": ["crates/pllm-garble/src/secret_replication.rs", "crates/pllm-python/src/secret_replication.rs", "python/pllm/correlation/__init__.py", "python/pllm/metrics/secret_replication.py"],
+      "configuration": "benchmarks/research/secret_replication.py",
+      "evidence": "docs/evidence/research-secret-replication-cost.json",
+      "result": "Eighteen fresh processes check 5,778 exact modular outputs. At field 257 and 64 lanes, punctured keys reduce both-party raw material from 16,424 to 328 bytes; expanded correlations stay 1,032 bytes and peer frames 676 bytes. Worker expansion remains 65,664 combined field-output PRF evaluations. Exact restricted-mask and elementwise-reuse counterexamples prevent a generic nonlinear substitution. Symbolic full-field expansion at a near-32-bit prime exceeds one trillion PRF evaluations for 64 lanes and is not admitted. Peak memory, physical wire and Qwen costs are unknown. Details: docs/research/secret-replication-reference.md."
+    },
     "slalom": {
       "status": "SDK adaptation",
       "scope": "Prepared masked linear and one-use trusted-client Freivalds verification. No enclave or attestation reproduction.",

@@ -54,6 +54,8 @@ def _sdk_digest(runner: str) -> str:
         sources += (("pllm.protocols", "__init__.py"), ("pllm.components", "_q7_activation.py"))
     if runner in ("logrow_product.py", "compact_product.py"):
         sources += (("pllm.metrics", "wavelet_gated.py"), ("pllm.metrics", "activations.py"))
+    if runner == "secret_replication.py":
+        sources += (("pllm.correlation", "__init__.py"),)
     for package, name in sources:
         contents = files(package).joinpath(name).read_bytes()
         digest.update(f"{package}/{name}".encode() + b"\0")
@@ -69,16 +71,18 @@ def benchmark_operator(
     samples: int = 3,
     inputs: Mapping[str, Sequence[int]] | None = None,
 ) -> OperatorBenchmarkReport:
-    """Measure a supported nonlinear component with fresh one-use material.
+    """Measure a supported operator component with fresh one-use material.
 
     Method parameters belong to the component; lanes and samples describe this
     benchmark. Omit inputs for public boundary fixtures, or supply ``gate_q24``
     and ``up_q24`` for masked-wire multiplication, ``values`` for rescaling,
     ``gate_q18`` and ``up_q18`` for complete Haar, LogRow or Compact gated blocks, or
     ``values_q7`` for the bounded Compact, Curl and LogRow activations.
+    PCF scalar/vector multiplication accepts ``scalar`` (one value) and ``vector``.
     Input values and their fingerprints are never stored in the report.
     """
     from pllm.components import create_component
+    from pllm.correlation import SecretReplicationPcf
     from pllm.nonlinear import (
         CompactPiecewiseActivation, CompactGatedMultiplyQ12, CurlWaveletEncodedTable, CurlWaveletGatedMultiplyQ9,
         LogRowGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, SharedRescale,
@@ -90,11 +94,15 @@ def benchmark_operator(
     from .wavelet_gated import _WaveletGatedBenchmark
     from .logrow_product import _LogRowProductBenchmark
     from .compact_product import _CompactProductBenchmark
+    from .secret_replication import _SecretReplicationBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
     component = create_component(component.component, component.params)
-    if isinstance(component, MaskedWireGatedMultiplyQ12):
+    if isinstance(component, SecretReplicationPcf):
+        benchmark = _SecretReplicationBenchmark(component, lanes, samples)
+        fields = {"scalar", "vector"}
+    elif isinstance(component, MaskedWireGatedMultiplyQ12):
         if component.get_params()["dispatch"] != "serial":
             raise ConfigurationError("overlap dispatch requires a compiled two-worker benchmark")
         benchmark = _MaskedWireBenchmark(component, lanes, samples)
@@ -191,6 +199,7 @@ class OperatorBenchmarkSample:
     native_call_process_cpu_seconds: float
     peer_frame_bytes_by_phase: tuple[tuple[int, int], ...]
     public_setup_seconds: float = 0.0
+    correlation_expansion_seconds: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,6 +221,8 @@ class OperatorBenchmarkResources:
     evaluator_ciphertext_bytes: int | None = None
     evaluator_constant_label_bytes: int | None = None
     key_payload_bytes_by_operation: tuple[tuple[str, int, int], ...] | None = None
+    expanded_correlation_bytes_per_party: tuple[int, int] | None = None
+    prf_field_evaluations_per_party: tuple[int, int] | None = None
 
     @property
     def combined_raw_key_payload_bytes(self) -> int:

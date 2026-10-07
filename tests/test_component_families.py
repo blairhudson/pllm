@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator
 import pllm
 import pllm.components as components
 import pllm.configuration as configuration
-from pllm.correlation import CorrelationSource, SeededExpansion
+from pllm.correlation import CorrelationSource, SecretReplicationPcf, SeededExpansion
 from pllm.kernels import AppleMetal, Cpu, KernelBackend
 from pllm.metrics import (
     Accuracy,
@@ -132,6 +132,7 @@ def _instances():
         ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64),
         ScalarProtectedTensorSchedule(),
         SeededExpansion(),
+        SecretReplicationPcf(),
         SecureLinear(),
         SharedRescale(),
         SymmetricPerRow(),

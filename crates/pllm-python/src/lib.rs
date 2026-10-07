@@ -23,6 +23,7 @@ mod public_transforms;
 mod retained_decoder;
 mod retained_kv;
 mod row_memo;
+mod secret_replication;
 mod shared_rescale;
 mod wavelet_gated;
 
@@ -1709,6 +1710,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     activation_benchmarks::register(module)?;
     wavelet_gated::register(module)?;
     logrow_product::register(module)?;
+    secret_replication::register(module)?;
     compact_product::register(module)?;
     shared_rescale::register(module)?;
     mask_stream::register(module)?;

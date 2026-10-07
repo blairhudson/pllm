@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 @lru_cache(maxsize=1)
 def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     """Delay family imports so each family can expose planned component symbols."""
-    from pllm.correlation import SeededExpansion
+    from pllm.correlation import SecretReplicationPcf, SeededExpansion
     from pllm.kernels import AppleMetal, Cpu
     from pllm.metrics import (
         Accuracy,
@@ -141,6 +141,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         ReferenceAgreement,
         ScalarProtectedTensorSchedule,
         SeededExpansion,
+        SecretReplicationPcf,
         SecureLinear,
         SharedRescale,
         SymmetricPerRow,
