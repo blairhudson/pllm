@@ -234,11 +234,12 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
-  assert.equal(citations.size, 18);
+  assert.equal(citations.size, 19);
   assert.ok(citations.has('R05') && citations.has('R08') && citations.has('R24'));
   assert.ok(citations.has('sigma') && citations.has('grotto') && citations.has('pika'));
   assert.ok(citations.has('R14') && citations.has('fss-mixed'));
   assert.ok(citations.has('pcf-secret-replication'));
+  assert.ok(citations.has('fastquery'));
   const roadmap = byRoute.get('/sdk/components/research-method-roadmap/')?.content;
   assert.ok(roadmap);
   for (const method of planned) {
@@ -376,6 +377,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/protocols/two-online-offset-linear/', 'pllm/two-online-offset-linear/v1', null],
     ['/sdk/components/protocols/client-bundle-transport/', 'pllm/client-bundle-transport/v1', null],
     ['/sdk/components/protocols/logrow-reference/', 'pllm/logrow-garbled-lookup-q7/v1', '/research/papers/logrow/'],
+    ['/sdk/components/protocols/private-embedding-lookup/', 'pllm/private-embedding-lookup/v1', '/research/papers/fastquery/'],
     ['/sdk/components/preparation/model-aware-corrections/', 'pllm/model-aware-corrections', null],
     ['/sdk/components/preparation/inventory-policy/', 'pllm/prepared-inventory-policy/v1', null],
     ['/sdk/components/preparation/bfv-correlations/', 'pllm/bfv-correlations/v1', null],

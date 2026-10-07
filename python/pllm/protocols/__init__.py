@@ -13,7 +13,7 @@ from pllm.components._planned import (
     planned as pending,
 )
 from pllm.protocols.base import ProtocolMethod
-from pllm.configuration import ComponentDescriptor
+from pllm.configuration import ComponentDescriptor, ConfigurationError
 from pllm.components._q7_activation import parameter_schema as _q7_schema, parameters as _q7_parameters
 from pllm.protocols.bundle_transport import ClientBundleTransport
 from pllm.protocols.masked_linear import MaskedLinear
@@ -238,9 +238,41 @@ class BoltHybridTransformer(PendingMethod):
     pass
 
 
-@pending("fastquery")
-class PrivateEmbeddingLookup(PendingMethod):
-    pass
+class PrivateEmbeddingLookup(ProtocolMethod):
+    """Bounded BFV coefficient lookup and protected packed-share conversion.
+
+    Benchmarks caller-owned signed integer tables. FastQuery's PackLWEs and
+    SiRNN's distributed conversion are not implemented by this local reference.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/private-embedding-lookup/v1", provider="pllm",
+        distribution="pllm.run", version="1", category="pllm/protocol",
+        category_version="1", lifecycle_phase="runtime",
+        parameter_schema={"type": "object", "additionalProperties": False,
+            "properties": {"vocabulary_size": {"type": "integer", "minimum": 1, "maximum": 4096},
+                "precision": {"enum": ["int8", "int4", "mixed_4_3_3"]}},
+            "required": ["vocabulary_size", "precision"]},
+        capabilities=("private-packed-embedding-reference", "bounded-operator-benchmark"),
+        required_host_features=("native-core", "seal-bfv", "local-garbler"),
+        role_eligibility=("client", "inference"),
+    )
+
+    def __init__(self, *, vocabulary_size: int = 64,
+                 precision: Literal["int8", "int4", "mixed_4_3_3"] = "mixed_4_3_3") -> None:
+        if type(vocabulary_size) is not int or not 1 <= vocabulary_size <= 4096:
+            raise ConfigurationError("embedding vocabulary_size must be an integer in [1, 4096]")
+        if precision not in ("int8", "int4", "mixed_4_3_3"):
+            raise ConfigurationError("unsupported embedding coefficient precision")
+        super().__init__(self.descriptor.component, {"vocabulary_size": vocabulary_size, "precision": precision})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return self.to_spec()["params"]
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
 
 
 class LogRowGarbledLookup(ProtocolMethod):

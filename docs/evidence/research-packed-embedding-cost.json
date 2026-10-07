@@ -1,0 +1,1538 @@
+{
+  "checked_outputs": 1215,
+  "decoder_executable": false,
+  "fresh_processes": 9,
+  "full_wire_bytes": null,
+  "projections": [
+    {
+      "conversion_boundary_label_bytes_estimate": 90316800,
+      "conversion_key_bytes_by_party": [
+        180633600,
+        182640640
+      ],
+      "encrypted_query_polynomials_per_row": 38,
+      "full_wire_bytes": null,
+      "he_query_reply_frame_bytes": 4552540160,
+      "hidden_width": 896,
+      "lookup_rows": 70,
+      "native_admitted": false,
+      "pack_lwes": false,
+      "provider_packed_coefficient_bytes": 278921216,
+      "provider_signed_code_bytes": 136134656,
+      "response_ciphertexts_per_row": 896,
+      "scope": "symbolic blockwise vocabulary sum with full ciphertext replies, 39+32 executed lookup rows; no HE-key reuse or whole-decoder claim",
+      "tied_head_released_client_weight_bytes": 0,
+      "vocabulary": 151936
+    },
+    {
+      "conversion_boundary_label_bytes_estimate": 77271040,
+      "conversion_key_bytes_by_party": [
+        154542080,
+        156047360
+      ],
+      "encrypted_query_polynomials_per_row": 38,
+      "full_wire_bytes": null,
+      "he_query_reply_frame_bytes": 2368880640,
+      "hidden_width": 896,
+      "lookup_rows": 70,
+      "native_admitted": false,
+      "pack_lwes": false,
+      "provider_packed_coefficient_bytes": 139460608,
+      "provider_signed_code_bytes": 136134656,
+      "response_ciphertexts_per_row": 448,
+      "scope": "symbolic blockwise vocabulary sum with full ciphertext replies, 39+32 executed lookup rows; no HE-key reuse or whole-decoder claim",
+      "tied_head_released_client_weight_bytes": 0,
+      "vocabulary": 151936
+    },
+    {
+      "conversion_boundary_label_bytes_estimate": 73003840,
+      "conversion_key_bytes_by_party": [
+        146007680,
+        147347200
+      ],
+      "encrypted_query_polynomials_per_row": 38,
+      "full_wire_bytes": null,
+      "he_query_reply_frame_bytes": 1642618880,
+      "hidden_width": 896,
+      "lookup_rows": 70,
+      "native_admitted": false,
+      "pack_lwes": false,
+      "provider_packed_coefficient_bytes": 93077504,
+      "provider_signed_code_bytes": 136134656,
+      "response_ciphertexts_per_row": 299,
+      "scope": "symbolic blockwise vocabulary sum with full ciphertext replies, 39+32 executed lookup rows; no HE-key reuse or whole-decoder claim",
+      "tied_head_released_client_weight_bytes": 0,
+      "vocabulary": 151936
+    }
+  ],
+  "reports": [
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "int8",
+            "vocabulary_size": 17
+          }
+        },
+        "lanes": 7,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "e9e1cae112a20505c0e6070f24902219b5e06b96cc16034c82b34d9b34a809ec",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.007113833040416241,
+      "median_online_seconds": 0.00496054248470068,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:c2abcb1264865059990fca46d170bfa8975461b72fc7672859f44729b9e85351",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 21,
+        "exact_integer_outputs": 21,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 10080,
+        "client_mask_payload_estimate_bytes": 8196,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            20160,
+            20384
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          69632
+        ],
+        "peer_payload_bits": 1114112,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 67371484,
+        "public_metadata_bytes_estimate": 38101,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          8311
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          423424,
+          724224
+        ],
+        "raw_key_payload_bytes_per_party": [
+          52928,
+          90528
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.6670674085617065e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.008045749095367432,
+          "native_call_process_cpu_seconds": 0.014206999999999997,
+          "online_seconds": 0.005155084366811275,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0005526253953576088
+        },
+        {
+          "clear_seconds": 1.6242265701293945e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.007113833040416241,
+          "native_call_process_cpu_seconds": 0.01232999999999998,
+          "online_seconds": 0.00496054248470068,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 1.1650845408439636e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.006913208814391136,
+          "native_call_process_cpu_seconds": 0.011959999999999998,
+          "online_seconds": 0.00480533256935215,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "int4",
+            "vocabulary_size": 17
+          }
+        },
+        "lanes": 7,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "3b0e40f47507717cc461db9cdae1a3453a932251356071a0418c78db85afba2a",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.007267164446749688,
+      "median_online_seconds": 0.004785501949152946,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:f682ba21db1b1470e79ca279ce9a574c5e5954a78d8b2977a2e67a48b331a4a3",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 21,
+        "exact_integer_outputs": 21,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 9856,
+        "client_mask_payload_estimate_bytes": 8200,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            19712,
+            19904
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          69632
+        ],
+        "peer_payload_bits": 1114112,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 67371484,
+        "public_metadata_bytes_estimate": 38032,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          8311
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          419840,
+          720384
+        ],
+        "raw_key_payload_bytes_per_party": [
+          52480,
+          90048
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.4165416359901428e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.008092165523997306,
+          "native_call_process_cpu_seconds": 0.01430300000000001,
+          "online_seconds": 0.005142668662735463,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0005349172279238701
+        },
+        {
+          "clear_seconds": 3.7495046854019165e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.007267164446749688,
+          "native_call_process_cpu_seconds": 0.012344999999999995,
+          "online_seconds": 0.004785501949152946,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 8.335337042808533e-07,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.006829625250458718,
+          "native_call_process_cpu_seconds": 0.011762999999999996,
+          "online_seconds": 0.004716624250948429,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "mixed_4_3_3",
+            "vocabulary_size": 17
+          }
+        },
+        "lanes": 7,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "28b26c958b536b34fb34f3c812ab58b0fe5fbc4c88e37ca09e218948927cacad",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.007590042288422584,
+      "median_online_seconds": 0.004954248805522919,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:67db8dcd01119c50358f894f290844deb88d0786199087eedaa91e192138cffa",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 21,
+        "exact_integer_outputs": 21,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 10464,
+        "client_mask_payload_estimate_bytes": 8204,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            20928,
+            21120
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          69632
+        ],
+        "peer_payload_bits": 1114112,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 67371484,
+        "public_metadata_bytes_estimate": 40719,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          8311
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          429568,
+          730112
+        ],
+        "raw_key_payload_bytes_per_party": [
+          53696,
+          91264
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.4156103134155273e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.008399123729935646,
+          "native_call_process_cpu_seconds": 0.014549000000000006,
+          "online_seconds": 0.005215541986950874,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0005246242508292198
+        },
+        {
+          "clear_seconds": 6.040558218955994e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.007590042288422584,
+          "native_call_process_cpu_seconds": 0.012917000000000012,
+          "online_seconds": 0.004954248805522919,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 1.0421499609947205e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.007179000881748677,
+          "native_call_process_cpu_seconds": 0.012263999999999997,
+          "online_seconds": 0.004788998978895663,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "int8",
+            "vocabulary_size": 256
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "d1922510d45e442e58bc23309b5ebd9b91e39dc9d3226b1c6b23f8d638daf85d",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.04053950114090108,
+      "median_online_seconds": 0.02484216993585682,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:a304a3bcd245577171f6c961d58839bb931e3e17994b1dcc451fef21b2c42833",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 92160,
+        "client_mask_payload_estimate_bytes": 8196,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            184320,
+            186368
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          278528
+        ],
+        "peer_payload_bits": 2785280,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 68222976,
+        "public_metadata_bytes_estimate": 348352,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          49152
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          1736704,
+          2052096
+        ],
+        "raw_key_payload_bytes_per_party": [
+          217088,
+          256512
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 2.333894371986389e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.04095382841080809,
+          "native_call_process_cpu_seconds": 0.06743099999999999,
+          "online_seconds": 0.025636838360126972,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              278528
+            ]
+          ],
+          "public_setup_seconds": 0.0011038333177566528
+        },
+        {
+          "clear_seconds": 4.416331648826599e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.040494163651908874,
+          "native_call_process_cpu_seconds": 0.06571800000000003,
+          "online_seconds": 0.02484216993585682,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              278528
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 2.125278115272522e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.04053950114090108,
+          "native_call_process_cpu_seconds": 0.06554900000000002,
+          "online_seconds": 0.024557790812960632,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              278528
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "int4",
+            "vocabulary_size": 256
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "ccff9e5f8b4636db59c286e55d12d521b0d2d304a64925d29389b1df1081485e",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.03478695772814322,
+      "median_online_seconds": 0.018618422849906918,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:aa15cd6adf74319262813592a8c95ad5e52115dff8ce18ef50a9fc8d569678bc",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 78848,
+        "client_mask_payload_estimate_bytes": 8200,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            157696,
+            159232
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          139264
+        ],
+        "peer_payload_bits": 1671168,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 67698688,
+        "public_metadata_bytes_estimate": 304256,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          32768
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          1523712,
+          1835008
+        ],
+        "raw_key_payload_bytes_per_party": [
+          190464,
+          229376
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 2.2081658244132996e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.03504420785480737,
+          "native_call_process_cpu_seconds": 0.05557000000000001,
+          "online_seconds": 0.019229334161937242,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ]
+          ],
+          "public_setup_seconds": 0.0008625006303191185
+        },
+        {
+          "clear_seconds": 3.917142748832703e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.03478695772814322,
+          "native_call_process_cpu_seconds": 0.053884000000000015,
+          "online_seconds": 0.018548542221610065,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 1.7499551177024841e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.034326452472375396,
+          "native_call_process_cpu_seconds": 0.05328699999999997,
+          "online_seconds": 0.018618422849906918,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "mixed_4_3_3",
+            "vocabulary_size": 256
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "4527120707461ffe0bcfa4a6ca0e44af0daa486c27eba7b803999072576cd83d",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.03380533095965194,
+      "median_online_seconds": 0.018026668833996777,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:ee38b713aba8a7ce13a6c1ebbf4ca888a464d54f120ec4a49517f4de59606350",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 76736,
+        "client_mask_payload_estimate_bytes": 8204,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            153472,
+            154880
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          139264
+        ],
+        "peer_payload_bits": 1671168,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 67698688,
+        "public_metadata_bytes_estimate": 298606,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          32768
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          1489920,
+          1800192
+        ],
+        "raw_key_payload_bytes_per_party": [
+          186240,
+          225024
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 2.08243727684021e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.034190957875669004,
+          "native_call_process_cpu_seconds": 0.054092,
+          "online_seconds": 0.018902042439460753,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ]
+          ],
+          "public_setup_seconds": 0.0007957499474287033
+        },
+        {
+          "clear_seconds": 4.667788743972778e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.03336274758682489,
+          "native_call_process_cpu_seconds": 0.05168699999999998,
+          "online_seconds": 0.018002127811751367,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 1.3336539268493652e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.03380533095965194,
+          "native_call_process_cpu_seconds": 0.05224099999999998,
+          "online_seconds": 0.018026668833996777,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "int8",
+            "vocabulary_size": 4096
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "96c8096552f0ad66464c68093d64fb7eed89b39ffe836621291e8dc6310b9e12",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.0409503758019252,
+      "median_online_seconds": 0.12939195688157842,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:b8bd50c57d0ffa7a4d3196e46964457777090696340a8452d3e08938e7534fb7",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 92160,
+        "client_mask_payload_estimate_bytes": 8196,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            184320,
+            186368
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          4456448
+        ],
+        "peer_payload_bits": 36208640,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 84934656,
+        "public_metadata_bytes_estimate": 348352,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          786432
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          1736704,
+          2052096
+        ],
+        "raw_key_payload_bytes_per_party": [
+          217088,
+          256512
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 6.707385182380676e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.041538874027124396,
+          "native_call_process_cpu_seconds": 0.17279099999999997,
+          "online_seconds": 0.13027983404249813,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              4456448
+            ]
+          ],
+          "public_setup_seconds": 0.010239708237349987
+        },
+        {
+          "clear_seconds": 7.916241884231567e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.0409503758019252,
+          "native_call_process_cpu_seconds": 0.17050099999999996,
+          "online_seconds": 0.12939195688157842,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              4456448
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 2.3748725652694702e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.04078570915043784,
+          "native_call_process_cpu_seconds": 0.169265,
+          "online_seconds": 0.12832679065286684,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              4456448
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "int4",
+            "vocabulary_size": 4096
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "395319f101724f0a96b058d9c1adeebfa250a35f6d3b90977d8cddbd4602e802",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.034813083197938445,
+      "median_online_seconds": 0.06986437509579754,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:57bf2397e9eae0ab14d914df213fa51463218cecf4f4d0e4833b807346b90f86",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 78848,
+        "client_mask_payload_estimate_bytes": 8200,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            157696,
+            159232
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          2228224
+        ],
+        "peer_payload_bits": 18382848,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 76546048,
+        "public_metadata_bytes_estimate": 304256,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          524288
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          1523712,
+          1835008
+        ],
+        "raw_key_payload_bytes_per_party": [
+          190464,
+          229376
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 3.458932042121887e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.03513241836287738,
+          "native_call_process_cpu_seconds": 0.10633300000000001,
+          "online_seconds": 0.07023049893371104,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              2228224
+            ]
+          ],
+          "public_setup_seconds": 0.0054297493770718575
+        },
+        {
+          "clear_seconds": 3.207474946975708e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.034813083197938445,
+          "native_call_process_cpu_seconds": 0.10492199999999996,
+          "online_seconds": 0.06986437509579754,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              2228224
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 1.8747523427009583e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.03463779366549873,
+          "native_call_process_cpu_seconds": 0.104323,
+          "online_seconds": 0.06939112325224256,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              2228224
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 4.1\u20134.2 one-hot coefficient and 13-bit mixed-width packing; full ciphertext replies and local half-gates conversion replace PackLWEs and SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "precision": "mixed_4_3_3",
+            "vocabulary_size": 4096
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "881059015e9f50c750b0117920b21c0d7cc423782eddb97414023d8850bb36fd",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "Bounded N=4096, plaintext modulus 8192, one 50-bit coefficient prime; SEAL TC128 admission",
+        "HE public context is transferred to a distinct context without the client secret key; all response coefficients have fresh uniform masks",
+        "Every sample creates a fresh HE key and serial one-use conversion circuits; no reusable secret handle escapes",
+        "Honest-client one-hot input assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Full padded SEAL ciphertext replies: FastQuery PackLWEs is absent, so paper communication claims do not transfer",
+        "Half-gates reconstruction/sign extension/re-sharing uses a local issuer, not SiRNN OT; it sees both input shares",
+        "Measured frames count only HE query/replies; conversion labels are boundary estimates, separate from material and public instruction metadata",
+        "HE material counts the raw secret polynomial and padded public key/parameters; SEAL native pool peaks remain unmeasured",
+        "Public table bytes count provider codes plus coefficients; actual provider string/pool storage and checkpoint distribution are separate",
+        "Caller supplies already-quantized codes; per-channel fitting, FastQuery fine-tuning and checkpoint quality are separate",
+        "Current Qwen tied client head retains the same full matrix; embedding-only relocation does not release it",
+        "No compiler-bound embedding placement, provider service, full-response memory saving or whole-decoder execution"
+      ],
+      "median_issuance_seconds": 0.033910957134178646,
+      "median_online_seconds": 0.05419062206742143,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "0fc478edb0ae042691c48f822704447fe7c1eeeb090ebdd033cafce9b8c8ff4b",
+      "numeric_contract_digest": "sha256:4f9ca42a610f495bde4c5db9772c64667328b21a9578e2748cb64ca9368ea9b6",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent exact Python row lookup; integer table is supplied already quantized",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 76736,
+        "client_mask_payload_estimate_bytes": 8204,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context",
+            32768,
+            70144
+          ],
+          [
+            "packed-share-conversion",
+            153472,
+            154880
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          69632,
+          1531904
+        ],
+        "peer_payload_bits": 12812288,
+        "peer_rounds": 1,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 73924608,
+        "public_metadata_bytes_estimate": 298606,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          442368
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          1489920,
+          1800192
+        ],
+        "raw_key_payload_bytes_per_party": [
+          186240,
+          225024
+        ],
+        "role_names": [
+          "trusted-client-and-local-issuer",
+          "provider-and-conversion-evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 4.45730984210968e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.03427375258657361,
+          "native_call_process_cpu_seconds": 0.08944100000000005,
+          "online_seconds": 0.05419062206742143,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              1531904
+            ]
+          ],
+          "public_setup_seconds": 0.003994499333202839
+        },
+        {
+          "clear_seconds": 4.834495484828949e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.033910957134178646,
+          "native_call_process_cpu_seconds": 0.092839,
+          "online_seconds": 0.05891866798807048,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              1531904
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        },
+        {
+          "clear_seconds": 2.2919848561286926e-06,
+          "correlation_expansion_seconds": 0.0,
+          "issuance_seconds": 0.03349625005490017,
+          "native_call_process_cpu_seconds": 0.086374,
+          "online_seconds": 0.05263258271747398,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              1531904
+            ]
+          ],
+          "public_setup_seconds": 0.0
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "307c9ebc1ec519accbd55d09b334bf58b530700156a2c64133a0761b3512deb4",
+      "whole_model_executable": false
+    }
+  ],
+  "schema": "pllm.packed_embedding_cost.v1",
+  "scope": "bounded local encrypted operators and separate unadmitted symbolic full-width layout",
+  "source_sha256": {
+    "benchmarks/research/packed_embedding.py": "cd8a6a16bbbb1421ae73addb4794552b182bd6d33577973a2fc9d77dd07d1034",
+    "crates/pllm-core/src/packed_embedding.rs": "1acf96c3233322eb0d5e98d89413cd632b76dda861486f68654eb4cf9d7bff79",
+    "crates/pllm-garble/src/packed_embedding.rs": "30b1fde365564f2df131c340efb738dfb39aaa0cade42b77ea83b40ac17de527",
+    "crates/pllm-python/src/packed_embedding.rs": "4a17df68b84a21dc827ea7fe898c9abd22290d57079c46e661b56dd5689bf2ea",
+    "python/pllm/metrics/packed_embedding.py": "df3e5d1b5510f4ca011a127bbe0af3c89160a702064919e4a4941e1a81350ccd",
+    "scripts/decoder_probe_support.py": "6b102bd674403a431e898ef1d6d411e74a663f063555e021ac56a1159a8a0d3e"
+  }
+}

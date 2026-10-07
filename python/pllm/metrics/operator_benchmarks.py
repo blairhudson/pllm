@@ -56,6 +56,8 @@ def _sdk_digest(runner: str) -> str:
         sources += (("pllm.metrics", "wavelet_gated.py"), ("pllm.metrics", "activations.py"))
     if runner == "secret_replication.py":
         sources += (("pllm.correlation", "__init__.py"),)
+    if runner == "packed_embedding.py":
+        sources += (("pllm.protocols", "__init__.py"),)
     for package, name in sources:
         contents = files(package).joinpath(name).read_bytes()
         digest.update(f"{package}/{name}".encode() + b"\0")
@@ -79,6 +81,8 @@ def benchmark_operator(
     ``gate_q18`` and ``up_q18`` for complete Haar, LogRow or Compact gated blocks, or
     ``values_q7`` for the bounded Compact, Curl and LogRow activations.
     PCF scalar/vector multiplication accepts ``scalar`` (one value) and ``vector``.
+    Private embedding lookup accepts row-major ``table`` and one-element ``token``;
+    ``lanes`` is the embedding width.
     Input values and their fingerprints are never stored in the report.
     """
     from pllm.components import create_component
@@ -87,7 +91,7 @@ def benchmark_operator(
         CompactPiecewiseActivation, CompactGatedMultiplyQ12, CurlWaveletEncodedTable, CurlWaveletGatedMultiplyQ9,
         LogRowGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, SharedRescale,
     )
-    from pllm.protocols import LogRowGarbledLookup
+    from pllm.protocols import LogRowGarbledLookup, PrivateEmbeddingLookup
     from .activations import _ActivationBenchmark
     from .masked_wire import _MaskedWireBenchmark
     from .shared_rescale import _SharedRescaleBenchmark
@@ -95,11 +99,15 @@ def benchmark_operator(
     from .logrow_product import _LogRowProductBenchmark
     from .compact_product import _CompactProductBenchmark
     from .secret_replication import _SecretReplicationBenchmark
+    from .packed_embedding import _PackedEmbeddingBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
     component = create_component(component.component, component.params)
-    if isinstance(component, SecretReplicationPcf):
+    if isinstance(component, PrivateEmbeddingLookup):
+        benchmark = _PackedEmbeddingBenchmark(component, lanes, samples)
+        fields = {"table", "token"}
+    elif isinstance(component, SecretReplicationPcf):
         benchmark = _SecretReplicationBenchmark(component, lanes, samples)
         fields = {"scalar", "vector"}
     elif isinstance(component, MaskedWireGatedMultiplyQ12):
@@ -223,6 +231,7 @@ class OperatorBenchmarkResources:
     key_payload_bytes_by_operation: tuple[tuple[str, int, int], ...] | None = None
     expanded_correlation_bytes_per_party: tuple[int, int] | None = None
     prf_field_evaluations_per_party: tuple[int, int] | None = None
+    public_table_bytes_by_party: tuple[int, int] | None = None
 
     @property
     def combined_raw_key_payload_bytes(self) -> int:

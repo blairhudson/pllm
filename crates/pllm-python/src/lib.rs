@@ -14,6 +14,7 @@ mod masked_aggregate;
 mod masked_wire;
 mod network;
 mod offset_transport;
+mod packed_embedding;
 mod paged;
 mod polynomial_shift;
 mod private_pages;
@@ -1711,6 +1712,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     wavelet_gated::register(module)?;
     logrow_product::register(module)?;
     secret_replication::register(module)?;
+    packed_embedding::register(module)?;
     compact_product::register(module)?;
     shared_rescale::register(module)?;
     mask_stream::register(module)?;

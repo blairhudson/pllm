@@ -55,6 +55,7 @@ from pllm.protocols import (
     LogRowGarbledLookup,
     MaskedLinear,
     ProtocolMethod,
+    PrivateEmbeddingLookup,
     SecureLinear,
     TwoOnlineOffsetLinear,
 )
@@ -126,6 +127,7 @@ def _instances():
         PreparedProviderRoles(),
         PreparedInventory(),
         Perplexity(dataset="fixture"),
+        PrivateEmbeddingLookup(),
         PublicPerChannelEqualized(profile_digest="a" * 64),
         PublicPrefixCapsule("public-prefix", digest="a" * 64, size_bytes=1024),
         R03CrtGatedMultiplyQ7(),

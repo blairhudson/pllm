@@ -22,6 +22,7 @@ pub mod logrow_numeric;
 pub mod mask_stream;
 pub mod masked_aggregate;
 pub mod offset_transport;
+pub mod packed_embedding;
 pub mod paged;
 pub mod piecewise_gated_reference;
 pub mod polynomial_softmax_reference;

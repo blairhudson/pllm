@@ -16,6 +16,7 @@ mod interval_fss;
 pub mod logrow;
 pub mod logrow_product;
 pub mod masked_wire_reference;
+pub mod packed_embedding;
 mod point_fss;
 pub mod private_pages;
 pub mod projected_polynomial;

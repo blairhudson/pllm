@@ -1353,6 +1353,23 @@ equalized bodies rank separately; profile publication and distribution remain
 outside response counters. All paper controls and the held-out numeric report
 are retained in the Research data with rerunnable, digest-checked Python files.
 
+The installed `pllm.protocols.PrivateEmbeddingLookup` separately benchmarks
+FastQuery-inspired one-hot BFV coefficient packing and signed packed-share
+conversion. Native bounded packing, uniform whole-polynomial masks and one-use
+half-gates conversion compose with separate client/provider SEAL contexts. Nine
+fresh processes check 1,215 exact integer outputs under a 128 MiB allocation
+estimate. Full ciphertext replies replace missing PackLWEs, and the local
+conversion issuer sees both shares rather than executing distributed SiRNN.
+The mixed 4/3/3 hypothetical Qwen 39+32 geometry needs 1.643 GB of HE frames and
+293.35 MB of conversion keys, before boundary labels, setup and remaining
+operators. A separate twelve-prompt public W8A8-source requantization screen
+checks 1,007,104 elements per profile; mixed 4/3/3 matches 10/12 prefill, 34/36
+same-token decode and 6/12 eight-token trajectories, without exact logits/KV.
+The tied client head retains the same 136.13 MB integer matrix, so embedding-only
+relocation releases zero weight bytes. These operator and clear numeric checks
+do not establish paper fine-tuning, full-width HE execution, provider transport
+or whole-client memory savings. Details: `docs/research/packed-embedding-reference.md`.
+
 Public model bundles also carry the quantized token-lookup and output-head
 matrices. The client evaluates token lookup locally and applies the output
 head only to the final prefill row. This removes vocabulary-sized HE work from

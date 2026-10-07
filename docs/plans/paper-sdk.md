@@ -187,8 +187,22 @@ The local dealer and prime-field consumer therefore do not replace ring32 triple
 or FSS keys. Full-width expansion, distributed setup and a compatible decoder
 consumer remain open. Details: `docs/research/secret-replication-reference.md`.
 
-Next approved sequence: test FastQuery embedding ownership including a tied output head; screen CipherPrune
-quality and observable execution shape; then revisit Maverick's actual field,
+FastQuery now has the installed `PrivateEmbeddingLookup` bounded operator:
+encrypted one-hot coefficient packing, fresh uniform full-polynomial masks and
+one-use signed packed-share conversion. Nine fresh processes check 1,215 exact
+outputs. Full ciphertext replies and local half-gates conversion replace the
+missing PackLWEs and distributed SiRNN components. The mixed 4/3/3 full-vocabulary
+39+32 projection still needs 1.643 GB of HE frames and 293.35 MB of conversion keys,
+before boundary labels, setup and the rest of the decoder. A separate public
+W8A8-source requantization diagnostic checks 1,007,104 elements per profile; mixed
+4/3/3 matches 10/12 prefill, 34/36 decode and 6/12 eight-token trajectories, with no
+exact logits/KV. Token lookup and the client head share 136.13 MB of integer
+weights, so embedding-only relocation releases zero matrix bytes. This establishes
+neither paper-system costs/quality nor full-response client-memory savings.
+Details: `docs/research/packed-embedding-reference.md`.
+
+Next approved sequence: screen CipherPrune quality and observable execution shape;
+then revisit Maverick's actual field,
 code-distance assumptions and preprocessing storage. Each slice retains paper
 deviations, complete costs and explicit unsupported decoder coverage.
 

@@ -81,6 +81,15 @@ custom-input replay requires supplying your inputs again.
 
 ## Read the costs
 
+The same API also benchmarks
+[`PrivateEmbeddingLookup`](/sdk/components/protocols/private-embedding-lookup/):
+`lanes` sets embedding width, while the component chooses vocabulary size and
+signed coefficient packing. It uses the optional `[he]` dependency, a separate
+128 MiB allocation-estimate ceiling and fresh BFV/conversion material per sample.
+Reports distinguish HE frames from local conversion keys/boundary labels and
+asymmetric provider table storage. FastQuery's PackLWEs, distributed conversion,
+decoder placement and client-memory savings remain unimplemented.
+
 `OperatorBenchmarkReport` retains immutable `OperatorBenchmarkResources`,
 `OperatorBenchmarkQuality`, `OperatorBenchmarkSample` and `OperatorCitation`
 records. JSON includes configuration, numeric-contract, native-source and SDK-source
