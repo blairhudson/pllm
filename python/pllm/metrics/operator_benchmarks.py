@@ -45,11 +45,14 @@ class _OperatorBenchmark:
 
 def _sdk_digest(runner: str) -> str:
     digest = hashlib.sha256()
-    for package, name in (
+    sources = (
         ("pllm.nonlinear", "__init__.py"),
         ("pllm.metrics", "operator_benchmarks.py"),
         ("pllm.metrics", runner),
-    ):
+    )
+    if runner == "activations.py":
+        sources += (("pllm.protocols", "__init__.py"), ("pllm.components", "_q7_activation.py"))
+    for package, name in sources:
         contents = files(package).joinpath(name).read_bytes()
         digest.update(f"{package}/{name}".encode() + b"\0")
         digest.update(len(contents).to_bytes(8, "little"))
@@ -68,11 +71,17 @@ def benchmark_operator(
 
     Method parameters belong to the component; lanes and samples describe this
     benchmark. Omit inputs for public boundary fixtures, or supply ``gate_q24``
-    and ``up_q24`` for masked-wire multiplication, or ``values`` for rescaling.
+    and ``up_q24`` for masked-wire multiplication, ``values`` for rescaling,
+    or ``values_q7`` for the bounded Compact, Curl and LogRow activations.
     Input values and their fingerprints are never stored in the report.
     """
     from pllm.components import create_component
-    from pllm.nonlinear import MaskedWireGatedMultiplyQ12, SharedRescale
+    from pllm.nonlinear import (
+        CompactPiecewiseActivation, CurlWaveletEncodedTable,
+        MaskedWireGatedMultiplyQ12, SharedRescale,
+    )
+    from pllm.protocols import LogRowGarbledLookup
+    from .activations import _ActivationBenchmark
     from .masked_wire import _MaskedWireBenchmark
     from .shared_rescale import _SharedRescaleBenchmark
 
@@ -85,6 +94,9 @@ def benchmark_operator(
     elif isinstance(component, SharedRescale):
         benchmark = _SharedRescaleBenchmark(component, lanes, samples)
         fields = {"values"}
+    elif isinstance(component, (CompactPiecewiseActivation, CurlWaveletEncodedTable, LogRowGarbledLookup)):
+        benchmark = _ActivationBenchmark(component, lanes, samples)
+        fields = {"values_q7"}
     else:
         raise ConfigurationError(f"no operator benchmark executor for {component.component}")
     if inputs is not None and (
@@ -161,6 +173,7 @@ class OperatorBenchmarkSample:
     clear_seconds: float
     native_call_process_cpu_seconds: float
     peer_frame_bytes_by_phase: tuple[tuple[int, int], ...]
+    public_setup_seconds: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +189,11 @@ class OperatorBenchmarkResources:
     protocol_allocation_estimate_bytes: int
     client_mask_payload_estimate_bytes: int
     client_entry_exit_payload_estimate_bytes: int
+    role_names: tuple[str, str] = ("party_0", "party_1")
+    public_metadata_bytes_estimate: int | None = None
+    public_profile_bytes_estimate: int | None = None
+    evaluator_ciphertext_bytes: int | None = None
+    evaluator_constant_label_bytes: int | None = None
 
     @property
     def combined_raw_key_payload_bytes(self) -> int:
@@ -195,6 +213,8 @@ class OperatorBenchmarkQuality:
     float_reference: str
     maximum_absolute_error: float
     mean_absolute_error: float
+    base_profile_exact_outputs: int | None = None
+    maximum_encoded_profile_error: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

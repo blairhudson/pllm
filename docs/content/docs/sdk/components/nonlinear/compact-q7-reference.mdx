@@ -43,9 +43,10 @@ assert len(profile.source_sha256) == 64
 API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)
 
 The returned profile is **not** a `ComponentRef` and cannot be used in an
-`Experiment` or with `pllm gateway`. The planned
-[`CompactPiecewiseActivation`](/sdk/reference/python/pllm/nonlinear/#compactpiecewiseactivation)
-still raises `NotYetImplementedError`. A separate, in-process Rust half-gates
+`Experiment` or with `pllm gateway`. The separately configured
+[`CompactPiecewiseActivation`](/sdk/components/nonlinear/compact-piecewise-activation/)
+now exposes private polynomial evaluation through the installed operator
+benchmark contract. A separate, in-process Rust half-gates
 reference can select an interval without opening it to the evaluator, but does
 not evaluate the polynomial or run in a compiled decoder. Another Rust-only
 oracle evaluates the bounded profile by a 257-row Boolean lookup, with 73,728
@@ -58,8 +59,9 @@ coefficients or run in the compiled decoder.
 Another in-process, one-use Rust reference combines that selection and
 coordinate with fixed-point Chebyshev coefficient arithmetic, producing an
 opaque Q7 output. It agrees with the fitted numeric profile on checked
-interval boundaries and midpoints; it has no Python execution API, transport,
-full-checkpoint quality measurement or speed claim.
+interval boundaries and midpoints; its installed operator API reports complete
+garbled payload and separate fitting/issuance/evaluation costs. Transport,
+full-checkpoint quality and a speed advantage remain unestablished.
 The Rust compiler can bind one such reference element to an immutable decoder
 plan and semantic SiLU operator, with one-use issuance and an explicit
 unreviewed resource policy. That specialized research API still has no

@@ -1,0 +1,343 @@
+{
+  "cases": [
+    {
+      "admission": {
+        "admitted": false,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable",
+              "estimated host peak 14.23 GiB exceeds safe headroom 7.08 GiB"
+            ],
+            "required_disk_bytes": 5394911232,
+            "required_host_bytes": 15283092810
+          },
+          "native": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "estimated host peak 14.26 GiB exceeds safe headroom 7.08 GiB"
+            ],
+            "required_disk_bytes": 5394911232,
+            "required_host_bytes": 15316647242
+          }
+        },
+        "enforced_wan": true,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "streamed_paged_v1; raw cache and private files are separate disk owners",
+          "client_peak_bytes": 1036728650,
+          "compiled_input_bound": 64,
+          "components": {
+            "checkpoint_bytes": 8044982000,
+            "client_additional_paged_disk_bytes": 777912320,
+            "client_bundle_work_bytes": 155081984,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 105972744,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 73400320,
+            "client_paged_metadata_bytes": 2526464,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 65536,
+            "client_state_work_bytes": 226492416,
+            "client_tensor_work_bytes": 332465160,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 25525248,
+            "largest_loading_temporary_bytes": 777912320,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 1902340128,
+            "legacy_largest_loading_temporary_bytes": 1555824640,
+            "legacy_per_engine_i8_and_native_bytes": 8822456320,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 777912320,
+            "per_engine_i8_and_native_bytes": 4411228160,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 4022272000,
+              "worker_b": 4022272000
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 777912320,
+              "worker_b": 777912320
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 456845312,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 15006305280,
+            "worker_b": 15006305280
+          },
+          "inventory_rows": 65,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 64,
+          "max_output_tokens": 2,
+          "model_plan_digest": "14434978e156945c278fa1faf2526397d59b658648eab022698e2eef4f9eace6",
+          "native_total_peak_bytes": 15283092810,
+          "pipeline_digest": "a2900185534dfd16f66bff0280d97e7469c9e4cef2ca7b803ee5a0f1ab3d9adf",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 7123182080,
+            "worker_b": 7123182080
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 7598276608,
+          "available": 11893243904,
+          "disk_free": 52221370368,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": null
+      },
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 64,
+          "max_new_tokens": 2,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "."
+        },
+        "name": "masked-wire-unfused-composed",
+        "pipeline": {
+          "components": {
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "storage": "paged"
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/two-online-offset-linear/v1",
+              "params": {
+                "dispatch": "seed_first",
+                "input_encoding": "seeded",
+                "output_encoding": "row_residues"
+              }
+            },
+            "nonlinear": {
+              "component": "pllm/masked-wire-gated-multiply-q12/v1",
+              "params": {}
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "weight_bits": 8
+              }
+            },
+            "topology": {
+              "component": "pllm/two-online-offset-workers/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "local_files_only": true,
+            "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+            "source": "Qwen/Qwen3-4B"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      },
+      "layout": "unfused"
+    },
+    {
+      "admission": {
+        "admitted": false,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable",
+              "estimated host peak 14.23 GiB exceeds safe headroom 7.09 GiB"
+            ],
+            "required_disk_bytes": 5394911232,
+            "required_host_bytes": 15283092810
+          },
+          "native": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "estimated host peak 14.26 GiB exceeds safe headroom 7.09 GiB"
+            ],
+            "required_disk_bytes": 5394911232,
+            "required_host_bytes": 15316647242
+          }
+        },
+        "enforced_wan": true,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "streamed_paged_v1; raw cache and private files are separate disk owners",
+          "client_peak_bytes": 1036728650,
+          "compiled_input_bound": 64,
+          "components": {
+            "checkpoint_bytes": 8044982000,
+            "client_additional_paged_disk_bytes": 777912320,
+            "client_bundle_work_bytes": 155081984,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 105972744,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 73400320,
+            "client_paged_metadata_bytes": 2526464,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 65536,
+            "client_state_work_bytes": 226492416,
+            "client_tensor_work_bytes": 332465160,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 25525248,
+            "largest_loading_temporary_bytes": 777912320,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 1902340128,
+            "legacy_largest_loading_temporary_bytes": 1555824640,
+            "legacy_per_engine_i8_and_native_bytes": 8822456320,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 777912320,
+            "per_engine_i8_and_native_bytes": 4411228160,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 4022272000,
+              "worker_b": 4022272000
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 777912320,
+              "worker_b": 777912320
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 456845312,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 15006305280,
+            "worker_b": 15006305280
+          },
+          "inventory_rows": 65,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 64,
+          "max_output_tokens": 2,
+          "model_plan_digest": "14434978e156945c278fa1faf2526397d59b658648eab022698e2eef4f9eace6",
+          "native_total_peak_bytes": 15283092810,
+          "pipeline_digest": "2253637b577ae3ff8acfcbc19ac4e1c31ef85161015a50eaad9fbdc9588d4d2d",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 7123182080,
+            "worker_b": 7123182080
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 7612055552,
+          "available": 11907022848,
+          "disk_free": 52221345792,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": null
+      },
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 64,
+          "max_new_tokens": 2,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "."
+        },
+        "name": "masked-wire-fused-composed",
+        "pipeline": {
+          "components": {
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "storage": "paged"
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/two-online-offset-linear/v1",
+              "params": {
+                "dispatch": "seed_first",
+                "input_encoding": "seeded",
+                "output_encoding": "row_residues"
+              }
+            },
+            "nonlinear": {
+              "component": "pllm/masked-wire-gated-multiply-q12/v1",
+              "params": {
+                "layout": "fused"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "weight_bits": 8
+              }
+            },
+            "topology": {
+              "component": "pllm/two-online-offset-workers/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "local_files_only": true,
+            "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+            "source": "Qwen/Qwen3-4B"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      },
+      "layout": "fused"
+    }
+  ],
+  "configuration_source_sha256": "590a39f225b6355cb276754b307ed94ad213c718b4a18ffd2cb5ad3541ef3a53",
+  "schema": "pllm.nonlinear_decoder_preflight.v1",
+  "scope": "Current-host allocation admission only; no model values, quality or response execution"
+}

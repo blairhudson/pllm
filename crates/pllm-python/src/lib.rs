@@ -3,6 +3,7 @@
 //! once at compilation. Arithmetic runs without the Python interpreter lock.
 use pllm_core::{codec, kernels};
 
+mod activation_benchmarks;
 mod continuation;
 mod head_index;
 mod logrow;
@@ -1700,6 +1701,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     offset_transport::register(module)?;
     masked_aggregate::register(module)?;
     masked_wire::register(module)?;
+    activation_benchmarks::register(module)?;
     shared_rescale::register(module)?;
     mask_stream::register(module)?;
     row_memo::register(module)?;

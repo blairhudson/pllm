@@ -15,14 +15,14 @@ selects the SIGMA-derived residual SiLU × up block;
 floor/ties-even rescaling with fused/unfused comparison backends. Both use the
 same immutable component contracts and a separate
 [operator benchmark function](/sdk/evaluate/paper-operators/).
-The [Compact Q7 numeric reference](/sdk/components/nonlinear/compact-q7-reference/)
-fits a density-aware public-calibration profile for bounded SiLU. Its fit is
-inspectable, and isolated protected interval-selection and
-[LogRow fitted-table lookup](/sdk/components/protocols/logrow-reference/) references
-exist in Rust, but the planned Compact method remains unavailable as a whole-decoder
-component.
-Native region tests do not establish protected execution for a full decoder;
-none of these selectors is a supported whole-model gateway profile. Consult
+[`CompactPiecewiseActivation`](/sdk/components/nonlinear/compact-piecewise-activation/),
+[`CurlWaveletEncodedTable`](/sdk/components/nonlinear/curl-wavelet-encoded-table/)
+and [LogRow fitted-table lookup](/sdk/components/protocols/logrow-reference/)
+benchmark one shared publicly calibrated Q7 profile, with different ownership
+and compression contracts. The [numeric fitter](/sdk/components/nonlinear/compact-q7-reference/)
+remains separately inspectable.
+The masked-wire Q12 method has an experimental two-worker decoder binding;
+the bounded Q7 methods have operator execution only. Consult
 [current support](/sdk/reference/status/) and
 [research evidence](/research/evidence/) before interpreting region timings.
 
@@ -37,7 +37,7 @@ assert reference.component == "pllm/binary-table/v1"
 assert compact.component == "pllm/r03-crt/v1"
 ```
 
-These objects are bounded research selectors, not `Experiment` inference slots.
+These Q7 objects are bounded research selectors, not `Experiment` inference slots.
 For end-to-end private inference use the supported
 [masked-linear experiment](/sdk/inference/masked-linear/) and its
 `pllm gateway --local --experiment experiment.py:experiment --trust-python`

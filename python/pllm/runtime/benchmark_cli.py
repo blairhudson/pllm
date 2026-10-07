@@ -459,6 +459,17 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
     return next(iter(keys)) if len(keys) == 1 else None
 
 
+def _comparison_nonlinear_component(components: dict[str, Any]) -> Any:
+    nonlinear = components.get("nonlinear")
+    if nonlinear and nonlinear["component"] == "pllm/masked-wire-gated-multiply-q12/v1":
+        # The two layouts implement the same fixed numeric profile. Preserve
+        # every other parameter so future numeric choices remain independent.
+        return {**nonlinear, "params": {
+            key: value for key, value in nonlinear.get("params", {}).items() if key != "layout"
+        }}
+    return nonlinear
+
+
 def _matched_kernel_composition(candidates: list[tuple[Experiment, dict[str, Any]]]) -> bool:
     """Require recorded source, numeric and output identity for cross-kernel ranking."""
     identities = []
@@ -488,8 +499,11 @@ def _matched_kernel_composition(candidates: list[tuple[Experiment, dict[str, Any
         pipeline = experiment.pipeline.to_spec()
         identities.append(json.dumps({
             "model": pipeline["model"],
-            "numeric": {slot: pipeline["components"].get(slot)
-                        for slot in ("quantization", "nonlinear", "scheduler")},
+            "numeric": {
+                "quantization": pipeline["components"].get("quantization"),
+                "nonlinear": _comparison_nonlinear_component(pipeline["components"]),
+                "scheduler": pipeline["components"].get("scheduler"),
+            },
             "outputs": outputs,
         }, sort_keys=True, allow_nan=False))
     return len(set(identities)) == 1
@@ -531,12 +545,8 @@ def build_comparison_report(
     numeric_contracts = []
     for experiment, _ in candidates:
         components = experiment.pipeline.to_spec()["components"]
-        nonlinear = components.get("nonlinear")
-        if nonlinear and nonlinear["component"] == "pllm/masked-wire-gated-multiply-q12/v1":
-            # Fusion preserves this fixed profile's numeric mapping.
-            nonlinear = {"component": nonlinear["component"], "params": {}}
         numeric_contracts.append(json.dumps({
-            "nonlinear": nonlinear, "scheduler": components.get("scheduler"),
+            "nonlinear": _comparison_nonlinear_component(components), "scheduler": components.get("scheduler"),
             "causal_reduction": components.get("quantization", {}).get("params", {}).get("causal_reduction"),
         }, sort_keys=True))
     matched_numeric = len(set(numeric_contracts)) == 1

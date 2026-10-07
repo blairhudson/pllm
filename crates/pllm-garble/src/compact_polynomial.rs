@@ -176,6 +176,24 @@ impl CompactQ7PolynomialProgram {
         self.program.evaluator_ciphertext_bytes()
     }
 
+    pub fn constant_label_bytes(&self) -> usize {
+        self.program.constant_label_bytes()
+    }
+
+    pub fn public_metadata_bytes_estimate(&self) -> usize {
+        32 + self.program.public_metadata_bytes_estimate()
+    }
+
+    /// Zero labels and deltas retained by the trusted client, including output
+    /// encodings for the decoded piece index. Public identifiers are separate.
+    pub const fn client_encoding_bytes(&self) -> usize {
+        (INPUT_BITS + OUTPUT_BITS + INDEX_BITS) * 32
+    }
+
+    pub const fn input_output_label_bytes(&self) -> usize {
+        (INPUT_BITS + OUTPUT_BITS + INDEX_BITS) * 16
+    }
+
     pub fn evaluate(
         self,
         inputs: CompactQ7PolynomialInputs,

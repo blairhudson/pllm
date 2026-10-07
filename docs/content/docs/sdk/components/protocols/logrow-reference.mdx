@@ -1,6 +1,6 @@
 ---
 title: "Bounded LogRow lookup reference"
-description: "Understand the private 9-bit table lookup reference, full material cost, and why it is not a selectable inference method."
+description: "Benchmark the private 9-bit table lookup component and inspect separate bounded tensor references."
 ---
 
 PLLM's native `pllm-garble::logrow` reference evaluates a private table lookup
@@ -15,6 +15,8 @@ table. The implementation uses the two-row one-hot setup from
 [Heath and Kolesnikov's *One Hot Garbling*](https://eprint.iacr.org/2022/798),
 not the more efficient one-row setup in the LogRow paper.
 
+Component identity: `pllm/logrow-garbled-lookup-q7/v1`.
+
 The Rust compiler binds a fitted Q7 lookup either to **one SiLU element** or to
 the **entire bounded semantic SiLU tensor** for one prefill/decode phase. Both
 bind the decoder plan, operation, profile, implementation source, policy and
@@ -27,16 +29,38 @@ prefill/decode sequence, enforce order, and burn unused material on failure.
 
 This is an **in-process research reference**, not a deployment boundary: its
 Python handle calls native Rust locally and has no transport, independent
-provider, security review, or generally supported decoder composition. The component class
+provider, security review, or generally supported decoder composition. The component
 [`LogRowGarbledLookup`](/sdk/reference/python/pllm/protocols/#logrowgarbledlookup)
-remains a pending declaration and raises `NotYetImplementedError`; it cannot
-be added to an `Experiment` or selected in search. Use
+now follows the ordinary immutable method contract and executes through
+`pllm.metrics.benchmark_operator`. It serializes in Experiment documents;
+whole-decoder selection remains unbound. Use
 [`prepare_logrow_q7_tensor_reference`](/sdk/reference/python/pllm/protocols/#prepare_logrow_q7_tensor_reference)
 only for bounded Q7 tensors in local research; use the supported
 [masked-linear inference composition](/sdk/inference/masked-linear/) for an
 actual private response.
 
 ## Python SDK example
+
+```python
+from pllm.metrics import benchmark_operator
+from pllm.protocols import LogRowGarbledLookup
+
+method = LogRowGarbledLookup(max_pieces=4)
+report = benchmark_operator(method, lanes=5, samples=1,
+                            inputs={"values_q7": [-128, -1, 0, 1, 128]})
+assert report.quality.exact_integer_outputs == 5
+assert report.resources.raw_key_payload_bytes_per_party == (5 * 304, 5 * 2144)
+assert report.resources.role_names == ("garbler_client", "evaluator")
+```
+
+The first resource entry is the trusted client's zero labels/delta; the second
+includes all evaluator seed rows and masked table bits. Public metadata and
+boundary labels are additional estimates. Public fitting, issuance and local
+evaluation have separate timings. The operator accepts 1–256 already-encoded
+Q7 values per sample and burns each lane before the next. Its 1 MiB live
+allocation estimate is separate from the tensor/session budgets below.
+
+## Bounded tensor reference
 
 This runnable example lowers a tiny **configuration** (no checkpoint or
 inference server), selects its semantic SiLU tensor, and evaluates 16 signed

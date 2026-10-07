@@ -9,8 +9,13 @@ The masked-wire component additionally binds complete dense float32 gated region
 in the CPU two-offset Experiment. Generated Qwen2/Qwen3 prefill/decode matches an
 independent integer oracle, and separate worker processes complete SDK and gateway
 requests. Client conversion and online issuance, per-party one-use material and
-both client-relay legs are explicit. Fresh checkpoint quality, matched response
-costs and the remaining paper components follow this execution slice.
+both client-relay legs are explicit. The fresh twelve-prompt Qwen2.5 numeric
+diagnostic matches 10/12 prefill, 36/36 same-token decode and 9/12 eight-token
+greedy trajectories against locked W8A8; logits/KV are not exact. Compact,
+Curl and LogRow now have validated bounded component/operator bindings,
+with complete material owners and separate compressed numeric identities.
+The first protected response-cost sweep hit its 3,600-second request timeout
+without a complete comparison report; that failed attempt remains explicit.
 The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
@@ -207,8 +212,14 @@ to eight; 64-lane peer frames fall from 6,020 to 5,552 bytes, while both-party k
 rise from 82,592 to 145,984 bytes and local online time from 7.31 to 17.51 ms.
 The historical 39+8 geometry projects 6.93/12.25 GB unfused/fused keys and
 397.12/387.30 MB peer frames. Both layouts remain opt-in operator choices.
-**Next: bind tensor execution, conversions and two-party transport to Experiments.**
-Validate improved numeric mappings on new prompts. Poor measured
+The two-offset Experiment binding now implements tensor execution, explicit
+client conversion and authenticated party-local transport. A fresh twelve-prompt
+clear replay checks 132,145,152 integer outputs, preserving 10/12 prefill,
+36/36 same-token decode and 9/12 eight-token greedy trajectories; worst logit
+error is 3.46. Its reference is the locked W8A8 baseline, not upstream float,
+and token agreement is not a semantic task-quality score. See
+`docs/research/nonlinear-decoders.md`. Validate improved numeric mappings on
+new prompts. Poor measured
 quality/cost stays visible rather than excluding the method from research use.
 Protected conversions, other operators, reviewed transport and the paper's GPU
 system remain open. See `docs/research/masked-wire-reference.md` and

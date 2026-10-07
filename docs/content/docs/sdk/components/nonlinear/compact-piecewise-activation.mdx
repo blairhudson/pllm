@@ -1,0 +1,55 @@
+---
+title: "Compact piecewise activation"
+description: "Benchmark a publicly calibrated Q7 SiLU polynomial with private interval selection and complete garbled arithmetic."
+---
+
+`pllm.nonlinear.CompactPiecewiseActivation` selects the installed, one-use
+half-gates implementation of the bounded [Compact profile](/sdk/components/nonlinear/compact-q7-reference/).
+It privately selects an interval, computes a Q20 Chebyshev coordinate, evaluates
+the public coefficients and rounds to signed Q7. The trusted client decodes the
+output; the evaluator retains opaque labels.
+
+Component identity: `pllm/compact-piecewise-activation-q7/v1`.
+
+## Python SDK example
+
+```python
+from pllm.metrics import benchmark_operator, replay_operator_benchmark
+from pllm.nonlinear import CompactPiecewiseActivation
+
+method = CompactPiecewiseActivation(max_pieces=4)
+report = benchmark_operator(method, lanes=5, samples=1,
+                            inputs={"values_q7": [-128, -1, 0, 1, 128]})
+assert report.quality.exact_integer_outputs == 5
+assert report.resources.evaluator_constant_label_bytes > 0
+assert method.with_params(max_pieces=8).component == method.component
+replay = replay_operator_benchmark(report.configuration,
+                                   inputs={"values_q7": [-128, -1, 0, 1, 128]})
+assert replay.numeric_contract_digest == report.numeric_contract_digest
+```
+
+Inputs are already encoded signed Q7 integers in `[-128,128]`, representing
+`[-1,1]`. Public offline calibration uses 257 integer counts, each at most
+1,000,000 with a total at most 100,000,000. The default histogram is uniform.
+`max_pieces` is 1–8; fitting may produce fewer pieces. Every sample fits and
+locks the coefficients, intervals and calibration to a numeric digest.
+
+The [operator report](/sdk/evaluate/paper-operators/) checks every result against
+independent Python integer arithmetic. It separately reports float64 SiLU error,
+public setup, fresh issuance and local evaluation time. Lanes execute serially
+and burn all material before the next lane. The conservative 512 MiB live
+allocation estimate follows the existing native wire/gate caps; it is not a
+measured process peak.
+
+Resource roles are **garbler client** and **evaluator**. The evaluator payload
+includes both half-gate ciphertexts and active constant labels; client input and
+output encodings are charged separately. Public instruction metadata, profile
+bytes and client boundary labels have explicit estimates. Zero evaluator-peer
+frames does not mean zero client communication or complete wire accounting.
+
+This is a CPU half-gates adaptation of [Compact](/research/papers/compact/), with
+different costs from the paper's MPC implementation. It is available for installed
+operator benchmarking and immutable configuration serialization. Protected
+quantization, tensor transport and whole-decoder binding remain separate work.
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)

@@ -286,6 +286,19 @@ benchmark geometry and samples separately; `replay_operator_benchmark` also
 migrates historical probe-v1 configurations without rewriting their evidence.
 Details: `docs/research/masked-wire-reference.md`.
 
+Compact, Curl and LogRow additionally have bounded installed operator bindings:
+`pllm.nonlinear.CompactPiecewiseActivation`,
+`pllm.nonlinear.CurlWaveletEncodedTable` and
+`pllm.protocols.LogRowGarbledLookup`. They share public Q7 calibration, immutable
+component discovery/serialization and `benchmark_operator`, with independent
+integer oracles and separate float64 error. Compressed Haar tables change the
+numeric identity. Reports identify garbler/client versus worker ownership,
+charge constant labels and client encodings, retain public metadata/boundary
+estimates and separate public fitting, issuance and evaluation timings. Serial
+lanes burn material before the next issuance. These operator APIs do not yet
+bind whole-decoder execution or transport. Historical ciphertext-only evidence
+retains its original scope; see `docs/research/nonlinear-frontier.md`.
+
 A further clear joint-output reference uses Q12/Q16 inputs, 512/2,048 public
 SiLU secants, explicit tails and one final rounding of the complete gated
 numerator. Checked i128 arithmetic and an independent segmented-integer oracle

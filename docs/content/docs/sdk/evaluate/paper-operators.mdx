@@ -168,15 +168,30 @@ does not yet price this capability and rejects it.
 
 Generated Qwen2/Qwen3 prefill/decode tests match an independent integer oracle's
 logits and KV for both layouts. Separate-process SDK and gateway requests check
-the same path. These are functionality results; real-checkpoint quality and
-complete-response costs require separate measurements. Co-located roles are not
+the same path. A fresh twelve-prompt pinned Qwen2.5 diagnostic matches **10/12
+prefill**, **36/36 same-token decode** selections and **9/12 eight-token greedy
+trajectories** against the ordinary W8A8 control. Worst logit error is **3.46**;
+logits and KV are not exact. The independently checked clear numeric path covers
+132,145,152 gated elements. This bounded cohort is not representative quality;
+complete-response costs are measured separately. Co-located roles are not
 independent operators, and this engineering adaptation has no independent
 cryptographic review or malicious-output verifier.
+
+The [quality evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-nonlinear-decoder-quality-qwen25.json)
+retains teacher-forced and free-running measurements separately. Both layouts
+share this numeric profile; the earlier 10/12 and 34/36 figures above belong to
+a different historical prompt cohort.
 
 The [replayable decoder factories](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/nonlinear_decoders.py)
 retain clear-SiLU, fused/unfused and exact transport-composition choices. Changed
 nonlinear numerics cannot rank against the clear-SiLU control even when selected
 tokens match; fused/unfused layouts retain the same numeric comparison contract.
+
+The first five-configuration Qwen cost sweep stopped at a 3,600-second request
+timeout before producing a complete comparison. Its
+[failure record](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-nonlinear-decoders-qwen25-timeout.json)
+retains the frozen wheel and factory hashes. No successful response-cost or
+throughput ranking is available from that attempt.
 
 ## Compare fused and unfused rescaling
 
@@ -237,6 +252,46 @@ estimates count one transient 32-bit input share per lane and 24 bytes per lane
 for hypothetical unframed input/output share delivery. The evaluators run locally;
 physical wire and measured peak memory remain unknown.
 
+## Compare Compact, Curl and LogRow activations
+
+```python
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import CompactPiecewiseActivation, CurlWaveletEncodedTable
+from pllm.protocols import LogRowGarbledLookup
+
+methods = [CompactPiecewiseActivation(), LogRowGarbledLookup(), CurlWaveletEncodedTable()]
+reports = [benchmark_operator(method, lanes=5, samples=1) for method in methods]
+assert len({report.numeric_contract_digest for report in reports}) == 1
+assert all(report.quality.exact_integer_outputs == 5 for report in reports)
+compressed = benchmark_operator(methods[-1].with_params(levels=4), lanes=5, samples=1)
+assert compressed.numeric_contract_digest != reports[-1].numeric_contract_digest
+```
+
+These methods share public fitting with 1–8 pieces and 257 public offline
+calibration counts. Inputs are already encoded signed Q7 integers in
+`[-128,128]`; pass `inputs={"values_q7": [...]}` for custom data. The
+[installed comparison example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/activations.py)
+saves all five controls, including Curl levels two and four. Every result has
+paper citations, exact configuration replay and independent integer checks.
+
+Compact evaluates private selection and polynomial arithmetic; LogRow evaluates
+the fitted table; Curl performs private additive-share table lookup. Curl's
+compression changes both the table and the numeric digest. Exact integer parity,
+uncompressed-profile agreement and float64 SiLU error appear separately.
+
+Resource `role_names` identify the garbler-client/evaluator pair or the two Curl
+workers. Compact includes active constant labels alongside its half-gate
+ciphertexts. Every method charges client material/boundary estimates and public
+metadata separately. Garbled methods have no serialized **evaluator-peer**
+frames; their client boundary is still an explicit payload estimate.
+
+`public_setup_seconds` measures public fitting/table work. `clear_seconds`
+measures the clear table oracle; issuance and evaluation remain separate. Lanes
+execute serially with fresh material and bounded live allocation: 512 MiB for
+Compact's conservative wire/gate ceiling and 1 MiB for the lookup methods.
+These estimates are not peak-RSS measurements. Operator reports retain unknown
+physical wire, checkpoint quality and decoder coverage.
+
 ## Paper coverage
 
 - [SIGMA](/research/papers/sigma/): public-gap floor shifts, residual SiLU and
@@ -249,10 +304,16 @@ physical wire and measured peak memory remain unknown.
   masked-wire block adapt mask-aware multi-view fusion with matched unfused controls.
 - [Mixed-Mode FSS](/research/papers/fss-mixed/): compact DCF and universal interval
   backends for that rescale helper.
+- [Compact](/research/papers/compact/): public density-aware Q7 fitting with
+  independently implemented private polynomial evaluation.
+- [Curl](/research/papers/curl/): party-local shared lookup and public Haar compression.
+- [LogRow](/research/papers/logrow/): masked-index table lookup with the earlier
+  two-row one-hot setup and complete masked-table payload.
 
 This is a component reference exposed through the SDK. The original GPU systems,
-FuseFSS's general fusion compiler, protected float conversions, full decoder schedule and independent
-role transport remain separate implementation work. Component availability and
+FuseFSS's general fusion compiler, protected float conversions and independent
+deployment remain separate implementation work. The explicit masked-wire
+two-worker decoder binding above has its own limited execution contract. Component availability and
 operator benchmarking do not establish whole-model execution, serving readiness,
 complete-paper reproduction or a privacy proof.
 

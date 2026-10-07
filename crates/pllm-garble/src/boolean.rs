@@ -1129,6 +1129,33 @@ impl BooleanCircuitProgram {
         self.wire_count
     }
 
+    /// Active constant labels are evaluator material in addition to AND tables.
+    pub fn constant_label_bytes(&self) -> usize {
+        self.instructions
+            .iter()
+            .filter(|instruction| matches!(instruction, BooleanInstruction::Constant(_)))
+            .count()
+            * LABEL_BYTES
+    }
+
+    /// Public indices/tags in a fixed-width hypothetical encoding, not a codec
+    /// or a measurement of this in-memory Rust representation.
+    pub fn public_metadata_bytes_estimate(&self) -> usize {
+        CIRCUIT_ID_BYTES
+            + 4 * 8
+            + self.output_wires.len() * 8
+            + self
+                .instructions
+                .iter()
+                .map(|instruction| match instruction {
+                    BooleanInstruction::Constant(_) => 1,
+                    BooleanInstruction::Not { .. } => 1 + 8,
+                    BooleanInstruction::Xor { .. } => 1 + 2 * 8,
+                    BooleanInstruction::And { .. } => 1 + 3 * 8,
+                })
+                .sum::<usize>()
+    }
+
     pub fn evaluate(self, inputs: BooleanCircuitInputs) -> Result<BooleanCircuitOutputs, String> {
         if inputs.circuit_id != self.circuit_id {
             return Err("Boolean circuit input belongs to a different circuit".into());

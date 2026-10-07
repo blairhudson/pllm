@@ -48,7 +48,49 @@ offline metadata, other decoder operators and token feedback are additional.
 These per-element layouts cannot claim batching savings that have not been
 implemented. The fixed Q7 domain already fails the separate
 [checkpoint gate](nonlinear-block-reference.md). There is no protected checkpoint
-execution, complete-block cost, reviewed security claim or executable SDK choice.
+execution, complete-block cost or reviewed security claim in this historical screen.
+
+## Installed operator components
+
+`pllm.nonlinear.CompactPiecewiseActivation`,
+`pllm.nonlinear.CurlWaveletEncodedTable` and
+`pllm.protocols.LogRowGarbledLookup` now use the ordinary immutable component
+contracts and `pllm.metrics.benchmark_operator`. These are bounded operator
+executors; whole-decoder binding remains separate. Public offline counts and
+piece limits are replayable parameters; private input values are omitted from
+reports and must be supplied again for custom-input replay.
+
+The installed report improves the earlier **ciphertext-only** material scope:
+Compact charges active constant labels alongside half-gate ciphertexts and
+charges the garbler's input/output encodings. LogRow charges client zero labels
+and its shared delta; all masked table bits remain in evaluator payload. Curl
+retains both worker shares and all peer frames. Public metadata/profile and
+client boundary estimates stay separate, with explicit role names. Serial lanes
+burn material before the next issuance. Allocation ceilings are estimates,
+not measured process peaks; physical wire and checkpoint quality remain unknown.
+
+Public fitting/table construction, fresh issuance, online evaluation and clear
+table-oracle timings are separate. Independent Python integer arithmetic checks
+every output. Compressed Curl has its own numeric digest; its agreement with
+the uncompressed profile and float64 SiLU errors appear separately.
+
+```sh
+python examples/benchmarks/activations.py --lanes 17 --samples 3 \
+  --output activation-operators.json
+```
+
+The installed-wheel cohort is
+`docs/evidence/research-activation-operators-sdk.json`. The earlier table above
+remains immutable historical evidence, with its original narrower scope.
+
+All **255/255** installed-wheel outputs match their declared integer contracts
+across five configurations, seventeen lanes and three fresh samples. Per lane,
+Compact retains 800 client bytes and 858,816 evaluator bytes, including 15,424
+constant-label bytes. LogRow retains 304 client and 2,144 evaluator bytes.
+Those are material payloads: Compact's additional fixed-width public instruction
+metadata estimate is 1,292,190 bytes per lane, with 464 client-boundary bytes.
+The two-/four-level Curl profiles match the uncompressed profile at 18/51 and
+9/51 checked outputs respectively; their exact compressed-contract checks pass.
 
 ## Reproduce
 

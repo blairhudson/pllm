@@ -191,8 +191,9 @@ ${numeric.join('\n\n')}
 
 # Native component references
 
-These bounded references have no executable decoder cohort. Their isolated timings and
-payload counts retain their own measurement scope; they do not populate frontier axes.
+These rows retain component-level measurement scope. Their isolated timings and
+payload counts do not populate frontier axes; separately implemented decoder
+coverage and evidence are identified in each paper's scope.
 
 ${referenceTable}
 

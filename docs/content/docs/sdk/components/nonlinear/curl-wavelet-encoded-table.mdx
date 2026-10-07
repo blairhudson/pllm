@@ -1,0 +1,49 @@
+---
+title: "Curl wavelet-encoded table"
+description: "Benchmark private additive-share lookup with explicit public Haar compression and approximation costs."
+---
+
+`pllm.nonlinear.CurlWaveletEncodedTable` uses [Curl's](/research/papers/curl/)
+party-local shared lookup and public Haar low-pass compression on the same
+publicly fitted Q7 SiLU profile as the Compact and LogRow operator controls.
+The 257 valid input codes occupy a 512-row table; unused entries repeat the
+upper endpoint. `levels=0` retains every row. Each further level halves the
+table using exact block means and ties-to-even rounding.
+
+Component identity: `pllm/curl-wavelet-encoded-table-q7/v1`.
+
+## Python SDK example
+
+```python
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import CurlWaveletEncodedTable
+
+method = CurlWaveletEncodedTable()
+control = benchmark_operator(method, lanes=17, samples=3)
+compressed = benchmark_operator(method.with_params(levels=4), lanes=17, samples=3)
+assert control.quality.exact_integer_outputs == compressed.quality.exact_integer_outputs == 51
+assert control.numeric_contract_digest != compressed.numeric_contract_digest
+assert control.resources.peer_frame_bytes == compressed.resources.peer_frame_bytes
+assert compressed.resources.combined_raw_key_payload_bytes < control.resources.combined_raw_key_payload_bytes
+```
+
+Both results pass their own integer oracles. The report separately records
+matches and maximum encoded error against the uncompressed fitted profile,
+plus float64 SiLU approximation error. Compression changes the numeric identity.
+
+Inputs are signed Q7 integers in `[-128,128]`. `levels` is 0–8; `max_pieces`
+and `public_calibration_counts` follow the [Compact contract](/sdk/components/nonlinear/compact-piecewise-activation/).
+Input quantization and compressed-index reduction remain client-local.
+
+Each lookup issues fresh one-use dealer shares. At level zero, combined dealer
+payload is 4,100 bytes per element; level four uses 260. Header-inclusive peer
+frames stay 136 bytes per element, with both directions recorded. Public table
+storage, per-party metadata and client entry/exit estimates remain separate.
+Serial lane execution has a conservative 1 MiB live allocation estimate;
+physical wire and measured peak memory remain unknown.
+
+The [operator runner](/sdk/evaluate/paper-operators/) executes both workers and
+the trusted dealer locally. It exposes reproducible negative results without
+claiming protected input reduction, Curl's complete system or decoder execution.
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)

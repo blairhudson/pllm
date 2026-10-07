@@ -61,12 +61,34 @@
     },
     {
       "paper_id": "R05",
-      "summary": "PLLM adapts LogRow's random-function-masked lookup with the earlier two-row one-hot setup for a one-use, in-process 9-bit fitted Q7 SiLU table. A specialized compiler binds one semantic element to a decoder plan. It measures complete evaluator material but has not implemented LogRow's optimized setup or a protected whole-decoder backend.",
+      "summary": "The installed LogRowGarbledLookup component benchmarks a one-use 9-bit fitted Q7 table with the earlier two-row setup. It charges client encodings and complete evaluator material, with separate public metadata and boundary estimates. Specialized tensor references remain separate from whole-decoder deployment.",
       "components": [
         {
           "title": "Bounded LogRow lookup reference",
           "href": "/sdk/components/protocols/logrow-reference/",
           "source": "content/docs/sdk/components/protocols/logrow-reference.mdx"
+        }
+      ]
+    },
+    {
+      "paper_id": "R17",
+      "summary": "The installed CurlWaveletEncodedTable component combines party-local additive-share lookup with public Haar low-pass compression. It reports both parties' material and peer frames, changed numeric identities and profile/SiLU error. Input quantization and compressed-index reduction remain client-local.",
+      "components": [
+        {
+          "title": "Curl wavelet-encoded table",
+          "href": "/sdk/components/nonlinear/curl-wavelet-encoded-table/",
+          "source": "content/docs/sdk/components/nonlinear/curl-wavelet-encoded-table.mdx"
+        }
+      ]
+    },
+    {
+      "paper_id": "R18",
+      "summary": "The installed CompactPiecewiseActivation component combines public Q7 calibration with private interval selection and Chebyshev arithmetic in a one-use half-gates circuit. Its CPU cost includes constant labels and client encodings; it is a bounded adaptation rather than the paper's MPC system.",
+      "components": [
+        {
+          "title": "Compact piecewise activation",
+          "href": "/sdk/components/nonlinear/compact-piecewise-activation/",
+          "source": "content/docs/sdk/components/nonlinear/compact-piecewise-activation.mdx"
         }
       ]
     },

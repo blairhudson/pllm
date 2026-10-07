@@ -752,6 +752,17 @@ def test_comparison_rejects_changed_nonlinear_identity_but_admits_exact_fusion()
     accepted = build_comparison_report([(unfused, _report()), (fused, _report(full=3.0))])
     assert accepted["checks"]["matched_numeric_contract"]
     assert accepted["winners"]["full_seconds"] == fused.configuration_digest()
+    pairs = [(unfused, _report()), (fused, _report(full=3.0))]
+    for experiment, report in pairs:
+        report["configuration"].update(source_lock_digest="source", prompt_digest="prompt",
+                                       roles=["client", "worker_a", "worker_b"])
+        report["experiment"] = {"configuration_digest": experiment.configuration_digest(),
+                                "pipeline_digest": experiment.pipeline.digest()}
+        report["runs"][0]["generation"] = {"output_text_digest": "same-output"}
+    # Paper-cohort reanalysis also requires recorded output/source binding.
+    assert build_comparison_report(pairs, compare_kernels=True)["checks"]["passed"]
+    pairs[1][1]["runs"][0]["generation"]["output_text_digest"] = "changed"
+    assert not build_comparison_report(pairs, compare_kernels=True)["checks"]["passed"]
 
 
 def test_comparison_report_ranks_only_matched_pipeline_runs() -> None:

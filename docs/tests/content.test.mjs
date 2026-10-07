@@ -234,7 +234,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
-  assert.equal(citations.size, 15);
+  assert.equal(citations.size, 17);
   assert.ok(citations.has('R05') && citations.has('R08') && citations.has('R24'));
   assert.ok(citations.has('sigma') && citations.has('grotto') && citations.has('pika'));
   assert.ok(citations.has('R14') && citations.has('fss-mixed'));
@@ -374,6 +374,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/protocols/cleartext-linear/', 'pllm/cleartext-linear', null],
     ['/sdk/components/protocols/two-online-offset-linear/', 'pllm/two-online-offset-linear/v1', null],
     ['/sdk/components/protocols/client-bundle-transport/', 'pllm/client-bundle-transport/v1', null],
+    ['/sdk/components/protocols/logrow-reference/', 'pllm/logrow-garbled-lookup-q7/v1', '/research/papers/logrow/'],
     ['/sdk/components/preparation/model-aware-corrections/', 'pllm/model-aware-corrections', null],
     ['/sdk/components/preparation/inventory-policy/', 'pllm/prepared-inventory-policy/v1', null],
     ['/sdk/components/preparation/bfv-correlations/', 'pllm/bfv-correlations/v1', null],
@@ -388,6 +389,8 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/nonlinear/r03-crt/', 'pllm/r03-crt/v1', '/research/papers/garbling-gadgets/'],
     ['/sdk/components/nonlinear/masked-wire-gated-multiply-q12/', 'pllm/masked-wire-gated-multiply-q12/v1', '/research/papers/sigma/'],
     ['/sdk/components/nonlinear/shared-rescale/', 'pllm/shared-rescale/v1', '/research/papers/fusefss/'],
+    ['/sdk/components/nonlinear/compact-piecewise-activation/', 'pllm/compact-piecewise-activation-q7/v1', '/research/papers/compact/'],
+    ['/sdk/components/nonlinear/curl-wavelet-encoded-table/', 'pllm/curl-wavelet-encoded-table-q7/v1', '/research/papers/curl/'],
     ['/sdk/components/schedulers/bounded-independent-elements/', 'pllm/bounded-independent-elements/v1', null],
     ['/sdk/components/schedulers/scalar/', 'pllm/scalar/v1', null],
     ['/sdk/components/schedulers/independent-lanes/', 'pllm/independent-lanes/v1', null],
@@ -413,13 +416,16 @@ test('component option guides execute supported examples and cite bounded resear
     assert.ok(content.includes(identity), route);
     if (citation) assert.ok(content.includes(`](${citation})`), route);
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
-    assert.equal(examples.length, 1, route);
-    const execution = spawnSync('uv', ['run', 'python', '-c', examples[0][1]], {
-      cwd: path.join(siteRoot, '..'), encoding: 'utf8',
-      env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
-      timeout: 120_000,
-    });
-    assert.equal(execution.status, 0, `${route}:\n${execution.stdout}\n${execution.stderr}`);
+    assert.ok(examples.length > 0, route);
+    for (const [index, example] of examples.entries()) {
+      const execution = spawnSync('uv', ['run', 'python', '-c', example[1]], {
+        cwd: path.join(siteRoot, '..'), encoding: 'utf8',
+        env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
+        timeout: 120_000,
+      });
+      assert.equal(execution.status, 0,
+        `${route} example ${index + 1}:\n${execution.stdout}\n${execution.stderr}`);
+    }
   }
   const inventory = spawnSync('uv', ['run', 'python', '-c',
     'import json; from pllm.components import list_component_classes; print(json.dumps(sorted(cls.describe().component for cls in list_component_classes())))'], {

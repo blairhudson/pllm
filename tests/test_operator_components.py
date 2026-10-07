@@ -101,6 +101,7 @@ def test_historical_masked_wire_record_migrates_without_rewriting_evidence():
     assert result["configuration_digest"] != old["configuration_digest"]
     # Source changes must retain a new implementation identity, while replaying
     # the historical numeric/layout contract and preserving the original file.
-    for key in ("numeric_contract_digest", "resources", "quality"):
-        assert result[key] == old[key]
+    assert result["numeric_contract_digest"] == old["numeric_contract_digest"]
+    for key in ("resources", "quality"):
+        assert all(result[key][name] == value for name, value in old[key].items())
     assert path.read_bytes() == original

@@ -239,4 +239,17 @@ def test_retained_sdk_collection_preserves_rounding_groups_and_replays():
                 "resources",
                 "quality",
             ):
-                assert replay[key] == report[key]
+                actual = replay[key]
+                if key in {"resources", "quality"}:
+                    # New optional accounting fields do not rewrite archived
+                    # measurements or turn unknown historical costs into zero.
+                    actual = {field: actual[field] for field in report[key]}
+                assert actual == report[key]
+            assert replay["resources"]["role_names"] == ["party_0", "party_1"]
+            for field in (
+                "public_metadata_bytes_estimate", "public_profile_bytes_estimate",
+                "evaluator_ciphertext_bytes", "evaluator_constant_label_bytes",
+            ):
+                assert replay["resources"][field] is None
+            assert replay["quality"]["base_profile_exact_outputs"] is None
+            assert replay["quality"]["maximum_encoded_profile_error"] is None

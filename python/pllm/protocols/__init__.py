@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -12,6 +13,8 @@ from pllm.components._planned import (
     planned as pending,
 )
 from pllm.protocols.base import ProtocolMethod
+from pllm.configuration import ComponentDescriptor
+from pllm.components._q7_activation import parameter_schema as _q7_schema, parameters as _q7_parameters
 from pllm.protocols.bundle_transport import ClientBundleTransport
 from pllm.protocols.masked_linear import MaskedLinear
 from pllm.protocols.runtime_arms import (
@@ -240,9 +243,34 @@ class PrivateEmbeddingLookup(PendingMethod):
     pass
 
 
-@pending("logrow")
-class LogRowGarbledLookup(PendingMethod):
-    pass
+class LogRowGarbledLookup(ProtocolMethod):
+    """One-use LogRow lookup of a public-calibrated signed-Q7 SiLU profile.
+
+    Uses the bounded 512-row reference and earlier two-row one-hot setup.
+    Complete evaluator material includes masked table bits. Input/output
+    labels stay opaque until the trusted client decodes the output.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/logrow-garbled-lookup-q7/v1", provider="pllm",
+        distribution="pllm.run", version="1", category="pllm/protocol",
+        category_version="1", lifecycle_phase="runtime", parameter_schema=_q7_schema(),
+        capabilities=("protected-table-lookup-q7", "bounded-operator-benchmark"),
+        required_host_features=("native-core", "local-garbler"),
+        role_eligibility=("client", "inference"),
+    )
+
+    def __init__(self, *, max_pieces: int = 4,
+                 public_calibration_counts: Sequence[int] | None = None) -> None:
+        super().__init__(self.descriptor.component, _q7_parameters(max_pieces, public_calibration_counts))
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return self.to_spec()["params"]
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
 
 
 @pending("nimbus")

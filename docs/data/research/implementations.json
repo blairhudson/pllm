@@ -20,24 +20,27 @@
     },
     "curl": {
       "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.nonlinear.CurlWaveletEncodedTable", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/activations.py", "evidence": "docs/evidence/research-activation-operators-sdk.json"},
       "scope": "Fig. 4 party-local shared lookup plus public Haar compression. Inputs are already truncated; no protected truncation, Biorthogonal protocol or decoder integration.",
-      "code": ["crates/pllm-garble/src/shared_lut_reference.rs"],
+      "code": ["crates/pllm-garble/src/shared_lut_reference.rs", "crates/pllm-python/src/activation_benchmarks.rs", "python/pllm/metrics/activations.py"],
       "configuration": "benchmarks/research/curl_reference.py",
       "evidence": "docs/evidence/research-curl-reference.json",
       "result": "512-row Q16 SiLU lookup reconstructs every encoded value. Four Haar levels reduce dealer-share payload from 4,100 to 260 bytes, but add up to 0.12888 absolute error. Peer frames remain 136 bytes per lookup. A separate common Q7-profile screen matches 17/17 uncompressed versus 2/17 four-level outputs; its hypothetical 39+8 activation-only layout needs 1.40 GB material and 730.30 MB peer bodies before conversion/gated multiplication. No Qwen score. Follow-up: docs/research/nonlinear-frontier.md."
     },
     "compact": {
       "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.nonlinear.CompactPiecewiseActivation", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/activations.py", "evidence": "docs/evidence/research-activation-operators-sdk.json"},
       "scope": "Public calibration, private interval selection and one-use Chebyshev evaluation with bounded compiler binding.",
-      "code": ["crates/pllm-core/src/compact.rs", "crates/pllm-garble/src/compact_polynomial.rs", "crates/pllm-compiler/src/compact_protected.rs"],
+      "code": ["crates/pllm-core/src/compact.rs", "crates/pllm-garble/src/compact_polynomial.rs", "crates/pllm-compiler/src/compact_protected.rs", "crates/pllm-python/src/activation_benchmarks.rs", "python/pllm/metrics/activations.py"],
       "configuration": "benchmarks/research/nonlinear_frontier.py",
       "evidence": "docs/evidence/research-nonlinear-frontier-qwen25.json",
       "result": "Common four-piece Q7 profile: 17/17 checked outputs match, but evaluator ciphertext bodies cost 843,392 bytes per element. Hypothetical Qwen 39+8 activation bodies alone project 4.53 TB; conversions, up multiplication and final rescaling are extra. Fixed-domain checkpoint admission fails. No tensor transport or Qwen decoder score. Notes: docs/research/nonlinear-frontier.md."
     },
     "logrow": {
       "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.protocols.LogRowGarbledLookup", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/activations.py", "evidence": "docs/evidence/research-activation-operators-sdk.json"},
       "scope": "One-use masked-index lookup and bounded in-process tensor override, with the earlier two-row setup.",
-      "code": ["crates/pllm-garble/src/logrow.rs", "tests/test_logrow_tensor_native.py"],
+      "code": ["crates/pllm-garble/src/logrow.rs", "tests/test_logrow_tensor_native.py", "crates/pllm-python/src/activation_benchmarks.rs", "python/pllm/metrics/activations.py"],
       "configuration": "benchmarks/research/nonlinear_frontier.py",
       "evidence": "docs/evidence/research-nonlinear-frontier-qwen25.json",
       "result": "Common four-piece Q7 profile: 17/17 checked outputs match with 2,144 evaluator-material bytes per element, projecting 11.51 GB at hypothetical 39+8 Qwen geometry before conversions/gated multiplication. Existing tiny decoder experiments pay more online CPU and offline issuance than clear SiLU. No protected real-checkpoint SDK composition. Notes: docs/research/nonlinear-frontier.md."
