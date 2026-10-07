@@ -1527,6 +1527,12 @@ and records both configuration and Pipeline digests. It ranks latency and throug
 only when measured model fingerprint, input and output token counts, output cap, and
 warm state match exactly. An explicitly requested winner export writes the
 lowest-median-full-latency Experiment as canonical JSON for later reruns.
+With an explicit output path, the CLI atomically checkpoints candidate identity,
+status and each completed report before proceeding. Incomplete documents use a
+distinct progress schema with no rankings; timeout and cancellation retain earlier
+reports without persisting exception text, private prompts or the cohort salt.
+The ordinary final report replaces the checkpoint only after the comparison is
+built. Checkpoints do not resume one-use sessions or merge separate cohorts.
 The separate opt-in `pllm benchmark quality` path scores the same prefill token
 cohort against a pinned local float32 checkpoint for up to eight immutable
 Experiments, using their selected W4/W8 and A4/A8 settings. It records exact

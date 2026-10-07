@@ -987,6 +987,13 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         from pllm.runtime.benchmark_isolation import run_isolated_loopback_benchmark
         run_loopback_benchmark = run_isolated_loopback_benchmark
 
+    from .benchmark_output import BenchmarkOutput
+
+    selected_experiments = [] if selection is not None else experiments or [None]
+    checkpoint = None if output is None else BenchmarkOutput(
+        output, force=args.force, configuration=configuration,
+        experiments=selected_experiments or [None],
+    )
     try:
         from pllm.deployment import LinkConditions
         docker_network = (LinkConditions.from_file(args.docker_network_profile)
@@ -996,12 +1003,13 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         candidate_reports = []
         cohort_salt = secrets.token_bytes(32)
         report: dict[str, Any] | None = None
-        selected_experiments = [] if selection is not None else experiments or [None]
         if selection is not None:
             if args.docker or args.docker_image or docker_network is not None:
                 raise ValueError("Docker starts local provider roles; selected network plans use their admitted hosts")
             from pllm.runtime.network_benchmark import run_network_benchmark
 
+            if checkpoint is not None:
+                checkpoint.start(1)
             report = run_network_benchmark(
                 network=network, result=result, request=request, prompt=prompt,
                 max_output_tokens=args.max_output_tokens, warmups=args.warmups,
@@ -1010,8 +1018,12 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 capture_output_digest=args.capture_output_digest,
                 wan=wan,
             )
+            if checkpoint is not None:
+                checkpoint.completed(report)
         for index, experiment in enumerate(selected_experiments, start=1):
             prefix = f"[{index}/{len(selected_experiments)}] " if experiments else ""
+            if checkpoint is not None:
+                checkpoint.start(index)
             report = run_loopback_benchmark(
                 model=args.model,
                 model_id=args.model_id,
@@ -1059,12 +1071,22 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                     "pipeline_digest": experiment.pipeline.digest(),
                 }
                 candidate_reports.append((experiment, report))
+            if checkpoint is not None:
+                checkpoint.completed(report)
         if len(candidate_reports) > 1:
             report = build_comparison_report(candidate_reports, compare_kernels=args.compare_kernels)
-    except (LoopbackBenchmarkError, ValueError, RuntimeError) as exc:
-        raise RuntimeFailure("BENCHMARK_FAILED", str(exc)) from exc
+    except BaseException as exc:
+        if checkpoint is not None:
+            checkpoint.failed(exc)
+        if isinstance(exc, (LoopbackBenchmarkError, ValueError, RuntimeError)):
+            raise RuntimeFailure("BENCHMARK_FAILED", str(exc)) from exc
+        raise
     if report is None:
         raise RuntimeFailure("BENCHMARK_FAILED", "benchmark produced no report")
+
+    # Keep a completed comparison even if a requested winner cannot be exported.
+    if checkpoint is not None:
+        checkpoint.finish(report)
 
     if args.save_best is not None:
         winner_digest = report["winners"].get("full_seconds")
@@ -1091,19 +1113,6 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
             ) from exc
         except OSError as exc:
             raise LocalIOError("OUTPUT_WRITE", f"cannot write output: {best_path}") from exc
-
-    if output is not None:
-        mode = "w" if args.force else "x"
-        try:
-            with output.open(mode, encoding="utf-8") as destination:
-                json.dump(report, destination, allow_nan=False, indent=2, sort_keys=True)
-                destination.write("\n")
-        except FileExistsError as exc:
-            raise LocalIOError(
-                "OUTPUT_EXISTS", f"output already exists; use --force to replace it: {output}"
-            ) from exc
-        except OSError as exc:
-            raise LocalIOError("OUTPUT_WRITE", f"cannot write output: {output}") from exc
 
     data = {"output": str(output) if output is not None else None, "report": report}
     if output_format == "human":

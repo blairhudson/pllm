@@ -64,7 +64,67 @@ reports, so no completed response-cost or layout ranking is available.
 
 `docs/evidence/research-nonlinear-decoders-qwen25-timeout.json` preserves the
 command, factory and wheel hashes, observed failure and unknown measurements.
-Future long sweeps need per-candidate persistence before another cost attempt.
+The CLI now checkpoints each candidate start and completed report atomically
+when `--output` is supplied. Incomplete progress documents retain the failed
+candidate identity and earlier evidence without publishing rankings. They do not
+resume one-use sessions or combine separate invocation salts. This does not
+recover the historical attempt's lost reports.
+
+## Bounded transport diagnosis
+
+`benchmarks/research/masked_wire_transport.py` derives the 4,864-element gated
+width and 24 regions from the pinned Qwen semantic schedule, then measures one
+synthetic row through the ordinary compiler-bound runtime. It compares the same
+client/worker code in process, across two authenticated loopback worker children,
+and through shared native 100/40 Mbps relays. Each of the six cases has three
+fresh-material samples. All **87,552 outputs** match an independent integer
+oracle; the worker cases observe zero swap growth.
+
+| Per row, one region | Unfused | Fused |
+| --- | ---: | ---: |
+| In-process median | 1.696 s | 3.373 s |
+| HTTP loopback median | 1.994 s | 3.601 s |
+| Native 100/40 median | 3.539 s | 6.321 s |
+| Client issuance, capped median | 1.075 s | 1.919 s |
+| Serialized party keys, both workers | 6,279,880 B | 11,097,672 B |
+| Complete covered application bodies | 7,151,942 B | 11,951,836 B |
+| Rate-admitted TCP-stream bytes | 7,382,678 B | 12,125,002 B |
+| HTTP requests | 456 | 342 |
+
+Each row has 19 sequential chunks. Fusion reduces the peer rounds from 11 to 8
+but its wider comparisons increase both key generation and delivery. In the
+capped runs, key import/start requests take 1.666/3.873 seconds, while all
+advance requests take 0.792/0.522 seconds. Issuance plus start requests occupy
+about **77%/92%** of row latency. Ordinary HTTP adds about 0.30/0.23 seconds
+over the in-process controls; pacing adds another 1.55/2.72 seconds. The dominant
+costs here are fresh keys and serial delivery, rather than the Python HTTP
+envelope alone. The diagnostic executes only the nonlinear region, not body
+matrix stages.
+
+Multiplying the capped row medians by the historical 39+8 geometry's
+`24 × (39 + 8 − 1) = 1,104` row-regions projects **65.1/116.3 minutes** and
+503,424/377,568 HTTP requests for these gated regions alone. This is a linear
+extrapolation, not measured whole-response latency or an identification of which
+historical candidate timed out. Startup, checkpoint delivery, other decoder
+operations, quality, full physical wire and independent deployment remain outside
+the diagnostic. The original timed-out request's input count and candidate
+identity were not retained.
+
+Evidence: `docs/evidence/research-masked-wire-transport-qwen25.json`. The report
+retains each sample, phase/direction body counts, native implementation/profile
+digests, compiler/source identity, authenticated worker CPU deltas and memory
+admission. CPU deltas include small telemetry/idle overhead; in-process CPU
+includes both local workers. Reproduce from a checkout with the pinned public
+configuration cached:
+
+```sh
+uv run python -m benchmarks.research.masked_wire_transport \
+  --samples 3 --output masked-wire-transport-reproduction.json
+```
+
+Before another long whole-checkpoint sweep, reduce or overlap bounded key
+issuance/delivery and remeasure the complete region. Fewer rounds alone have
+already lost this comparison; raising the request timeout does not resolve cost.
 
 ## Qwen3-4B allocation gate
 

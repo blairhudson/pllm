@@ -140,6 +140,16 @@ Different numeric options produce different quantized body fingerprints, so the
 current transport comparator reports their individual costs without ranking
 W4A4 against W8A8.
 
+With `--output`, each candidate start and completed report is saved atomically.
+During execution the file uses `pllm.benchmark_progress.v1`: `complete` is false,
+candidate statuses identify pending/running/completed work, and no comparison
+rankings or winner are published. A failure or cancellation preserves earlier
+reports and identifies the interrupted candidate; a hard process stop leaves the
+last checkpoint. Exception text, prompts and the private cohort salt are omitted.
+Successful completion replaces this document with the ordinary final report.
+`--force` is required to replace an existing output. These checkpoints do not
+resume one-use sessions or permit combining separate invocations into one cohort.
+
 The same command accepts the client-owned `ClientOnlyCpu` topology. Its
 checked-in Experiment uses the same public Qwen checkpoint and W8A8 numeric
 settings as the prepared CPU option. Inspect it without loading the checkpoint:

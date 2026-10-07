@@ -958,3 +958,111 @@ def test_benchmark_command_compares_experiments_and_saves_lowest_latency(
     assert report["rankings"]["full_seconds"][0]["name"] == "fast"
     assert saved.configuration_digest() == fast.configuration_digest()
     assert "slow" not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("isolated", [False, True])
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_benchmark_preserves_completed_candidates_on_failure(
+    monkeypatch, capsys, tmp_path, isolated, cancelled,
+):
+    import hashlib
+    from pllm.cli import main
+    from pllm.runtime.benchmark_cli import LoopbackBenchmarkError
+
+    experiments = [_experiment(f"candidate-{i}", i + 1) for i in range(3)]
+    arguments = ["benchmark", "run", "--prompt", "private input", "--format", "json"]
+    for experiment in experiments:
+        path = tmp_path / f"{experiment.name}.json"
+        path.write_bytes(experiment.canonical_bytes())
+        arguments += ["--experiment", str(path)]
+    output, best = tmp_path / "report.json", tmp_path / "best.json"
+    arguments += ["--output", str(output), "--save-best", str(best)]
+    if isolated:
+        arguments.append("--isolate-candidates")
+    salts, original = [], _report()
+    original["configuration"]["source_lock_digest"] = "source-commitment"
+
+    def run(**kwargs):
+        salts.append(kwargs["_cohort_salt"])
+        saved = json.loads(output.read_text())
+        assert saved["schema_version"] == "pllm.benchmark_progress.v1"
+        assert saved["complete"] is saved["checks"]["passed"] is False
+        assert "rankings" not in saved and "winners" not in saved
+        if len(salts) == 1:
+            assert [x["status"] for x in saved["candidates"]] == ["running", "pending", "pending"]
+            original["configuration"]["prompt_digest"] = hashlib.sha256(salts[0] + b"private input").hexdigest()
+            return original
+        assert saved["candidates"][0]["report"] == original
+        assert [x["status"] for x in saved["candidates"]] == ["completed", "running", "pending"]
+        raise KeyboardInterrupt() if cancelled else LoopbackBenchmarkError("private error credential")
+
+    target = ("pllm.runtime.benchmark_isolation.run_isolated_loopback_benchmark" if isolated
+              else "pllm.runtime.benchmark_cli.run_loopback_benchmark")
+    monkeypatch.setattr(target, run)
+    with pytest.raises(SystemExit) as failure:
+        main(arguments)
+    assert failure.value.code == (130 if cancelled else 6)
+    assert len(salts) == 2 and salts[0] == salts[1] and len(salts[0]) == 32
+    text = output.read_text()
+    saved = json.loads(text)
+    status = "cancelled" if cancelled else "failed"
+    assert saved["status"] == status
+    assert [x["status"] for x in saved["candidates"]] == ["completed", status, "pending"]
+    assert saved["candidates"][0]["report"] == original
+    assert saved["candidates"][1]["report"] is None
+    assert saved["candidates"][1]["experiment"]["configuration_digest"] == experiments[1].configuration_digest()
+    assert not best.exists()
+    assert not list(tmp_path.glob(".*.tmp"))
+    for private in ("private input", "private error credential", salts[0].hex(), "_cohort_salt"):
+        assert private not in text
+
+
+def test_atomic_benchmark_output_keeps_last_document_on_write_failure(monkeypatch, tmp_path):
+    from pllm._cli.benchmark_output import BenchmarkOutput
+    from pllm._cli.errors import LocalIOError
+
+    output = tmp_path / "report.json"
+    checkpoint = BenchmarkOutput(output, force=False, configuration={}, experiments=[None, None])
+    checkpoint.start(1)
+    checkpoint.completed(_report())
+    previous = output.read_bytes()
+
+    def fail(*args):
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr("pllm._cli.benchmark_output.os.replace", fail)
+    with pytest.raises(LocalIOError) as failure:
+        checkpoint.start(2)
+    assert failure.value.code == "OUTPUT_WRITE"
+    assert output.read_bytes() == previous
+    assert not list(tmp_path.glob(".*.tmp"))
+
+
+def test_benchmark_output_race_requires_force_and_success_keeps_final_schema(monkeypatch, capsys, tmp_path):
+    from pllm._cli.benchmark_output import BenchmarkOutput
+    from pllm._cli.errors import LocalIOError
+    from pllm.cli import main
+
+    output = tmp_path / "report.json"
+    checkpoint = BenchmarkOutput(output, force=False, configuration={}, experiments=[None])
+    output.write_text("another writer")
+    with pytest.raises(LocalIOError) as failure:
+        checkpoint.start(1)
+    assert failure.value.code == "OUTPUT_EXISTS"
+    assert output.read_text() == "another writer"
+    calls = []
+
+    def run(**kwargs):
+        calls.append(kwargs["_cohort_salt"])
+        assert json.loads(output.read_text())["candidates"][0]["status"] == "running"
+        return _report()
+
+    monkeypatch.setattr("pllm.runtime.benchmark_cli.run_loopback_benchmark", run)
+    arguments = ["benchmark", "run", "--tiny", "--output", str(output), "--format", "json"]
+    with pytest.raises(SystemExit) as failure:
+        main(arguments)
+    assert failure.value.code == 4 and not calls
+    for _ in range(2):
+        main([*arguments, "--force"])
+        assert json.loads(output.read_text()) == _report()
+    assert calls[0] != calls[1]
