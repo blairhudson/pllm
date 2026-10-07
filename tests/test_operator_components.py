@@ -105,3 +105,19 @@ def test_historical_masked_wire_record_migrates_without_rewriting_evidence():
     for key in ("resources", "quality"):
         assert all(result[key][name] == value for name, value in old[key].items())
     assert path.read_bytes() == original
+
+
+def test_masked_wire_overlap_binds_dispatch_without_changing_default_identity():
+    from pllm.profiles import TwoOnlineOffsetCpu
+
+    serial = MaskedWireGatedMultiplyQ12()
+    assert serial.params == {}
+    assert serial.with_params(dispatch="serial") == serial
+    overlap = serial.with_params(dispatch="overlap")
+    assert create_component(overlap.component, overlap.params) == overlap
+    pipeline = TwoOnlineOffsetCpu(Model.tiny(), nonlinear=overlap)
+    experiment = Experiment(name="overlap", pipeline=pipeline, deployment=Deployment.local(root="local://overlap"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=4, max_new_tokens=2))
+    assert Experiment.from_spec(experiment.to_spec()) == experiment
+    with pytest.raises(ConfigurationError, match="compiled two-worker"):
+        benchmark_operator(overlap, lanes=1, samples=1)

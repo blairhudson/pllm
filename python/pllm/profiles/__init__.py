@@ -648,19 +648,23 @@ class RuntimeComposition:
     prepared_output_encoding: str = "raw"
     preparation_storage: str = "resident"
     nonlinear_layout: str | None = None
+    nonlinear_dispatch: str = "serial"
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
     nonlinear = pipeline.components.get("nonlinear")
     nonlinear_layout = None
+    nonlinear_dispatch = "serial"
     if nonlinear is not None:
         if (nonlinear.component != MaskedWireGatedMultiplyQ12.descriptor.component
             or identities.get("linear") != "pllm/two-online-offset-linear/v1"
             or identities.get("kernels") != "pllm/cpu" or "cache" in identities):
             return None
         try:
-            nonlinear_layout = MaskedWireGatedMultiplyQ12(**nonlinear.params).params.get("layout", "unfused")
+            parameters = MaskedWireGatedMultiplyQ12(**nonlinear.params).get_params()
+            nonlinear_layout = parameters["layout"]
+            nonlinear_dispatch = parameters["dispatch"]
         except (ValueError, TypeError):
             return None
         del identities["nonlinear"]
@@ -929,6 +933,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             "compiled_offset_v1",
             f"two_online_offset_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
             nonlinear_layout=nonlinear_layout,
+            nonlinear_dispatch=nonlinear_dispatch,
             public_equalization_digest=equalization_digest,
             **bits,
             **cache_options,

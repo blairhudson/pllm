@@ -259,18 +259,28 @@ claims. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
 The masked-wire component now also selects experimental CPU two-offset gated
 regions. A native model-neutral pass binds each dense float32 SiLU/multiply pair,
 the fixed numeric profile, floor float32-to-Q24 and Q12-to-float32 client boundaries,
-256-element chunks and a 64 MiB combined material-allocation ceiling. The trusted
+256-element chunks and a per-chunk 64 MiB combined material-allocation ceiling. The trusted
 client issues fresh party-local keys online and relays opaque peer frames between
 authenticated workers; ordinary application counters charge both relay legs and
 key delivery. Session/phase/region/index bindings and monotonic worker admission
 burn malformed, replayed, cancelled and expired material. Whole-topology memory
-admission prices one client chunk and eight possible chunks per worker. Network
+admission prices one client chunk and eight possible chunks per worker. The opt-in
+`dispatch="overlap"` binds one additional client-prefetched chunk and concurrent
+worker requests within each phase. Failure and cancellation drain outstanding
+calls and burn unused material. Client chunk/frame admission grows from 70 to
+140 MiB before margin; each worker still owns one active chunk per session. Network
 offers without nonlinear resource pricing reject. Generated Qwen2/Qwen3 whole
 prefill/decode matches independent integer-oracle logits and KV in both layouts;
 separate-process SDK and gateway requests complete. These functionality checks
 do not establish real-checkpoint quality, independent operators or cryptographic
 review. Clear-SiLU and changed nonlinear profiles have separate benchmark numeric
 contracts even if output selections agree.
+A twelve-case synthetic Qwen-width region cohort checks 175,104 exact outputs.
+At shared native 100/40 caps, overlap lowers unfused/fused row latency from
+3.55/6.34 to 2.16/3.77 seconds with unchanged key and traffic bytes and nearly
+unchanged aggregate CPU. Worker cases observe zero swap growth. This bounded
+region timing excludes whole-response execution and peak-memory comparison;
+details and replay are in `docs/research/nonlinear-decoders.md`.
 The optional `MaskedWireGatedMultiplyQ12(layout="fused")` now implements bounded
 multi-view fusion on the complete block: rescaling, index reduction and predicates
 derive from one masked gate input. Eighteen fresh processes check 5,778 exact outputs.

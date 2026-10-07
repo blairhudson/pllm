@@ -166,6 +166,15 @@ runs during the response and belongs to client CPU. Memory admission prices the
 client's active chunk and all eight worker-session slots. Network-offer planning
 does not yet price this capability and rejects it.
 
+The opt-in `MaskedWireGatedMultiplyQ12(dispatch="overlap")` additionally issues
+one prefetched chunk and sends to the two workers concurrently within each phase.
+It preserves the numeric profile, key sizes, round count and one-use context.
+Client chunk/frame admission grows from 70 to 140 MiB before the existing margin;
+each worker still has one active chunk per session. Cancellation drains outstanding
+calls and burns the unused prefetched handle. The default is `dispatch="serial"`;
+the in-process operator benchmark requires that default because it does not use
+this compiled transport schedule.
+
 Generated Qwen2/Qwen3 prefill/decode tests match an independent integer oracle's
 logits and KV for both layouts. Separate-process SDK and gateway requests check
 the same path. A fresh twelve-prompt pinned Qwen2.5 diagnostic matches **10/12

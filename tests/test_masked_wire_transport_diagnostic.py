@@ -5,15 +5,19 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-def test_transport_diagnostic_retains_exact_rows_and_conserved_costs():
+@pytest.mark.parametrize("filename,case_count,output_count", [
+    ("research-masked-wire-transport-qwen25.json", 6, 87552),
+    ("research-masked-wire-overlap-qwen25.json", 12, 175104),
+])
+def test_transport_diagnostic_retains_exact_rows_and_conserved_costs(filename, case_count, output_count):
     root = Path(__file__).resolve().parents[1]
-    report = json.loads((root / "docs/evidence/research-masked-wire-transport-qwen25.json").read_text())
+    report = json.loads((root / "docs/evidence" / filename).read_text())
     assert report["status"] == "completed"
     assert report["source"]["width"] == 4864
     assert report["source"]["gated_regions"] == 24
-    assert len(report["cases"]) == 6
+    assert len(report["cases"]) == case_count
     assert len({c["native_resources"]["profile_digest"] for c in report["cases"]}) == 1
-    assert sum(s["exact_outputs"] for c in report["cases"] for s in c["samples"]) == 87552
+    assert sum(s["exact_outputs"] for c in report["cases"] for s in c["samples"]) == output_count
     for layout, requests, keys, bodies in (("unfused", 456, 6279880, 7151942),
                                          ("fused", 342, 11097672, 11951836)):
         cases = [c for c in report["cases"] if c["layout"] == layout]
@@ -36,6 +40,29 @@ def test_transport_diagnostic_retains_exact_rows_and_conserved_costs():
                     assert sum(sample["directed_tcp_stream_bytes"].values()) >= bodies
 
 
+def test_overlap_changes_timing_and_admission_without_discarding_traffic():
+    root = Path(__file__).resolve().parents[1]
+    report = json.loads((root / "docs/evidence/research-masked-wire-overlap-qwen25.json").read_text())
+    assert report["dispatches"] == ["serial", "overlap"]
+    assert "sum request durations" in report["timing_scope"]
+    assert "issuing thread" in report["timing_scope"]
+    cases = {(c["layout"], c["dispatch"], c["transport"]): c for c in report["cases"]}
+    for layout in ("unfused", "fused"):
+        for transport in ("in-process", "http-loopback", "native-100/40"):
+            serial, overlap = (cases[layout, dispatch, transport] for dispatch in report["dispatches"])
+            assert serial["native_resources"] == overlap["native_resources"]
+            for first, second in zip(serial["samples"], overlap["samples"], strict=True):
+                assert first["exact_outputs"] == second["exact_outputs"]
+                assert first["application_body_bytes"] == second["application_body_bytes"]
+                for key in ("party_key_bytes", "peer_frame_bytes", "chunks", "elements"):
+                    assert first["stats"][key] == second["stats"][key]
+                if transport == "native-100/40":
+                    assert first["directed_tcp_stream_bytes"] == second["directed_tcp_stream_bytes"]
+            if transport != "in-process":
+                a, b = (c["memory_admission"]["estimate"]["components"] for c in (serial, overlap))
+                assert b["client_nonlinear_work_bytes"] == 2 * a["client_nonlinear_work_bytes"]
+
+
 def test_diagnostic_fixture_agrees_with_native_mapping_at_signed_and_tail_boundaries(monkeypatch):
     from pllm import _native
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
@@ -55,7 +82,7 @@ def test_diagnostic_keeps_finished_cases_when_next_case_fails(monkeypatch, tmp_p
     output = tmp_path / "diagnostic.json"
     completed = {"layout": "unfused", "transport": "http-loopback", "samples": [{"exact_outputs": 16}]}
 
-    def fail(samples, *, record):
+    def fail(samples, *, record, compare_dispatch):
         document = {"status": "running", "cases": [completed], "active_case": None}
         record(document)
         assert json.loads(output.read_text())["cases"] == [completed]

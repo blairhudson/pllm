@@ -22,6 +22,8 @@ assert report.quality.exact_integer_outputs == 4
 fused = method.with_params(layout="fused")
 fused_report = benchmark_operator(fused, lanes=4, samples=1)
 assert fused_report.quality == report.quality
+overlapped = fused.with_params(dispatch="overlap")
+assert create_component(overlapped.component, overlapped.params) == overlapped
 ```
 
 The fixed numeric contract admits gate in `[-48,48]` and up in `[-128,128]`,
@@ -47,5 +49,19 @@ share, with peer frames relayed through the client. Generated Qwen2/Qwen3 SDK,
 gateway and prefill/decode checks cover this execution path. The
 [decoder guide](/sdk/evaluate/paper-operators/#experimental-decoder-execution)
 states its numeric, resource and transport scope.
+
+For compiled two-worker execution, `method.with_params(dispatch="overlap")`
+issues at most one next chunk while the current chunk executes and sends each
+phase to both workers concurrently. Each worker still owns one active chunk.
+The compiler binds this choice; cancellation joins outstanding work and burns
+prefetched material. Client memory admission charges two chunk allocations
+instead of one, including frame buffers. `dispatch="serial"` remains the default.
+The scalar `benchmark_operator` path requires serial dispatch; overlap timing
+uses the compiled runtime and authenticated worker transport.
+
+A bounded synthetic Qwen-width cohort measures 39.3%/40.6% lower unfused/fused
+region latency under shared native 100/40 Mbps caps, with unchanged traffic and
+nearly unchanged aggregate CPU. This measures one region, not a whole response;
+see the [retained overlap evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-masked-wire-overlap-qwen25.json).
 
 API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures).

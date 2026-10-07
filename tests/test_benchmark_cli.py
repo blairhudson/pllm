@@ -736,7 +736,16 @@ def test_loopback_report_summarizes_records_and_has_no_text_payloads() -> None:
     assert '"token_ids"' not in serialized
 
 
-def test_comparison_rejects_changed_nonlinear_identity_but_admits_exact_fusion() -> None:
+def test_nonlinear_comparison_preserves_unknown_dispatch_or_layout():
+    from pllm.runtime.benchmark_cli import _comparison_nonlinear_component
+
+    for key in ("dispatch", "layout", "rounding"):
+        nonlinear = {"component": "pllm/masked-wire-gated-multiply-q12/v1", "params": {key: "future"}}
+        assert _comparison_nonlinear_component({"nonlinear": nonlinear}) == nonlinear
+
+
+@pytest.mark.parametrize("dispatch", ["serial", "overlap"])
+def test_comparison_rejects_changed_nonlinear_identity_but_admits_exact_fusion(dispatch) -> None:
     from pllm import Model
     from pllm.nonlinear import MaskedWireGatedMultiplyQ12
     from pllm.profiles import TwoOnlineOffsetCpu
@@ -744,7 +753,7 @@ def test_comparison_rejects_changed_nonlinear_identity_but_admits_exact_fusion()
     plain = _experiment("plain", 1).with_params(pipeline=TwoOnlineOffsetCpu(Model.tiny()))
     unfused = plain.with_params(name="unfused", pipeline=TwoOnlineOffsetCpu(Model.tiny(),
         nonlinear=MaskedWireGatedMultiplyQ12()))
-    fused = unfused.with_params(name="fused", pipeline__nonlinear__layout="fused")
+    fused = unfused.with_params(name="fused", pipeline__nonlinear__layout="fused", pipeline__nonlinear__dispatch=dispatch)
     rejected = build_comparison_report([(plain, _report()), (unfused, _report())])
     assert not rejected["checks"]["matched_numeric_contract"]
     assert all(value is None for value in rejected["winners"].values())

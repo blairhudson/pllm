@@ -9,6 +9,7 @@ import argparse
 import asyncio
 from contextlib import ExitStack
 import hashlib
+import itertools
 import json
 import math
 from pathlib import Path
@@ -16,6 +17,7 @@ import platform
 import secrets
 import statistics
 import tempfile
+import threading
 import time
 
 import httpx
@@ -55,6 +57,7 @@ def measured_row(client, step, gate, up, expected):
     original = client.post
     actions = {action: {"requests": 0, "seconds": 0.0, "upload_bytes": 0, "download_bytes": 0}
                for action in ("start", "advance")}
+    lock = threading.Lock()
     deadline = time.monotonic() + 60
 
     def post(index, path, **kwargs):
@@ -63,10 +66,12 @@ def measured_row(client, step, gate, up, expected):
         action = actions[path.rsplit("/", 1)[1]]
         started = time.perf_counter()
         status, body = original(index, path, **kwargs)
-        action["seconds"] += time.perf_counter() - started
-        action["requests"] += 1
-        action["upload_bytes"] += len(kwargs["content"])
-        action["download_bytes"] += len(body)
+        elapsed = time.perf_counter() - started
+        with lock:
+            action["seconds"] += elapsed
+            action["requests"] += 1
+            action["upload_bytes"] += len(kwargs["content"])
+            action["download_bytes"] += len(body)
         return status, body
 
     client.post = post
@@ -147,7 +152,7 @@ def http_cases(experiment, compiled, step, gate, up, expected, *, paced, samples
                 "maximum_swap_growth_bytes": watchdog.maximum_swap_growth_bytes}
 
 
-def run(samples=3, *, record=lambda document: None):
+def run(samples=3, *, record=lambda document: None, compare_dispatch=False):
     from huggingface_hub import hf_hub_download
 
     source = Path(hf_hub_download(MODEL, "config.json", revision=REVISION, local_files_only=True)).read_bytes()
@@ -161,11 +166,18 @@ def run(samples=3, *, record=lambda document: None):
         raise ValueError("diagnostic requires one bounded uniform semantic gated width")
     width = widths.pop()
     gate, up, expected = fixture(width)
+    dispatches = ("serial", "overlap") if compare_dispatch else ("serial",)
+    repository = Path(__file__).resolve().parents[2]
+    sources = ["benchmarks/research/masked_wire_transport.py", "python/pllm/runtime/masked_wire.py",
+               "python/pllm/runtime/offset_reference.py", "crates/pllm-compiler/src/masked_wire_schedule.rs"]
     report = {"schema": "pllm.masked_wire_transport_diagnostic.v1", "status": "running",
         "scope": "one synthetic row/region; compiler-bound ordinary worker transport; not checkpoint inference",
         "source": {"model": MODEL, "revision": REVISION, "config_sha256": hashlib.sha256(source).hexdigest(),
                    "plan_digest": target_plan.digest, "gated_regions": len(target_regions), "width": width},
         "environment": {"platform": platform.platform(), "python": platform.python_version()},
+        "source_sha256": {path: hashlib.sha256((repository / path).read_bytes()).hexdigest() for path in sources},
+        "dispatches": list(dispatches),
+        "timing_scope": "action seconds sum request durations, which overlap in overlap mode; issuance CPU uses the issuing thread",
         "wan_conditions": WanConditions().to_spec(), "cases": [], "active_case": None,
         "exclusions": ["checkpoint inference and quality", "whole-response costs", "startup/session setup and teardown",
                        "physical wire", "independent operators", "peak memory comparison"],
@@ -176,17 +188,17 @@ def run(samples=3, *, record=lambda document: None):
         model = Model.path(str(root), model_id="masked-wire-transport-diagnostic")
         tiny_config = json.loads((root / "config.json").read_text())
         plan = pllm.lower_model(tiny_config, batch=1, max_input_tokens=1, max_new_tokens=2)
-        for layout in ("unfused", "fused"):
-            pipeline = TwoOnlineOffsetCpu(model, nonlinear=MaskedWireGatedMultiplyQ12(layout=layout))
+        for layout, dispatch in itertools.product(("unfused", "fused"), dispatches):
+            pipeline = TwoOnlineOffsetCpu(model, nonlinear=MaskedWireGatedMultiplyQ12(layout=layout, dispatch=dispatch))
             experiment = Experiment(name=f"transport-{layout}", pipeline=pipeline,
                 deployment=Deployment.local(root=temporary),
                 budget=ExecutionBudget(max_input_tokens=1, max_new_tokens=2, requests=samples))
             admission = benchmark_memory(experiment, backend="native")
             require_admission(admission)
             schedule = plan.runtime_schedule(pipeline)
-            report["active_case"] = {"layout": layout, "transport": "in-process"}
+            report["active_case"] = {"layout": layout, "dispatch": dispatch, "transport": "in-process"}
             record(report)
-            case = {"layout": layout, "transport": "in-process",
+            case = {"layout": layout, "dispatch": dispatch, "transport": "in-process",
                     "samples": [local_case(schedule, gate, up, expected) for _ in range(samples)]}
             report["cases"].append(case)
             report["active_case"] = None
@@ -198,9 +210,9 @@ def run(samples=3, *, record=lambda document: None):
                 compiled = compile_runtime_model(plan, bundle, composition=pipeline)
                 step = next(s for s in schedule.to_dict()["prefill"]["steps"] if s["executor"] == "remote_gated_block")
                 for paced in (False, True):
-                    report["active_case"] = {"layout": layout, "transport": "native-100/40" if paced else "http-loopback"}
+                    report["active_case"] = {"layout": layout, "dispatch": dispatch, "transport": "native-100/40" if paced else "http-loopback"}
                     record(report)
-                    case = {"layout": layout, "transport": "native-100/40" if paced else "http-loopback",
+                    case = {"layout": layout, "dispatch": dispatch, "transport": "native-100/40" if paced else "http-loopback",
                         **http_cases(experiment, compiled, step, gate, up, expected, paced=paced, samples=samples)}
                     report["cases"].append(case)
                     report["active_case"] = None
@@ -223,6 +235,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--samples", type=int, choices=range(1, 4), default=3)
+    parser.add_argument("--compare-dispatch", action="store_true")
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError(args.output)
@@ -234,7 +247,7 @@ def main():
         latest = document
 
     try:
-        report = run(args.samples, record=record)
+        report = run(args.samples, record=record, compare_dispatch=args.compare_dispatch)
     except BaseException as error:
         if latest is not None:
             latest["status"] = "cancelled" if isinstance(error, KeyboardInterrupt) else "failed"
@@ -243,7 +256,7 @@ def main():
         raise
     record(report)
     for case in report["cases"]:
-        print(f"{case['layout']} {case['transport']}: {case['median_wall_seconds']:.3f}s; "
+        print(f"{case['layout']} {case['dispatch']} {case['transport']}: {case['median_wall_seconds']:.3f}s; "
               f"issuance {case['median_issuance_seconds']:.3f}s", flush=True)
 
 

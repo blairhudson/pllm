@@ -122,9 +122,48 @@ uv run python -m benchmarks.research.masked_wire_transport \
   --samples 3 --output masked-wire-transport-reproduction.json
 ```
 
-Before another long whole-checkpoint sweep, reduce or overlap bounded key
-issuance/delivery and remeasure the complete region. Fewer rounds alone have
-already lost this comparison; raising the request timeout does not resolve cost.
+## Bounded issuance and delivery overlap
+
+`MaskedWireGatedMultiplyQ12(dispatch="overlap")` is a separately bound compiled
+runtime option. It issues at most one next chunk while the current chunk runs,
+and sends to both workers concurrently within each phase. Each worker still
+owns one active chunk. Cancellation or failure joins pending work and burns
+unused material; prefetched indices cannot be retried. Serial dispatch remains
+the default and preserves previous plan identities. The scalar operator benchmark
+requires serial dispatch because it does not execute this transport schedule.
+
+A new twelve-case cohort measures both dispatches, both layouts and all three
+transports with three fresh-material samples each. All **175,104 outputs** match
+the independent integer oracle, with zero observed swap growth in worker cases.
+Tests separately check compiler-bound Qwen2/Qwen3 prefill/decode logits and KV,
+partial final chunks, concurrent worker requests and cancellation/issuance failures.
+
+| Median per synthetic row/region | Unfused serial | Unfused overlap | Fused serial | Fused overlap |
+| --- | ---: | ---: | ---: | ---: |
+| In-process latency | 1.701 s | 1.088 s | 3.360 s | 1.952 s |
+| HTTP loopback latency | 2.010 s | 1.100 s | 3.618 s | 1.958 s |
+| Native 100/40 latency | 3.554 s | 2.158 s | 6.342 s | 3.768 s |
+| Native 100/40 aggregate process CPU | 2.148 s | 2.146 s | 3.770 s | 3.754 s |
+| Native 100/40 client issuance | 1.075 s | 1.070 s | 1.918 s | 1.914 s |
+
+Capped row latency falls **39.3%/40.6%**. Key bytes, application bodies, TCP-stream
+bytes, HTTP request counts and rounds are identical within each layout. Work is
+overlapped rather than eliminated; aggregate process CPU is nearly unchanged.
+Action timings sum request durations and therefore overlap in wall time. Issuance
+CPU uses its thread's clock to exclude concurrent HTTP work.
+
+Client admission prices two chunk/frame allocations instead of one: **140 MiB
+versus 70 MiB**, before the existing margin. Worker capacity is unchanged. These
+are allocation bounds, not measured peak differences. The same synthetic-input,
+one-region, startup-excluded scope applies; checkpoint quality and whole-response
+latency have not been remeasured. Fresh keys and their traffic remain expensive.
+
+Evidence: `docs/evidence/research-masked-wire-overlap-qwen25.json`. Reproduce with:
+
+```sh
+uv run python -m benchmarks.research.masked_wire_transport \
+  --compare-dispatch --samples 3 --output masked-wire-overlap-reproduction.json
+```
 
 ## Qwen3-4B allocation gate
 

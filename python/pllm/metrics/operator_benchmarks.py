@@ -89,6 +89,8 @@ def benchmark_operator(
         raise TypeError("component must be a ComponentRef")
     component = create_component(component.component, component.params)
     if isinstance(component, MaskedWireGatedMultiplyQ12):
+        if component.get_params()["dispatch"] != "serial":
+            raise ConfigurationError("overlap dispatch requires a compiled two-worker benchmark")
         benchmark = _MaskedWireBenchmark(component, lanes, samples)
         fields = {"gate_q24", "up_q24"}
     elif isinstance(component, SharedRescale):

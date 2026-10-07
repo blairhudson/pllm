@@ -270,14 +270,15 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     from .decoder_memory import decoder_memory
     workspace = decoder_memory(plan, plan.runtime_schedule(pipeline))
     tensors = workspace["working_bytes"] + workspace["state_bytes"]
-    # One active client-issued chunk; a worker may own one chunk in each of
+    # Serial dispatch owns one client chunk; overlap also owns one prefetched
+    # chunk. A worker may own one chunk in each of
     # eight admitted sessions. Charge the native allocation ceiling, packet
     # copies and bounded HTTP buffers, rather than retaining a response's keys.
     nonlinear_client = nonlinear_worker = 0
     if options.nonlinear_layout is not None:
         from .masked_wire import MAX_FRAME
 
-        nonlinear_client = 64 * MiB + 6 * MAX_FRAME
+        nonlinear_client = (2 if options.nonlinear_dispatch == "overlap" else 1) * (64 * MiB + 6 * MAX_FRAME)
         nonlinear_worker = 8 * (64 * MiB + 3 * MAX_FRAME)
     cache_bytes = max(cache_bytes, options.prefix_cache_bytes)
     verification = legacy_verification = 0

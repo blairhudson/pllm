@@ -116,6 +116,8 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
     the numeric contract. Operator benchmarks use a local dealer. The CPU
     two-offset Experiment uses client-issued material and authenticated
     party-local workers, with peer frames relayed through the trusted client.
+    ``dispatch="overlap"`` overlaps one future chunk's issuance with paired
+    worker requests, retaining at most two client material chunks.
     """
 
     __slots__ = ()
@@ -128,7 +130,10 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
         category_version="1",
         lifecycle_phase="runtime",
         parameter_schema={
-            "type": "object", "properties": {"layout": {"enum": ["unfused", "fused"]}},
+            "type": "object", "properties": {
+                "layout": {"enum": ["unfused", "fused"]},
+                "dispatch": {"enum": ["serial", "overlap"]},
+            },
             "additionalProperties": False,
         },
         capabilities=("protected-gated-multiply-q12", "bounded-operator-benchmark", "compiled-gated-regions"),
@@ -136,14 +141,19 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
         role_eligibility=("client", "worker_a", "worker_b"),
     )
 
-    def __init__(self, *, layout: str = "unfused") -> None:
+    def __init__(self, *, layout: str = "unfused", dispatch: str = "serial") -> None:
         if type(layout) is not str or layout not in {"unfused", "fused"}:
             raise ConfigurationError("layout must be unfused or fused")
+        if type(dispatch) is not str or dispatch not in {"serial", "overlap"}:
+            raise ConfigurationError("dispatch must be serial or overlap")
         # Preserve the original default component and historical configurations.
-        super().__init__(self.descriptor.component, {} if layout == "unfused" else {"layout": layout})
+        params = {} if layout == "unfused" else {"layout": layout}
+        if dispatch != "serial":
+            params["dispatch"] = dispatch
+        super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"layout": self.params.get("layout", "unfused")}
+        return {"layout": self.params.get("layout", "unfused"), "dispatch": self.params.get("dispatch", "serial")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

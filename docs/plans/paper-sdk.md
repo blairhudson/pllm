@@ -16,6 +16,12 @@ Curl and LogRow now have validated bounded component/operator bindings,
 with complete material owners and separate compressed numeric identities.
 The first protected response-cost sweep hit its 3,600-second request timeout
 without a complete comparison report; that failed attempt remains explicit.
+The bounded transport follow-up identifies fresh key generation/delivery as
+dominant. Opt-in one-chunk issuance overlap and concurrent worker requests lower
+capped synthetic row latency by 39.3%/40.6% for unfused/fused layouts, with unchanged
+traffic and almost unchanged aggregate CPU. Client chunk/frame admission doubles
+to 140 MiB before margin; whole-response cost comparison remains open. Evidence
+and reproduction: `docs/research/nonlinear-decoders.md`.
 The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored

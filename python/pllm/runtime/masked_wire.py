@@ -6,9 +6,11 @@ the client. Application-body counters include material and both relay legs.
 """
 from __future__ import annotations
 
+from concurrent.futures import Future, ThreadPoolExecutor
 import hashlib
 import json
 import struct
+import threading
 import time
 from typing import Any, Callable
 
@@ -160,6 +162,11 @@ class ClientRegions:
         self.layout = schedule["nonlinear"]["layout"]
         self.sessions = sessions
         self.post = post
+        self.dispatch = schedule["nonlinear"].get("dispatch", "serial")
+        if self.dispatch not in {"serial", "overlap"}:
+            raise ValueError("masked-wire dispatch is unsupported")
+        self._state_lock = threading.Lock()
+        self._running = False
         self.next_indices: dict[str, int] = {}
         self.stats = {"elements": 0, "chunks": 0, "party_key_bytes": 0, "peer_frame_bytes": 0,
                       "client_issuance_ns": 0, "client_issuance_cpu_ns": 0}
@@ -175,10 +182,48 @@ class ClientRegions:
                 raise ValueError("masked-wire worker did not acknowledge its compiled region")
 
     def cancel(self) -> None:
-        self.closed = True
-        if self.current is not None:
-            self.current.cancel()
-        self.current = None
+        # The running call owns native handles while their GIL-released methods
+        # execute. Mark terminal now; that call drains/burns both chunks before
+        # it returns. Cancellation must not mutably borrow an active PyO3 handle.
+        with self._state_lock:
+            self.closed = True
+            if not self._running and self.current is not None:
+                self.current.cancel()
+                self.current = None
+
+    def _issue(self, region: str, first: int, lanes: int):
+        if self.closed:
+            raise ValueError("masked-wire issuance cancelled")
+        started, cpu = time.perf_counter_ns(), time.thread_time_ns()
+        try:
+            return _native._masked_wire_issue(self.plan, self.session,
+                bytes.fromhex(region), first, lanes, self.layout)
+        finally:
+            # Process CPU would also count concurrent HTTP work. Issuance runs
+            # on this thread, including its GIL-released native call.
+            with self._state_lock:
+                self.stats["client_issuance_ns"] += time.perf_counter_ns() - started
+                self.stats["client_issuance_cpu_ns"] += time.thread_time_ns() - cpu
+
+    def _pair(self, pool, region: str, action: str, payloads: tuple[bytes, bytes]) -> list[bytes]:
+        if pool is None:
+            return [self._send(index, region, action, body) for index, body in enumerate(payloads)]
+        # One thread issues the next chunk, one sends to worker A, and the
+        # calling thread sends to B. Never have two requests to the same worker.
+        future = pool.submit(self._send, 0, region, action, payloads[0])
+        try:
+            right = self._send(1, region, action, payloads[1])
+            return [future.result(), right]
+        except BaseException:
+            self.cancel()
+            raise
+        finally:
+            # A failed peer cannot leave an unjoined request issuing more work.
+            future.cancel()
+            try:
+                future.result()
+            except BaseException:
+                pass
 
     def _send(self, index: int, region: str, action: str, payload: bytes) -> bytes:
         if self.closed:
@@ -198,31 +243,45 @@ class ClientRegions:
             or gate.dtype != np.float32 or up.dtype != np.float32 or gate.size == 0
             or gate.shape[-1] != self.regions[region][0] or gate.size > self.regions[region][1]):
             raise ValueError("masked-wire tensor differs from the compiled region")
-        result = np.empty(gate.size, dtype=np.float32)
-        gates, ups = gate.reshape(-1), up.reshape(-1)
+        with self._state_lock:
+            if self.closed or self._running:
+                raise ValueError("masked-wire session is terminal or already executing")
+            self._running = True
+        pending: Future | None = None
+        pool = None
         try:
+            result = np.empty(gate.size, dtype=np.float32)
+            gates, ups = gate.reshape(-1), up.reshape(-1)
+            if self.dispatch == "overlap":
+                pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pllm-nonlinear")
             for offset in range(0, gate.size, MAX_LANES):
                 lanes = min(MAX_LANES, gate.size - offset)
                 g = encode_input(gates[offset:offset + lanes], gate=True)
                 u = encode_input(ups[offset:offset + lanes], gate=False)
-                first = self.next_indices.get(region, 0)
-                started, cpu = time.perf_counter_ns(), time.process_time_ns()
-                try:
-                    self.current, left, right = _native._masked_wire_issue(
-                        self.plan, self.session, bytes.fromhex(region), first, lanes, self.layout)
-                finally:
-                    self.stats["client_issuance_ns"] += time.perf_counter_ns() - started
-                    self.stats["client_issuance_cpu_ns"] += time.process_time_ns() - cpu
-                self.next_indices[region] = first + lanes
+                if pending is None:
+                    first = self.next_indices.get(region, 0)
+                    self.next_indices[region] = first + lanes
+                    self.current, left, right = self._issue(region, first, lanes)
+                else:
+                    first = self.next_indices[region] - lanes
+                    self.current, left, right = pending.result()
+                    pending = None
+                if self.closed:
+                    raise ValueError("masked-wire session cancelled during issuance")
+                next_lanes = min(MAX_LANES, gate.size - offset - lanes)
+                if pool is not None and next_lanes:
+                    # Reserve once, before issuance. A failure burns this range;
+                    # it is never resubmitted or exported to another session.
+                    next_first = self.next_indices[region]
+                    self.next_indices[region] = next_first + next_lanes
+                    pending = pool.submit(self._issue, region, next_first, next_lanes)
                 masked = self.current.encode(g.tobytes(), u.tobytes())
-                keys = (left, right)
-                frames = [self._send(index, region, "start",
-                    _START.pack(first, lanes, len(key)) + key + masked) for index, key in enumerate(keys)]
+                frames = self._pair(pool, region, "start", tuple(
+                    _START.pack(first, lanes, len(key)) + key + masked for key in (left, right)))
                 self.stats["party_key_bytes"] += len(left) + len(right)
                 for _ in range(8 if self.layout == "fused" else 11):
                     self.stats["peer_frame_bytes"] += sum(map(len, frames))
-                    returned = [self._send(0, region, "advance", frames[1]),
-                                self._send(1, region, "advance", frames[0])]
+                    returned = self._pair(pool, region, "advance", (frames[1], frames[0]))
                     if (any(not body or body[0] not in (0, 1) for body in returned)
                         or returned[0][0] != returned[1][0]):
                         raise ValueError("masked-wire workers disagree on their phase")
@@ -236,7 +295,25 @@ class ClientRegions:
                     raise ValueError("masked-wire workers exceeded their phase bound")
                 self.stats["elements"] += lanes
                 self.stats["chunks"] += 1
+            if self.closed:
+                raise ValueError("masked-wire session cancelled during evaluation")
             return result.reshape(gate.shape)
         except BaseException:
             self.cancel()
             raise
+        finally:
+            if pending is not None:
+                pending.cancel()
+                try:
+                    unused, _, _ = pending.result()
+                except BaseException:
+                    pass
+                else:
+                    unused.cancel()
+            if pool is not None:
+                pool.shutdown(wait=True, cancel_futures=True)
+            with self._state_lock:
+                if self.current is not None:
+                    self.current.cancel()
+                    self.current = None
+                self._running = False

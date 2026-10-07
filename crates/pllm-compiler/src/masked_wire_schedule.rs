@@ -8,12 +8,19 @@ pub(crate) const COMPONENT: &str = "pllm/masked-wire-gated-multiply-q12/v1";
 
 pub(crate) fn valid(component: &crate::ExperimentComponent) -> bool {
     component.component == COMPONENT
-        && component.params.len() <= 1
-        && component.params.keys().all(|key| key == "layout")
+        && component.params.len() <= 2
+        && component
+            .params
+            .keys()
+            .all(|key| matches!(key.as_str(), "layout" | "dispatch"))
         && component
             .params
             .get("layout")
             .is_none_or(|value| matches!(value.as_str(), Some("fused" | "unfused")))
+        && component
+            .params
+            .get("dispatch")
+            .is_none_or(|value| matches!(value.as_str(), Some("serial" | "overlap")))
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -22,6 +29,8 @@ pub struct MaskedWireNumericContract {
     pub schema: String,
     pub component: String,
     pub layout: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dispatch: Option<String>,
     pub profile_digest: pllm_types::Digest,
     pub input_boundary: String,
     pub output_boundary: String,
@@ -48,6 +57,12 @@ impl MaskedWireNumericContract {
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("unfused")
                 .into(),
+            dispatch: component
+                .params
+                .get("dispatch")
+                .and_then(serde_json::Value::as_str)
+                .filter(|dispatch| *dispatch != "serial")
+                .map(str::to_owned),
             profile_digest: pllm_types::Digest::from_sha256(
                 pllm_core::residual_silu_reference::Profile::new().digest(),
             ),
