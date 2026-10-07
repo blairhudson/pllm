@@ -551,7 +551,22 @@ Generated SDK/gateway controls include separate prepared role children, completi
 and cancellation retirement, and client-local message-history re-prefill. Retention
 policy binds benchmark numeric identity; native placement and benchmark admission
 price state/workspace owners. Protected provider-held selection and matched
-whole-response SDK memory remain gates. The separate common-profile Compact/LogRow/Curl
+whole-response SDK memory remain gates. A separate Rust-only selection substrate
+garbles stable top-k and complete-record movement through fixed bitonic networks.
+The trusted client supplies private nonnegative float32 scores and complete KV;
+the evaluator receives opaque input/output labels without a decoder. Fresh owner,
+layer, revision and issuance bindings reject stale or substituted results, while
+the client alone commits exact retained bits. One outstanding query per owner,
+16-row/16-feature geometry and a 64 MiB combined allocation estimate precede
+issuance. Twelve fresh processes match 474 independent-oracle output words.
+Selecting eight of sixteen two-feature rows requires 1.10 MB of label/ciphertext
+material plus 2.06 MB estimated public metadata to retire 160 bytes of state.
+The 16×16 allocation gate and full-width feature gate reject larger cases.
+Caller-declared plan context, local garbling and logical body counts do not
+establish compiler-bound provider state, distributed scoring or transport;
+independent review and cheaper complete selection remain required. Details:
+`docs/research/mpcache-reference.md`.
+The separate common-profile Compact/LogRow/Curl
 screen counts activation-only material and missing conversions explicitly;
 four-level Curl still projects 1.40 GB material and 730.30 MB peer bodies at
 39+8 before the gated product. NEXUS/THOR plaintext exponential references reject

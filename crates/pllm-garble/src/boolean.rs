@@ -306,6 +306,13 @@ enum BooleanInstruction {
     },
 }
 
+// Retained-selection admission prices three live capacities for both growing
+// arrays (including a reallocation overlap) at 384 bytes per circuit wire.
+const _: () = assert!(
+    3 * (std::mem::size_of::<BooleanInstruction>() + std::mem::size_of::<BooleanWireEncoding>())
+        <= 384
+);
+
 pub struct BooleanCircuitBuilder {
     garbler: BooleanGarbler,
     encodings: Vec<BooleanWireEncoding>,
@@ -1107,6 +1114,45 @@ pub struct BooleanCircuitProgram {
 }
 
 impl BooleanCircuitProgram {
+    /// Hash only public instruction kinds and wire addresses, never label bits,
+    /// gate ciphertexts or the fresh issuance ID. Useful for fixed-access audits.
+    pub(crate) fn public_schedule_digest(&self) -> [u8; 32] {
+        let mut hash = Sha256::new();
+        hash.update(b"pllm.boolean.public_schedule.v1\0");
+        for count in [
+            self.input_count,
+            self.wire_count,
+            self.output_wires.len(),
+            self.instructions.len(),
+        ] {
+            hash.update((count as u64).to_le_bytes());
+        }
+        for &wire in &self.output_wires {
+            hash.update((wire as u64).to_le_bytes());
+        }
+        for instruction in &self.instructions {
+            match instruction {
+                BooleanInstruction::Constant(_) => hash.update([0]),
+                BooleanInstruction::Not { input } => {
+                    hash.update([1]);
+                    hash.update((*input as u64).to_le_bytes());
+                }
+                BooleanInstruction::Xor { left, right } => {
+                    hash.update([2]);
+                    hash.update((*left as u64).to_le_bytes());
+                    hash.update((*right as u64).to_le_bytes());
+                }
+                BooleanInstruction::And { left, right, gate } => {
+                    hash.update([3]);
+                    hash.update((*left as u64).to_le_bytes());
+                    hash.update((*right as u64).to_le_bytes());
+                    hash.update(gate.gate_index.to_le_bytes());
+                }
+            }
+        }
+        hash.finalize().into()
+    }
+
     pub fn issuance_id(&self) -> [u8; CIRCUIT_ID_BYTES] {
         self.circuit_id
     }

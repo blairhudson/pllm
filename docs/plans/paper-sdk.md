@@ -113,6 +113,14 @@ two prepared role children pass; response completion/cancellation retire native
 state, while history follow-ups re-prefill. Benchmark matching binds the retention
 numeric policy and placement admission prices its state/workspace owners. Matched
 real-checkpoint SDK peak-memory benefit remains unmeasured.
+The separate bounded client-garbled top-k/gather substrate binds one-use private
+owner revisions and moves complete KV records through fixed bitonic networks.
+Twelve fresh native processes match 474 independently checked output words.
+Selecting eight of sixteen two-feature rows spends 1.10 MB of label/ciphertext
+material plus 2.06 MB estimated public metadata to retire 160 bytes of state.
+The 64 MiB allocation gate rejects 16×16 records; Qwen-width state is unsupported.
+Provider-resident scores/state, compiler-validated context, transport and a cheaper
+complete selection construction remain next gates; the substrate is Rust-only.
 Details: `docs/research/mpcache-reference.md`.
 
 Each whole-model delivery ends with:

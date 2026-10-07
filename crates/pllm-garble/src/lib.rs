@@ -18,6 +18,7 @@ mod point_fss;
 pub mod private_pages;
 pub mod projected_polynomial;
 pub mod projected_reshare;
+pub mod retained_selection;
 pub mod shared_affine_lookup_reference;
 pub mod shared_arithmetic_reference;
 pub mod shared_gated_block_reference;

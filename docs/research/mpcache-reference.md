@@ -46,7 +46,7 @@ diagnostic elapsed time as a runtime performance measurement.
   nonfinite/invalid inputs, and changed-query index leakage.
 - Static/dynamic decisions use plaintext client-local values. Revealing chosen
   addresses to a provider would reveal query-dependent information. Protected
-  top-k and oblivious gathers are absent. This historical oracle does not use the
+  top-k and oblivious gathers are absent from this historical oracle. It does not use the
   compiler-bound retained-state extension below.
 - The existing semantic eviction transform is separate from this oracle. The
   production full-KV contract rejects truncated backing state; this probe does
@@ -145,10 +145,80 @@ client-only and separate-process prepared roles, and the gateway full-retention
 control preserves output. Completion and cancelled streams retire every native
 owner. Follow-ups re-prefill client-held message history rather than retaining
 sparse KV between responses. Private selection addresses remain client-local.
-Protected top-k and oblivious gather still need an exact layer/state-revision
-binding before provider-owned selected state can run. The changed-query
-address-leakage witness remains a required negative control; the general dynamic
-and layer-shared MPCache transform remains unavailable.
+The bounded protected substrate below binds a private owner/revision, with its
+plan/source context supplied by the caller. Provider-owned selection still needs
+compiler-validated context, protected score calculation, persistent private state
+and transport. The general dynamic and layer-shared MPCache transform remains
+unavailable.
+
+## Bounded protected top-k and record movement
+
+`crates/pllm-garble/src/retained_selection.rs` separately implements client-garbled
+stable top-k and oblivious movement of complete KV records. It reuses the independent
+[half-gates reference](https://eprint.iacr.org/2014/756). It is a substrate for
+selection work, not a reproduction of [MPCache's](https://arxiv.org/abs/2501.06807v2)
+three-party scoring and eviction protocol.
+
+The trusted client owns the complete private state and supplies finite nonnegative
+float32 importance scores. Private inputs encode scores, absolute positions and
+every key/value float bit. A fixed bitonic network sorts by mandatory recent-row
+membership, score and stable original row order. It moves whole records rather
+than opening indices for an ordinary gather. A second fixed network restores
+ascending absolute positions. Signed zero in KV remains exact; score signed zeros
+tie. Negative or nonfinite scores reject.
+
+Only the client holds output decoding material. The evaluator receives one-use
+opaque input labels and a program; its output contains opaque labels for positions
+and KV. Public instruction/wire-address digests are identical across changed-score
+fixtures, while the clear-address negative control changes selected rows.
+This structural check is not a cryptographic privacy proof or a timing study.
+Rows, width, retention/recent counts, logical length and public context are visible.
+
+The native client owns the cache exclusively. Receipts bind a fresh random owner,
+layer, revision, logical position, shape, policy and issuance. Context contains no
+hash of private state or scores. Append, cancellation and close invalidate pending
+receipts; wrong outputs consume the rightful receipt before decoding. Foreign-owner
+attempts cannot burn another owner's valid query. Successful commit verifies exact
+owned KV bits, compacts native storage and preserves remaining decode capacity.
+Context hashes are caller declarations, not compiler validation or authenticated
+transport. Malformed-context evaluation consumes its handle; caller cancellation
+and handle destruction release the remaining client material.
+
+Admission bounds each selection to 16 rows, 16 flattened features and one outstanding
+query per owner. A **64 MiB combined allocation estimate**, including old/new state
+overlap, gates every circuit before issuance; some shapes inside the row/width
+limits still reject. The evaluator never receives reusable secret state handles.
+Tests cover stable ties, subnormal/maximum scores, exact signed-zero KV, padded
+non-power-of-two networks, context substitution, stale/foreign outputs, cancellation,
+append/compaction and admission failures.
+
+`docs/evidence/research-retained-selection.json` records twelve fresh native
+processes and **474 exact output words** checked by an independent Python oracle.
+All three samples per shape use fresh material and different public synthetic
+score fixtures. These are two-to-four-feature records, not checkpoint KV:
+
+| Rows / features / retained | Client→evaluator material | Evaluator→client labels | Public metadata estimate | Median issuance / evaluation | Native peak RSS | State bytes before→after |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 4 / 2 / 2 | 82,208 B | 5,120 B | 141,018 B | 13.67 / 5.86 ms | 3.26 MB | 120→80 |
+| 8 / 4 / 4 | 461,632 B | 18,432 B | 892,876 B | 79.60 / 35.33 ms | 10.34 MB | 360→216 |
+| 16 / 2 / 8 | 1,078,528 B | 20,480 B | 2,059,216 B | 190.65 / 86.35 ms | 26.25 MB | 360→200 |
+| 8 / 4 / 8 | 705,280 B | 36,864 B | 1,421,248 B | 124.81 / 55.76 ms | 21.76 MB | 360→360 |
+
+Client→evaluator counts include all AND ciphertexts, constant labels and input
+labels. The client encoding owners add 34,816–155,648 bytes across these shapes;
+they are separately recorded, not remote traffic. Public metadata uses the
+existing fixed-width instruction/index estimate. No transport codec is implemented,
+so these are logical material bodies, not wire measurements. Fresh native process
+CPU includes startup and all phases; per-phase times are local wall measurements.
+Native process-lifetime RSS excludes the Python launcher, with no summed-peak claim.
+
+The 16-row/two-feature case spends 1.10 MB of label/ciphertext material, plus
+2.06 MB of estimated public instructions, to retire 160 bytes of native state.
+A 16×16 case fails allocation admission and Qwen2.5's 128-feature flattened KV row exceeds the
+feature bound. Full-width state, protected score calculation, distributed roles,
+independent review and a substantially cheaper selection construction remain gates.
+This Rust-only substrate does not change the SDK retention policy or establish
+checkpoint quality, whole-response savings or provider-held MPCache execution.
 
 ## Fresh pinned-checkpoint allocation and quality
 
@@ -223,6 +293,15 @@ destination to replay it):
 uv run --no-sync python -m benchmarks.research.retained_decoder \
   --output docs/evidence/research-retained-decoder-qwen25.json
 uv run --no-sync pytest -q tests/test_retained_decoder_diagnostic.py
+```
+
+For the separate protected selection substrate (choose a new output to replay):
+
+```sh
+cargo test --locked --release -p pllm-garble retained_selection
+uv run --no-sync python -m benchmarks.research.retained_selection \
+  --output docs/evidence/research-retained-selection.json
+uv run --no-sync pytest -q tests/test_retained_selection_reference.py
 ```
 
 The canonical report is `docs/evidence/research-mpcache-reference-qwen25.json`.
