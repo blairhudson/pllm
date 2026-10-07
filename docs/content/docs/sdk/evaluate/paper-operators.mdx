@@ -331,6 +331,31 @@ separately tests same-token logits/KV and free-running generation. Neither is a
 protected whole-response measurement. Independent role transport, full wire,
 protected float conversion and cryptographic review remain open.
 
+## Complete Compact polynomial block
+
+```python
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import CompactGatedMultiplyQ12
+
+report = benchmark_operator(CompactGatedMultiplyQ12(max_pieces=8, degree=3), lanes=3, samples=1)
+assert report.quality.exact_integer_outputs == 3
+assert report.resources.role_names == ("garbler_client", "evaluator")
+```
+
+The [complete polynomial method](/sdk/components/nonlinear/compact-gated-multiply-q12/)
+accepts Q18 gate/up inputs within ±48/±128 and returns Q12. Public calibration
+controls dyadic piece refinement; a fresh circuit hides selection, evaluates
+the polynomial and performs signed multiplication with exact ties-even rounding.
+Its numeric identity differs from both Q7 activation-only fitting and the Q9
+Curl/LogRow complete blocks. The 64 MiB serial-live allocation bound, material
+by operation and role, boundary-label estimates and public metadata are explicit.
+
+The paper's annealing and accuracy-constrained parameter search are unimplemented;
+this fixed-profile CPU adaptation has separate
+[operator and checkpoint evidence](https://github.com/blairhudson/pllm/blob/main/docs/research/compact-product-reference.md).
+It has no tensor schedule or role transport. Zero evaluator-peer frames excludes
+material delivery, and float conversion remains at the trusted client.
+
 ## Paper coverage
 
 - [SIGMA](/research/papers/sigma/): public-gap floor shifts, residual SiLU and
@@ -343,8 +368,8 @@ protected float conversion and cryptographic review remain open.
   masked-wire block adapt mask-aware multi-view fusion with matched unfused controls.
 - [Mixed-Mode FSS](/research/papers/fss-mixed/): compact DCF and universal interval
   backends for that rescale helper.
-- [Compact](/research/papers/compact/): public density-aware Q7 fitting with
-  independently implemented private polynomial evaluation.
+- [Compact](/research/papers/compact/): public density-aware Chebyshev fitting,
+  private polynomial evaluation and a separate complete Q12 SiLU × up adaptation.
 - [Curl](/research/papers/curl/): party-local shared lookup and public Haar compression;
   a separate complete Q9 gated adaptation adds exact protected rescaling and multiplication.
 - [LogRow](/research/papers/logrow/): masked-index table lookup with the earlier

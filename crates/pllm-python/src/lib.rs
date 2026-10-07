@@ -4,6 +4,7 @@
 use pllm_core::{codec, kernels};
 
 mod activation_benchmarks;
+mod compact_product;
 mod continuation;
 mod head_index;
 mod logrow;
@@ -1708,6 +1709,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     activation_benchmarks::register(module)?;
     wavelet_gated::register(module)?;
     logrow_product::register(module)?;
+    compact_product::register(module)?;
     shared_rescale::register(module)?;
     mask_stream::register(module)?;
     row_memo::register(module)?;

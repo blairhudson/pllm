@@ -10,6 +10,7 @@ mod compact_dcf;
 mod compact_dpf;
 pub mod compact_lookup;
 pub mod compact_polynomial;
+pub mod compact_product;
 pub mod gated_multiply_q7;
 mod interval_fss;
 pub mod logrow;

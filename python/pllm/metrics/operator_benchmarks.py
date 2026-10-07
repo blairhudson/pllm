@@ -52,7 +52,7 @@ def _sdk_digest(runner: str) -> str:
     )
     if runner == "activations.py":
         sources += (("pllm.protocols", "__init__.py"), ("pllm.components", "_q7_activation.py"))
-    if runner == "logrow_product.py":
+    if runner in ("logrow_product.py", "compact_product.py"):
         sources += (("pllm.metrics", "wavelet_gated.py"), ("pllm.metrics", "activations.py"))
     for package, name in sources:
         contents = files(package).joinpath(name).read_bytes()
@@ -74,13 +74,13 @@ def benchmark_operator(
     Method parameters belong to the component; lanes and samples describe this
     benchmark. Omit inputs for public boundary fixtures, or supply ``gate_q24``
     and ``up_q24`` for masked-wire multiplication, ``values`` for rescaling,
-    ``gate_q18`` and ``up_q18`` for the complete Haar or LogRow gated blocks, or
+    ``gate_q18`` and ``up_q18`` for complete Haar, LogRow or Compact gated blocks, or
     ``values_q7`` for the bounded Compact, Curl and LogRow activations.
     Input values and their fingerprints are never stored in the report.
     """
     from pllm.components import create_component
     from pllm.nonlinear import (
-        CompactPiecewiseActivation, CurlWaveletEncodedTable, CurlWaveletGatedMultiplyQ9,
+        CompactPiecewiseActivation, CompactGatedMultiplyQ12, CurlWaveletEncodedTable, CurlWaveletGatedMultiplyQ9,
         LogRowGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, SharedRescale,
     )
     from pllm.protocols import LogRowGarbledLookup
@@ -89,6 +89,7 @@ def benchmark_operator(
     from .shared_rescale import _SharedRescaleBenchmark
     from .wavelet_gated import _WaveletGatedBenchmark
     from .logrow_product import _LogRowProductBenchmark
+    from .compact_product import _CompactProductBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
@@ -103,6 +104,9 @@ def benchmark_operator(
         fields = {"gate_q18", "up_q18"}
     elif isinstance(component, LogRowGatedMultiplyQ9):
         benchmark = _LogRowProductBenchmark(component, lanes, samples)
+        fields = {"gate_q18", "up_q18"}
+    elif isinstance(component, CompactGatedMultiplyQ12):
+        benchmark = _CompactProductBenchmark(component, lanes, samples)
         fields = {"gate_q18", "up_q18"}
     elif isinstance(component, SharedRescale):
         benchmark = _SharedRescaleBenchmark(component, lanes, samples)

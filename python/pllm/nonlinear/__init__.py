@@ -281,6 +281,60 @@ class CompactPiecewiseActivation(NonlinearProtocol):
         return cls.descriptor
 
 
+class CompactGatedMultiplyQ12(NonlinearProtocol):
+    """Complete SiLU×up with public-density-weighted Chebyshev pieces.
+
+    Q18 gate/up inputs have fixed public ranges ±48/±128. The Q12 profile
+    has zero/identity tails at ±8 and exact ties-even arithmetic. Public
+    calibration supplies 1,024 bin counts over [-8,8), or uniform defaults.
+    Dyadic refinement replaces Compact's annealing. Private selection,
+    polynomial evaluation and multiplication use one fresh half-gates circuit.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/compact-gated-multiply-q12/v1", provider="pllm",
+        distribution="pllm.run", version="1", category="pllm/nonlinear-protocol",
+        category_version="1", lifecycle_phase="runtime",
+        parameter_schema={"type": "object", "properties": {
+            "max_pieces": {"type": "integer", "minimum": 1, "maximum": 16},
+            "degree": {"type": "integer", "enum": [2, 3]},
+            "public_calibration_counts": {"type": "array", "minItems": 1024, "maxItems": 1024,
+                "items": {"type": "integer", "minimum": 0, "maximum": 1_000_000}}},
+            "required": ["max_pieces", "degree", "public_calibration_counts"], "additionalProperties": False},
+        capabilities=("protected-gated-multiply-q12", "bounded-operator-benchmark"),
+        required_host_features=("native-core", "local-garbler"),
+        role_eligibility=("client", "inference"),
+    )
+
+    def __init__(self, *, max_pieces: int = 8, degree: int = 3,
+                 public_calibration_counts: Sequence[int] | None = None) -> None:
+        if type(max_pieces) is not int or not 1 <= max_pieces <= 16:
+            raise ConfigurationError("max_pieces must be an integer in [1, 16]")
+        if type(degree) is not int or degree not in (2, 3):
+            raise ConfigurationError("degree must be 2 or 3")
+        if public_calibration_counts is None:
+            counts = [0] * 1024
+        else:
+            if (not isinstance(public_calibration_counts, Sequence)
+                    or isinstance(public_calibration_counts, (str, bytes, bytearray))
+                    or len(public_calibration_counts) != 1024):
+                raise ConfigurationError("Compact requires 1,024 public offline calibration counts")
+            counts = list(public_calibration_counts)
+            if (any(type(value) is not int or not 0 <= value <= 1_000_000 for value in counts)
+                    or sum(counts) > 100_000_000):
+                raise ConfigurationError("public calibration exceeds the bounded fitting contract")
+        super().__init__(self.descriptor.component, {
+            "max_pieces": max_pieces, "degree": degree, "public_calibration_counts": counts})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return self.to_spec()["params"]
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class LogRowGatedMultiplyQ9(NonlinearProtocol):
     """Complete Q18-input/Q9-output SiLU×up with garbled lookup and arithmetic.
 
@@ -399,6 +453,7 @@ class WaveletHomomorphicLookup(PendingMethod):
 __all__ += [
     "ShaftFixedPointTransformerOps", "CompactPiecewiseActivation", "CurlWaveletEncodedTable", "CurlWaveletGatedMultiplyQ9",
     "LogRowGatedMultiplyQ9",
+    "CompactGatedMultiplyQ12",
     "LlamaSecureMath", "SirnnSecureMath", "WaveletHomomorphicLookup",
 ]
 

@@ -162,8 +162,21 @@ fidelity screen. Serial 16 MiB allocation admission, one-use execution and
 installed benchmark access do not authorize tensor/provider execution.
 Details: `docs/research/logrow-product-reference.md`.
 
-Next approved sequence: complete Compact's product and conversion contract;
-evaluate Secret Replication PCFs with a compatible consuming protocol; test
+The installed `CompactGatedMultiplyQ12` now composes private polynomial selection,
+exact input/intermediate/output rescaling and signed multiplication. Its dyadic
+density-weighted fitter and half-gates backend are scoped adaptations, rather
+than Compact's annealing or complete MPC system. Fresh Qwen diagnostics for three
+frozen profiles have no range violations. The 8-piece cubic matches 9/12 prefill,
+35/36 same-token decode and 9/12 generation trajectories; no complete logits/KV
+are exact. Native and independent integer results agree over 131,444,736 elements
+per profile. Nine fresh operator processes check 2,889 protected outputs; complete
+39+8 MLP geometry projects 1.97–3.42 TB of evaluator material plus 13.40 GB of
+client encodings. Polynomial arithmetic dominates. These are negative costs of
+the Boolean adaptation, not Compact's paper system. Details:
+`docs/research/compact-product-reference.md`.
+
+Next approved sequence: evaluate Secret Replication PCFs with a compatible
+consuming protocol; test
 FastQuery embedding ownership including a tied output head; screen CipherPrune
 quality and observable execution shape; then revisit Maverick's actual field,
 code-distance assumptions and preprocessing storage. Each slice retains paper

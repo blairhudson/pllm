@@ -1,0 +1,80 @@
+---
+title: "Compact gated block"
+description: "Benchmark complete SiLU × up with private polynomial selection, exact rescaling and multiplication."
+---
+
+`pllm.nonlinear.CompactGatedMultiplyQ12` composes [Compact's](/research/papers/compact/)
+public density-aware Chebyshev fitting with one-use
+[half-gates](/research/papers/half-gates/) arithmetic. Its identity is
+`pllm/compact-gated-multiply-q12/v1`.
+
+## Python SDK example
+
+```python
+from pllm.metrics import benchmark_operator, replay_operator_benchmark
+from pllm.nonlinear import CompactGatedMultiplyQ12
+
+method = CompactGatedMultiplyQ12(max_pieces=8, degree=3)
+report = benchmark_operator(method, lanes=3, samples=1)
+assert report.quality.exact_integer_outputs == 3
+assert replay_operator_benchmark(report.configuration).resources == report.resources
+
+custom = benchmark_operator(method, lanes=2, samples=1, inputs={
+    "gate_q18": [-262144, 262144], "up_q18": [524288, -524288],
+})
+assert custom.quality.exact_integer_outputs == 2
+```
+
+## Options and numeric contract
+
+- `max_pieces`: 1–16, default 8. A deterministic dyadic split refines the interval
+  with the greatest public density-weighted absolute-error reduction. Fitting
+  can stop early when no split improves that objective.
+- `degree`: 2 or 3, default 3. Chebyshev interpolation coefficients are converted
+  to a power basis before integer quantization and Horner evaluation.
+- `public_calibration_counts`: 1,024 nonnegative counts over `[-8,8)`, at most
+  1,000,000 per bin and 100,000,000 total. Omission means uniform weights. A unit
+  pseudocount covers every bin. Only public offline information may supply counts.
+
+Inputs are signed Q18 with gate/up ranges ±48/±128. Protected input rescaling
+uses exact ties-to-even to Q12. The SiLU profile has zero/identity tails at ±8;
+inside the interval, private comparisons select a normalized coordinate and
+coefficients. Q20-coordinate Horner arithmetic, SiLU rescaling, signed product
+and final Q12 output all use exact rounding. The complete intermediate result
+stays in opaque labels; only the trusted client decodes the final output.
+
+The degree, dyadic refinement, tails and fixed-point rules are explicit PLLM
+adaptations. They replace the paper's batch-normalization density assumptions,
+adaptive error threshold and simulated-annealing configuration search. Each
+source/calibration/coefficient set has its own numeric identity.
+
+## Resource ownership
+
+The runner admits 1–256 lanes and 1–16 samples, issuing and burning one circuit
+before the next lane. A 131,072-wire bound preflights 64 MiB of serial-live
+allocation. This is an estimate, not peak RSS. Reports charge garbler-client
+encodings, evaluator ciphertexts and constants, public instruction/profile data,
+and client-boundary label estimates. Input rescaling, selection, polynomial
+arithmetic and the final product each have a separate material subtotal.
+
+Zero evaluator-peer frames excludes material and boundary delivery. Physical
+wire and peak memory remain unknown. Public fitting is charged once in the
+first sample, separately from native-call CPU and secret issuance/evaluation.
+Float conversion and range enforcement remain trusted-client operations.
+
+On twelve fresh pinned W8A8 Qwen prompts, the fixed 8-piece cubic profile matches
+9/12 prefill selections, 35/36 same-token decode selections and 9/12 eight-token
+trajectories. No full logits/KV are exact, despite all inputs fitting the public
+ranges. The 16-piece profile does not improve generation agreement.
+Nine fresh operator processes check 2,889 protected outputs. Complete 39+8 MLP
+geometry projects 1.97–3.42 TB of evaluator material and 13.40 GB of client
+encodings, before boundary delivery and public metadata. These are costs of
+PLLM's Boolean adaptation, not Compact's paper system.
+
+The [complete study](https://github.com/blairhudson/pllm/blob/main/docs/research/compact-product-reference.md)
+records operator costs and separately scoped pinned-checkpoint numerics.
+The [installed example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/compact_product.py)
+checks exact configuration replay. These bounded operator methods have no
+compiler tensor schedule or provider transport.
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)

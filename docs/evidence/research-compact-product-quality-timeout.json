@@ -1,0 +1,9 @@
+{
+  "schema": "pllm.research_attempt.v1",
+  "method": "compact-product",
+  "command": "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false uv run --no-sync python -m benchmarks.research.compact_product --mode quality --output docs/evidence/research-compact-product-quality-qwen25.json",
+  "status": "incomplete",
+  "reason": "Agent shell timeout was 120000 milliseconds; command terminated before writing a report.",
+  "quality_result": null,
+  "scope": "Harness timeout, not a measured numeric rejection or completed cost/quality result. Subsequent runs are fresh attempts."
+}

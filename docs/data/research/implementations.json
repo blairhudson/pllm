@@ -29,12 +29,12 @@
     },
     "compact": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.nonlinear.CompactPiecewiseActivation", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/activations.py", "evidence": "docs/evidence/research-activation-operators-sdk.json"},
-      "scope": "Public calibration, private interval selection and one-use Chebyshev evaluation with bounded compiler binding.",
-      "code": ["crates/pllm-core/src/compact.rs", "crates/pllm-garble/src/compact_polynomial.rs", "crates/pllm-compiler/src/compact_protected.rs", "crates/pllm-python/src/activation_benchmarks.rs", "python/pllm/metrics/activations.py"],
-      "configuration": "benchmarks/research/nonlinear_frontier.py",
-      "evidence": "docs/evidence/research-nonlinear-frontier-qwen25.json",
-      "result": "Common four-piece Q7 profile: 17/17 checked outputs match, but evaluator ciphertext bodies cost 843,392 bytes per element. Hypothetical Qwen 39+8 activation bodies alone project 4.53 TB; conversions, up multiplication and final rescaling are extra. Fixed-domain checkpoint admission fails. No tensor transport or Qwen decoder score. Notes: docs/research/nonlinear-frontier.md."
+      "sdk_benchmark": {"api": "pllm.nonlinear.CompactGatedMultiplyQ12", "coverage": "operator", "guide": "/sdk/components/nonlinear/compact-gated-multiply-q12/", "configuration": "examples/benchmarks/compact_product.py", "evidence": "docs/evidence/research-compact-product-sdk.json"},
+      "scope": "Complete Q18-to-Q12 SiLU × up with public-density-weighted dyadic Chebyshev fitting, private selection and exact half-gates rescaling/multiplication. Dyadic search, explicit tails and the Boolean backend adapt the paper's fitting/MPC contract. No tensor schedule or role transport.",
+      "code": ["crates/pllm-core/src/compact_product.rs", "crates/pllm-garble/src/compact_product.rs", "crates/pllm-python/src/compact_product.rs", "python/pllm/metrics/compact_product.py"],
+      "configuration": "benchmarks/research/compact_product.py",
+      "evidence": "docs/evidence/research-compact-product-quality-qwen25.json",
+      "result": "Nine fresh operator processes check 2,889 outputs. Hypothetical 39+8 MLP geometry projects 1.97/2.92/3.42 TB of evaluator material for 4-piece quadratic/8-piece cubic/16-piece cubic profiles, plus 13.40 GB client encodings and additional boundary/public metadata estimates. These are Boolean-adaptation costs, not Compact paper-system costs. Twelve fresh W8A8 Qwen prompts fit the ranges but the 8-piece cubic matches only 9/12 prefill, 35/36 same-token decode and 9/12 eight-token trajectories; no logits/KV are exact. Each profile checks 131,444,736 independent integer outputs. Historical Q7 activation-only and bounded compiler-element evidence retain their original scope. Details: docs/research/compact-product-reference.md."
     },
     "logrow": {
       "status": "Component reference",

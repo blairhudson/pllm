@@ -390,6 +390,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/nonlinear/masked-wire-gated-multiply-q12/', 'pllm/masked-wire-gated-multiply-q12/v1', '/research/papers/sigma/'],
     ['/sdk/components/nonlinear/shared-rescale/', 'pllm/shared-rescale/v1', '/research/papers/fusefss/'],
     ['/sdk/components/nonlinear/compact-piecewise-activation/', 'pllm/compact-piecewise-activation-q7/v1', '/research/papers/compact/'],
+    ['/sdk/components/nonlinear/compact-gated-multiply-q12/', 'pllm/compact-gated-multiply-q12/v1', '/research/papers/compact/'],
     ['/sdk/components/nonlinear/curl-wavelet-encoded-table/', 'pllm/curl-wavelet-encoded-table-q7/v1', '/research/papers/curl/'],
     ['/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/', 'pllm/curl-wavelet-gated-multiply-q9/v1', '/research/papers/curl/'],
     ['/sdk/components/nonlinear/logrow-gated-multiply-q9/', 'pllm/logrow-gated-multiply-q9/v1', '/research/papers/logrow/'],

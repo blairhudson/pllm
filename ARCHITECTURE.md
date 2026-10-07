@@ -264,6 +264,21 @@ a 16 MiB allocation estimate. Reports charge client encodings, evaluator lookup
 and arithmetic material, constant labels, public metadata and boundary estimates
 separately. No compiler tensor schedule or provider transport is admitted.
 See `docs/research/logrow-product-reference.md` for the exact composition and costs.
+The installed `pllm.nonlinear.CompactGatedMultiplyQ12` separately composes private
+piece selection, polynomial SiLU, exact rescaling and signed multiplication.
+Public density-weighted dyadic Chebyshev fitting, Q12 Horner rounding and explicit
+zero/identity tails adapt Compact's source contract. Fresh one-use half-gates
+circuits retire serially under a 64 MiB allocation estimate; the trusted client
+alone decodes their final outputs. A fresh twelve-prompt W8A8 Qwen cohort has no
+range violations, but its 8-piece cubic profile matches only 9/12 prefill,
+35/36 same-token decode and 9/12 eight-token trajectories. No full logits or KV
+are exact. Each frozen profile checks 131,444,736 independent integer outputs.
+Nine fresh operator processes check 2,889 protected outputs; hypothetical 39+8
+MLP geometry needs 1.97–3.42 TB of evaluator material plus 13.40 GB of client
+encodings. Polynomial arithmetic dominates this Boolean adaptation's costs.
+Operator availability, clear checkpoint numerics and protected decoder execution
+remain separate; tensor scheduling, role transport and protected float conversion
+are absent. Details: `docs/research/compact-product-reference.md`.
 The masked-wire component now also selects experimental CPU two-offset gated
 regions. A native model-neutral pass binds each dense float32 SiLU/multiply pair,
 the fixed numeric profile, floor float32-to-Q24 and Q12-to-float32 client boundaries,

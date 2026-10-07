@@ -11,6 +11,7 @@ pub mod codec;
 pub mod coded_delegation_reference;
 pub mod coded_linear;
 pub mod compact;
+pub mod compact_product;
 pub mod fixed_point;
 mod freivalds;
 pub mod head_index;
