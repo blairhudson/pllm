@@ -270,6 +270,15 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     from .decoder_memory import decoder_memory
     workspace = decoder_memory(plan, plan.runtime_schedule(pipeline))
     tensors = workspace["working_bytes"] + workspace["state_bytes"]
+    # One active client-issued chunk; a worker may own one chunk in each of
+    # eight admitted sessions. Charge the native allocation ceiling, packet
+    # copies and bounded HTTP buffers, rather than retaining a response's keys.
+    nonlinear_client = nonlinear_worker = 0
+    if options.nonlinear_layout is not None:
+        from .masked_wire import MAX_FRAME
+
+        nonlinear_client = 64 * MiB + 6 * MAX_FRAME
+        nonlinear_worker = 8 * (64 * MiB + 3 * MAX_FRAME)
     cache_bytes = max(cache_bytes, options.prefix_cache_bytes)
     verification = legacy_verification = 0
     verification_allocation = None
@@ -325,7 +334,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         role_loading[role] = max(
             max(quantization, validation, 2 * s.in_features * s.out_features) if s.id in retained
             else s.in_features * s.out_features + max(quantization, validation) for s in stages)
-        role_engine = role_weights[role] + metadata + _PROCESS_BYTES
+        role_engine = role_weights[role] + metadata + _PROCESS_BYTES + nonlinear_worker
         if role == "preparation" and paged_preparation:
             page_indices = sum(256 + 128 * math.ceil(s.in_features * s.out_features / MiB)
                                + 8 * max(s.in_features, s.out_features) for s in remote)
@@ -336,14 +345,14 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                              if verification_allocation and role == "preparation" else 0)
         role_peaks[role] = _slack(role_engine + gpu_provider + max(
             role_loading[role], delivery + corrections, work + corrections + role_verification))
-        docker_role_peaks[role] = _slack(engine + weights + gpu_provider + max(
+        docker_role_peaks[role] = _slack(engine + weights + gpu_provider + nonlinear_worker + max(
             legacy_loading, legacy_delivery + corrections, work + corrections + legacy_verification))
     tokenizer = pipeline.components.get("tokenizer")
     capsule = pipeline.components.get("public_prefix")
     # Public artifacts are pre-positioned. Price bounded index query caches,
     # authenticated private DB snapshot disk, and capsule parse/copy overlap.
     public_artifact_work = (32 * MiB if tokenizer else 0) + (4 * capsule.params["size_bytes"] if capsule else 0)
-    client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client + public_artifact_work
+    client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client + public_artifact_work + nonlinear_client
     if not roles:
         client += engine + loading
     client_peak = _slack(client)
@@ -376,7 +385,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             "client_public_artifact_work_bytes": public_artifact_work,
             "client_tokenizer_snapshot_disk_bytes": 64 * MiB if tokenizer else 0,
             "preparation_additional_paged_disk_bytes": preparation_disk + (largest if paged_preparation else 0),
-            "client_mask_bytes": masks, "provider_correction_bytes": corrections,
+             "client_mask_bytes": masks, "provider_correction_bytes": corrections,
+             "client_nonlinear_work_bytes": nonlinear_client,
+             "per_provider_nonlinear_work_bytes": nonlinear_worker,
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "legacy_verifier_bytes": legacy_verification,
             "client_tensor_work_bytes": tensors,

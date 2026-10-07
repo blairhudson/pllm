@@ -40,7 +40,12 @@ The method independently adapts [SIGMA](/research/papers/sigma/),
 multi-view fusion follows [FuseFSS](/research/papers/fusefss/).
 Operator integer parity, approximation error, complete material and peer frames
 appear in the [benchmark guide](/sdk/evaluate/paper-operators/).
-`Pipeline`/`Experiment` serialization accepts the component; whole-model
-resolution currently rejects it because the decoder binding is incomplete.
+`TwoOnlineOffsetCpu(..., nonlinear=method)` additionally selects experimental
+compiler-bound gated regions. The trusted client performs explicit float32/Q24
+conversion and fresh issuance; two authenticated workers each receive one key
+share, with peer frames relayed through the client. Generated Qwen2/Qwen3 SDK,
+gateway and prefill/decode checks cover this execution path. The
+[decoder guide](/sdk/evaluate/paper-operators/#experimental-decoder-execution)
+states its numeric, resource and transport scope.
 
 API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures).

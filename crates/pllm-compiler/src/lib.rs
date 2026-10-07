@@ -33,6 +33,7 @@ mod dense_qwen_mlp_protected;
 mod gated_tensor;
 mod logrow_protected;
 mod logrow_session;
+mod masked_wire_schedule;
 mod network_placement;
 pub use network_placement::{network_placement_requirements, validate_network_placement};
 mod provenance_primitives;
@@ -1966,6 +1967,15 @@ fn validate_bounded_linear_composition(
     }
     let cache = pipeline.components.get("cache");
     let delivery = pipeline.components.get("delivery");
+    let nonlinear = pipeline.components.get("nonlinear");
+    if nonlinear.is_some_and(|component| {
+        linear_identity != "pllm/two-online-offset-linear/v1"
+            || !masked_wire_schedule::valid(component)
+            || cache.is_some()
+            || !cpu
+    }) {
+        return Err("masked-wire requires CPU two-offset workers and response-owned state".into());
+    }
     if cache.is_some_and(|value| {
         linear_identity != "pllm/two-online-offset-linear/v1" || !valid_prefix_cache(value)
     }) || delivery.is_some_and(|value| {
@@ -1977,6 +1987,7 @@ fn validate_bounded_linear_composition(
         != 3 + usize::from(quantization.is_some())
             + usize::from(cache.is_some())
             + usize::from(delivery.is_some())
+            + usize::from(nonlinear.is_some())
     {
         return Err(format!(
             "{name} composition requires only linear, kernels, topology and optional quantization"

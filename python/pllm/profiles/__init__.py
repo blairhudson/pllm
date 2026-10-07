@@ -7,6 +7,7 @@ from typing import Any
 
 from pllm.configuration import ConfigurationError, Model, Pipeline
 from pllm.kernels import AppleMetal, Cpu, KernelBackend
+from pllm.nonlinear import MaskedWireGatedMultiplyQ12, NonlinearProtocol
 from pllm.preparation import ModelAwareCorrections, PreparationProvider, PreparedInventory
 from pllm.quantization import PublicPerChannelEqualized, QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
@@ -324,7 +325,7 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
     """Bounded two-public-worker additive offset comparator."""
 
     PROFILE = "baseline.two_online_offset_cpu"
-    SLOT_NAMES = ("linear", "kernels", "quantization", "topology", "cache", "delivery")
+    SLOT_NAMES = ("linear", "kernels", "quantization", "topology", "cache", "delivery", "nonlinear")
     __slots__ = ()
 
     def __init__(
@@ -337,6 +338,7 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
         topology: RoleTopology = _DEFAULT_OFFSET_ROLES,
         cache: ClientPrefixReuse | None = None,
         delivery: ClientBundleTransport | None = None,
+        nonlinear: NonlinearProtocol | None = None,
     ) -> None:
         if quantization is not None:
             _slot(
@@ -349,6 +351,8 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
             _slot("cache", cache, ClientPrefixReuse, ClientPrefixReuse.descriptor.component)
         if delivery is not None:
             _slot("delivery", delivery, ClientBundleTransport, ClientBundleTransport.descriptor.component)
+        if nonlinear is not None:
+            _slot("nonlinear", nonlinear, NonlinearProtocol, MaskedWireGatedMultiplyQ12.descriptor.component)
         super().__init__(
             profile=self.PROFILE,
             model=_model(model),
@@ -369,6 +373,7 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
                 **({"quantization": quantization} if quantization is not None else {}),
                 **({"cache": cache} if cache is not None else {}),
                 **({"delivery": delivery} if delivery is not None else {}),
+                **({"nonlinear": nonlinear} if nonlinear is not None else {}),
             },
         )
 
@@ -395,6 +400,10 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
     @property
     def delivery(self) -> ClientBundleTransport | None:
         return self.components.get("delivery")
+
+    @property
+    def nonlinear(self) -> NonlinearProtocol | None:
+        return self.components.get("nonlinear")
 
 
 class VerifiedMaskedLinearCpu(_TypedPipeline):
@@ -638,10 +647,23 @@ class RuntimeComposition:
     causal_reduction: str | None = None
     prepared_output_encoding: str = "raw"
     preparation_storage: str = "resident"
+    nonlinear_layout: str | None = None
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    nonlinear = pipeline.components.get("nonlinear")
+    nonlinear_layout = None
+    if nonlinear is not None:
+        if (nonlinear.component != MaskedWireGatedMultiplyQ12.descriptor.component
+            or identities.get("linear") != "pllm/two-online-offset-linear/v1"
+            or identities.get("kernels") != "pllm/cpu" or "cache" in identities):
+            return None
+        try:
+            nonlinear_layout = MaskedWireGatedMultiplyQ12(**nonlinear.params).params.get("layout", "unfused")
+        except (ValueError, TypeError):
+            return None
+        del identities["nonlinear"]
     for slot, cls in (("tokenizer", IndexedTokenizer), ("public_prefix", PublicPrefixCapsule)):
         component = pipeline.components.get(slot)
         if component is None:
@@ -906,6 +928,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             "none",
             "compiled_offset_v1",
             f"two_online_offset_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
+            nonlinear_layout=nonlinear_layout,
             public_equalization_digest=equalization_digest,
             **bits,
             **cache_options,

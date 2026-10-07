@@ -25,6 +25,7 @@ from pllm.roles import two_online_reference_graph
 from pllm.runtime.semantic_source import semantic_source_config
 from pllm.runtime.stage_protocol import MaskedStageRequest, ProtocolError
 from pllm.runtime.transformer_engine import MaskedTransformerEngine, TransformerEngineError
+from .masked_wire import WorkerRegions
 
 _SESSION_SCHEMA = "pllm.offset_worker_session.v1"
 _MAX_BODY_BYTES = 16 * 1024 * 1024 + 8_192
@@ -46,6 +47,12 @@ class _WorkerSession:
     calls_by_stage: dict[str, int] = field(default_factory=dict)
     rows_by_stage: dict[str, int] = field(default_factory=dict)
     terminal: bool = False
+    nonlinear: WorkerRegions | None = None
+
+    def burn(self) -> None:
+        self.terminal = True
+        if self.nonlinear is not None:
+            self.nonlinear.cancel()
 
 
 def _reject(message: str, *, status: int = 409) -> HTTPException:
@@ -108,6 +115,7 @@ def create_offset_worker_app(
     input_encoding = "raw"
     output_encoding = "raw"
     require_continuation = False
+    nonlinear_layout = None
     if composition is not None:
         from pllm.profiles import resolve_runtime_composition
 
@@ -128,6 +136,7 @@ def create_offset_worker_app(
         input_encoding = composition.components["linear"].params.get("input_encoding", "raw")
         output_encoding = composition.components["linear"].params.get("output_encoding", "raw")
         require_continuation = options.prefix_cache_bound_tokens is not None
+        nonlinear_layout = options.nonlinear_layout
     row_layout = None
     if output_encoding == "row_residues":
         from .offset_codec import row_layout_digest
@@ -178,7 +187,7 @@ def create_offset_worker_app(
             if session is None or session.terminal:
                 raise _reject("offset worker session is not active")
             if time.monotonic() - session.last_active > _SESSION_IDLE_SECONDS:
-                session.terminal = True
+                session.burn()
                 raise _reject("offset worker session has expired")
             session.last_active = time.monotonic()
             return session
@@ -392,6 +401,7 @@ def create_offset_worker_app(
             now = time.monotonic()
             for key, old in list(sessions.items()):
                 if old.terminal or now - old.last_active > _SESSION_IDLE_SECONDS:
+                    old.burn()
                     del sessions[key]
             if len(sessions) >= _MAX_SESSIONS:
                 raise _reject("offset worker session capacity exceeded", status=503)
@@ -399,6 +409,10 @@ def create_offset_worker_app(
             sessions[session_id] = _WorkerSession(
                 session_id, plan.digest, bound, output_bound, now,
             )
+            if nonlinear_layout is not None:
+                schedule = plan.runtime_schedule(composition)
+                sessions[session_id].nonlinear = WorkerRegions(schedule.to_dict(), schedule.digest,
+                    0 if role_id == "worker_a" else 1, output_bound)
         return {
             "schema": _SESSION_SCHEMA,
             "id": session_id,
@@ -410,6 +424,51 @@ def create_offset_worker_app(
             **({"residue_layout_digest": row_layout} if row_layout is not None else {}),
             **({"decoder_continuation": continuation_slot} if continuation_slot is not None else {}),
         }
+
+    @app.post("/v1/offset-reference/sessions/{session_id}/nonlinear/arm")
+    async def arm_nonlinear(session_id: str, request: Request,
+                            authorization: str | None = Header(default=None)) -> dict[str, str]:
+        authenticate(authorization)
+        session = lookup(session_id)
+        try:
+            body = await _limited_body(request, 4096)
+            with lock:
+                if session.terminal or session.nonlinear is None:
+                    raise ValueError("offset session has no nonlinear schedule")
+                return session.nonlinear.arm(session.id,
+                    json.loads(body, object_pairs_hook=_strict_object))
+        except BaseException as exc:
+            with lock:
+                session.burn()
+            if isinstance(exc, (ValueError, TypeError, KeyError)):
+                raise _reject("offset nonlinear admission was rejected", status=400) from exc
+            raise
+
+    @app.post("/v1/offset-reference/sessions/{session_id}/nonlinear/{region}/{action}")
+    async def nonlinear_frame(session_id: str, region: str, action: str, request: Request,
+                              authorization: str | None = Header(default=None)) -> Response:
+        authenticate(authorization)
+        session = lookup(session_id)
+        try:
+            from .masked_wire import MAX_FRAME
+
+            body = await _limited_body(request, MAX_FRAME)
+            with lock:
+                if session.terminal or session.nonlinear is None:
+                    raise ValueError("offset session has no nonlinear schedule")
+                if action == "start":
+                    output = session.nonlinear.start(region, body)
+                elif action == "advance":
+                    output = session.nonlinear.advance(region, body)
+                else:
+                    raise ValueError("unknown nonlinear action")
+            return Response(output, media_type="application/octet-stream")
+        except BaseException as exc:
+            with lock:
+                session.burn()
+            if isinstance(exc, (ValueError, TypeError, KeyError)):
+                raise _reject("offset nonlinear frame was rejected", status=400) from exc
+            raise
 
     @app.post("/v1/offset-reference/sessions/{session_id}/stages/{stage_id}")
     async def execute_stage(
@@ -469,6 +528,8 @@ def create_offset_worker_app(
             with lock:
                 if session.terminal:
                     raise ValueError("offset worker session is terminal")
+                if session.nonlinear is not None and session.nonlinear.session is None:
+                    raise ValueError("offset nonlinear session has not been armed")
                 if (
                     parsed.correlation_id in session.used_correlations
                     or session.calls_by_stage.get(stage_id, 0) >= session.max_new_tokens
@@ -489,7 +550,7 @@ def create_offset_worker_app(
                 results = [pack_row_response(MaskedStageResponse.unpack(results[0]), entry.output_residue_bits)]
         except BaseException as exc:
             with lock:
-                session.terminal = True
+                session.burn()
             if isinstance(exc, HTTPException):
                 raise
             if isinstance(exc, (ProtocolError, TransformerEngineError, TypeError, ValueError)):
@@ -504,7 +565,10 @@ def create_offset_worker_app(
         authenticate(authorization)
         session = lookup(session_id)
         with lock:
-            session.terminal = True
+            pending = session.nonlinear is not None and session.nonlinear.pending is not None
+            session.burn()
+            if pending:
+                raise _reject("offset completion has an unfinished nonlinear region", status=400)
         return {"id": session_id, "status": "completed"}
 
     @app.post("/v1/offset-reference/sessions/{session_id}/cancel")
@@ -514,7 +578,7 @@ def create_offset_worker_app(
         authenticate(authorization)
         session = lookup(session_id)
         with lock:
-            session.terminal = True
+            session.burn()
         return {"id": session_id, "status": "cancelled"}
 
     return app

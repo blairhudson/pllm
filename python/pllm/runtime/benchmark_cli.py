@@ -528,6 +528,18 @@ def build_comparison_report(
         json.dumps(experiment.pipeline.to_spec()["components"].get("verification"), sort_keys=True)
         for experiment, _ in candidates
     }) == 1
+    numeric_contracts = []
+    for experiment, _ in candidates:
+        components = experiment.pipeline.to_spec()["components"]
+        nonlinear = components.get("nonlinear")
+        if nonlinear and nonlinear["component"] == "pllm/masked-wire-gated-multiply-q12/v1":
+            # Fusion preserves this fixed profile's numeric mapping.
+            nonlinear = {"component": nonlinear["component"], "params": {}}
+        numeric_contracts.append(json.dumps({
+            "nonlinear": nonlinear, "scheduler": components.get("scheduler"),
+            "causal_reduction": components.get("quantization", {}).get("params", {}).get("causal_reduction"),
+        }, sort_keys=True))
+    matched_numeric = len(set(numeric_contracts)) == 1
     comparison_key = cast(tuple[object, ...], keys[0]) if comparable else None
     metrics = {
         "full_seconds": ("median_full_seconds", False),
@@ -568,6 +580,7 @@ def build_comparison_report(
         comparable
         and kernel_admitted
         and matched_verification
+        and matched_numeric
         and all(report.get("checks", {}).get("passed") is True for _, report in candidates)
     ):
         for metric, (summary_key, reverse) in metrics.items():
@@ -600,6 +613,7 @@ def build_comparison_report(
         "unique_configurations": len(set(digests)) == len(digests),
         "matched_workload": comparable,
         "matched_verification": matched_verification,
+        "matched_numeric_contract": matched_numeric,
         ("matched_kernel_composition" if compare_kernels else "matched_kernel_backend"): kernel_admitted,
     }
     comparison = None
@@ -632,6 +646,7 @@ def build_comparison_report(
     if (
         comparable
         and matched_backend
+        and matched_numeric
         and checks["all_candidates_passed"]
         and len(offset_references) == 1
     ):

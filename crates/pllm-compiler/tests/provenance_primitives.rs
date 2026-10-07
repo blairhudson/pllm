@@ -610,14 +610,28 @@ fn coverage_marks_valid_q10_descriptors_executable() {
 }
 
 #[test]
-fn coverage_rejects_legacy_and_malformed_q10_descriptors() {
-    for config in [
-        include_bytes!("../../pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json")
+fn coverage_distinguishes_full_kv_from_unsupported_rotary_and_malformed_descriptors() {
+    // The generalized adapters expose exact full-KV primitives for the first
+    // two sources, independently of their unsupported Q10 rotary contracts.
+    // Gemma's shared/windowed state remains outside this fixed-capacity API.
+    for (config, full_kv) in [
+        (
+            include_bytes!("../../pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json")
+                .as_slice(),
+            true,
+        ),
+        (
+            include_bytes!(
+                "../../pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json"
+            )
             .as_slice(),
-        include_bytes!("../../pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json")
-            .as_slice(),
-        include_bytes!("../../pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json")
-            .as_slice(),
+            true,
+        ),
+        (
+            include_bytes!("../../pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json")
+                .as_slice(),
+            false,
+        ),
     ] {
         let legacy = plan(config, 1, 2, 1);
         let coverage = decoder_coverage(&legacy, None).unwrap();
@@ -629,9 +643,21 @@ fn coverage_rejects_legacy_and_malformed_q10_descriptors() {
                     | ModelOperator::CacheSuffix
             )
         }) {
-            assert_eq!(item.level, CapabilityLevel::Missing);
-            assert!(item.blocker.contains("primitive is unavailable"));
+            if full_kv && item.operator != ModelOperator::RotaryEmbedding {
+                assert_eq!(item.level, CapabilityLevel::ExecutableRegion);
+                assert_eq!(
+                    item.component.as_deref(),
+                    Some("pllm/core-kv-cache-q10@0.1.0-alpha.1")
+                );
+                assert!(item
+                    .blocker
+                    .contains("whole-decoder scheduling is unavailable"));
+            } else {
+                assert_eq!(item.level, CapabilityLevel::Missing);
+                assert!(item.blocker.contains("primitive is unavailable"));
+            }
         }
+        assert!(!coverage.complete);
     }
 
     let mut malformed = plan(QWEN2, 1, 2, 2);

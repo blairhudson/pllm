@@ -365,6 +365,7 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
         session_ids: list[str] = []
         self._closed = True
         self._seed_executor = None
+        self._nonlinear = None
         self._call_lock = threading.Lock()
         self._finish_lock = threading.Lock()
         self._http_bodies: dict[str, dict[str, int]] = {
@@ -482,6 +483,12 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
             self._clients = clients
             self._keys = keys
             self._sessions = (session_ids[0], session_ids[1])
+            schedule = compiled._plan.runtime_schedule(composition).to_dict()
+            if schedule.get("nonlinear") is not None:
+                from .masked_wire import ClientRegions
+
+                self._nonlinear = ClientRegions(schedule, compiled.runtime_schedule_digest,
+                                                 self._sessions, post)
             if composition.components["linear"].params.get("dispatch") == "seed_first":
                 self._seed_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pllm-offset-seed")
             self._closed = False
@@ -522,11 +529,33 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
             raise OffsetReferenceError("offset session closed before seed dispatch")
         return self._seed_executor.submit(contextvars.copy_context().run, self._exchange_b, stage_id, [payload])
 
+    def gated_block(self, phase: str, step: dict, gate: np.ndarray, up: np.ndarray) -> np.ndarray:
+        if self._closed or self._nonlinear is None:
+            raise OffsetReferenceError("offset session has no admitted nonlinear region")
+        if not self._call_lock.acquire(blocking=False):
+            raise OffsetReferenceError("offset session already has an active region")
+        try:
+            output = self._nonlinear.run(phase, step, gate, up)
+            if self._closed:
+                raise OffsetReferenceError("offset session cancelled during its nonlinear region")
+            return output
+        except BaseException:
+            self.abort()
+            raise
+        finally:
+            self._call_lock.release()
+
+    @property
+    def nonlinear_costs(self) -> dict[str, int]:
+        return {} if self._nonlinear is None else dict(self._nonlinear.stats)
+
     def _finish(self, action: str) -> None:
         with self._finish_lock:
             if self._closed:
                 return
             self._closed = True
+        if self._nonlinear is not None:
+            self._nonlinear.cancel()
         failures = False
         for index, (client, key, session_id) in enumerate(zip(
             self._clients, self._keys, self._sessions, strict=True,

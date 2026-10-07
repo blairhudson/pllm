@@ -1086,6 +1086,13 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 values[op_ids[0]] = self._numeric_output(
                     operation, self._local(operation, values, state_kinds, pending_keys)
                 )
+            elif step["executor"] == "remote_gated_block":
+                from .offset_reference import TwoOnlineOffsetTransport
+
+                if type(self.remote) is not TwoOnlineOffsetTransport or self.nonlinear_evaluator is not None:
+                    raise TransformerClientError("nonlinear region requires its bound two-worker transport")
+                values[op_ids[-1]] = self.remote.gated_block(
+                    phase, step, values[step["input_ids"][0]], values[step["input_ids"][1]])
             elif step["executor"] in {"remote_stage", "verified_remote_stage", "client_linear"}:
                 stage_ids = {self._stages[f"{phase}:{op_id}"] for op_id in op_ids}
                 if len(stage_ids) != 1:

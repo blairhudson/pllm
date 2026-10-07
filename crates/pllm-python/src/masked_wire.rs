@@ -7,6 +7,8 @@ use serde_json::{json, Value};
 use std::{sync::OnceLock, time::Instant};
 use zeroize::Zeroizing;
 
+mod transport;
+
 fn error(value: native::Error) -> PyErr {
     invalid(format!("masked-wire reference: {value:?}"))
 }
@@ -175,6 +177,7 @@ fn masked_wire_benchmark<'py>(
 }
 
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    transport::register(module)?;
     module.add_function(wrap_pyfunction!(masked_wire_resources, module)?)?;
     module.add_function(wrap_pyfunction!(masked_wire_benchmark, module)?)
 }

@@ -30,6 +30,53 @@ impl Bits {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct DecodeError;
+
+/// Exact-length, canonical bit reader for authenticated party-local material.
+pub(crate) struct BitReader<'a> {
+    bytes: &'a [u8],
+    bits: usize,
+    position: usize,
+}
+
+impl<'a> BitReader<'a> {
+    pub fn new(bytes: &'a [u8], bits: usize) -> Result<Self, DecodeError> {
+        if bytes.len() != bits.div_ceil(8)
+            || (bits % 8 != 0 && bytes.last().is_some_and(|b| *b >> (bits % 8) != 0))
+        {
+            return Err(DecodeError);
+        }
+        Ok(Self {
+            bytes,
+            bits,
+            position: 0,
+        })
+    }
+
+    pub fn take(&mut self, width: usize) -> Result<u128, DecodeError> {
+        let end = self.position.checked_add(width).ok_or(DecodeError)?;
+        if !(1..=128).contains(&width) || end > self.bits {
+            return Err(DecodeError);
+        }
+        let mut value = 0;
+        for i in 0..width {
+            let index = self.position + i;
+            value |= u128::from((self.bytes[index / 8] >> (index % 8)) & 1) << i;
+        }
+        self.position = end;
+        Ok(value)
+    }
+
+    pub fn finish(self) -> Result<(), DecodeError> {
+        if self.position == self.bits {
+            Ok(())
+        } else {
+            Err(DecodeError)
+        }
+    }
+}
+
 struct Correction {
     seed: u128,
     control: [u8; 2],
@@ -228,6 +275,34 @@ impl Key {
             output.put(self.leaf, 128);
         }
     }
+
+    pub fn decode(bits: u8, input: &mut BitReader<'_>) -> Result<Self, DecodeError> {
+        if !(1..=63).contains(&bits) {
+            return Err(DecodeError);
+        }
+        if bits <= 7 {
+            return Ok(Self {
+                bits,
+                root: 0,
+                words: vec![],
+                leaf: input.take(1 << bits)?,
+            });
+        }
+        let root = Zeroizing::new(input.take(128)?);
+        let mut words = Vec::with_capacity(usize::from(bits - 7));
+        for _ in 7..bits {
+            words.push(Correction {
+                seed: input.take(128)?,
+                control: [input.take(1)? as u8, input.take(1)? as u8],
+            });
+        }
+        Ok(Self {
+            bits,
+            root: *root,
+            words,
+            leaf: input.take(128)?,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -282,6 +357,30 @@ mod tests {
                 ] {
                     assert_eq!(k[0].less(0, x) ^ k[1].less(1, x), u8::from(x < p));
                     assert_eq!(k[0].point(0, x) ^ k[1].point(1, x), u8::from(x == p));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn canonical_material_roundtrips_and_rejects_truncation_and_padding() {
+        for width in [1, 7, 8, 10, 12, 30, 63] {
+            let point = (1u64 << width) - 2;
+            let keys = Key::issue(width, point).unwrap();
+            for (party, key) in keys.iter().enumerate() {
+                let mut out = Bits::new();
+                key.encode(&mut out);
+                let mut reader = BitReader::new(&out.data, out.len).unwrap();
+                let restored = Key::decode(width, &mut reader).unwrap();
+                reader.finish().unwrap();
+                for x in [0, point - u64::from(point > 0), point, point + 1] {
+                    assert_eq!(restored.less(party as u8, x), key.less(party as u8, x));
+                    assert_eq!(restored.point(party as u8, x), key.point(party as u8, x));
+                }
+                assert!(BitReader::new(&out.data[..out.data.len() - 1], out.len).is_err());
+                if out.len % 8 != 0 {
+                    *out.data.last_mut().unwrap() |= 0x80;
+                    assert!(BitReader::new(&out.data, out.len).is_err());
                 }
             }
         }

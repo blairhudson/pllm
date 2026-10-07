@@ -61,6 +61,18 @@ def test_estimate_prices_complete_graph_and_native_copies():
     assert offset["components"]["client_mask_bytes"] == 0
 
 
+def test_masked_wire_prices_chunk_and_all_worker_session_owners():
+    from pllm.nonlinear import MaskedWireGatedMultiplyQ12
+
+    plain = _estimate(TwoOnlineOffsetCpu(Model.tiny()))
+    candidate = _estimate(TwoOnlineOffsetCpu(Model.tiny(), nonlinear=MaskedWireGatedMultiplyQ12()))
+    assert candidate["components"]["client_nonlinear_work_bytes"] >= 64 * MiB
+    assert candidate["components"]["per_provider_nonlinear_work_bytes"] >= 8 * 64 * MiB
+    assert candidate["client_peak_bytes"] > plain["client_peak_bytes"]
+    assert all(candidate["provider_peak_bytes"][p] > plain["provider_peak_bytes"][p]
+        for p in ("worker_a", "worker_b"))
+
+
 def test_paged_client_prices_bounded_ram_and_distinct_disk_owners():
     from pllm.protocols import ClientBundleTransport
     resident = _estimate(MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport("artifacts")))

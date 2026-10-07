@@ -1,10 +1,19 @@
 # SIGMA-style masked-wire gated block
 
+The installed component additionally supports experimental two-offset decoder
+execution. See the [SDK decoder guide](/sdk/evaluate/paper-operators/#experimental-decoder-execution)
+and `benchmarks/research/nonlinear_decoders.py`. Generated Qwen2/Qwen3 tests match
+independent integer-oracle prefill/decode logits and KV for both layouts; SDK and
+gateway requests use two authenticated worker processes. The trusted client owns
+float/Q24 conversion, fresh online issuance and opaque peer relay. New historical
+cost or quality claims require a separate measured cohort; the results below keep
+their original local-reference scope.
+
 This independently implemented **bounded component reference** follows the
 primary-paper cost audit. It replaces the earlier generic ties-even/Beaver
 layout with early-terminated Boolean DPF comparisons, public-gap floor shifts,
 the residual SiLU lookup and masked-wire composition. It is not a complete
-SIGMA or FuseFSS system or protected Qwen decoder. The bounded operator is now
+SIGMA or FuseFSS system. The bounded operator is now
 available as `pllm.nonlinear.MaskedWireGatedMultiplyQ12`; its installed SDK
 benchmark status is independent of its cost/quality and whole-model coverage.
 

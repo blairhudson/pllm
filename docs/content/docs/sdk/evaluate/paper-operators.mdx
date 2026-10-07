@@ -6,8 +6,9 @@ description: "Measure installed, bounded research operators with paper citations
 `pllm.metrics.benchmark_operator` measures nonlinear components using their
 ordinary immutable configuration. `pllm.nonlinear.MaskedWireGatedMultiplyQ12`
 selects the installed Rust SIGMA-derived SiLU × up block. High cost and imperfect approximation remain
-visible results. The current scope is **operator benchmarking**, with a trusted
-local dealer/client and two party-local evaluators in one process.
+visible results. The operator runner uses a trusted local dealer/client and two
+party-local evaluators in one process. The masked-wire component also has an
+explicit experimental two-worker decoder binding described below.
 
 ## Python SDK example
 
@@ -30,8 +31,8 @@ assert replay.configuration_digest == report.configuration_digest
 Method configuration uses `ComponentRef`, `describe()`, `to_spec()`, discovery
 and `with_params()`, like other SDK components. Lanes and sample counts belong
 to the benchmark, not the method. `Pipeline` and `Experiment` documents can
-retain these component specifications; whole-model execution still requires a
-compatible compiler/runtime binding and currently rejects these selections.
+retain these component specifications. `MaskedWireGatedMultiplyQ12` can execute
+through the CPU two-offset decoder; `SharedRescale` remains an operator helper.
 
 Each sample gets fresh OS-random one-use material. Python receives aggregate
 reports; the native call releases the interpreter lock and retires both parties
@@ -131,6 +132,51 @@ and final rounding; fewer rounds alone do not establish a performance improvemen
 The [saved comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-masked-wire-fusion-sdk.json)
 retains process RSS, separate issuance/online costs and historical Qwen-shaped
 projections. It measures neither distributed transport nor a complete decoder.
+
+## Experimental decoder execution
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.nonlinear import MaskedWireGatedMultiplyQ12
+from pllm.profiles import TwoOnlineOffsetCpu
+
+experiment = Experiment(
+    name="masked-wire-tiny",
+    pipeline=TwoOnlineOffsetCpu(
+        Model.tiny(), nonlinear=MaskedWireGatedMultiplyQ12(layout="fused"),
+    ),
+    deployment=Deployment.local(root="."),
+    budget=ExecutionBudget(max_input_tokens=32, max_new_tokens=2, requests=1),
+)
+assert Experiment.from_spec(experiment.to_spec()).pipeline == experiment.pipeline
+```
+
+The ordinary SDK client, gateway and benchmark use this Experiment. The native
+compiler replaces every admitted dense float32 SiLU/multiply pair with a bound
+gated region. Conversion is explicit: the trusted client floors float32 inputs
+to Q24, checks public ranges and reconstructs Q12 output as float32. Other
+nonlinear operators and attention remain client-local.
+
+Each region executes in fresh chunks of at most 256 elements. The client issues
+two key packets and sends each only to its authenticated worker. Workers bind
+plan, composition, region, phase, tensor index and both session IDs; malformed
+frames, replay and cancellation burn the pending material. The client relays
+opaque peer frames, so both relay legs count as application traffic. Issuance
+runs during the response and belongs to client CPU. Memory admission prices the
+client's active chunk and all eight worker-session slots. Network-offer planning
+does not yet price this capability and rejects it.
+
+Generated Qwen2/Qwen3 prefill/decode tests match an independent integer oracle's
+logits and KV for both layouts. Separate-process SDK and gateway requests check
+the same path. These are functionality results; real-checkpoint quality and
+complete-response costs require separate measurements. Co-located roles are not
+independent operators, and this engineering adaptation has no independent
+cryptographic review or malicious-output verifier.
+
+The [replayable decoder factories](https://github.com/blairhudson/pllm/blob/main/benchmarks/research/nonlinear_decoders.py)
+retain clear-SiLU, fused/unfused and exact transport-composition choices. Changed
+nonlinear numerics cannot rank against the clear-SiLU control even when selected
+tokens match; fused/unfused layouts retain the same numeric comparison contract.
 
 ## Compare fused and unfused rescaling
 

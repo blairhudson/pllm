@@ -256,6 +256,21 @@ peer frames. Client mask/boundary estimates and public tables stay separate;
 full wire and peak memory remain unknown. No reusable secret handles escape.
 SDK operator availability, paper coverage and whole-model execution are independent
 claims. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
+The masked-wire component now also selects experimental CPU two-offset gated
+regions. A native model-neutral pass binds each dense float32 SiLU/multiply pair,
+the fixed numeric profile, floor float32-to-Q24 and Q12-to-float32 client boundaries,
+256-element chunks and a 64 MiB combined material-allocation ceiling. The trusted
+client issues fresh party-local keys online and relays opaque peer frames between
+authenticated workers; ordinary application counters charge both relay legs and
+key delivery. Session/phase/region/index bindings and monotonic worker admission
+burn malformed, replayed, cancelled and expired material. Whole-topology memory
+admission prices one client chunk and eight possible chunks per worker. Network
+offers without nonlinear resource pricing reject. Generated Qwen2/Qwen3 whole
+prefill/decode matches independent integer-oracle logits and KV in both layouts;
+separate-process SDK and gateway requests complete. These functionality checks
+do not establish real-checkpoint quality, independent operators or cryptographic
+review. Clear-SiLU and changed nonlinear profiles have separate benchmark numeric
+contracts even if output selections agree.
 The optional `MaskedWireGatedMultiplyQ12(layout="fused")` now implements bounded
 multi-view fusion on the complete block: rescaling, index reduction and predicates
 derive from one masked gate input. Eighteen fresh processes check 5,778 exact outputs.

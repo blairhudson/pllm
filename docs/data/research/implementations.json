@@ -78,7 +78,7 @@
       "status": "Component reference",
       "sdk_benchmark": {"api": "pllm.nonlinear.MaskedWireGatedMultiplyQ12", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
       "scope": "Bounded early-terminated Boolean DPF, GapARS/TR floor shifts, residual Q12 SiLU and masked-wire multiplication. Public gap/effective-width bounds and one-use party-local state. Independent CPU/128-bit-seed implementation; no GPU system, protected float conversion or complete SIGMA decoder.",
-      "code": ["crates/pllm-garble/src/compact_dpf.rs", "crates/pllm-garble/src/masked_wire_reference.rs", "crates/pllm-core/src/residual_silu_reference.rs"],
+      "code": ["crates/pllm-garble/src/compact_dpf.rs", "crates/pllm-garble/src/masked_wire_reference.rs", "crates/pllm-core/src/residual_silu_reference.rs", "crates/pllm-compiler/src/masked_wire_schedule.rs", "python/pllm/runtime/masked_wire.py", "tests/test_masked_wire_runtime.py"],
       "configuration": "benchmarks/research/masked_wire_reference.py",
       "evidence": "docs/evidence/research-masked-wire-reference-qwen25.json",
       "result": "Twelve fresh processes check 5,136 protected block outputs. Complete keys are 645.25 bytes per party/element; 64 lanes use 6,020 peer bytes across eleven rounds. Qwen 39+8 geometry projects 6.93 GB combined material and 397.12 MB peer frames, versus the earlier numerically different 60.10 GB generic layout. Twelve fresh clear W8A8 trajectories match 10/12 prefill and 34/36 same-token decode selections, with 2.7158 worst logit error and no exact logits/KV. Numeric and cost gates fail; no protected checkpoint execution or independent cryptographic review. Historical helper evidence remains in docs/research/interval-rescale-reference.md. Current scope: docs/research/masked-wire-reference.md."
@@ -104,7 +104,7 @@
     "fusefss": {
       "status": "Component reference",
       "sdk_benchmark": {"api": "pllm.nonlinear.MaskedWireGatedMultiplyQ12", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-fusion-sdk.json"},
-      "scope": "Complete masked-wire gated-block multi-view fusion and the separate signed-rescale helper. Matched floor/Q12 layouts include lookup, multiplication, final rounding and fresh party-local material. No general fusion compiler, seeded distribution, GPU system or protected checkpoint execution.",
+      "scope": "Complete masked-wire gated-block multi-view fusion and the separate signed-rescale helper. Matched floor/Q12 layouts include lookup, multiplication, final rounding and fresh party-local material. Experimental CPU two-offset Experiments bind gated regions with client conversion/issuance and relayed peer frames; generated Qwen2/Qwen3 fixtures pass complete prefill/decode and SDK/gateway checks. No general fusion compiler, seeded distribution, GPU system or official-checkpoint execution evidence yet.",
       "code": ["crates/pllm-garble/src/masked_wire_reference.rs", "crates/pllm-python/src/masked_wire.rs", "python/pllm/metrics/masked_wire.py", "crates/pllm-garble/src/shared_rescale_reference.rs", "python/pllm/metrics/shared_rescale.py"],
       "configuration": "benchmarks/research/masked_wire_fusion.py",
       "evidence": "docs/evidence/research-masked-wire-fusion-sdk.json",

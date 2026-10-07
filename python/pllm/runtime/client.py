@@ -316,6 +316,12 @@ class PrivacyAudit:
     bundle_cache_corruptions: int = 0
     tokenizer_artifact_local_bytes: int = 0
     public_prefix_artifact_local_bytes: int = 0
+    nonlinear_elements: int = 0
+    nonlinear_chunks: int = 0
+    nonlinear_party_key_bytes: int = 0
+    nonlinear_peer_frame_bytes: int = 0
+    nonlinear_client_issuance_ns: int = 0
+    nonlinear_client_issuance_cpu_ns: int = 0
     role_link_bodies: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, int]:
@@ -4252,6 +4258,9 @@ class RuntimeClient:
                         tracked[metric] = tracked.get(metric, 0) + count
                 self.audit.inference_stage_calls += offset_transport.costs.stages
                 self.audit.online_steps += offset_transport.costs.rows
+                for metric, count in offset_transport.nonlinear_costs.items():
+                    name = f"nonlinear_{metric}"
+                    setattr(self.audit, name, getattr(self.audit, name) + count)
             if isinstance(remote, PreparedRemoteLinear):
                 self.audit.preparation_upload_bytes += remote.stats.preparation_upload_bytes
                 self.audit.preparation_download_bytes += remote.stats.preparation_download_bytes

@@ -5,6 +5,12 @@ Qwen Slalom/SmoothQuant adaptation controls are implemented. Maverick and
 SIGMA/FuseFSS have bounded native component references with explicit unresolved
 resource/security gates. The SIGMA-derived masked-wire block and FuseFSS-inspired
 fused/unfused signed-rescale helper also have installed SDK operator benchmarks.
+The masked-wire component additionally binds complete dense float32 gated regions
+in the CPU two-offset Experiment. Generated Qwen2/Qwen3 prefill/decode matches an
+independent integer oracle, and separate worker processes complete SDK and gateway
+requests. Client conversion and online issuance, per-party one-use material and
+both client-relay legs are explicit. Fresh checkpoint quality, matched response
+costs and the remaining paper components follow this execution slice.
 The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored

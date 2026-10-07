@@ -17,6 +17,8 @@ use pllm_core::residual_silu_reference::{
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
+pub mod transport;
+
 pub const MAX_LANES: usize = 256;
 pub const MAX_ALLOCATION: usize = 64 << 20;
 pub const HEADER: usize = 78;
@@ -569,18 +571,7 @@ pub fn issue_reference_with_layout(
         .checked_add(lanes as u64)
         .ok_or(Error::Domain)?;
     let profile = Profile::new();
-    let mut h = Sha256::new();
-    h.update(b"pllm.masked_wire_reference.v1\0");
-    h.update(profile.digest());
-    h.update(context.plan);
-    h.update(context.session);
-    h.update(context.operation);
-    h.update(context.first_tensor_index.to_le_bytes());
-    h.update((lanes as u64).to_le_bytes());
-    if layout == Layout::Fused {
-        h.update(b"masked-input-fusion.v1\0");
-    }
-    let binding = h.finalize().into();
+    let binding = binding(context, lanes, layout);
     let mut nonce = [0; 32];
     getrandom::fill(&mut nonce).map_err(|_| Error::Randomness)?;
     let mut inputs = Zeroizing::new(Vec::with_capacity(lanes));
@@ -717,6 +708,21 @@ pub struct Party {
     phase: Option<usize>,
     alive: bool,
     table: [i64; 1024],
+}
+
+fn binding(context: Context, lanes: usize, layout: Layout) -> [u8; 32] {
+    let mut h = Sha256::new();
+    h.update(b"pllm.masked_wire_reference.v1\0");
+    h.update(Profile::new().digest());
+    h.update(context.plan);
+    h.update(context.session);
+    h.update(context.operation);
+    h.update(context.first_tensor_index.to_le_bytes());
+    h.update((lanes as u64).to_le_bytes());
+    if layout == Layout::Fused {
+        h.update(b"masked-input-fusion.v1\0");
+    }
+    h.finalize().into()
 }
 pub enum Step {
     Send(Vec<u8>),

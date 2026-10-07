@@ -71,6 +71,12 @@ _PRIVACY_FIELDS = frozenset(
         "bundle_cache_corruptions",
         "tokenizer_artifact_local_bytes",
         "public_prefix_artifact_local_bytes",
+        "nonlinear_elements",
+        "nonlinear_chunks",
+        "nonlinear_party_key_bytes",
+        "nonlinear_peer_frame_bytes",
+        "nonlinear_client_issuance_ns",
+        "nonlinear_client_issuance_cpu_ns",
     }
 )
 _PRIVACY_FIELDS |= _ROLE_BODY_FIELDS

@@ -736,6 +736,24 @@ def test_loopback_report_summarizes_records_and_has_no_text_payloads() -> None:
     assert '"token_ids"' not in serialized
 
 
+def test_comparison_rejects_changed_nonlinear_identity_but_admits_exact_fusion() -> None:
+    from pllm import Model
+    from pllm.nonlinear import MaskedWireGatedMultiplyQ12
+    from pllm.profiles import TwoOnlineOffsetCpu
+
+    plain = _experiment("plain", 1).with_params(pipeline=TwoOnlineOffsetCpu(Model.tiny()))
+    unfused = plain.with_params(name="unfused", pipeline=TwoOnlineOffsetCpu(Model.tiny(),
+        nonlinear=MaskedWireGatedMultiplyQ12()))
+    fused = unfused.with_params(name="fused", pipeline__nonlinear__layout="fused")
+    rejected = build_comparison_report([(plain, _report()), (unfused, _report())])
+    assert not rejected["checks"]["matched_numeric_contract"]
+    assert all(value is None for value in rejected["winners"].values())
+    assert rejected["compute_cap_diagnostic"] is None
+    accepted = build_comparison_report([(unfused, _report()), (fused, _report(full=3.0))])
+    assert accepted["checks"]["matched_numeric_contract"]
+    assert accepted["winners"]["full_seconds"] == fused.configuration_digest()
+
+
 def test_comparison_report_ranks_only_matched_pipeline_runs() -> None:
     slow, fast = _experiment("slow", 1), _experiment("fast", 4)
     report = build_comparison_report([(slow, _report(full=5.0)), (fast, _report(full=3.0))])

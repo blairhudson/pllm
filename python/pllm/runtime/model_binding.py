@@ -1941,6 +1941,7 @@ def compile_runtime_model(
             raise RuntimeBindingError(f"stage {stage_id!r} prefill and decode mappings differ")
 
     scheduled_operations: set[str] = set()
+    nonlinear_operations: set[str] = set()
     for phase in ("prefill", "decode"):
         phase_schedule = runtime_schedule_spec.get(phase)
         if not isinstance(phase_schedule, dict) or not isinstance(
@@ -1969,6 +1970,24 @@ def compile_runtime_model(
                 operation.get("layer") != step.get("layer") for operation in operations
             ):
                 raise RuntimeBindingError(f"native {phase} runtime step layer is malformed")
+            if step.get("executor") == "remote_gated_block":
+                from .masked_wire import validate_region
+
+                if (runtime_options.nonlinear_layout is None
+                    or runtime_schedule_spec.get("nonlinear") is None):
+                    raise RuntimeBindingError("native nonlinear region has no component contract")
+                try:
+                    validate_region(step, phase_operations)
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise RuntimeBindingError("native nonlinear region differs from its graph") from exc
+                for operation_id in operation_ids:
+                    qualified = f"{phase}:{operation_id}"
+                    if qualified not in local_operations or qualified in scheduled_operations:
+                        raise RuntimeBindingError("native nonlinear operation is duplicated or unknown")
+                    local_operations.remove(qualified)
+                    nonlinear_operations.add(qualified)
+                    scheduled_operations.add(qualified)
+                continue
             if step["input_ids"] != operations[0].get("inputs") or any(
                 operation.get("inputs") != step["input_ids"] for operation in operations
             ):
@@ -2045,13 +2064,13 @@ def compile_runtime_model(
                 raise RuntimeBindingError(
                     f"native {phase} runtime stage {remote_stage.id!r} has the wrong output width"
                 )
-    expected_scheduled = local_operations | {
+    expected_scheduled = local_operations | nonlinear_operations | {
         operation for operations in stage_semantics.values() for operation in operations
     }
     if scheduled_operations != expected_scheduled:
         raise RuntimeBindingError("native runtime schedule and bundle binding differ")
 
-    covered = len(local_operations) + sum(len(ids) for ids in stage_semantics.values())
+    covered = len(local_operations) + len(nonlinear_operations) + sum(len(ids) for ids in stage_semantics.values())
     if covered != len(prefill_ops) + len(decode_ops):
         raise RuntimeBindingError("plan operation coverage is incomplete")
 
@@ -2235,6 +2254,9 @@ def compile_runtime_model(
         "runtime_schedule_digest": runtime_schedule_digest,
         "tokenizer_digest": tokenizer_digest,
     }
+    if nonlinear_operations:
+        spec["nonlinear_operations"] = sorted(nonlinear_operations)
+        spec["nonlinear_contract"] = runtime_schedule_spec["nonlinear"]
     if runtime_options.prepared_output_encoding == "row_residues":
         spec["prepared_output_encoding"] = "row_residues"
         spec["prepared_residue_layout_digest"] = manifest_metadata.get("prepared_residue_layout_digest")

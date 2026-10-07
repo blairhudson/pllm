@@ -20,6 +20,7 @@ pub enum DecoderRuntimeExecutor {
     ClientLinear,
     RemoteStage,
     VerifiedRemoteStage,
+    RemoteGatedBlock,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -120,6 +121,8 @@ pub struct DecoderRuntimeSchedule {
     pub decode: DecoderRuntimePhaseSchedule,
     pub protected_execution: bool,
     pub complete: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonlinear: Option<crate::masked_wire_schedule::MaskedWireNumericContract>,
 }
 
 impl DecoderRuntimeSchedule {
@@ -1740,12 +1743,21 @@ pub fn lower_decoder_runtime_schedule(
         client_prefix_layers,
         &client_linear_roles,
     )?;
-    let decode = lower_phase(
+    let mut decode = lower_phase(
         &plan.decode,
         linear_executor,
         client_prefix_layers,
         &client_linear_roles,
     )?;
+    let nonlinear = composition
+        .components
+        .get("nonlinear")
+        .map(crate::masked_wire_schedule::MaskedWireNumericContract::new)
+        .transpose()?;
+    if nonlinear.is_some() {
+        crate::masked_wire_schedule::bind_regions(&plan.prefill, &mut prefill)?;
+        crate::masked_wire_schedule::bind_regions(&plan.decode, &mut decode)?;
+    }
     if composition
         .components
         .get("linear")
@@ -1778,6 +1790,7 @@ pub fn lower_decoder_runtime_schedule(
         decode,
         protected_execution: false,
         complete: true,
+        nonlinear,
     })
 }
 

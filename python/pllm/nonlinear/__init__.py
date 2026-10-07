@@ -111,8 +111,9 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
     Gate and up ranges are [-48, 48] and [-128, 128]. The fixed residual
     table and floor shifts produce Q12 output. ``layout="fused"`` computes the
     input gate shifts and predicates through public masked views, preserving
-    the numeric contract. Bounded benchmarking uses a local dealer and two
-    one-use evaluators.
+    the numeric contract. Operator benchmarks use a local dealer. The CPU
+    two-offset Experiment uses client-issued material and authenticated
+    party-local workers, with peer frames relayed through the trusted client.
     """
 
     __slots__ = ()
@@ -128,9 +129,9 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
             "type": "object", "properties": {"layout": {"enum": ["unfused", "fused"]}},
             "additionalProperties": False,
         },
-        capabilities=("protected-gated-multiply-q12", "bounded-operator-benchmark"),
-        required_host_features=("native-core", "local-fss-dealer"),
-        role_eligibility=("client",),
+        capabilities=("protected-gated-multiply-q12", "bounded-operator-benchmark", "compiled-gated-regions"),
+        required_host_features=("native-core", "trusted-client-fss-dealer"),
+        role_eligibility=("client", "worker_a", "worker_b"),
     )
 
     def __init__(self, *, layout: str = "unfused") -> None:

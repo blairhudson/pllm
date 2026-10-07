@@ -59,6 +59,11 @@ fn admit_network_placement(
     super::validate_experiment_model(&pipeline.model)?;
     // Exact component and privacy-option admission. Pending slots cannot inject roles.
     let kind = validate_decoder_linear_composition(&pipeline)?;
+    if pipeline.components.contains_key("nonlinear") {
+        return Err(
+            "network offers do not yet price masked-wire issuance and worker material".into(),
+        );
+    }
     let (role_capabilities, separation): (RoleCapabilities, OperatorSeparation) = match kind {
         DecoderCompositionKind::MaskedLinear | DecoderCompositionKind::VerifiedMaskedLinear => (
             &[
