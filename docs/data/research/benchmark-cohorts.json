@@ -72,6 +72,24 @@
       }
     },
     {
+      "id": "qwen25-masked-wire-material-30-2",
+      "title": "Native 100/40 · masked-wire key encoding · 30 + 2 tokens",
+      "report": "docs/evidence/research-nonlinear-material-qwen25.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/nonlinear_decoders.py": "590a39f225b6355cb276754b307ed94ad213c718b4a18ffd2cb5ad3541ef3a53",
+        "benchmarks/research/nonlinear_dispatch.py": "947e387d2ff103a6b43ea4ff2c1e01887d3533fae0a49e0b4dfacccddb971771",
+        "benchmarks/research/nonlinear_material.py": "2532bfe06c55d8ca5737dc05e2caa05417a30b47b42995572b07da98f1766ffc",
+        "docs/evidence/research-nonlinear-material-qwen25-reproduction.json": "42511a8dd1bb285f81490320933fa5d86bcd7265e35c9f879e4de75497e9a1e1"
+      },
+      "baseline": "masked-wire-unfused-full",
+      "scope": "Same unfused Q12 mapping, optimized CPU implementation and overlapped dispatch; full versus fresh party-local seeded key packets. One cold 30+2-token response per isolated client, native shared 100/40 caps, cached checkpoint and two co-located CPU workers. Outputs match. Seeded material lowers request latency 14.79% and TCP-stream traffic 17.17%, while aggregate CPU rises 2.73%. Client peak RSS falls 1.36%. Physical wire, checkpoint download, Internet RTT, representative quality and independent operators remain unmeasured. Earlier dispatch and clear-SiLU cohorts retain separate identities.",
+      "candidates": {
+        "masked-wire-unfused-full": {"file": "benchmarks/research/nonlinear_material.py", "sha256": "2532bfe06c55d8ca5737dc05e2caa05417a30b47b42995572b07da98f1766ffc", "label": "Masked-wire · full keys", "reference": null, "artifact_bytes": 0},
+        "masked-wire-unfused-seeded": {"file": "benchmarks/research/nonlinear_material.py", "sha256": "2532bfe06c55d8ca5737dc05e2caa05417a30b47b42995572b07da98f1766ffc", "label": "Masked-wire · seeded keys", "reference": null, "artifact_bytes": 0}
+      }
+    },
+    {
       "id": "qwen25-masked-wire-dispatch-30-2",
       "title": "Native 100/40 · masked-wire Q12 dispatch · 30 + 2 tokens",
       "report": "docs/evidence/research-nonlinear-dispatch-qwen25.json",

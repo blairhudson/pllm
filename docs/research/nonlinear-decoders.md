@@ -331,6 +331,49 @@ counts remain equal. Evidence: `docs/evidence/research-masked-wire-seeded-qwen25
 This remains a synthetic row-region comparison, excluding whole responses, peak
 memory, startup, checkpoint transfer, physical wire and model quality.
 
+### Completed seeded-material response pair
+
+The subsequent matched Qwen2.5 pair executes one cold **30-input/2-output-token**
+response per isolated client from the same frozen release wheel. Both use the
+optimized native implementation, unfused layout, overlapped dispatch and shared
+native 100/40 Mbps access limits. Output digests match, all runtime checks pass
+and observed new swap is zero.
+
+| Complete response | Full packets | Seeded packets |
+| --- | ---: | ---: |
+| Request latency | 1,611.722 s | 1,373.282 s |
+| Startup-inclusive TCP-stream traffic | 5.7166 GB | 4.7350 GB |
+| Covered application bodies | 5.5450 GB | 4.5634 GB |
+| Combined party-key packets | 4.6722 GB | 3.6906 GB |
+| Aggregate cold-first CPU | 1,394.90 s | 1,433.04 s |
+| Client/dashboard lifetime peak RSS | 228.84 MB | 225.72 MB |
+| Sampled simultaneous total peak RSS | 1,785.14 MB | 1,766.59 MB |
+
+Latency falls **14.79%** and TCP-stream traffic **17.17%**, while aggregate CPU
+rises **2.73%**. The exact **981,603,840-byte** key reduction accounts for the
+entire reduction in both application bodies and stream traffic. The 3,618,816
+nonlinear elements, 14,136 chunks and 267,622,752 logical peer-frame bytes match.
+Client peak RSS falls 1.36%; expanded-key admission remains unchanged.
+
+These are single-response co-located samples. Physical network overhead,
+checkpoint distribution, independent operators and representative generation
+quality remain outside the measurement. The earlier dispatch cohort used another
+implementation and salt; its costs are not merged into this pair. Runtime:
+`0167afc`. Evidence, preflight and frozen-wheel/source hashes are retained in
+`docs/evidence/research-nonlinear-material-qwen25.json`,
+`docs/evidence/research-nonlinear-material-qwen25-preflight.json` and
+`docs/evidence/research-nonlinear-material-qwen25-reproduction.json`.
+
+```sh
+uv run python -m pllm benchmark run \
+  --experiment benchmarks/research/nonlinear_material.py:full \
+  --experiment benchmarks/research/nonlinear_material.py:seeded \
+  --trust-python --factory --backend native --wan --isolate-candidates \
+  --prompt Hi --max-output-tokens 2 --warmups 0 --repetitions 1 \
+  --timeout 3600 --temperature 0 --capture-output-digest \
+  --output nonlinear-material-reproduction.json --format human
+```
+
 ## Qwen3-4B allocation gate
 
 The same composed two-worker factory was inspected with the pinned Qwen3-4B

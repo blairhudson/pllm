@@ -301,7 +301,14 @@ burn semantics. A 175,104-output synthetic Qwen-width cohort lowers unfused/fuse
 capped row latency 2.111/3.706 to 1.784/3.353 seconds and 256-lane key payload
 21.02%/12.94%, while aggregate process CPU rises about 1.9%/1.5%. This local
 encoding adaptation has no independent cryptographic review; row-region evidence
-does not establish complete-response savings.
+does not establish complete-response savings. A separately matched fresh-client
+30+2-token whole-response pair on the optimized implementation measures 14.79%
+lower latency (1,611.722 to 1,373.282 seconds) and 17.17% less TCP-stream traffic
+(5.7166 to 4.7350 GB) with seeded packets. Its 981,603,840-byte key reduction
+exactly accounts for the stream and application-body differences. Aggregate CPU
+rises 2.73%; client peak RSS falls 228.84 to 225.72 MB. Outputs match with zero
+observed swap growth. Both candidates retain trusted-client online issuance and
+the same changed Q12 numeric profile; earlier implementation cohorts stay separate.
 The optional `MaskedWireGatedMultiplyQ12(layout="fused")` now implements bounded
 multi-view fusion on the complete block: rescaling, index reduction and predicates
 derive from one masked gate input. Eighteen fresh processes check 5,778 exact outputs.

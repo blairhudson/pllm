@@ -117,6 +117,30 @@ test('masked-wire dispatch retains numeric identity and complete response tradeo
   assert.equal(cohortRows(spec, fused).rows.length, 2);
 });
 
+test('seeded nonlinear material conserves response traffic and retains CPU cost', () => {
+  const measured = buildScorecard().cohorts.find((item) => item.id === 'qwen25-masked-wire-material-30-2');
+  const [full, seeded] = measured.rows;
+  assert.equal(measured.identity.inputs, 30);
+  assert.equal(measured.identity.outputs, 2);
+  assert.ok(seeded.metrics.full < full.metrics.full);
+  assert.ok(seeded.metrics.aggregateCpu > full.metrics.aggregateCpu);
+  assert.ok(seeded.metrics.totalNetwork < full.metrics.totalNetwork);
+  const document = JSON.parse(fs.readFileSync(root + measured.report));
+  const [a, b] = document.candidates.map((candidate) => candidate.report);
+  const [pa, pb] = [a, b].map((report) => report.runs[0].privacy);
+  const savedKeys = pa.nonlinear_party_key_bytes - pb.nonlinear_party_key_bytes;
+  assert.equal(savedKeys, 981603840);
+  assert.equal(a.summary.total_accounted_benchmark_body_bytes - b.summary.total_accounted_benchmark_body_bytes, savedKeys);
+  const streams = [a, b].map((report) => report.native_network_accounting.samples.runs[0].after.wan_emulation);
+  assert.equal(streams[0].total_stream_bytes - streams[1].total_stream_bytes, savedKeys);
+  for (const stream of streams) assert.equal(Object.values(stream.directed_stream_bytes).reduce((sum, n) => sum + n, 0), stream.total_stream_bytes);
+  assert.equal(pa.nonlinear_elements, pb.nonlinear_elements);
+  assert.equal(pa.nonlinear_chunks, pb.nonlinear_chunks);
+  assert.equal(pa.nonlinear_peer_frame_bytes, pb.nonlinear_peer_frame_bytes);
+  assert.equal(a.runs[0].generation.output_text_digest, b.runs[0].generation.output_text_digest);
+  assert.ok(measured.rows.every((row) => row.metrics.quality === null && row.metrics.wire === null));
+});
+
 test('SDK finalists retain measured placement, filters and original observations', () => {
   const card = buildScorecard();
   const finalists = card.cohorts.find((item) => item.id === 'qwen25-sdk-finalists-150-8');

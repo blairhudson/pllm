@@ -1,0 +1,57 @@
+{
+  "execution": {
+    "backend": "native",
+    "cohort_salt": "private; one CLI invocation; not retained",
+    "isolated_clients": true,
+    "wan_download_mbps": 100,
+    "wan_upload_mbps": 40
+  },
+  "frozen_runtime_commit": "0167afcf2ed396de7adcd7553a65ebae144841ce",
+  "installation_verification": {
+    "package_files_verified": 274,
+    "python_source_files_verified": 264
+  },
+  "preflight_path": "docs/evidence/research-nonlinear-material-qwen25-preflight.json",
+  "recorded_at": "2026-10-07T06:10:09.505557+00:00",
+  "result_path": "docs/evidence/research-nonlinear-material-qwen25.json",
+  "runtime_scope": "installed release wheel; both candidates share the same optimized implementation; package files and Python sources verified against the frozen runtime",
+  "schema": "pllm.nonlinear_material_reproduction.v1",
+  "source_sha256": {
+    "Cargo.lock": "be735861945742b6d892d797255833c529e0266ff4f44d1fbac9d99840e5a06f",
+    "benchmarks/research/nonlinear_decoders.py": "590a39f225b6355cb276754b307ed94ad213c718b4a18ffd2cb5ad3541ef3a53",
+    "benchmarks/research/nonlinear_dispatch.py": "947e387d2ff103a6b43ea4ff2c1e01887d3533fae0a49e0b4dfacccddb971771",
+    "benchmarks/research/nonlinear_material.py": "2532bfe06c55d8ca5737dc05e2caa05417a30b47b42995572b07da98f1766ffc",
+    "crates/pllm-compiler/src/masked_wire_schedule.rs": "e00c86bb9c4a3e6e510fa1ee6eed3cad3a027057e84dba51aebf2552b8b89fdb",
+    "crates/pllm-garble/src/compact_dpf.rs": "f087623a9274ea1ddaf598bf4589478b4f4a6e7cc7adf0767651d5162e7110ba",
+    "crates/pllm-garble/src/masked_wire_reference.rs": "84c8a5b208ea6252e7dfeac800459468b020bf66d7a4426418948f5a99daf4cd",
+    "crates/pllm-garble/src/masked_wire_reference/coins.rs": "f8971d86bbbd0be08b6d1016dd18b020e6b3cd7515d097db71a40c75fb0eda55",
+    "crates/pllm-garble/src/masked_wire_reference/seeded_codec.rs": "37406ea2bebf8a8c8bc5b2056256e1acca26ea2f543918432db11392ac8fc5c8",
+    "crates/pllm-garble/src/masked_wire_reference/transport.rs": "1f12dcf9a04d61f2323d492aee09db8dc30b631efb4b33be437ae48594dfa1f0",
+    "crates/pllm-python/src/masked_wire.rs": "5b7f3aba2d76a3ebe7ef25fa82f9bc40707ff2e774f4ba81d071eed54b2a3a7c",
+    "crates/pllm-python/src/masked_wire/transport.rs": "3d4e97e9affd667c3353833988711427fd2cdf7ec38947bf7a305c5764345685",
+    "python/pllm/_cli/benchmark_output.py": "2aa29f663e940bcc70886be1d1a71fed7c27eea3faad98e2a3bd1cc0bd7197df",
+    "python/pllm/nonlinear/__init__.py": "be2dc21ddd27f8833f167e7ccd0c7783b1a271c8d8e542abe0096bcb7a6f383a",
+    "python/pllm/runtime/benchmark_cli.py": "e6cbd2206a70dcd9ebfc31d478a01f72f4fd7f8c28caabd6b1e17c72ffad684a",
+    "python/pllm/runtime/benchmark_memory.py": "3db0603d977b4aa6a48948d0556595b6bc95f911620895c23794bd8b781ffc03",
+    "python/pllm/runtime/masked_wire.py": "81c73ae90da151e122f9a82837cec1f16438e5238d8c805c6510f7573cc82a15",
+    "python/pllm/runtime/native_wan.py": "024c6940010b7c4f27587802d6878273d2c5a40acf7714da59dcd00868d7093f",
+    "python/pllm/runtime/offset_worker.py": "c65a61b0eb8e8952478f656a57bc6666429bbc4639e69472442f1a1c43a53219"
+  },
+  "targets": [
+    "benchmarks/research/nonlinear_material.py:full",
+    "benchmarks/research/nonlinear_material.py:seeded"
+  ],
+  "wheel": {
+    "bytes": 3133271,
+    "filename": "pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+    "sha256": "8a443be90debb9903f6a811e9bb825f7c6c0c9d6b9a4db1df71996ad031ec835"
+  },
+  "workload": {
+    "max_output_tokens": 2,
+    "public_prompt": "Hi",
+    "repetitions": 1,
+    "temperature": 0,
+    "timeout_seconds": 3600,
+    "warmups": 0
+  }
+}

@@ -32,6 +32,9 @@ own independent random key fields from fresh, role-bound seeds. Client masks and
 correlation-dependent correction shares remain separate. Expanded-key memory and
 one-use lifecycle bounds remain charged; both packet versions execute the same
 Q12 numeric profile.
+The matched 30+2 whole-response encoding pair lowers latency 14.79% and
+TCP-stream traffic 17.17% (5.7166 to 4.7350 GB), with matching outputs and zero
+observed swap growth. Aggregate CPU increases 2.73%; client peak RSS falls 1.36%.
 Evidence and reproduction: `docs/research/nonlinear-decoders.md`.
 The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
