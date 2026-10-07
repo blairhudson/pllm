@@ -61,12 +61,17 @@
     },
     {
       "paper_id": "R05",
-      "summary": "The installed LogRowGarbledLookup component benchmarks a one-use 9-bit fitted Q7 table with the earlier two-row setup. It charges client encodings and complete evaluator material, with separate public metadata and boundary estimates. Specialized tensor references remain separate from whole-decoder deployment.",
+      "summary": "LogRowGarbledLookup retains its fitted Q7 activation contract. LogRowGatedMultiplyQ9 separately composes a 4,096-row lookup with exact half-gates rescaling and multiplication through opaque labels. Complete client/evaluator material and boundary estimates are charged. Whole-decoder transport remains absent.",
       "components": [
         {
           "title": "Bounded LogRow lookup reference",
           "href": "/sdk/components/protocols/logrow-reference/",
           "source": "content/docs/sdk/components/protocols/logrow-reference.mdx"
+        },
+        {
+          "title": "Complete LogRow gated block",
+          "href": "/sdk/components/nonlinear/logrow-gated-multiply-q9/",
+          "source": "content/docs/sdk/components/nonlinear/logrow-gated-multiply-q9.mdx"
         }
       ]
     },

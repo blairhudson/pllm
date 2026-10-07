@@ -60,6 +60,15 @@ def _checked(values: Sequence[int], lanes: int, bound: int) -> tuple[int, ...]:
     return tuple(result)
 
 
+def _inputs(gate_q18, up_q18, lanes):
+    if gate_q18 is None and up_q18 is None:
+        return _fixture(lanes, 48), _fixture(lanes, 128)[::-1], "public-q18-gated-boundary-fixture-v1"
+    if gate_q18 is None or up_q18 is None:
+        raise ValueError("supply both gate_q18 and up_q18")
+    return (_checked(gate_q18, lanes, 48), _checked(up_q18, lanes, 128),
+            "caller-owned; supply inputs again for replay")
+
+
 class _WaveletGatedBenchmark(_OperatorBenchmark):
     __slots__ = ()
 
@@ -67,14 +76,7 @@ class _WaveletGatedBenchmark(_OperatorBenchmark):
         from pllm import _native, __version__
 
         levels = self.component.params["levels"]
-        if gate_q18 is None and up_q18 is None:
-            gate, up = _fixture(self.lanes, 48), _fixture(self.lanes, 128)[::-1]
-            source = "public-q18-gated-boundary-fixture-v1"
-        elif gate_q18 is None or up_q18 is None:
-            raise ValueError("supply both gate_q18 and up_q18")
-        else:
-            gate, up = _checked(gate_q18, self.lanes, 48), _checked(up_q18, self.lanes, 128)
-            source = "caller-owned; supply inputs again for replay"
+        gate, up, source = _inputs(gate_q18, up_q18, self.lanes)
         table, numeric = _profile(levels)
         original, _ = _profile(0)
         expected = [_oracle(table, levels, g, u) for g, u in zip(gate, up, strict=True)]

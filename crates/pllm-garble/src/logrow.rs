@@ -272,29 +272,68 @@ pub fn prepare_logrow(
     if !(1..=MAX_BITS).contains(&input_bits) || !(1..=MAX_BITS).contains(&output_bits) {
         return Err("LogRow input/output widths must be between 1 and 9".into());
     }
-    let rows = 1 << input_bits;
-    if table.len() != rows
-        || table
-            .iter()
-            .any(|&entry| usize::from(entry) >= 1 << output_bits)
-    {
-        return Err("LogRow table shape or output width is invalid".into());
-    }
-    let mut id = [0; CIRCUIT_ID_BYTES];
-    getrandom::fill(&mut id).map_err(|error| error.to_string())?;
+    validate_table(input_bits, output_bits, table)?;
     let mut delta = [0; 16];
     getrandom::fill(&mut delta).map_err(|error| error.to_string())?;
     delta[15] |= 1;
     let mut zero = Zeroizing::new(Vec::with_capacity(input_bits));
-    let mut alpha = 0_usize;
-    for bit in 0..input_bits {
+    for _ in 0..input_bits {
         let mut label = [0; 16];
         getrandom::fill(&mut label).map_err(|error| error.to_string())?;
-        if label[15] & 1 == 1 {
-            alpha |= 1 << bit;
-        }
         zero.push(label);
     }
+    prepare_with_encodings(zero, delta, output_bits, table)
+}
+
+fn validate_table(input_bits: usize, output_bits: usize, table: &[u16]) -> Result<(), String> {
+    if !(1..=12).contains(&input_bits)
+        || !(1..=16).contains(&output_bits)
+        || table.len() != 1 << input_bits
+        || table
+            .iter()
+            .any(|&value| usize::from(value) >= 1 << output_bits)
+    {
+        return Err("LogRow table shape or output width is invalid".into());
+    }
+    Ok(())
+}
+
+/// Crate-private free-XOR composition: no intermediate decoder or plaintext
+/// leaves the garbler. Each lookup retains a fresh hash-domain issuance ID.
+pub(crate) fn prepare_embedded(
+    zero: Zeroizing<Vec<Block>>,
+    delta: Block,
+    output_bits: usize,
+    table: &[u16],
+) -> Result<(Zeroizing<Vec<Block>>, LogRowProgram), String> {
+    let (client, program) = prepare_with_encodings(zero, delta, output_bits, table)?;
+    Ok((Zeroizing::new(client.output_zero.clone()), program))
+}
+
+fn prepare_with_encodings(
+    mut zero: Zeroizing<Vec<Block>>,
+    mut delta: Block,
+    output_bits: usize,
+    table: &[u16],
+) -> Result<(LogRowClient, LogRowProgram), String> {
+    let input_bits = zero.len();
+    if let Err(error) = validate_table(input_bits, output_bits, table) {
+        delta.zeroize();
+        return Err(error);
+    }
+    if delta[15] & 1 != 1 {
+        delta.zeroize();
+        return Err("LogRow delta must have an odd selection bit".into());
+    }
+    let rows = 1 << input_bits;
+    let mut id = [0; CIRCUIT_ID_BYTES];
+    getrandom::fill(&mut id).map_err(|error| error.to_string())?;
+    let alpha = zero
+        .iter()
+        .enumerate()
+        .fold(0_usize, |value, (bit, label)| {
+            value | (usize::from(label[15] & 1) << bit)
+        });
     // Zero labels for the masked input x = a XOR alpha all have color zero.
     let masked_zero = Zeroizing::new(
         zero.iter()
@@ -393,7 +432,7 @@ pub fn prepare_logrow(
     }
     let mut base = [0; 2];
     getrandom::fill(&mut base).map_err(|error| error.to_string())?;
-    let mut base_value = u16::from_le_bytes(base) & ((1 << output_bits) - 1);
+    let mut base_value = u16::from_le_bytes(base) & ((1_u32 << output_bits) - 1) as u16;
     base.zeroize();
     for (index, entry) in random_table.iter_mut().enumerate() {
         *entry ^= base_value;
@@ -473,6 +512,21 @@ impl LogRowClient {
 }
 
 impl LogRowProgram {
+    pub(crate) fn output_bits(&self) -> usize {
+        self.output_bits
+    }
+
+    pub(crate) fn evaluate_embedded(
+        self,
+        labels: Vec<Block>,
+    ) -> Result<Zeroizing<Vec<Block>>, String> {
+        let inputs = LogRowInputs {
+            id: self.id,
+            labels,
+        };
+        let mut output = self.evaluate(inputs)?;
+        Ok(Zeroizing::new(std::mem::take(&mut output.labels)))
+    }
     /// Fresh circuit identity binds this one-use material to its client input.
     pub const fn issuance_id(&self) -> [u8; CIRCUIT_ID_BYTES] {
         self.id

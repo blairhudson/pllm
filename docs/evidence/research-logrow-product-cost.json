@@ -1,0 +1,1239 @@
+{
+  "checked_outputs": 1926,
+  "fresh_processes": 6,
+  "projections": [
+    {
+      "client_boundary_payload_estimate_bytes": 128876544,
+      "elements": 5369856,
+      "executable_decoder": false,
+      "full_wire_bytes": null,
+      "input_tokens": 39,
+      "keys_by_operation_and_role": [
+        [
+          "index_rescale",
+          5616869376,
+          5616869376
+        ],
+        [
+          "up_rescale",
+          6433087488,
+          6433087488
+        ],
+        [
+          "haar_lookup",
+          87990460416,
+          87990460416
+        ],
+        [
+          "beaver_multiply",
+          64438272,
+          64438272
+        ],
+        [
+          "output_rescale",
+          6433087488,
+          6433087488
+        ]
+      ],
+      "layers": 24,
+      "method": "curl-haar-gated-q9",
+      "output_tokens": 8,
+      "peer_frame_bytes": 971272704,
+      "public_metadata_bytes_estimate": 714442560,
+      "retained_key_bytes_by_role": [
+        106537943040,
+        106537943040
+      ],
+      "role_names": [
+        "worker_a",
+        "worker_b"
+      ],
+      "scope": "hypothetical complete MLP-only geometry; client-retained keys are not network traffic",
+      "width": 4864
+    },
+    {
+      "client_boundary_payload_estimate_bytes": 6787497984,
+      "elements": 5369856,
+      "executable_decoder": false,
+      "full_wire_bytes": null,
+      "input_tokens": 39,
+      "keys_by_operation_and_role": [
+        [
+          "client_encodings",
+          12887654400,
+          0
+        ],
+        [
+          "logrow_lookup",
+          0,
+          62462164992
+        ],
+        [
+          "up_rescale",
+          0,
+          9794617344
+        ],
+        [
+          "multiply",
+          0,
+          242287902720
+        ],
+        [
+          "output_rescale_sign",
+          0,
+          9794617344
+        ],
+        [
+          "constant_labels",
+          0,
+          2062024704
+        ]
+      ],
+      "layers": 24,
+      "method": "logrow-silu-gated-q18-q9",
+      "output_tokens": 8,
+      "peer_frame_bytes": 0,
+      "public_metadata_bytes_estimate": 378005643264,
+      "retained_key_bytes_by_role": [
+        12887654400,
+        326401327104
+      ],
+      "role_names": [
+        "garbler_client",
+        "evaluator"
+      ],
+      "scope": "hypothetical complete MLP-only geometry; client-retained keys are not network traffic",
+      "width": 4864
+    }
+  ],
+  "quality_reference": {
+    "greedy_generation": {
+      "attempted_prompts": 12,
+      "exact_trajectories": 10,
+      "generated_tokens": 96,
+      "matching_positions": 80,
+      "matching_prefix_tokens": 80,
+      "reference_output_tokens": 96,
+      "rejected_prompts": 0
+    },
+    "numeric_contract_digest": "49358c6346c9dad06d276d5a78d0179726141635b5f144fd43d4f56b66c45349",
+    "path": "docs/evidence/research-wavelet-gated-quality-qwen25.json",
+    "scope": "unchanged numeric profile; retained clear Qwen diagnostic, not a new protected checkpoint run",
+    "sha256": "ad004421e71983b0e2fd3d49757d1821ab734eb1d77978d0b0b512131b40696e",
+    "teacher_forced": {
+      "attempted_prompts": 12,
+      "bit_exact_positions": 0,
+      "completed_positions": 48,
+      "decode_matches": 35,
+      "exact_kv_positions": 0,
+      "mean_top5_recall": 0.8958333333333334,
+      "native_oracle_checked_elements": 62220288,
+      "prefill_matches": 10,
+      "rejected_prompts": 0,
+      "screen_pass": false,
+      "worst_abs_logit_error": 2.947836399078369
+    }
+  },
+  "reports": [
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "curl",
+          "scope": "Sections 4.1.1/4.2.1, Figures 4/6: private one-hot lookup and Haar compression; exact truncation adaptation",
+          "source_sha256": "dc930fdb3219c989106f96eb9ae1f00f28aae16ec5d17eef0c5421eb4f241c1e",
+          "title": "Curl: Private LLMs through Wavelet-Encoded Look-Up Tables",
+          "url": "https://eprint.iacr.org/2024/1127"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 14 universal interval keys for exact rescaling; ties-even is a PLLM extension",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/curl-wavelet-gated-multiply-q9/v1",
+          "params": {
+            "levels": 0
+          }
+        },
+        "lanes": 1,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "8dc24c5e7a4c6185203d9fb98df8c70ea6db3be644fb6ecfdf5955487058724d",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-q18-gated-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or authenticated role transport",
+        "Complete bounded Q18-to-Q9 block; exact floor index reduction, exact ties-even up/output shifts, fresh Beaver multiplication",
+        "PLLM mathematical SiLU table, integer Haar means and exact rescaling differ from Curl's probabilistic-truncation system",
+        "Input float conversion and range admission remain trusted-client work; secret float conversion and range proofs are absent",
+        "Both-party keys and four phase/direction frames are charged; offline key framing and physical wire are unknown",
+        "Client input-sharing/output-reconstruction payload estimates are separate; public tables are reusable, secret material is not",
+        "Native CPU includes public fitting; local online time includes sharing/reconstruction; Python oracle/report costs are separate",
+        "Combined allocation ceiling is an estimate, not measured peak memory; no tensor schedule or whole-decoder transport binding",
+        "Private inputs, outputs and fingerprints are omitted; aggregate approximation error is retained; replay requires supplied inputs"
+      ],
+      "median_issuance_seconds": 0.000610083,
+      "median_online_seconds": 0.000801583,
+      "method": "curl-haar-gated-q9",
+      "native_implementation_digest": "17fc98e26a784bc8c0cf7bbcb162169fde7f0c7d74ebe0768ea54dc8c000005c",
+      "numeric_contract_digest": "49358c6346c9dad06d276d5a78d0179726141635b5f144fd43d4f56b66c45349",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": 3,
+        "checked_outputs": 3,
+        "exact_integer_outputs": 3,
+        "float_reference": "Python float64 SiLU(gate) * up on supplied Q18 inputs; preceding float conversion excluded",
+        "maximum_absolute_error": 8.756208124360306e-18,
+        "maximum_encoded_profile_error": 0,
+        "mean_absolute_error": 8.756208124360306e-18
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 24,
+        "client_mask_payload_estimate_bytes": 8,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "index_rescale",
+            1046,
+            1046
+          ],
+          [
+            "up_rescale",
+            1198,
+            1198
+          ],
+          [
+            "haar_lookup",
+            16386,
+            16386
+          ],
+          [
+            "beaver_multiply",
+            12,
+            12
+          ],
+          [
+            "output_rescale",
+            1198,
+            1198
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          712,
+          712
+        ],
+        "peer_payload_bits": 352,
+        "peer_rounds": 4,
+        "protocol_allocation_estimate_bytes": 613336,
+        "public_metadata_bytes_estimate": 910,
+        "public_profile_bytes_estimate": 64,
+        "public_table_bytes_per_party": 16384,
+        "raw_key_payload_bits_per_party": [
+          158720,
+          158720
+        ],
+        "raw_key_payload_bytes_per_party": [
+          19840,
+          19840
+        ],
+        "role_names": [
+          "worker_a",
+          "worker_b"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.5167e-05,
+          "issuance_seconds": 0.000728834,
+          "native_call_process_cpu_seconds": 0.001972,
+          "online_seconds": 0.000888625,
+          "peer_frame_bytes_by_phase": [
+            [
+              242,
+              242
+            ],
+            [
+              146,
+              146
+            ],
+            [
+              164,
+              164
+            ],
+            [
+              160,
+              160
+            ]
+          ],
+          "public_setup_seconds": 0.000105375
+        },
+        {
+          "clear_seconds": 2.91e-07,
+          "issuance_seconds": 0.000610083,
+          "native_call_process_cpu_seconds": 0.001556,
+          "online_seconds": 0.000801583,
+          "peer_frame_bytes_by_phase": [
+            [
+              242,
+              242
+            ],
+            [
+              146,
+              146
+            ],
+            [
+              164,
+              164
+            ],
+            [
+              160,
+              160
+            ]
+          ],
+          "public_setup_seconds": 0.000103625
+        },
+        {
+          "clear_seconds": 8.4e-08,
+          "issuance_seconds": 0.000599459,
+          "native_call_process_cpu_seconds": 0.001519,
+          "online_seconds": 0.000793459,
+          "peer_frame_bytes_by_phase": [
+            [
+              242,
+              242
+            ],
+            [
+              146,
+              146
+            ],
+            [
+              164,
+              164
+            ],
+            [
+              160,
+              160
+            ]
+          ],
+          "public_setup_seconds": 0.000103292
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "654c3c0ae1a0330c7565b8119feee7526a3352f08f7c795ee31eef17bd84b005",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "logrow",
+          "scope": "Masked-index lookup with the earlier two-row one-hot setup; includes masked table bits",
+          "source_sha256": "ac61a6a77b1f21656fa6a90a2f550e59d854542e137cc0eaebb29e718de98371",
+          "title": "Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts",
+          "url": "https://eprint.iacr.org/2024/369"
+        },
+        {
+          "paper_id": "half-gates",
+          "scope": "Figure 2 free-XOR half-gates for signed arithmetic; PLLM fixed-width ties-even composition",
+          "source_sha256": "789ecaf8651b6dc8341d6033f951d76c0e6f4b04427cdde26cf91ecfb0af3083",
+          "title": "Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates",
+          "url": "https://eprint.iacr.org/2014/756"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/logrow-gated-multiply-q9/v1",
+          "params": {}
+        },
+        "lanes": 1,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "8d977afd12b11f59dfb0f90ae7ff740ced05ffa17ba44e2ffc28f0ea3a7641d8",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-q18-gated-boundary-fixture-v1",
+      "limitations": [
+        "One fresh circuit per lane; serial material retirement; local trusted garbler",
+        "LogRow uses the earlier two-row one-hot setup; exact arithmetic is a half-gates adaptation",
+        "Index floor is protected wire selection; ties-even rescaling, signs and product stay opaque",
+        "Fixed public input ranges are enforced by the trusted client, not by a malicious-input proof",
+        "Same numeric profile as uncompressed Curl; different role ownership, material and execution contracts",
+        "Zero evaluator-peer frames does not mean zero traffic: evaluator material and client labels are charged separately",
+        "Public metadata and client-boundary framing are estimates; no external serialization or transport",
+        "Float32-to-Q18 conversion stays client-local; allocation bound is serial-live, not measured RSS",
+        "No decoder tensor schedule, complete response measurement or independent cryptographic review"
+      ],
+      "median_issuance_seconds": 0.024588542,
+      "median_online_seconds": 0.017297083,
+      "method": "logrow-silu-gated-q18-q9",
+      "native_implementation_digest": "e206ab8c17f44dac60e10bc4adea0b7da79c197384222509bf67ca65e57016de",
+      "numeric_contract_digest": "49358c6346c9dad06d276d5a78d0179726141635b5f144fd43d4f56b66c45349",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": 3,
+        "checked_outputs": 3,
+        "exact_integer_outputs": 3,
+        "float_reference": "Python float64 SiLU(gate) * up on supplied Q18 inputs; preceding float conversion excluded",
+        "maximum_absolute_error": 8.756208124360306e-18,
+        "maximum_encoded_profile_error": 0,
+        "mean_absolute_error": 8.756208124360306e-18
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1264,
+        "client_mask_payload_estimate_bytes": 0,
+        "evaluator_ciphertext_bytes": 48768,
+        "evaluator_constant_label_bytes": 384,
+        "key_payload_bytes_by_operation": [
+          [
+            "client_encodings",
+            2400,
+            0
+          ],
+          [
+            "logrow_lookup",
+            0,
+            11632
+          ],
+          [
+            "up_rescale",
+            0,
+            1824
+          ],
+          [
+            "multiply",
+            0,
+            45120
+          ],
+          [
+            "output_rescale_sign",
+            0,
+            1824
+          ],
+          [
+            "constant_labels",
+            0,
+            384
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          0,
+          0
+        ],
+        "peer_payload_bits": 0,
+        "peer_rounds": 0,
+        "protocol_allocation_estimate_bytes": 16777216,
+        "public_metadata_bytes_estimate": 70394,
+        "public_profile_bytes_estimate": 16448,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          19200,
+          486272
+        ],
+        "raw_key_payload_bytes_per_party": [
+          2400,
+          60784
+        ],
+        "role_names": [
+          "garbler_client",
+          "evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 7.08e-07,
+          "issuance_seconds": 0.024753041,
+          "native_call_process_cpu_seconds": 0.042927,
+          "online_seconds": 0.017301708,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000122833
+        },
+        {
+          "clear_seconds": 2.09e-07,
+          "issuance_seconds": 0.024588542,
+          "native_call_process_cpu_seconds": 0.042009,
+          "online_seconds": 0.017297083,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000103209
+        },
+        {
+          "clear_seconds": 6.25e-07,
+          "issuance_seconds": 0.024572125,
+          "native_call_process_cpu_seconds": 0.041952,
+          "online_seconds": 0.017237667,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000102459
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "1afce79d880d6af4ea211ebdbd60c2d83ef2ae068a21f02be5274c0f10b1f032",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "curl",
+          "scope": "Sections 4.1.1/4.2.1, Figures 4/6: private one-hot lookup and Haar compression; exact truncation adaptation",
+          "source_sha256": "dc930fdb3219c989106f96eb9ae1f00f28aae16ec5d17eef0c5421eb4f241c1e",
+          "title": "Curl: Private LLMs through Wavelet-Encoded Look-Up Tables",
+          "url": "https://eprint.iacr.org/2024/1127"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 14 universal interval keys for exact rescaling; ties-even is a PLLM extension",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/curl-wavelet-gated-multiply-q9/v1",
+          "params": {
+            "levels": 0
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "85414f93104989c8c238d2c955b132526b606e73e2058892ad6f18bb3c420f87",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-q18-gated-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or authenticated role transport",
+        "Complete bounded Q18-to-Q9 block; exact floor index reduction, exact ties-even up/output shifts, fresh Beaver multiplication",
+        "PLLM mathematical SiLU table, integer Haar means and exact rescaling differ from Curl's probabilistic-truncation system",
+        "Input float conversion and range admission remain trusted-client work; secret float conversion and range proofs are absent",
+        "Both-party keys and four phase/direction frames are charged; offline key framing and physical wire are unknown",
+        "Client input-sharing/output-reconstruction payload estimates are separate; public tables are reusable, secret material is not",
+        "Native CPU includes public fitting; local online time includes sharing/reconstruction; Python oracle/report costs are separate",
+        "Combined allocation ceiling is an estimate, not measured peak memory; no tensor schedule or whole-decoder transport binding",
+        "Private inputs, outputs and fingerprints are omitted; aggregate approximation error is retained; replay requires supplied inputs"
+      ],
+      "median_issuance_seconds": 0.03356975,
+      "median_online_seconds": 0.050477417,
+      "method": "curl-haar-gated-q9",
+      "native_implementation_digest": "17fc98e26a784bc8c0cf7bbcb162169fde7f0c7d74ebe0768ea54dc8c000005c",
+      "numeric_contract_digest": "49358c6346c9dad06d276d5a78d0179726141635b5f144fd43d4f56b66c45349",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": 192,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Python float64 SiLU(gate) * up on supplied Q18 inputs; preceding float conversion excluded",
+        "maximum_absolute_error": 3.5961913616738457,
+        "maximum_encoded_profile_error": 0,
+        "mean_absolute_error": 0.3487313654098439
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1536,
+        "client_mask_payload_estimate_bytes": 512,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "index_rescale",
+            66944,
+            66944
+          ],
+          [
+            "up_rescale",
+            76672,
+            76672
+          ],
+          [
+            "haar_lookup",
+            1048704,
+            1048704
+          ],
+          [
+            "beaver_multiply",
+            768,
+            768
+          ],
+          [
+            "output_rescale",
+            76672,
+            76672
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          6256,
+          6256
+        ],
+        "peer_payload_bits": 22528,
+        "peer_rounds": 4,
+        "protocol_allocation_estimate_bytes": 10194880,
+        "public_metadata_bytes_estimate": 9100,
+        "public_profile_bytes_estimate": 64,
+        "public_table_bytes_per_party": 16384,
+        "raw_key_payload_bits_per_party": [
+          10158080,
+          10158080
+        ],
+        "raw_key_payload_bytes_per_party": [
+          1269760,
+          1269760
+        ],
+        "role_names": [
+          "worker_a",
+          "worker_b"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 5.584e-06,
+          "issuance_seconds": 0.057832916,
+          "native_call_process_cpu_seconds": 0.122246,
+          "online_seconds": 0.06406975,
+          "peer_frame_bytes_by_phase": [
+            [
+              746,
+              746
+            ],
+            [
+              4430,
+              4430
+            ],
+            [
+              668,
+              668
+            ],
+            [
+              412,
+              412
+            ]
+          ],
+          "public_setup_seconds": 0.000176584
+        },
+        {
+          "clear_seconds": 1.5e-06,
+          "issuance_seconds": 0.03356975,
+          "native_call_process_cpu_seconds": 0.084096,
+          "online_seconds": 0.050323625,
+          "peer_frame_bytes_by_phase": [
+            [
+              746,
+              746
+            ],
+            [
+              4430,
+              4430
+            ],
+            [
+              668,
+              668
+            ],
+            [
+              412,
+              412
+            ]
+          ],
+          "public_setup_seconds": 0.000104792
+        },
+        {
+          "clear_seconds": 1.291e-06,
+          "issuance_seconds": 0.033546959,
+          "native_call_process_cpu_seconds": 0.084198,
+          "online_seconds": 0.050477417,
+          "peer_frame_bytes_by_phase": [
+            [
+              746,
+              746
+            ],
+            [
+              4430,
+              4430
+            ],
+            [
+              668,
+              668
+            ],
+            [
+              412,
+              412
+            ]
+          ],
+          "public_setup_seconds": 0.000104
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "654c3c0ae1a0330c7565b8119feee7526a3352f08f7c795ee31eef17bd84b005",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "logrow",
+          "scope": "Masked-index lookup with the earlier two-row one-hot setup; includes masked table bits",
+          "source_sha256": "ac61a6a77b1f21656fa6a90a2f550e59d854542e137cc0eaebb29e718de98371",
+          "title": "Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts",
+          "url": "https://eprint.iacr.org/2024/369"
+        },
+        {
+          "paper_id": "half-gates",
+          "scope": "Figure 2 free-XOR half-gates for signed arithmetic; PLLM fixed-width ties-even composition",
+          "source_sha256": "789ecaf8651b6dc8341d6033f951d76c0e6f4b04427cdde26cf91ecfb0af3083",
+          "title": "Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates",
+          "url": "https://eprint.iacr.org/2014/756"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/logrow-gated-multiply-q9/v1",
+          "params": {}
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "959513990fb07472d261ba0fb13333c16228830dbf4a1c6b4cea08070ec6f6be",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-q18-gated-boundary-fixture-v1",
+      "limitations": [
+        "One fresh circuit per lane; serial material retirement; local trusted garbler",
+        "LogRow uses the earlier two-row one-hot setup; exact arithmetic is a half-gates adaptation",
+        "Index floor is protected wire selection; ties-even rescaling, signs and product stay opaque",
+        "Fixed public input ranges are enforced by the trusted client, not by a malicious-input proof",
+        "Same numeric profile as uncompressed Curl; different role ownership, material and execution contracts",
+        "Zero evaluator-peer frames does not mean zero traffic: evaluator material and client labels are charged separately",
+        "Public metadata and client-boundary framing are estimates; no external serialization or transport",
+        "Float32-to-Q18 conversion stays client-local; allocation bound is serial-live, not measured RSS",
+        "No decoder tensor schedule, complete response measurement or independent cryptographic review"
+      ],
+      "median_issuance_seconds": 1.575036498,
+      "median_online_seconds": 1.106145291,
+      "method": "logrow-silu-gated-q18-q9",
+      "native_implementation_digest": "e206ab8c17f44dac60e10bc4adea0b7da79c197384222509bf67ca65e57016de",
+      "numeric_contract_digest": "49358c6346c9dad06d276d5a78d0179726141635b5f144fd43d4f56b66c45349",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": 192,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Python float64 SiLU(gate) * up on supplied Q18 inputs; preceding float conversion excluded",
+        "maximum_absolute_error": 3.5961913616738457,
+        "maximum_encoded_profile_error": 0,
+        "mean_absolute_error": 0.3487313654098439
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 80896,
+        "client_mask_payload_estimate_bytes": 0,
+        "evaluator_ciphertext_bytes": 3121152,
+        "evaluator_constant_label_bytes": 24576,
+        "key_payload_bytes_by_operation": [
+          [
+            "client_encodings",
+            153600,
+            0
+          ],
+          [
+            "logrow_lookup",
+            0,
+            744448
+          ],
+          [
+            "up_rescale",
+            0,
+            116736
+          ],
+          [
+            "multiply",
+            0,
+            2887680
+          ],
+          [
+            "output_rescale_sign",
+            0,
+            116736
+          ],
+          [
+            "constant_labels",
+            0,
+            24576
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          0,
+          0
+        ],
+        "peer_payload_bits": 0,
+        "peer_rounds": 0,
+        "protocol_allocation_estimate_bytes": 16777216,
+        "public_metadata_bytes_estimate": 4505216,
+        "public_profile_bytes_estimate": 16448,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          1228800,
+          31121408
+        ],
+        "raw_key_payload_bytes_per_party": [
+          153600,
+          3890176
+        ],
+        "role_names": [
+          "garbler_client",
+          "evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 4.792e-06,
+          "issuance_seconds": 1.579362873,
+          "native_call_process_cpu_seconds": 2.687859,
+          "online_seconds": 1.108997122,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000109792
+        },
+        {
+          "clear_seconds": 2.5e-06,
+          "issuance_seconds": 1.575036498,
+          "native_call_process_cpu_seconds": 2.682202,
+          "online_seconds": 1.106145291,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000103917
+        },
+        {
+          "clear_seconds": 2.75e-06,
+          "issuance_seconds": 1.574414417,
+          "native_call_process_cpu_seconds": 2.681857,
+          "online_seconds": 1.10613875,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000106292
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "1afce79d880d6af4ea211ebdbd60c2d83ef2ae068a21f02be5274c0f10b1f032",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "curl",
+          "scope": "Sections 4.1.1/4.2.1, Figures 4/6: private one-hot lookup and Haar compression; exact truncation adaptation",
+          "source_sha256": "dc930fdb3219c989106f96eb9ae1f00f28aae16ec5d17eef0c5421eb4f241c1e",
+          "title": "Curl: Private LLMs through Wavelet-Encoded Look-Up Tables",
+          "url": "https://eprint.iacr.org/2024/1127"
+        },
+        {
+          "paper_id": "fss-mixed",
+          "scope": "Figure 14 universal interval keys for exact rescaling; ties-even is a PLLM extension",
+          "source_sha256": "dc94c63a77a5cb52cfd12b186a327d045de4a1fc662060c1de6412b334f4fcf4",
+          "title": "Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation",
+          "url": "https://eprint.iacr.org/2020/1392"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/curl-wavelet-gated-multiply-q9/v1",
+          "params": {
+            "levels": 0
+          }
+        },
+        "lanes": 256,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "f9c5bd23afe3236e369d238dc432f84d7f4950d4cf7d5888ff0280bf5745b3d7",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-q18-gated-boundary-fixture-v1",
+      "limitations": [
+        "Trusted in-process dealer/client and two one-use evaluators; no independent security review or authenticated role transport",
+        "Complete bounded Q18-to-Q9 block; exact floor index reduction, exact ties-even up/output shifts, fresh Beaver multiplication",
+        "PLLM mathematical SiLU table, integer Haar means and exact rescaling differ from Curl's probabilistic-truncation system",
+        "Input float conversion and range admission remain trusted-client work; secret float conversion and range proofs are absent",
+        "Both-party keys and four phase/direction frames are charged; offline key framing and physical wire are unknown",
+        "Client input-sharing/output-reconstruction payload estimates are separate; public tables are reusable, secret material is not",
+        "Native CPU includes public fitting; local online time includes sharing/reconstruction; Python oracle/report costs are separate",
+        "Combined allocation ceiling is an estimate, not measured peak memory; no tensor schedule or whole-decoder transport binding",
+        "Private inputs, outputs and fingerprints are omitted; aggregate approximation error is retained; replay requires supplied inputs"
+      ],
+      "median_issuance_seconds": 0.134602208,
+      "median_online_seconds": 0.202034959,
+      "method": "curl-haar-gated-q9",
+      "native_implementation_digest": "17fc98e26a784bc8c0cf7bbcb162169fde7f0c7d74ebe0768ea54dc8c000005c",
+      "numeric_contract_digest": "49358c6346c9dad06d276d5a78d0179726141635b5f144fd43d4f56b66c45349",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": 768,
+        "checked_outputs": 768,
+        "exact_integer_outputs": 768,
+        "float_reference": "Python float64 SiLU(gate) * up on supplied Q18 inputs; preceding float conversion excluded",
+        "maximum_absolute_error": 3.530458183555993,
+        "maximum_encoded_profile_error": 0,
+        "mean_absolute_error": 0.4740086818543603
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 6144,
+        "client_mask_payload_estimate_bytes": 2048,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "index_rescale",
+            267776,
+            267776
+          ],
+          [
+            "up_rescale",
+            306688,
+            306688
+          ],
+          [
+            "haar_lookup",
+            4194816,
+            4194816
+          ],
+          [
+            "beaver_multiply",
+            3072,
+            3072
+          ],
+          [
+            "output_rescale",
+            306688,
+            306688
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          23152,
+          23152
+        ],
+        "peer_payload_bits": 90112,
+        "peer_rounds": 4,
+        "protocol_allocation_estimate_bytes": 39395776,
+        "public_metadata_bytes_estimate": 34060,
+        "public_profile_bytes_estimate": 64,
+        "public_table_bytes_per_party": 16384,
+        "raw_key_payload_bits_per_party": [
+          40632320,
+          40632320
+        ],
+        "raw_key_payload_bytes_per_party": [
+          5079040,
+          5079040
+        ],
+        "role_names": [
+          "worker_a",
+          "worker_b"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 7.125e-06,
+          "issuance_seconds": 0.135969833,
+          "native_call_process_cpu_seconds": 0.338221,
+          "online_seconds": 0.202034959,
+          "peer_frame_bytes_by_phase": [
+            [
+              2282,
+              2282
+            ],
+            [
+              17486,
+              17486
+            ],
+            [
+              2204,
+              2204
+            ],
+            [
+              1180,
+              1180
+            ]
+          ],
+          "public_setup_seconds": 0.0001015
+        },
+        {
+          "clear_seconds": 5.292e-06,
+          "issuance_seconds": 0.134602208,
+          "native_call_process_cpu_seconds": 0.336762,
+          "online_seconds": 0.201948542,
+          "peer_frame_bytes_by_phase": [
+            [
+              2282,
+              2282
+            ],
+            [
+              17486,
+              17486
+            ],
+            [
+              2204,
+              2204
+            ],
+            [
+              1180,
+              1180
+            ]
+          ],
+          "public_setup_seconds": 0.000108542
+        },
+        {
+          "clear_seconds": 5.291e-06,
+          "issuance_seconds": 0.134489042,
+          "native_call_process_cpu_seconds": 0.336694,
+          "online_seconds": 0.20463875,
+          "peer_frame_bytes_by_phase": [
+            [
+              2282,
+              2282
+            ],
+            [
+              17486,
+              17486
+            ],
+            [
+              2204,
+              2204
+            ],
+            [
+              1180,
+              1180
+            ]
+          ],
+          "public_setup_seconds": 0.000106542
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "654c3c0ae1a0330c7565b8119feee7526a3352f08f7c795ee31eef17bd84b005",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "logrow",
+          "scope": "Masked-index lookup with the earlier two-row one-hot setup; includes masked table bits",
+          "source_sha256": "ac61a6a77b1f21656fa6a90a2f550e59d854542e137cc0eaebb29e718de98371",
+          "title": "Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts",
+          "url": "https://eprint.iacr.org/2024/369"
+        },
+        {
+          "paper_id": "half-gates",
+          "scope": "Figure 2 free-XOR half-gates for signed arithmetic; PLLM fixed-width ties-even composition",
+          "source_sha256": "789ecaf8651b6dc8341d6033f951d76c0e6f4b04427cdde26cf91ecfb0af3083",
+          "title": "Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates",
+          "url": "https://eprint.iacr.org/2014/756"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/logrow-gated-multiply-q9/v1",
+          "params": {}
+        },
+        "lanes": 256,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "f866ec60105f0e1ce274ad23180188d11bccc3b935e9675fedb6da8817c2c945",
+      "environment": {
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-q18-gated-boundary-fixture-v1",
+      "limitations": [
+        "One fresh circuit per lane; serial material retirement; local trusted garbler",
+        "LogRow uses the earlier two-row one-hot setup; exact arithmetic is a half-gates adaptation",
+        "Index floor is protected wire selection; ties-even rescaling, signs and product stay opaque",
+        "Fixed public input ranges are enforced by the trusted client, not by a malicious-input proof",
+        "Same numeric profile as uncompressed Curl; different role ownership, material and execution contracts",
+        "Zero evaluator-peer frames does not mean zero traffic: evaluator material and client labels are charged separately",
+        "Public metadata and client-boundary framing are estimates; no external serialization or transport",
+        "Float32-to-Q18 conversion stays client-local; allocation bound is serial-live, not measured RSS",
+        "No decoder tensor schedule, complete response measurement or independent cryptographic review"
+      ],
+      "median_issuance_seconds": 6.297794668,
+      "median_online_seconds": 4.423939129,
+      "method": "logrow-silu-gated-q18-q9",
+      "native_implementation_digest": "e206ab8c17f44dac60e10bc4adea0b7da79c197384222509bf67ca65e57016de",
+      "numeric_contract_digest": "49358c6346c9dad06d276d5a78d0179726141635b5f144fd43d4f56b66c45349",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": 768,
+        "checked_outputs": 768,
+        "exact_integer_outputs": 768,
+        "float_reference": "Python float64 SiLU(gate) * up on supplied Q18 inputs; preceding float conversion excluded",
+        "maximum_absolute_error": 3.530458183555993,
+        "maximum_encoded_profile_error": 0,
+        "mean_absolute_error": 0.4740086818543603
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 323584,
+        "client_mask_payload_estimate_bytes": 0,
+        "evaluator_ciphertext_bytes": 12484608,
+        "evaluator_constant_label_bytes": 98304,
+        "key_payload_bytes_by_operation": [
+          [
+            "client_encodings",
+            614400,
+            0
+          ],
+          [
+            "logrow_lookup",
+            0,
+            2977792
+          ],
+          [
+            "up_rescale",
+            0,
+            466944
+          ],
+          [
+            "multiply",
+            0,
+            11550720
+          ],
+          [
+            "output_rescale_sign",
+            0,
+            466944
+          ],
+          [
+            "constant_labels",
+            0,
+            98304
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          0,
+          0
+        ],
+        "peer_payload_bits": 0,
+        "peer_rounds": 0,
+        "protocol_allocation_estimate_bytes": 16777216,
+        "public_metadata_bytes_estimate": 18020864,
+        "public_profile_bytes_estimate": 16448,
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          4915200,
+          124485632
+        ],
+        "raw_key_payload_bytes_per_party": [
+          614400,
+          15560704
+        ],
+        "role_names": [
+          "garbler_client",
+          "evaluator"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 7.125e-06,
+          "issuance_seconds": 6.297939122,
+          "native_call_process_cpu_seconds": 10.7234,
+          "online_seconds": 4.422979999,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000111292
+        },
+        {
+          "clear_seconds": 6.375e-06,
+          "issuance_seconds": 6.297794668,
+          "native_call_process_cpu_seconds": 10.723679,
+          "online_seconds": 4.424986537,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000106625
+        },
+        {
+          "clear_seconds": 6.667e-06,
+          "issuance_seconds": 6.297785839,
+          "native_call_process_cpu_seconds": 10.721178,
+          "online_seconds": 4.423939129,
+          "peer_frame_bytes_by_phase": [],
+          "public_setup_seconds": 0.000105125
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "1afce79d880d6af4ea211ebdbd60c2d83ef2ae068a21f02be5274c0f10b1f032",
+      "whole_model_executable": false
+    }
+  ],
+  "schema": "pllm.logrow_product_cost.v1",
+  "source_sha256": "7de7533558aa5ed72ca8a680d41da5f087d3b551f4f54b118e80ab2095625dd5"
+}

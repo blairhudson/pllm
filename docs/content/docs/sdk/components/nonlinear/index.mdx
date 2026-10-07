@@ -25,6 +25,9 @@ remains separately inspectable.
 adds a complete wider-range Haar gated block, including exact protected index
 reduction, up/output rescaling and fresh multiplication, under its own Q9 numeric
 identity. It has bounded operator execution and separate Qwen clear diagnostics.
+[`LogRowGatedMultiplyQ9`](/sdk/components/nonlinear/logrow-gated-multiply-q9/)
+executes the same uncompressed numeric profile using a masked lookup and
+opaque half-gates arithmetic, with client/evaluator ownership reported separately.
 The masked-wire Q12 method has an experimental two-worker decoder binding;
 the bounded Q7 methods have operator execution only. Consult
 [current support](/sdk/reference/status/) and

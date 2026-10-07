@@ -304,6 +304,10 @@ enum BooleanInstruction {
         right: usize,
         gate: HalfGate,
     },
+    LogRow {
+        inputs: Vec<usize>,
+        program: Box<crate::logrow::LogRowProgram>,
+    },
 }
 
 // Retained-selection admission prices three live capacities for both growing
@@ -319,6 +323,8 @@ pub struct BooleanCircuitBuilder {
     instructions: Vec<BooleanInstruction>,
     input_count: usize,
     and_gate_count: usize,
+    lookup_material_bytes: usize,
+    wire_limit: usize,
 }
 
 impl BooleanCircuitBuilder {
@@ -329,7 +335,23 @@ impl BooleanCircuitBuilder {
             instructions: Vec::new(),
             input_count: 0,
             and_gate_count: 0,
+            lookup_material_bytes: 0,
+            wire_limit: MAX_REFERENCE_WIRES,
         })
+    }
+
+    pub(crate) fn with_wire_limit(wire_limit: usize) -> Result<Self, String> {
+        if wire_limit == 0 || wire_limit > MAX_REFERENCE_WIRES {
+            return Err("Boolean circuit wire admission exceeds the reference limit".into());
+        }
+        Ok(Self {
+            wire_limit,
+            ..Self::new()?
+        })
+    }
+
+    pub(crate) fn and_gate_count(&self) -> usize {
+        self.and_gate_count
     }
 
     pub fn input(&mut self) -> Result<BooleanWire, String> {
@@ -442,6 +464,63 @@ impl BooleanCircuitBuilder {
             sum.push(sum_bit);
         }
         Ok((sum, carry))
+    }
+
+    /// Embed a bounded LogRow LUT in this one-use circuit. Only opaque wire
+    /// labels cross the lookup/arithmetic boundary; no intermediate is decoded.
+    pub fn logrow_lookup(
+        &mut self,
+        input: &[BooleanWire],
+        output_bits: usize,
+        table: &[u16],
+    ) -> Result<Vec<BooleanWire>, String> {
+        if !(1..=12).contains(&input.len())
+            || !(1..=16).contains(&output_bits)
+            || table.len() != 1 << input.len()
+            || table.iter().any(|&v| usize::from(v) >= 1 << output_bits)
+        {
+            return Err("embedded LogRow dimensions or table exceed their bounds".into());
+        }
+        let bytes = (2 * input.len() - 1 + input.len() * output_bits) * LABEL_BYTES
+            + (table.len() * output_bits).div_ceil(8);
+        let total = self
+            .lookup_material_bytes
+            .checked_add(bytes)
+            .ok_or("embedded LogRow material size overflow")?;
+        if total > 16 << 20 || self.encodings.len() + output_bits > self.wire_limit {
+            return Err("embedded LogRow material or wire limit exceeded".into());
+        }
+        let zero = zeroize::Zeroizing::new(
+            input
+                .iter()
+                .map(|&wire| self.encoding(wire).map(|encoding| encoding.zero))
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+        self.encodings
+            .try_reserve(output_bits)
+            .map_err(|_| "LogRow wire allocation failed")?;
+        self.instructions
+            .try_reserve(1)
+            .map_err(|_| "LogRow instruction allocation failed")?;
+        let (outputs, program) =
+            crate::logrow::prepare_embedded(zero, self.garbler.delta, output_bits, table)?;
+        let mut wires = Vec::with_capacity(output_bits);
+        for &zero in outputs.iter() {
+            wires.push(BooleanWire {
+                index: self.encodings.len(),
+                circuit_id: self.garbler.circuit_id,
+            });
+            self.encodings.push(BooleanWireEncoding {
+                zero,
+                delta: self.garbler.delta,
+            });
+        }
+        self.instructions.push(BooleanInstruction::LogRow {
+            inputs: input.iter().map(|wire| wire.index).collect(),
+            program: Box::new(program),
+        });
+        self.lookup_material_bytes = total;
+        Ok(wires)
     }
 
     pub fn multiply_unsigned(
@@ -1022,7 +1101,7 @@ impl BooleanCircuitBuilder {
     }
 
     fn reserve_wire(&mut self, instruction: bool) -> Result<(), String> {
-        if self.encodings.len() >= MAX_REFERENCE_WIRES {
+        if self.encodings.len() >= self.wire_limit {
             return Err("Boolean reference circuit wire limit exceeded".into());
         }
         self.encodings
@@ -1148,6 +1227,14 @@ impl BooleanCircuitProgram {
                     hash.update((*right as u64).to_le_bytes());
                     hash.update(gate.gate_index.to_le_bytes());
                 }
+                BooleanInstruction::LogRow { inputs, program } => {
+                    hash.update([4]);
+                    hash.update((inputs.len() as u64).to_le_bytes());
+                    hash.update((program.output_bits() as u64).to_le_bytes());
+                    for &input in inputs {
+                        hash.update((input as u64).to_le_bytes());
+                    }
+                }
             }
         }
         hash.finalize().into()
@@ -1175,6 +1262,18 @@ impl BooleanCircuitProgram {
         self.wire_count
     }
 
+    /// All embedded lookup tree/random-function rows and masked table bits,
+    /// separate from the half-gate ciphertext and constant-label totals.
+    pub fn lookup_material_bytes(&self) -> usize {
+        self.instructions
+            .iter()
+            .map(|instruction| match instruction {
+                BooleanInstruction::LogRow { program, .. } => program.evaluator_material_bytes(),
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// Active constant labels are evaluator material in addition to AND tables.
     pub fn constant_label_bytes(&self) -> usize {
         self.instructions
@@ -1198,6 +1297,7 @@ impl BooleanCircuitProgram {
                     BooleanInstruction::Not { .. } => 1 + 8,
                     BooleanInstruction::Xor { .. } => 1 + 2 * 8,
                     BooleanInstruction::And { .. } => 1 + 3 * 8,
+                    BooleanInstruction::LogRow { inputs, .. } => 1 + 32 + 2 * 8 + inputs.len() * 8,
                 })
                 .sum::<usize>()
     }
@@ -1223,6 +1323,15 @@ impl BooleanCircuitProgram {
                 BooleanInstruction::Not { input } => evaluate_not(require_label(&wires, input)?),
                 BooleanInstruction::And { left, right, gate } => {
                     gate.evaluate(require_label(&wires, left)?, require_label(&wires, right)?)
+                }
+                BooleanInstruction::LogRow { inputs, program } => {
+                    let labels = inputs
+                        .iter()
+                        .map(|&wire| require_label(&wires, wire).map(|v| v.0))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let result = program.evaluate_embedded(labels)?;
+                    wires.extend(result.iter().map(|&label| Some(BooleanLabel(label))));
+                    continue;
                 }
             };
             wires.push(Some(label));
@@ -1472,6 +1581,40 @@ mod tests {
     #[test]
     fn every_and_gate_has_exactly_two_ciphertexts() {
         assert_eq!(2 * LABEL_BYTES, 32);
+    }
+
+    #[test]
+    fn embedded_lookups_chain_labels_and_bind_public_topology() {
+        let table = (0..16).map(|i| (3 * i + 5) % 16).collect::<Vec<u16>>();
+        let mut schedule = None;
+        for value in 0..16_u16 {
+            let mut builder = BooleanCircuitBuilder::with_wire_limit(128).unwrap();
+            let input = builder.input_word(4).unwrap();
+            let intermediate = builder.logrow_lookup(&input, 4, &table).unwrap();
+            let output = builder.logrow_lookup(&intermediate, 4, &table).unwrap();
+            let (client, program) = builder.finish(&output).unwrap();
+            assert_eq!(program.lookup_material_bytes(), 2 * ((7 + 16) * 16 + 8));
+            if let Some(expected) = schedule {
+                assert_eq!(program.public_schedule_digest(), expected);
+            }
+            schedule = Some(program.public_schedule_digest());
+            let bits = (0..4)
+                .map(|bit| value & (1 << bit) != 0)
+                .collect::<Vec<_>>();
+            let (inputs, decoder) = client.encode(&bits).unwrap();
+            let decoded = decoder.decode(program.evaluate(inputs).unwrap()).unwrap();
+            let actual = decoded
+                .iter()
+                .enumerate()
+                .fold(0, |v, (i, &b)| v | (u16::from(b) << i));
+            assert_eq!(actual, table[table[value as usize] as usize]);
+        }
+        let mut tiny = BooleanCircuitBuilder::with_wire_limit(4).unwrap();
+        let input = tiny.input_word(4).unwrap();
+        assert!(tiny.logrow_lookup(&input, 4, &table).is_err());
+        assert!(tiny.constant(false).is_err());
+        let mut foreign = BooleanCircuitBuilder::new().unwrap();
+        assert!(foreign.logrow_lookup(&input, 4, &table).is_err());
     }
 
     #[test]

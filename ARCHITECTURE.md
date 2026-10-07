@@ -256,6 +256,14 @@ peer frames. Client mask/boundary estimates and public tables stay separate;
 full wire and peak memory remain unknown. No reusable secret handles escape.
 SDK operator availability, paper coverage and whole-model execution are independent
 claims. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
+The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private
+4,096-row lookup with exact half-gates rescaling and multiplication through opaque
+labels. Its Q18-to-Q9 numeric profile matches uncompressed Curl; the existing
+Qwen diagnostic remains imperfect. Fresh one-use circuits retire serially under
+a 16 MiB allocation estimate. Reports charge client encodings, evaluator lookup
+and arithmetic material, constant labels, public metadata and boundary estimates
+separately. No compiler tensor schedule or provider transport is admitted.
+See `docs/research/logrow-product-reference.md` for the exact composition and costs.
 The masked-wire component now also selects experimental CPU two-offset gated
 regions. A native model-neutral pass binds each dense float32 SiLU/multiply pair,
 the fixed numeric profile, floor float32-to-Q24 and Q12-to-float32 client boundaries,

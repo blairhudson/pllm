@@ -150,8 +150,24 @@ eight-token trajectories; no logits/KV are exact. Each native clear profile
 checks 130,043,904 independent integer outputs. SDK operator availability is
 implemented; fidelity, complete cost, protected float conversion, review and
 distributed role execution still gate decoder admission. Historical Q7 evidence
-is unchanged. Next compare LogRow's complete product/conversion costs before
-transport. Details: `docs/research/wavelet-gated-reference.md`.
+is unchanged. Details: `docs/research/wavelet-gated-reference.md`.
+
+The installed `LogRowGatedMultiplyQ9` now composes its 4,096-row private lookup
+with opaque half-gates rescaling and multiplication. Six fresh processes check
+1,926 outputs on the same uncompressed numeric profile. Hypothetical 39+8 costs
+are 12.89 GB of client encodings and 326.40 GB of evaluator material, including
+242.29 GB for multiplication. Zero evaluator-peer frames do not include material
+delivery or boundary labels. The unchanged profile retains its failed Qwen
+fidelity screen. Serial 16 MiB allocation admission, one-use execution and
+installed benchmark access do not authorize tensor/provider execution.
+Details: `docs/research/logrow-product-reference.md`.
+
+Next approved sequence: complete Compact's product and conversion contract;
+evaluate Secret Replication PCFs with a compatible consuming protocol; test
+FastQuery embedding ownership including a tied output head; screen CipherPrune
+quality and observable execution shape; then revisit Maverick's actual field,
+code-distance assumptions and preprocessing storage. Each slice retains paper
+deviations, complete costs and explicit unsupported decoder coverage.
 
 Each whole-model delivery ends with:
 

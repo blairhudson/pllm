@@ -38,12 +38,12 @@
     },
     "logrow": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.protocols.LogRowGarbledLookup", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/activations.py", "evidence": "docs/evidence/research-activation-operators-sdk.json"},
-      "scope": "One-use masked-index lookup and bounded in-process tensor override, with the earlier two-row setup.",
-      "code": ["crates/pllm-garble/src/logrow.rs", "tests/test_logrow_tensor_native.py", "crates/pllm-python/src/activation_benchmarks.rs", "python/pllm/metrics/activations.py"],
-      "configuration": "benchmarks/research/nonlinear_frontier.py",
-      "evidence": "docs/evidence/research-nonlinear-frontier-qwen25.json",
-      "result": "Common four-piece Q7 profile: 17/17 checked outputs match with 2,144 evaluator-material bytes per element, projecting 11.51 GB at hypothetical 39+8 Qwen geometry before conversions/gated multiplication. Existing tiny decoder experiments pay more online CPU and offline issuance than clear SiLU. No protected real-checkpoint SDK composition. Notes: docs/research/nonlinear-frontier.md."
+      "sdk_benchmark": {"api": "pllm.nonlinear.LogRowGatedMultiplyQ9", "coverage": "operator", "guide": "/sdk/components/nonlinear/logrow-gated-multiply-q9/", "configuration": "examples/benchmarks/logrow_product.py", "evidence": "docs/evidence/research-logrow-product-sdk.json"},
+      "scope": "Complete Q18-to-Q9 SiLU × up with the earlier two-row masked-index lookup and opaque half-gates rescaling/multiplication. Trusted client garbling, serial one-use lanes and final-only decoding. No compiler tensor schedule or provider transport.",
+      "code": ["crates/pllm-garble/src/logrow_product.rs", "crates/pllm-garble/src/logrow.rs", "crates/pllm-garble/src/boolean.rs", "crates/pllm-python/src/logrow_product.rs", "python/pllm/metrics/logrow_product.py"],
+      "configuration": "benchmarks/research/logrow_product.py",
+      "evidence": "docs/evidence/research-logrow-product-cost.json",
+      "result": "Six fresh processes check 1,926 outputs against uncompressed Curl's identical numeric profile. At historical 39+8 geometry the complete LogRow block projects 12.89 GB of client encodings and 326.40 GB of evaluator material, including 242.29 GB for multiplication. Boundary labels/framing and public metadata are additional estimates; zero evaluator-peer frames is not zero traffic. The unchanged profile's retained Qwen diagnostic matches 10/12 prefill, 35/36 same-token decode selections and 10/12 trajectories, without exact logits/KV. These are operator costs and existing clear quality evidence, not a new protected checkpoint run. Historical Q7 activation-only evidence remains unchanged. Details: docs/research/logrow-product-reference.md."
     },
     "half-gates": {
       "status": "Component reference",

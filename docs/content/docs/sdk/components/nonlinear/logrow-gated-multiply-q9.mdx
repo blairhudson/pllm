@@ -1,0 +1,64 @@
+---
+title: "LogRow gated block"
+description: "Benchmark complete SiLU × up through one-use lookup and opaque garbled arithmetic."
+---
+
+`pllm.nonlinear.LogRowGatedMultiplyQ9` composes [LogRow](/research/papers/logrow/)
+lookup with [half-gates](/research/papers/half-gates/) arithmetic. Its identity is
+`pllm/logrow-gated-multiply-q9/v1`. Only the trusted client decodes the final result.
+
+## Python SDK example
+
+```python
+from pllm.metrics import benchmark_operator, replay_operator_benchmark
+from pllm.nonlinear import LogRowGatedMultiplyQ9, CurlWaveletGatedMultiplyQ9
+
+method = LogRowGatedMultiplyQ9()
+report = benchmark_operator(method, lanes=3, samples=1)
+control = benchmark_operator(CurlWaveletGatedMultiplyQ9(), lanes=3, samples=1)
+assert report.quality.exact_integer_outputs == 3
+assert report.numeric_contract_digest == control.numeric_contract_digest
+assert replay_operator_benchmark(report.configuration).resources == report.resources
+
+custom = benchmark_operator(method, lanes=2, samples=1, inputs={
+    "gate_q18": [-262144, 262144], "up_q18": [524288, -524288],
+})
+assert custom.quality.exact_integer_outputs == 2
+```
+
+## Numeric and privacy boundaries
+
+The fixed public gate/up ranges are ±48/±128, encoded in signed Q18. The
+4,096-row SiLU table samples `[-64,64)` at 1/32 spacing, with Q9 values.
+Protected index reduction selects wires and flips the sign-offset wire. The
+lookup result feeds exact ties-even up rescaling, signed multiplication and
+final Q9 rescaling. Intermediate labels stay opaque throughout the circuit.
+
+Each lane owns fresh garbling randomness and a unique issuance identity.
+Input, program and decoder are consumed once; malformed or foreign material
+rejects. Inputs outside the public ranges reject before issuance. Range
+enforcement and any float conversion are trusted-client responsibilities.
+The two-row one-hot setup and the half-gates arithmetic composition are PLLM
+adaptations; this is not the paper's optimized complete system.
+
+## Measure complete costs
+
+The runner admits 1–256 serial lanes and 1–16 samples. A 16 MiB serial-live
+allocation bound is enforced by a per-circuit wire limit; it is not measured RSS.
+Reports separate garbler-client encodings, evaluator lookup material, arithmetic
+ciphertexts, constant labels and client input/output label estimates. Public
+instruction metadata is additional. Zero evaluator-peer frames does not mean
+zero communication: material delivery and the client boundary still cost bytes.
+
+The numeric profile matches uncompressed
+[Curl](/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/), but ownership
+and execution differ. The [complete-block study](https://github.com/blairhudson/pllm/blob/main/docs/research/logrow-product-reference.md)
+compares those costs and links the unchanged profile's recorded Qwen diagnostic.
+That profile has imperfect checkpoint fidelity. Operator availability does not
+enable a compiler tensor schedule or provider transport.
+
+The [installed example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/logrow_product.py)
+supports configuration replay. [Operator reports](/sdk/evaluate/paper-operators/)
+retain unknown physical wire and peak memory explicitly.
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)

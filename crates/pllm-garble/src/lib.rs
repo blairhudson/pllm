@@ -13,6 +13,7 @@ pub mod compact_polynomial;
 pub mod gated_multiply_q7;
 mod interval_fss;
 pub mod logrow;
+pub mod logrow_product;
 pub mod masked_wire_reference;
 mod point_fss;
 pub mod private_pages;

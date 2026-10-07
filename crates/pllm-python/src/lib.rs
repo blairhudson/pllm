@@ -7,6 +7,7 @@ mod activation_benchmarks;
 mod continuation;
 mod head_index;
 mod logrow;
+mod logrow_product;
 mod mask_stream;
 mod masked_aggregate;
 mod masked_wire;
@@ -1706,6 +1707,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     masked_wire::register(module)?;
     activation_benchmarks::register(module)?;
     wavelet_gated::register(module)?;
+    logrow_product::register(module)?;
     shared_rescale::register(module)?;
     mask_stream::register(module)?;
     row_memo::register(module)?;

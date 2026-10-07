@@ -281,6 +281,37 @@ class CompactPiecewiseActivation(NonlinearProtocol):
         return cls.descriptor
 
 
+class LogRowGatedMultiplyQ9(NonlinearProtocol):
+    """Complete Q18-input/Q9-output SiLU×up with garbled lookup and arithmetic.
+
+    Fixed public gate/up ranges are ±48/±128. The uncompressed 4,096-row
+    numeric profile matches Curl's level-zero adaptation. One-use LogRow
+    labels feed exact half-gates rescaling and multiplication without an
+    intermediate plaintext boundary. Only bounded operator execution exists.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/logrow-gated-multiply-q9/v1", provider="pllm",
+        distribution="pllm.run", version="1", category="pllm/nonlinear-protocol",
+        category_version="1", lifecycle_phase="runtime",
+        parameter_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        capabilities=("protected-gated-multiply-q9", "bounded-operator-benchmark"),
+        required_host_features=("native-core", "local-garbler"),
+        role_eligibility=("client", "inference"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component, {})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class CurlWaveletGatedMultiplyQ9(NonlinearProtocol):
     """Complete Haar-table ``SiLU(gate) * up`` on signed Q18 inputs.
 
@@ -367,6 +398,7 @@ class WaveletHomomorphicLookup(PendingMethod):
 
 __all__ += [
     "ShaftFixedPointTransformerOps", "CompactPiecewiseActivation", "CurlWaveletEncodedTable", "CurlWaveletGatedMultiplyQ9",
+    "LogRowGatedMultiplyQ9",
     "LlamaSecureMath", "SirnnSecureMath", "WaveletHomomorphicLookup",
 ]
 
