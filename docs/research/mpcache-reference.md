@@ -184,8 +184,8 @@ Context hashes are caller declarations, not compiler validation or authenticated
 transport. Malformed-context evaluation consumes its handle; caller cancellation
 and handle destruction release the remaining client material.
 
-Admission bounds each selection to 16 rows, 16 flattened features and one outstanding
-query per owner. A **64 MiB combined allocation estimate**, including old/new state
+The initial cohort bounded each selection to 16 rows and 16 flattened features.
+All layouts allow one outstanding query per owner. A **64 MiB combined allocation estimate**, including old/new state
 overlap, gates every circuit before issuance; some shapes inside the row/width
 limits still reject. The evaluator never receives reusable secret state handles.
 Tests cover stable ties, subnormal/maximum scores, exact signed-zero KV, padded
@@ -214,11 +214,73 @@ Native process-lifetime RSS excludes the Python launcher, with no summed-peak cl
 
 The 16-row/two-feature case spends 1.10 MB of label/ciphertext material, plus
 2.06 MB of estimated public instructions, to retire 160 bytes of native state.
-A 16×16 case fails allocation admission and Qwen2.5's 128-feature flattened KV row exceeds the
-feature bound. Full-width state, protected score calculation, distributed roles,
+A 16×16 case fails allocation admission; the initial implementation's feature
+bound also excluded Qwen2.5's 128-feature flattened KV row. Complete full-width
+state, protected score calculation, distributed roles,
 independent review and a substantially cheaper selection construction remain gates.
 This Rust-only substrate does not change the SDK retention policy or establish
 checkpoint quality, whole-response savings or provider-held MPCache execution.
+
+### Compact-index sorting and complete oblivious gather
+
+The separate `Layout::CompactIndices` now sorts only private rank/index wires,
+restores their original order, and scans **every input record for every retained
+record**. Hidden one-hot predicates select the complete absolute-position and KV
+bits. Neither indices nor query-dependent native addresses are opened to the
+evaluator. The same owner, revision, one-use receipt and exact-bit commit checks
+apply; layout substitution also rejects. A padding sentinel larger than every
+valid slot prevents dummy rows displacing the last real power-of-two slot.
+
+Geometry can be projected up to 512 rows and 8,192 features without constructing
+a circuit or issuing material. Both layouts use the same preflight: 64 MiB combined
+allocation, plus the Boolean builder's wire/input/output/AND limits. The projection
+counts every input and output label, constant label, half-gates ciphertext, client
+encoding, sorting/gather wire and public instruction estimate. It includes old/new
+state overlap. Admitted circuits independently match the projected wire and gate
+counts. A projected shape is not permission to bypass these limits.
+
+`docs/evidence/research-retained-selection-indices.json` records **36 fresh native
+processes and 4,041 exact output words**, with three changed-score fixtures per
+shape/layout. Five geometries compare both layouts in the same run; two additional
+compact-only shapes exercise 128-feature rows and a 32-row narrow state. Independent
+Python integer/float-bit oracles agree, including retained positions. Public access
+schedules remain identical across score variants. The full-record control is
+remeasured rather than borrowing historical timings.
+
+| Rows / features / retained | Layout | Labels + ciphertexts | Public metadata estimate | Median native CPU | Native peak RSS |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 8 / 4 / 4 | Full records | 480,064 B | 892,876 B | 119.00 ms | 10.35 MB |
+| 8 / 4 / 4 | Compact indices + gather | 492,480 B | 597,970 B | 120.64 ms | 8.78 MB |
+| 16 / 2 / 8 | Full records | 1,099,008 B | 2,059,216 B | 280.77 ms | 26.23 MB |
+| 16 / 2 / 8 | Compact indices + gather | 1,193,984 B | 1,603,440 B | 303.08 ms | 22.45 MB |
+| 2 / 128 / 1 | Full records | 664,032 B | 698,608 B | 98.42 ms | 10.81 MB |
+| 2 / 128 / 1 | Compact indices + gather | 927,776 B | 625,227 B | 163.73 ms | 11.29 MB |
+| 4 / 128 / 2 | Compact indices + gather | 2,930,848 B | 2,668,711 B | 605.32 ms | 34.41 MB |
+
+The last case fits a 65,574,576-byte conservative combined allocation estimate and
+retires 2,056 bytes of state. Full-width **rows** therefore execute, but complete
+checkpoint **state** remains out of bounds. Smaller sort records reduce public
+instruction estimates; the full-scan gather increases labels/ciphertexts in all
+five matched cases. Native CPU also rises. Metadata is not a serialized wire codec,
+and a lower process peak in some tiny cases is not a decoder-memory measurement.
+
+The pinned compiler-bound Qwen contract supplies 24 layers and 128 flattened KV
+features. Exact geometry-only counts for half retention give:
+
+| Input rows / retained | Full-record labels + ciphertexts per layer | Compact + gather per layer | Compact + gather, 24 layers | Compact allocation bound per layer |
+| --- | ---: | ---: | ---: | ---: |
+| 16 / 8 | 31.03 MB | 37.32 MB | 895.70 MB | 867.26 MB |
+| 64 / 32 | 257.20 MB | 556.18 MB | 13.35 GB | 13.24 GB |
+| 256 / 128 | 1.77 GB | 8.71 GB | 209.12 GB | 208.76 GB |
+| 512 / 256 | 4.43 GB | 34.71 GB | 833.11 GB | 832.35 GB |
+
+Every complete-state shape rejects before issuance. Whole-body figures multiply
+logical material by layer count; allocation is a per-layer estimate, not measured
+RSS. Public metadata, protected score calculation, state import and role transport
+remain additional costs. The `rows × retained × KV bits` gather dominates at these
+retention fractions. This screen rejects this construction for provider execution;
+it does not reject other oblivious-routing or MPCache constructions. The client-local
+SDK policy is unchanged, and no provider-state transport is activated.
 
 ## Fresh pinned-checkpoint allocation and quality
 
@@ -262,6 +324,67 @@ the report. The driver checks the same implementation hashes before and after
 every candidate and keeps oracle logits/token selections only in temporary
 diagnostic files. Reports retain aggregate errors, equality flags and hashes.
 
+## Fresh prepared SDK whole responses
+
+`benchmarks/research/retained_sdk.py` freezes four ordinary prepared Experiments:
+dense, full retention, 75% retention and 50% retention. Each public prompt uses one
+CLI invocation and private cohort salt, with a fresh client process per candidate,
+two separate local provider children, native shared 100/40 Mbps access caps, greedy
+selection and eight output tokens. All use the same pinned W8A8 checkpoint, paged
+client/Preparation weights, demand inventory and packed/residue frames. Each
+candidate receives a fresh private bundle cache; Hub/checkpoint and compiled-weight
+caches are pre-positioned. Installed package/native hashes are frozen and checked
+throughout each cohort. There is one response per configuration and context.
+
+The short cohort has 52 input tokens; the admitted longer cohort has 379. Reports:
+`docs/evidence/research-retained-sdk-qwen25/short.json` and
+`docs/evidence/research-retained-sdk-long-qwen25/long.json`, with reproduction
+metadata and native memory preflights beside them. All eight requests reach the
+requested output cap, pass their individual runtime/privacy-counter checks and
+observe zero new swap. Retention policies keep distinct numeric contracts: the
+comparison-level `matched_numeric_contract` and `passed` flags are **false**, and
+all rankings remain empty. These flags do not indicate failed individual requests.
+
+| Input tokens | State policy | Client peak RSS MB | Sampled total RSS MB | Request seconds | Cold aggregate CPU seconds | Output text matches dense |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| 52 | Dense | 264.90 | 1,349.44 | 75.93 | 54.77 | Reference |
+| 52 | Full retention | 257.77 | 1,196.87 | 75.27 | 53.23 | Yes |
+| 52 | Retain 75% | 244.60 | 1,185.28 | 75.22 | 53.87 | Yes |
+| 52 | Retain 50% | 252.44 | 1,185.56 | 75.33 | 53.91 | Yes |
+| 379 | Dense | 546.31 | 2,366.55 | 289.56 | 146.89 | Reference |
+| 379 | Full retention | 524.85 | 2,302.97 | 289.63 | 148.06 | Yes |
+| 379 | Retain 75% | 525.43 | 2,380.58 | 289.57 | 148.90 | **No** |
+| 379 | Retain 50% | 522.58 | 2,313.08 | 289.94 | 147.64 | Yes |
+
+Full retention lowers the observed client peak by 2.69% short and 3.93% long.
+Sparse retention does not monotonically lower whole-client peak memory. The longer
+75% response changes its generated text; the 50% response's matching text does not
+override its earlier held-out logit/KV and selection mismatches. These are narrow
+free-running output-digest checks, not a new representative quality cohort.
+
+All policies use exactly **257.79/989.08 MB** of covered setup-through-first-response
+application bodies for short/long, including **82.72/538.12 MB** online. Total native
+TCP-stream counters are approximately **258.64/989.92 MB**, with at most 158/160
+bytes of within-cohort framing variation. Sparse KV changes client-local attention,
+not the number of remote projection rows. No covered-traffic reduction or material
+latency improvement appears in this pair of single-response cohorts.
+
+Client peaks include the in-process dashboard, relay and sampler. Aggregate RSS
+is a simultaneous 50 ms sample, not the sum of independent process peaks. CPU
+includes client/dashboard startup and provider process birth through the first
+response; request latency excludes provider startup. TCP counts exclude physical
+headers, ACKs, retransmissions and checkpoint distribution. Memory admission is a
+conservative capacity estimate, distinct from all reported RSS measurements.
+These co-located services do not establish independent operators or a 10× client
+memory result.
+
+The original 24-entry longer journal passed memory admission but failed before a
+response: 418 correction rows × 9,728 grouped gate/up outputs = 4,066,304 elements,
+above the residue codec's **4,000,000-element per-frame cap**. Its partial progress
+record remains at `docs/evidence/research-retained-sdk-qwen25/long.json`; it supplies
+no latency, memory or quality result. The separate 22-entry rerun stays within
+that bound. Host-memory admission alone is not codec/workload admission.
+
 ## Reproduce
 
 ```sh
@@ -295,6 +418,17 @@ uv run --no-sync python -m benchmarks.research.retained_decoder \
 uv run --no-sync pytest -q tests/test_retained_decoder_diagnostic.py
 ```
 
+For the installed SDK cohorts (use the recorded wheel/package environment and new
+output directories; each context keeps its own private salt):
+
+```sh
+python -m benchmarks.research.retained_sdk --context short \
+  --output-directory docs/evidence/research-retained-sdk-short-reproduction
+python -m benchmarks.research.retained_sdk --context long --journal-rows 22 \
+  --output-directory docs/evidence/research-retained-sdk-long-reproduction
+uv run --no-sync pytest -q tests/test_retained_sdk_cohorts.py
+```
+
 For the separate protected selection substrate (choose a new output to replay):
 
 ```sh
@@ -302,6 +436,14 @@ cargo test --locked --release -p pllm-garble retained_selection
 uv run --no-sync python -m benchmarks.research.retained_selection \
   --output docs/evidence/research-retained-selection.json
 uv run --no-sync pytest -q tests/test_retained_selection_reference.py
+```
+
+For the matched compact-index screen (choose a new output to replay):
+
+```sh
+uv run --no-sync python -m benchmarks.research.retained_selection_indices \
+  --output docs/evidence/research-retained-selection-indices.json
+uv run --no-sync pytest -q tests/test_retained_selection_indices.py
 ```
 
 The canonical report is `docs/evidence/research-mpcache-reference-qwen25.json`.

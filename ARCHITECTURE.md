@@ -550,21 +550,41 @@ now selects the static contract in ordinary client-only and prepared Experiments
 Generated SDK/gateway controls include separate prepared role children, completion
 and cancellation retirement, and client-local message-history re-prefill. Retention
 policy binds benchmark numeric identity; native placement and benchmark admission
-price state/workspace owners. Protected provider-held selection and matched
-whole-response SDK memory remain gates. A separate Rust-only selection substrate
+price state/workspace owners. Two fresh-client prepared SDK cohorts compare dense,
+full, 75% and 50% retention at 52/379 input tokens plus eight outputs under native
+100/40 caps. Full retention preserves output text and lowers client peak RSS from
+264.90/546.31 to 257.77/524.85 MB (2.69%/3.93%). Sparse retention does not monotonically
+reduce peak RSS; the longer 75% response changes its text. Covered bodies remain
+257.79/989.08 MB across policies and latency is nearly unchanged. Every individual
+runtime check passes with zero observed swap growth, while distinct numeric
+contracts correctly prevent a cross-policy ranking. These one-response local
+samples do not establish broad quality or a 10× client-memory improvement. The
+original longer workload's residue-frame rejection remains separate from memory
+admission and the admitted rerun. Protected provider-held selection remains gated.
+A separate Rust-only selection substrate
 garbles stable top-k and complete-record movement through fixed bitonic networks.
 The trusted client supplies private nonnegative float32 scores and complete KV;
 the evaluator receives opaque input/output labels without a decoder. Fresh owner,
 layer, revision and issuance bindings reject stale or substituted results, while
-the client alone commits exact retained bits. One outstanding query per owner,
-16-row/16-feature geometry and a 64 MiB combined allocation estimate precede
-issuance. Twelve fresh processes match 474 independent-oracle output words.
+the client alone commits exact retained bits. One outstanding query per owner
+and a 64 MiB combined allocation estimate precede issuance. The initial
+16-row/16-feature cohort matches 474 independent-oracle output words in twelve
+fresh processes.
 Selecting eight of sixteen two-feature rows requires 1.10 MB of label/ciphertext
 material plus 2.06 MB estimated public metadata to retire 160 bytes of state.
-The 16×16 allocation gate and full-width feature gate reject larger cases.
+The 16×16 allocation gate and initial full-width feature gate reject larger cases.
 Caller-declared plan context, local garbling and logical body counts do not
 establish compiler-bound provider state, distributed scoring or transport;
-independent review and cheaper complete selection remain required. Details:
+independent review and cheaper complete selection remain required.
+A second layout sorts compact private indices then performs a complete one-hot
+oblivious gather. Thirty-six fresh processes check 4,041 exact output words,
+including two/four-row 128-feature KV. Both layouts share exact geometry-only
+resource counts and admission before allocation; owner/revision and one-use checks
+also bind the layout. Compact records lower metadata estimates but the gather
+increases logical label/ciphertext bodies in all five matched cases. At 256 rows
+and 128 features, half retention projects 1.77/8.71 GB per layer for full/compact
+layouts, before public metadata. All complete-state Qwen shapes reject before
+issuance, so no provider transport is activated. Details:
 `docs/research/mpcache-reference.md`.
 The separate common-profile Compact/LogRow/Curl
 screen counts activation-only material and missing conversions explicitly;

@@ -1,6 +1,8 @@
 //! Fresh-process synthetic fixture, with no model values or private user inputs.
 use pllm_core::retained_kv::RetainedKvCache;
-use pllm_garble::retained_selection::{estimate, Context, Policy, SelectionOwner};
+use pllm_garble::retained_selection::{
+    estimate, estimate_layout, project, Context, Layout, Policy, SelectionOwner,
+};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::time::Instant;
@@ -18,16 +20,55 @@ fn main() -> Result<(), String> {
         .skip(1)
         .map(|s| s.parse::<usize>().map_err(|_| "invalid fixture integer"))
         .collect::<Result<Vec<_>, _>>()?;
-    let [rows, width, keep, recent, variant] = args.as_slice() else {
-        return Err("expected rows width keep recent variant".into());
+    if !(5..=7).contains(&args.len()) {
+        return Err("expected rows width keep recent variant [layout:0|1] [project:0|1]".into());
+    }
+    let [rows, width, keep, recent, variant] = &args[..5] else {
+        unreachable!()
+    };
+    let layout = match args.get(5).copied().unwrap_or(0) {
+        0 => Layout::FullRecords,
+        1 => Layout::CompactIndices,
+        _ => return Err("unknown retained selection layout".into()),
+    };
+    let cost_only = match args.get(6).copied().unwrap_or(0) {
+        0 => false,
+        1 => true,
+        _ => return Err("unknown projection mode".into()),
     };
     let (rows, width, variant) = (*rows, *width, *variant);
     let policy = Policy {
         keep: *keep,
         recent: *recent,
     };
-    // Refuse unsupported dimensions before constructing even the public fixture.
-    estimate(rows, width, policy, 0)?;
+    // Validate dimensions before arithmetic or constructing the public fixture.
+    project(rows, width, policy, 0, layout)?;
+    let state_bytes = (rows + 2) * (8 * width + 4);
+    let projection = project(rows, width, policy, state_bytes, layout)?;
+    if cost_only {
+        println!(
+            "{}",
+            json!({
+                "schema": "pllm.retained_selection.projection.v1", "rows": rows, "width": width,
+                "keep": policy.keep, "recent": policy.recent, "layout": args.get(5).copied().unwrap_or(0),
+                "admitted": projection.admitted(), "material_issued": false,
+                "state_before_bytes": state_bytes, "state_after_bytes": (policy.keep + 2) * (8 * width + 4),
+                "and_gates": projection.and_gates, "actual_wires": projection.actual_wires,
+                "wire_bound": projection.estimate.wire_bound,
+                "combined_preflight_bound_bytes": projection.estimate.combined_allocation_bound_bytes,
+                "constant_label_bytes": projection.constant_label_bytes,
+                "input_label_bytes": projection.estimate.input_bits * 16,
+                "output_label_bytes": projection.estimate.output_bits * 16,
+                "client_encoding_bytes": (projection.estimate.input_bits + projection.estimate.output_bits) * 32,
+                "label_and_ciphertext_body_bytes": projection.and_gates as u64 * 32
+                    + projection.constant_label_bytes as u64
+                    + (projection.estimate.input_bits + projection.estimate.output_bits) as u64 * 16,
+                "public_metadata_bytes_estimate": projection.public_metadata_bytes_estimate,
+            })
+        );
+        return Ok(());
+    }
+    estimate_layout(rows, width, policy, state_bytes, layout)?;
     if variant > 2 {
         return Err("fixture variant exceeds bound".into());
     }
@@ -65,7 +106,7 @@ fn main() -> Result<(), String> {
         })
         .collect();
     let started = Instant::now();
-    let (client, evaluator) = owner.issue(&scores, policy)?;
+    let (client, evaluator) = owner.issue_with_layout(&scores, policy, layout)?;
     let issuance_seconds = started.elapsed().as_secs_f64();
     let binding = evaluator.binding();
     let r = evaluator.resources();
@@ -87,6 +128,7 @@ fn main() -> Result<(), String> {
     let result = json!({
         "schema": "pllm.retained_selection.native_fixture.v1",
         "rows": rows, "width": width, "keep": policy.keep, "recent": policy.recent, "variant": variant,
+        "layout": args.get(5).copied().unwrap_or(0),
         "output_sha256": snapshot_digest,
         "public_schedule_sha256": hex(&r.public_schedule_digest),
         "allocation": {"state_before_bytes": state_before, "state_after_bytes": owner.allocated_bytes(),

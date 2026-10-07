@@ -2,7 +2,8 @@
 //!
 //! This is a research substrate, not MPCache's distributed scoring protocol.
 //! The trusted client supplies finite nonnegative float32 scores and all KV
-//! bits. A fixed bitonic network moves complete records under opaque labels;
+//! bits. Fixed networks move complete records or sort compact indices followed
+//! by an oblivious full-scan gather, always under opaque labels;
 //! only the client can decode positions or values. No provider-held persistent
 //! state, protected score calculation, transport codec or malicious proof exists.
 
@@ -13,10 +14,29 @@ use crate::boolean::{
 use pllm_core::retained_kv::{RetainedKvCache, RetainedKvView};
 use zeroize::Zeroizing;
 
-pub const MAX_ROWS: usize = 16;
-pub const MAX_WIDTH: usize = 16;
+pub const MAX_ROWS: usize = 512;
+pub const MAX_WIDTH: usize = 8192;
 pub const MAX_ALLOCATION_BYTES: usize = 64 << 20;
-const RANK_BITS: usize = 38; // four stable-slot bits, float32 score, recent, valid
+
+mod cost;
+mod indexed;
+pub use cost::{project, Projection};
+
+/// Public circuit choice, bound into each one-use receipt. Neither layout
+/// reveals the selected index to the evaluator.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Layout {
+    FullRecords,
+    CompactIndices,
+}
+
+fn index_bits(rows: usize) -> usize {
+    (rows.next_power_of_two().trailing_zeros() as usize).max(4)
+}
+
+fn rank_bits(rows: usize) -> usize {
+    index_bits(rows) + 34 // float32 score, recent, valid
+}
 
 /// Caller-declared public context. Its authenticity is the client's obligation;
 /// this Rust-only reference does not load or validate a compiler plan itself.
@@ -47,6 +67,7 @@ pub struct Binding {
     pub width: usize,
     pub next_position: usize,
     pub policy: Policy,
+    pub layout: Layout,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -84,44 +105,27 @@ pub fn estimate(
     policy: Policy,
     state_allocation_bytes: usize,
 ) -> Result<Estimate, String> {
-    if !(1..=MAX_ROWS).contains(&rows)
-        || !(1..=MAX_WIDTH).contains(&width)
-        || policy.keep == 0
-        || policy.keep > rows
-        || policy.recent > policy.keep
-    {
-        return Err("retained selection geometry or policy exceeds its bounds".into());
+    estimate_layout(
+        rows,
+        width,
+        policy,
+        state_allocation_bytes,
+        Layout::FullRecords,
+    )
+}
+
+pub fn estimate_layout(
+    rows: usize,
+    width: usize,
+    policy: Policy,
+    state_allocation_bytes: usize,
+    layout: Layout,
+) -> Result<Estimate, String> {
+    let projection = project(rows, width, policy, state_allocation_bytes, layout)?;
+    if !projection.admitted() {
+        return Err("retained selection exceeds its allocation or circuit boundary limit".into());
     }
-    let record = RANK_BITS + 32 + 64 * width;
-    let input_bits = rows * (64 + 64 * width);
-    let output_bits = policy.keep * (32 + 64 * width);
-    // Each compare uses 7 wires/bit plus two constants. A complete-record
-    // conditional swap uses one AND and three XORs/bit. Padding and rank
-    // constants are conservatively charged for both networks.
-    let wire_bound = input_bits
-        + 2 * (rows.next_power_of_two() + policy.keep.next_power_of_two()) * record
-        + comparisons(rows) * (7 * RANK_BITS + 2 + 4 * record)
-        + comparisons(policy.keep) * (7 * 32 + 2 + 4 * record);
-    // 384 bytes/wire covers simultaneous encoding/instruction arrays, their
-    // geometric allocation/reallocation, and evaluator labels. Boundary
-    // encodings, native state and 4 MiB of row/index/owner scratch are separate.
-    // This is a conservative payload estimate, not a measured process peak.
-    let combined_allocation_bound_bytes = wire_bound
-        .checked_mul(384)
-        .and_then(|n| n.checked_add((input_bits + output_bits) * 64 + (4 << 20)))
-        .and_then(|n| {
-            state_allocation_bytes
-                .checked_mul(2)
-                .and_then(|state| n.checked_add(state))
-        })
-        .filter(|&n| n <= MAX_ALLOCATION_BYTES)
-        .ok_or("retained selection exceeds its 64 MiB allocation bound")?;
-    Ok(Estimate {
-        wire_bound,
-        combined_allocation_bound_bytes,
-        input_bits,
-        output_bits,
-    })
+    Ok(projection.estimate)
 }
 
 /// Client-only private owner. Moving the cache here prevents external mutation.
@@ -189,6 +193,15 @@ impl SelectionOwner {
         scores: &[f32],
         policy: Policy,
     ) -> Result<(SelectionClient, SelectionEvaluator), String> {
+        self.issue_with_layout(scores, policy, Layout::FullRecords)
+    }
+
+    pub fn issue_with_layout(
+        &mut self,
+        scores: &[f32],
+        policy: Policy,
+        layout: Layout,
+    ) -> Result<(SelectionClient, SelectionEvaluator), String> {
         let (keys, values, positions) = self.cache.active()?;
         if self.pending.is_some() {
             return Err("retained selection already has an outstanding query".into());
@@ -196,17 +209,21 @@ impl SelectionOwner {
         if scores.len() != positions.len() || scores.iter().any(|v| !v.is_finite() || *v < 0.0) {
             return Err("retained selection requires one finite nonnegative score per row".into());
         }
-        let bound = estimate(
+        let bound = estimate_layout(
             positions.len(),
             self.cache.width(),
             policy,
             self.cache.allocated_bytes(),
+            layout,
         )?;
         self.revision
             .checked_add(1)
             .ok_or("selection revision exhausted")?;
         let width = self.cache.width();
-        let (encoder, program) = circuit(positions.len(), width, policy)?;
+        let (encoder, program) = match layout {
+            Layout::FullRecords => circuit(positions.len(), width, policy)?,
+            Layout::CompactIndices => indexed::circuit(positions.len(), width, policy)?,
+        };
         if program.wire_count() > bound.wire_bound {
             return Err("retained selection circuit exceeds preflight".into());
         }
@@ -219,6 +236,7 @@ impl SelectionOwner {
             width,
             next_position: self.cache.next_position(),
             policy,
+            layout,
         };
         let resources = Resources {
             estimate: bound,
@@ -377,10 +395,12 @@ fn circuit(
         }
         inputs.push((score, payload));
     }
-    let record_bits = RANK_BITS + 32 + 64 * width;
+    let rank = rank_bits(rows);
+    let index = index_bits(rows);
+    let record_bits = rank + 32 + 64 * width;
     let mut records = Vec::with_capacity(rows.next_power_of_two());
     for (slot, (score, payload)) in inputs.into_iter().enumerate() {
-        let mut row = builder.constant_word((MAX_ROWS - 1 - slot) as u128, 4)?;
+        let mut row = builder.constant_word(((1 << index) - 1 - slot) as u128, index)?;
         row.extend(score);
         row.push(builder.constant(slot >= rows - policy.recent)?);
         row.push(builder.constant(true)?);
@@ -394,7 +414,7 @@ fn circuit(
                 .collect::<Result<_, _>>()?,
         );
     }
-    sort(&mut builder, &mut records, 0..RANK_BITS, false)?;
+    sort(&mut builder, &mut records, 0..rank, false)?;
     records.truncate(policy.keep);
     while records.len() < policy.keep.next_power_of_two() {
         // Dummy positions sort after every real absolute token position.
@@ -404,11 +424,11 @@ fn circuit(
                 .collect::<Result<_, _>>()?,
         );
     }
-    sort(&mut builder, &mut records, RANK_BITS..RANK_BITS + 32, true)?;
+    sort(&mut builder, &mut records, rank..rank + 32, true)?;
     let output = records
         .iter()
         .take(policy.keep)
-        .flat_map(|row| row[RANK_BITS..].iter().copied())
+        .flat_map(|row| row[rank..].iter().copied())
         .collect::<Vec<_>>();
     builder.finish(&output)
 }

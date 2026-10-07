@@ -1,0 +1,2279 @@
+{
+  "cases": [
+    {
+      "geometry": {
+        "keep": 2,
+        "recent": 1,
+        "rows": 4,
+        "width": 2
+      },
+      "layout": 0,
+      "median": {
+        "native_process_cpu_seconds": 0.022671999999999998,
+        "native_process_peak_rss_bytes": 3260416,
+        "timings_seconds": {
+          "client_commit": 1.7542e-05,
+          "evaluation": 0.005856708,
+          "fixture": 7.042e-06,
+          "issuance": 0.013678084
+        }
+      },
+      "projection": {
+        "actual_wires": 8170,
+        "admitted": true,
+        "and_gates": 2166,
+        "client_encoding_bytes": 34816,
+        "combined_preflight_bound_bytes": 8304624,
+        "constant_label_bytes": 608,
+        "input_label_bytes": 12288,
+        "keep": 2,
+        "label_and_ciphertext_body_bytes": 87328,
+        "layout": 0,
+        "material_issued": false,
+        "output_label_bytes": 5120,
+        "public_metadata_bytes_estimate": 141018,
+        "recent": 1,
+        "rows": 4,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 80,
+        "state_before_bytes": 120,
+        "width": 2,
+        "wire_bound": 10522
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 8170,
+            "combined_preflight_bound_bytes": 8304624,
+            "state_after_bytes": 80,
+            "state_before_bytes": 120,
+            "wire_bound": 10522
+          },
+          "checked_output_words": 10,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 0,
+          "material": {
+            "and_gates": 2166,
+            "client_encoding_bytes": 34816,
+            "client_to_evaluator_material_bytes": 82208,
+            "constant_label_bytes": 608,
+            "evaluator_ciphertext_bytes": 69312,
+            "evaluator_to_client_material_bytes": 5120,
+            "input_label_bytes": 12288,
+            "output_label_bytes": 5120,
+            "public_metadata_bytes_estimate": 141018
+          },
+          "native_process_cpu_seconds": 0.030175999999999998,
+          "native_process_peak_rss_bytes": 3457024,
+          "output_sha256": "6372ac29101ba300b2dfea80c6d718310d9746484395b0d64c204de0f28cdc95",
+          "public_schedule_sha256": "4d8527d9ee57b31e53c1eec72cba9f644bcb43166c0561a0692e8248324677c8",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 1.9541e-05,
+            "evaluation": 0.006965584,
+            "fixture": 4.8125e-05,
+            "issuance": 0.017957959
+          },
+          "variant": 0,
+          "width": 2
+        },
+        {
+          "allocation": {
+            "actual_wires": 8170,
+            "combined_preflight_bound_bytes": 8304624,
+            "state_after_bytes": 80,
+            "state_before_bytes": 120,
+            "wire_bound": 10522
+          },
+          "checked_output_words": 10,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 0,
+          "material": {
+            "and_gates": 2166,
+            "client_encoding_bytes": 34816,
+            "client_to_evaluator_material_bytes": 82208,
+            "constant_label_bytes": 608,
+            "evaluator_ciphertext_bytes": 69312,
+            "evaluator_to_client_material_bytes": 5120,
+            "input_label_bytes": 12288,
+            "output_label_bytes": 5120,
+            "public_metadata_bytes_estimate": 141018
+          },
+          "native_process_cpu_seconds": 0.021945,
+          "native_process_peak_rss_bytes": 3260416,
+          "output_sha256": "6372ac29101ba300b2dfea80c6d718310d9746484395b0d64c204de0f28cdc95",
+          "public_schedule_sha256": "4d8527d9ee57b31e53c1eec72cba9f644bcb43166c0561a0692e8248324677c8",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 1.625e-05,
+            "evaluation": 0.005851041,
+            "fixture": 6.5e-06,
+            "issuance": 0.013593458
+          },
+          "variant": 1,
+          "width": 2
+        },
+        {
+          "allocation": {
+            "actual_wires": 8170,
+            "combined_preflight_bound_bytes": 8304624,
+            "state_after_bytes": 80,
+            "state_before_bytes": 120,
+            "wire_bound": 10522
+          },
+          "checked_output_words": 10,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 0,
+          "material": {
+            "and_gates": 2166,
+            "client_encoding_bytes": 34816,
+            "client_to_evaluator_material_bytes": 82208,
+            "constant_label_bytes": 608,
+            "evaluator_ciphertext_bytes": 69312,
+            "evaluator_to_client_material_bytes": 5120,
+            "input_label_bytes": 12288,
+            "output_label_bytes": 5120,
+            "public_metadata_bytes_estimate": 141018
+          },
+          "native_process_cpu_seconds": 0.022671999999999998,
+          "native_process_peak_rss_bytes": 3244032,
+          "output_sha256": "6372ac29101ba300b2dfea80c6d718310d9746484395b0d64c204de0f28cdc95",
+          "public_schedule_sha256": "4d8527d9ee57b31e53c1eec72cba9f644bcb43166c0561a0692e8248324677c8",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 1.7542e-05,
+            "evaluation": 0.005856708,
+            "fixture": 7.042e-06,
+            "issuance": 0.013678084
+          },
+          "variant": 2,
+          "width": 2
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 2,
+        "recent": 1,
+        "rows": 4,
+        "width": 2
+      },
+      "layout": 1,
+      "median": {
+        "native_process_cpu_seconds": 0.024159,
+        "native_process_peak_rss_bytes": 3031040,
+        "timings_seconds": {
+          "client_commit": 1.7334e-05,
+          "evaluation": 0.0062285,
+          "fixture": 7.25e-06,
+          "issuance": 0.014423958
+        }
+      },
+      "projection": {
+        "actual_wires": 5943,
+        "admitted": true,
+        "and_gates": 2312,
+        "client_encoding_bytes": 34816,
+        "combined_preflight_bound_bytes": 6727536,
+        "constant_label_bytes": 928,
+        "input_label_bytes": 12288,
+        "keep": 2,
+        "label_and_ciphertext_body_bytes": 92320,
+        "layout": 1,
+        "material_issued": false,
+        "output_label_bytes": 5120,
+        "public_metadata_bytes_estimate": 104359,
+        "recent": 1,
+        "rows": 4,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 80,
+        "state_before_bytes": 120,
+        "width": 2,
+        "wire_bound": 6415
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 5943,
+            "combined_preflight_bound_bytes": 6727536,
+            "state_after_bytes": 80,
+            "state_before_bytes": 120,
+            "wire_bound": 6415
+          },
+          "checked_output_words": 10,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 1,
+          "material": {
+            "and_gates": 2312,
+            "client_encoding_bytes": 34816,
+            "client_to_evaluator_material_bytes": 87200,
+            "constant_label_bytes": 928,
+            "evaluator_ciphertext_bytes": 73984,
+            "evaluator_to_client_material_bytes": 5120,
+            "input_label_bytes": 12288,
+            "output_label_bytes": 5120,
+            "public_metadata_bytes_estimate": 104359
+          },
+          "native_process_cpu_seconds": 0.023801,
+          "native_process_peak_rss_bytes": 3031040,
+          "output_sha256": "6372ac29101ba300b2dfea80c6d718310d9746484395b0d64c204de0f28cdc95",
+          "public_schedule_sha256": "04ab372b3df3104d47c671799c6f215a5d474f083f30932602484dafcdd201a3",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 1.7334e-05,
+            "evaluation": 0.006221792,
+            "fixture": 7.25e-06,
+            "issuance": 0.014433666
+          },
+          "variant": 0,
+          "width": 2
+        },
+        {
+          "allocation": {
+            "actual_wires": 5943,
+            "combined_preflight_bound_bytes": 6727536,
+            "state_after_bytes": 80,
+            "state_before_bytes": 120,
+            "wire_bound": 6415
+          },
+          "checked_output_words": 10,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 1,
+          "material": {
+            "and_gates": 2312,
+            "client_encoding_bytes": 34816,
+            "client_to_evaluator_material_bytes": 87200,
+            "constant_label_bytes": 928,
+            "evaluator_ciphertext_bytes": 73984,
+            "evaluator_to_client_material_bytes": 5120,
+            "input_label_bytes": 12288,
+            "output_label_bytes": 5120,
+            "public_metadata_bytes_estimate": 104359
+          },
+          "native_process_cpu_seconds": 0.024159,
+          "native_process_peak_rss_bytes": 3031040,
+          "output_sha256": "6372ac29101ba300b2dfea80c6d718310d9746484395b0d64c204de0f28cdc95",
+          "public_schedule_sha256": "04ab372b3df3104d47c671799c6f215a5d474f083f30932602484dafcdd201a3",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 1.9458e-05,
+            "evaluation": 0.0062285,
+            "fixture": 7.916e-06,
+            "issuance": 0.014423958
+          },
+          "variant": 1,
+          "width": 2
+        },
+        {
+          "allocation": {
+            "actual_wires": 5943,
+            "combined_preflight_bound_bytes": 6727536,
+            "state_after_bytes": 80,
+            "state_before_bytes": 120,
+            "wire_bound": 6415
+          },
+          "checked_output_words": 10,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 1,
+          "material": {
+            "and_gates": 2312,
+            "client_encoding_bytes": 34816,
+            "client_to_evaluator_material_bytes": 87200,
+            "constant_label_bytes": 928,
+            "evaluator_ciphertext_bytes": 73984,
+            "evaluator_to_client_material_bytes": 5120,
+            "input_label_bytes": 12288,
+            "output_label_bytes": 5120,
+            "public_metadata_bytes_estimate": 104359
+          },
+          "native_process_cpu_seconds": 0.024321999999999996,
+          "native_process_peak_rss_bytes": 3014656,
+          "output_sha256": "6372ac29101ba300b2dfea80c6d718310d9746484395b0d64c204de0f28cdc95",
+          "public_schedule_sha256": "04ab372b3df3104d47c671799c6f215a5d474f083f30932602484dafcdd201a3",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 1.7208e-05,
+            "evaluation": 0.006279,
+            "fixture": 7.125e-06,
+            "issuance": 0.014417
+          },
+          "variant": 2,
+          "width": 2
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 4,
+        "recent": 2,
+        "rows": 8,
+        "width": 4
+      },
+      "layout": 0,
+      "median": {
+        "native_process_cpu_seconds": 0.119003,
+        "native_process_peak_rss_bytes": 10354688,
+        "timings_seconds": {
+          "client_commit": 5.45e-05,
+          "evaluation": 0.035547917,
+          "fixture": 8.166e-06,
+          "issuance": 0.079755167
+        }
+      },
+      "projection": {
+        "actual_wires": 49516,
+        "admitted": true,
+        "and_gates": 13092,
+        "client_encoding_bytes": 118784,
+        "combined_preflight_bound_bytes": 26432720,
+        "constant_label_bytes": 1728,
+        "input_label_bytes": 40960,
+        "keep": 4,
+        "label_and_ciphertext_body_bytes": 480064,
+        "layout": 0,
+        "material_issued": false,
+        "output_label_bytes": 18432,
+        "public_metadata_bytes_estimate": 892876,
+        "recent": 2,
+        "rows": 8,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 216,
+        "state_before_bytes": 360,
+        "width": 4,
+        "wire_bound": 57292
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 49516,
+            "combined_preflight_bound_bytes": 26432720,
+            "state_after_bytes": 216,
+            "state_before_bytes": 360,
+            "wire_bound": 57292
+          },
+          "checked_output_words": 36,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 4,
+          "layout": 0,
+          "material": {
+            "and_gates": 13092,
+            "client_encoding_bytes": 118784,
+            "client_to_evaluator_material_bytes": 461632,
+            "constant_label_bytes": 1728,
+            "evaluator_ciphertext_bytes": 418944,
+            "evaluator_to_client_material_bytes": 18432,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 18432,
+            "public_metadata_bytes_estimate": 892876
+          },
+          "native_process_cpu_seconds": 0.119003,
+          "native_process_peak_rss_bytes": 10354688,
+          "output_sha256": "a109cdc263f557cc249a22a056bd77893020a97eb51490dd05171be962c044de",
+          "public_schedule_sha256": "49801800a10b70f354b8f51282e06096e56b726957a8d10bbc20958fdfdc2413",
+          "recent": 2,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.45e-05,
+            "evaluation": 0.035413375,
+            "fixture": 8.166e-06,
+            "issuance": 0.079755167
+          },
+          "variant": 0,
+          "width": 4
+        },
+        {
+          "allocation": {
+            "actual_wires": 49516,
+            "combined_preflight_bound_bytes": 26432720,
+            "state_after_bytes": 216,
+            "state_before_bytes": 360,
+            "wire_bound": 57292
+          },
+          "checked_output_words": 36,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 4,
+          "layout": 0,
+          "material": {
+            "and_gates": 13092,
+            "client_encoding_bytes": 118784,
+            "client_to_evaluator_material_bytes": 461632,
+            "constant_label_bytes": 1728,
+            "evaluator_ciphertext_bytes": 418944,
+            "evaluator_to_client_material_bytes": 18432,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 18432,
+            "public_metadata_bytes_estimate": 892876
+          },
+          "native_process_cpu_seconds": 0.11916,
+          "native_process_peak_rss_bytes": 10354688,
+          "output_sha256": "b5e01fd0089dc2843fabda4addbc2dc7ab2618a5744587239680b6552d84b241",
+          "public_schedule_sha256": "49801800a10b70f354b8f51282e06096e56b726957a8d10bbc20958fdfdc2413",
+          "recent": 2,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.1334e-05,
+            "evaluation": 0.0356085,
+            "fixture": 8.958e-06,
+            "issuance": 0.07994075
+          },
+          "variant": 1,
+          "width": 4
+        },
+        {
+          "allocation": {
+            "actual_wires": 49516,
+            "combined_preflight_bound_bytes": 26432720,
+            "state_after_bytes": 216,
+            "state_before_bytes": 360,
+            "wire_bound": 57292
+          },
+          "checked_output_words": 36,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 4,
+          "layout": 0,
+          "material": {
+            "and_gates": 13092,
+            "client_encoding_bytes": 118784,
+            "client_to_evaluator_material_bytes": 461632,
+            "constant_label_bytes": 1728,
+            "evaluator_ciphertext_bytes": 418944,
+            "evaluator_to_client_material_bytes": 18432,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 18432,
+            "public_metadata_bytes_estimate": 892876
+          },
+          "native_process_cpu_seconds": 0.117764,
+          "native_process_peak_rss_bytes": 10354688,
+          "output_sha256": "a109cdc263f557cc249a22a056bd77893020a97eb51490dd05171be962c044de",
+          "public_schedule_sha256": "49801800a10b70f354b8f51282e06096e56b726957a8d10bbc20958fdfdc2413",
+          "recent": 2,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.7042e-05,
+            "evaluation": 0.035547917,
+            "fixture": 7.792e-06,
+            "issuance": 0.079507916
+          },
+          "variant": 2,
+          "width": 4
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 4,
+        "recent": 2,
+        "rows": 8,
+        "width": 4
+      },
+      "layout": 1,
+      "median": {
+        "native_process_cpu_seconds": 0.120641,
+        "native_process_peak_rss_bytes": 8781824,
+        "timings_seconds": {
+          "client_commit": 5.2167e-05,
+          "evaluation": 0.036332375,
+          "fixture": 8.916e-06,
+          "issuance": 0.080498834
+        }
+      },
+      "projection": {
+        "actual_wires": 31890,
+        "admitted": true,
+        "and_gates": 13460,
+        "client_encoding_bytes": 118784,
+        "combined_preflight_bound_bytes": 17040848,
+        "constant_label_bytes": 2368,
+        "input_label_bytes": 40960,
+        "keep": 4,
+        "label_and_ciphertext_body_bytes": 492480,
+        "layout": 1,
+        "material_issued": false,
+        "output_label_bytes": 18432,
+        "public_metadata_bytes_estimate": 597970,
+        "recent": 2,
+        "rows": 8,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 216,
+        "state_before_bytes": 360,
+        "width": 4,
+        "wire_bound": 32834
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 31890,
+            "combined_preflight_bound_bytes": 17040848,
+            "state_after_bytes": 216,
+            "state_before_bytes": 360,
+            "wire_bound": 32834
+          },
+          "checked_output_words": 36,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 4,
+          "layout": 1,
+          "material": {
+            "and_gates": 13460,
+            "client_encoding_bytes": 118784,
+            "client_to_evaluator_material_bytes": 474048,
+            "constant_label_bytes": 2368,
+            "evaluator_ciphertext_bytes": 430720,
+            "evaluator_to_client_material_bytes": 18432,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 18432,
+            "public_metadata_bytes_estimate": 597970
+          },
+          "native_process_cpu_seconds": 0.120641,
+          "native_process_peak_rss_bytes": 8781824,
+          "output_sha256": "a109cdc263f557cc249a22a056bd77893020a97eb51490dd05171be962c044de",
+          "public_schedule_sha256": "bffc20b4474bcdde3e44818557aac8b5f5c9366c8f65af307e3c4be206e68a9b",
+          "recent": 2,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.2167e-05,
+            "evaluation": 0.036205125,
+            "fixture": 9.334e-06,
+            "issuance": 0.080498834
+          },
+          "variant": 0,
+          "width": 4
+        },
+        {
+          "allocation": {
+            "actual_wires": 31890,
+            "combined_preflight_bound_bytes": 17040848,
+            "state_after_bytes": 216,
+            "state_before_bytes": 360,
+            "wire_bound": 32834
+          },
+          "checked_output_words": 36,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 4,
+          "layout": 1,
+          "material": {
+            "and_gates": 13460,
+            "client_encoding_bytes": 118784,
+            "client_to_evaluator_material_bytes": 474048,
+            "constant_label_bytes": 2368,
+            "evaluator_ciphertext_bytes": 430720,
+            "evaluator_to_client_material_bytes": 18432,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 18432,
+            "public_metadata_bytes_estimate": 597970
+          },
+          "native_process_cpu_seconds": 0.120664,
+          "native_process_peak_rss_bytes": 8781824,
+          "output_sha256": "b5e01fd0089dc2843fabda4addbc2dc7ab2618a5744587239680b6552d84b241",
+          "public_schedule_sha256": "bffc20b4474bcdde3e44818557aac8b5f5c9366c8f65af307e3c4be206e68a9b",
+          "recent": 2,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.2458e-05,
+            "evaluation": 0.036349416,
+            "fixture": 8.333e-06,
+            "issuance": 0.080546875
+          },
+          "variant": 1,
+          "width": 4
+        },
+        {
+          "allocation": {
+            "actual_wires": 31890,
+            "combined_preflight_bound_bytes": 17040848,
+            "state_after_bytes": 216,
+            "state_before_bytes": 360,
+            "wire_bound": 32834
+          },
+          "checked_output_words": 36,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 4,
+          "layout": 1,
+          "material": {
+            "and_gates": 13460,
+            "client_encoding_bytes": 118784,
+            "client_to_evaluator_material_bytes": 474048,
+            "constant_label_bytes": 2368,
+            "evaluator_ciphertext_bytes": 430720,
+            "evaluator_to_client_material_bytes": 18432,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 18432,
+            "public_metadata_bytes_estimate": 597970
+          },
+          "native_process_cpu_seconds": 0.120636,
+          "native_process_peak_rss_bytes": 8781824,
+          "output_sha256": "a109cdc263f557cc249a22a056bd77893020a97eb51490dd05171be962c044de",
+          "public_schedule_sha256": "bffc20b4474bcdde3e44818557aac8b5f5c9366c8f65af307e3c4be206e68a9b",
+          "recent": 2,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.2041e-05,
+            "evaluation": 0.036332375,
+            "fixture": 8.916e-06,
+            "issuance": 0.080492167
+          },
+          "variant": 2,
+          "width": 4
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 8,
+        "recent": 2,
+        "rows": 16,
+        "width": 2
+      },
+      "layout": 0,
+      "median": {
+        "native_process_cpu_seconds": 0.280766,
+        "native_process_peak_rss_bytes": 26230784,
+        "timings_seconds": {
+          "client_commit": 5.7209e-05,
+          "evaluation": 0.086752292,
+          "fixture": 9.417e-06,
+          "issuance": 0.190212417
+        }
+      },
+      "projection": {
+        "actual_wires": 112400,
+        "admitted": true,
+        "and_gates": 32016,
+        "client_encoding_bytes": 139264,
+        "combined_preflight_bound_bytes": 51247824,
+        "constant_label_bytes": 4864,
+        "input_label_bytes": 49152,
+        "keep": 8,
+        "label_and_ciphertext_body_bytes": 1099008,
+        "layout": 0,
+        "material_issued": false,
+        "output_label_bytes": 20480,
+        "public_metadata_bytes_estimate": 2059216,
+        "recent": 2,
+        "rows": 16,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 200,
+        "state_before_bytes": 360,
+        "width": 2,
+        "wire_bound": 121808
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 112400,
+            "combined_preflight_bound_bytes": 51247824,
+            "state_after_bytes": 200,
+            "state_before_bytes": 360,
+            "wire_bound": 121808
+          },
+          "checked_output_words": 40,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 0,
+          "material": {
+            "and_gates": 32016,
+            "client_encoding_bytes": 139264,
+            "client_to_evaluator_material_bytes": 1078528,
+            "constant_label_bytes": 4864,
+            "evaluator_ciphertext_bytes": 1024512,
+            "evaluator_to_client_material_bytes": 20480,
+            "input_label_bytes": 49152,
+            "output_label_bytes": 20480,
+            "public_metadata_bytes_estimate": 2059216
+          },
+          "native_process_cpu_seconds": 0.28073899999999996,
+          "native_process_peak_rss_bytes": 26230784,
+          "output_sha256": "c422ad1736b57ecc7f05302c1e9d20d0101b075cff336e83e93dcf6c98335f09",
+          "public_schedule_sha256": "68ddd54785c685fe69c6cfbe9e83da1af3013a6b845d1bbfb682a9dc888a8327",
+          "recent": 2,
+          "rows": 16,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.6542e-05,
+            "evaluation": 0.086752292,
+            "fixture": 7.875e-06,
+            "issuance": 0.190212417
+          },
+          "variant": 0,
+          "width": 2
+        },
+        {
+          "allocation": {
+            "actual_wires": 112400,
+            "combined_preflight_bound_bytes": 51247824,
+            "state_after_bytes": 200,
+            "state_before_bytes": 360,
+            "wire_bound": 121808
+          },
+          "checked_output_words": 40,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 0,
+          "material": {
+            "and_gates": 32016,
+            "client_encoding_bytes": 139264,
+            "client_to_evaluator_material_bytes": 1078528,
+            "constant_label_bytes": 4864,
+            "evaluator_ciphertext_bytes": 1024512,
+            "evaluator_to_client_material_bytes": 20480,
+            "input_label_bytes": 49152,
+            "output_label_bytes": 20480,
+            "public_metadata_bytes_estimate": 2059216
+          },
+          "native_process_cpu_seconds": 0.28084299999999995,
+          "native_process_peak_rss_bytes": 26230784,
+          "output_sha256": "61795b880dd640deee3d636a89f3a81479cfac692a516acd61bb78388ad98d71",
+          "public_schedule_sha256": "68ddd54785c685fe69c6cfbe9e83da1af3013a6b845d1bbfb682a9dc888a8327",
+          "recent": 2,
+          "rows": 16,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.7209e-05,
+            "evaluation": 0.086782084,
+            "fixture": 1e-05,
+            "issuance": 0.190823417
+          },
+          "variant": 1,
+          "width": 2
+        },
+        {
+          "allocation": {
+            "actual_wires": 112400,
+            "combined_preflight_bound_bytes": 51247824,
+            "state_after_bytes": 200,
+            "state_before_bytes": 360,
+            "wire_bound": 121808
+          },
+          "checked_output_words": 40,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 0,
+          "material": {
+            "and_gates": 32016,
+            "client_encoding_bytes": 139264,
+            "client_to_evaluator_material_bytes": 1078528,
+            "constant_label_bytes": 4864,
+            "evaluator_ciphertext_bytes": 1024512,
+            "evaluator_to_client_material_bytes": 20480,
+            "input_label_bytes": 49152,
+            "output_label_bytes": 20480,
+            "public_metadata_bytes_estimate": 2059216
+          },
+          "native_process_cpu_seconds": 0.280766,
+          "native_process_peak_rss_bytes": 26247168,
+          "output_sha256": "1dd8597a280a4ca78d924efd72a857f8ec860942e1b97b393cffc2c4cd6cb18f",
+          "public_schedule_sha256": "68ddd54785c685fe69c6cfbe9e83da1af3013a6b845d1bbfb682a9dc888a8327",
+          "recent": 2,
+          "rows": 16,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.9209e-05,
+            "evaluation": 0.086708625,
+            "fixture": 9.417e-06,
+            "issuance": 0.190060958
+          },
+          "variant": 2,
+          "width": 2
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 8,
+        "recent": 2,
+        "rows": 16,
+        "width": 2
+      },
+      "layout": 1,
+      "median": {
+        "native_process_cpu_seconds": 0.30307799999999996,
+        "native_process_peak_rss_bytes": 22446080,
+        "timings_seconds": {
+          "client_commit": 5.85e-05,
+          "evaluation": 0.094171417,
+          "fixture": 9.083e-06,
+          "issuance": 0.205479709
+        }
+      },
+      "projection": {
+        "actual_wires": 83696,
+        "admitted": true,
+        "and_gates": 34944,
+        "client_encoding_bytes": 139264,
+        "combined_preflight_bound_bytes": 37337808,
+        "constant_label_bytes": 6144,
+        "input_label_bytes": 49152,
+        "keep": 8,
+        "label_and_ciphertext_body_bytes": 1193984,
+        "layout": 1,
+        "material_issued": false,
+        "output_label_bytes": 20480,
+        "public_metadata_bytes_estimate": 1603440,
+        "recent": 2,
+        "rows": 16,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 200,
+        "state_before_bytes": 360,
+        "width": 2,
+        "wire_bound": 85584
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 83696,
+            "combined_preflight_bound_bytes": 37337808,
+            "state_after_bytes": 200,
+            "state_before_bytes": 360,
+            "wire_bound": 85584
+          },
+          "checked_output_words": 40,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 1,
+          "material": {
+            "and_gates": 34944,
+            "client_encoding_bytes": 139264,
+            "client_to_evaluator_material_bytes": 1173504,
+            "constant_label_bytes": 6144,
+            "evaluator_ciphertext_bytes": 1118208,
+            "evaluator_to_client_material_bytes": 20480,
+            "input_label_bytes": 49152,
+            "output_label_bytes": 20480,
+            "public_metadata_bytes_estimate": 1603440
+          },
+          "native_process_cpu_seconds": 0.30294,
+          "native_process_peak_rss_bytes": 22462464,
+          "output_sha256": "c422ad1736b57ecc7f05302c1e9d20d0101b075cff336e83e93dcf6c98335f09",
+          "public_schedule_sha256": "138b71678145cec93fe9169d2eb2fbad5485318a729a09766719f355ac11f71b",
+          "recent": 2,
+          "rows": 16,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.85e-05,
+            "evaluation": 0.094031667,
+            "fixture": 9.083e-06,
+            "issuance": 0.205458
+          },
+          "variant": 0,
+          "width": 2
+        },
+        {
+          "allocation": {
+            "actual_wires": 83696,
+            "combined_preflight_bound_bytes": 37337808,
+            "state_after_bytes": 200,
+            "state_before_bytes": 360,
+            "wire_bound": 85584
+          },
+          "checked_output_words": 40,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 1,
+          "material": {
+            "and_gates": 34944,
+            "client_encoding_bytes": 139264,
+            "client_to_evaluator_material_bytes": 1173504,
+            "constant_label_bytes": 6144,
+            "evaluator_ciphertext_bytes": 1118208,
+            "evaluator_to_client_material_bytes": 20480,
+            "input_label_bytes": 49152,
+            "output_label_bytes": 20480,
+            "public_metadata_bytes_estimate": 1603440
+          },
+          "native_process_cpu_seconds": 0.30307799999999996,
+          "native_process_peak_rss_bytes": 22446080,
+          "output_sha256": "61795b880dd640deee3d636a89f3a81479cfac692a516acd61bb78388ad98d71",
+          "public_schedule_sha256": "138b71678145cec93fe9169d2eb2fbad5485318a729a09766719f355ac11f71b",
+          "recent": 2,
+          "rows": 16,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.6e-05,
+            "evaluation": 0.094171417,
+            "fixture": 9.541e-06,
+            "issuance": 0.205479709
+          },
+          "variant": 1,
+          "width": 2
+        },
+        {
+          "allocation": {
+            "actual_wires": 83696,
+            "combined_preflight_bound_bytes": 37337808,
+            "state_after_bytes": 200,
+            "state_before_bytes": 360,
+            "wire_bound": 85584
+          },
+          "checked_output_words": 40,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 1,
+          "material": {
+            "and_gates": 34944,
+            "client_encoding_bytes": 139264,
+            "client_to_evaluator_material_bytes": 1173504,
+            "constant_label_bytes": 6144,
+            "evaluator_ciphertext_bytes": 1118208,
+            "evaluator_to_client_material_bytes": 20480,
+            "input_label_bytes": 49152,
+            "output_label_bytes": 20480,
+            "public_metadata_bytes_estimate": 1603440
+          },
+          "native_process_cpu_seconds": 0.304695,
+          "native_process_peak_rss_bytes": 22429696,
+          "output_sha256": "1dd8597a280a4ca78d924efd72a857f8ec860942e1b97b393cffc2c4cd6cb18f",
+          "public_schedule_sha256": "138b71678145cec93fe9169d2eb2fbad5485318a729a09766719f355ac11f71b",
+          "recent": 2,
+          "rows": 16,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 5.8792e-05,
+            "evaluation": 0.09475525,
+            "fixture": 8.041e-06,
+            "issuance": 0.207901834
+          },
+          "variant": 2,
+          "width": 2
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 8,
+        "recent": 0,
+        "rows": 8,
+        "width": 4
+      },
+      "layout": 0,
+      "median": {
+        "native_process_cpu_seconds": 0.18378899999999998,
+        "native_process_peak_rss_bytes": 21807104,
+        "timings_seconds": {
+          "client_commit": 9.7333e-05,
+          "evaluation": 0.05612525,
+          "fixture": 9.209e-06,
+          "issuance": 0.124403833
+        }
+      },
+      "projection": {
+        "actual_wires": 77056,
+        "admitted": true,
+        "and_gates": 20688,
+        "client_encoding_bytes": 155648,
+        "combined_preflight_bound_bytes": 38083280,
+        "constant_label_bytes": 2304,
+        "input_label_bytes": 40960,
+        "keep": 8,
+        "label_and_ciphertext_body_bytes": 742144,
+        "layout": 0,
+        "material_issued": false,
+        "output_label_bytes": 36864,
+        "public_metadata_bytes_estimate": 1421248,
+        "recent": 0,
+        "rows": 8,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 360,
+        "state_before_bytes": 360,
+        "width": 4,
+        "wire_bound": 87440
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 77056,
+            "combined_preflight_bound_bytes": 38083280,
+            "state_after_bytes": 360,
+            "state_before_bytes": 360,
+            "wire_bound": 87440
+          },
+          "checked_output_words": 72,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 0,
+          "material": {
+            "and_gates": 20688,
+            "client_encoding_bytes": 155648,
+            "client_to_evaluator_material_bytes": 705280,
+            "constant_label_bytes": 2304,
+            "evaluator_ciphertext_bytes": 662016,
+            "evaluator_to_client_material_bytes": 36864,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 36864,
+            "public_metadata_bytes_estimate": 1421248
+          },
+          "native_process_cpu_seconds": 0.18411799999999998,
+          "native_process_peak_rss_bytes": 21807104,
+          "output_sha256": "3e6205a4ef963358bb5b305ee28e14c2307991f8ee38b3ba5c2d04f2d11e010a",
+          "public_schedule_sha256": "d2ddf6591e290e3936141e50b75830e490a809e92e0089098ae0d66fd75b8686",
+          "recent": 0,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 9.7333e-05,
+            "evaluation": 0.056082334,
+            "fixture": 1.5458e-05,
+            "issuance": 0.124511
+          },
+          "variant": 0,
+          "width": 4
+        },
+        {
+          "allocation": {
+            "actual_wires": 77056,
+            "combined_preflight_bound_bytes": 38083280,
+            "state_after_bytes": 360,
+            "state_before_bytes": 360,
+            "wire_bound": 87440
+          },
+          "checked_output_words": 72,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 0,
+          "material": {
+            "and_gates": 20688,
+            "client_encoding_bytes": 155648,
+            "client_to_evaluator_material_bytes": 705280,
+            "constant_label_bytes": 2304,
+            "evaluator_ciphertext_bytes": 662016,
+            "evaluator_to_client_material_bytes": 36864,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 36864,
+            "public_metadata_bytes_estimate": 1421248
+          },
+          "native_process_cpu_seconds": 0.18356899999999998,
+          "native_process_peak_rss_bytes": 21807104,
+          "output_sha256": "3e6205a4ef963358bb5b305ee28e14c2307991f8ee38b3ba5c2d04f2d11e010a",
+          "public_schedule_sha256": "d2ddf6591e290e3936141e50b75830e490a809e92e0089098ae0d66fd75b8686",
+          "recent": 0,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 9.6667e-05,
+            "evaluation": 0.056127917,
+            "fixture": 9.209e-06,
+            "issuance": 0.1241645
+          },
+          "variant": 1,
+          "width": 4
+        },
+        {
+          "allocation": {
+            "actual_wires": 77056,
+            "combined_preflight_bound_bytes": 38083280,
+            "state_after_bytes": 360,
+            "state_before_bytes": 360,
+            "wire_bound": 87440
+          },
+          "checked_output_words": 72,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 0,
+          "material": {
+            "and_gates": 20688,
+            "client_encoding_bytes": 155648,
+            "client_to_evaluator_material_bytes": 705280,
+            "constant_label_bytes": 2304,
+            "evaluator_ciphertext_bytes": 662016,
+            "evaluator_to_client_material_bytes": 36864,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 36864,
+            "public_metadata_bytes_estimate": 1421248
+          },
+          "native_process_cpu_seconds": 0.18378899999999998,
+          "native_process_peak_rss_bytes": 21807104,
+          "output_sha256": "3e6205a4ef963358bb5b305ee28e14c2307991f8ee38b3ba5c2d04f2d11e010a",
+          "public_schedule_sha256": "d2ddf6591e290e3936141e50b75830e490a809e92e0089098ae0d66fd75b8686",
+          "recent": 0,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 9.7958e-05,
+            "evaluation": 0.05612525,
+            "fixture": 8.791e-06,
+            "issuance": 0.124403833
+          },
+          "variant": 2,
+          "width": 4
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 8,
+        "recent": 0,
+        "rows": 8,
+        "width": 4
+      },
+      "layout": 1,
+      "median": {
+        "native_process_cpu_seconds": 0.205768,
+        "native_process_peak_rss_bytes": 10928128,
+        "timings_seconds": {
+          "client_commit": 9.7958e-05,
+          "evaluation": 0.064142292,
+          "fixture": 9.083e-06,
+          "issuance": 0.138463875
+        }
+      },
+      "projection": {
+        "actual_wires": 53080,
+        "admitted": true,
+        "and_gates": 23848,
+        "client_encoding_bytes": 155648,
+        "combined_preflight_bound_bytes": 25383632,
+        "constant_label_bytes": 2944,
+        "input_label_bytes": 40960,
+        "keep": 8,
+        "label_and_ciphertext_body_bytes": 843904,
+        "layout": 1,
+        "material_issued": false,
+        "output_label_bytes": 36864,
+        "public_metadata_bytes_estimate": 1048344,
+        "recent": 0,
+        "rows": 8,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 360,
+        "state_before_bytes": 360,
+        "width": 4,
+        "wire_bound": 54368
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 53080,
+            "combined_preflight_bound_bytes": 25383632,
+            "state_after_bytes": 360,
+            "state_before_bytes": 360,
+            "wire_bound": 54368
+          },
+          "checked_output_words": 72,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 1,
+          "material": {
+            "and_gates": 23848,
+            "client_encoding_bytes": 155648,
+            "client_to_evaluator_material_bytes": 807040,
+            "constant_label_bytes": 2944,
+            "evaluator_ciphertext_bytes": 763136,
+            "evaluator_to_client_material_bytes": 36864,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 36864,
+            "public_metadata_bytes_estimate": 1048344
+          },
+          "native_process_cpu_seconds": 0.205529,
+          "native_process_peak_rss_bytes": 10928128,
+          "output_sha256": "3e6205a4ef963358bb5b305ee28e14c2307991f8ee38b3ba5c2d04f2d11e010a",
+          "public_schedule_sha256": "804239239e6e9ade0de6ecf183420eea26d888bf1f7b13ce9eb892785c4f38cc",
+          "recent": 0,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 9.7958e-05,
+            "evaluation": 0.064167334,
+            "fixture": 8.042e-06,
+            "issuance": 0.138463875
+          },
+          "variant": 0,
+          "width": 4
+        },
+        {
+          "allocation": {
+            "actual_wires": 53080,
+            "combined_preflight_bound_bytes": 25383632,
+            "state_after_bytes": 360,
+            "state_before_bytes": 360,
+            "wire_bound": 54368
+          },
+          "checked_output_words": 72,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 1,
+          "material": {
+            "and_gates": 23848,
+            "client_encoding_bytes": 155648,
+            "client_to_evaluator_material_bytes": 807040,
+            "constant_label_bytes": 2944,
+            "evaluator_ciphertext_bytes": 763136,
+            "evaluator_to_client_material_bytes": 36864,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 36864,
+            "public_metadata_bytes_estimate": 1048344
+          },
+          "native_process_cpu_seconds": 0.205768,
+          "native_process_peak_rss_bytes": 10928128,
+          "output_sha256": "3e6205a4ef963358bb5b305ee28e14c2307991f8ee38b3ba5c2d04f2d11e010a",
+          "public_schedule_sha256": "804239239e6e9ade0de6ecf183420eea26d888bf1f7b13ce9eb892785c4f38cc",
+          "recent": 0,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000109458,
+            "evaluation": 0.06407725,
+            "fixture": 9.083e-06,
+            "issuance": 0.138443625
+          },
+          "variant": 1,
+          "width": 4
+        },
+        {
+          "allocation": {
+            "actual_wires": 53080,
+            "combined_preflight_bound_bytes": 25383632,
+            "state_after_bytes": 360,
+            "state_before_bytes": 360,
+            "wire_bound": 54368
+          },
+          "checked_output_words": 72,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 8,
+          "layout": 1,
+          "material": {
+            "and_gates": 23848,
+            "client_encoding_bytes": 155648,
+            "client_to_evaluator_material_bytes": 807040,
+            "constant_label_bytes": 2944,
+            "evaluator_ciphertext_bytes": 763136,
+            "evaluator_to_client_material_bytes": 36864,
+            "input_label_bytes": 40960,
+            "output_label_bytes": 36864,
+            "public_metadata_bytes_estimate": 1048344
+          },
+          "native_process_cpu_seconds": 0.206,
+          "native_process_peak_rss_bytes": 10928128,
+          "output_sha256": "3e6205a4ef963358bb5b305ee28e14c2307991f8ee38b3ba5c2d04f2d11e010a",
+          "public_schedule_sha256": "804239239e6e9ade0de6ecf183420eea26d888bf1f7b13ce9eb892785c4f38cc",
+          "recent": 0,
+          "rows": 8,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 9.7e-05,
+            "evaluation": 0.064142292,
+            "fixture": 1.0875e-05,
+            "issuance": 0.138572417
+          },
+          "variant": 2,
+          "width": 4
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 1,
+        "recent": 0,
+        "rows": 2,
+        "width": 128
+      },
+      "layout": 0,
+      "median": {
+        "native_process_cpu_seconds": 0.098418,
+        "native_process_peak_rss_bytes": 10813440,
+        "timings_seconds": {
+          "client_commit": 0.000334125,
+          "evaluation": 0.02288275,
+          "fixture": 1.0208e-05,
+          "issuance": 0.071949333
+        }
+      },
+      "projection": {
+        "actual_wires": 49840,
+        "admitted": true,
+        "and_gates": 8376,
+        "client_encoding_bytes": 791552,
+        "combined_preflight_bound_bytes": 43955232,
+        "constant_label_bytes": 224,
+        "input_label_bytes": 264192,
+        "keep": 1,
+        "label_and_ciphertext_body_bytes": 664032,
+        "layout": 0,
+        "material_issued": false,
+        "output_label_bytes": 131584,
+        "public_metadata_bytes_estimate": 698608,
+        "recent": 0,
+        "rows": 2,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 3084,
+        "state_before_bytes": 4112,
+        "width": 128,
+        "wire_bound": 99400
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 49840,
+            "combined_preflight_bound_bytes": 43955232,
+            "state_after_bytes": 3084,
+            "state_before_bytes": 4112,
+            "wire_bound": 99400
+          },
+          "checked_output_words": 257,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 0,
+          "material": {
+            "and_gates": 8376,
+            "client_encoding_bytes": 791552,
+            "client_to_evaluator_material_bytes": 532448,
+            "constant_label_bytes": 224,
+            "evaluator_ciphertext_bytes": 268032,
+            "evaluator_to_client_material_bytes": 131584,
+            "input_label_bytes": 264192,
+            "output_label_bytes": 131584,
+            "public_metadata_bytes_estimate": 698608
+          },
+          "native_process_cpu_seconds": 0.098418,
+          "native_process_peak_rss_bytes": 10813440,
+          "output_sha256": "1c2da50d1559474003a6b58683311b46bca6356745ec3d50013a7a62a93e8fc0",
+          "public_schedule_sha256": "1bc154faea836108e6a871f7622926b8e4cd519d6068990759eeadbc112b0026",
+          "recent": 0,
+          "rows": 2,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000334,
+            "evaluation": 0.022944791,
+            "fixture": 1.0208e-05,
+            "issuance": 0.071949333
+          },
+          "variant": 0,
+          "width": 128
+        },
+        {
+          "allocation": {
+            "actual_wires": 49840,
+            "combined_preflight_bound_bytes": 43955232,
+            "state_after_bytes": 3084,
+            "state_before_bytes": 4112,
+            "wire_bound": 99400
+          },
+          "checked_output_words": 257,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 0,
+          "material": {
+            "and_gates": 8376,
+            "client_encoding_bytes": 791552,
+            "client_to_evaluator_material_bytes": 532448,
+            "constant_label_bytes": 224,
+            "evaluator_ciphertext_bytes": 268032,
+            "evaluator_to_client_material_bytes": 131584,
+            "input_label_bytes": 264192,
+            "output_label_bytes": 131584,
+            "public_metadata_bytes_estimate": 698608
+          },
+          "native_process_cpu_seconds": 0.099049,
+          "native_process_peak_rss_bytes": 10797056,
+          "output_sha256": "1c2da50d1559474003a6b58683311b46bca6356745ec3d50013a7a62a93e8fc0",
+          "public_schedule_sha256": "1bc154faea836108e6a871f7622926b8e4cd519d6068990759eeadbc112b0026",
+          "recent": 0,
+          "rows": 2,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000334125,
+            "evaluation": 0.02288275,
+            "fixture": 1.25e-05,
+            "issuance": 0.072383958
+          },
+          "variant": 1,
+          "width": 128
+        },
+        {
+          "allocation": {
+            "actual_wires": 49840,
+            "combined_preflight_bound_bytes": 43955232,
+            "state_after_bytes": 3084,
+            "state_before_bytes": 4112,
+            "wire_bound": 99400
+          },
+          "checked_output_words": 257,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 0,
+          "material": {
+            "and_gates": 8376,
+            "client_encoding_bytes": 791552,
+            "client_to_evaluator_material_bytes": 532448,
+            "constant_label_bytes": 224,
+            "evaluator_ciphertext_bytes": 268032,
+            "evaluator_to_client_material_bytes": 131584,
+            "input_label_bytes": 264192,
+            "output_label_bytes": 131584,
+            "public_metadata_bytes_estimate": 698608
+          },
+          "native_process_cpu_seconds": 0.097859,
+          "native_process_peak_rss_bytes": 10813440,
+          "output_sha256": "e1240bb766a45d9f28bcbd6e6e0459ac506e4e1169cb768a3240037fee060825",
+          "public_schedule_sha256": "1bc154faea836108e6a871f7622926b8e4cd519d6068990759eeadbc112b0026",
+          "recent": 0,
+          "rows": 2,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000341083,
+            "evaluation": 0.0228815,
+            "fixture": 9.208e-06,
+            "issuance": 0.071897041
+          },
+          "variant": 2,
+          "width": 128
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 1,
+        "recent": 0,
+        "rows": 2,
+        "width": 128
+      },
+      "layout": 1,
+      "median": {
+        "native_process_cpu_seconds": 0.163733,
+        "native_process_peak_rss_bytes": 11288576,
+        "timings_seconds": {
+          "client_commit": 0.000336917,
+          "evaluation": 0.044899917,
+          "fixture": 1.0625e-05,
+          "issuance": 0.115176917
+        }
+      },
+      "projection": {
+        "actual_wires": 41659,
+        "admitted": true,
+        "and_gates": 16613,
+        "client_encoding_bytes": 791552,
+        "combined_preflight_bound_bytes": 21873312,
+        "constant_label_bytes": 384,
+        "input_label_bytes": 264192,
+        "keep": 1,
+        "label_and_ciphertext_body_bytes": 927776,
+        "layout": 1,
+        "material_issued": false,
+        "output_label_bytes": 131584,
+        "public_metadata_bytes_estimate": 625227,
+        "recent": 0,
+        "rows": 2,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 3084,
+        "state_before_bytes": 4112,
+        "width": 128,
+        "wire_bound": 41895
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 41659,
+            "combined_preflight_bound_bytes": 21873312,
+            "state_after_bytes": 3084,
+            "state_before_bytes": 4112,
+            "wire_bound": 41895
+          },
+          "checked_output_words": 257,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 1,
+          "material": {
+            "and_gates": 16613,
+            "client_encoding_bytes": 791552,
+            "client_to_evaluator_material_bytes": 796192,
+            "constant_label_bytes": 384,
+            "evaluator_ciphertext_bytes": 531616,
+            "evaluator_to_client_material_bytes": 131584,
+            "input_label_bytes": 264192,
+            "output_label_bytes": 131584,
+            "public_metadata_bytes_estimate": 625227
+          },
+          "native_process_cpu_seconds": 0.163563,
+          "native_process_peak_rss_bytes": 11288576,
+          "output_sha256": "1c2da50d1559474003a6b58683311b46bca6356745ec3d50013a7a62a93e8fc0",
+          "public_schedule_sha256": "92be4213799507f0ae8df537f2eeebab625082a13ad7fabcb3bac2aaee804e2e",
+          "recent": 0,
+          "rows": 2,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000337084,
+            "evaluation": 0.04475925,
+            "fixture": 8.5e-06,
+            "issuance": 0.11516375
+          },
+          "variant": 0,
+          "width": 128
+        },
+        {
+          "allocation": {
+            "actual_wires": 41659,
+            "combined_preflight_bound_bytes": 21873312,
+            "state_after_bytes": 3084,
+            "state_before_bytes": 4112,
+            "wire_bound": 41895
+          },
+          "checked_output_words": 257,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 1,
+          "material": {
+            "and_gates": 16613,
+            "client_encoding_bytes": 791552,
+            "client_to_evaluator_material_bytes": 796192,
+            "constant_label_bytes": 384,
+            "evaluator_ciphertext_bytes": 531616,
+            "evaluator_to_client_material_bytes": 131584,
+            "input_label_bytes": 264192,
+            "output_label_bytes": 131584,
+            "public_metadata_bytes_estimate": 625227
+          },
+          "native_process_cpu_seconds": 0.163809,
+          "native_process_peak_rss_bytes": 11288576,
+          "output_sha256": "1c2da50d1559474003a6b58683311b46bca6356745ec3d50013a7a62a93e8fc0",
+          "public_schedule_sha256": "92be4213799507f0ae8df537f2eeebab625082a13ad7fabcb3bac2aaee804e2e",
+          "recent": 0,
+          "rows": 2,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000333292,
+            "evaluation": 0.04494575,
+            "fixture": 1.8042e-05,
+            "issuance": 0.115176917
+          },
+          "variant": 1,
+          "width": 128
+        },
+        {
+          "allocation": {
+            "actual_wires": 41659,
+            "combined_preflight_bound_bytes": 21873312,
+            "state_after_bytes": 3084,
+            "state_before_bytes": 4112,
+            "wire_bound": 41895
+          },
+          "checked_output_words": 257,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 1,
+          "material": {
+            "and_gates": 16613,
+            "client_encoding_bytes": 791552,
+            "client_to_evaluator_material_bytes": 796192,
+            "constant_label_bytes": 384,
+            "evaluator_ciphertext_bytes": 531616,
+            "evaluator_to_client_material_bytes": 131584,
+            "input_label_bytes": 264192,
+            "output_label_bytes": 131584,
+            "public_metadata_bytes_estimate": 625227
+          },
+          "native_process_cpu_seconds": 0.163733,
+          "native_process_peak_rss_bytes": 11288576,
+          "output_sha256": "e1240bb766a45d9f28bcbd6e6e0459ac506e4e1169cb768a3240037fee060825",
+          "public_schedule_sha256": "92be4213799507f0ae8df537f2eeebab625082a13ad7fabcb3bac2aaee804e2e",
+          "recent": 0,
+          "rows": 2,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000336917,
+            "evaluation": 0.044899917,
+            "fixture": 1.0625e-05,
+            "issuance": 0.115372792
+          },
+          "variant": 2,
+          "width": 128
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 2,
+        "recent": 1,
+        "rows": 4,
+        "width": 128
+      },
+      "layout": 1,
+      "median": {
+        "native_process_cpu_seconds": 0.6053189999999999,
+        "native_process_peak_rss_bytes": 34406400,
+        "timings_seconds": {
+          "client_commit": 0.000665583,
+          "evaluation": 0.180746916,
+          "fixture": 1.25e-05,
+          "issuance": 0.420282375
+        }
+      },
+      "projection": {
+        "actual_wires": 151095,
+        "admitted": true,
+        "and_gates": 66824,
+        "client_encoding_bytes": 1583104,
+        "combined_preflight_bound_bytes": 65574576,
+        "constant_label_bytes": 928,
+        "input_label_bytes": 528384,
+        "keep": 2,
+        "label_and_ciphertext_body_bytes": 2930848,
+        "layout": 1,
+        "material_issued": false,
+        "output_label_bytes": 263168,
+        "public_metadata_bytes_estimate": 2668711,
+        "recent": 1,
+        "rows": 4,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 4112,
+        "state_before_bytes": 6168,
+        "width": 128,
+        "wire_bound": 151567
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 151095,
+            "combined_preflight_bound_bytes": 65574576,
+            "state_after_bytes": 4112,
+            "state_before_bytes": 6168,
+            "wire_bound": 151567
+          },
+          "checked_output_words": 514,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 1,
+          "material": {
+            "and_gates": 66824,
+            "client_encoding_bytes": 1583104,
+            "client_to_evaluator_material_bytes": 2667680,
+            "constant_label_bytes": 928,
+            "evaluator_ciphertext_bytes": 2138368,
+            "evaluator_to_client_material_bytes": 263168,
+            "input_label_bytes": 528384,
+            "output_label_bytes": 263168,
+            "public_metadata_bytes_estimate": 2668711
+          },
+          "native_process_cpu_seconds": 0.6040009999999999,
+          "native_process_peak_rss_bytes": 34422784,
+          "output_sha256": "b60798cac847f022d3186ee79258112815124966bd26ffa6f9d3f7f47d411cba",
+          "public_schedule_sha256": "fe6ae7ec50877ad21facbf71b5e0437d8b92c477393ed7d3b2632dab35c76044",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000665583,
+            "evaluation": 0.180746916,
+            "fixture": 1.2084e-05,
+            "issuance": 0.419613208
+          },
+          "variant": 0,
+          "width": 128
+        },
+        {
+          "allocation": {
+            "actual_wires": 151095,
+            "combined_preflight_bound_bytes": 65574576,
+            "state_after_bytes": 4112,
+            "state_before_bytes": 6168,
+            "wire_bound": 151567
+          },
+          "checked_output_words": 514,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 1,
+          "material": {
+            "and_gates": 66824,
+            "client_encoding_bytes": 1583104,
+            "client_to_evaluator_material_bytes": 2667680,
+            "constant_label_bytes": 928,
+            "evaluator_ciphertext_bytes": 2138368,
+            "evaluator_to_client_material_bytes": 263168,
+            "input_label_bytes": 528384,
+            "output_label_bytes": 263168,
+            "public_metadata_bytes_estimate": 2668711
+          },
+          "native_process_cpu_seconds": 0.6053189999999999,
+          "native_process_peak_rss_bytes": 34406400,
+          "output_sha256": "b60798cac847f022d3186ee79258112815124966bd26ffa6f9d3f7f47d411cba",
+          "public_schedule_sha256": "fe6ae7ec50877ad21facbf71b5e0437d8b92c477393ed7d3b2632dab35c76044",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000663166,
+            "evaluation": 0.18074,
+            "fixture": 1.25e-05,
+            "issuance": 0.420282375
+          },
+          "variant": 1,
+          "width": 128
+        },
+        {
+          "allocation": {
+            "actual_wires": 151095,
+            "combined_preflight_bound_bytes": 65574576,
+            "state_after_bytes": 4112,
+            "state_before_bytes": 6168,
+            "wire_bound": 151567
+          },
+          "checked_output_words": 514,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 2,
+          "layout": 1,
+          "material": {
+            "and_gates": 66824,
+            "client_encoding_bytes": 1583104,
+            "client_to_evaluator_material_bytes": 2667680,
+            "constant_label_bytes": 928,
+            "evaluator_ciphertext_bytes": 2138368,
+            "evaluator_to_client_material_bytes": 263168,
+            "input_label_bytes": 528384,
+            "output_label_bytes": 263168,
+            "public_metadata_bytes_estimate": 2668711
+          },
+          "native_process_cpu_seconds": 0.60576,
+          "native_process_peak_rss_bytes": 34406400,
+          "output_sha256": "b60798cac847f022d3186ee79258112815124966bd26ffa6f9d3f7f47d411cba",
+          "public_schedule_sha256": "fe6ae7ec50877ad21facbf71b5e0437d8b92c477393ed7d3b2632dab35c76044",
+          "recent": 1,
+          "rows": 4,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 0.000665875,
+            "evaluation": 0.180981708,
+            "fixture": 1.4042e-05,
+            "issuance": 0.420946625
+          },
+          "variant": 2,
+          "width": 128
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "keep": 1,
+        "recent": 0,
+        "rows": 32,
+        "width": 1
+      },
+      "layout": 1,
+      "median": {
+        "native_process_cpu_seconds": 0.373124,
+        "native_process_peak_rss_bytes": 27426816,
+        "timings_seconds": {
+          "client_commit": 1.0209e-05,
+          "evaluation": 0.113698917,
+          "fixture": 8.125e-06,
+          "issuance": 0.256341875
+        }
+      },
+      "projection": {
+        "actual_wires": 119926,
+        "admitted": true,
+        "and_gates": 42112,
+        "client_encoding_bytes": 134144,
+        "combined_preflight_bound_bytes": 51495728,
+        "constant_label_bytes": 14336,
+        "input_label_bytes": 65536,
+        "keep": 1,
+        "label_and_ciphertext_body_bytes": 1428992,
+        "layout": 1,
+        "material_issued": false,
+        "output_label_bytes": 1536,
+        "public_metadata_bytes_estimate": 2142694,
+        "recent": 0,
+        "rows": 32,
+        "schema": "pllm.retained_selection.projection.v1",
+        "state_after_bytes": 36,
+        "state_before_bytes": 408,
+        "width": 1,
+        "wire_bound": 122480
+      },
+      "samples": [
+        {
+          "allocation": {
+            "actual_wires": 119926,
+            "combined_preflight_bound_bytes": 51495728,
+            "state_after_bytes": 36,
+            "state_before_bytes": 408,
+            "wire_bound": 122480
+          },
+          "checked_output_words": 3,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 1,
+          "material": {
+            "and_gates": 42112,
+            "client_encoding_bytes": 134144,
+            "client_to_evaluator_material_bytes": 1427456,
+            "constant_label_bytes": 14336,
+            "evaluator_ciphertext_bytes": 1347584,
+            "evaluator_to_client_material_bytes": 1536,
+            "input_label_bytes": 65536,
+            "output_label_bytes": 1536,
+            "public_metadata_bytes_estimate": 2142694
+          },
+          "native_process_cpu_seconds": 0.37323399999999995,
+          "native_process_peak_rss_bytes": 27426816,
+          "output_sha256": "ddc5e752c4fed916e13e34f5b51258ab7d9a574f7bacb1a418b532027bc1bbd1",
+          "public_schedule_sha256": "c8e895c6b15423bdb35ad6a168cbec000ca6a3e6120552a9adb6d0de44c12378",
+          "recent": 0,
+          "rows": 32,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 1.225e-05,
+            "evaluation": 0.113698917,
+            "fixture": 9.917e-06,
+            "issuance": 0.256341875
+          },
+          "variant": 0,
+          "width": 1
+        },
+        {
+          "allocation": {
+            "actual_wires": 119926,
+            "combined_preflight_bound_bytes": 51495728,
+            "state_after_bytes": 36,
+            "state_before_bytes": 408,
+            "wire_bound": 122480
+          },
+          "checked_output_words": 3,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 1,
+          "material": {
+            "and_gates": 42112,
+            "client_encoding_bytes": 134144,
+            "client_to_evaluator_material_bytes": 1427456,
+            "constant_label_bytes": 14336,
+            "evaluator_ciphertext_bytes": 1347584,
+            "evaluator_to_client_material_bytes": 1536,
+            "input_label_bytes": 65536,
+            "output_label_bytes": 1536,
+            "public_metadata_bytes_estimate": 2142694
+          },
+          "native_process_cpu_seconds": 0.373124,
+          "native_process_peak_rss_bytes": 27426816,
+          "output_sha256": "b4ab2ab26787b1685d8eba9e52895dd0d97b83a601c68878f86dde6b13bcb6ba",
+          "public_schedule_sha256": "c8e895c6b15423bdb35ad6a168cbec000ca6a3e6120552a9adb6d0de44c12378",
+          "recent": 0,
+          "rows": 32,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 1.0209e-05,
+            "evaluation": 0.113809292,
+            "fixture": 8.042e-06,
+            "issuance": 0.256446041
+          },
+          "variant": 1,
+          "width": 1
+        },
+        {
+          "allocation": {
+            "actual_wires": 119926,
+            "combined_preflight_bound_bytes": 51495728,
+            "state_after_bytes": 36,
+            "state_before_bytes": 408,
+            "wire_bound": 122480
+          },
+          "checked_output_words": 3,
+          "geometry_gates": {
+            "qwen_width_128_rejected": true,
+            "sixteen_by_sixteen_memory_rejected": true
+          },
+          "keep": 1,
+          "layout": 1,
+          "material": {
+            "and_gates": 42112,
+            "client_encoding_bytes": 134144,
+            "client_to_evaluator_material_bytes": 1427456,
+            "constant_label_bytes": 14336,
+            "evaluator_ciphertext_bytes": 1347584,
+            "evaluator_to_client_material_bytes": 1536,
+            "input_label_bytes": 65536,
+            "output_label_bytes": 1536,
+            "public_metadata_bytes_estimate": 2142694
+          },
+          "native_process_cpu_seconds": 0.37287,
+          "native_process_peak_rss_bytes": 27426816,
+          "output_sha256": "168548807c5e710cc115b13306534f833a48f3bc951dd26496f5b0bf2e07df38",
+          "public_schedule_sha256": "c8e895c6b15423bdb35ad6a168cbec000ca6a3e6120552a9adb6d0de44c12378",
+          "recent": 0,
+          "rows": 32,
+          "schema": "pllm.retained_selection.native_fixture.v1",
+          "timings_seconds": {
+            "client_commit": 8.959e-06,
+            "evaluation": 0.113654458,
+            "fixture": 8.125e-06,
+            "issuance": 0.255958041
+          },
+          "variant": 2,
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "checked_output_words": 4041,
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15",
+    "rustc": "rustc 1.85.1 (4eb161250 2025-03-15)"
+  },
+  "full_width_projections": [
+    {
+      "actual_wires": 3596048,
+      "admitted": false,
+      "and_gates": 870672,
+      "client_encoding_bytes": 6332416,
+      "combined_preflight_bound_bytes": 1550026896,
+      "constant_label_bytes": 4864,
+      "input_label_bytes": 2113536,
+      "keep": 8,
+      "label_and_ciphertext_body_bytes": 31032576,
+      "layout": 0,
+      "material_issued": false,
+      "output_label_bytes": 1052672,
+      "public_metadata_bytes_estimate": 66313168,
+      "recent": 4,
+      "rows": 16,
+      "schema": "pllm.retained_selection.projection.v1",
+      "state_after_bytes": 10280,
+      "state_before_bytes": 18504,
+      "whole_body_label_and_ciphertext_body_bytes": 744781824,
+      "width": 128,
+      "wire_bound": 3992528
+    },
+    {
+      "actual_wires": 2212592,
+      "admitted": false,
+      "and_gates": 1067136,
+      "client_encoding_bytes": 6332416,
+      "combined_preflight_bound_bytes": 867256464,
+      "constant_label_bytes": 6144,
+      "input_label_bytes": 2113536,
+      "keep": 8,
+      "label_and_ciphertext_body_bytes": 37320704,
+      "layout": 1,
+      "material_issued": false,
+      "output_label_bytes": 1052672,
+      "public_metadata_bytes_estimate": 44374896,
+      "recent": 4,
+      "rows": 16,
+      "schema": "pllm.retained_selection.projection.v1",
+      "state_after_bytes": 10280,
+      "state_before_bytes": 18504,
+      "whole_body_label_and_ciphertext_body_bytes": 895696896,
+      "width": 128,
+      "wire_bound": 2214480
+    },
+    {
+      "actual_wires": 30919712,
+      "admitted": false,
+      "and_gates": 7640448,
+      "client_encoding_bytes": 25329664,
+      "combined_preflight_bound_bytes": 12537250320,
+      "constant_label_bytes": 37376,
+      "input_label_bytes": 8454144,
+      "keep": 32,
+      "label_and_ciphertext_body_bytes": 257196544,
+      "layout": 0,
+      "material_issued": false,
+      "output_label_bytes": 4210688,
+      "public_metadata_bytes_estimate": 579291232,
+      "recent": 16,
+      "rows": 64,
+      "schema": "pllm.retained_selection.projection.v1",
+      "state_after_bytes": 34952,
+      "state_before_bytes": 67848,
+      "whole_body_label_and_ciphertext_body_bytes": 6172717056,
+      "width": 128,
+      "wire_bound": 32505888
+    },
+    {
+      "actual_wires": 34337392,
+      "admitted": false,
+      "and_gates": 16983584,
+      "client_encoding_bytes": 25329664,
+      "combined_preflight_bound_bytes": 13243644432,
+      "constant_label_bytes": 44544,
+      "input_label_bytes": 8454144,
+      "keep": 32,
+      "label_and_ciphertext_body_bytes": 556184064,
+      "layout": 1,
+      "material_issued": false,
+      "output_label_bytes": 4210688,
+      "public_metadata_bytes_estimate": 712223920,
+      "recent": 16,
+      "rows": 64,
+      "schema": "pllm.retained_selection.projection.v1",
+      "state_after_bytes": 34952,
+      "state_before_bytes": 67848,
+      "whole_body_label_and_ciphertext_body_bytes": 13348417536,
+      "width": 128,
+      "wire_bound": 34345456
+    },
+    {
+      "actual_wires": 215494656,
+      "admitted": false,
+      "and_gates": 53655040,
+      "client_encoding_bytes": 101318656,
+      "combined_preflight_bound_bytes": 85394069520,
+      "constant_label_bytes": 245760,
+      "input_label_bytes": 33816576,
+      "keep": 128,
+      "label_and_ciphertext_body_bytes": 1767866368,
+      "layout": 0,
+      "material_issued": false,
+      "output_label_bytes": 16842752,
+      "public_metadata_bytes_estimate": 4060880960,
+      "recent": 64,
+      "rows": 256,
+      "schema": "pllm.retained_selection.projection.v1",
+      "state_after_bytes": 133640,
+      "state_before_bytes": 265224,
+      "whole_body_label_and_ciphertext_body_bytes": 42428792832,
+      "width": 128,
+      "wire_bound": 221840384
+    },
+    {
+      "actual_wires": 543083136,
+      "admitted": false,
+      "and_gates": 270701568,
+      "client_encoding_bytes": 101318656,
+      "combined_preflight_bound_bytes": 208764459024,
+      "constant_label_bytes": 282624,
+      "input_label_bytes": 33816576,
+      "keep": 128,
+      "label_and_ciphertext_body_bytes": 8713392128,
+      "layout": 1,
+      "material_issued": false,
+      "output_label_bytes": 16842752,
+      "public_metadata_bytes_estimate": 11366870720,
+      "recent": 64,
+      "rows": 256,
+      "schema": "pllm.retained_selection.projection.v1",
+      "state_after_bytes": 133640,
+      "state_before_bytes": 265224,
+      "whole_body_label_and_ciphertext_body_bytes": 209121411072,
+      "width": 128,
+      "wire_bound": 543117440
+    },
+    {
+      "actual_wires": 542085376,
+      "admitted": false,
+      "and_gates": 135258624,
+      "client_encoding_bytes": 202637312,
+      "combined_preflight_bound_bytes": 213445222416,
+      "constant_label_bytes": 606208,
+      "input_label_bytes": 67633152,
+      "keep": 256,
+      "label_and_ciphertext_body_bytes": 4430200832,
+      "layout": 0,
+      "material_issued": false,
+      "output_label_bytes": 33685504,
+      "public_metadata_bytes_estimate": 10231611712,
+      "recent": 128,
+      "rows": 512,
+      "schema": "pllm.retained_selection.projection.v1",
+      "state_after_bytes": 265224,
+      "state_before_bytes": 528392,
+      "whole_body_label_and_ciphertext_body_bytes": 106324819968,
+      "width": 128,
+      "wire_bound": 554777856
+    },
+    {
+      "actual_wires": 2166428416,
+      "admitted": false,
+      "and_gates": 1081594880,
+      "client_encoding_bytes": 202637312,
+      "combined_preflight_bound_bytes": 832346169360,
+      "constant_label_bytes": 688128,
+      "input_label_bytes": 67633152,
+      "keep": 256,
+      "label_and_ciphertext_body_bytes": 34713042944,
+      "layout": 1,
+      "material_issued": false,
+      "output_label_bytes": 33685504,
+      "public_metadata_bytes_estimate": 45417653056,
+      "recent": 128,
+      "rows": 512,
+      "schema": "pllm.retained_selection.projection.v1",
+      "state_after_bytes": 265224,
+      "state_before_bytes": 528392,
+      "whole_body_label_and_ciphertext_body_bytes": 833113030656,
+      "width": 128,
+      "wire_bound": 2166499072
+    }
+  ],
+  "geometry_source": {
+    "checkpoint": {
+      "binding_digest": "48e03a93c51afc0eea373707367e368c032c4c67c43536cb063fba89da853dc2",
+      "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "plan_digest": "29adde4512093fe3ecb0e1f775163545f3d4607855b4becd86c200a1cb87d604",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "schedule_digest": "2e24ff72eea2d90008471e49ab5b8eaa4a7dd00308eb9972db5fc82ab837e670",
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+    },
+    "kv_width": 128,
+    "layers": 24,
+    "path": "docs/evidence/research-retained-decoder-qwen25.json",
+    "sha256": "02241e2eb3d1d21d529fd615430d4f3e01f9fa704eec07af457a79482d7740f6"
+  },
+  "native_binary_sha256": "89e18b4f7d338cb11434c554fdbd7f29abda14eb7d0722d093d030f8fdf21b64",
+  "samples_per_case": 3,
+  "schema": "pllm.retained_selection_indices.v1",
+  "scope": {
+    "compiler_validated_context": false,
+    "full_width_projections": "exact layout counts at declared geometry; no issuance or execution",
+    "full_wire_bytes": null,
+    "independent_cryptographic_review": false,
+    "inputs": "synthetic public float32 fixtures standing in for trusted-client private scores and KV",
+    "layouts": {
+      "0": "complete records",
+      "1": "compact indices and oblivious gather"
+    },
+    "material_bytes": "complete logical label/ciphertext bodies; public instructions separately estimated",
+    "memory": "fresh native process peak; preflight separately bounds payload allocation",
+    "method": "compact-index bitonic sorting plus full-scan one-hot oblivious KV gather",
+    "output_decoder": "trusted client only",
+    "provider_resident_state": false,
+    "scores": "supplied by trusted client; protected scoring absent",
+    "transport": false,
+    "whole_decoder": false
+  },
+  "source_sha256": {
+    "Cargo.lock": "be735861945742b6d892d797255833c529e0266ff4f44d1fbac9d99840e5a06f",
+    "benchmarks/research/retained_selection.py": "722942c6e98e7c2270ce7caef45ebb2a3799274251b184c032548496a56e25c9",
+    "benchmarks/research/retained_selection_indices.py": "24484994b0e34f0128cf0d364d9ae29506d3c9c9bb97925018e884d370ef4327",
+    "crates/pllm-core/src/retained_kv.rs": "968e0a1c6cb67f29f25a460aeea7a83fe3b69d54b0ded78d64744af233eedc0d",
+    "crates/pllm-garble/examples/retained_selection_probe.rs": "3dd7d462ca30e746629b0432606a556c71631108d151a33fac3ab85e55a76947",
+    "crates/pllm-garble/src/boolean.rs": "16c752a035851d6d081b686936eaa4420f4006597c99d91d86c4dd80c0e85b0d",
+    "crates/pllm-garble/src/retained_selection.rs": "591a5a3bc44459fa56f4c54b00d6e0b08fb9514b53b85663b1df3a62dc79c25f",
+    "crates/pllm-garble/src/retained_selection/cost.rs": "1b122973ccc09d60d12cdc5b85f671961997ad9d323d30d4e0996d620aba2103",
+    "crates/pllm-garble/src/retained_selection/indexed.rs": "082a2d97d7b88a5101a4670d9ad94b96533356cca566c7bdcc3893531e593d5b",
+    "crates/pllm-garble/src/retained_selection/tests.rs": "54bfa6b31909b94f5a9a7617b3fdbba1284edbc73d2cb486178742ac0dfbd389"
+  },
+  "sources": [
+    "https://arxiv.org/abs/2501.06807v2",
+    "https://eprint.iacr.org/2014/756"
+  ]
+}

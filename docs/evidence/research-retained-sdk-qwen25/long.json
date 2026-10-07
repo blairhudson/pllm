@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "experiment": {
+        "configuration_digest": "3e6b359ce764ef968baa6e58d0580aaeddb67ca27f5c88c76630f6e29b22788a",
+        "name": "retained-sdk-dense",
+        "pipeline_digest": "cc05dafdbf18ff3691c2e455e6b50a012edbb82fc4339e63d1e3faffb8bdf8c0"
+      },
+      "index": 1,
+      "report": null,
+      "status": "failed"
+    },
+    {
+      "experiment": {
+        "configuration_digest": "09f091a4e292fe2dc23c6b5dcac80e27510b6ba8c29bee535941094a7955a131",
+        "name": "retained-sdk-full",
+        "pipeline_digest": "13d1878a78e25a07affc14f81a6e3465010aaa39634d79c104fdfcff220dedbd"
+      },
+      "index": 2,
+      "report": null,
+      "status": "pending"
+    },
+    {
+      "experiment": {
+        "configuration_digest": "4408d66a54534a6d63fb6b7a92d900ea9f1dfcc6eaecc506047aba71a4d0cafd",
+        "name": "retained-sdk-keep75",
+        "pipeline_digest": "bed908e2bc0143173ec90b3060b4c1b86726fb0b134b985cd3366b9520efd834"
+      },
+      "index": 3,
+      "report": null,
+      "status": "pending"
+    },
+    {
+      "experiment": {
+        "configuration_digest": "34564941082800a257ade255dd9d48de2f3be4ca0fc03085e268554fb3083df3",
+        "name": "retained-sdk-keep50",
+        "pipeline_digest": "f9f6e262f06eb0f9fbb5bab99bb6f3be1ac575ab25adfe074e83f93a80450745"
+      },
+      "index": 4,
+      "report": null,
+      "status": "pending"
+    }
+  ],
+  "checks": {
+    "complete": false,
+    "passed": false
+  },
+  "complete": false,
+  "configuration": {
+    "bundle_compression": "none",
+    "experiments": [
+      {
+        "configuration_digest": "3e6b359ce764ef968baa6e58d0580aaeddb67ca27f5c88c76630f6e29b22788a",
+        "name": "retained-sdk-dense",
+        "pipeline_digest": "cc05dafdbf18ff3691c2e455e6b50a012edbb82fc4339e63d1e3faffb8bdf8c0"
+      },
+      {
+        "configuration_digest": "09f091a4e292fe2dc23c6b5dcac80e27510b6ba8c29bee535941094a7955a131",
+        "name": "retained-sdk-full",
+        "pipeline_digest": "13d1878a78e25a07affc14f81a6e3465010aaa39634d79c104fdfcff220dedbd"
+      },
+      {
+        "configuration_digest": "4408d66a54534a6d63fb6b7a92d900ea9f1dfcc6eaecc506047aba71a4d0cafd",
+        "name": "retained-sdk-keep75",
+        "pipeline_digest": "bed908e2bc0143173ec90b3060b4c1b86726fb0b134b985cd3366b9520efd834"
+      },
+      {
+        "configuration_digest": "34564941082800a257ade255dd9d48de2f3be4ca0fc03085e268554fb3083df3",
+        "name": "retained-sdk-keep50",
+        "pipeline_digest": "f9f6e262f06eb0f9fbb5bab99bb6f3be1ac575ab25adfe074e83f93a80450745"
+      }
+    ],
+    "inventory_policy": "prewarm",
+    "max_output_tokens": 8,
+    "memory_budget_bytes": null,
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "model_id": null,
+    "output": "/Users/blairhudson/workspace/pllm/docs/evidence/research-retained-sdk-qwen25/long.json",
+    "prefill_cache_bound_tokens": null,
+    "prefill_cache_mib": 0,
+    "prefill_cache_mode": "exact",
+    "provider_backend": "native",
+    "repetitions": 1,
+    "sampling": {
+      "effective_temperature": 0.0,
+      "mode": "greedy",
+      "requested_temperature": 0.0,
+      "top_p": null
+    },
+    "save_best": null,
+    "sequence_length": null,
+    "show_dashboard": false,
+    "timeout_seconds": 1800.0,
+    "tiny": false,
+    "wan_conditions": {
+      "download_mbps": 100.0,
+      "parties": [],
+      "role_parties": [],
+      "schema": "pllm.wan_conditions.v1",
+      "upload_mbps": 40.0
+    },
+    "wan_mode": "native-tcp-paced",
+    "warmups": 0
+  },
+  "failure": {
+    "type": "LoopbackBenchmarkError"
+  },
+  "schema_version": "pllm.benchmark_progress.v1",
+  "status": "failed",
+  "updated_at": "2026-10-07T09:34:47.029115+00:00"
+}

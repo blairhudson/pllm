@@ -99,8 +99,8 @@ static client-local retention to the native semantic schedule, validates per-lay
 causal state and bounded decode, and rejects full-KV snapshot/continuation reuse.
 Generated Qwen2/Qwen3/Llama whole-decoder controls preserve every logit and KV bit
 at full retention; sparse execution matches an independent selected-view oracle
-and releases discarded backing arrays. Protected selection and whole-response
-SDK memory measurement remain open; the prior selected-view cohort retains its
+and releases discarded backing arrays. Protected provider-held selection remains
+open; the prior selected-view cohort retains its
 original scope. A new fixed twelve-prompt Qwen cohort preserves all 48 checked
 logit vectors and final KV at full retention, reducing median owned KV from 6.29
 to 5.16 MB. Keeping 75%/50% uses 3.90/2.62 MB but each matches only 35/36
@@ -111,16 +111,31 @@ contract is now selectable through `ClientLocalKv(retention=KvCacheEviction(...)
 in client-only and prepared Experiments. Generated SDK/gateway requests and
 two prepared role children pass; response completion/cancellation retire native
 state, while history follow-ups re-prefill. Benchmark matching binds the retention
-numeric policy and placement admission prices its state/workspace owners. Matched
-real-checkpoint SDK peak-memory benefit remains unmeasured.
+numeric policy and placement admission prices its state/workspace owners. Two
+fresh-client prepared SDK cohorts at 52/379 input tokens plus eight outputs under
+native 100/40 caps now measure full-retention client peaks of 257.77/524.85 MB versus
+dense 264.90/546.31 MB. Full-retention output text matches, while the longer 75%
+response changes text. Covered bodies stay 257.79/989.08 MB for every policy and
+latency is nearly unchanged. Sparse retention does not monotonically lower peak
+RSS; the one-response cohorts do not establish representative quality or a 10×
+client-memory benefit. Different numeric contracts retain empty rankings. The
+original longer workload's residue-frame rejection is preserved separately from
+the admitted 22-entry rerun; memory admission did not price that codec limit.
 The separate bounded client-garbled top-k/gather substrate binds one-use private
 owner revisions and moves complete KV records through fixed bitonic networks.
 Twelve fresh native processes match 474 independently checked output words.
 Selecting eight of sixteen two-feature rows spends 1.10 MB of label/ciphertext
 material plus 2.06 MB estimated public metadata to retire 160 bytes of state.
-The 64 MiB allocation gate rejects 16×16 records; Qwen-width state is unsupported.
-Provider-resident scores/state, compiler-validated context, transport and a cheaper
-complete selection construction remain next gates; the substrate is Rust-only.
+The 64 MiB allocation gate rejects 16×16 records. A follow-up compact-index sort
+plus complete oblivious gather checks 4,041 exact output words in 36 fresh
+processes, including two/four-row Qwen-width state. It reduces public metadata
+estimates but increases label/ciphertext bodies and native CPU in every matched
+case. Half-retaining 256 rows of 128 features projects 8.71 GB per layer versus
+1.77 GB for full-record sorting; all complete-state shapes fail preflight before
+issuance. Provider-resident scores/state, compiler-validated context, transport
+and a cheaper complete selection construction remain gates. A future method must
+price oblivious routing, protected scores and all boundary owners before transport;
+the current substrate stays Rust-only.
 Details: `docs/research/mpcache-reference.md`.
 
 Each whole-model delivery ends with:

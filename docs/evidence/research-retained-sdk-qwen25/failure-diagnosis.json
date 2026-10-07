@@ -1,0 +1,18 @@
+{
+  "schema": "pllm.retained_sdk_failure_diagnosis.v1",
+  "progress": "docs/evidence/research-retained-sdk-qwen25/long.json",
+  "preflight": "docs/evidence/research-retained-sdk-qwen25/long-preflight.json",
+  "failed_candidate": "retained-sdk-dense",
+  "memory_admitted": true,
+  "completed_response": false,
+  "diagnosis": "A direct rerun of the dense public workload exposed the bounded preparation HTTP error; the ordinary CLI progress record intentionally omits exception text.",
+  "error_message": "prepared residue frame exceeds bounded codec capacity",
+  "implementation": "python/pllm/runtime/transformer_engine.py",
+  "correction_rows": 418,
+  "grouped_gate_up_outputs": 9728,
+  "frame_elements": 4066304,
+  "maximum_frame_elements": 4000000,
+  "successful_separate_retry": "docs/evidence/research-retained-sdk-long-qwen25/long.json",
+  "retry_public_journal_rows": 22,
+  "performance_result": null
+}

@@ -47,6 +47,12 @@ fn oracle(scores: &[f32], policy: Policy) -> Vec<usize> {
 
 #[test]
 fn stable_top_k_and_complete_kv_bits_match_independent_sort() {
+    for layout in [Layout::FullRecords, Layout::CompactIndices] {
+        check_top_k(layout);
+    }
+}
+
+fn check_top_k(layout: Layout) {
     let mut checked = 0;
     for rows in [1_usize, 2, 3, 5, 8, 16] {
         for keep in [1, rows.div_ceil(2), rows] {
@@ -67,9 +73,18 @@ fn stable_top_k_and_complete_kv_bits_match_independent_sort() {
                         .iter()
                         .map(|&i| (k[i].to_bits(), v[i].to_bits(), p[i]))
                         .collect();
-                    let (client, evaluator) = owner.issue(&scores, policy).unwrap();
+                    let (client, evaluator) =
+                        owner.issue_with_layout(&scores, policy, layout).unwrap();
                     let binding = evaluator.binding();
                     let resources = evaluator.resources();
+                    let cost = project(rows, 1, policy, owner.allocated_bytes(), layout).unwrap();
+                    assert_eq!(resources.wires, cost.actual_wires);
+                    assert_eq!(resources.and_gates, cost.and_gates);
+                    assert_eq!(resources.constant_label_bytes, cost.constant_label_bytes);
+                    assert_eq!(
+                        resources.public_metadata_bytes_estimate,
+                        cost.public_metadata_bytes_estimate
+                    );
                     assert!(resources.wires <= resources.estimate.wire_bound);
                     assert!(
                         resources.estimate.combined_allocation_bound_bytes <= MAX_ALLOCATION_BYTES
@@ -95,6 +110,146 @@ fn stable_top_k_and_complete_kv_bits_match_independent_sort() {
         }
     }
     assert_eq!(checked, 360);
+}
+
+#[test]
+fn indexed_full_width_parity_fixed_schedule_and_complete_costs() {
+    for (rows, width, keep, recent) in [
+        (2, 128, 1, 0),
+        (4, 128, 2, 1),
+        (16, 2, 15, 1),
+        (32, 1, 1, 0),
+    ] {
+        let policy = Policy { keep, recent };
+        let mut schedule = None;
+        for variant in 0..3 {
+            let mut owner = fixture(rows, width);
+            let scores: Vec<_> = (0..rows)
+                .map(|i| {
+                    if variant == 0 {
+                        1.0
+                    } else {
+                        ((i * 7 + variant * 3) % rows) as f32
+                    }
+                })
+                .collect();
+            let selected = oracle(&scores, policy);
+            let (k, v, p) = owner.active().unwrap();
+            let expected_p: Vec<_> = selected.iter().map(|&i| p[i]).collect();
+            let expected_k: Vec<_> = selected
+                .iter()
+                .flat_map(|&i| k[i * width..(i + 1) * width].iter().map(|x| x.to_bits()))
+                .collect();
+            let expected_v: Vec<_> = selected
+                .iter()
+                .flat_map(|&i| v[i * width..(i + 1) * width].iter().map(|x| x.to_bits()))
+                .collect();
+            let cost = project(
+                rows,
+                width,
+                policy,
+                owner.allocated_bytes(),
+                Layout::CompactIndices,
+            )
+            .unwrap();
+            assert!(cost.admitted());
+            let (client, evaluator) = owner
+                .issue_with_layout(&scores, policy, Layout::CompactIndices)
+                .unwrap();
+            let r = evaluator.resources();
+            assert_eq!(r.wires, cost.actual_wires);
+            assert_eq!(r.and_gates, cost.and_gates);
+            assert_eq!(r.constant_label_bytes, cost.constant_label_bytes);
+            assert_eq!(
+                r.public_metadata_bytes_estimate,
+                cost.public_metadata_bytes_estimate
+            );
+            if let Some(old) = schedule {
+                assert_eq!(r.public_schedule_digest, old);
+            }
+            schedule = Some(r.public_schedule_digest);
+            let binding = evaluator.binding();
+            client
+                .finish(&mut owner, evaluator.evaluate(binding).unwrap())
+                .unwrap();
+            let (k, v, p) = owner.active().unwrap();
+            assert_eq!(p, expected_p);
+            assert_eq!(
+                k.iter().map(|x| x.to_bits()).collect::<Vec<_>>(),
+                expected_k
+            );
+            assert_eq!(
+                v.iter().map(|x| x.to_bits()).collect::<Vec<_>>(),
+                expected_v
+            );
+        }
+    }
+}
+
+#[test]
+fn compact_cost_cannot_authorize_large_state_or_underprice_boundaries() {
+    for (rows, width) in [(16, 128), (256, 128), (512, 128), (512, 8192)] {
+        let policy = Policy {
+            keep: rows / 2,
+            recent: 1,
+        };
+        for layout in [Layout::FullRecords, Layout::CompactIndices] {
+            let cost = project(rows, width, policy, 0, layout).unwrap();
+            assert!(!cost.admitted());
+            assert_eq!(cost.estimate.input_bits, rows * (64 + 64 * width));
+            assert_eq!(cost.estimate.output_bits, policy.keep * (32 + 64 * width));
+            assert!(estimate_layout(rows, width, policy, 0, layout).is_err());
+        }
+    }
+    let mut owner = fixture(16, 128);
+    assert!(owner
+        .issue_with_layout(
+            &[1.0; 16],
+            Policy { keep: 8, recent: 1 },
+            Layout::CompactIndices
+        )
+        .is_err());
+    assert!(owner.pending.is_none());
+    assert_eq!(owner.revision, 0);
+    for (rows, width, state) in [(usize::MAX, 1, 0), (1, usize::MAX, 0), (1, 1, usize::MAX)] {
+        assert!(project(
+            rows,
+            width,
+            Policy { keep: 1, recent: 0 },
+            state,
+            Layout::CompactIndices
+        )
+        .is_err());
+    }
+}
+
+#[test]
+fn compact_layout_substitution_and_stale_receipts_burn() {
+    let mut owner = fixture(4, 2);
+    let policy = Policy { keep: 2, recent: 1 };
+    let scores = [1.0, 3.0, 2.0, 0.0];
+    let (client, evaluator) = owner
+        .issue_with_layout(&scores, policy, Layout::CompactIndices)
+        .unwrap();
+    let mut wrong = evaluator.binding();
+    wrong.layout = Layout::FullRecords;
+    assert!(evaluator.evaluate(wrong).is_err());
+    drop(client);
+    owner.cancel();
+    for change in 0..3 {
+        let (client, evaluator) = owner
+            .issue_with_layout(&scores, policy, Layout::CompactIndices)
+            .unwrap();
+        let binding = evaluator.binding();
+        let mut output = evaluator.evaluate(binding).unwrap();
+        match change {
+            0 => output.binding.layout = Layout::FullRecords,
+            1 => owner.cancel(),
+            _ => owner.append(8, &[0.0, -0.0], &[1.0, -1.0]).unwrap(),
+        }
+        assert!(client.finish(&mut owner, output).is_err());
+        assert!(owner.pending.is_none());
+    }
 }
 
 #[test]

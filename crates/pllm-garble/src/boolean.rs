@@ -12,10 +12,10 @@ use zeroize::Zeroize;
 
 pub(crate) const LABEL_BYTES: usize = 16;
 pub(crate) const CIRCUIT_ID_BYTES: usize = 32;
-const MAX_REFERENCE_WIRES: usize = 2_000_000;
-const MAX_REFERENCE_AND_GATES: usize = 1_000_000;
-const MAX_REFERENCE_INPUTS: usize = 131_072;
-const MAX_REFERENCE_OUTPUTS: usize = 131_072;
+pub(crate) const MAX_REFERENCE_WIRES: usize = 2_000_000;
+pub(crate) const MAX_REFERENCE_AND_GATES: usize = 1_000_000;
+pub(crate) const MAX_REFERENCE_INPUTS: usize = 131_072;
+pub(crate) const MAX_REFERENCE_OUTPUTS: usize = 131_072;
 const CIRCUIT_TWEAK_DOMAIN: &[u8] = b"pllm.garble.half_gates.circuit_tweak.v1";
 
 #[derive(Clone, Eq, PartialEq)]
