@@ -73,8 +73,13 @@ lists those symbols and their next gates.
    authoritative owner binding and provider transport remain open. CipherPrune's
    mixed backend has ordinary SDK/replay; top-k is an internal measurement binding.
    Details: `docs/research/shared-selection-reference.md`.
-4. **Encrypted linear foundation / MOAI.** Implement bounded packed encrypted
-   operators with explicit key ownership and reusable layouts. MOAI attribution
+4. **Encrypted linear foundation — implemented bounded SDK slice.** Public
+   diagonal matrices and private CKKS vectors execute in separate client/provider
+   contexts. Eighteen fresh processes check 1,224 outputs within `9.37e-7`
+   float64 error. One sequential rotation key cuts 32×32 setup frames from 25.16
+   to 1.20 MB with unchanged online bytes. Native admission, finite depth,
+   resource accounting and replay are explicit. See
+   `docs/research/encrypted-linear-reference.md`. MOAI attribution
    requires acquiring and reviewing its full source; the OpenReview browser
    challenge remains unresolved.
 5. **NEXUS, then THOR.** Compose encrypted nonlinear/attention operations on that

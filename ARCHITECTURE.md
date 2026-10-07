@@ -1694,6 +1694,23 @@ Concrete ramp-sharing, branching-program, log-domain and encrypted bitheap
 layouts retain explicit traffic/compute gates. These independently constructed
 references activate no SDK option or protected decoder.
 
+The installed `pllm.protocols.PackedEncryptedLinear` separately benchmarks bounded
+1–32-dimensional public diagonal matrices on private CKKS vectors. Rust owns
+public layouts and degree/depth/resource admission; separate SEAL client/provider
+contexts execute the encrypted operations. Only the client holds the secret key
+and decodes final results. Eighteen fresh processes check 1,224 outputs, with
+maximum independent float64 error below `9.37e-7`. At 32×32, one sequential
+rotation key reduces setup frames from 25.16 to 1.20 MB; four-query online frames
+remain 1.606 MB. Reports separately charge key setup, public layouts, padded
+context-bound query/reply frames, encrypted operation counts and remaining depth.
+Generic admission checks up to eight finite levels under a 512 MiB allocation
+estimate. Circuit privacy, malicious-result verification, physical transport,
+checkpoint quality and autoregressive execution remain absent. NEXUS is an
+all-CKKS system, not an HE–garbled-circuit boundary; its bootstrap prerequisite
+is unimplemented in SEAL. The diagonal reference cites only its background
+primitives. MOAI's inaccessible full source prevents a paper-specific
+implementation claim. Details: `docs/research/encrypted-linear-reference.md`.
+
 ## Application boundary
 
 The client owns plaintext input, inventory root seeds and masks, private

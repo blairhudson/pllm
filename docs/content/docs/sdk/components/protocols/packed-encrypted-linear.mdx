@@ -1,0 +1,80 @@
+---
+title: "Packed encrypted linear reference"
+description: "Benchmark bounded CKKS matrices with client-owned keys, explicit depth and complete setup frames."
+---
+
+`pllm.protocols.PackedEncryptedLinear` evaluates a public matrix on encrypted
+client vectors in separate local SEAL contexts. Only the client owns a secret key
+and decrypts the final answer. This bounded operator is approximate CKKS arithmetic.
+
+## Python SDK example
+
+Install the optional `pllm.run[he]` dependency first.
+
+```python
+from pllm.metrics import benchmark_operator, replay_operator_benchmark
+from pllm.protocols import PackedEncryptedLinear
+
+method = PackedEncryptedLinear(rotation_keys="single")
+report = benchmark_operator(method, lanes=2, samples=1,
+                            geometry={"rows": 3, "columns": 5})
+assert report.quality.outputs_within_tolerance == 6
+assert report.quality.exact_integer_outputs == 0
+assert report.samples[0].minimum_remaining_depth == 0
+assert replay_operator_benchmark(report.configuration).resources == report.resources
+```
+
+## Contract and options
+
+Component identity: `pllm/packed-encrypted-linear/v1`.
+
+| Option | Values | Meaning |
+| --- | --- | --- |
+| `rotation_keys` | `"single"` (default), `"full"` | One sequential rotation key, or one key per nonzero diagonal shift |
+
+Benchmark geometry declares `rows` and `columns`, each 1–32; `lanes` counts
+1–64 serial vectors and `samples` counts 1–16 independent keys. Caller input is
+`inputs={"weights": row_major_weights, "vectors": row_major_vectors}`. Both
+contain finite numeric values in `[-1,1]`. The vector length is `lanes * columns`.
+Omitting inputs selects public deterministic fixtures. No values or value hashes
+enter reports; caller-owned replay requires resupplying inputs.
+
+The native layout pads rectangular matrices to a power of two. The client repeats
+its padded vector across SIMD slots; the provider multiplies public diagonals by
+encrypted rotations and sums them. SEAL validates TC128 parameters: polynomial
+degree 8,192, coefficient bits `[50,40,50]`, scale `2^40`, one consumed rescale level.
+An independent float64 dense-product oracle checks absolute error within `0.0002`.
+This tolerance is an observed-result admission check, not a proved CKKS error bound.
+
+## Ownership and costs
+
+Every sample measures fresh key generation and public evaluation-key serialization.
+`setup_frame_bytes_by_operation` records parameter, public-key and Galois-key frames
+once. Online phases record every query/reply with fixed public padding and
+context/sequence headers. Independent contexts and local file serialization are
+included; network transport and physical wire are unmeasured.
+
+Reports separate public layout preparation, issuance, complete local online time
+and provider evaluation. Process CPU includes Python/SEAL execution; key payloads
+count the secret polynomial and padded public-key representations, not process RSS.
+The bounded allocation estimate includes contexts, key copies, ciphertexts, scratch
+and pool slack. Generic HE admission rejects estimates above 512 MiB; this linear
+layout has smaller bounds. Public matrices/layouts remain separately counted.
+
+Malformed, foreign, replayed and cancelled sessions retire. Context framing does
+not authenticate transport or verify a malicious provider's result.
+
+## Research limits
+
+The [NEXUS](/research/papers/nexus/) citation covers background RNS-CKKS primitives.
+This diagonal-slot layout is a PLLM reference, not NEXUS's coefficient-packing
+construction, a MOAI reproduction, bootstrapping or a protected decoder.
+Model quality, private persistent state, token feedback, provider transport and
+independent cryptographic review remain open. Executable decoder Experiments reject
+this component.
+
+See the [installed example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/encrypted_linear.py)
+and [research contract](https://github.com/blairhudson/pllm/blob/main/docs/research/encrypted-linear-reference.md).
+
+API: [Protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures),
+[operator benchmarks](/sdk/evaluate/paper-operators/).

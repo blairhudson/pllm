@@ -1,0 +1,305 @@
+{
+  "benchmark_status": "completed",
+  "checkpoint_quality": null,
+  "citations": [
+    {
+      "paper_id": "nexus",
+      "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+      "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+      "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+      "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+    }
+  ],
+  "configuration": {
+    "component": {
+      "component": "pllm/packed-encrypted-linear/v1",
+      "params": {
+        "rotation_keys": "single"
+      }
+    },
+    "geometry": {
+      "columns": 8,
+      "rows": 8
+    },
+    "lanes": 4,
+    "samples": 3,
+    "schema": "pllm.operator_benchmark.v2"
+  },
+  "configuration_digest": "6f02b4b0d4b912eed4b5d511743e0644422a0858294a0d5818c4a5500abc8ccc",
+  "environment": {
+    "native": "0.1.0-alpha.2",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "full_wire_bytes": null,
+  "independent_role_transport": false,
+  "input_source": "public-fixture",
+  "limitations": [
+    "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+    "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+    "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+    "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+    "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+    "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+    "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+    "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+    "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+    "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+    "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+  ],
+  "median_issuance_seconds": 0.024562249891459942,
+  "median_online_seconds": 0.07318533305078745,
+  "method": "packed-ckks-linear",
+  "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+  "numeric_contract_digest": "sha256:ff074f56f56aa8729148e61f1953b048a35ad6b23f9079a3dd383702494d9c9b",
+  "paper_coverage": "component-reference",
+  "peak_memory_bytes": null,
+  "privacy_reviewed": false,
+  "quality": {
+    "absolute_tolerance": 0.0002,
+    "base_profile_exact_outputs": null,
+    "checked_outputs": 96,
+    "exact_integer_outputs": 0,
+    "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+    "maximum_absolute_error": 2.501967182322318e-07,
+    "maximum_encoded_profile_error": null,
+    "mean_absolute_error": 9.577618106648238e-08,
+    "outputs_within_tolerance": 96
+  },
+  "resources": {
+    "client_entry_exit_payload_estimate_bytes": 0,
+    "client_mask_payload_estimate_bytes": 0,
+    "evaluator_ciphertext_bytes": null,
+    "evaluator_constant_label_bytes": null,
+    "expanded_correlation_bytes_per_party": null,
+    "homomorphic_coefficient_bits": [
+      50,
+      40,
+      50
+    ],
+    "homomorphic_polynomial_degree": 8192,
+    "homomorphic_scale_bits": 40,
+    "key_payload_bytes_by_operation": [
+      [
+        "secret-polynomial-and-public-key",
+        593920,
+        0
+      ],
+      [
+        "provider-evaluation-keys",
+        0,
+        1200128
+      ]
+    ],
+    "peer_frame_bytes_by_direction": [
+      1065284,
+      540996
+    ],
+    "peer_payload_bits": 12850240,
+    "peer_rounds": 4,
+    "prf_field_evaluations_per_party": null,
+    "protocol_allocation_estimate_bytes": 51855360,
+    "public_metadata_bytes_estimate": null,
+    "public_profile_bytes_estimate": null,
+    "public_table_bytes_by_party": [
+      0,
+      1024
+    ],
+    "public_table_bytes_per_party": 0,
+    "raw_key_payload_bits_per_party": [
+      4751360,
+      9601024
+    ],
+    "raw_key_payload_bytes_per_party": [
+      593920,
+      1200128
+    ],
+    "role_names": [
+      "client-key-owner",
+      "encrypted-evaluator"
+    ],
+    "setup_frame_bytes_by_operation": [
+      [
+        "galois-keys",
+        802816,
+        0
+      ],
+      [
+        "parameters",
+        512,
+        0
+      ],
+      [
+        "public-key",
+        397312,
+        0
+      ]
+    ]
+  },
+  "resources_scope": "per-sample",
+  "samples": [
+    {
+      "clear_seconds": 3.0582770705223083e-05,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 0.05761266779154539,
+      "homomorphic_operations": [
+        [
+          "ciphertext_additions",
+          28
+        ],
+        [
+          "plaintext_multiplications",
+          32
+        ],
+        [
+          "rescales",
+          32
+        ],
+        [
+          "rotations",
+          28
+        ],
+        [
+          "scale_normalizations",
+          32
+        ]
+      ],
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 0.028348250314593315,
+      "minimum_remaining_depth": 0,
+      "native_call_process_cpu_seconds": 0.10622999999999999,
+      "online_seconds": 0.07796437572687864,
+      "peer_frame_bytes_by_phase": [
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ]
+      ],
+      "public_setup_seconds": 1.3708136975765228e-05,
+      "verification_seconds": null
+    },
+    {
+      "clear_seconds": 3.0582770705223083e-05,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 0.054145874455571175,
+      "homomorphic_operations": [
+        [
+          "ciphertext_additions",
+          28
+        ],
+        [
+          "plaintext_multiplications",
+          32
+        ],
+        [
+          "rescales",
+          32
+        ],
+        [
+          "rotations",
+          28
+        ],
+        [
+          "scale_normalizations",
+          32
+        ]
+      ],
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 0.024562249891459942,
+      "minimum_remaining_depth": 0,
+      "native_call_process_cpu_seconds": 0.09794200000000003,
+      "online_seconds": 0.07313191704452038,
+      "peer_frame_bytes_by_phase": [
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ]
+      ],
+      "public_setup_seconds": 1.3708136975765228e-05,
+      "verification_seconds": null
+    },
+    {
+      "clear_seconds": 3.0582770705223083e-05,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 0.05424745846539736,
+      "homomorphic_operations": [
+        [
+          "ciphertext_additions",
+          28
+        ],
+        [
+          "plaintext_multiplications",
+          32
+        ],
+        [
+          "rescales",
+          32
+        ],
+        [
+          "rotations",
+          28
+        ],
+        [
+          "scale_normalizations",
+          32
+        ]
+      ],
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 0.02412637509405613,
+      "minimum_remaining_depth": 0,
+      "native_call_process_cpu_seconds": 0.09749400000000003,
+      "online_seconds": 0.07318533305078745,
+      "peer_frame_bytes_by_phase": [
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ],
+        [
+          266321,
+          135249
+        ]
+      ],
+      "public_setup_seconds": 1.3708136975765228e-05,
+      "verification_seconds": null
+    }
+  ],
+  "schema": "pllm.operator_benchmark_report.v1",
+  "scope": "bounded in-process operator; fresh one-use material per sample",
+  "sdk_availability": "operator-benchmark",
+  "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+  "whole_model_executable": false
+}
+

@@ -1,0 +1,3718 @@
+{
+  "cases": [
+    {
+      "columns": 5,
+      "median_seconds": {
+        "evaluation_seconds": 0.05679608415812254,
+        "issuance_seconds": 0.029879082925617695,
+        "native_call_process_cpu_seconds": 0.109674,
+        "online_seconds": 0.07879737485200167
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 5,
+              "rows": 3
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "6eec76fbfb3d5dabd1a0576f40c63d1e8ae257f9dccef736caee86b122348bb8",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.030951333232223988,
+          "median_online_seconds": 0.10157958324998617,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:ff8e80f1485054a102f359faa7c3f506765b24edad0a2fd889a85af530862dfd",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 12,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 2.660165501211509e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.0301919514156543e-07,
+            "outputs_within_tolerance": 12
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              632
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 1.4958903193473816e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.07273208443075418,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  20
+                ],
+                [
+                  "plaintext_multiplications",
+                  24
+                ],
+                [
+                  "rescales",
+                  24
+                ],
+                [
+                  "rotations",
+                  28
+                ],
+                [
+                  "scale_normalizations",
+                  24
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.030951333232223988,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.13298300000000002,
+              "online_seconds": 0.10157958324998617,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.508370041847229e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 5,
+              "rows": 3
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "6eec76fbfb3d5dabd1a0576f40c63d1e8ae257f9dccef736caee86b122348bb8",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.026996124535799026,
+          "median_online_seconds": 0.07869112584739923,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:ff8e80f1485054a102f359faa7c3f506765b24edad0a2fd889a85af530862dfd",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 12,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 2.672110392953897e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 9.720506512790143e-08,
+            "outputs_within_tolerance": 12
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              632
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 1.4499761164188385e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.05679608415812254,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  20
+                ],
+                [
+                  "plaintext_multiplications",
+                  24
+                ],
+                [
+                  "rescales",
+                  24
+                ],
+                [
+                  "rotations",
+                  28
+                ],
+                [
+                  "scale_normalizations",
+                  24
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.026996124535799026,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.106323,
+              "online_seconds": 0.07869112584739923,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.1332333087921143e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 5,
+              "rows": 3
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "6eec76fbfb3d5dabd1a0576f40c63d1e8ae257f9dccef736caee86b122348bb8",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.029879082925617695,
+          "median_online_seconds": 0.07879737485200167,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:ff8e80f1485054a102f359faa7c3f506765b24edad0a2fd889a85af530862dfd",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 12,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 2.6396994146082875e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 9.38450125005652e-08,
+            "outputs_within_tolerance": 12
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              632
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 1.5791505575180054e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.0560161666944623,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  20
+                ],
+                [
+                  "plaintext_multiplications",
+                  24
+                ],
+                [
+                  "rescales",
+                  24
+                ],
+                [
+                  "rotations",
+                  28
+                ],
+                [
+                  "scale_normalizations",
+                  24
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.029879082925617695,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.109674,
+              "online_seconds": 0.07879737485200167,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.245737075805664e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        }
+      ],
+      "rotation_keys": "single",
+      "rows": 3
+    },
+    {
+      "columns": 5,
+      "median_seconds": {
+        "evaluation_seconds": 0.05019158311188221,
+        "issuance_seconds": 0.07842716574668884,
+        "native_call_process_cpu_seconds": 0.149024,
+        "online_seconds": 0.06991662457585335
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 5,
+              "rows": 3
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "54a84249a046a95bb64c34c97a63bbdf3251453d76aa880e222d5cf88e67c689",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.1038179574534297,
+          "median_online_seconds": 0.08462112490087748,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:ff8e80f1485054a102f359faa7c3f506765b24edad0a2fd889a85af530862dfd",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 12,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 2.586489414868609e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.1097993646696595e-07,
+            "outputs_within_tolerance": 12
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                5992448
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 66232320,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              632
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              47939584
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              5992448
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                5595136,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 1.6791746020317078e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.061840539798140526,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  20
+                ],
+                [
+                  "plaintext_multiplications",
+                  24
+                ],
+                [
+                  "rescales",
+                  24
+                ],
+                [
+                  "rotations",
+                  28
+                ],
+                [
+                  "scale_normalizations",
+                  24
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.1038179574534297,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.18886,
+              "online_seconds": 0.08462112490087748,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.60830095410347e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 5,
+              "rows": 3
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "54a84249a046a95bb64c34c97a63bbdf3251453d76aa880e222d5cf88e67c689",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.07842716574668884,
+          "median_online_seconds": 0.06991662457585335,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:ff8e80f1485054a102f359faa7c3f506765b24edad0a2fd889a85af530862dfd",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 12,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 3.81976105190418e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.872026946150157e-07,
+            "outputs_within_tolerance": 12
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                5992448
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 66232320,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              632
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              47939584
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              5992448
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                5595136,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 1.4416873455047607e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.05019158311188221,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  20
+                ],
+                [
+                  "plaintext_multiplications",
+                  24
+                ],
+                [
+                  "rescales",
+                  24
+                ],
+                [
+                  "rotations",
+                  28
+                ],
+                [
+                  "scale_normalizations",
+                  24
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.07842716574668884,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.149024,
+              "online_seconds": 0.06991662457585335,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.0833144187927246e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 5,
+              "rows": 3
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "54a84249a046a95bb64c34c97a63bbdf3251453d76aa880e222d5cf88e67c689",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.07788445800542831,
+          "median_online_seconds": 0.06923558283597231,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:ff8e80f1485054a102f359faa7c3f506765b24edad0a2fd889a85af530862dfd",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 12,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 3.350088596532075e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.3623981599414822e-07,
+            "outputs_within_tolerance": 12
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                5992448
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 66232320,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              632
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              47939584
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              5992448
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                5595136,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 1.3290904462337494e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.049686333164572716,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  20
+                ],
+                [
+                  "plaintext_multiplications",
+                  24
+                ],
+                [
+                  "rescales",
+                  24
+                ],
+                [
+                  "rotations",
+                  28
+                ],
+                [
+                  "scale_normalizations",
+                  24
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.07788445800542831,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.147542,
+              "online_seconds": 0.06923558283597231,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.1334195733070374e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        }
+      ],
+      "rotation_keys": "full",
+      "rows": 3
+    },
+    {
+      "columns": 16,
+      "median_seconds": {
+        "evaluation_seconds": 0.10658108163625002,
+        "issuance_seconds": 0.02688966691493988,
+        "native_call_process_cpu_seconds": 0.15374300000000002,
+        "online_seconds": 0.12610362470149994
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 16,
+              "rows": 16
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "e3c5ffb63b43e9dba4aa1d80adc3b003b29bdda63aaabae74dd9b00c2b9eb69f",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.026750083081424236,
+          "median_online_seconds": 0.12562291603535414,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:5c156f8ef91c992dfe64bc3b1c8b4bd6a1d6529cf1bb0a570a90cdc21cfb65d2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 64,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 4.017399777289654e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.4770093478540334e-07,
+            "outputs_within_tolerance": 64
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 8.941721171140671e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.10642395727336407,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  60
+                ],
+                [
+                  "plaintext_multiplications",
+                  64
+                ],
+                [
+                  "rescales",
+                  64
+                ],
+                [
+                  "rotations",
+                  60
+                ],
+                [
+                  "scale_normalizations",
+                  64
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.026750083081424236,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.15304700000000002,
+              "online_seconds": 0.12562291603535414,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 4.3458305299282074e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 16,
+              "rows": 16
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "e3c5ffb63b43e9dba4aa1d80adc3b003b29bdda63aaabae74dd9b00c2b9eb69f",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.02690262533724308,
+          "median_online_seconds": 0.12975495774298906,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:5c156f8ef91c992dfe64bc3b1c8b4bd6a1d6529cf1bb0a570a90cdc21cfb65d2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 64,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 4.4803605181442663e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.5682121001542489e-07,
+            "outputs_within_tolerance": 64
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 8.916668593883514e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.10971962474286556,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  60
+                ],
+                [
+                  "plaintext_multiplications",
+                  64
+                ],
+                [
+                  "rescales",
+                  64
+                ],
+                [
+                  "rotations",
+                  60
+                ],
+                [
+                  "scale_normalizations",
+                  64
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.02690262533724308,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.15718899999999997,
+              "online_seconds": 0.12975495774298906,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.9416213035583496e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 16,
+              "rows": 16
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "e3c5ffb63b43e9dba4aa1d80adc3b003b29bdda63aaabae74dd9b00c2b9eb69f",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.02688966691493988,
+          "median_online_seconds": 0.12610362470149994,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:5c156f8ef91c992dfe64bc3b1c8b4bd6a1d6529cf1bb0a570a90cdc21cfb65d2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 64,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 4.375396289724165e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.6178028880518142e-07,
+            "outputs_within_tolerance": 64
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 8.70823860168457e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.10658108163625002,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  60
+                ],
+                [
+                  "plaintext_multiplications",
+                  64
+                ],
+                [
+                  "rescales",
+                  64
+                ],
+                [
+                  "rotations",
+                  60
+                ],
+                [
+                  "scale_normalizations",
+                  64
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.02688966691493988,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.15374300000000002,
+              "online_seconds": 0.12610362470149994,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.8834136426448822e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        }
+      ],
+      "rotation_keys": "single",
+      "rows": 16
+    },
+    {
+      "columns": 16,
+      "median_seconds": {
+        "evaluation_seconds": 0.10679783206433058,
+        "issuance_seconds": 0.1459077913314104,
+        "native_call_process_cpu_seconds": 0.271808,
+        "online_seconds": 0.12574749998748302
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 16,
+              "rows": 16
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "f7d2e5395a8827169458dafd6763062aa54e0e7761675053f78932f12e307158",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.16367733292281628,
+          "median_online_seconds": 0.12720441725105047,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:5c156f8ef91c992dfe64bc3b1c8b4bd6a1d6529cf1bb0a570a90cdc21cfb65d2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 64,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 4.040883641032167e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.5448878426776568e-07,
+            "outputs_within_tolerance": 64
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                12382208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 85401600,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              99057664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              12382208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                11984896,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 8.633360266685486e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.10768595896661282,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  60
+                ],
+                [
+                  "plaintext_multiplications",
+                  64
+                ],
+                [
+                  "rescales",
+                  64
+                ],
+                [
+                  "rotations",
+                  60
+                ],
+                [
+                  "scale_normalizations",
+                  64
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.16367733292281628,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.287557,
+              "online_seconds": 0.12720441725105047,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 2.0332634449005127e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 16,
+              "rows": 16
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "f7d2e5395a8827169458dafd6763062aa54e0e7761675053f78932f12e307158",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.1459077913314104,
+          "median_online_seconds": 0.1256494577974081,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:5c156f8ef91c992dfe64bc3b1c8b4bd6a1d6529cf1bb0a570a90cdc21cfb65d2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 64,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 8.672740230419862e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.826480101168584e-07,
+            "outputs_within_tolerance": 64
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                12382208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 85401600,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              99057664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              12382208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                11984896,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 8.55419784784317e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.10679783206433058,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  60
+                ],
+                [
+                  "plaintext_multiplications",
+                  64
+                ],
+                [
+                  "rescales",
+                  64
+                ],
+                [
+                  "rotations",
+                  60
+                ],
+                [
+                  "scale_normalizations",
+                  64
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.1459077913314104,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.271808,
+              "online_seconds": 0.1256494577974081,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.9708648324012756e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 16,
+              "rows": 16
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "f7d2e5395a8827169458dafd6763062aa54e0e7761675053f78932f12e307158",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.14522874914109707,
+          "median_online_seconds": 0.12574749998748302,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:5c156f8ef91c992dfe64bc3b1c8b4bd6a1d6529cf1bb0a570a90cdc21cfb65d2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 64,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 4.295355782168997e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 1.601786081006657e-07,
+            "outputs_within_tolerance": 64
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                12382208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 85401600,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              99057664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              12382208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                11984896,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 8.925050497055054e-05,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.1066012904047966,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  60
+                ],
+                [
+                  "plaintext_multiplications",
+                  64
+                ],
+                [
+                  "rescales",
+                  64
+                ],
+                [
+                  "rotations",
+                  60
+                ],
+                [
+                  "scale_normalizations",
+                  64
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.14522874914109707,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.271147,
+              "online_seconds": 0.12574749998748302,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 1.7666257917881012e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        }
+      ],
+      "rotation_keys": "full",
+      "rows": 16
+    },
+    {
+      "columns": 32,
+      "median_seconds": {
+        "evaluation_seconds": 0.2094998750835657,
+        "issuance_seconds": 0.026591750793159008,
+        "native_call_process_cpu_seconds": 0.255877,
+        "online_seconds": 0.22892791591584682
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 32,
+              "rows": 32
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "56be843f44a45d93afe184033ffb95ad7f83ee7cecb5228cbccd722a6484fd79",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.026591750793159008,
+          "median_online_seconds": 0.23549229186028242,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:699616eb2d8b092a0f8945cd6b1f0f59ac92e9d5986101c519a2541ab7307445",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 128,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 4.991540865084687e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 2.2606457742791256e-07,
+            "outputs_within_tolerance": 128
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              16384
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0003419574350118637,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.21501258481293917,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  124
+                ],
+                [
+                  "plaintext_multiplications",
+                  128
+                ],
+                [
+                  "rescales",
+                  128
+                ],
+                [
+                  "rotations",
+                  124
+                ],
+                [
+                  "scale_normalizations",
+                  128
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.026591750793159008,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.260911,
+              "online_seconds": 0.23549229186028242,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 3.566686064004898e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 32,
+              "rows": 32
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "56be843f44a45d93afe184033ffb95ad7f83ee7cecb5228cbccd722a6484fd79",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.026537708938121796,
+          "median_online_seconds": 0.22892791591584682,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:699616eb2d8b092a0f8945cd6b1f0f59ac92e9d5986101c519a2541ab7307445",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 128,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 5.092067172363102e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 2.3096089865268232e-07,
+            "outputs_within_tolerance": 128
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              16384
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0003562904894351959,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.2094998750835657,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  124
+                ],
+                [
+                  "plaintext_multiplications",
+                  128
+                ],
+                [
+                  "rescales",
+                  128
+                ],
+                [
+                  "rotations",
+                  124
+                ],
+                [
+                  "scale_normalizations",
+                  128
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.026537708938121796,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.255877,
+              "online_seconds": 0.22892791591584682,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 4.079192876815796e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "single"
+              }
+            },
+            "geometry": {
+              "columns": 32,
+              "rows": 32
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "56be843f44a45d93afe184033ffb95ad7f83ee7cecb5228cbccd722a6484fd79",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.027005666866898537,
+          "median_online_seconds": 0.22791379224509,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:699616eb2d8b092a0f8945cd6b1f0f59ac92e9d5986101c519a2541ab7307445",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 128,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 5.656991488578456e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 2.3391479526057527e-07,
+            "outputs_within_tolerance": 128
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                1200128
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 51855360,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              16384
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              9601024
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              1200128
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                802816,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.00034245848655700684,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.20895266719162464,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  124
+                ],
+                [
+                  "plaintext_multiplications",
+                  128
+                ],
+                [
+                  "rescales",
+                  128
+                ],
+                [
+                  "rotations",
+                  124
+                ],
+                [
+                  "scale_normalizations",
+                  128
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.027005666866898537,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.25559,
+              "online_seconds": 0.22791379224509,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 3.5542063415050507e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        }
+      ],
+      "rotation_keys": "single",
+      "rows": 32
+    },
+    {
+      "columns": 32,
+      "median_seconds": {
+        "evaluation_seconds": 0.2108086682856083,
+        "issuance_seconds": 0.2833971669897437,
+        "native_call_process_cpu_seconds": 0.509646,
+        "online_seconds": 0.23010300006717443
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 32,
+              "rows": 32
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "6139d6a09004ff02fbb615c8ebd1192372aa891837b8477348b7d9dd179c691c",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.2802160419523716,
+          "median_online_seconds": 0.22906483337283134,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:699616eb2d8b092a0f8945cd6b1f0f59ac92e9d5986101c519a2541ab7307445",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 128,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 5.905714401954754e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 2.3950961117874536e-07,
+            "outputs_within_tolerance": 128
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                25161728
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 123740160,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              16384
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              201293824
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              25161728
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                24764416,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.00035183411091566086,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.21023804042488337,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  124
+                ],
+                [
+                  "plaintext_multiplications",
+                  128
+                ],
+                [
+                  "rescales",
+                  128
+                ],
+                [
+                  "rotations",
+                  124
+                ],
+                [
+                  "scale_normalizations",
+                  128
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.2802160419523716,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.509646,
+              "online_seconds": 0.22906483337283134,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 3.845803439617157e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 32,
+              "rows": 32
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "6139d6a09004ff02fbb615c8ebd1192372aa891837b8477348b7d9dd179c691c",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.28387199994176626,
+          "median_online_seconds": 0.23310716729611158,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:699616eb2d8b092a0f8945cd6b1f0f59ac92e9d5986101c519a2541ab7307445",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 128,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 5.109328329311325e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 2.3812838687714555e-07,
+            "outputs_within_tolerance": 128
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                25161728
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 123740160,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              16384
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              201293824
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              25161728
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                24764416,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0003483332693576813,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.2134856665506959,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  124
+                ],
+                [
+                  "plaintext_multiplications",
+                  128
+                ],
+                [
+                  "rescales",
+                  128
+                ],
+                [
+                  "rotations",
+                  124
+                ],
+                [
+                  "scale_normalizations",
+                  128
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.28387199994176626,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.5168189999999999,
+              "online_seconds": 0.23310716729611158,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 3.5208649933338165e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Section II RNS-CKKS SIMD operations only. PLLM's diagonal-slot matrix reference does not implement Section III coefficient packing, MOAI, bootstrapping or a NEXUS decoder",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-linear/v1",
+              "params": {
+                "rotation_keys": "full"
+              }
+            },
+            "geometry": {
+              "columns": 32,
+              "rows": 32
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "6139d6a09004ff02fbb615c8ebd1192372aa891837b8477348b7d9dd179c691c",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+            "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
+            "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
+            "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",
+            "Raw-key fields include the secret polynomial and padded evaluation-key representations, not measured native pool residency",
+            "Single-step rotation reuses one Galois key sequentially; full keys rotate from the original input; both costs and CKKS errors are measured",
+            "Public-weight compilation, key setup, local online execution and provider evaluation are timed separately; no checkpoint transfer is measured",
+            "Client alone decrypts final outputs; request lifecycle rejects foreign/replayed/malformed frames and retires on failure",
+            "Framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No bootstrapping, compiler schedule, model quality, autoregressive service or MOAI/NEXUS system reproduction",
+            "Allocation is a bounded estimate including key copies, contexts, scratch and live ciphertexts; process RSS and physical wire remain unknown"
+          ],
+          "median_issuance_seconds": 0.2833971669897437,
+          "median_online_seconds": 0.23010300006717443,
+          "method": "packed-ckks-linear",
+          "native_implementation_digest": "c902e857717f00886771eb5312cf4106d89f85714b051ec8c64f467d9e2ca876",
+          "numeric_contract_digest": "sha256:699616eb2d8b092a0f8945cd6b1f0f59ac92e9d5986101c519a2541ab7307445",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 128,
+            "exact_integer_outputs": 0,
+            "float_reference": "Independent float64 math.fsum dense dot products; CKKS is approximate, never exact integer parity",
+            "maximum_absolute_error": 9.361889976577942e-07,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 2.523996028708231e-07,
+            "outputs_within_tolerance": 128
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 8192,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                593920,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                25161728
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              1065284,
+              540996
+            ],
+            "peer_payload_bits": 12850240,
+            "peer_rounds": 4,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 123740160,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              16384
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              4751360,
+              201293824
+            ],
+            "raw_key_payload_bytes_per_party": [
+              593920,
+              25161728
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                24764416,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                397312,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.00034449994564056396,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.2108086682856083,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  124
+                ],
+                [
+                  "plaintext_multiplications",
+                  128
+                ],
+                [
+                  "rescales",
+                  128
+                ],
+                [
+                  "rotations",
+                  124
+                ],
+                [
+                  "scale_normalizations",
+                  128
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.2833971669897437,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 0.509502,
+              "online_seconds": 0.23010300006717443,
+              "peer_frame_bytes_by_phase": [
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ],
+                [
+                  266321,
+                  135249
+                ]
+              ],
+              "public_setup_seconds": 3.691669553518295e-05,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "09bfdd2d67ab6b61555ee57ee13c111d2b2584e0a91360c10ae8feee702357a1",
+          "whole_model_executable": false
+        }
+      ],
+      "rotation_keys": "full",
+      "rows": 32
+    }
+  ],
+  "checked_outputs": 1224,
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "fresh_processes": 18,
+  "samples_per_case": 3,
+  "schema": "pllm.encrypted_linear_cost.v1",
+  "scope": {
+    "approximate_ckks": true,
+    "bootstrapping": false,
+    "checkpoint_quality": null,
+    "client_key_ownership": true,
+    "decoded_intermediate": false,
+    "decoder_execution": false,
+    "full_wire": null,
+    "inputs": "public synthetic float64 bounded matrices/vectors",
+    "measured_peak_memory": null,
+    "moai_reproduction": false,
+    "nexus_system_reproduction": false,
+    "provider_public_context_only": true,
+    "provider_transport": false,
+    "public_matrix_prepositioned": true,
+    "setup_frames_separate": true
+  },
+  "source_sha256": {
+    "Cargo.lock": "82bf0fd931f4b479417fe37e37c49bff02ada53ed6e384f4a4d04f8fc19bf9c8",
+    "benchmarks/research/encrypted_linear.py": "f33e07fe5e1284f602414e537323e0604f1a82f624b9302915c95bd528c1bcbd",
+    "crates/pllm-core/src/ckks_layout.rs": "6b6d76253f64082db71cadaa6f36d08032cbba88006dc1702d286f9033bae359",
+    "crates/pllm-python/src/ckks.rs": "2bb567f08f77026997f3d756603edc52e627822056be44200f9c2c2186ae9e36",
+    "python/pllm/metrics/encrypted_linear.py": "472f0a2c9c638521b0dd3d1fc9fe53bfb949c451c8121676639bed9333bd3a52",
+    "python/pllm/metrics/operator_benchmarks.py": "63a988d8202dbc2d3ee7980f0a54ac482bcdcba76c610991c6791cf002dd0632",
+    "python/pllm/protocols/packed_encrypted.py": "de7515a2546e563582f3656a3af517a0b7f5205b3853959f2bf37e4629224897",
+    "python/pllm/runtime/ckks_reference.py": "ee21b4769fe3ac1b4e78a5fac3411e6ae64d9332859f2b971b40dd7c172ff845",
+    "python/pllm/runtime/seal_frames.py": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+  }
+}

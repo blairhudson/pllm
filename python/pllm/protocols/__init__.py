@@ -17,6 +17,7 @@ from pllm.configuration import ComponentDescriptor, ConfigurationError
 from pllm.components._q7_activation import parameter_schema as _q7_schema, parameters as _q7_parameters
 from pllm.protocols.bundle_transport import ClientBundleTransport
 from pllm.protocols.masked_linear import MaskedLinear
+from pllm.protocols.packed_encrypted import PackedEncryptedLinear
 from pllm.protocols.runtime_arms import (
     BlindedLinear,
     CleartextLinear,
@@ -41,6 +42,7 @@ __all__ = [
     "DirectFHE",
     "GuardedLinear",
     "MaskedLinear",
+    "PackedEncryptedLinear",
     "ProtocolMethod",
     "ClientBundleTransport",
     "SecureLinear",

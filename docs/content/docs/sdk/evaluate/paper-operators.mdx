@@ -89,13 +89,22 @@ custom-input replay requires supplying your inputs again.
 ## Read the costs
 
 The same API also benchmarks
+[`PackedEncryptedLinear`](/sdk/components/protocols/packed-encrypted-linear/)
+with explicit matrix geometry, private CKKS vectors and separate key owners.
+It checks approximate outputs against an independent float64 oracle:
+`outputs_within_tolerance` counts passing results, while `exact_integer_outputs`
+remains zero. Setup keys, ciphertext frames, encrypted operation counts and
+remaining depth are explicit; full decoder execution remains unavailable.
+
+It also supports
 [`PrivateEmbeddingLookup`](/sdk/components/protocols/private-embedding-lookup/):
 `lanes` sets embedding width, while the component chooses vocabulary size and
 signed coefficient packing. It uses the optional `[he]` dependency, a separate
 128 MiB allocation-estimate ceiling and fresh BFV/conversion material per sample.
 Reports distinguish HE frames from local conversion keys/boundary labels and
-asymmetric provider table storage. FastQuery's PackLWEs, distributed conversion,
-decoder placement and client-memory savings remain unimplemented.
+asymmetric provider table storage. Bounded extracted-LWE packing and independently
+supplied party inputs now compose with local-dealer conversion. Full-width noise,
+distributed setup, decoder placement and client-memory savings remain open.
 
 [`CipherPruneTokenPruning`](/sdk/components/passes/cipherprune-token-pruning/)
 uses the same runner for threshold/count, stable complete-record compaction and

@@ -32,36 +32,7 @@ _PARAMETER_FRAME_BYTES = 512
 _WIDTHS = {"int8": (8,), "int4": (4, 4), "mixed_4_3_3": (4, 3, 3)}
 
 
-def _save_frame(obj, path: Path, capacity: int) -> bytes:
-    """SEAL's installed binding exposes file serialization only; scratch is private."""
-    obj.save(str(path))
-    try:
-        length = path.stat().st_size
-        if not 0 < length <= capacity - 8:
-            raise ValueError("SEAL serialization exceeds its public frame bound")
-        raw = path.read_bytes()
-        if len(raw) != length:
-            raise ValueError("SEAL serialization changed during receipt")
-        return struct.pack("<Q", length) + raw + bytes(capacity - 8 - length)
-    finally:
-        path.unlink(missing_ok=True)
-
-
-def _load_frame(obj, context, frame: bytes, path: Path, capacity: int):
-    if len(frame) != capacity:
-        raise ValueError("SEAL frame length differs from its public geometry")
-    length = struct.unpack_from("<Q", frame)[0]
-    if not 0 < length <= capacity - 8 or any(frame[8 + length:]):
-        raise ValueError("invalid bounded SEAL frame")
-    path.write_bytes(frame[8:8 + length])
-    try:
-        if context is None:
-            obj.load(str(path))
-        else:
-            obj.load(context, str(path))
-    finally:
-        path.unlink(missing_ok=True)
-    return obj
+from pllm.runtime.seal_frames import load_frame as _load_frame, save_frame as _save_frame
 
 
 def _context(seal, *, key_switching=False, coefficient_bits=50):

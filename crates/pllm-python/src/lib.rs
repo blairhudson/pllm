@@ -4,6 +4,7 @@
 use pllm_core::{codec, kernels};
 
 mod activation_benchmarks;
+mod ckks;
 mod coded_delegation;
 mod compact_product;
 mod continuation;
@@ -1718,6 +1719,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     mixed_gated::register(module)?;
     secret_replication::register(module)?;
     packed_embedding::register(module)?;
+    ckks::register(module)?;
     token_pruning::register(module)?;
     shared_selection::register(module)?;
     coded_delegation::register(module)?;

@@ -80,8 +80,8 @@
     "reading": "PLLM would need explicit out-of-domain collision cases, encoder/decoder costs, and matched uncompressed controls before using the technique on protocol messages."
   },
   "R21": {
-    "overview": "NEXUS combines approximate homomorphic encryption for linear work with lighter garbled-circuit operations in non-interactive two-party transformer forward inference. The HE–garbling conversion is a separate protected boundary; forward evaluation does not by itself cover persistent decoder state or token-by-token feedback.",
-    "reading": "A PLLM LLM-serving adaptation would have to implement and measure KV state, recurrent token generation, and the complete conversion boundary separately."
+    "overview": "NEXUS uses RNS-CKKS homomorphic encryption throughout non-interactive transformer forward inference, combining coefficient/slot packing, polynomial nonlinear arithmetic and bootstrapping. It does not use garbled circuits. Forward evaluation does not by itself cover persistent decoder state or token-by-token feedback.",
+    "reading": "A PLLM LLM-serving adaptation must separately implement encrypted KV state, recurrent token generation, source-specific packing and refresh, and measure the complete ciphertext depth and costs."
   },
   "R22": {
     "overview": "BumbleBee provides a two-party framework for large transformer inference, including specialized protected nonlinear work. Both parties remain online holding shares across the operator graph; a forward-transformer result does not by itself establish cached autoregressive decoding.",

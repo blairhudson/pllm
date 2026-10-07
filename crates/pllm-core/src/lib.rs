@@ -7,6 +7,7 @@ pub mod activation;
 mod attention;
 mod attention_values;
 pub mod cache_selection_reference;
+pub mod ckks_layout;
 pub mod codec;
 pub mod coded_delegation_reference;
 pub mod coded_linear;

@@ -68,6 +68,10 @@ def _sdk_digest(runner: str) -> str:
         sources += (("pllm.passes", "__init__.py"),)
     if runner == "shared_selection.py":
         sources += (("pllm.passes", "__init__.py"), ("pllm.metrics", "token_pruning.py"))
+    if runner in ("packed_embedding.py", "repacked_embedding.py", "encrypted_linear.py"):
+        sources += (("pllm.runtime", "seal_frames.py"),)
+    if runner == "encrypted_linear.py":
+        sources += (("pllm.protocols", "packed_encrypted.py"), ("pllm.runtime", "ckks_reference.py"))
     for package, name in sources:
         contents = files(package).joinpath(name).read_bytes()
         digest.update(f"{package}/{name}".encode() + b"\0")
@@ -81,7 +85,7 @@ def benchmark_operator(
     *,
     lanes: int = 64,
     samples: int = 3,
-    inputs: Mapping[str, Sequence[int]] | None = None,
+    inputs: Mapping[str, Sequence[int | float]] | None = None,
     geometry: Mapping[str, int] | None = None,
 ) -> OperatorBenchmarkReport:
     """Measure a supported operator component with fresh one-use material.
@@ -98,6 +102,8 @@ def benchmark_operator(
     is the feature width and ``geometry`` supplies ``tokens`` and ``heads``.
     RAA delegation accepts signed-i8 ``weights`` and ``vectors``; ``lanes`` counts
     serial queries and ``geometry`` supplies matrix ``rows`` and ``columns``.
+    Packed CKKS linear accepts finite [-1,1] ``weights`` and ``vectors`` with
+    the same rows/columns geometry; ``lanes`` counts serial encrypted vectors.
     Input values and their fingerprints are never stored in the report.
     """
     from pllm.components import create_component
@@ -106,7 +112,7 @@ def benchmark_operator(
         CompactPiecewiseActivation, CompactGatedMultiplyQ12, CurlWaveletEncodedTable, CurlWaveletGatedMultiplyQ9,
         LogRowGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, SharedRescale,
     )
-    from pllm.protocols import LogRowGarbledLookup, PrivateEmbeddingLookup, MaverickDelegatedLinear
+    from pllm.protocols import LogRowGarbledLookup, PrivateEmbeddingLookup, MaverickDelegatedLinear, PackedEncryptedLinear
     from pllm.passes import CipherPruneTokenPruning
     from .activations import _ActivationBenchmark
     from .masked_wire import _MaskedWireBenchmark
@@ -119,13 +125,21 @@ def benchmark_operator(
     from .token_pruning import _TokenPruningBenchmark
     from .coded_delegation import _CodedDelegationBenchmark
     from .mixed_gated import _MixedGatedBenchmark
+    from .encrypted_linear import _EncryptedLinearBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
     component = create_component(component.component, component.params)
-    if geometry is not None and not isinstance(component, (CipherPruneTokenPruning, MaverickDelegatedLinear)):
+    if geometry is not None and not isinstance(component, (CipherPruneTokenPruning, MaverickDelegatedLinear, PackedEncryptedLinear)):
         raise ConfigurationError("this operator does not accept additional benchmark geometry")
-    if isinstance(component, MaverickDelegatedLinear):
+    if isinstance(component, PackedEncryptedLinear):
+        if geometry is None:
+            geometry = {"rows": 8, "columns": 8}
+        if not isinstance(geometry, Mapping) or set(geometry) != {"rows", "columns"}:
+            raise ConfigurationError("encrypted linear geometry requires exactly rows and columns")
+        benchmark = _EncryptedLinearBenchmark(component, lanes, samples, **geometry)
+        fields = {"weights", "vectors"}
+    elif isinstance(component, MaverickDelegatedLinear):
         if geometry is None:
             geometry = {"rows": 64, "columns": 64}
         if not isinstance(geometry, Mapping) or set(geometry) != {"rows", "columns"}:
@@ -182,7 +196,7 @@ def benchmark_operator(
 def replay_operator_benchmark(
     configuration: Mapping[str, Any],
     *,
-    inputs: Mapping[str, Sequence[int]] | None = None,
+    inputs: Mapping[str, Sequence[int | float]] | None = None,
 ) -> OperatorBenchmarkReport:
     """Replay a report's configuration; caller-owned inputs must be supplied again.
 
@@ -256,6 +270,8 @@ class OperatorBenchmarkSample:
     input_sharing_seconds: float = 0.0
     evaluation_seconds: float | None = None
     verification_seconds: float | None = None
+    homomorphic_operations: tuple[tuple[str, int], ...] | None = None
+    minimum_remaining_depth: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -280,6 +296,10 @@ class OperatorBenchmarkResources:
     expanded_correlation_bytes_per_party: tuple[int, int] | None = None
     prf_field_evaluations_per_party: tuple[int, int] | None = None
     public_table_bytes_by_party: tuple[int, int] | None = None
+    setup_frame_bytes_by_operation: tuple[tuple[str, int, int], ...] | None = None
+    homomorphic_polynomial_degree: int | None = None
+    homomorphic_coefficient_bits: tuple[int, ...] | None = None
+    homomorphic_scale_bits: int | None = None
 
     @property
     def combined_raw_key_payload_bytes(self) -> int:
@@ -301,6 +321,8 @@ class OperatorBenchmarkQuality:
     mean_absolute_error: float
     base_profile_exact_outputs: int | None = None
     maximum_encoded_profile_error: int | None = None
+    absolute_tolerance: float | None = None
+    outputs_within_tolerance: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

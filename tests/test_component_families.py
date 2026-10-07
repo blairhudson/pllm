@@ -57,6 +57,7 @@ from pllm.protocols import (
     ProtocolMethod,
     PrivateEmbeddingLookup,
     MaverickDelegatedLinear,
+    PackedEncryptedLinear,
     SecureLinear,
     TwoOnlineOffsetLinear,
 )
@@ -131,6 +132,7 @@ def _instances():
         Perplexity(dataset="fixture"),
         PrivateEmbeddingLookup(),
         MaverickDelegatedLinear(),
+        PackedEncryptedLinear(),
         PublicPerChannelEqualized(profile_digest="a" * 64),
         PublicPrefixCapsule("public-prefix", digest="a" * 64, size_bytes=1024),
         R03CrtGatedMultiplyQ7(),
