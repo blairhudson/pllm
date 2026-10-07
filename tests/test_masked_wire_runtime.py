@@ -24,13 +24,13 @@ from pllm.runtime.transformer_client import ClientBundle
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
-def _fixture(tmp_path, layout="unfused", family="qwen2", *, width=32, dispatch="serial"):
+def _fixture(tmp_path, layout="unfused", family="qwen2", *, width=32, dispatch="serial", material_encoding="full"):
     root = create_tiny_llama_checkpoint(tmp_path / "model", num_hidden_layers=1,
         model_type=family, with_qkv_bias=family == "qwen2", qk_norm=family == "qwen3",
         intermediate_size=width)
     config = json.loads((root / "config.json").read_text())
     pipeline = TwoOnlineOffsetCpu(pllm.Model.path(str(root), model_id="nonlinear-test"),
-        nonlinear=MaskedWireGatedMultiplyQ12(layout=layout, dispatch=dispatch))
+        nonlinear=MaskedWireGatedMultiplyQ12(layout=layout, dispatch=dispatch, material_encoding=material_encoding))
     plan = pllm.lower_model(config, batch=1, max_input_tokens=4, max_new_tokens=3)
     return root, pipeline, plan
 
@@ -44,7 +44,7 @@ def _oracle(gate, up):
     return (np.array(output, dtype=np.float32) / np.float32(4096)).reshape(gate.shape)
 
 
-@pytest.mark.parametrize("changed", ["layout", "dispatch", "cache", "kernels", "protocol"])
+@pytest.mark.parametrize("changed", ["layout", "dispatch", "material_encoding", "cache", "kernels", "protocol"])
 def test_native_compiler_rejects_unimplemented_nonlinear_compositions(tmp_path, changed):
     from pllm.configuration import Pipeline
     from pllm.kernels import AppleMetal
@@ -57,6 +57,8 @@ def test_native_compiler_rejects_unimplemented_nonlinear_compositions(tmp_path, 
         spec["components"]["nonlinear"]["params"] = {"layout": "other"}
     elif changed == "dispatch":
         spec["components"]["nonlinear"]["params"] = {"dispatch": "unbounded"}
+    elif changed == "material_encoding":
+        spec["components"]["nonlinear"]["params"] = {"material_encoding": "public-masks"}
     elif changed == "cache":
         spec["components"]["cache"] = ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=4).to_spec()
     elif changed == "kernels":
@@ -69,11 +71,15 @@ def test_native_compiler_rejects_unimplemented_nonlinear_compositions(tmp_path, 
 
 @pytest.mark.parametrize("layout", ["unfused", "fused"])
 @pytest.mark.parametrize("dispatch", ["serial", "overlap"])
-def test_bound_transport_matches_integer_oracle_and_burns_replay(tmp_path, layout, dispatch):
-    _, pipeline, plan = _fixture(tmp_path, layout, width=129, dispatch=dispatch)
+@pytest.mark.parametrize("material_encoding", ["full", "seeded"])
+def test_bound_transport_matches_integer_oracle_and_burns_replay(tmp_path, layout, dispatch, material_encoding):
+    _, pipeline, plan = _fixture(tmp_path, layout, width=129, dispatch=dispatch, material_encoding=material_encoding)
     native = plan.runtime_schedule(pipeline)
     schedule = native.to_dict()
     assert schedule["nonlinear"]["input_boundary"] == "client.float32-to-signed-q24.floor.reject.v1"
+    assert schedule["nonlinear"].get("material_encoding", "full") == material_encoding
+    if material_encoding == "seeded":
+        assert native.digest != plan.runtime_schedule(pipeline.with_params(nonlinear__material_encoding="full")).digest
     if dispatch == "serial":
         assert "dispatch" not in schedule["nonlinear"]
     else:
@@ -110,9 +116,10 @@ def test_bound_transport_matches_integer_oracle_and_burns_replay(tmp_path, layou
 @pytest.mark.parametrize("layout", ["unfused", "fused"])
 @pytest.mark.parametrize("family", ["qwen2", "qwen3"])
 @pytest.mark.parametrize("dispatch", ["serial", "overlap"])
-def test_whole_decoder_http_matches_independent_nonlinear_oracle(tmp_path, monkeypatch, layout, family, dispatch):
+@pytest.mark.parametrize("material_encoding", ["full", "seeded"])
+def test_whole_decoder_http_matches_independent_nonlinear_oracle(tmp_path, monkeypatch, layout, family, dispatch, material_encoding):
     width = 257 if dispatch == "overlap" else 32
-    root, pipeline, plan = _fixture(tmp_path, layout, family, width=width, dispatch=dispatch)
+    root, pipeline, plan = _fixture(tmp_path, layout, family, width=width, dispatch=dispatch, material_encoding=material_encoding)
     manifest = load_hf_directory(root, model_id="nonlinear-test")
     engines = [MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8) for _ in range(2)]
     for engine in engines:
@@ -167,18 +174,19 @@ def test_whole_decoder_http_matches_independent_nonlinear_oracle(tmp_path, monke
 
 
 @pytest.mark.parametrize("corruption", ["context", "party", "frame", "cancel", "replay"])
-def test_native_party_failure_burns_handle(corruption):
+@pytest.mark.parametrize("material_encoding", ["full", "seeded"])
+def test_native_party_failure_burns_handle(corruption, material_encoding):
     context = (b"p" * 32, b"s" * 32, b"o" * 32, 0, 1, "unfused")
-    client, left, right = _native._masked_wire_issue(*context)
+    client, left, right = _native._masked_wire_issue(*context, material_encoding)
     if corruption == "context":
         with pytest.raises(ValueError):
-            _native._MaskedWireParty(left, b"x" * 32, *context[1:], 0)
+            _native._MaskedWireParty(left, b"x" * 32, *context[1:], 0, material_encoding)
         return
     if corruption == "party":
         with pytest.raises(ValueError):
-            _native._MaskedWireParty(right, *context, 0)
+            _native._MaskedWireParty(right, *context, 0, material_encoding)
         return
-    a, b = (_native._MaskedWireParty(key, *context, p) for p, key in enumerate((left, right)))
+    a, b = (_native._MaskedWireParty(key, *context, p, material_encoding) for p, key in enumerate((left, right)))
     masked = client.encode(struct.pack("<q", 1), struct.pack("<q", -1))
     opening = b.start(masked)
     a.start(masked)
@@ -198,10 +206,11 @@ def test_native_party_failure_burns_handle(corruption):
 
 @pytest.mark.parametrize("layout,family", [("unfused", "qwen2"), ("fused", "qwen3")])
 @pytest.mark.parametrize("dispatch", ["serial", "overlap"])
-def test_sdk_and_gateway_execute_separate_party_processes(tmp_path, layout, family, dispatch):
+@pytest.mark.parametrize("material_encoding", ["full", "seeded"])
+def test_sdk_and_gateway_execute_separate_party_processes(tmp_path, layout, family, dispatch, material_encoding):
     from pllm.runtime.servers import build_roles
 
-    root, pipeline, _ = _fixture(tmp_path, layout, family, dispatch=dispatch)
+    root, pipeline, _ = _fixture(tmp_path, layout, family, dispatch=dispatch, material_encoding=material_encoding)
     experiment = pllm.Experiment(name="nonlinear-test", pipeline=pipeline,
         deployment=pllm.Deployment.local(root=str(tmp_path)),
         budget=pllm.ExecutionBudget(max_input_tokens=32, max_new_tokens=2, requests=1))
@@ -245,8 +254,9 @@ def test_standard_benchmark_accounts_issuance_and_relay_bodies(tmp_path):
 
 
 @pytest.mark.parametrize("failure", ["cancel", "peer", "issuance", "input"])
-def test_overlap_burns_prefetched_handles_and_joins_threads_on_failure(tmp_path, monkeypatch, failure):
-    _, pipeline, plan = _fixture(tmp_path, width=129, dispatch="overlap")
+@pytest.mark.parametrize("material_encoding", ["full", "seeded"])
+def test_overlap_burns_prefetched_handles_and_joins_threads_on_failure(tmp_path, monkeypatch, failure, material_encoding):
+    _, pipeline, plan = _fixture(tmp_path, width=129, dispatch="overlap", material_encoding=material_encoding)
     native = plan.runtime_schedule(pipeline)
     schedule = native.to_dict()
     step = next(s for s in schedule["prefill"]["steps"] if s["executor"] == "remote_gated_block")

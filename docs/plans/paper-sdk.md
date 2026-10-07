@@ -24,8 +24,14 @@ to 140 MiB before margin. A subsequent fresh-client 30+2-token Qwen2.5 pair
 measures 39.61% lower full-response latency (2,705.809 to 1,634.109 seconds),
 1.01% higher client peak RSS and identical 5.72 GB TCP-stream traffic; outputs
 match and observed swap growth is zero. Aggregate CPU is almost unchanged.
-The bounded native profile checks 1,926 outputs and identifies repeated DPF
-AES expansion and key serialization as CPU targets; key bytes remain expensive.
+The bounded native profile checks 1,926 outputs. An interleaved implementation
+pair removes repeated DPF expansion and resource serialization: 11,556 outputs
+remain exact, while 256-lane issuance falls 28.22%/33.22% for unfused/fused layouts.
+The separate opt-in `material_encoding="seeded"` reconstructs only each worker's
+own independent random key fields from fresh, role-bound seeds. Client masks and
+correlation-dependent correction shares remain separate. Expanded-key memory and
+one-use lifecycle bounds remain charged; both packet versions execute the same
+Q12 numeric profile.
 Evidence and reproduction: `docs/research/nonlinear-decoders.md`.
 The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation

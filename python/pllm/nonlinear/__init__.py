@@ -118,6 +118,9 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
     party-local workers, with peer frames relayed through the trusted client.
     ``dispatch="overlap"`` overlaps one future chunk's issuance with paired
     worker requests, retaining at most two client material chunks.
+    ``material_encoding="seeded"`` replaces each worker's independent random
+    key fields with one fresh party-local seed. Client wire masks stay private;
+    correlated corrections remain explicit and expanded memory stays bounded.
     """
 
     __slots__ = ()
@@ -133,6 +136,7 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
             "type": "object", "properties": {
                 "layout": {"enum": ["unfused", "fused"]},
                 "dispatch": {"enum": ["serial", "overlap"]},
+                "material_encoding": {"enum": ["full", "seeded"]},
             },
             "additionalProperties": False,
         },
@@ -141,19 +145,24 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
         role_eligibility=("client", "worker_a", "worker_b"),
     )
 
-    def __init__(self, *, layout: str = "unfused", dispatch: str = "serial") -> None:
+    def __init__(self, *, layout: str = "unfused", dispatch: str = "serial", material_encoding: str = "full") -> None:
         if type(layout) is not str or layout not in {"unfused", "fused"}:
             raise ConfigurationError("layout must be unfused or fused")
         if type(dispatch) is not str or dispatch not in {"serial", "overlap"}:
             raise ConfigurationError("dispatch must be serial or overlap")
+        if type(material_encoding) is not str or material_encoding not in {"full", "seeded"}:
+            raise ConfigurationError("material_encoding must be full or seeded")
         # Preserve the original default component and historical configurations.
         params = {} if layout == "unfused" else {"layout": layout}
         if dispatch != "serial":
             params["dispatch"] = dispatch
+        if material_encoding != "full":
+            params["material_encoding"] = material_encoding
         super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"layout": self.params.get("layout", "unfused"), "dispatch": self.params.get("dispatch", "serial")}
+        return {"layout": self.params.get("layout", "unfused"), "dispatch": self.params.get("dispatch", "serial"),
+                "material_encoding": self.params.get("material_encoding", "full")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

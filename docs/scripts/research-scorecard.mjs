@@ -181,10 +181,11 @@ export function reportMetrics(report, artifactBytes = null) {
 function nonlinearNumericContract(component) {
   if (component?.component !== 'pllm/masked-wire-gated-multiply-q12/v1') return component ?? null;
   // These implemented schedules preserve this component's fixed numeric profile.
-  // Unknown layouts, dispatches and all other parameters remain in its identity.
+  // Unknown layouts, dispatches, encodings and other parameters remain in its identity.
   return { ...component, params: Object.fromEntries(Object.entries(component.params ?? {}).filter(
     ([key, value]) => !(key === 'layout' && ['unfused', 'fused'].includes(value) ||
-      key === 'dispatch' && ['serial', 'overlap'].includes(value)))) };
+      key === 'dispatch' && ['serial', 'overlap'].includes(value) ||
+      key === 'material_encoding' && ['full', 'seeded'].includes(value)))) };
 }
 
 export function cohortRows(cohort, document, read = (file) => fs.readFileSync(path.join(root, file))) {

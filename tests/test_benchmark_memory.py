@@ -75,6 +75,11 @@ def test_masked_wire_prices_chunk_and_all_worker_session_owners():
     assert overlap["components"]["client_nonlinear_work_bytes"] == 2 * candidate["components"]["client_nonlinear_work_bytes"]
     assert overlap["client_peak_bytes"] > candidate["client_peak_bytes"]
     assert overlap["provider_peak_bytes"] == candidate["provider_peak_bytes"]
+    seeded = _estimate(TwoOnlineOffsetCpu(Model.tiny(), nonlinear=MaskedWireGatedMultiplyQ12(
+        dispatch="overlap", material_encoding="seeded")))
+    # Smaller packets still expand to complete keys at the same bounded owners.
+    assert seeded["client_peak_bytes"] == overlap["client_peak_bytes"]
+    assert seeded["provider_peak_bytes"] == overlap["provider_peak_bytes"]
 
 
 def test_paged_client_prices_bounded_ram_and_distinct_disk_owners():

@@ -94,6 +94,7 @@ class WorkerRegions:
         self.digest = digest
         self.plan = bytes.fromhex(digest)
         self.layout = schedule["nonlinear"]["layout"]
+        self.material_encoding = schedule["nonlinear"].get("material_encoding", "full")
         self.regions = _regions(schedule)
         self.limits = {key: size * (max_new - 1 if key in {
             operation_digest("decode", s) for s in schedule["decode"]["steps"]
@@ -136,7 +137,7 @@ class WorkerRegions:
         self.next_indices[region] = first + lanes
         material = payload[_START.size:_START.size + length]
         self.pending = _native._MaskedWireParty(material, self.plan, self.session,
-            bytes.fromhex(region), first, lanes, self.layout, self.party_id)
+            bytes.fromhex(region), first, lanes, self.layout, self.party_id, self.material_encoding)
         self.pending_region = region
         return self.pending.start(payload[_START.size + length:])
 
@@ -160,6 +161,7 @@ class ClientRegions:
         self.plan = bytes.fromhex(digest)
         self.session = _session_digest(digest, sessions)
         self.layout = schedule["nonlinear"]["layout"]
+        self.material_encoding = schedule["nonlinear"].get("material_encoding", "full")
         self.sessions = sessions
         self.post = post
         self.dispatch = schedule["nonlinear"].get("dispatch", "serial")
@@ -197,7 +199,7 @@ class ClientRegions:
         started, cpu = time.perf_counter_ns(), time.thread_time_ns()
         try:
             return _native._masked_wire_issue(self.plan, self.session,
-                bytes.fromhex(region), first, lanes, self.layout)
+                bytes.fromhex(region), first, lanes, self.layout, self.material_encoding)
         finally:
             # Process CPU would also count concurrent HTTP work. Issuance runs
             # on this thread, including its GIL-released native call.

@@ -1,0 +1,2480 @@
+{
+  "active_case": null,
+  "cases": [
+    {
+      "dispatch": "overlap",
+      "layout": "unfused",
+      "material_encoding": "full",
+      "median_issuance_seconds": 0.796451541,
+      "median_wall_seconds": 0.8135068323463202,
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "full",
+        "material_payload_bits_per_party": [
+          1321472,
+          1321472
+        ],
+        "material_payload_bytes_per_party": [
+          165184,
+          165184
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 1321472,
+        "party_key_payload_bytes": 165184,
+        "peer_frame_bytes": 18932,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 23306240,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 11
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.38450164534151554,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.1942763291299343,
+              "upload_bytes": 6380580
+            }
+          },
+          "application_body_bytes": 7151942,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.38081,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 793936375,
+            "client_issuance_ns": 794999296,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.8118061246350408
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.38431988656520844,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.1909032128751278,
+              "upload_bytes": 6380580
+            }
+          },
+          "application_body_bytes": 7151942,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.3815780000000002,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 797357499,
+            "client_issuance_ns": 797386749,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.8140418333932757
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.383528302423656,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.19151245895773172,
+              "upload_bytes": 6380580
+            }
+          },
+          "application_body_bytes": 7151942,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.380366,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 796327373,
+            "client_issuance_ns": 796451541,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.8135068323463202
+        }
+      ],
+      "transport": "in-process"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "unfused",
+      "material_encoding": "full",
+      "maximum_swap_growth_bytes": 0,
+      "median_issuance_seconds": 0.797881541,
+      "median_wall_seconds": 0.8245317917317152,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 773698970,
+          "compiled_input_bound": 1,
+          "components": {
+            "checkpoint_bytes": 1915184,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 202856448,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 817480,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 146800640,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 64,
+            "client_state_work_bytes": 49152,
+            "client_tensor_work_bytes": 866632,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 4358144,
+            "largest_loading_temporary_bytes": 4358144,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 326080,
+            "legacy_largest_loading_temporary_bytes": 8716288,
+            "legacy_per_engine_i8_and_native_bytes": 973056,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 0,
+            "per_engine_i8_and_native_bytes": 486528,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 478272,
+              "worker_b": 478272
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 4366400,
+              "worker_b": 4366400
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 33809408,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 1292866800,
+            "worker_b": 1292866800
+          },
+          "inventory_rows": 64,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 1,
+          "max_output_tokens": 2,
+          "model_plan_digest": "be3e4909925816e61fcac3cfc5910b957512dd380244e97631def2b850494bcb",
+          "native_total_peak_bytes": 3125555290,
+          "pipeline_digest": "bf6ce95ef83a5d7a142ceb618c699eb7cdaec9097ab5d6c22ea442cb1e294d2e",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1175928160,
+            "worker_b": 1175928160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 9072230400,
+          "available": 13367197696,
+          "disk_free": 52437958656,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "full",
+        "material_payload_bits_per_party": [
+          1321472,
+          1321472
+        ],
+        "material_payload_bytes_per_party": [
+          165184,
+          165184
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 1321472,
+        "party_key_payload_bytes": 165184,
+        "peer_frame_bytes": 18932,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 23306240,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 11
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.7279235208407044,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.22125762607902288,
+              "upload_bytes": 6380580
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.7023470000000003,
+          "application_body_bytes": 7151942,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 0.9936220000000002,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 796751544,
+            "client_issuance_ns": 797881541,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.8245317917317152,
+          "worker_cpu_seconds": [
+            0.353539,
+            0.355186
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.7133138738572598,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.21897241193801165,
+              "upload_bytes": 6380580
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.6877360000000001,
+          "application_body_bytes": 7151942,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 0.988639,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 797191581,
+            "client_issuance_ns": 797195582,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.8236030405387282,
+          "worker_cpu_seconds": [
+            0.348653,
+            0.350444
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.728570262901485,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.21896191034466028,
+              "upload_bytes": 6380580
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.6939710000000001,
+          "application_body_bytes": 7151942,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 0.9903810000000002,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 796244332,
+            "client_issuance_ns": 799889416,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.8262949166819453,
+          "worker_cpu_seconds": [
+            0.351,
+            0.35259
+          ]
+        }
+      ],
+      "transport": "http-loopback"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "unfused",
+      "material_encoding": "full",
+      "maximum_swap_growth_bytes": 0,
+      "median_issuance_seconds": 0.797330874,
+      "median_wall_seconds": 2.1111340830102563,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3159109722
+          }
+        },
+        "enforced_wan": true,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 773698970,
+          "compiled_input_bound": 1,
+          "components": {
+            "checkpoint_bytes": 1915184,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 202856448,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 817480,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 146800640,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 64,
+            "client_state_work_bytes": 49152,
+            "client_tensor_work_bytes": 866632,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 4358144,
+            "largest_loading_temporary_bytes": 4358144,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 326080,
+            "legacy_largest_loading_temporary_bytes": 8716288,
+            "legacy_per_engine_i8_and_native_bytes": 973056,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 0,
+            "per_engine_i8_and_native_bytes": 486528,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 478272,
+              "worker_b": 478272
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 4366400,
+              "worker_b": 4366400
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 33809408,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 1292866800,
+            "worker_b": 1292866800
+          },
+          "inventory_rows": 64,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 1,
+          "max_output_tokens": 2,
+          "model_plan_digest": "be3e4909925816e61fcac3cfc5910b957512dd380244e97631def2b850494bcb",
+          "native_total_peak_bytes": 3125555290,
+          "pipeline_digest": "bf6ce95ef83a5d7a142ceb618c699eb7cdaec9097ab5d6c22ea442cb1e294d2e",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1175928160,
+            "worker_b": 1175928160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 9041412096,
+          "available": 13336379392,
+          "disk_free": 52437872640,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "full",
+        "material_payload_bits_per_party": [
+          1321472,
+          1321472
+        ],
+        "material_payload_bytes_per_party": [
+          165184,
+          165184
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 1321472,
+        "party_key_payload_bytes": 165184,
+        "peer_frame_bytes": 18932,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 23306240,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 11
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.8616189248859882,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 3.1446998743340373,
+              "upload_bytes": 6380580
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.8262139999999996,
+          "application_body_bytes": 7151942,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 3454846,
+            "client->worker_b": 3454846,
+            "worker_a->client": 236493,
+            "worker_b->client": 236493
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.0973749999999995,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 796284208,
+            "client_issuance_ns": 796419626,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 2.121802750043571,
+          "worker_cpu_seconds": [
+            0.363158,
+            0.365681
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.8411350315436721,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 3.1424276679754257,
+              "upload_bytes": 6380580
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.8067159999999993,
+          "application_body_bytes": 7151942,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 3454846,
+            "client->worker_b": 3454846,
+            "worker_a->client": 236493,
+            "worker_b->client": 236493
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.0903019999999994,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 797646915,
+            "client_issuance_ns": 797656001,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 2.111013375222683,
+          "worker_cpu_seconds": [
+            0.35703,
+            0.359384
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.840667387470603,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 3.142242289148271,
+              "upload_bytes": 6380580
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.8080810000000005,
+          "application_body_bytes": 7151942,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 3454846,
+            "client->worker_b": 3454846,
+            "worker_a->client": 236493,
+            "worker_b->client": 236493
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.0911670000000004,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 797334457,
+            "client_issuance_ns": 797330874,
+            "elements": 4864,
+            "party_key_bytes": 6279880,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 2.1111340830102563,
+          "worker_cpu_seconds": [
+            0.356883,
+            0.360031
+          ]
+        }
+      ],
+      "transport": "native-100/40"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "unfused",
+      "material_encoding": "seeded",
+      "median_issuance_seconds": 0.754318213,
+      "median_wall_seconds": 0.7748356247320771,
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "seeded",
+        "material_payload_bits_per_party": [
+          929536,
+          1157888
+        ],
+        "material_payload_bytes_per_party": [
+          116192,
+          144736
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 1321472,
+        "party_key_payload_bytes": 165184,
+        "peer_frame_bytes": 18932,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 23306240,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 11
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.3827637415379286,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.2754842536523938,
+              "upload_bytes": 5061220
+            }
+          },
+          "application_body_bytes": 5832582,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.4214589999999987,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 754127205,
+            "client_issuance_ns": 754120124,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.7746124994009733
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.3825084902346134,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.27485983446240425,
+              "upload_bytes": 5061220
+            }
+          },
+          "application_body_bytes": 5832582,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.4201750000000004,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 754326540,
+            "client_issuance_ns": 754318213,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.7748356247320771
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.3829054981470108,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.2747043753042817,
+              "upload_bytes": 5061220
+            }
+          },
+          "application_body_bytes": 5832582,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.4211220000000004,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 754513748,
+            "client_issuance_ns": 754510290,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.7750525418668985
+        }
+      ],
+      "transport": "in-process"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "unfused",
+      "material_encoding": "seeded",
+      "maximum_swap_growth_bytes": 0,
+      "median_issuance_seconds": 0.75494904,
+      "median_wall_seconds": 0.7854793341830373,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 773698970,
+          "compiled_input_bound": 1,
+          "components": {
+            "checkpoint_bytes": 1915184,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 202856448,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 817480,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 146800640,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 64,
+            "client_state_work_bytes": 49152,
+            "client_tensor_work_bytes": 866632,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 4358144,
+            "largest_loading_temporary_bytes": 4358144,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 326080,
+            "legacy_largest_loading_temporary_bytes": 8716288,
+            "legacy_per_engine_i8_and_native_bytes": 973056,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 0,
+            "per_engine_i8_and_native_bytes": 486528,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 478272,
+              "worker_b": 478272
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 4366400,
+              "worker_b": 4366400
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 33809408,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 1292866800,
+            "worker_b": 1292866800
+          },
+          "inventory_rows": 64,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 1,
+          "max_output_tokens": 2,
+          "model_plan_digest": "be3e4909925816e61fcac3cfc5910b957512dd380244e97631def2b850494bcb",
+          "native_total_peak_bytes": 3125555290,
+          "pipeline_digest": "48a57ecd2bcf298506131ff083b21dd19ae1fda2d3f65097771dbe5b22b32632",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1175928160,
+            "worker_b": 1175928160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 9022062592,
+          "available": 13317029888,
+          "disk_free": 52437463040,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "seeded",
+        "material_payload_bits_per_party": [
+          929536,
+          1157888
+        ],
+        "material_payload_bytes_per_party": [
+          116192,
+          144736
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 1321472,
+        "party_key_payload_bytes": 165184,
+        "peer_frame_bytes": 18932,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 23306240,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 11
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.7400523712858558,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.31226532999426126,
+              "upload_bytes": 5061220
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.7708539999999995,
+          "application_body_bytes": 5832582,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 0.9615779999999994,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 757287878,
+            "client_issuance_ns": 758061668,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.7890402497723699,
+          "worker_cpu_seconds": [
+            0.440376,
+            0.3689
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.7118175476789474,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.30198629572987556,
+              "upload_bytes": 5061220
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.729152999999997,
+          "application_body_bytes": 5832582,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 0.9438839999999971,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 754946501,
+            "client_issuance_ns": 754949040,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.7854793341830373,
+          "worker_cpu_seconds": [
+            0.427642,
+            0.357627
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.718492197804153,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 0.30205192137509584,
+              "upload_bytes": 5061220
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.735409999999999,
+          "application_body_bytes": 5832582,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 0.9465609999999991,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 754465418,
+            "client_issuance_ns": 754458668,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 0.7850329587236047,
+          "worker_cpu_seconds": [
+            0.429588,
+            0.359261
+          ]
+        }
+      ],
+      "transport": "http-loopback"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "unfused",
+      "material_encoding": "seeded",
+      "maximum_swap_growth_bytes": 0,
+      "median_issuance_seconds": 0.756504833,
+      "median_wall_seconds": 1.7841954166069627,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3159109722
+          }
+        },
+        "enforced_wan": true,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 773698970,
+          "compiled_input_bound": 1,
+          "components": {
+            "checkpoint_bytes": 1915184,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 202856448,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 817480,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 146800640,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 64,
+            "client_state_work_bytes": 49152,
+            "client_tensor_work_bytes": 866632,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 4358144,
+            "largest_loading_temporary_bytes": 4358144,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 326080,
+            "legacy_largest_loading_temporary_bytes": 8716288,
+            "legacy_per_engine_i8_and_native_bytes": 973056,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 0,
+            "per_engine_i8_and_native_bytes": 486528,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 478272,
+              "worker_b": 478272
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 4366400,
+              "worker_b": 4366400
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 33809408,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 1292866800,
+            "worker_b": 1292866800
+          },
+          "inventory_rows": 64,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 1,
+          "max_output_tokens": 2,
+          "model_plan_digest": "be3e4909925816e61fcac3cfc5910b957512dd380244e97631def2b850494bcb",
+          "native_total_peak_bytes": 3125555290,
+          "pipeline_digest": "48a57ecd2bcf298506131ff083b21dd19ae1fda2d3f65097771dbe5b22b32632",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1175928160,
+            "worker_b": 1175928160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 9033891840,
+          "available": 13328859136,
+          "disk_free": 52434489344,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "seeded",
+        "material_payload_bits_per_party": [
+          929536,
+          1157888
+        ],
+        "material_payload_bytes_per_party": [
+          116192,
+          144736
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 1321472,
+        "party_key_payload_bytes": 165184,
+        "peer_frame_bytes": 18932,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 23306240,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 11
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.8488972960039973,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 2.5209801280871034,
+              "upload_bytes": 5061220
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.8563240000000019,
+          "application_body_bytes": 5832582,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 2523998,
+            "client->worker_b": 3066334,
+            "worker_a->client": 236493,
+            "worker_b->client": 236493
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.0487120000000019,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 756896792,
+            "client_issuance_ns": 757061502,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 1.7964376667514443,
+          "worker_cpu_seconds": [
+            0.438308,
+            0.369304
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.8382158381864429,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 2.4854757441207767,
+              "upload_bytes": 5061220
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.8428799999999985,
+          "application_body_bytes": 5832582,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 2523998,
+            "client->worker_b": 3066334,
+            "worker_a->client": 236493,
+            "worker_b->client": 236493
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.0423079999999985,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 756509333,
+            "client_issuance_ns": 756504833,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 1.7841954166069627,
+          "worker_cpu_seconds": [
+            0.434651,
+            0.365921
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 406258,
+              "requests": 418,
+              "seconds": 0.838001704774797,
+              "upload_bytes": 359708
+            },
+            "start": {
+              "download_bytes": 5396,
+              "requests": 38,
+              "seconds": 2.4984222082421184,
+              "upload_bytes": 5061220
+            }
+          },
+          "aggregate_process_cpu_seconds": 1.8413900000000003,
+          "application_body_bytes": 5832582,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 2523998,
+            "client->worker_b": 3066334,
+            "worker_a->client": 236493,
+            "worker_b->client": 236493
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.0409240000000004,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 755611419,
+            "client_issuance_ns": 755612332,
+            "elements": 4864,
+            "party_key_bytes": 4960520,
+            "peer_frame_bytes": 359708
+          },
+          "wall_seconds": 1.7827213332057,
+          "worker_cpu_seconds": [
+            0.434646,
+            0.36582
+          ]
+        }
+      ],
+      "transport": "native-100/40"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "fused",
+      "material_encoding": "full",
+      "median_issuance_seconds": 1.33727775,
+      "median_wall_seconds": 1.3757297080010176,
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "full",
+        "material_payload_bits_per_party": [
+          2335744,
+          2335744
+        ],
+        "material_payload_bytes_per_party": [
+          291968,
+          291968
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 2335744,
+        "party_key_payload_bytes": 291968,
+        "peer_frame_bytes": 18464,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 39534592,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 8
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.20658110082149506,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.1849444136023521,
+              "upload_bytes": 11198372
+            }
+          },
+          "application_body_bytes": 11951836,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 2.7390279999999976,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1337168164,
+            "client_issuance_ns": 1337277750,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3757297080010176
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.21807524748146534,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.2468219976872206,
+              "upload_bytes": 11198372
+            }
+          },
+          "application_body_bytes": 11951836,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 2.885669,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1410316711,
+            "client_issuance_ns": 1411162792,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.4497626656666398
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.2059262078255415,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.1827607918530703,
+              "upload_bytes": 11198372
+            }
+          },
+          "application_body_bytes": 11951836,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 2.729467000000003,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1332176709,
+            "client_issuance_ns": 1332160001,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.370235875248909
+        }
+      ],
+      "transport": "in-process"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "fused",
+      "material_encoding": "full",
+      "maximum_swap_growth_bytes": 0,
+      "median_issuance_seconds": 1.334313206,
+      "median_wall_seconds": 1.3804239155724645,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 773698970,
+          "compiled_input_bound": 1,
+          "components": {
+            "checkpoint_bytes": 1915184,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 202856448,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 817480,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 146800640,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 64,
+            "client_state_work_bytes": 49152,
+            "client_tensor_work_bytes": 866632,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 4358144,
+            "largest_loading_temporary_bytes": 4358144,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 326080,
+            "legacy_largest_loading_temporary_bytes": 8716288,
+            "legacy_per_engine_i8_and_native_bytes": 973056,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 0,
+            "per_engine_i8_and_native_bytes": 486528,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 478272,
+              "worker_b": 478272
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 4366400,
+              "worker_b": 4366400
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 33809408,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 1292866800,
+            "worker_b": 1292866800
+          },
+          "inventory_rows": 64,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 1,
+          "max_output_tokens": 2,
+          "model_plan_digest": "be3e4909925816e61fcac3cfc5910b957512dd380244e97631def2b850494bcb",
+          "native_total_peak_bytes": 3125555290,
+          "pipeline_digest": "d67a54205deb9898c5d634641d8687c47d50bb1d5d2ac34269aa6d02acb491d2",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1175928160,
+            "worker_b": 1175928160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 8953528320,
+          "available": 13248495616,
+          "disk_free": 52434350080,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "full",
+        "material_payload_bits_per_party": [
+          2335744,
+          2335744
+        ],
+        "material_payload_bytes_per_party": [
+          291968,
+          291968
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 2335744,
+        "party_key_payload_bytes": 291968,
+        "peer_frame_bytes": 18464,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 39534592,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 8
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.468982957303524,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.2406047089025378,
+              "upload_bytes": 11198372
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.0127649999999977,
+          "application_body_bytes": 11951836,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.5039999999999978,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1340881871,
+            "client_issuance_ns": 1343491247,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3897436251863837,
+          "worker_cpu_seconds": [
+            0.753866,
+            0.754899
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.45285364240407944,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.2212905380874872,
+              "upload_bytes": 11198372
+            }
+          },
+          "aggregate_process_cpu_seconds": 2.979847000000001,
+          "application_body_bytes": 11951836,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.4881740000000008,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1334314914,
+            "client_issuance_ns": 1334313206,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3804239155724645,
+          "worker_cpu_seconds": [
+            0.744976,
+            0.746697
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.45005449559539557,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.2163903377950191,
+              "upload_bytes": 11198372
+            }
+          },
+          "aggregate_process_cpu_seconds": 2.969768000000001,
+          "application_body_bytes": 11951836,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.4830490000000012,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1332823918,
+            "client_issuance_ns": 1332820043,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3783160420134664,
+          "worker_cpu_seconds": [
+            0.743061,
+            0.743658
+          ]
+        }
+      ],
+      "transport": "http-loopback"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "fused",
+      "material_encoding": "full",
+      "maximum_swap_growth_bytes": 0,
+      "median_issuance_seconds": 1.336445209,
+      "median_wall_seconds": 3.7058776672929525,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3159109722
+          }
+        },
+        "enforced_wan": true,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 773698970,
+          "compiled_input_bound": 1,
+          "components": {
+            "checkpoint_bytes": 1915184,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 202856448,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 817480,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 146800640,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 64,
+            "client_state_work_bytes": 49152,
+            "client_tensor_work_bytes": 866632,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 4358144,
+            "largest_loading_temporary_bytes": 4358144,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 326080,
+            "legacy_largest_loading_temporary_bytes": 8716288,
+            "legacy_per_engine_i8_and_native_bytes": 973056,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 0,
+            "per_engine_i8_and_native_bytes": 486528,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 478272,
+              "worker_b": 478272
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 4366400,
+              "worker_b": 4366400
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 33809408,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 1292866800,
+            "worker_b": 1292866800
+          },
+          "inventory_rows": 64,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 1,
+          "max_output_tokens": 2,
+          "model_plan_digest": "be3e4909925816e61fcac3cfc5910b957512dd380244e97631def2b850494bcb",
+          "native_total_peak_bytes": 3125555290,
+          "pipeline_digest": "d67a54205deb9898c5d634641d8687c47d50bb1d5d2ac34269aa6d02acb491d2",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1175928160,
+            "worker_b": 1175928160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 9012920320,
+          "available": 13307887616,
+          "disk_free": 52427329536,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "full",
+        "material_payload_bits_per_party": [
+          2335744,
+          2335744
+        ],
+        "material_payload_bytes_per_party": [
+          291968,
+          291968
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 2335744,
+        "party_key_payload_bytes": 291968,
+        "peer_frame_bytes": 18464,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 39534592,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 8
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.5454110838472843,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 6.527654874138534,
+              "upload_bytes": 11198372
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.1089810000000027,
+          "application_body_bytes": 11951836,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 5838149,
+            "client->worker_b": 5838149,
+            "worker_a->client": 224352,
+            "worker_b->client": 224352
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.5866260000000025,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1336442211,
+            "client_issuance_ns": 1336445209,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 3.709879665635526,
+          "worker_cpu_seconds": [
+            0.76016,
+            0.762195
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.5465007144957781,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 6.528315046802163,
+              "upload_bytes": 11198372
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.102055000000001,
+          "application_body_bytes": 11951836,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 5838149,
+            "client->worker_b": 5838149,
+            "worker_a->client": 224352,
+            "worker_b->client": 224352
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.5824390000000008,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1333297665,
+            "client_issuance_ns": 1333441039,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 3.704042292200029,
+          "worker_cpu_seconds": [
+            0.758808,
+            0.760808
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.5518807088956237,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 6.525688414461911,
+              "upload_bytes": 11198372
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.121554999999998,
+          "application_body_bytes": 11951836,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 5838149,
+            "client->worker_b": 5838149,
+            "worker_a->client": 224352,
+            "worker_b->client": 224352
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.5937029999999979,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1336859541,
+            "client_issuance_ns": 1337612252,
+            "elements": 4864,
+            "party_key_bytes": 11097672,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 3.7058776672929525,
+          "worker_cpu_seconds": [
+            0.762782,
+            0.76507
+          ]
+        }
+      ],
+      "transport": "native-100/40"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "fused",
+      "material_encoding": "seeded",
+      "median_issuance_seconds": 1.28399146,
+      "median_wall_seconds": 1.3258758326992393,
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "seeded",
+        "material_payload_bits_per_party": [
+          1927424,
+          2139392
+        ],
+        "material_payload_bytes_per_party": [
+          240928,
+          267424
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 2335744,
+        "party_key_payload_bytes": 291968,
+        "peer_frame_bytes": 18464,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 39534592,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 8
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.20473095402121544,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.2701774146407843,
+              "upload_bytes": 9762276
+            }
+          },
+          "application_body_bytes": 10515740,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 2.767736999999997,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1284890542,
+            "client_issuance_ns": 1284883458,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3265362093225121
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.20486707612872124,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.2691029570996761,
+              "upload_bytes": 9762276
+            }
+          },
+          "application_body_bytes": 10515740,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 2.7657349999999994,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1283979875,
+            "client_issuance_ns": 1283991460,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3258758326992393
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.20467650331556797,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.2693487964570522,
+              "upload_bytes": 9762276
+            }
+          },
+          "application_body_bytes": 10515740,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 2.7649670000000057,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1283452291,
+            "client_issuance_ns": 1283454000,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3251386675983667
+        }
+      ],
+      "transport": "in-process"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "fused",
+      "material_encoding": "seeded",
+      "maximum_swap_growth_bytes": 0,
+      "median_issuance_seconds": 1.286227377,
+      "median_wall_seconds": 1.3362612500786781,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 773698970,
+          "compiled_input_bound": 1,
+          "components": {
+            "checkpoint_bytes": 1915184,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 202856448,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 817480,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 146800640,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 64,
+            "client_state_work_bytes": 49152,
+            "client_tensor_work_bytes": 866632,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 4358144,
+            "largest_loading_temporary_bytes": 4358144,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 326080,
+            "legacy_largest_loading_temporary_bytes": 8716288,
+            "legacy_per_engine_i8_and_native_bytes": 973056,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 0,
+            "per_engine_i8_and_native_bytes": 486528,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 478272,
+              "worker_b": 478272
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 4366400,
+              "worker_b": 4366400
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 33809408,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 1292866800,
+            "worker_b": 1292866800
+          },
+          "inventory_rows": 64,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 1,
+          "max_output_tokens": 2,
+          "model_plan_digest": "be3e4909925816e61fcac3cfc5910b957512dd380244e97631def2b850494bcb",
+          "native_total_peak_bytes": 3125555290,
+          "pipeline_digest": "dbda2281c0d067de9a3c5c77f8a5ea395d6fe91d8c30c8fd689702ead879a0a1",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1175928160,
+            "worker_b": 1175928160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 9067954176,
+          "available": 13362921472,
+          "disk_free": 52425994240,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "seeded",
+        "material_payload_bits_per_party": [
+          1927424,
+          2139392
+        ],
+        "material_payload_bytes_per_party": [
+          240928,
+          267424
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 2335744,
+        "party_key_payload_bytes": 291968,
+        "peer_frame_bytes": 18464,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 39534592,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 8
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.45042017940431833,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.303028921596706,
+              "upload_bytes": 9762276
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.013936000000004,
+          "application_body_bytes": 10515740,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.435489000000004,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1286227331,
+            "client_issuance_ns": 1286227377,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3362612500786781,
+          "worker_cpu_seconds": [
+            0.82328,
+            0.755167
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.4591252105310559,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.3172274194657803,
+              "upload_bytes": 9762276
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.054222999999998,
+          "application_body_bytes": 10515740,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.457335999999998,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1303748171,
+            "client_issuance_ns": 1303776626,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3538130419328809,
+          "worker_cpu_seconds": [
+            0.833644,
+            0.763243
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.4501759633421898,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 1.302597537636757,
+              "upload_bytes": 9762276
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.0133750000000044,
+          "application_body_bytes": 10515740,
+          "directed_tcp_stream_bytes": null,
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.4355310000000046,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1285106538,
+            "client_issuance_ns": 1285096252,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 1.3355362499132752,
+          "worker_cpu_seconds": [
+            0.822923,
+            0.754921
+          ]
+        }
+      ],
+      "transport": "http-loopback"
+    },
+    {
+      "dispatch": "overlap",
+      "layout": "fused",
+      "material_encoding": "seeded",
+      "maximum_swap_growth_bytes": 0,
+      "median_issuance_seconds": 1.288508169,
+      "median_wall_seconds": 3.3530671671032906,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3125555290
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "reasons": [],
+            "required_disk_bytes": 2215102464,
+            "required_host_bytes": 3159109722
+          }
+        },
+        "enforced_wan": true,
+        "estimate": {
+          "allocation_slack_percent": 25,
+          "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+          "client_peak_bytes": 773698970,
+          "compiled_input_bound": 1,
+          "components": {
+            "checkpoint_bytes": 1915184,
+            "client_additional_paged_disk_bytes": 0,
+            "client_bundle_work_bytes": 202856448,
+            "client_cache_bytes": 0,
+            "client_live_tensor_bytes": 817480,
+            "client_mask_bytes": 0,
+            "client_mask_cursor_bytes": 0,
+            "client_metal_bytes": 0,
+            "client_nonlinear_work_bytes": 146800640,
+            "client_paged_metadata_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_rotary_coefficient_bytes": 64,
+            "client_state_work_bytes": 49152,
+            "client_tensor_work_bytes": 866632,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "float_quantization_work_bytes": 4358144,
+            "largest_loading_temporary_bytes": 4358144,
+            "legacy_client_mask_bytes": 0,
+            "legacy_client_tensor_work_bytes": 326080,
+            "legacy_largest_loading_temporary_bytes": 8716288,
+            "legacy_per_engine_i8_and_native_bytes": 973056,
+            "legacy_verifier_bytes": 0,
+            "per_engine_compiled_disk_bytes": 0,
+            "per_engine_i8_and_native_bytes": 486528,
+            "per_provider_metal_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 562036736,
+            "per_role_i8_and_native_bytes": {
+              "worker_a": 478272,
+              "worker_b": 478272
+            },
+            "per_role_loading_temporary_bytes": {
+              "worker_a": 4366400,
+              "worker_b": 4366400
+            },
+            "preparation_additional_paged_disk_bytes": 0,
+            "provider_correction_bytes": 0,
+            "raw_client_bundle_bytes": 33809408,
+            "verifier_bytes": 0
+          },
+          "docker_provider_peak_bytes": {
+            "worker_a": 1292866800,
+            "worker_b": 1292866800
+          },
+          "inventory_rows": 64,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "max_input_tokens": 1,
+          "max_output_tokens": 2,
+          "model_plan_digest": "be3e4909925816e61fcac3cfc5910b957512dd380244e97631def2b850494bcb",
+          "native_total_peak_bytes": 3125555290,
+          "pipeline_digest": "dbda2281c0d067de9a3c5c77f8a5ea395d6fe91d8c30c8fd689702ead879a0a1",
+          "preparation_storage": "resident",
+          "provider_peak_bytes": {
+            "worker_a": 1175928160,
+            "worker_b": 1175928160
+          },
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "full_kv_live_roots_v1; completed benchmark response histories are retired",
+          "verification_allocation": null,
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+        },
+        "host": {
+          "admission_budget_bytes": 9018064896,
+          "available": 13313032192,
+          "disk_free": 52426014720,
+          "reserve_bytes": 4294967296,
+          "swap_used": 982515712,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "native_resources": {
+        "frame_header_bytes": 78,
+        "lanes": 256,
+        "material_encoding": "seeded",
+        "material_payload_bits_per_party": [
+          1927424,
+          2139392
+        ],
+        "material_payload_bytes_per_party": [
+          240928,
+          267424
+        ],
+        "native_implementation_digest": "416df310e1539f7c3d4e7cfb6250456f15652256b6e4756e7c26bcbd492b9fa0",
+        "native_version": "0.1.0-alpha.2",
+        "party_key_bits": 2335744,
+        "party_key_payload_bytes": 291968,
+        "peer_frame_bytes": 18464,
+        "peer_payload_bits": 137728,
+        "profile_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "protocol_allocation_estimate_bytes": 39534592,
+        "public_table_bytes_per_party": 8192,
+        "rounds": 8
+      },
+      "samples": [
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.5591808604076505,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 5.815176419913769,
+              "upload_bytes": 9762276
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.1540819999999954,
+          "application_body_bytes": 10515740,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 4868389,
+            "client->worker_b": 5371813,
+            "worker_a->client": 224352,
+            "worker_b->client": 224352
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.5384339999999952,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1290516166,
+            "client_issuance_ns": 1291029252,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 3.3530671671032906,
+          "worker_cpu_seconds": [
+            0.839665,
+            0.775983
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.5462562888860703,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 5.821746835485101,
+              "upload_bytes": 9762276
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.1517569999999973,
+          "application_body_bytes": 10515740,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 4868389,
+            "client->worker_b": 5371813,
+            "worker_a->client": 224352,
+            "worker_b->client": 224352
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.5373439999999974,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1288296459,
+            "client_issuance_ns": 1288508169,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 3.3474395414814353,
+          "worker_cpu_seconds": [
+            0.840448,
+            0.773965
+          ]
+        },
+        {
+          "actions": {
+            "advance": {
+              "download_bytes": 393604,
+              "requests": 304,
+              "seconds": 0.5700962441042066,
+              "upload_bytes": 350816
+            },
+            "start": {
+              "download_bytes": 9044,
+              "requests": 38,
+              "seconds": 5.83641220536083,
+              "upload_bytes": 9762276
+            }
+          },
+          "aggregate_process_cpu_seconds": 3.1779369999999947,
+          "application_body_bytes": 10515740,
+          "directed_tcp_stream_bytes": {
+            "client->worker_a": 4868389,
+            "client->worker_b": 5371813,
+            "worker_a->client": 224352,
+            "worker_b->client": 224352
+          },
+          "exact_outputs": 4864,
+          "process_cpu_seconds": 1.548210999999995,
+          "stats": {
+            "chunks": 19,
+            "client_issuance_cpu_ns": 1288170790,
+            "client_issuance_ns": 1288162460,
+            "elements": 4864,
+            "party_key_bytes": 9661576,
+            "peer_frame_bytes": 350816
+          },
+          "wall_seconds": 3.363372040912509,
+          "worker_cpu_seconds": [
+            0.847455,
+            0.782271
+          ]
+        }
+      ],
+      "transport": "native-100/40"
+    }
+  ],
+  "cpu_scope": "process deltas include telemetry/idle overhead; in-process mode includes both workers in parent CPU",
+  "dispatches": [
+    "overlap"
+  ],
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "exclusions": [
+    "checkpoint inference and quality",
+    "whole-response costs",
+    "startup/session setup and teardown",
+    "physical wire",
+    "independent operators",
+    "peak memory comparison"
+  ],
+  "material_encodings": [
+    "full",
+    "seeded"
+  ],
+  "schema": "pllm.masked_wire_transport_diagnostic.v1",
+  "scope": "one synthetic row/region; compiler-bound ordinary worker transport; not checkpoint inference",
+  "source": {
+    "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+    "gated_regions": 24,
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "cac47600e21b8ecab48c8a03271fba4c5c89e0c71f339bc8c73ed558229380e2",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "width": 4864
+  },
+  "source_sha256": {
+    "Cargo.lock": "be735861945742b6d892d797255833c529e0266ff4f44d1fbac9d99840e5a06f",
+    "benchmarks/research/masked_wire_transport.py": "ec8b9500e3a07c4fb9f1d4ddbe993a523c2d2e0b8a31ead6923e46bb9c69a07f",
+    "crates/pllm-compiler/src/masked_wire_schedule.rs": "e00c86bb9c4a3e6e510fa1ee6eed3cad3a027057e84dba51aebf2552b8b89fdb",
+    "crates/pllm-garble/src/compact_dpf.rs": "f087623a9274ea1ddaf598bf4589478b4f4a6e7cc7adf0767651d5162e7110ba",
+    "crates/pllm-garble/src/masked_wire_reference.rs": "84c8a5b208ea6252e7dfeac800459468b020bf66d7a4426418948f5a99daf4cd",
+    "crates/pllm-garble/src/masked_wire_reference/coins.rs": "f8971d86bbbd0be08b6d1016dd18b020e6b3cd7515d097db71a40c75fb0eda55",
+    "crates/pllm-garble/src/masked_wire_reference/seeded_codec.rs": "37406ea2bebf8a8c8bc5b2056256e1acca26ea2f543918432db11392ac8fc5c8",
+    "crates/pllm-garble/src/masked_wire_reference/transport.rs": "1f12dcf9a04d61f2323d492aee09db8dc30b631efb4b33be437ae48594dfa1f0",
+    "python/pllm/runtime/masked_wire.py": "81c73ae90da151e122f9a82837cec1f16438e5238d8c805c6510f7573cc82a15",
+    "python/pllm/runtime/offset_reference.py": "d07c980b5667ff9a17af45a3af2121d9631293626cb8c74b8e2a3c7c4fa9b0c7"
+  },
+  "status": "completed",
+  "timing_scope": "action seconds sum request durations, which overlap in overlap mode; issuance CPU uses the issuing thread",
+  "wan_conditions": {
+    "download_mbps": 100.0,
+    "parties": [],
+    "role_parties": [],
+    "schema": "pllm.wan_conditions.v1",
+    "upload_mbps": 40.0
+  }
+}

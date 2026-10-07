@@ -104,6 +104,7 @@ test('masked-wire dispatch retains numeric identity and complete response tradeo
     (c) => { c.pipeline.components.nonlinear.params.profile = 'another-profile'; },
     (c) => { c.pipeline.components.nonlinear.params.layout = 'unknown'; },
     (c) => { c.pipeline.components.nonlinear.params.dispatch = 'unknown'; },
+    (c) => { c.pipeline.components.nonlinear.params.material_encoding = 'unknown'; },
   ]) {
     const altered = structuredClone(document);
     change(altered.candidates[1]);
@@ -111,6 +112,8 @@ test('masked-wire dispatch retains numeric identity and complete response tradeo
   }
   const fused = structuredClone(document);
   fused.candidates[1].pipeline.components.nonlinear.params.layout = 'fused';
+  assert.equal(cohortRows(spec, fused).rows.length, 2);
+  fused.candidates[1].pipeline.components.nonlinear.params.material_encoding = 'seeded';
   assert.equal(cohortRows(spec, fused).rows.length, 2);
 });
 

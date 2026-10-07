@@ -24,6 +24,10 @@ fused_report = benchmark_operator(fused, lanes=4, samples=1)
 assert fused_report.quality == report.quality
 overlapped = fused.with_params(dispatch="overlap")
 assert create_component(overlapped.component, overlapped.params) == overlapped
+seeded = method.with_params(material_encoding="seeded")
+seeded_report = benchmark_operator(seeded, lanes=4, samples=1)
+assert seeded_report.quality == report.quality
+assert seeded_report.resources.combined_raw_key_payload_bytes < report.resources.combined_raw_key_payload_bytes
 ```
 
 The fixed numeric contract admits gate in `[-48,48]` and up in `[-128,128]`,
@@ -65,3 +69,17 @@ nearly unchanged aggregate CPU. This measures one region, not a whole response;
 see the [retained overlap evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-masked-wire-overlap-qwen25.json).
 
 API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures).
+
+`material_encoding="seeded"` separately selects bounded party-local key
+compression for either layout and dispatch. One fresh 256-bit seed per worker
+and chunk reconstructs only that worker's independent DPF roots/short leaves
+and uniform coefficient shares. Correlation-dependent corrections stay explicit;
+client wire masks use independent OS randomness. Seeds never cross roles or
+issuances. Packet versions and compiler/session bindings reject encoding changes.
+Worker imports expand the same complete keys, so memory admission retains its
+existing allocation bounds. This encoding is an experimental PLLM adaptation.
+
+Operator reports charge each party's actual encoded payload, including seeds;
+issuance timing includes generation, packet encoding and local worker expansion
+for both full and seeded choices. Headers, peer frames and public tables retain
+separate accounting. Historical measurements remain bound to their old source.

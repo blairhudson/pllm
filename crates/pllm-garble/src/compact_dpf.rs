@@ -14,6 +14,22 @@ pub(crate) struct Bits {
 
 pub(crate) trait BitSink {
     fn put(&mut self, value: u128, width: usize);
+    fn random(&mut self, value: u128, width: usize, _parties: RandomField) {
+        self.put(value, width);
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum RandomField {
+    BothParties,
+    FirstParty,
+}
+
+pub(crate) trait BitSource {
+    fn take(&mut self, width: usize) -> Result<u128, DecodeError>;
+    fn random(&mut self, width: usize, _parties: RandomField) -> Result<u128, DecodeError> {
+        self.take(width)
+    }
 }
 
 #[derive(Default)]
@@ -93,6 +109,12 @@ impl<'a> BitReader<'a> {
     }
 }
 
+impl BitSource for BitReader<'_> {
+    fn take(&mut self, width: usize) -> Result<u128, DecodeError> {
+        self.take(width)
+    }
+}
+
 struct Correction {
     seed: u128,
     control: [u8; 2],
@@ -163,6 +185,14 @@ impl Key {
     }
 
     pub fn issue(bits: u8, point: u64) -> Result<[Self; 2], getrandom::Error> {
+        Self::issue_with(bits, point, |_| random())
+    }
+
+    pub fn issue_with(
+        bits: u8,
+        point: u64,
+        mut random: impl FnMut(usize) -> Result<u128, getrandom::Error>,
+    ) -> Result<[Self; 2], getrandom::Error> {
         assert!((1..=63).contains(&bits) && point < 1u64 << bits);
         if bits <= 7 {
             let mask = if bits == 7 {
@@ -170,7 +200,7 @@ impl Key {
             } else {
                 (1u128 << (1 << bits)) - 1
             };
-            let left = random()? & mask;
+            let left = random(0)? & mask;
             return Ok([left, left ^ (1u128 << point)].map(|leaf| Self {
                 bits,
                 root: 0,
@@ -178,7 +208,7 @@ impl Key {
                 leaf,
             }));
         }
-        let roots = Zeroizing::new([random()?, random()?]);
+        let roots = Zeroizing::new([random(0)?, random(1)?]);
         let mut seeds = Zeroizing::new(*roots);
         let mut controls = [0u8, 1];
         let mut words = [Vec::new(), Vec::new()];
@@ -301,9 +331,9 @@ impl Key {
 
     pub fn encode(&self, output: &mut impl BitSink) {
         if self.bits <= 7 {
-            output.put(self.leaf, 1 << self.bits);
+            output.random(self.leaf, 1 << self.bits, RandomField::FirstParty);
         } else {
-            output.put(self.root, 128);
+            output.random(self.root, 128, RandomField::BothParties);
             for cw in &self.words {
                 output.put(cw.seed, 128);
                 output.put(u128::from(cw.control[0]), 1);
@@ -313,7 +343,7 @@ impl Key {
         }
     }
 
-    pub fn decode(bits: u8, input: &mut BitReader<'_>) -> Result<Self, DecodeError> {
+    pub fn decode(bits: u8, input: &mut impl BitSource) -> Result<Self, DecodeError> {
         if !(1..=63).contains(&bits) {
             return Err(DecodeError);
         }
@@ -322,10 +352,10 @@ impl Key {
                 bits,
                 root: 0,
                 words: vec![],
-                leaf: input.take(1 << bits)?,
+                leaf: input.random(1 << bits, RandomField::FirstParty)?,
             });
         }
-        let root = Zeroizing::new(input.take(128)?);
+        let root = Zeroizing::new(input.random(128, RandomField::BothParties)?);
         let mut words = Vec::with_capacity(usize::from(bits - 7));
         for _ in 7..bits {
             words.push(Correction {

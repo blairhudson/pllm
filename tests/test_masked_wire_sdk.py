@@ -158,9 +158,9 @@ def test_fail_closed_if_binding_disagrees_and_fresh_session_per_sample(monkeypat
     call = _native.masked_wire_benchmark
     sessions = []
 
-    def capture(gate, up, config, session, layout):
+    def capture(gate, up, config, session, layout, material_encoding):
         sessions.append(session)
-        return call(gate, up, config, session, layout)
+        return call(gate, up, config, session, layout, material_encoding)
 
     monkeypatch.setattr(_native, "masked_wire_benchmark", capture)
     benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=1, samples=3)
@@ -210,3 +210,25 @@ def test_fused_complete_block_preserves_numerics_and_prices_all_work(lanes):
 def test_fusion_configuration_rejects_before_issuance(layout):
     with pytest.raises(ValueError):
         MaskedWireGatedMultiplyQ12(layout=layout)
+
+
+@pytest.mark.parametrize("layout", ["unfused", "fused"])
+@pytest.mark.parametrize("lanes", [1, 64, 256])
+def test_seeded_material_replays_same_outputs_and_prices_asymmetric_party_payloads(layout, lanes):
+    full = MaskedWireGatedMultiplyQ12(layout=layout)
+    seeded = full.with_params(material_encoding="seeded")
+    a, b = (benchmark_operator(c, lanes=lanes, samples=1) for c in (full, seeded))
+    assert a.quality == b.quality and a.numeric_contract_digest == b.numeric_contract_digest
+    assert a.configuration_digest != b.configuration_digest
+    assert b.resources.combined_raw_key_payload_bytes < a.resources.combined_raw_key_payload_bytes
+    assert b.resources.raw_key_payload_bytes_per_party[0] < b.resources.raw_key_payload_bytes_per_party[1]
+    assert b.resources.peer_frame_bytes == a.resources.peer_frame_bytes
+    assert b.resources.protocol_allocation_estimate_bytes == a.resources.protocol_allocation_estimate_bytes
+    assert replay_operator_benchmark(b.configuration).resources == b.resources
+    assert seeded.with_params(material_encoding="full") == full
+
+
+@pytest.mark.parametrize("encoding", ["", "public", True, 1, []])
+def test_unknown_material_encoding_fails_closed(encoding):
+    with pytest.raises(ValueError):
+        MaskedWireGatedMultiplyQ12(material_encoding=encoding)

@@ -99,7 +99,7 @@
     "pika": {
       "status": "Component reference",
       "sdk_benchmark": {"api": "pllm.nonlinear.MaskedWireGatedMultiplyQ12", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-sdk.json"},
-      "scope": "Boolean-DPF signed lookup with full-domain local evaluation, locally derived sign shares and fresh masked sign correction. Explicit correction shares, not seeded distribution or a complete Pika system.",
+      "scope": "Boolean-DPF signed lookup with full-domain local evaluation, locally derived sign shares and fresh masked sign correction. Correlated corrections stay explicit; optional fresh party-local random-field seeding is a PLLM encoding adaptation. No complete Pika system.",
       "code": ["crates/pllm-garble/src/masked_wire_reference.rs"],
       "configuration": "benchmarks/research/masked_wire_reference.py",
       "evidence": "docs/evidence/research-masked-wire-reference-qwen25.json",
@@ -108,7 +108,7 @@
     "fusefss": {
       "status": "Component reference",
       "sdk_benchmark": {"api": "pllm.nonlinear.MaskedWireGatedMultiplyQ12", "coverage": "operator", "guide": "/sdk/evaluate/paper-operators/", "configuration": "examples/benchmarks/masked_wire.py", "evidence": "docs/evidence/research-masked-wire-fusion-sdk.json"},
-      "scope": "Complete masked-wire gated-block multi-view fusion and the separate signed-rescale helper. Matched floor/Q12 layouts include lookup, multiplication, final rounding and fresh party-local material. Experimental CPU two-offset Experiments bind gated regions with client conversion/issuance and relayed peer frames; generated Qwen2/Qwen3 fixtures pass complete prefill/decode and SDK/gateway checks. Unfused dispatch now has a real-checkpoint response pair; matched fused checkpoint costs, general fusion compilation, seeded distribution and a GPU system remain absent.",
+      "scope": "Complete masked-wire gated-block multi-view fusion and the separate signed-rescale helper. Matched floor/Q12 layouts include lookup, multiplication, final rounding and fresh party-local material. Experimental CPU two-offset Experiments bind gated regions with client conversion/issuance and relayed peer frames; generated Qwen2/Qwen3 fixtures pass complete prefill/decode and SDK/gateway checks. Optional party-local random-field seeding is a PLLM encoding adaptation. Unfused dispatch has a real-checkpoint response pair; matched fused checkpoint costs, general fusion compilation and a GPU system remain absent.",
       "code": ["crates/pllm-garble/src/masked_wire_reference.rs", "crates/pllm-python/src/masked_wire.rs", "python/pllm/metrics/masked_wire.py", "crates/pllm-garble/src/shared_rescale_reference.rs", "python/pllm/metrics/shared_rescale.py"],
       "configuration": "benchmarks/research/masked_wire_fusion.py",
       "evidence": "docs/evidence/research-masked-wire-fusion-sdk.json",

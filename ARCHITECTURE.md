@@ -288,9 +288,20 @@ nearly equal and both transfer 5.72 GB of TCP-stream bytes. Outputs match with
 zero observed swap growth. This single-response pair excludes physical wire,
 checkpoint distribution and independent operators; the Q12 quality gap remains.
 An independent test-only native issuance/codec profile checks 1,926 outputs and
-attributes most unfused key-generation time to three rescalings. Repeated AES
-expansion and material encoding are measured implementation targets, not reduced
-key payloads or a new protocol.
+attributes most unfused key-generation time to three rescalings. Paired AES
+expansion and allocation-free encoder counting subsequently preserve 11,556
+checked outputs while reducing 256-lane issuance 28.22%/33.22% for unfused/fused
+layouts, with unchanged key bytes. The separate opt-in
+`MaskedWireGatedMultiplyQ12(material_encoding="seeded")` regenerates only each
+party's independent random key fields from fresh role/context-bound seeds.
+Client wire masks retain independent OS randomness and correlated corrections
+stay explicit. Packet namespaces and compiler/session bindings reject encoding
+substitution. Worker expansion retains full key allocation bounds and one-use
+burn semantics. A 175,104-output synthetic Qwen-width cohort lowers unfused/fused
+capped row latency 2.111/3.706 to 1.784/3.353 seconds and 256-lane key payload
+21.02%/12.94%, while aggregate process CPU rises about 1.9%/1.5%. This local
+encoding adaptation has no independent cryptographic review; row-region evidence
+does not establish complete-response savings.
 The optional `MaskedWireGatedMultiplyQ12(layout="fused")` now implements bounded
 multi-view fusion on the complete block: rescaling, index reduction and predicates
 derive from one masked gate input. Eighteen fresh processes check 5,778 exact outputs.

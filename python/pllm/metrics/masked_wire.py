@@ -43,7 +43,7 @@ _CITATIONS = (
         "Pika: Secure Computation using Function Secret Sharing over Rings",
         "https://eprint.iacr.org/2022/826",
         "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
-        "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+        "Boolean-DPF signed lookup and sign correction; optional party-local random-field seeding is a PLLM encoding",
     ),
 )
 _FUSION_CITATION = OperatorCitation(
@@ -133,7 +133,8 @@ class _MaskedWireBenchmark(_OperatorBenchmark):
             source = "caller-owned; supply inputs again for replay"
         table, profile_digest = _profile()
         layout = self.component.params.get("layout", "unfused")
-        resource = json.loads(_native.masked_wire_resources(self.lanes, layout))
+        material_encoding = self.component.params.get("material_encoding", "full")
+        resource = json.loads(_native.masked_wire_resources(self.lanes, layout, material_encoding))
         if resource["profile_digest"] != profile_digest:
             raise RuntimeError("native residual table differs from the independent public profile")
         expected = []
@@ -156,6 +157,7 @@ class _MaskedWireBenchmark(_OperatorBenchmark):
                 bytes.fromhex(self.digest),
                 session,
                 layout,
+                material_encoding,
             )
             cpu = (time.process_time_ns() - started) / 1e9
             measured = json.loads(raw)
@@ -191,8 +193,8 @@ class _MaskedWireBenchmark(_OperatorBenchmark):
         ):
             raise RuntimeError("public frame layout changed between samples")
         native = OperatorBenchmarkResources(
-            (resource["party_key_payload_bytes"],) * 2,
-            (resource["party_key_bits"],) * 2,
+            tuple(resource["material_payload_bytes_per_party"]),
+            tuple(resource["material_payload_bits_per_party"]),
             directions,
             resource["peer_payload_bits"],
             resource["rounds"],
@@ -228,7 +230,8 @@ class _MaskedWireBenchmark(_OperatorBenchmark):
             limitations=(
                 "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
                 "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
-                "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+                "Key payloads count the selected full/seeded encoding including party-local seeds, excluding packet headers; client-mask and entry/exit bytes are estimates",
+                "Issuance includes key generation, encoding and local worker reconstruction; expanded keys retain the same allocation bound",
                 "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
                 "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
                 "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",

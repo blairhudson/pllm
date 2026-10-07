@@ -1,7 +1,7 @@
 //! Installed, bounded local benchmark boundary. No reusable secret handles escape.
 use crate::invalid;
 use pllm_core::residual_silu_reference::Profile;
-use pllm_garble::masked_wire_reference::{self as native, Context, Layout, Step};
+use pllm_garble::masked_wire_reference::{self as native, Context, Layout, MaterialEncoding, Step};
 use pyo3::{prelude::*, types::PyBytes};
 use serde_json::{json, Value};
 use std::{sync::OnceLock, time::Instant};
@@ -18,7 +18,12 @@ fn implementation_digest() -> &'static str {
     DIGEST.get_or_init(|| {
         let sources = [
             include_bytes!("masked_wire.rs").as_slice(),
+            include_bytes!("masked_wire/transport.rs").as_slice(),
             include_bytes!("../../pllm-garble/src/masked_wire_reference.rs").as_slice(),
+            include_bytes!("../../pllm-garble/src/masked_wire_reference/coins.rs").as_slice(),
+            include_bytes!("../../pllm-garble/src/masked_wire_reference/seeded_codec.rs")
+                .as_slice(),
+            include_bytes!("../../pllm-garble/src/masked_wire_reference/transport.rs").as_slice(),
             include_bytes!("../../pllm-garble/src/compact_dpf.rs").as_slice(),
             include_bytes!("../../pllm-core/src/residual_silu_reference.rs").as_slice(),
             include_bytes!("../../../Cargo.lock").as_slice(),
@@ -42,12 +47,27 @@ fn parse_layout(layout: &str) -> PyResult<Layout> {
     }
 }
 
-fn resource_record(lanes: usize, layout: Layout) -> PyResult<Value> {
+fn parse_material(material: &str) -> PyResult<MaterialEncoding> {
+    match material {
+        "full" => Ok(MaterialEncoding::Full),
+        "seeded" => Ok(MaterialEncoding::Seeded),
+        _ => Err(invalid(
+            "masked-wire material_encoding must be full or seeded".into(),
+        )),
+    }
+}
+
+fn resource_record(lanes: usize, layout: Layout, material: MaterialEncoding) -> PyResult<Value> {
     let resource = native::resources_with_layout(lanes, layout).map_err(error)?;
+    let payload =
+        native::transport::material_payload_bits(lanes, layout, material).map_err(error)?;
     Ok(json!({
         "lanes": lanes,
         "party_key_bits": resource.party_key_bits,
         "party_key_payload_bytes": resource.party_key_bytes,
+        "material_payload_bits_per_party": payload,
+        "material_payload_bytes_per_party": payload.map(|bits| bits.div_ceil(8)),
+        "material_encoding": if material == MaterialEncoding::Full { "full" } else { "seeded" },
         "peer_frame_bytes": resource.peer_frame_bytes,
         "peer_payload_bits": resource.peer_payload_bits,
         "public_table_bytes_per_party": resource.public_table_bytes,
@@ -61,13 +81,18 @@ fn resource_record(lanes: usize, layout: Layout) -> PyResult<Value> {
 }
 
 #[pyfunction]
-#[pyo3(signature = (lanes, layout="unfused"))]
-fn masked_wire_resources(lanes: usize, layout: &str) -> PyResult<String> {
-    Ok(resource_record(lanes, parse_layout(layout)?)?.to_string())
+#[pyo3(signature = (lanes, layout="unfused", material_encoding="full"))]
+fn masked_wire_resources(lanes: usize, layout: &str, material_encoding: &str) -> PyResult<String> {
+    Ok(resource_record(
+        lanes,
+        parse_layout(layout)?,
+        parse_material(material_encoding)?,
+    )?
+    .to_string())
 }
 
 #[pyfunction]
-#[pyo3(signature = (gate_q24, up_q24, configuration, session, layout="unfused"))]
+#[pyo3(signature = (gate_q24, up_q24, configuration, session, layout="unfused", material_encoding="full"))]
 fn masked_wire_benchmark<'py>(
     py: Python<'py>,
     gate_q24: &[u8],
@@ -75,6 +100,7 @@ fn masked_wire_benchmark<'py>(
     configuration: &[u8],
     session: &[u8],
     layout: &str,
+    material_encoding: &str,
 ) -> PyResult<(Bound<'py, PyBytes>, String)> {
     // Lengths and resource admission precede decoding, allocation or issuance.
     if gate_q24.is_empty()
@@ -88,7 +114,8 @@ fn masked_wire_benchmark<'py>(
     }
     let lanes = gate_q24.len() / 8;
     let layout = parse_layout(layout)?;
-    let mut metadata = resource_record(lanes, layout)?;
+    let material = parse_material(material_encoding)?;
+    let mut metadata = resource_record(lanes, layout, material)?;
     let plan = configuration
         .try_into()
         .map_err(|_| invalid("masked-wire configuration digest requires 32 bytes".into()))?;
@@ -123,8 +150,22 @@ fn masked_wire_benchmark<'py>(
             );
             let clear_ns = now.elapsed().as_nanos() as u64;
             let now = Instant::now();
-            let (mut client, [mut a, mut b]) =
-                native::issue_reference_with_layout(context, lanes, layout)?;
+            let (mut client, [a, b]) =
+                native::issue_reference_with_material(context, lanes, layout, material)?;
+            // Both encodings pay codec and reconstruction costs before evaluation.
+            let left = native::transport::export_party(a)?;
+            let right = native::transport::export_party(b)?;
+            let expected_bytes = native::transport::material_packet_bytes(lanes, layout, material)?;
+            if [left.len(), right.len()] != expected_bytes {
+                return Err(native::Error::Context);
+            }
+            let mut a = native::transport::import_party_with_material(
+                &left, context, lanes, layout, 0, material,
+            )?;
+            let mut b = native::transport::import_party_with_material(
+                &right, context, lanes, layout, 1, material,
+            )?;
+            drop((left, right));
             let issuance_ns = now.elapsed().as_nanos() as u64;
             let now = Instant::now();
             let result = (|| {

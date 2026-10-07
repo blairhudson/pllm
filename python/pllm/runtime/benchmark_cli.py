@@ -462,12 +462,13 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
 def _comparison_nonlinear_component(components: dict[str, Any]) -> Any:
     nonlinear = components.get("nonlinear")
     if nonlinear and nonlinear["component"] == "pllm/masked-wire-gated-multiply-q12/v1":
-        # Layout and dispatch preserve the fixed numeric profile. Preserve
+        # Layout, dispatch and material encoding preserve the numeric profile. Preserve
         # other parameters so future numeric choices remain independent.
         return {**nonlinear, "params": {
             key: value for key, value in nonlinear.get("params", {}).items()
             if not (key == "layout" and value in ("unfused", "fused")
-                    or key == "dispatch" and value in ("serial", "overlap"))
+                    or key == "dispatch" and value in ("serial", "overlap")
+                    or key == "material_encoding" and value in ("full", "seeded"))
         }}
     return nonlinear
 

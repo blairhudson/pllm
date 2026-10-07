@@ -10,14 +10,18 @@
 //! gate shift, residual-index shift and predicates. All later post-processing
 //! remains charged. No GPU implementation or complete transformer reproduction.
 
-use crate::compact_dpf::{BitCount, BitSink, Bits, Key};
+use crate::compact_dpf::{BitCount, BitSink, Bits, Key, RandomField};
 use pllm_core::residual_silu_reference::{
     Profile, EFFECTIVE_GATE_BITS, GATE_BOUND, RING_BITS, UP_BOUND,
 };
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
+mod coins;
+mod seeded_codec;
 pub mod transport;
+use coins::Coins;
+pub use coins::MaterialEncoding;
 
 #[cfg(test)]
 mod issuance_profile;
@@ -118,19 +122,30 @@ struct Shift {
     constants: Zeroizing<[u64; 3]>,
 }
 impl Shift {
+    #[cfg(test)]
     fn issue(n: u8, shift: u8, gap: bool, rin: u64, rout: u64) -> Result<[Self; 2], Error> {
+        Self::issue_with(n, shift, gap, rin, rout, &mut Coins::default())
+    }
+    fn issue_with(
+        n: u8,
+        shift: u8,
+        gap: bool,
+        rin: u64,
+        rout: u64,
+        coins: &mut Coins,
+    ) -> Result<[Self; 2], Error> {
         assert!(shift > 0 && shift < n - 1);
-        let keys = Key::issue(shift, rin & mask(shift)).map_err(|_| Error::Randomness)?;
+        let keys = coins.key(shift, rin & mask(shift))?;
         let out_bits = if gap { n } else { n - shift };
-        let c = share(random(1)?, out_bits)?;
+        let c = coins.share(random(1)?, out_bits)?;
         let wrap = if gap {
-            share((rin >> (n - 1)) << (n - shift), n)?
+            coins.share((rin >> (n - 1)) << (n - shift), n)?
         } else {
             [0; 2]
         };
         // GapARS uses the public offset x=v+2^(n-2). The -2^(n-f-2)
         // offset is folded into output-mask shares, not discarded.
-        let r = share(
+        let r = coins.share(
             rout.wrapping_sub(rin >> shift).wrapping_sub(if gap {
                 1 << (n - shift - 2)
             } else {
@@ -196,11 +211,23 @@ impl Shift {
         } else {
             self.n - self.shift
         };
-        out.put(self.constants[0].into(), w as usize);
+        out.random(
+            self.constants[0].into(),
+            w as usize,
+            RandomField::FirstParty,
+        );
         if self.gap {
-            out.put(self.constants[1].into(), w as usize);
+            out.random(
+                self.constants[1].into(),
+                w as usize,
+                RandomField::FirstParty,
+            );
         }
-        out.put(self.constants[2].into(), w as usize);
+        out.random(
+            self.constants[2].into(),
+            w as usize,
+            RandomField::FirstParty,
+        );
     }
 }
 
@@ -211,9 +238,11 @@ struct Signs {
     constants: Zeroizing<[u64; 2]>,
 }
 impl Signs {
+    #[cfg(test)]
     fn issue(rin: u64, dmask: u64, imask: u64) -> Result<[Self; 2], Error> {
         Self::issue_scaled(Y, 0, rin, dmask, imask)
     }
+    #[cfg(test)]
     fn issue_scaled(
         bits: u8,
         scale: u8,
@@ -221,10 +250,20 @@ impl Signs {
         dmask: u64,
         imask: u64,
     ) -> Result<[Self; 2], Error> {
+        Self::issue_with(bits, scale, rin, dmask, imask, &mut Coins::default())
+    }
+    fn issue_with(
+        bits: u8,
+        scale: u8,
+        rin: u64,
+        dmask: u64,
+        imask: u64,
+        coins: &mut Coins,
+    ) -> Result<[Self; 2], Error> {
         let neg = 0u64.wrapping_sub(rin) & mask(bits);
-        let keys = Key::issue(bits - 1, neg & mask(bits - 1)).map_err(|_| Error::Randomness)?;
-        let d = share(dmask ^ (neg >> (bits - 1)) ^ 1, 1)?;
-        let i = share(imask, 1)?;
+        let keys = coins.key(bits - 1, neg & mask(bits - 1))?;
+        let d = coins.share(dmask ^ (neg >> (bits - 1)) ^ 1, 1)?;
+        let i = coins.share(imask, 1)?;
         let [k0, k1] = keys;
         Ok([
             Self {
@@ -263,7 +302,7 @@ impl Signs {
     fn encode(&self, out: &mut impl BitSink) {
         self.key.encode(out);
         for x in *self.constants {
-            out.put(x.into(), 1);
+            out.random(x.into(), 1, RandomField::FirstParty);
         }
     }
 }
@@ -273,6 +312,7 @@ struct Select {
     coefficients: Zeroizing<Vec<[u64; 2]>>,
 }
 impl Select {
+    #[cfg(test)]
     fn issue(
         bits: u8,
         selector_mask: usize,
@@ -280,11 +320,28 @@ impl Select {
         rout: u64,
         affine: &[[i64; 2]],
     ) -> Result<[Self; 2], Error> {
+        Self::issue_with(
+            bits,
+            selector_mask,
+            rin,
+            rout,
+            affine,
+            &mut Coins::default(),
+        )
+    }
+    fn issue_with(
+        bits: u8,
+        selector_mask: usize,
+        rin: u64,
+        rout: u64,
+        affine: &[[i64; 2]],
+        coins: &mut Coins,
+    ) -> Result<[Self; 2], Error> {
         let mut rows = [Zeroizing::new(Vec::new()), Zeroizing::new(Vec::new())];
         for s in 0..affine.len() {
             let [a, c] = affine[s ^ selector_mask];
-            let left = share(a as u64, bits)?;
-            let right = share(
+            let left = coins.share(a as u64, bits)?;
+            let right = coins.share(
                 (c as u64)
                     .wrapping_add(rout)
                     .wrapping_sub((a as u64).wrapping_mul(rin)),
@@ -303,7 +360,7 @@ impl Select {
     fn encode(&self, out: &mut impl BitSink) {
         for row in self.coefficients.iter() {
             for x in row {
-                out.put((*x).into(), self.bits as usize);
+                out.random((*x).into(), self.bits as usize, RandomField::FirstParty);
             }
         }
     }
@@ -314,17 +371,21 @@ struct Lookup {
     constants: Zeroizing<[u64; 2]>,
 }
 impl Lookup {
+    #[cfg(test)]
     fn issue(rin: u64, rout: u64) -> Result<[Self; 2], Error> {
+        Self::issue_with(rin, rout, &mut Coins::default())
+    }
+    fn issue_with(rin: u64, rout: u64, coins: &mut Coins) -> Result<[Self; 2], Error> {
         let point = 0u64.wrapping_sub(rin) & 1023;
-        let keys = Key::issue(10, point).map_err(|_| Error::Randomness)?;
+        let keys = coins.key(10, point)?;
         let sign = if keys[0].point(0, point) == 1 {
             1u64
         } else {
             u64::MAX
         };
         let r = random(N)?;
-        let rs = share(r, N)?;
-        let correction = share(rout.wrapping_sub(sign.wrapping_mul(r)), N)?;
+        let rs = coins.share(r, N)?;
+        let correction = coins.share(rout.wrapping_sub(sign.wrapping_mul(r)), N)?;
         let [left, right] = keys;
         Ok([
             Self {
@@ -364,7 +425,7 @@ impl Lookup {
     fn encode(&self, out: &mut impl BitSink) {
         self.dpf.encode(out);
         for x in *self.constants {
-            out.put(x.into(), N as usize);
+            out.random(x.into(), N as usize, RandomField::FirstParty);
         }
     }
 }
@@ -373,10 +434,14 @@ struct Multiply {
     coefficients: Zeroizing<[u64; 3]>,
 }
 impl Multiply {
+    #[cfg(test)]
     fn issue(rx: u64, ry: u64, rout: u64) -> Result<[Self; 2], Error> {
-        let a = share(rx.wrapping_neg(), N)?;
-        let b = share(ry.wrapping_neg(), N)?;
-        let c = share(rx.wrapping_mul(ry).wrapping_add(rout), N)?;
+        Self::issue_with(rx, ry, rout, &mut Coins::default())
+    }
+    fn issue_with(rx: u64, ry: u64, rout: u64, coins: &mut Coins) -> Result<[Self; 2], Error> {
+        let a = coins.share(rx.wrapping_neg(), N)?;
+        let b = coins.share(ry.wrapping_neg(), N)?;
+        let c = coins.share(rx.wrapping_mul(ry).wrapping_add(rout), N)?;
         Ok([0, 1].map(|i| Self {
             coefficients: Zeroizing::new([a[i], b[i], c[i]]),
         }))
@@ -392,7 +457,7 @@ impl Multiply {
     }
     fn encode(&self, out: &mut impl BitSink) {
         for x in *self.coefficients {
-            out.put(x.into(), N as usize);
+            out.random(x.into(), N as usize, RandomField::FirstParty);
         }
     }
 }
@@ -568,15 +633,33 @@ pub fn issue_reference_with_layout(
     lanes: usize,
     layout: Layout,
 ) -> Result<(Client, [Party; 2]), Error> {
+    issue_reference_with_material(context, lanes, layout, MaterialEncoding::Full)
+}
+
+pub fn issue_reference_with_material(
+    context: Context,
+    lanes: usize,
+    layout: Layout,
+    material: MaterialEncoding,
+) -> Result<(Client, [Party; 2]), Error> {
     let resource = resources_with_layout(lanes, layout)?;
     context
         .first_tensor_index
         .checked_add(lanes as u64)
         .ok_or(Error::Domain)?;
     let profile = Profile::new();
-    let binding = binding(context, lanes, layout);
+    let binding = binding_with_material(context, lanes, layout, material);
     let mut nonce = [0; 32];
     getrandom::fill(&mut nonce).map_err(|_| Error::Randomness)?;
+    let mut seeds = Zeroizing::new([[0; 32]; 2]);
+    let mut coins = if material == MaterialEncoding::Seeded {
+        for seed in seeds.iter_mut() {
+            getrandom::fill(seed).map_err(|_| Error::Randomness)?;
+        }
+        Coins::new(&seeds, &binding, &nonce)
+    } else {
+        Coins::default()
+    };
     let mut inputs = Zeroizing::new(Vec::with_capacity(lanes));
     let mut outputs = Zeroizing::new(Vec::with_capacity(lanes));
     let mut parties = [Vec::with_capacity(lanes), Vec::with_capacity(lanes)];
@@ -597,43 +680,47 @@ pub fn issue_reference_with_layout(
         ]);
         inputs.push([r[0], r[1]]);
         outputs.push(r[11]);
-        let gate = Shift::issue(N, 12, true, r[0], r[2])?;
-        let up = Shift::issue(N, 12, true, r[1], r[3])?;
+        let gate = Shift::issue_with(N, 12, true, r[0], r[2], &mut coins)?;
+        let up = Shift::issue_with(N, 12, true, r[1], r[3], &mut coins)?;
         // floor(floor(g / 2^12) / 2^6) == floor(g / 2^18).
         // The same public gate bound proves a signed 31-bit input view and
         // 13-bit output. Predicate thresholds are lifted by 18 bits, so the
         // sign and residual interval use the original masked wire as well.
         let (reduce_bits, reduce_shift) = layout.reduce_bits();
         let reduce_input_mask = if layout == Layout::Fused { r[0] } else { r[2] };
-        let reduce = Shift::issue(
+        let reduce = Shift::issue_with(
             reduce_bits,
             reduce_shift,
             false,
             reduce_input_mask & mask(reduce_bits),
             r[4],
+            &mut coins,
         )?;
         let signs = if layout == Layout::Fused {
-            Signs::issue_scaled(
+            Signs::issue_with(
                 INPUT_GATE_BITS,
                 18,
                 r[0] & mask(INPUT_GATE_BITS),
                 r[5],
                 r[6],
+                &mut coins,
             )?
         } else {
-            Signs::issue(r[4], r[5], r[6])?
+            Signs::issue_with(Y, 0, r[4], r[5], r[6], &mut coins)?
         };
-        let clip = Select::issue(
+        let clip = Select::issue_with(
             10,
             ((r[6] << 1) | r[5]) as usize,
             r[4] & 1023,
             r[7],
             &[[0, 1023], [0, 1023], [-1, 0], [1, 0]],
+            &mut coins,
         )?;
-        let relu = Select::issue(N, r[5] as usize, r[2], r[8], &[[0, 0], [1, 0]])?;
-        let lookup = Lookup::issue(r[7], r[9])?;
-        let product = Multiply::issue(r[8].wrapping_sub(r[9]) & mask(N), r[3], r[10])?;
-        let output = Shift::issue(N, 12, true, r[10], r[11])?;
+        let relu = Select::issue_with(N, r[5] as usize, r[2], r[8], &[[0, 0], [1, 0]], &mut coins)?;
+        let lookup = Lookup::issue_with(r[7], r[9], &mut coins)?;
+        let product =
+            Multiply::issue_with(r[8].wrapping_sub(r[9]) & mask(N), r[3], r[10], &mut coins)?;
+        let output = Shift::issue_with(N, 12, true, r[10], r[11], &mut coins)?;
         for (b, ((((((((gate, up), reduce), signs), clip), relu), lookup), product), output)) in
             gate.into_iter()
                 .zip(up)
@@ -686,6 +773,9 @@ pub fn issue_reference_with_layout(
             Party {
                 id,
                 layout,
+                material,
+                seed: (material == MaterialEncoding::Seeded)
+                    .then(|| Zeroizing::new(seeds[id as usize])),
                 binding,
                 nonce,
                 lanes,
@@ -703,6 +793,8 @@ pub fn issue_reference_with_layout(
 pub struct Party {
     id: u8,
     layout: Layout,
+    material: MaterialEncoding,
+    seed: Option<Zeroizing<[u8; 32]>>,
     binding: [u8; 32],
     nonce: [u8; 32],
     lanes: usize,
@@ -714,7 +806,12 @@ pub struct Party {
     table: [i64; 1024],
 }
 
-fn binding(context: Context, lanes: usize, layout: Layout) -> [u8; 32] {
+fn binding_with_material(
+    context: Context,
+    lanes: usize,
+    layout: Layout,
+    material: MaterialEncoding,
+) -> [u8; 32] {
     let mut h = Sha256::new();
     h.update(b"pllm.masked_wire_reference.v1\0");
     h.update(Profile::new().digest());
@@ -726,6 +823,9 @@ fn binding(context: Context, lanes: usize, layout: Layout) -> [u8; 32] {
     if layout == Layout::Fused {
         h.update(b"masked-input-fusion.v1\0");
     }
+    if material == MaterialEncoding::Seeded {
+        h.update(b"party-key-coins.v1\0");
+    }
     h.finalize().into()
 }
 pub enum Step {
@@ -736,6 +836,7 @@ pub enum Step {
 impl Party {
     pub fn cancel(&mut self) {
         self.alive = false;
+        self.seed = None;
         self.keys.clear();
         self.state.zeroize();
         self.last.zeroize();

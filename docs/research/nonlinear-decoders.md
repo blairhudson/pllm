@@ -279,6 +279,58 @@ uv run python -m benchmarks.research.masked_wire_issuance_comparison \
   --control frozen-issuance-control --output issuance-comparison.json
 ```
 
+## Fresh party-local seeded material
+
+`MaskedWireGatedMultiplyQ12(material_encoding="seeded")` is a separate key
+encoding, composable with both layouts and dispatch choices. A fresh 256-bit seed
+per party and chunk expands independent DPF roots (or party zero's short-table
+leaf) and party zero's uniform coefficient shares. Each worker receives only its
+own seed. AES-256 counter expansion binds the seed to the role, compiler/session/
+tensor commitment and issuance nonce. Correlation-dependent corrections remain
+explicit. Client input, intermediate and output wire masks retain independent
+OS randomness and never derive from worker seeds.
+
+Native export checks every omitted field against the corresponding tape before
+consuming the party handle. Import preflights exact lengths, reconstructs bounded
+full keys and checks canonical padding. The distinct packet namespace and plan
+binding reject encoding substitution; cancellation, replay, expiry and partial
+chunks retain their existing burn behavior. Expanded keys and concurrent chunks
+retain the full allocation bound. This is a PLLM encoding adaptation under the
+existing experimental trust contract, without independent cryptographic review.
+
+At 256 lanes, combined encoded key payload falls **330,368 to 260,928 bytes
+(21.02%)** unfused and **583,936 to 508,352 bytes (12.94%)** fused. Those totals
+include both seeds but exclude packet headers. Peer rounds and frames are
+unchanged. SDK operator issuance timing now includes packet encoding and local
+worker imports for both encodings, so reports count the extra expansion work.
+
+The bounded transport comparison can be reproduced with:
+
+```sh
+uv run python -m benchmarks.research.masked_wire_transport \
+  --compare-material --samples 3 --output masked-wire-seeded-reproduction.json
+```
+
+The twelve-case cohort checks **175,104 exact outputs** with three fresh samples
+per encoding/layout/transport and zero observed swap growth in worker cases.
+Both candidates include the preceding CPU implementation optimizations and use
+overlapped dispatch. Its capped row results are:
+
+| One 4,864-element region | Unfused full | Unfused seeded | Fused full | Fused seeded |
+| --- | ---: | ---: | ---: | ---: |
+| Native 100/40 median latency | 2.111 s | 1.784 s | 3.706 s | 3.353 s |
+| Aggregate process CPU | 1.808 s | 1.843 s | 3.109 s | 3.154 s |
+| Complete key packets | 6,279,880 B | 4,960,520 B | 11,097,672 B | 9,661,576 B |
+| Covered application bodies | 7,151,942 B | 5,832,582 B | 11,951,836 B | 10,515,740 B |
+| TCP-stream bytes | 7,382,678 B | 6,063,318 B | 12,125,002 B | 10,688,906 B |
+
+Latency falls **15.49%/9.52%**, while aggregate CPU rises **1.92%/1.45%**.
+Worker reconstruction costs remain measured rather than treating seed expansion
+as free. Keys account for the entire byte reduction; peer frames and request
+counts remain equal. Evidence: `docs/evidence/research-masked-wire-seeded-qwen25.json`.
+This remains a synthetic row-region comparison, excluding whole responses, peak
+memory, startup, checkpoint transfer, physical wire and model quality.
+
 ## Qwen3-4B allocation gate
 
 The same composed two-worker factory was inspected with the pinned Qwen3-4B

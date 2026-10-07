@@ -1,5 +1,5 @@
 //! Opaque party-local handles; the authenticated role session owns admission.
-use super::{error, native, parse_layout, Context, Profile, Step};
+use super::{error, native, parse_layout, parse_material, Context, Profile, Step};
 use crate::invalid;
 use native::transport;
 use pyo3::{prelude::*, types::PyBytes};
@@ -99,6 +99,7 @@ struct MaskedWireParty {
 #[pymethods]
 impl MaskedWireParty {
     #[new]
+    #[pyo3(signature = (material, plan, session, operation, first_tensor_index, lanes, layout, party, material_encoding="full"))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         py: Python<'_>,
@@ -110,11 +111,17 @@ impl MaskedWireParty {
         lanes: usize,
         layout: &str,
         party: u8,
+        material_encoding: &str,
     ) -> PyResult<Self> {
         let context = context(plan, session, operation, first_tensor_index)?;
         let layout = parse_layout(layout)?;
+        let encoding = parse_material(material_encoding)?;
         let inner = py
-            .detach(|| transport::import_party(material, context, lanes, layout, party))
+            .detach(|| {
+                transport::import_party_with_material(
+                    material, context, lanes, layout, party, encoding,
+                )
+            })
             .map_err(error)?;
         py.check_signals()?;
         Ok(Self { inner: Some(inner) })
@@ -166,6 +173,7 @@ impl MaskedWireParty {
 
 #[pyfunction]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[pyo3(signature = (plan, session, operation, first_tensor_index, lanes, layout, material_encoding="full"))]
 fn _masked_wire_issue<'py>(
     py: Python<'py>,
     plan: &[u8],
@@ -174,13 +182,15 @@ fn _masked_wire_issue<'py>(
     first_tensor_index: u64,
     lanes: usize,
     layout: &str,
+    material_encoding: &str,
 ) -> PyResult<(MaskedWireClient, Bound<'py, PyBytes>, Bound<'py, PyBytes>)> {
     let context = context(plan, session, operation, first_tensor_index)?;
     let layout = parse_layout(layout)?;
+    let encoding = parse_material(material_encoding)?;
     let (client, left, right) = py
         .detach(|| {
             let (client, [left, right]) =
-                native::issue_reference_with_layout(context, lanes, layout)?;
+                native::issue_reference_with_material(context, lanes, layout, encoding)?;
             Ok::<_, native::Error>((
                 client,
                 transport::export_party(left)?,

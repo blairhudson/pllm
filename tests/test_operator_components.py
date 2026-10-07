@@ -13,7 +13,7 @@ from pllm.nonlinear import MaskedWireGatedMultiplyQ12, NonlinearProtocol, Shared
 from pllm.profiles import MaskedLinearCpu
 
 
-@pytest.mark.parametrize("component", [MaskedWireGatedMultiplyQ12(), MaskedWireGatedMultiplyQ12(layout="fused"), SharedRescale()])
+@pytest.mark.parametrize("component", [MaskedWireGatedMultiplyQ12(), MaskedWireGatedMultiplyQ12(layout="fused"), MaskedWireGatedMultiplyQ12(material_encoding="seeded"), SharedRescale()])
 def test_components_round_trip_through_discovery_and_experiment(component):
     assert isinstance(component, NonlinearProtocol)
     assert get(component.component) is type(component)
