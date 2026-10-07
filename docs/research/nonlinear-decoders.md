@@ -155,14 +155,98 @@ CPU uses its thread's clock to exclude concurrent HTTP work.
 Client admission prices two chunk/frame allocations instead of one: **140 MiB
 versus 70 MiB**, before the existing margin. Worker capacity is unchanged. These
 are allocation bounds, not measured peak differences. The same synthetic-input,
-one-region, startup-excluded scope applies; checkpoint quality and whole-response
-latency have not been remeasured. Fresh keys and their traffic remain expensive.
+one-region, startup-excluded scope applies to this cohort. The separate complete
+response pair below measures the whole-decoder tradeoff. Fresh keys and their
+traffic remain expensive.
 
 Evidence: `docs/evidence/research-masked-wire-overlap-qwen25.json`. Reproduce with:
 
 ```sh
 uv run python -m benchmarks.research.masked_wire_transport \
   --compare-dispatch --samples 3 --output masked-wire-overlap-reproduction.json
+```
+
+## Matched complete Qwen2.5 responses
+
+The pinned Qwen2.5-0.5B checkpoint completes an ordinary SDK request under each
+unfused dispatch. One invocation supplies a shared private cohort salt; each
+candidate runs in a fresh isolated client with two co-located worker children,
+shared native 100/40 Mbps party caps, no added RTT and no warmups. The public
+`Hi` request renders to **30 input tokens** and generates **two outputs** under
+the same Q12 mapping. Both output digests and all privacy/runtime checks match.
+
+| Measurement | Serial | Overlap |
+| --- | ---: | ---: |
+| Full request latency | 2,705.809 s | 1,634.109 s |
+| Time to first token | 2,586.445 s | 1,548.352 s |
+| Later-output decode time, one token | 85.663 s | 52.518 s |
+| Cold client process CPU | 1,037.713 s | 1,042.234 s |
+| Cold aggregate process CPU | 1,645.455 s | 1,641.285 s |
+| Client process-lifetime peak RSS | 227.197 MB | 229.491 MB |
+| Same-window sampled aggregate peak RSS | 1,785.266 MB | 1,784.447 MB |
+| Cold all-link TCP-stream traffic | 5,716.561 MB | 5,716.561 MB |
+| Observed new host swap | 0 B | 0 B |
+
+Overlap lowers request latency **39.61%** while client peak RSS rises **1.01%**.
+Aggregate CPU differs by only 0.25%; each direction's TCP-stream count is exactly
+equal. This is one response per candidate, not a confidence interval. Request
+latency excludes provider startup; CPU and traffic include startup through the
+first response. Client RSS includes the benchmark dashboard, relay and sampler.
+The aggregate RSS is a 50 ms sampled live sum, not a sum of lifetime peaks, and
+excludes OS file cache. Cached checkpoint distribution, physical TCP/IP overhead,
+Internet RTT and independent operator deployment remain unmeasured. The prior
+quality diagnostic still applies: this changed numeric mapping does not inherit
+clear-SiLU quality merely because the two dispatches return the same two tokens.
+
+Evidence: `docs/evidence/research-nonlinear-dispatch-qwen25.json`; source/factory
+and frozen-wheel hashes: `docs/evidence/research-nonlinear-dispatch-qwen25-reproduction.json`;
+pre-launch admission: `docs/evidence/research-nonlinear-dispatch-qwen25-preflight.json`.
+The saved reproduction record binds the wheel, sources, targets and run settings.
+From a checkout installed at that runtime revision, the same CLI arguments are:
+
+```sh
+uv run pllm benchmark run \
+  --experiment benchmarks/research/nonlinear_dispatch.py:serial \
+  --experiment benchmarks/research/nonlinear_dispatch.py:overlap \
+  --trust-python --factory --backend native --wan --isolate-candidates \
+  --prompt Hi --max-output-tokens 2 --warmups 0 --repetitions 1 \
+  --timeout 3600 --temperature 0 --capture-output-digest \
+  --output nonlinear-dispatch-reproduction.json --format human
+```
+
+## Native issuance and codec profile
+
+An ignored, release-only Rust diagnostic calls the production primitive issuers,
+encoders, imports and evaluator with fresh one-use material. Eighteen cases cover
+1, 64 and 256 lanes, both layouts and three samples. All **1,926 complete-block
+outputs** match an independent integer oracle. Microprofiles issue separate keys
+and retire them after encoding; their timings are not added to complete-block
+measurements. No secret keys, masks or reusable handles enter the report.
+
+| Median for 256 lanes | Unfused | Fused |
+| --- | ---: | ---: |
+| Complete local issue/export/import/evaluate/decode | 88.593 ms | 175.434 ms |
+| Complete issuance, including resource encoding | 51.356 ms | 91.628 ms |
+| Party packet export | 4.728 ms | 8.288 ms |
+| Party packet import | 3.195 ms | 5.544 ms |
+| Worker start | 6.327 ms | 56.390 ms |
+| Remaining worker advances | 22.923 ms | 13.626 ms |
+
+The three GapARS rescalings account for **52.1%** of unfused microprofile issuance
+and **59.6%** of its key bits. Fused direct-input index reduction and sign/interval
+comparisons together account for **54.6%** of issuance and **54.4%** of its key
+bits. The implementation serializes material once to measure resources and again
+on packet export. DPF construction also repeats the AES key schedule and control
+block when expanding both children. These identify concrete CPU targets; they do
+not establish a traffic reduction or change the public numeric/security contract.
+
+Evidence: `docs/evidence/research-masked-wire-issuance.json`. The native test-only
+module and wrapper are source-hashed. This is a bounded local implementation
+profile, not distributed worker or whole-response timing:
+
+```sh
+uv run python -m benchmarks.research.masked_wire_issuance \
+  --output masked-wire-issuance-reproduction.json
 ```
 
 ## Qwen3-4B allocation gate

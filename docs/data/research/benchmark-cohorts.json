@@ -72,6 +72,23 @@
       }
     },
     {
+      "id": "qwen25-masked-wire-dispatch-30-2",
+      "title": "Native 100/40 · masked-wire Q12 dispatch · 30 + 2 tokens",
+      "report": "docs/evidence/research-nonlinear-dispatch-qwen25.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/nonlinear_decoders.py": "590a39f225b6355cb276754b307ed94ad213c718b4a18ffd2cb5ad3541ef3a53",
+        "benchmarks/research/nonlinear_dispatch.py": "947e387d2ff103a6b43ea4ff2c1e01887d3533fae0a49e0b4dfacccddb971771",
+        "docs/evidence/research-nonlinear-dispatch-qwen25-reproduction.json": "a2f62685807525412cceaf220e26f101fcdefba622ea727eb3c220b1f33f7582"
+      },
+      "baseline": "masked-wire-unfused-serial",
+      "scope": "Same unfused Q12 mapping, with fresh one-use keys and trusted-client conversion/issuance. One cold 30+2-token Qwen2.5 response per isolated client, native shared 100/40 caps, cached checkpoint and two co-located CPU workers. Serial/overlap factories are in the linked Python file. Outputs and every TCP-stream direction match; overlap lowers latency 39.61% while client peak RSS rises 1.01%. Aggregate CPU is nearly equal. Changed numerics rank separately from clear SiLU. Physical wire, checkpoint download, Internet RTT, representative quality and independent operators remain unmeasured.",
+      "candidates": {
+        "masked-wire-unfused-serial": {"file": "benchmarks/research/nonlinear_dispatch.py", "sha256": "947e387d2ff103a6b43ea4ff2c1e01887d3533fae0a49e0b4dfacccddb971771", "label": "Masked-wire · serial", "reference": null, "artifact_bytes": 0},
+        "masked-wire-unfused-overlap": {"file": "benchmarks/research/nonlinear_dispatch.py", "sha256": "947e387d2ff103a6b43ea4ff2c1e01887d3533fae0a49e0b4dfacccddb971771", "label": "Masked-wire · overlap", "reference": null, "artifact_bytes": 0}
+      }
+    },
+    {
       "id": "qwen25-paper-prepared-50-8",
       "title": "Native 100/40 · paper prepared controls · 50 + 8 tokens",
       "report": "docs/evidence/research-paper-prepared-qwen25.json",

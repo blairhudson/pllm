@@ -1,0 +1,47 @@
+{
+  "execution": {
+    "backend": "native",
+    "cohort_salt": "private; one CLI invocation; not retained",
+    "isolated_clients": true,
+    "wan_download_mbps": 100,
+    "wan_upload_mbps": 40
+  },
+  "frozen_runtime_commit": "46a5ce91f9b823e7bffa896426d2710387f2577c",
+  "preflight_path": "docs/evidence/research-nonlinear-dispatch-qwen25-preflight.json",
+  "recorded_at": "2026-10-07T03:59:48.827064+00:00",
+  "result_path": "docs/evidence/research-nonlinear-dispatch-qwen25.json",
+  "runtime_scope": "installed release wheel built from the recorded runtime commit; new factory source hashes recorded separately",
+  "schema": "pllm.nonlinear_dispatch_reproduction.v1",
+  "source_sha256": {
+    "Cargo.lock": "be735861945742b6d892d797255833c529e0266ff4f44d1fbac9d99840e5a06f",
+    "benchmarks/research/nonlinear_decoders.py": "590a39f225b6355cb276754b307ed94ad213c718b4a18ffd2cb5ad3541ef3a53",
+    "benchmarks/research/nonlinear_dispatch.py": "947e387d2ff103a6b43ea4ff2c1e01887d3533fae0a49e0b4dfacccddb971771",
+    "crates/pllm-compiler/src/masked_wire_schedule.rs": "fa5783183417e331a42951dc412a9872db395abb02d8fa60e852d5010cb18c8c",
+    "crates/pllm-garble/src/compact_dpf.rs": "44e0867f7577103575a37b70a637fb679e60dbe812a55caf7c361ec1d3df6360",
+    "crates/pllm-garble/src/masked_wire_reference.rs": "1dfdb33b4ba64757597476626961d15c4ddd84aab4976a7966ac7ed861cf4c57",
+    "crates/pllm-garble/src/masked_wire_reference/transport.rs": "e4b4ae6099e27efbbac2609bdfb37cca27d26533e495eb37525c522b4d1c283d",
+    "crates/pllm-python/src/masked_wire.rs": "26908ee79c99184c664ae1b05e0c9a5b8fd3bfc17f31d99630b09eda58af86c6",
+    "crates/pllm-python/src/masked_wire/transport.rs": "e01c73e21176f65604df6f913cc1159b7ca232b4e06f53bbb202e5662d07bd2e",
+    "python/pllm/_cli/benchmark_output.py": "2aa29f663e940bcc70886be1d1a71fed7c27eea3faad98e2a3bd1cc0bd7197df",
+    "python/pllm/runtime/benchmark_cli.py": "260b2d55be3b089f1d300889fdb46d8a41a40c4de352227cff9242804f7ce6af",
+    "python/pllm/runtime/benchmark_memory.py": "3db0603d977b4aa6a48948d0556595b6bc95f911620895c23794bd8b781ffc03",
+    "python/pllm/runtime/masked_wire.py": "2e436aec229c66096b2e4d24b26fc9f0fa08a3ac273970a24c3efeb67a2ca7da"
+  },
+  "targets": [
+    "benchmarks/research/nonlinear_dispatch.py:serial",
+    "benchmarks/research/nonlinear_dispatch.py:overlap"
+  ],
+  "wheel": {
+    "bytes": 3111950,
+    "filename": "pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+    "sha256": "e1780bba2b3833788173cd00fba8d9f25bda5002066a2a699ee93aafa38c10ed"
+  },
+  "workload": {
+    "max_output_tokens": 2,
+    "public_prompt": "Hi",
+    "repetitions": 1,
+    "temperature": 0,
+    "timeout_seconds": 3600,
+    "warmups": 0
+  }
+}

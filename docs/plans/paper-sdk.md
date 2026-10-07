@@ -20,8 +20,13 @@ The bounded transport follow-up identifies fresh key generation/delivery as
 dominant. Opt-in one-chunk issuance overlap and concurrent worker requests lower
 capped synthetic row latency by 39.3%/40.6% for unfused/fused layouts, with unchanged
 traffic and almost unchanged aggregate CPU. Client chunk/frame admission doubles
-to 140 MiB before margin; whole-response cost comparison remains open. Evidence
-and reproduction: `docs/research/nonlinear-decoders.md`.
+to 140 MiB before margin. A subsequent fresh-client 30+2-token Qwen2.5 pair
+measures 39.61% lower full-response latency (2,705.809 to 1,634.109 seconds),
+1.01% higher client peak RSS and identical 5.72 GB TCP-stream traffic; outputs
+match and observed swap growth is zero. Aggregate CPU is almost unchanged.
+The bounded native profile checks 1,926 outputs and identifies repeated DPF
+AES expansion and key serialization as CPU targets; key bytes remain expensive.
+Evidence and reproduction: `docs/research/nonlinear-decoders.md`.
 The paper landing map is
 `docs/research/paper-module-landing-map-2026-09-23.md`; the 85-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored

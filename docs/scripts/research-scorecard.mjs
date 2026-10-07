@@ -54,7 +54,7 @@ for (const metric of metrics) {
 }
 
 export function baselineKind(spec, pipeline, placement, isBaseline) {
-  const kind = spec.reference ?? (isBaseline ? 'prepared' : null);
+  const kind = Object.hasOwn(spec, 'reference') ? spec.reference : (isBaseline ? 'prepared' : null);
   if (kind === 'prepared' && placement.topology !== 'Prepared' ||
       kind === 'client' && placement.topology !== 'Client-only') throw new Error('Baseline role graph mismatch');
   if (kind === 'offset') {
@@ -178,6 +178,15 @@ export function reportMetrics(report, artifactBytes = null) {
   return values;
 }
 
+function nonlinearNumericContract(component) {
+  if (component?.component !== 'pllm/masked-wire-gated-multiply-q12/v1') return component ?? null;
+  // These implemented schedules preserve this component's fixed numeric profile.
+  // Unknown layouts, dispatches and all other parameters remain in its identity.
+  return { ...component, params: Object.fromEntries(Object.entries(component.params ?? {}).filter(
+    ([key, value]) => !(key === 'layout' && ['unfused', 'fused'].includes(value) ||
+      key === 'dispatch' && ['serial', 'overlap'].includes(value)))) };
+}
+
 export function cohortRows(cohort, document, read = (file) => fs.readFileSync(path.join(root, file))) {
   if (!Array.isArray(document.candidates) || document.candidates.length < 2) {
     throw new Error('Require a canonical multi-Experiment cohort with its shared salt');
@@ -227,6 +236,7 @@ export function cohortRows(cohort, document, read = (file) => fs.readFileSync(pa
     const identity = {
       model: run.model_id, source: candidate.pipeline.model, body: run.model_fingerprint, prompt: config.prompt_digest,
       quantization: candidate.pipeline.components.quantization, inputs: run.tokens.input_tokens,
+      nonlinear: nonlinearNumericContract(candidate.pipeline.components.nonlinear),
       verification: candidate.pipeline.components.verification ?? null,
       outputs: run.tokens.output_tokens, cap: run.max_output_tokens, sampling: run.sampling,
       warm: run.warm, output: run.generation.output_text_digest, backend: config.provider_backend,

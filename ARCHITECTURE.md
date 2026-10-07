@@ -281,6 +281,16 @@ At shared native 100/40 caps, overlap lowers unfused/fused row latency from
 unchanged aggregate CPU. Worker cases observe zero swap growth. This bounded
 region timing excludes whole-response execution and peak-memory comparison;
 details and replay are in `docs/research/nonlinear-decoders.md`.
+A separate fresh-client Qwen2.5 30+2-token SDK pair confirms 39.61% lower complete
+request latency with unfused overlap: 2,705.809 to 1,634.109 seconds under native
+100/40 caps. Client peak RSS rises 227.20 to 229.49 MB; aggregate CPU remains
+nearly equal and both transfer 5.72 GB of TCP-stream bytes. Outputs match with
+zero observed swap growth. This single-response pair excludes physical wire,
+checkpoint distribution and independent operators; the Q12 quality gap remains.
+An independent test-only native issuance/codec profile checks 1,926 outputs and
+attributes most unfused key-generation time to three rescalings. Repeated AES
+expansion and material encoding are measured implementation targets, not reduced
+key payloads or a new protocol.
 The optional `MaskedWireGatedMultiplyQ12(layout="fused")` now implements bounded
 multi-view fusion on the complete block: rescaling, index reduction and predicates
 derive from one masked gate input. Eighteen fresh processes check 5,778 exact outputs.

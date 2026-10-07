@@ -39,6 +39,7 @@ test('incompatible sources, numerics, workloads, output identity and lifecycle c
     (c) => { c.report.configuration.prompt_digest = 'different invocation'; },
     (c) => { c.report.configuration.source_lock_digest = 'different source'; },
     (c) => { c.pipeline.components.quantization.params.activation_bits = 4; },
+    (c) => { c.pipeline.components.nonlinear = { component: 'pllm/masked-wire-gated-multiply-q12/v1', params: {} }; },
     (c) => { c.pipeline.components.verification = { component: 'pllm/freivalds-verify/v1', params: { target_failure_bits: 40 } }; },
     (c) => { c.report.runs[0].tokens.input_tokens++; },
     (c) => { c.report.runs[0].tokens.output_tokens++; },
@@ -82,6 +83,35 @@ test('zero, unknown, ties and metric direction retain their meaning', () => {
   assert.equal(improvement(null, 2, 'min'), null);
   assert.equal(improvement(2, 0, 'min'), null);
   assert.equal(improvement(3, 2, 'max'), 50);
+});
+
+test('masked-wire dispatch retains numeric identity and complete response tradeoffs', () => {
+  const measured = buildScorecard().cohorts.find((item) => item.id === 'qwen25-masked-wire-dispatch-30-2');
+  assert.equal(measured.identity.inputs, 30);
+  assert.equal(measured.identity.outputs, 2);
+  assert.equal(measured.identity.nonlinear.component, 'pllm/masked-wire-gated-multiply-q12/v1');
+  const [serial, overlap] = measured.rows;
+  assert.ok(overlap.metrics.full < serial.metrics.full);
+  assert.ok(overlap.metrics.clientPeak > serial.metrics.clientPeak);
+  assert.equal(overlap.metrics.totalNetwork, serial.metrics.totalNetwork);
+  assert.ok(measured.rows.every((row) => row.reference === null && row.metrics.quality === null && row.metrics.wire === null));
+  const spec = JSON.parse(fs.readFileSync(`${root}docs/data/research/benchmark-cohorts.json`)).cohorts
+    .find((item) => item.id === measured.id);
+  const document = JSON.parse(fs.readFileSync(root + spec.report));
+  for (const change of [
+    (c) => { delete c.pipeline.components.nonlinear; },
+    (c) => { c.pipeline.components.nonlinear.component = 'another-profile'; },
+    (c) => { c.pipeline.components.nonlinear.params.profile = 'another-profile'; },
+    (c) => { c.pipeline.components.nonlinear.params.layout = 'unknown'; },
+    (c) => { c.pipeline.components.nonlinear.params.dispatch = 'unknown'; },
+  ]) {
+    const altered = structuredClone(document);
+    change(altered.candidates[1]);
+    assert.throws(() => cohortRows(spec, altered), /numeric contract/);
+  }
+  const fused = structuredClone(document);
+  fused.candidates[1].pipeline.components.nonlinear.params.layout = 'fused';
+  assert.equal(cohortRows(spec, fused).rows.length, 2);
 });
 
 test('SDK finalists retain measured placement, filters and original observations', () => {

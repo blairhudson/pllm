@@ -19,6 +19,9 @@ use zeroize::{Zeroize, Zeroizing};
 
 pub mod transport;
 
+#[cfg(test)]
+mod issuance_profile;
+
 pub const MAX_LANES: usize = 256;
 pub const MAX_ALLOCATION: usize = 64 << 20;
 pub const HEADER: usize = 78;

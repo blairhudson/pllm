@@ -1,0 +1,3270 @@
+{
+  "cases": [
+    {
+      "complete": {
+        "advance_ns": [
+          25125,
+          1042,
+          834,
+          45875,
+          750,
+          50042,
+          875,
+          792,
+          15709,
+          792,
+          1541
+        ],
+        "checked_outputs": 1,
+        "client_input_ns": 2083,
+        "export_ns": 40250,
+        "import_ns": 220000,
+        "issuance_ns": 405167,
+        "output_codec_decode_ns": 1416,
+        "output_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "party_packet_bytes": [
+          722,
+          722
+        ],
+        "phase_frame_bytes": [
+          [
+            79,
+            79
+          ],
+          [
+            88,
+            88
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            83,
+            83
+          ]
+        ],
+        "wall_ns": 848292,
+        "worker_start_ns": 33167
+      },
+      "lanes": 1,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 156416,
+        "components": {
+          "clipped_index": {
+            "calls": 1,
+            "encode_ns": 750,
+            "issue_ns": 7916,
+            "party_key_bits": [
+              80,
+              80
+            ],
+            "retire_ns": 333
+          },
+          "gate_gapars": {
+            "calls": 1,
+            "encode_ns": 8250,
+            "issue_ns": 88125,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 19542
+          },
+          "index_reduce": {
+            "calls": 1,
+            "encode_ns": 666,
+            "issue_ns": 4250,
+            "party_key_bits": [
+              90,
+              90
+            ],
+            "retire_ns": 42
+          },
+          "output_gapars": {
+            "calls": 1,
+            "encode_ns": 5375,
+            "issue_ns": 37083,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 208
+          },
+          "product": {
+            "calls": 1,
+            "encode_ns": 1875,
+            "issue_ns": 2917,
+            "party_key_bits": [
+              120,
+              120
+            ],
+            "retire_ns": 0
+          },
+          "relu": {
+            "calls": 1,
+            "encode_ns": 875,
+            "issue_ns": 3958,
+            "party_key_bits": [
+              160,
+              160
+            ],
+            "retire_ns": 250
+          },
+          "residual_lookup": {
+            "calls": 1,
+            "encode_ns": 4042,
+            "issue_ns": 47833,
+            "party_key_bits": [
+              726,
+              726
+            ],
+            "retire_ns": 209
+          },
+          "sign_interval": {
+            "calls": 1,
+            "encode_ns": 4750,
+            "issue_ns": 40208,
+            "party_key_bits": [
+              908,
+              908
+            ],
+            "retire_ns": 19667
+          },
+          "up_gapars": {
+            "calls": 1,
+            "encode_ns": 5917,
+            "issue_ns": 37708,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 208
+          },
+          "wire_masks": {
+            "calls": 1,
+            "encode_ns": 0,
+            "issue_ns": 54625,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 5162,
+        "party_key_bytes": 646,
+        "wall_ns": 426250
+      },
+      "sample": 0
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          3209,
+          1666,
+          56792,
+          1000,
+          958,
+          18500,
+          833,
+          2083
+        ],
+        "checked_outputs": 1,
+        "client_input_ns": 1292,
+        "export_ns": 71292,
+        "import_ns": 274500,
+        "issuance_ns": 646125,
+        "output_codec_decode_ns": 1291,
+        "output_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "party_packet_bytes": [
+          1217,
+          1217
+        ],
+        "phase_frame_bytes": [
+          [
+            79,
+            79
+          ],
+          [
+            90,
+            90
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            83,
+            83
+          ]
+        ],
+        "wall_ns": 1402250,
+        "worker_start_ns": 320667
+      },
+      "lanes": 1,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 219776,
+        "components": {
+          "clipped_index": {
+            "calls": 1,
+            "encode_ns": 834,
+            "issue_ns": 7709,
+            "party_key_bits": [
+              80,
+              80
+            ],
+            "retire_ns": 292
+          },
+          "gate_gapars": {
+            "calls": 1,
+            "encode_ns": 6667,
+            "issue_ns": 37750,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 125
+          },
+          "index_reduce": {
+            "calls": 1,
+            "encode_ns": 8875,
+            "issue_ns": 75292,
+            "party_key_bits": [
+              1712,
+              1712
+            ],
+            "retire_ns": 250
+          },
+          "output_gapars": {
+            "calls": 1,
+            "encode_ns": 6041,
+            "issue_ns": 36792,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 83
+          },
+          "product": {
+            "calls": 1,
+            "encode_ns": 709,
+            "issue_ns": 3292,
+            "party_key_bits": [
+              120,
+              120
+            ],
+            "retire_ns": 0
+          },
+          "relu": {
+            "calls": 1,
+            "encode_ns": 834,
+            "issue_ns": 3917,
+            "party_key_bits": [
+              160,
+              160
+            ],
+            "retire_ns": 250
+          },
+          "residual_lookup": {
+            "calls": 1,
+            "encode_ns": 3833,
+            "issue_ns": 27875,
+            "party_key_bits": [
+              726,
+              726
+            ],
+            "retire_ns": 125
+          },
+          "sign_interval": {
+            "calls": 1,
+            "encode_ns": 17208,
+            "issue_ns": 145333,
+            "party_key_bits": [
+              3248,
+              3248
+            ],
+            "retire_ns": 333
+          },
+          "up_gapars": {
+            "calls": 1,
+            "encode_ns": 5708,
+            "issue_ns": 36625,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 125
+          },
+          "wire_masks": {
+            "calls": 1,
+            "encode_ns": 0,
+            "issue_ns": 13708,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 9124,
+        "party_key_bytes": 1141,
+        "wall_ns": 443792
+      },
+      "sample": 0
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          2791,
+          1208,
+          57000,
+          958,
+          917,
+          21916,
+          1041,
+          1708
+        ],
+        "checked_outputs": 1,
+        "client_input_ns": 1417,
+        "export_ns": 64459,
+        "import_ns": 266500,
+        "issuance_ns": 630625,
+        "output_codec_decode_ns": 2583,
+        "output_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "party_packet_bytes": [
+          1217,
+          1217
+        ],
+        "phase_frame_bytes": [
+          [
+            79,
+            79
+          ],
+          [
+            90,
+            90
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            83,
+            83
+          ]
+        ],
+        "wall_ns": 1378167,
+        "worker_start_ns": 323000
+      },
+      "lanes": 1,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 219776,
+        "components": {
+          "clipped_index": {
+            "calls": 1,
+            "encode_ns": 500,
+            "issue_ns": 9125,
+            "party_key_bits": [
+              80,
+              80
+            ],
+            "retire_ns": 250
+          },
+          "gate_gapars": {
+            "calls": 1,
+            "encode_ns": 7666,
+            "issue_ns": 43500,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 375
+          },
+          "index_reduce": {
+            "calls": 1,
+            "encode_ns": 10333,
+            "issue_ns": 84791,
+            "party_key_bits": [
+              1712,
+              1712
+            ],
+            "retire_ns": 167
+          },
+          "output_gapars": {
+            "calls": 1,
+            "encode_ns": 6750,
+            "issue_ns": 43458,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 84
+          },
+          "product": {
+            "calls": 1,
+            "encode_ns": 708,
+            "issue_ns": 3375,
+            "party_key_bits": [
+              120,
+              120
+            ],
+            "retire_ns": 41
+          },
+          "relu": {
+            "calls": 1,
+            "encode_ns": 1000,
+            "issue_ns": 4583,
+            "party_key_bits": [
+              160,
+              160
+            ],
+            "retire_ns": 250
+          },
+          "residual_lookup": {
+            "calls": 1,
+            "encode_ns": 4417,
+            "issue_ns": 32834,
+            "party_key_bits": [
+              726,
+              726
+            ],
+            "retire_ns": 83
+          },
+          "sign_interval": {
+            "calls": 1,
+            "encode_ns": 19833,
+            "issue_ns": 170916,
+            "party_key_bits": [
+              3248,
+              3248
+            ],
+            "retire_ns": 417
+          },
+          "up_gapars": {
+            "calls": 1,
+            "encode_ns": 6541,
+            "issue_ns": 43125,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 83
+          },
+          "wire_masks": {
+            "calls": 1,
+            "encode_ns": 0,
+            "issue_ns": 17917,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 9124,
+        "party_key_bytes": 1141,
+        "wall_ns": 515667
+      },
+      "sample": 1
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          1959,
+          1166,
+          1084,
+          52958,
+          750,
+          87250,
+          1125,
+          959,
+          18625,
+          875,
+          2333
+        ],
+        "checked_outputs": 1,
+        "client_input_ns": 1166,
+        "export_ns": 38250,
+        "import_ns": 250708,
+        "issuance_ns": 395291,
+        "output_codec_decode_ns": 2500,
+        "output_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "party_packet_bytes": [
+          722,
+          722
+        ],
+        "phase_frame_bytes": [
+          [
+            79,
+            79
+          ],
+          [
+            88,
+            88
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            83,
+            83
+          ]
+        ],
+        "wall_ns": 898833,
+        "worker_start_ns": 37000
+      },
+      "lanes": 1,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 156416,
+        "components": {
+          "clipped_index": {
+            "calls": 1,
+            "encode_ns": 542,
+            "issue_ns": 9042,
+            "party_key_bits": [
+              80,
+              80
+            ],
+            "retire_ns": 250
+          },
+          "gate_gapars": {
+            "calls": 1,
+            "encode_ns": 8250,
+            "issue_ns": 45208,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 292
+          },
+          "index_reduce": {
+            "calls": 1,
+            "encode_ns": 625,
+            "issue_ns": 5291,
+            "party_key_bits": [
+              90,
+              90
+            ],
+            "retire_ns": 42
+          },
+          "output_gapars": {
+            "calls": 1,
+            "encode_ns": 6208,
+            "issue_ns": 43958,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 83
+          },
+          "product": {
+            "calls": 1,
+            "encode_ns": 1208,
+            "issue_ns": 3333,
+            "party_key_bits": [
+              120,
+              120
+            ],
+            "retire_ns": 0
+          },
+          "relu": {
+            "calls": 1,
+            "encode_ns": 958,
+            "issue_ns": 4625,
+            "party_key_bits": [
+              160,
+              160
+            ],
+            "retire_ns": 333
+          },
+          "residual_lookup": {
+            "calls": 1,
+            "encode_ns": 4333,
+            "issue_ns": 33000,
+            "party_key_bits": [
+              726,
+              726
+            ],
+            "retire_ns": 333
+          },
+          "sign_interval": {
+            "calls": 1,
+            "encode_ns": 5458,
+            "issue_ns": 40625,
+            "party_key_bits": [
+              908,
+              908
+            ],
+            "retire_ns": 125
+          },
+          "up_gapars": {
+            "calls": 1,
+            "encode_ns": 6541,
+            "issue_ns": 43167,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 125
+          },
+          "wire_masks": {
+            "calls": 1,
+            "encode_ns": 0,
+            "issue_ns": 15000,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 5162,
+        "party_key_bytes": 646,
+        "wall_ns": 281583
+      },
+      "sample": 1
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          4000,
+          1375,
+          875,
+          53334,
+          792,
+          64667,
+          959,
+          958,
+          25958,
+          875,
+          1375
+        ],
+        "checked_outputs": 1,
+        "client_input_ns": 2334,
+        "export_ns": 45083,
+        "import_ns": 263708,
+        "issuance_ns": 418166,
+        "output_codec_decode_ns": 2542,
+        "output_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "party_packet_bytes": [
+          722,
+          722
+        ],
+        "phase_frame_bytes": [
+          [
+            79,
+            79
+          ],
+          [
+            88,
+            88
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            83,
+            83
+          ]
+        ],
+        "wall_ns": 929917,
+        "worker_start_ns": 39375
+      },
+      "lanes": 1,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 156416,
+        "components": {
+          "clipped_index": {
+            "calls": 1,
+            "encode_ns": 917,
+            "issue_ns": 9041,
+            "party_key_bits": [
+              80,
+              80
+            ],
+            "retire_ns": 542
+          },
+          "gate_gapars": {
+            "calls": 1,
+            "encode_ns": 9125,
+            "issue_ns": 46375,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 208
+          },
+          "index_reduce": {
+            "calls": 1,
+            "encode_ns": 709,
+            "issue_ns": 5000,
+            "party_key_bits": [
+              90,
+              90
+            ],
+            "retire_ns": 42
+          },
+          "output_gapars": {
+            "calls": 1,
+            "encode_ns": 6250,
+            "issue_ns": 43292,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 333
+          },
+          "product": {
+            "calls": 1,
+            "encode_ns": 1500,
+            "issue_ns": 3375,
+            "party_key_bits": [
+              120,
+              120
+            ],
+            "retire_ns": 42
+          },
+          "relu": {
+            "calls": 1,
+            "encode_ns": 1083,
+            "issue_ns": 4500,
+            "party_key_bits": [
+              160,
+              160
+            ],
+            "retire_ns": 250
+          },
+          "residual_lookup": {
+            "calls": 1,
+            "encode_ns": 4625,
+            "issue_ns": 39333,
+            "party_key_bits": [
+              726,
+              726
+            ],
+            "retire_ns": 125
+          },
+          "sign_interval": {
+            "calls": 1,
+            "encode_ns": 5875,
+            "issue_ns": 40750,
+            "party_key_bits": [
+              908,
+              908
+            ],
+            "retire_ns": 167
+          },
+          "up_gapars": {
+            "calls": 1,
+            "encode_ns": 6625,
+            "issue_ns": 43125,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 84
+          },
+          "wire_masks": {
+            "calls": 1,
+            "encode_ns": 0,
+            "issue_ns": 14875,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 5162,
+        "party_key_bytes": 646,
+        "wall_ns": 292292
+      },
+      "sample": 2
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          2000,
+          1167,
+          47750,
+          792,
+          750,
+          15500,
+          666,
+          1291
+        ],
+        "checked_outputs": 1,
+        "client_input_ns": 1083,
+        "export_ns": 53875,
+        "import_ns": 228708,
+        "issuance_ns": 562500,
+        "output_codec_decode_ns": 833,
+        "output_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "party_packet_bytes": [
+          1217,
+          1217
+        ],
+        "phase_frame_bytes": [
+          [
+            79,
+            79
+          ],
+          [
+            90,
+            90
+          ],
+          [
+            80,
+            80
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            83,
+            83
+          ],
+          [
+            79,
+            79
+          ],
+          [
+            83,
+            83
+          ]
+        ],
+        "wall_ns": 1190667,
+        "worker_start_ns": 272041
+      },
+      "lanes": 1,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 219776,
+        "components": {
+          "clipped_index": {
+            "calls": 1,
+            "encode_ns": 583,
+            "issue_ns": 9000,
+            "party_key_bits": [
+              80,
+              80
+            ],
+            "retire_ns": 166
+          },
+          "gate_gapars": {
+            "calls": 1,
+            "encode_ns": 7459,
+            "issue_ns": 43333,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 334
+          },
+          "index_reduce": {
+            "calls": 1,
+            "encode_ns": 10333,
+            "issue_ns": 84958,
+            "party_key_bits": [
+              1712,
+              1712
+            ],
+            "retire_ns": 167
+          },
+          "output_gapars": {
+            "calls": 1,
+            "encode_ns": 6875,
+            "issue_ns": 42833,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 84
+          },
+          "product": {
+            "calls": 1,
+            "encode_ns": 750,
+            "issue_ns": 3375,
+            "party_key_bits": [
+              120,
+              120
+            ],
+            "retire_ns": 41
+          },
+          "relu": {
+            "calls": 1,
+            "encode_ns": 958,
+            "issue_ns": 4625,
+            "party_key_bits": [
+              160,
+              160
+            ],
+            "retire_ns": 125
+          },
+          "residual_lookup": {
+            "calls": 1,
+            "encode_ns": 4375,
+            "issue_ns": 32958,
+            "party_key_bits": [
+              726,
+              726
+            ],
+            "retire_ns": 41
+          },
+          "sign_interval": {
+            "calls": 1,
+            "encode_ns": 19875,
+            "issue_ns": 167667,
+            "party_key_bits": [
+              3248,
+              3248
+            ],
+            "retire_ns": 292
+          },
+          "up_gapars": {
+            "calls": 1,
+            "encode_ns": 6500,
+            "issue_ns": 43375,
+            "party_key_bits": [
+              1026,
+              1026
+            ],
+            "retire_ns": 83
+          },
+          "wire_masks": {
+            "calls": 1,
+            "encode_ns": 0,
+            "issue_ns": 14208,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 9124,
+        "party_key_bytes": 1141,
+        "wall_ns": 507666
+      },
+      "sample": 2
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          27666,
+          13708,
+          8625,
+          2352916,
+          9000,
+          2464583,
+          17041,
+          16625,
+          786250,
+          12958,
+          32125
+        ],
+        "checked_outputs": 64,
+        "client_input_ns": 13375,
+        "export_ns": 1196125,
+        "import_ns": 928500,
+        "issuance_ns": 13656875,
+        "output_codec_decode_ns": 15875,
+        "output_sha256": "545724807177228f80f98641ad1a8d1f8b275929af18f57df5f001d989d0aa6a",
+        "party_packet_bytes": [
+          41372,
+          41372
+        ],
+        "phase_frame_bytes": [
+          [
+            94,
+            94
+          ],
+          [
+            718,
+            718
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            182,
+            182
+          ],
+          [
+            94,
+            94
+          ],
+          [
+            158,
+            158
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            398,
+            398
+          ]
+        ],
+        "wall_ns": 23184166,
+        "worker_start_ns": 1626916
+      },
+      "lanes": 64,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 5875712,
+        "components": {
+          "clipped_index": {
+            "calls": 64,
+            "encode_ns": 26578,
+            "issue_ns": 595416,
+            "party_key_bits": [
+              5120,
+              5120
+            ],
+            "retire_ns": 9164
+          },
+          "gate_gapars": {
+            "calls": 64,
+            "encode_ns": 300502,
+            "issue_ns": 2468749,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 4577
+          },
+          "index_reduce": {
+            "calls": 64,
+            "encode_ns": 35707,
+            "issue_ns": 311542,
+            "party_key_bits": [
+              5760,
+              5760
+            ],
+            "retire_ns": 2584
+          },
+          "output_gapars": {
+            "calls": 64,
+            "encode_ns": 290874,
+            "issue_ns": 2474752,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 4876
+          },
+          "product": {
+            "calls": 64,
+            "encode_ns": 70122,
+            "issue_ns": 213912,
+            "party_key_bits": [
+              7680,
+              7680
+            ],
+            "retire_ns": 2246
+          },
+          "relu": {
+            "calls": 64,
+            "encode_ns": 46667,
+            "issue_ns": 287914,
+            "party_key_bits": [
+              10240,
+              10240
+            ],
+            "retire_ns": 8499
+          },
+          "residual_lookup": {
+            "calls": 64,
+            "encode_ns": 219080,
+            "issue_ns": 1867877,
+            "party_key_bits": [
+              46464,
+              46464
+            ],
+            "retire_ns": 7164
+          },
+          "sign_interval": {
+            "calls": 64,
+            "encode_ns": 265000,
+            "issue_ns": 2247337,
+            "party_key_bits": [
+              58112,
+              58112
+            ],
+            "retire_ns": 4840
+          },
+          "up_gapars": {
+            "calls": 64,
+            "encode_ns": 319874,
+            "issue_ns": 2439039,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 4498
+          },
+          "wire_masks": {
+            "calls": 64,
+            "encode_ns": 0,
+            "issue_ns": 845878,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 330368,
+        "party_key_bytes": 41296,
+        "wall_ns": 15469917
+      },
+      "sample": 0
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          41750,
+          20208,
+          2463959,
+          17583,
+          16792,
+          797709,
+          13083,
+          37458
+        ],
+        "checked_outputs": 64,
+        "client_input_ns": 13250,
+        "export_ns": 2071041,
+        "import_ns": 1500417,
+        "issuance_ns": 23047583,
+        "output_codec_decode_ns": 15166,
+        "output_sha256": "545724807177228f80f98641ad1a8d1f8b275929af18f57df5f001d989d0aa6a",
+        "party_packet_bytes": [
+          73068,
+          73068
+        ],
+        "phase_frame_bytes": [
+          [
+            118,
+            118
+          ],
+          [
+            822,
+            822
+          ],
+          [
+            158,
+            158
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            398,
+            398
+          ]
+        ],
+        "wall_ns": 44168458,
+        "worker_start_ns": 14109708
+      },
+      "lanes": 64,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 9932800,
+        "components": {
+          "clipped_index": {
+            "calls": 64,
+            "encode_ns": 18124,
+            "issue_ns": 545292,
+            "party_key_bits": [
+              5120,
+              5120
+            ],
+            "retire_ns": 6039
+          },
+          "gate_gapars": {
+            "calls": 64,
+            "encode_ns": 213001,
+            "issue_ns": 2030250,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3630
+          },
+          "index_reduce": {
+            "calls": 64,
+            "encode_ns": 353209,
+            "issue_ns": 3836412,
+            "party_key_bits": [
+              109568,
+              109568
+            ],
+            "retire_ns": 5503
+          },
+          "output_gapars": {
+            "calls": 64,
+            "encode_ns": 211457,
+            "issue_ns": 2019953,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3830
+          },
+          "product": {
+            "calls": 64,
+            "encode_ns": 26832,
+            "issue_ns": 202916,
+            "party_key_bits": [
+              7680,
+              7680
+            ],
+            "retire_ns": 1797
+          },
+          "relu": {
+            "calls": 64,
+            "encode_ns": 33039,
+            "issue_ns": 275127,
+            "party_key_bits": [
+              10240,
+              10240
+            ],
+            "retire_ns": 5836
+          },
+          "residual_lookup": {
+            "calls": 64,
+            "encode_ns": 152541,
+            "issue_ns": 1548170,
+            "party_key_bits": [
+              46464,
+              46464
+            ],
+            "retire_ns": 4201
+          },
+          "sign_interval": {
+            "calls": 64,
+            "encode_ns": 695709,
+            "issue_ns": 7538705,
+            "party_key_bits": [
+              207872,
+              207872
+            ],
+            "retire_ns": 7211
+          },
+          "up_gapars": {
+            "calls": 64,
+            "encode_ns": 238834,
+            "issue_ns": 2023833,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 4709
+          },
+          "wire_masks": {
+            "calls": 64,
+            "encode_ns": 0,
+            "issue_ns": 808001,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 583936,
+        "party_key_bytes": 72992,
+        "wall_ns": 22888041
+      },
+      "sample": 0
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          39167,
+          19625,
+          2452666,
+          16958,
+          16417,
+          787542,
+          13125,
+          36709
+        ],
+        "checked_outputs": 64,
+        "client_input_ns": 12208,
+        "export_ns": 2084459,
+        "import_ns": 1487416,
+        "issuance_ns": 22978209,
+        "output_codec_decode_ns": 14584,
+        "output_sha256": "545724807177228f80f98641ad1a8d1f8b275929af18f57df5f001d989d0aa6a",
+        "party_packet_bytes": [
+          73068,
+          73068
+        ],
+        "phase_frame_bytes": [
+          [
+            118,
+            118
+          ],
+          [
+            822,
+            822
+          ],
+          [
+            158,
+            158
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            398,
+            398
+          ]
+        ],
+        "wall_ns": 44045916,
+        "worker_start_ns": 14084792
+      },
+      "lanes": 64,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 9932800,
+        "components": {
+          "clipped_index": {
+            "calls": 64,
+            "encode_ns": 17749,
+            "issue_ns": 544463,
+            "party_key_bits": [
+              5120,
+              5120
+            ],
+            "retire_ns": 5378
+          },
+          "gate_gapars": {
+            "calls": 64,
+            "encode_ns": 213289,
+            "issue_ns": 2027079,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3871
+          },
+          "index_reduce": {
+            "calls": 64,
+            "encode_ns": 351082,
+            "issue_ns": 3822958,
+            "party_key_bits": [
+              109568,
+              109568
+            ],
+            "retire_ns": 5249
+          },
+          "output_gapars": {
+            "calls": 64,
+            "encode_ns": 212506,
+            "issue_ns": 2014085,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3702
+          },
+          "product": {
+            "calls": 64,
+            "encode_ns": 25920,
+            "issue_ns": 203085,
+            "party_key_bits": [
+              7680,
+              7680
+            ],
+            "retire_ns": 1962
+          },
+          "relu": {
+            "calls": 64,
+            "encode_ns": 32540,
+            "issue_ns": 276003,
+            "party_key_bits": [
+              10240,
+              10240
+            ],
+            "retire_ns": 5202
+          },
+          "residual_lookup": {
+            "calls": 64,
+            "encode_ns": 152668,
+            "issue_ns": 1553456,
+            "party_key_bits": [
+              46464,
+              46464
+            ],
+            "retire_ns": 4170
+          },
+          "sign_interval": {
+            "calls": 64,
+            "encode_ns": 669085,
+            "issue_ns": 7531251,
+            "party_key_bits": [
+              207872,
+              207872
+            ],
+            "retire_ns": 7748
+          },
+          "up_gapars": {
+            "calls": 64,
+            "encode_ns": 213373,
+            "issue_ns": 2014792,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 4001
+          },
+          "wire_masks": {
+            "calls": 64,
+            "encode_ns": 0,
+            "issue_ns": 816120,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 583936,
+        "party_key_bytes": 72992,
+        "wall_ns": 22805500
+      },
+      "sample": 1
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          25042,
+          13208,
+          8042,
+          2338250,
+          8083,
+          2461416,
+          16791,
+          16291,
+          796083,
+          13083,
+          31791
+        ],
+        "checked_outputs": 64,
+        "client_input_ns": 11250,
+        "export_ns": 1196792,
+        "import_ns": 895041,
+        "issuance_ns": 12879916,
+        "output_codec_decode_ns": 16750,
+        "output_sha256": "545724807177228f80f98641ad1a8d1f8b275929af18f57df5f001d989d0aa6a",
+        "party_packet_bytes": [
+          41372,
+          41372
+        ],
+        "phase_frame_bytes": [
+          [
+            94,
+            94
+          ],
+          [
+            718,
+            718
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            182,
+            182
+          ],
+          [
+            94,
+            94
+          ],
+          [
+            158,
+            158
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            398,
+            398
+          ]
+        ],
+        "wall_ns": 22314833,
+        "worker_start_ns": 1572584
+      },
+      "lanes": 64,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 5875712,
+        "components": {
+          "clipped_index": {
+            "calls": 64,
+            "encode_ns": 17292,
+            "issue_ns": 544250,
+            "party_key_bits": [
+              5120,
+              5120
+            ],
+            "retire_ns": 5456
+          },
+          "gate_gapars": {
+            "calls": 64,
+            "encode_ns": 212458,
+            "issue_ns": 2030338,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3837
+          },
+          "index_reduce": {
+            "calls": 64,
+            "encode_ns": 20788,
+            "issue_ns": 294919,
+            "party_key_bits": [
+              5760,
+              5760
+            ],
+            "retire_ns": 2337
+          },
+          "output_gapars": {
+            "calls": 64,
+            "encode_ns": 211002,
+            "issue_ns": 2015716,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3420
+          },
+          "product": {
+            "calls": 64,
+            "encode_ns": 32377,
+            "issue_ns": 203335,
+            "party_key_bits": [
+              7680,
+              7680
+            ],
+            "retire_ns": 1707
+          },
+          "relu": {
+            "calls": 64,
+            "encode_ns": 32792,
+            "issue_ns": 275456,
+            "party_key_bits": [
+              10240,
+              10240
+            ],
+            "retire_ns": 5125
+          },
+          "residual_lookup": {
+            "calls": 64,
+            "encode_ns": 152791,
+            "issue_ns": 1567040,
+            "party_key_bits": [
+              46464,
+              46464
+            ],
+            "retire_ns": 4746
+          },
+          "sign_interval": {
+            "calls": 64,
+            "encode_ns": 186827,
+            "issue_ns": 1885250,
+            "party_key_bits": [
+              58112,
+              58112
+            ],
+            "retire_ns": 3710
+          },
+          "up_gapars": {
+            "calls": 64,
+            "encode_ns": 212250,
+            "issue_ns": 2030875,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3585
+          },
+          "wire_masks": {
+            "calls": 64,
+            "encode_ns": 0,
+            "issue_ns": 824293,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 330368,
+        "party_key_bytes": 41296,
+        "wall_ns": 12855875
+      },
+      "sample": 1
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          24375,
+          12958,
+          6875,
+          2340167,
+          7917,
+          2473708,
+          16709,
+          16458,
+          786417,
+          12709,
+          31333
+        ],
+        "checked_outputs": 64,
+        "client_input_ns": 10875,
+        "export_ns": 1180458,
+        "import_ns": 892958,
+        "issuance_ns": 12908083,
+        "output_codec_decode_ns": 13750,
+        "output_sha256": "545724807177228f80f98641ad1a8d1f8b275929af18f57df5f001d989d0aa6a",
+        "party_packet_bytes": [
+          41372,
+          41372
+        ],
+        "phase_frame_bytes": [
+          [
+            94,
+            94
+          ],
+          [
+            718,
+            718
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            182,
+            182
+          ],
+          [
+            94,
+            94
+          ],
+          [
+            158,
+            158
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            398,
+            398
+          ]
+        ],
+        "wall_ns": 22310750,
+        "worker_start_ns": 1573334
+      },
+      "lanes": 64,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 5875712,
+        "components": {
+          "clipped_index": {
+            "calls": 64,
+            "encode_ns": 16834,
+            "issue_ns": 545417,
+            "party_key_bits": [
+              5120,
+              5120
+            ],
+            "retire_ns": 5251
+          },
+          "gate_gapars": {
+            "calls": 64,
+            "encode_ns": 213913,
+            "issue_ns": 2025455,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3665
+          },
+          "index_reduce": {
+            "calls": 64,
+            "encode_ns": 19965,
+            "issue_ns": 294460,
+            "party_key_bits": [
+              5760,
+              5760
+            ],
+            "retire_ns": 2167
+          },
+          "output_gapars": {
+            "calls": 64,
+            "encode_ns": 211713,
+            "issue_ns": 2018463,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3497
+          },
+          "product": {
+            "calls": 64,
+            "encode_ns": 29210,
+            "issue_ns": 203707,
+            "party_key_bits": [
+              7680,
+              7680
+            ],
+            "retire_ns": 1914
+          },
+          "relu": {
+            "calls": 64,
+            "encode_ns": 32750,
+            "issue_ns": 275163,
+            "party_key_bits": [
+              10240,
+              10240
+            ],
+            "retire_ns": 5127
+          },
+          "residual_lookup": {
+            "calls": 64,
+            "encode_ns": 152751,
+            "issue_ns": 1569916,
+            "party_key_bits": [
+              46464,
+              46464
+            ],
+            "retire_ns": 4167
+          },
+          "sign_interval": {
+            "calls": 64,
+            "encode_ns": 195624,
+            "issue_ns": 1881168,
+            "party_key_bits": [
+              58112,
+              58112
+            ],
+            "retire_ns": 3669
+          },
+          "up_gapars": {
+            "calls": 64,
+            "encode_ns": 214165,
+            "issue_ns": 2014166,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3496
+          },
+          "wire_masks": {
+            "calls": 64,
+            "encode_ns": 0,
+            "issue_ns": 810371,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 330368,
+        "party_key_bytes": 41296,
+        "wall_ns": 12828750
+      },
+      "sample": 2
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          37042,
+          26708,
+          2466834,
+          16583,
+          16250,
+          787292,
+          12959,
+          36125
+        ],
+        "checked_outputs": 64,
+        "client_input_ns": 11625,
+        "export_ns": 2070500,
+        "import_ns": 1467000,
+        "issuance_ns": 22871875,
+        "output_codec_decode_ns": 14208,
+        "output_sha256": "545724807177228f80f98641ad1a8d1f8b275929af18f57df5f001d989d0aa6a",
+        "party_packet_bytes": [
+          73068,
+          73068
+        ],
+        "phase_frame_bytes": [
+          [
+            118,
+            118
+          ],
+          [
+            822,
+            822
+          ],
+          [
+            158,
+            158
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            86,
+            86
+          ],
+          [
+            398,
+            398
+          ]
+        ],
+        "wall_ns": 43920792,
+        "worker_start_ns": 14083417
+      },
+      "lanes": 64,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 9932800,
+        "components": {
+          "clipped_index": {
+            "calls": 64,
+            "encode_ns": 17628,
+            "issue_ns": 543955,
+            "party_key_bits": [
+              5120,
+              5120
+            ],
+            "retire_ns": 5294
+          },
+          "gate_gapars": {
+            "calls": 64,
+            "encode_ns": 213160,
+            "issue_ns": 2017036,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3627
+          },
+          "index_reduce": {
+            "calls": 64,
+            "encode_ns": 351503,
+            "issue_ns": 3827921,
+            "party_key_bits": [
+              109568,
+              109568
+            ],
+            "retire_ns": 5545
+          },
+          "output_gapars": {
+            "calls": 64,
+            "encode_ns": 212420,
+            "issue_ns": 2020211,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3749
+          },
+          "product": {
+            "calls": 64,
+            "encode_ns": 25414,
+            "issue_ns": 203375,
+            "party_key_bits": [
+              7680,
+              7680
+            ],
+            "retire_ns": 1875
+          },
+          "relu": {
+            "calls": 64,
+            "encode_ns": 32291,
+            "issue_ns": 275330,
+            "party_key_bits": [
+              10240,
+              10240
+            ],
+            "retire_ns": 4958
+          },
+          "residual_lookup": {
+            "calls": 64,
+            "encode_ns": 151542,
+            "issue_ns": 1562920,
+            "party_key_bits": [
+              46464,
+              46464
+            ],
+            "retire_ns": 3952
+          },
+          "sign_interval": {
+            "calls": 64,
+            "encode_ns": 665913,
+            "issue_ns": 7536963,
+            "party_key_bits": [
+              207872,
+              207872
+            ],
+            "retire_ns": 7083
+          },
+          "up_gapars": {
+            "calls": 64,
+            "encode_ns": 212457,
+            "issue_ns": 2017918,
+            "party_key_bits": [
+              65664,
+              65664
+            ],
+            "retire_ns": 3711
+          },
+          "wire_masks": {
+            "calls": 64,
+            "encode_ns": 0,
+            "issue_ns": 807290,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 583936,
+        "party_key_bytes": 72992,
+        "wall_ns": 22804750
+      },
+      "sample": 2
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          93542,
+          50542,
+          27458,
+          9422708,
+          30083,
+          9846084,
+          61875,
+          75375,
+          3198500,
+          47292,
+          125291
+        ],
+        "checked_outputs": 256,
+        "client_input_ns": 53541,
+        "export_ns": 4757708,
+        "import_ns": 3234583,
+        "issuance_ns": 51356292,
+        "output_codec_decode_ns": 52375,
+        "output_sha256": "865cec3a0635e7d38a2f4881512d7926c184d9f8c4476e1da784e5bab36c86de",
+        "party_packet_bytes": [
+          165260,
+          165260
+        ],
+        "phase_frame_bytes": [
+          [
+            142,
+            142
+          ],
+          [
+            2638,
+            2638
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            494,
+            494
+          ],
+          [
+            142,
+            142
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            1358,
+            1358
+          ]
+        ],
+        "wall_ns": 88768334,
+        "worker_start_ns": 6330667
+      },
+      "lanes": 256,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 23306240,
+        "components": {
+          "clipped_index": {
+            "calls": 256,
+            "encode_ns": 67667,
+            "issue_ns": 2176412,
+            "party_key_bits": [
+              20480,
+              20480
+            ],
+            "retire_ns": 20461
+          },
+          "gate_gapars": {
+            "calls": 256,
+            "encode_ns": 938293,
+            "issue_ns": 8100371,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 16518
+          },
+          "index_reduce": {
+            "calls": 256,
+            "encode_ns": 79334,
+            "issue_ns": 1181494,
+            "party_key_bits": [
+              23040,
+              23040
+            ],
+            "retire_ns": 8585
+          },
+          "output_gapars": {
+            "calls": 256,
+            "encode_ns": 849199,
+            "issue_ns": 8088162,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 15093
+          },
+          "product": {
+            "calls": 256,
+            "encode_ns": 112263,
+            "issue_ns": 825293,
+            "party_key_bits": [
+              30720,
+              30720
+            ],
+            "retire_ns": 7958
+          },
+          "relu": {
+            "calls": 256,
+            "encode_ns": 130417,
+            "issue_ns": 1101249,
+            "party_key_bits": [
+              40960,
+              40960
+            ],
+            "retire_ns": 20336
+          },
+          "residual_lookup": {
+            "calls": 256,
+            "encode_ns": 622752,
+            "issue_ns": 6199463,
+            "party_key_bits": [
+              185856,
+              185856
+            ],
+            "retire_ns": 16255
+          },
+          "sign_interval": {
+            "calls": 256,
+            "encode_ns": 755917,
+            "issue_ns": 7562907,
+            "party_key_bits": [
+              232448,
+              232448
+            ],
+            "retire_ns": 14536
+          },
+          "up_gapars": {
+            "calls": 256,
+            "encode_ns": 851628,
+            "issue_ns": 8103915,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14878
+          },
+          "wire_masks": {
+            "calls": 256,
+            "encode_ns": 0,
+            "issue_ns": 3242001,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 1321472,
+        "party_key_bytes": 165184,
+        "wall_ns": 51410542
+      },
+      "sample": 0
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          144333,
+          79959,
+          9846792,
+          62292,
+          63291,
+          3184459,
+          48542,
+          154583
+        ],
+        "checked_outputs": 256,
+        "client_input_ns": 44417,
+        "export_ns": 8287959,
+        "import_ns": 5587000,
+        "issuance_ns": 91472875,
+        "output_codec_decode_ns": 51458,
+        "output_sha256": "865cec3a0635e7d38a2f4881512d7926c184d9f8c4476e1da784e5bab36c86de",
+        "party_packet_bytes": [
+          292044,
+          292044
+        ],
+        "phase_frame_bytes": [
+          [
+            238,
+            238
+          ],
+          [
+            3054,
+            3054
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            1358,
+            1358
+          ]
+        ],
+        "wall_ns": 175434375,
+        "worker_start_ns": 56403417
+      },
+      "lanes": 256,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 39534592,
+        "components": {
+          "clipped_index": {
+            "calls": 256,
+            "encode_ns": 68452,
+            "issue_ns": 2185388,
+            "party_key_bits": [
+              20480,
+              20480
+            ],
+            "retire_ns": 20838
+          },
+          "gate_gapars": {
+            "calls": 256,
+            "encode_ns": 851206,
+            "issue_ns": 8088290,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14375
+          },
+          "index_reduce": {
+            "calls": 256,
+            "encode_ns": 1406713,
+            "issue_ns": 15341868,
+            "party_key_bits": [
+              438272,
+              438272
+            ],
+            "retire_ns": 22425
+          },
+          "output_gapars": {
+            "calls": 256,
+            "encode_ns": 868042,
+            "issue_ns": 8081545,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 15195
+          },
+          "product": {
+            "calls": 256,
+            "encode_ns": 101916,
+            "issue_ns": 814163,
+            "party_key_bits": [
+              30720,
+              30720
+            ],
+            "retire_ns": 7456
+          },
+          "relu": {
+            "calls": 256,
+            "encode_ns": 130252,
+            "issue_ns": 1103881,
+            "party_key_bits": [
+              40960,
+              40960
+            ],
+            "retire_ns": 20344
+          },
+          "residual_lookup": {
+            "calls": 256,
+            "encode_ns": 661699,
+            "issue_ns": 6224371,
+            "party_key_bits": [
+              185856,
+              185856
+            ],
+            "retire_ns": 17349
+          },
+          "sign_interval": {
+            "calls": 256,
+            "encode_ns": 2649995,
+            "issue_ns": 30032624,
+            "party_key_bits": [
+              831488,
+              831488
+            ],
+            "retire_ns": 28582
+          },
+          "up_gapars": {
+            "calls": 256,
+            "encode_ns": 873083,
+            "issue_ns": 8079387,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14876
+          },
+          "wire_masks": {
+            "calls": 256,
+            "encode_ns": 0,
+            "issue_ns": 3231123,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 2335744,
+        "party_key_bytes": 291968,
+        "wall_ns": 91235542
+      },
+      "sample": 0
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          150209,
+          74791,
+          9916208,
+          61709,
+          61458,
+          3160333,
+          48125,
+          153042
+        ],
+        "checked_outputs": 256,
+        "client_input_ns": 41500,
+        "export_ns": 8304375,
+        "import_ns": 5507125,
+        "issuance_ns": 91764542,
+        "output_codec_decode_ns": 51958,
+        "output_sha256": "865cec3a0635e7d38a2f4881512d7926c184d9f8c4476e1da784e5bab36c86de",
+        "party_packet_bytes": [
+          292044,
+          292044
+        ],
+        "phase_frame_bytes": [
+          [
+            238,
+            238
+          ],
+          [
+            3054,
+            3054
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            1358,
+            1358
+          ]
+        ],
+        "wall_ns": 175695584,
+        "worker_start_ns": 56390375
+      },
+      "lanes": 256,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 39534592,
+        "components": {
+          "clipped_index": {
+            "calls": 256,
+            "encode_ns": 68785,
+            "issue_ns": 2179375,
+            "party_key_bits": [
+              20480,
+              20480
+            ],
+            "retire_ns": 20867
+          },
+          "gate_gapars": {
+            "calls": 256,
+            "encode_ns": 846917,
+            "issue_ns": 8085683,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14247
+          },
+          "index_reduce": {
+            "calls": 256,
+            "encode_ns": 1398596,
+            "issue_ns": 15330056,
+            "party_key_bits": [
+              438272,
+              438272
+            ],
+            "retire_ns": 21350
+          },
+          "output_gapars": {
+            "calls": 256,
+            "encode_ns": 854667,
+            "issue_ns": 8086632,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14502
+          },
+          "product": {
+            "calls": 256,
+            "encode_ns": 102114,
+            "issue_ns": 816418,
+            "party_key_bits": [
+              30720,
+              30720
+            ],
+            "retire_ns": 7961
+          },
+          "relu": {
+            "calls": 256,
+            "encode_ns": 129959,
+            "issue_ns": 1100671,
+            "party_key_bits": [
+              40960,
+              40960
+            ],
+            "retire_ns": 20371
+          },
+          "residual_lookup": {
+            "calls": 256,
+            "encode_ns": 619501,
+            "issue_ns": 6211787,
+            "party_key_bits": [
+              185856,
+              185856
+            ],
+            "retire_ns": 16910
+          },
+          "sign_interval": {
+            "calls": 256,
+            "encode_ns": 2619369,
+            "issue_ns": 30078471,
+            "party_key_bits": [
+              831488,
+              831488
+            ],
+            "retire_ns": 27948
+          },
+          "up_gapars": {
+            "calls": 256,
+            "encode_ns": 847948,
+            "issue_ns": 8095671,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14324
+          },
+          "wire_masks": {
+            "calls": 256,
+            "encode_ns": 0,
+            "issue_ns": 3225673,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 2335744,
+        "party_key_bytes": 291968,
+        "wall_ns": 91138208
+      },
+      "sample": 1
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          90042,
+          50375,
+          24958,
+          9383417,
+          30917,
+          9880500,
+          62541,
+          62167,
+          3164458,
+          47250,
+          123542
+        ],
+        "checked_outputs": 256,
+        "client_input_ns": 42083,
+        "export_ns": 4728333,
+        "import_ns": 3193916,
+        "issuance_ns": 51289084,
+        "output_codec_decode_ns": 51292,
+        "output_sha256": "865cec3a0635e7d38a2f4881512d7926c184d9f8c4476e1da784e5bab36c86de",
+        "party_packet_bytes": [
+          165260,
+          165260
+        ],
+        "phase_frame_bytes": [
+          [
+            142,
+            142
+          ],
+          [
+            2638,
+            2638
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            494,
+            494
+          ],
+          [
+            142,
+            142
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            1358,
+            1358
+          ]
+        ],
+        "wall_ns": 88557458,
+        "worker_start_ns": 6326667
+      },
+      "lanes": 256,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 23306240,
+        "components": {
+          "clipped_index": {
+            "calls": 256,
+            "encode_ns": 67625,
+            "issue_ns": 2176291,
+            "party_key_bits": [
+              20480,
+              20480
+            ],
+            "retire_ns": 20905
+          },
+          "gate_gapars": {
+            "calls": 256,
+            "encode_ns": 869121,
+            "issue_ns": 8077711,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14506
+          },
+          "index_reduce": {
+            "calls": 256,
+            "encode_ns": 88505,
+            "issue_ns": 1189298,
+            "party_key_bits": [
+              23040,
+              23040
+            ],
+            "retire_ns": 8274
+          },
+          "output_gapars": {
+            "calls": 256,
+            "encode_ns": 855838,
+            "issue_ns": 8119501,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14871
+          },
+          "product": {
+            "calls": 256,
+            "encode_ns": 115787,
+            "issue_ns": 813251,
+            "party_key_bits": [
+              30720,
+              30720
+            ],
+            "retire_ns": 7259
+          },
+          "relu": {
+            "calls": 256,
+            "encode_ns": 130494,
+            "issue_ns": 1101707,
+            "party_key_bits": [
+              40960,
+              40960
+            ],
+            "retire_ns": 20543
+          },
+          "residual_lookup": {
+            "calls": 256,
+            "encode_ns": 616781,
+            "issue_ns": 6221619,
+            "party_key_bits": [
+              185856,
+              185856
+            ],
+            "retire_ns": 16204
+          },
+          "sign_interval": {
+            "calls": 256,
+            "encode_ns": 754368,
+            "issue_ns": 7539967,
+            "party_key_bits": [
+              232448,
+              232448
+            ],
+            "retire_ns": 14250
+          },
+          "up_gapars": {
+            "calls": 256,
+            "encode_ns": 855371,
+            "issue_ns": 8103006,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14660
+          },
+          "wire_masks": {
+            "calls": 256,
+            "encode_ns": 0,
+            "issue_ns": 3232715,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 1321472,
+        "party_key_bytes": 165184,
+        "wall_ns": 51341792
+      },
+      "sample": 1
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          89542,
+          50125,
+          24833,
+          9409917,
+          31625,
+          9853542,
+          61875,
+          61500,
+          3170416,
+          47000,
+          122875
+        ],
+        "checked_outputs": 256,
+        "client_input_ns": 52334,
+        "export_ns": 4654958,
+        "import_ns": 3195375,
+        "issuance_ns": 51379250,
+        "output_codec_decode_ns": 56250,
+        "output_sha256": "865cec3a0635e7d38a2f4881512d7926c184d9f8c4476e1da784e5bab36c86de",
+        "party_packet_bytes": [
+          165260,
+          165260
+        ],
+        "phase_frame_bytes": [
+          [
+            142,
+            142
+          ],
+          [
+            2638,
+            2638
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            494,
+            494
+          ],
+          [
+            142,
+            142
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            1358,
+            1358
+          ]
+        ],
+        "wall_ns": 88592917,
+        "worker_start_ns": 6323834
+      },
+      "lanes": 256,
+      "layout": "unfused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 23306240,
+        "components": {
+          "clipped_index": {
+            "calls": 256,
+            "encode_ns": 69047,
+            "issue_ns": 2183958,
+            "party_key_bits": [
+              20480,
+              20480
+            ],
+            "retire_ns": 20426
+          },
+          "gate_gapars": {
+            "calls": 256,
+            "encode_ns": 864576,
+            "issue_ns": 8085453,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14955
+          },
+          "index_reduce": {
+            "calls": 256,
+            "encode_ns": 79124,
+            "issue_ns": 1183245,
+            "party_key_bits": [
+              23040,
+              23040
+            ],
+            "retire_ns": 8591
+          },
+          "output_gapars": {
+            "calls": 256,
+            "encode_ns": 846082,
+            "issue_ns": 8085330,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14791
+          },
+          "product": {
+            "calls": 256,
+            "encode_ns": 110591,
+            "issue_ns": 817460,
+            "party_key_bits": [
+              30720,
+              30720
+            ],
+            "retire_ns": 7291
+          },
+          "relu": {
+            "calls": 256,
+            "encode_ns": 131132,
+            "issue_ns": 1106130,
+            "party_key_bits": [
+              40960,
+              40960
+            ],
+            "retire_ns": 20579
+          },
+          "residual_lookup": {
+            "calls": 256,
+            "encode_ns": 609495,
+            "issue_ns": 6208038,
+            "party_key_bits": [
+              185856,
+              185856
+            ],
+            "retire_ns": 16666
+          },
+          "sign_interval": {
+            "calls": 256,
+            "encode_ns": 753696,
+            "issue_ns": 7541868,
+            "party_key_bits": [
+              232448,
+              232448
+            ],
+            "retire_ns": 14472
+          },
+          "up_gapars": {
+            "calls": 256,
+            "encode_ns": 850805,
+            "issue_ns": 8087129,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14243
+          },
+          "wire_masks": {
+            "calls": 256,
+            "encode_ns": 0,
+            "issue_ns": 3249424,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 1321472,
+        "party_key_bytes": 165184,
+        "wall_ns": 51274209
+      },
+      "sample": 2
+    },
+    {
+      "complete": {
+        "advance_ns": [
+          154958,
+          81791,
+          9914667,
+          62542,
+          61584,
+          3198208,
+          47708,
+          162500
+        ],
+        "checked_outputs": 256,
+        "client_input_ns": 44667,
+        "export_ns": 8119958,
+        "import_ns": 5544333,
+        "issuance_ns": 91627542,
+        "output_codec_decode_ns": 52125,
+        "output_sha256": "865cec3a0635e7d38a2f4881512d7926c184d9f8c4476e1da784e5bab36c86de",
+        "party_packet_bytes": [
+          292044,
+          292044
+        ],
+        "phase_frame_bytes": [
+          [
+            238,
+            238
+          ],
+          [
+            3054,
+            3054
+          ],
+          [
+            398,
+            398
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            1358,
+            1358
+          ],
+          [
+            110,
+            110
+          ],
+          [
+            1358,
+            1358
+          ]
+        ],
+        "wall_ns": 175351709,
+        "worker_start_ns": 56273042
+      },
+      "lanes": 256,
+      "layout": "fused",
+      "microprofile": {
+        "combined_allocation_estimate_bytes": 39534592,
+        "components": {
+          "clipped_index": {
+            "calls": 256,
+            "encode_ns": 69344,
+            "issue_ns": 2188709,
+            "party_key_bits": [
+              20480,
+              20480
+            ],
+            "retire_ns": 20495
+          },
+          "gate_gapars": {
+            "calls": 256,
+            "encode_ns": 849040,
+            "issue_ns": 8094762,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14621
+          },
+          "index_reduce": {
+            "calls": 256,
+            "encode_ns": 1426077,
+            "issue_ns": 15403795,
+            "party_key_bits": [
+              438272,
+              438272
+            ],
+            "retire_ns": 22006
+          },
+          "output_gapars": {
+            "calls": 256,
+            "encode_ns": 859251,
+            "issue_ns": 8108246,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14959
+          },
+          "product": {
+            "calls": 256,
+            "encode_ns": 103380,
+            "issue_ns": 826666,
+            "party_key_bits": [
+              30720,
+              30720
+            ],
+            "retire_ns": 7958
+          },
+          "relu": {
+            "calls": 256,
+            "encode_ns": 129707,
+            "issue_ns": 1114249,
+            "party_key_bits": [
+              40960,
+              40960
+            ],
+            "retire_ns": 20085
+          },
+          "residual_lookup": {
+            "calls": 256,
+            "encode_ns": 617173,
+            "issue_ns": 6225125,
+            "party_key_bits": [
+              185856,
+              185856
+            ],
+            "retire_ns": 17127
+          },
+          "sign_interval": {
+            "calls": 256,
+            "encode_ns": 2637453,
+            "issue_ns": 30114454,
+            "party_key_bits": [
+              831488,
+              831488
+            ],
+            "retire_ns": 26761
+          },
+          "up_gapars": {
+            "calls": 256,
+            "encode_ns": 848691,
+            "issue_ns": 8089120,
+            "party_key_bits": [
+              262656,
+              262656
+            ],
+            "retire_ns": 14613
+          },
+          "wire_masks": {
+            "calls": 256,
+            "encode_ns": 0,
+            "issue_ns": 3249080,
+            "party_key_bits": [
+              0,
+              0
+            ],
+            "retire_ns": 0
+          }
+        },
+        "party_key_bits": 2335744,
+        "party_key_bytes": 291968,
+        "wall_ns": 91392416
+      },
+      "sample": 2
+    }
+  ],
+  "checked_integer_outputs": 1926,
+  "command": [
+    "cargo",
+    "test",
+    "--release",
+    "--locked",
+    "-p",
+    "pllm-garble",
+    "--lib",
+    "masked_wire_reference::issuance_profile::profile_issuance_and_codecs",
+    "--",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "created_at": "2026-10-07T05:04:36.174115+00:00",
+  "environment": {
+    "machine": "arm64",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "rustc": "rustc 1.85.1 (4eb161250 2025-03-15)"
+  },
+  "material_scope": "fresh primitive keys dropped after counting; separate complete-block samples consume fresh keys; no secret bytes retained",
+  "memory_scope": "bounded at 256 lanes; no measured peak RSS or provider transport",
+  "schema": "pllm.masked_wire_issuance_profile.v1",
+  "source_sha256": {
+    "Cargo.lock": "be735861945742b6d892d797255833c529e0266ff4f44d1fbac9d99840e5a06f",
+    "benchmarks/research/masked_wire_issuance.py": "de7d9f858e60932d08186a1f8edf8065df5ccaa12dfa48ea35f9ccdeee4d3c94",
+    "crates/pllm-core/src/residual_silu_reference.rs": "e6e397770006840d0f1428cc7e4a00df712ea9fca27dc912a0a004410097b8e9",
+    "crates/pllm-garble/src/compact_dpf.rs": "44e0867f7577103575a37b70a637fb679e60dbe812a55caf7c361ec1d3df6360",
+    "crates/pllm-garble/src/masked_wire_reference.rs": "626898b1086ca7ae25ad93df4bdbf5e9789a37d0bd65523f67724f3173862c05",
+    "crates/pllm-garble/src/masked_wire_reference/issuance_profile.rs": "21efb7c1bab1730f0d1f2e534bf992427d18b08cc71b85b26e9ec3b2c0ce5a05",
+    "crates/pllm-garble/src/masked_wire_reference/transport.rs": "e4b4ae6099e27efbbac2609bdfb37cca27d26533e495eb37525c522b4d1c283d"
+  },
+  "timing_scope": "local wall-clock nanoseconds; per-primitive microprofile includes instrumentation; complete samples use ordinary one-use issuance, codecs and evaluation"
+}
