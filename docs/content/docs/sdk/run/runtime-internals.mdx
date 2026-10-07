@@ -164,7 +164,7 @@ from pllm.state import ClientLocalKv
 state = ClientLocalKv()
 description = state.describe()
 assert state.component == "pllm/client-local-kv"
-assert description.capabilities == ("fixed-capacity-client-kv",)
+assert "fixed-capacity-client-kv" in description.capabilities
 ```
 
 ### Verify prepared execution with `FreivaldsVerify`

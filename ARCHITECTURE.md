@@ -545,7 +545,12 @@ vectors and final KV at full retention, reducing median owned KV from 6.29 to
 5.16 MB through capacity sizing. Keeping 75%/50% uses 3.90/2.62 MB but each matches
 only 35/36 same-token decode selections and no complete decode logits or final KV.
 Local-clear process peaks, including full body weights, remain 1.21–1.23 GB while
-diagnostic CPU rises. Protected selection, an executable Experiment and
+diagnostic CPU rises. Explicit `ClientLocalKv(retention=KvCacheEviction(...))`
+now selects the static contract in ordinary client-only and prepared Experiments.
+Generated SDK/gateway controls include separate prepared role children, completion
+and cancellation retirement, and client-local message-history re-prefill. Retention
+policy binds benchmark numeric identity; native placement and benchmark admission
+price state/workspace owners. Protected provider-held selection and matched
 whole-response SDK memory remain gates. The separate common-profile Compact/LogRow/Curl
 screen counts activation-only material and missing conversions explicitly;
 four-level Curl still projects 1.40 GB material and 730.30 MB peer bodies at

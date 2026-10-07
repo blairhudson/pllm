@@ -132,12 +132,23 @@ are released. Contract substitution, state-owner substitution, capacity exhausti
 and partial-layer failures are checked. An installed release wheel passes the
 same decoder and retained-storage tests outside the source checkout.
 
-This is an internal client-local research extension. Its selection addresses
-remain inside the trusted client. Protected top-k and oblivious gather still
-need an exact layer/state-revision binding before provider-owned selected state
-can run. The changed-query address-leakage witness remains a required negative
-control. The general MPCache transform and an ordinary Experiment selection
-remain unavailable.
+The explicit `ClientLocalKv(retention=KvCacheEviction(...))` state component
+now selects this static client-local contract in ordinary `MaskedLinearCpu` and
+`ClientOnlyCpu` Experiments. Dynamic selection must keep all rows and adjacent-layer
+sharing must be disabled. Native scheduling binds the policy before checkpoint
+import and provider session admission. Local benchmark admission and network
+placement price its complete state/workspace bound. The selected retention policy
+also enters benchmark numeric matching.
+
+Generated-checkpoint SDK prefill/decode and message-history follow-ups pass in
+client-only and separate-process prepared roles, and the gateway full-retention
+control preserves output. Completion and cancelled streams retire every native
+owner. Follow-ups re-prefill client-held message history rather than retaining
+sparse KV between responses. Private selection addresses remain client-local.
+Protected top-k and oblivious gather still need an exact layer/state-revision
+binding before provider-owned selected state can run. The changed-query
+address-leakage witness remains a required negative control; the general dynamic
+and layer-shared MPCache transform remains unavailable.
 
 ## Fresh pinned-checkpoint allocation and quality
 
@@ -202,6 +213,7 @@ For compiler-bound decoder controls:
 
 ```sh
 uv run pytest -q tests/test_retained_decoder.py
+uv run pytest -q tests/test_retained_sdk.py
 ```
 
 Recorded checkpoint-cohort invocation (the output is immutable; choose a new

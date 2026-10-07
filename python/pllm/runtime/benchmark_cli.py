@@ -506,6 +506,7 @@ def _matched_kernel_composition(candidates: list[tuple[Experiment, dict[str, Any
                 "quantization": pipeline["components"].get("quantization"),
                 "nonlinear": _comparison_nonlinear_component(pipeline["components"]),
                 "scheduler": pipeline["components"].get("scheduler"),
+                "state": pipeline["components"].get("state"),
             },
             "outputs": outputs,
         }, sort_keys=True, allow_nan=False))
@@ -550,6 +551,7 @@ def build_comparison_report(
         components = experiment.pipeline.to_spec()["components"]
         numeric_contracts.append(json.dumps({
             "nonlinear": _comparison_nonlinear_component(components), "scheduler": components.get("scheduler"),
+            "state": components.get("state"),
             "causal_reduction": components.get("quantization", {}).get("params", {}).get("causal_reduction"),
         }, sort_keys=True))
     matched_numeric = len(set(numeric_contracts)) == 1

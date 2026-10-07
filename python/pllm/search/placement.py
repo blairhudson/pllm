@@ -575,7 +575,9 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
             edges[("preparation", "inference", "preprocessing")] += (
                 requests * count * stage.out_features * 4
             )
-    state_bytes = sum(_product(item["shape"]) * 4 for item in schedule["decode"]["state_outputs"])
+    retained = schedule.get("retained_state")
+    state_bytes = (retained["owned_array_bound_bytes"] if retained is not None else
+                   sum(_product(item["shape"]) * 4 for item in schedule["decode"]["state_outputs"]))
     # A cache miss must remain feasible even before any resident-state evidence
     # exists. Charge its full declared capacity, not only today's hit snapshot.
     payload = state_bytes + workspace + profile.prefix_cache_bytes

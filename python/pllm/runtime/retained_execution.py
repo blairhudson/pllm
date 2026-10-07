@@ -1,8 +1,8 @@
 """Compiler-bound client-local static retention research.
 
-Uses ordinary checkpoint bindings and semantic execution. This explicit extension
-has its own execution identity; it is not the protected MPCache graph transform or
-an Experiment/snapshot admission. Selection addresses remain client-local.
+Uses ordinary checkpoint bindings and semantic execution. Pipeline state selects
+this extension under its own execution identity. Selection addresses remain
+client-local; snapshots and protected MPCache selection use different contracts.
 """
 from __future__ import annotations
 
@@ -77,7 +77,11 @@ class RetainedExecution:
         # boundary, not trust in caller-authored source/schedule metadata.
         contract.__post_init__()
         document = contract.to_dict()
-        schedule = json.dumps(runtime._schedule, sort_keys=True, separators=(",", ":")).encode()
+        source = dict(runtime._schedule)
+        embedded = source.pop("retained_state", None)
+        if embedded is not None and embedded != document:
+            raise TransformerClientError("retained contract differs from compiled state")
+        schedule = json.dumps(source, sort_keys=True, separators=(",", ":")).encode()
         digest = hashlib.sha256(b"pllm.decoder_runtime_schedule.v2\0" + schedule).hexdigest()
         if (runtime.position or runtime._source_plan.canonical_bytes() != contract._plan
                 or digest != document["source_schedule_digest"]

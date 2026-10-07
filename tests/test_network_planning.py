@@ -170,6 +170,33 @@ def test_client_budget_changes_selected_composition_and_link_budget_changes_part
     assert assigned(a) != assigned(c)
 
 
+def test_retained_state_prices_native_owners_and_workspace_before_placement():
+    from pllm.passes import KvCacheEviction
+    from pllm.state import ClientLocalKv
+
+    req = request()
+    candidate = req.candidates[0]
+    candidate = replace(candidate, pipeline=candidate.pipeline.with_params(state=ClientLocalKv(
+        retention=KvCacheEviction(static_keep=(1, 2), dynamic_keep=(1, 1), share_adjacent_layers=False))))
+    req = replace(req, candidates=(candidate,))
+    contract = req.model_plan.runtime_schedule(candidate.pipeline).to_dict()["retained_state"]
+    result = plan(req, snapshot=snapshot())
+    assert result.status == "feasible"
+    native = result.native_placement
+    assert native["minimum_memory_bytes"]["client"] == (
+        native["minimum_weight_bytes"]["client"] + contract["owned_array_bound_bytes"])
+    assert result.costs["client_payload_bytes"] >= contract["owned_array_bound_bytes"]
+    tampered = result.to_spec()["selection"]["native_placement"]
+    tampered["required_memory_bytes"]["client"] = native["minimum_weight_bytes"]["client"]
+    # Admission repeats the compiler-derived floor even for caller-authored costs.
+    for key in ("minimum_memory_bytes", "minimum_weight_bytes", "placement_digest",
+                "schedule_digest", "model_plan_digest", "composition_digest"):
+        tampered.pop(key, None)
+    with pytest.raises(ValueError):
+        _native.validate_network_placement(req.model_plan.canonical_bytes(),
+            candidate.pipeline.canonical_bytes(), canonical(tampered))
+
+
 def test_small_exhaustive_native_oracle_with_hand_computed_stage_link_cost():
     req, snap = request(), snapshot()
     exp = req.candidates[0]

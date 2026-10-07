@@ -10,7 +10,12 @@ component and parameters, and binds new static-selection and bounded dynamic
 gather state into immutable plan lineage. Incompatible architectures fail before
 mutation. Current runtime does **not** execute the transformed plan end to end;
 the compiler and protected selection handoff remain incomplete. Therefore this
-option cannot be substituted into a serving or matched performance claim.
+transformed plan cannot be substituted into a serving or matched performance claim.
+The same component's static policy can separately select
+[client-local retained KV](/sdk/components/state/client-local-kv/) through
+`ClientLocalKv(retention=...)` in ordinary client-only and prepared Experiments.
+That executor keeps private selections client-local and requires
+`dynamic_keep=(1, 1)` and `share_adjacent_layers=False`.
 
 ## Python SDK example
 

@@ -94,6 +94,16 @@ def decoder_memory(plan, schedule):
     graphs = (plan.prefill, plan.decode)
     rotary = max(rotary_coefficient_bound(graph) for graph in graphs)
     legacy = sum(_bytes(op["output_shape"]) for graph in graphs for op in graph["operations"])
+    phases = schedule.to_dict()
+    retained = phases.get("retained_state")
+    if retained is not None:
+        # Native admission counts dense prefill, retained rows, temporary copies
+        # and allocation-root workspace together. No full-state snapshots escape.
+        return {"mode": "retained_kv_live_roots_v1",
+                "working_bytes": retained["workspace_bound_bytes"] + rotary,
+                "state_bytes": sum(retained[key] for key in (
+                    "retained_payload_bound_bytes", "dense_prefill_payload_bound_bytes", "conversion_export_bound_bytes")),
+                "legacy_working_bytes": legacy, "rotary_coefficient_bytes": rotary}
     qualified = all(op["operator"] in _OPERATORS for graph in graphs for op in graph["operations"])
     states = {}
     for graph in graphs:
@@ -111,7 +121,6 @@ def decoder_memory(plan, schedule):
         return {"mode": "unreleased_outputs", "working_bytes": legacy + rotary,
                 "state_bytes": 0, "legacy_working_bytes": legacy,
                 "rotary_coefficient_bytes": rotary}
-    phases = schedule.to_dict()
     working = max(_phase_working_bytes(graph, phases[phase])
                   for phase, graph in zip(("prefill", "decode"), graphs, strict=True))
     # Geometric KV capacity, growth overlap, restored state, completed-response

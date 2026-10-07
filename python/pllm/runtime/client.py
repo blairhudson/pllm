@@ -15,7 +15,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from collections import OrderedDict, defaultdict, deque
 from collections.abc import AsyncIterator, Iterator
 from contextlib import AbstractContextManager, contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, copy_context
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, Mapping, TypeVar
@@ -2093,8 +2093,8 @@ class RuntimeClient:
                 raise
             # Existing import-only decoders stay on the already admitted
             # runtime graph until they lower into the shared semantic IR.
-            if state.privacy_mode == "client_only":
-                raise ModelError("client-owned model has no semantic decoder adapter") from exc
+            if state.privacy_mode == "client_only" or "state" in composition.components:
+                raise ModelError("selected client state requires a semantic decoder adapter") from exc
             return None
         coverage = plan.coverage(composition)
         verified = state.bundle.privacy.get(
@@ -2106,8 +2106,8 @@ class RuntimeClient:
         if not coverage.complete and not verified:
             # Existing runtime-only operators remain on their separately admitted
             # path until their generic compiler capabilities are implemented.
-            if state.privacy_mode == "client_only":
-                raise ModelError("client-owned decoder has incomplete compiler coverage")
+            if state.privacy_mode == "client_only" or "state" in composition.components:
+                raise ModelError("selected client state has incomplete compiler coverage")
             return None
         return compile_runtime_model(plan, state.bundle, composition=composition)
 
@@ -2129,6 +2129,9 @@ class RuntimeClient:
         ):
             return None
         graphs = compiled._plan.to_dict()
+        selected_state = json.loads(compiled._canonical_composition)["components"].get("state", {})
+        if selected_state.get("params", {}).get("retention") is not None:
+            raise ModelError("retained response-owned state cannot use a full-KV cache")
         for phase in ("prefill", "decode"):
             graph = graphs[phase]
             if any(
@@ -4212,7 +4215,7 @@ class RuntimeClient:
             if history_calls:
                 assistant_history["tool_calls"] = history_calls
             self.message_histories[response_id] = [*structured, assistant_history]
-            if bool(body.get("store", True)):
+            if bool(body.get("store", True)) and getattr(runtime, "_retained", None) is None:
                 with self._transformer_conversation_lock:
                     self._transformer_conversations[response_id] = _TransformerConversationState(
                         model_id=model_id,
@@ -4233,6 +4236,8 @@ class RuntimeClient:
                 }
             )
         finally:
+            if getattr(runtime, "_retained", None) is not None:
+                runtime._retained.burn(runtime)
             completed_online_bytes = response_online_bytes()
             if (
                 session_completed and first_output_online_bytes is not None
@@ -4697,19 +4702,29 @@ class AsyncResponsesResource:
 
     async def create(self, **kwargs: Any):
         if kwargs.get("stream"):
-            stream = await asyncio.to_thread(self.resource.create, **kwargs)
+            context = copy_context()
+            lock = threading.Lock()
+
+            def owned_call(function, *args, **options):
+                # A suspended generator must resume and close in the context
+                # that owns its tokenizer. Cancellation can schedule close
+                # while a threaded next() is still draining; serialize both.
+                with lock:
+                    return context.run(function, *args, **options)
+
+            stream = await asyncio.to_thread(owned_call, self.resource.create, **kwargs)
             assert isinstance(stream, ResponseStream)
 
             async def iterate() -> AsyncIterator[ResponseEvent]:
                 sentinel = object()
                 try:
                     while True:
-                        event = await asyncio.to_thread(_next_or, stream, sentinel)
+                        event = await asyncio.to_thread(owned_call, _next_or, stream, sentinel)
                         if event is sentinel:
                             break
                         yield event
                 finally:
-                    await asyncio.to_thread(stream.close)
+                    await asyncio.to_thread(owned_call, stream.close)
 
             return iterate()
         return await asyncio.to_thread(self.resource.create, **kwargs)

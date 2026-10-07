@@ -79,6 +79,9 @@ pub fn lower_decoder_continuation(
         return Err("continuation requires admitted public linear composition".into());
     }
     let source = lower_decoder_runtime_schedule(plan, composition)?;
+    if source.retained_state.is_some() {
+        return Err("retained response-owned state cannot enter full-KV continuation".into());
+    }
     let bound = plan.prefill.query_sequence;
     if !(2..=4096).contains(&bound) || plan.prefill.maximum_key_sequence != bound {
         return Err("continuation requires fixed compiler input token bound in [2, 4096]".into());

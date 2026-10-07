@@ -1,6 +1,7 @@
 """Public persistent-state protocol declarations."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
@@ -43,6 +44,7 @@ class StateProtocol(ComponentRef, ABC):
 
 
 class ClientLocalKv(StateProtocol):
+    """Client-owned KV, optionally retaining a static importance-selected prefix."""
     __slots__ = ()
     descriptor = ComponentDescriptor(
         component="pllm/client-local-kv",
@@ -52,16 +54,31 @@ class ClientLocalKv(StateProtocol):
         category="pllm/state-protocol",
         category_version="1",
         lifecycle_phase="online",
-        parameter_schema={"type": "object", "additionalProperties": False},
-        capabilities=("fixed-capacity-client-kv",),
+        parameter_schema={"type": "object", "properties": {
+            "retention": {"type": "object"},
+        }, "additionalProperties": False},
+        capabilities=("fixed-capacity-client-kv", "static-retained-client-kv"),
         role_eligibility=("client",),
     )
 
-    def __init__(self) -> None:
-        super().__init__(self.descriptor.component)
+    def __init__(self, *, retention=None) -> None:
+        from pllm.passes import KvCacheEviction
+        if isinstance(retention, Mapping):
+            if set(retention) != {"component", "params"} or retention["component"] != "pllm/kv-cache-eviction":
+                raise ConfigurationError("retention requires a KV eviction component")
+            retention = KvCacheEviction.from_params(retention["params"])
+        if retention is not None:
+            if type(retention) is not KvCacheEviction:
+                raise ConfigurationError("retention must be KvCacheEviction")
+            params = retention.params
+            dynamic = params["dynamic_keep"]
+            if (params["implementation"] != "pllm/importance-kv-cache-eviction/v1"
+                    or dynamic["numerator"] != dynamic["denominator"] or params["share_adjacent_layers"]):
+                raise ConfigurationError("client retention requires static selection without layer sharing")
+        super().__init__(self.descriptor.component, {} if retention is None else {"retention": retention.to_spec()})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {}
+        return {key: value for key, value in super().get_params(deep).items() if key != "component"}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

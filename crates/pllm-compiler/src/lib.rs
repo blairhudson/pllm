@@ -1749,6 +1749,7 @@ pub(crate) fn classify_decoder_composition(
 fn validate_decoder_linear_composition(
     pipeline: &ExperimentPipeline,
 ) -> Result<DecoderCompositionKind, String> {
+    retained_decoder::validate_state_component(pipeline)?;
     if pipeline.components.get("cache").is_some_and(|cache| {
         cache
             .params
@@ -1987,6 +1988,7 @@ fn validate_bounded_linear_composition(
     }
     if pipeline.components.len()
         != 3 + usize::from(quantization.is_some())
+            + usize::from(pipeline.components.contains_key("state"))
             + usize::from(cache.is_some())
             + usize::from(delivery.is_some())
             + usize::from(nonlinear.is_some())
@@ -2185,6 +2187,7 @@ fn validate_masked_linear_composition(
     }
     if pipeline.components.len()
         != 4 + usize::from(quantization.is_some())
+            + usize::from(pipeline.components.contains_key("state"))
             + usize::from(verification.is_some())
             + usize::from(topology.is_some())
             + usize::from(cache.is_some())

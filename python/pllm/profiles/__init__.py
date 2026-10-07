@@ -33,7 +33,7 @@ from pllm.roles import (
     TwoOnlineOffsetRoles,
 )
 from pllm.sources import ModelSource
-from pllm.state import ClientPrefixReuse, PublicPrefixCapsule
+from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
@@ -119,7 +119,7 @@ class MaskedLinearCpu(_TypedPipeline):
         "placement",
         "inventory",
         "delivery",
-        "tokenizer", "public_prefix",
+        "tokenizer", "public_prefix", "state",
     )
     __slots__ = ()
 
@@ -139,6 +139,7 @@ class MaskedLinearCpu(_TypedPipeline):
         delivery: ClientBundleTransport | None = None,
         tokenizer: IndexedTokenizer | None = None,
         public_prefix: PublicPrefixCapsule | None = None,
+        state: ClientLocalKv | None = None,
     ) -> None:
         if quantization is not None:
             _slot("quantization", quantization, QuantizationScheme)
@@ -183,6 +184,7 @@ class MaskedLinearCpu(_TypedPipeline):
                 ),
                 **({"tokenizer": _slot("tokenizer", tokenizer, IndexedTokenizer)} if tokenizer is not None else {}),
                 **({"public_prefix": _slot("public_prefix", public_prefix, PublicPrefixCapsule)} if public_prefix is not None else {}),
+                **({"state": _slot("state", state, ClientLocalKv)} if state is not None else {}),
             },
         )
 
@@ -234,12 +236,16 @@ class MaskedLinearCpu(_TypedPipeline):
     def public_prefix(self) -> PublicPrefixCapsule | None:
         return self.components.get("public_prefix")
 
+    @property
+    def state(self) -> ClientLocalKv | None:
+        return self.components.get("state")
+
 
 class ClientOnlyCpu(_TypedPipeline):
     """Client-owned decoder with local quantized body linear stages."""
 
     PROFILE = "baseline.client_only_cpu"
-    SLOT_NAMES = ("linear", "kernels", "quantization", "topology")
+    SLOT_NAMES = ("linear", "kernels", "quantization", "topology", "state")
     __slots__ = ()
 
     def __init__(
@@ -250,6 +256,7 @@ class ClientOnlyCpu(_TypedPipeline):
         kernels: KernelBackend = _DEFAULT_KERNELS,
         quantization: QuantizationScheme | None = None,
         topology: RoleTopology = _DEFAULT_CLIENT_ONLY,
+        state: ClientLocalKv | None = None,
     ) -> None:
         if quantization is not None:
             _slot("quantization", quantization, QuantizationScheme)
@@ -276,6 +283,7 @@ class ClientOnlyCpu(_TypedPipeline):
                     ClientOnlyRoles.descriptor.component,
                 ),
                 **({"quantization": quantization} if quantization is not None else {}),
+                **({"state": _slot("state", state, ClientLocalKv)} if state is not None else {}),
             },
         )
 
@@ -295,6 +303,10 @@ class ClientOnlyCpu(_TypedPipeline):
     def topology(self) -> ClientOnlyRoles:
         return self.components["topology"]
 
+    @property
+    def state(self) -> ClientLocalKv | None:
+        return self.components.get("state")
+
 
 class ClientOnlyMetal(ClientOnlyCpu):
     """Client-owned compiled decoder with Metal prefill and CPU decode."""
@@ -310,6 +322,7 @@ class ClientOnlyMetal(ClientOnlyCpu):
         kernels: KernelBackend = AppleMetal(),
         quantization: QuantizationScheme | None = None,
         topology: RoleTopology = _DEFAULT_CLIENT_ONLY,
+        state: ClientLocalKv | None = None,
     ) -> None:
         _slot("kernels", kernels, KernelBackend, AppleMetal.descriptor.component)
         super().__init__(
@@ -318,6 +331,7 @@ class ClientOnlyMetal(ClientOnlyCpu):
             kernels=kernels,
             quantization=quantization,
             topology=topology,
+            state=state,
         )
 
 
@@ -653,6 +667,19 @@ class RuntimeComposition:
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    state = pipeline.components.get("state")
+    if state is not None:
+        if (state.component != ClientLocalKv.descriptor.component
+                or identities.get("linear") not in {"pllm/masked-linear", "pllm/cleartext-linear"}
+                or {"cache", "public_prefix", "verification", "nonlinear"} & identities.keys()
+                or pipeline.components.get("quantization") is not None
+                and pipeline.components["quantization"].params.get("causal_reduction") is not None):
+            return None
+        try:
+            ClientLocalKv.from_params(state.params)
+        except (ConfigurationError, TypeError, ValueError):
+            return None
+        del identities["state"]
     nonlinear = pipeline.components.get("nonlinear")
     nonlinear_layout = None
     nonlinear_dispatch = "serial"

@@ -1,31 +1,67 @@
 ---
 title: "Client-local KV state"
-description: "Declare client ownership of bounded decoder state without exposing live cache data in configuration."
+description: "Select bounded dense or statically retained decoder state inside the trusted client."
 ---
 
 [`ClientLocalKv`](/sdk/reference/python/pllm/state/#clientlocalkv)
 (`pllm/client-local-kv`) is an immutable and serializable state-protocol
-descriptor. The compiled reference handles initialize/append transitions,
-valid-length and absolute-position checks, and a bounded client KV view. A
-descriptor does not contain the live cache. The shipped runtime's state is
-bound by its execution graph; there is no independent user-facing state slot in
-the supported `Experiment` profiles. This is PLLM-specific runtime
-infrastructure, not MPCache or a protected eviction implementation.
+descriptor. `MaskedLinearCpu` and `ClientOnlyCpu` accept it in their `state`
+slot. The default preserves dense KV; an explicit static
+[`KvCacheEviction`](/sdk/components/passes/kv-cache-eviction/) policy selects
+native retained-row ownership under a separate compiled execution identity.
+The descriptor contains no live state.
 
 ## Python SDK example
 
 ```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.passes import KvCacheEviction
+from pllm.profiles import MaskedLinearCpu
 from pllm.state import ClientLocalKv
 
-state = ClientLocalKv()
+state = ClientLocalKv(retention=KvCacheEviction(
+    observation_window=(1, 4),
+    static_keep=(3, 4),
+    dynamic_keep=(1, 1),
+    share_adjacent_layers=False,
+))
 assert state.to_spec()["component"] == "pllm/client-local-kv"
 assert state.describe().lifecycle_phase == "online"
+experiment = Experiment(
+    name="retained-kv",
+    pipeline=MaskedLinearCpu(Model.tiny(), state=state),
+    deployment=Deployment.local(root="local://retained-kv"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=128, max_new_tokens=4),
+)
+assert Experiment.from_spec(experiment.to_spec()) == experiment
 ```
 
-For an actual client execution, use the complete
-[masked-linear experiment](/sdk/inference/masked-linear/) and its
-`pllm gateway --local --experiment experiment.py:experiment --trust-python`
-command. To inspect a separate cache-policy plan transform, see
-[KV-cache eviction](/sdk/components/passes/kv-cache-eviction/).
+Save the example as `experiment.py`; it uses the ordinary
+[gateway workflow](/sdk/inference/masked-linear/):
+
+```sh
+pllm gateway --local --experiment experiment.py:experiment --trust-python
+```
+
+Prefill evaluates full causal attention, selects stable importance top-k plus
+the recent observation window, and releases discarded rows. Decode uses original
+token positions. Completion, cancellation and failure retire native owners.
+Follow-up responses re-prefill client-held message history; retained rows never
+enter full-KV snapshots or prefix-reuse caches.
+
+The current static contract admits batch one, up to 512 input and 64 decode
+rows, exclusive dense KV layers and a 2 GiB state/workspace ceiling. Native
+placement and benchmark admission price transient owners as well as final KV.
+Verified, two-offset, recurrent/windowed/shared-KV, changed causal-reduction and
+protected nonlinear combinations reject. Retention changes the benchmark numeric
+contract even when selected output tokens happen to match.
+
+This is a client-local adaptation of MPCache's static selection. Private scores,
+selected addresses and KV remain in the trusted client. The fresh Qwen diagnostic
+matches 35/36 decode selections at both 75% and 50% retention; full retention
+preserves logits/KV exactly. Smaller KV allocation has not established lower
+SDK peak RSS. See the [MPCache reference](https://github.com/blairhudson/pllm/blob/main/docs/research/mpcache-reference.md)
+for source attribution and scoped evidence. Protected provider-held selection
+and dynamic/layer-shared MPCache execution remain separate implementation gates.
 
 API: [`ClientLocalKv`](/sdk/reference/python/pllm/state/#objects-and-signatures)

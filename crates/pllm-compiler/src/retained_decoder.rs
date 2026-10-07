@@ -11,6 +11,59 @@ use std::collections::BTreeSet;
 
 const SCHEMA: &str = "pllm.retained_decoder.v1";
 
+pub(crate) fn validate_state_component(pipeline: &crate::ExperimentPipeline) -> Result<(), String> {
+    let Some(state) = pipeline.components.get("state") else {
+        return Ok(());
+    };
+    if state.component != "pllm/client-local-kv"
+        || state.params.keys().any(|key| key != "retention")
+        || !pipeline.components.get("linear").is_some_and(|linear| {
+            matches!(
+                linear.component.as_str(),
+                "pllm/masked-linear" | "pllm/cleartext-linear"
+            )
+        })
+        || ["cache", "public_prefix", "verification", "nonlinear"]
+            .iter()
+            .any(|slot| pipeline.components.contains_key(*slot))
+        || pipeline
+            .components
+            .get("quantization")
+            .is_some_and(|q| q.params.contains_key("causal_reduction"))
+    {
+        return Err("client state requires unverified response-owned dense execution".into());
+    }
+    if let Some(policy) = state.params.get("retention") {
+        selected_policy(policy)?;
+    }
+    Ok(())
+}
+
+fn selected_policy(policy: &Value) -> Result<MpcachePolicy, String> {
+    if policy.as_object().is_none_or(|map| map.len() != 2)
+        || policy["component"] != "pllm/kv-cache-eviction"
+    {
+        return Err("retained decoder requires a KV eviction component".into());
+    }
+    let mut params = policy["params"]
+        .as_object()
+        .cloned()
+        .ok_or("retained policy parameters are missing")?;
+    if params.remove("implementation") != Some(Value::from("pllm/importance-kv-cache-eviction/v1"))
+    {
+        return Err("retained policy implementation is unsupported".into());
+    }
+    let selected: MpcachePolicy =
+        serde_json::from_value(Value::Object(params)).map_err(|e| e.to_string())?;
+    selected.validate().map_err(|e| e.to_string())?;
+    if selected.dynamic_keep.numerator != selected.dynamic_keep.denominator
+        || selected.share_adjacent_layers
+    {
+        return Err("retained decoder admits static client-local selection only".into());
+    }
+    Ok(selected)
+}
+
 #[derive(Serialize)]
 struct PhaseBinding {
     key: String,
@@ -248,7 +301,25 @@ pub fn retained_decoder_bytes(
         return Err("retained decoder metadata exceeds its byte bound".into());
     }
     let plan: DecoderPlan = serde_json::from_slice(plan_bytes).map_err(|e| e.to_string())?;
-    let source = lower_decoder_runtime_schedule(&plan, composition)?;
+    let mut source = lower_decoder_runtime_schedule(&plan, composition)?;
+    source.retained_state = None;
+    let policy: Value = serde_json::from_slice(component).map_err(|e| e.to_string())?;
+    let numeric: Value = serde_json::from_slice(composition).map_err(|e| e.to_string())?;
+    if let Some(bound) = numeric["components"]["state"]["params"].get("retention") {
+        if bound != &policy {
+            return Err("retained policy differs from Pipeline state".into());
+        }
+    }
+    build_contract(&plan, &source, composition, policy, memory_bytes)
+}
+
+pub(crate) fn build_contract(
+    plan: &DecoderPlan,
+    source: &crate::DecoderRuntimeSchedule,
+    composition: &[u8],
+    policy: Value,
+    memory_bytes: u64,
+) -> Result<Vec<u8>, String> {
     let numeric: Value = serde_json::from_slice(composition).map_err(|e| e.to_string())?;
     if !matches!(
         crate::classify_decoder_composition(composition)?,
@@ -263,28 +334,7 @@ pub fn retained_decoder_bytes(
     {
         return Err("retained decoder needs an ordinary unverified dense numeric source".into());
     }
-    let policy: Value = serde_json::from_slice(component).map_err(|e| e.to_string())?;
-    if policy.as_object().is_none_or(|map| map.len() != 2)
-        || policy["component"] != "pllm/kv-cache-eviction"
-    {
-        return Err("retained decoder requires a KV eviction component".into());
-    }
-    let mut params = policy["params"]
-        .as_object()
-        .cloned()
-        .ok_or("retained policy parameters are missing")?;
-    if params.remove("implementation") != Some(Value::from("pllm/importance-kv-cache-eviction/v1"))
-    {
-        return Err("retained policy implementation is unsupported".into());
-    }
-    let selected: MpcachePolicy =
-        serde_json::from_value(Value::Object(params)).map_err(|e| e.to_string())?;
-    selected.validate().map_err(|e| e.to_string())?;
-    if selected.dynamic_keep.numerator != selected.dynamic_keep.denominator
-        || selected.share_adjacent_layers
-    {
-        return Err("retained decoder admits static client-local selection only".into());
-    }
+    let selected = selected_policy(&policy)?;
     let inputs = plan.prefill.query_sequence;
     let decode = plan
         .decode
@@ -379,7 +429,7 @@ pub fn retained_decoder_bytes(
         schema_version: SCHEMA,
         source_plan_digest: plan.digest(),
         source_schedule_digest: source.digest(),
-        composition_digest: source.composition_digest,
+        composition_digest: source.composition_digest.clone(),
         policy,
         selection_executor: "trusted_client",
         importance_reduction:

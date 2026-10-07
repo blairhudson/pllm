@@ -238,6 +238,7 @@ export function cohortRows(cohort, document, read = (file) => fs.readFileSync(pa
       model: run.model_id, source: candidate.pipeline.model, body: run.model_fingerprint, prompt: config.prompt_digest,
       quantization: candidate.pipeline.components.quantization, inputs: run.tokens.input_tokens,
       nonlinear: nonlinearNumericContract(candidate.pipeline.components.nonlinear),
+      state: candidate.pipeline.components.state ?? null,
       verification: candidate.pipeline.components.verification ?? null,
       outputs: run.tokens.output_tokens, cap: run.max_output_tokens, sampling: run.sampling,
       warm: run.warm, output: run.generation.output_text_digest, backend: config.provider_backend,

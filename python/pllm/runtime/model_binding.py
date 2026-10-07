@@ -453,6 +453,12 @@ class CompiledRuntimeModel:
         cache = composition.components.get("cache")
         if cache is not None and cache.params.get("generated_prefixes"):
             runtime.enable_generated_prefixes(self._plan.continuation_schedule(composition))
+        if schedule.get("retained_state") is not None:
+            from .retained_execution import RetainedDecoderContract
+            policy = _canonical_json(schedule["retained_state"]["policy"])
+            runtime._install_retained(RetainedDecoderContract(
+                _canonical_json(schedule["retained_state"]), self._plan.canonical_bytes(),
+                self._canonical_composition, policy, 2 << 30))
         return runtime
 
     def _runtime_with_nonlinear(

@@ -123,6 +123,8 @@ pub struct DecoderRuntimeSchedule {
     pub complete: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nonlinear: Option<crate::masked_wire_schedule::MaskedWireNumericContract>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retained_state: Option<serde_json::Value>,
 }
 
 impl DecoderRuntimeSchedule {
@@ -1781,7 +1783,7 @@ pub fn lower_decoder_runtime_schedule(
     if linear_stage_signature(&prefill) != linear_stage_signature(&decode) {
         return Err("prefill/decode linear stage contracts differ".into());
     }
-    Ok(DecoderRuntimeSchedule {
+    let mut schedule = DecoderRuntimeSchedule {
         schema_version: DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION.into(),
         composition_digest: pipeline_digest_bytes(canonical_composition),
         model_plan_digest: plan.digest(),
@@ -1791,7 +1793,24 @@ pub fn lower_decoder_runtime_schedule(
         protected_execution: false,
         complete: true,
         nonlinear,
-    })
+        retained_state: None,
+    };
+    if let Some(policy) = composition
+        .components
+        .get("state")
+        .and_then(|state| state.params.get("retention"))
+    {
+        let contract = crate::retained_decoder::build_contract(
+            plan,
+            &schedule,
+            canonical_composition,
+            policy.clone(),
+            2 << 30,
+        )?;
+        schedule.retained_state =
+            Some(serde_json::from_slice(&contract).map_err(|e| e.to_string())?);
+    }
+    Ok(schedule)
 }
 
 #[cfg(test)]

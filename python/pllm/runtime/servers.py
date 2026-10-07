@@ -1054,7 +1054,11 @@ def build_roles(
         raise TypeError("model must be a Model, Pipeline, Experiment, or source string")
     if model.kind not in {"huggingface", "safetensors", "vllm", "mlx", "mlx-lm", "tiny"}:
         raise ValueError(f"local topology does not support model kind {model.kind!r}")
-    resolved_id = model_id if model_id is not None else model.model_id or model.source
+    from pllm.model_loader import expected_model_id
+
+    resolved_id = model_id if model_id is not None else expected_model_id(model)
+    if experiment is not None and resolved_id != experiment.resolve().model:
+        raise ValueError("model_id conflicts with the Experiment model")
     if (
         type(resolved_id) is not str
         or not resolved_id

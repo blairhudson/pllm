@@ -96,6 +96,17 @@ fn admit_network_placement(
         kind,
         pipeline.components.contains_key("boundary"),
     )?;
+    let mut minimum_memory_bytes = minimum_weight_bytes.clone();
+    if let Some(state) = &schedule.retained_state {
+        let client = minimum_memory_bytes.get_mut("client").unwrap();
+        *client = client
+            .checked_add(
+                state["owned_array_bound_bytes"]
+                    .as_u64()
+                    .ok_or("retained schedule lacks its memory bound")?,
+            )
+            .ok_or("retained client memory floor overflows")?;
+    }
     Ok(NativePlacementAdmission {
         model_identity: plan.config_digest,
         requirements: NetworkPlacementRequirements {
@@ -111,7 +122,7 @@ fn admit_network_placement(
                 .into_iter()
                 .map(|(left, right)| [left.to_owned(), right.to_owned()])
                 .collect(),
-            minimum_memory_bytes: minimum_weight_bytes.clone(),
+            minimum_memory_bytes,
             minimum_weight_bytes,
             schedule_digest: schedule.digest(),
             model_plan_digest: schedule.model_plan_digest,

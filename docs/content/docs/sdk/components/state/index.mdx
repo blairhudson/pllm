@@ -7,8 +7,9 @@ description: "Keep KV state ownership and plan transformations distinct."
 persistent-state contract for a fixed-capacity client cache. It is distinct
 from the [KV-cache eviction pass](/sdk/components/passes/kv-cache-eviction/):
 the latter changes a semantic plan and does not yet run as a protected
-whole-decoder composition. There is no user-selectable `state` slot in the
-shipped typed inference constructors.
+whole-decoder composition. The `state` slot in `MaskedLinearCpu` and
+`ClientOnlyCpu` separately accepts a static client-local retention policy through
+`ClientLocalKv(retention=...)` under its own compiled contract.
 An optional [`ClientPrefixReuse`](/sdk/components/state/client-prefix-reuse/)
 cache slot is available for bounded client-owned prefill snapshots; its
 digest-bound selection is separate from the live KV state contract.

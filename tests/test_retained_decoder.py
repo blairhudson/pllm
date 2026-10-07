@@ -188,3 +188,26 @@ def test_replacing_response_owned_state_rejects_before_remote_work(decoder):
     with pytest.raises(TransformerClientError, match="owner/position"):
         a.forward_ids([3])
     assert b._retained.allocated_bytes > 0
+
+
+@pytest.mark.parametrize("keep", [(1, 1), (1, 2)])
+def test_pipeline_retention_matches_bound_reference_for_all_logits_and_kv(decoder, keep):
+    from pllm.configuration import Pipeline
+    from pllm.state import ClientLocalKv
+    compiled, remote = decoder
+    pipeline = Pipeline.from_spec(json.loads(compiled._canonical_composition))
+    selected = Pipeline(pipeline.model, dict(pipeline.components) | {"state": ClientLocalKv(retention=policy(keep))})
+    candidate = compile_runtime_model(compiled._plan, compiled._bundle, composition=selected)
+    reference = retained_runtime(compiled, remote, policy=policy(keep))
+    actual = candidate.runtime(remote)
+    assert actual._retained is not None and candidate.runtime_schedule_digest != compiled.runtime_schedule_digest
+    _, left, _ = reference.prepare_ids(list(range(12)))
+    _, right, _ = actual.prepare_ids(list(range(12)))
+    for step in range(3):
+        np.testing.assert_array_equal(left.view(np.uint32), right.view(np.uint32))
+        for a, b in zip(reference.caches, actual.caches, strict=True):
+            for x, y in zip(a.gather(), b.gather(), strict=True):
+                np.testing.assert_array_equal(x.view(np.uint32), y.view(np.uint32))
+        if step < 2:
+            token = int(np.argmax(left))
+            left, right = reference.forward_ids([token])[-1], actual.forward_ids([token])[-1]

@@ -106,7 +106,13 @@ logit vectors and final KV at full retention, reducing median owned KV from 6.29
 to 5.16 MB. Keeping 75%/50% uses 3.90/2.62 MB but each matches only 35/36
 same-token decode selections. Diagnostic process peaks remain 1.21–1.23 GB and
 CPU rises; no SDK-client memory or speed improvement follows. Static-retention
-quality, SDK binding and protected provider-held selection remain distinct work.
+quality and protected provider-held selection remain distinct work. The static
+contract is now selectable through `ClientLocalKv(retention=KvCacheEviction(...))`
+in client-only and prepared Experiments. Generated SDK/gateway requests and
+two prepared role children pass; response completion/cancellation retire native
+state, while history follow-ups re-prefill. Benchmark matching binds the retention
+numeric policy and placement admission prices its state/workspace owners. Matched
+real-checkpoint SDK peak-memory benefit remains unmeasured.
 Details: `docs/research/mpcache-reference.md`.
 
 Each whole-model delivery ends with:

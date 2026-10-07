@@ -1,12 +1,14 @@
 from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.components._planned import PendingComponent as PendingMethod
 from pllm.state.public_prefix import PublicPrefixCapsule as PublicPrefixCapsule
+from pllm.passes import KvCacheEviction
+from typing import Any, Mapping
 
 class StateProtocol(ComponentRef): ...
 
 class ClientLocalKv(StateProtocol):
     descriptor: ComponentDescriptor
-    def __init__(self) -> None: ...
+    def __init__(self, *, retention: KvCacheEviction | Mapping[str, Any] | None = ...) -> None: ...
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
 
