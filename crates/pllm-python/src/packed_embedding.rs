@@ -5,6 +5,7 @@ use pllm_core::{
     packed_embedding::{self as numeric, Geometry, Layout},
 };
 use pllm_garble::packed_embedding as protected;
+use pllm_garble::{shared_circuit, shared_rescale_reference::Context};
 use pyo3::{prelude::*, types::PyBytes};
 use serde_json::json;
 use std::{fmt::Write, sync::OnceLock, time::Instant};
@@ -20,6 +21,8 @@ fn digest() -> &'static str {
             include_bytes!("../../pllm-core/src/codec.rs").as_slice(),
             include_bytes!("../../pllm-garble/src/packed_embedding.rs").as_slice(),
             include_bytes!("../../pllm-garble/src/boolean.rs").as_slice(),
+            include_bytes!("../../pllm-garble/src/shared_circuit.rs").as_slice(),
+            include_bytes!("../../pllm-core/src/coefficient_repacking.rs").as_slice(),
             include_bytes!("../../../Cargo.lock").as_slice(),
         ] {
             bytes.extend((source.len() as u64).to_le_bytes());
@@ -208,9 +211,195 @@ fn packed_embedding_quantize<'py>(
 }
 
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(wrap_pyfunction!(coefficient_repacking_extract, module)?)?;
+    module.add_function(wrap_pyfunction!(coefficient_repacking_embed, module)?)?;
+    module.add_class::<PackedEmbeddingParty>()?;
+    module.add_function(wrap_pyfunction!(packed_embedding_issue_parties, module)?)?;
+    module.add_function(wrap_pyfunction!(coefficient_repacking_divide, module)?)?;
     module.add_function(wrap_pyfunction!(packed_embedding_table, module)?)?;
     module.add_function(wrap_pyfunction!(packed_embedding_mask, module)?)?;
     module.add_function(wrap_pyfunction!(packed_embedding_convert, module)?)?;
     module.add_function(wrap_pyfunction!(packed_embedding_statistics, module)?)?;
     module.add_function(wrap_pyfunction!(packed_embedding_quantize, module)?)
+}
+
+#[pyclass]
+struct PackedEmbeddingParty {
+    inner: Option<shared_circuit::Party>,
+}
+
+#[pymethods]
+impl PackedEmbeddingParty {
+    fn cancel(&mut self) {
+        self.inner = None;
+    }
+    fn start<'py>(
+        &mut self,
+        py: Python<'py>,
+        share: &Bound<'_, PyAny>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let mut party = self
+            .inner
+            .take()
+            .ok_or_else(|| invalid("consumed party".into()))?;
+        let raw = share
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("share must be four bytes".into()))?
+            .as_bytes();
+        let word = u32::from_le_bytes(
+            raw.try_into()
+                .map_err(|_| invalid("share must be four bytes".into()))?,
+        );
+        if word >= 8192 {
+            return Err(invalid("packed share exceeds ring13".into()));
+        }
+        let frame = py
+            .detach(|| party.start(&[u64::from(word)]))
+            .map_err(party_error)?;
+        self.inner = Some(party);
+        Ok(PyBytes::new(py, &frame))
+    }
+    fn advance<'py>(
+        &mut self,
+        py: Python<'py>,
+        frame: &Bound<'_, PyAny>,
+    ) -> PyResult<(bool, Bound<'py, PyBytes>)> {
+        let mut party = self
+            .inner
+            .take()
+            .ok_or_else(|| invalid("consumed party".into()))?;
+        let frame = frame
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("peer frame must be bytes".into()))?
+            .as_bytes();
+        match py.detach(|| party.advance(frame)).map_err(party_error)? {
+            shared_circuit::Progress::Open(frame) => {
+                self.inner = Some(party);
+                Ok((false, PyBytes::new(py, &frame)))
+            }
+            shared_circuit::Progress::Complete(values) => {
+                let raw = Zeroizing::new(
+                    values
+                        .iter()
+                        .flat_map(|&v| (v as u32).to_le_bytes())
+                        .collect::<Vec<_>>(),
+                );
+                Ok((true, PyBytes::new(py, &raw)))
+            }
+        }
+    }
+}
+fn party_error(e: impl std::fmt::Debug) -> PyErr {
+    invalid(format!("packed party conversion: {e:?}"))
+}
+
+#[pyfunction]
+fn packed_embedding_issue_parties(
+    py: Python<'_>,
+    layout: &str,
+    plan: &[u8],
+    session: &[u8],
+    index: u64,
+) -> PyResult<(PackedEmbeddingParty, PackedEmbeddingParty, String)> {
+    let layout = Layout::from_name(layout).map_err(invalid)?;
+    let plan = plan
+        .try_into()
+        .map_err(|_| invalid("plan must be 32 bytes".into()))?;
+    let session = session
+        .try_into()
+        .map_err(|_| invalid("session must be 32 bytes".into()))?;
+    let context = Context {
+        plan,
+        session,
+        operation: plan,
+        first_tensor_index: index,
+    };
+    let ([a, b], r) = py
+        .detach(|| protected::issue_party_local(layout, context))
+        .map_err(invalid)?;
+    if r.allocation_bytes > protected::MAX_ALLOCATION_BYTES {
+        return Err(invalid("party conversion allocation exceeds bound".into()));
+    }
+    let meta = json!({"key_bytes":r.key_bytes,"phase_bytes":r.phase_bytes,"ciphertext_bytes":r.ciphertext_bytes,
+        "constant_bytes":r.constant_bytes,"public_metadata_bytes":r.public_metadata_bytes,"allocation_bytes":r.allocation_bytes,
+        "native_implementation_digest":digest(),"native_version":env!("CARGO_PKG_VERSION")}).to_string();
+    Ok((
+        PackedEmbeddingParty { inner: Some(a) },
+        PackedEmbeddingParty { inner: Some(b) },
+        meta,
+    ))
+}
+
+#[pyfunction]
+fn coefficient_repacking_divide<'py>(
+    py: Python<'py>,
+    words: &[u8],
+    moduli: Vec<u64>,
+    divisor: usize,
+) -> PyResult<Bound<'py, PyBytes>> {
+    if words.is_empty() || words.len() % 8 != 0 || words.len() > 2 * 4096 * 2 * 8 {
+        return Err(invalid("invalid RNS word frame".into()));
+    }
+    let mut values = words
+        .chunks_exact(8)
+        .map(|v| u64::from_le_bytes(v.try_into().unwrap()))
+        .collect::<Vec<_>>();
+    py.detach(|| {
+        pllm_core::coefficient_repacking::divide_power_two(&mut values, 4096, &moduli, divisor)
+    })
+    .map_err(invalid)?;
+    let raw = values
+        .into_iter()
+        .flat_map(u64::to_le_bytes)
+        .collect::<Vec<_>>();
+    Ok(PyBytes::new(py, &raw))
+}
+
+fn public_words(words: &[u8], max: usize) -> PyResult<Vec<u64>> {
+    if words.is_empty() || words.len() % 8 != 0 || words.len() > max * 8 {
+        return Err(invalid("invalid bounded public RNS frame".into()));
+    }
+    Ok(words
+        .chunks_exact(8)
+        .map(|v| u64::from_le_bytes(v.try_into().unwrap()))
+        .collect())
+}
+
+#[pyfunction]
+fn coefficient_repacking_extract<'py>(
+    py: Python<'py>,
+    words: &[u8],
+    moduli: Vec<u64>,
+    coefficient: usize,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let words = public_words(words, 2 * 4096 * 2)?;
+    let result = py
+        .detach(|| pllm_core::coefficient_repacking::extract_lwe(&words, &moduli, coefficient))
+        .map_err(invalid)?;
+    Ok(PyBytes::new(
+        py,
+        &result
+            .into_iter()
+            .flat_map(u64::to_le_bytes)
+            .collect::<Vec<_>>(),
+    ))
+}
+
+#[pyfunction]
+fn coefficient_repacking_embed<'py>(
+    py: Python<'py>,
+    words: &[u8],
+    moduli: Vec<u64>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let words = public_words(words, 4097 * 2)?;
+    let result = py
+        .detach(|| pllm_core::coefficient_repacking::embed_lwe(&words, &moduli))
+        .map_err(invalid)?;
+    Ok(PyBytes::new(
+        py,
+        &result
+            .into_iter()
+            .flat_map(u64::to_le_bytes)
+            .collect::<Vec<_>>(),
+    ))
 }

@@ -12,12 +12,21 @@
     },
     "fastquery": {
       "status": "Component reference",
-      "sdk_benchmark": {"api": "pllm.protocols.PrivateEmbeddingLookup", "coverage": "operator", "guide": "/sdk/components/protocols/private-embedding-lookup/", "configuration": "examples/benchmarks/packed_embedding.py", "evidence": "docs/evidence/research-packed-embedding-sdk.json"},
-      "scope": "Sections 4.1–4.2 encrypted one-hot coefficient packing with signed Int8/Int4/mixed-4/3/3 codes and one-use packed-share conversion. Full BFV ciphertext replies and a local half-gates issuer replace missing PackLWEs and distributed SiRNN conversion. Public W8A8-source requantization is separate from the paper's fine-tuning and protected checkpoint execution.",
-      "code": ["crates/pllm-core/src/packed_embedding.rs", "crates/pllm-garble/src/packed_embedding.rs", "crates/pllm-python/src/packed_embedding.rs", "python/pllm/metrics/packed_embedding.py"],
-      "configuration": "benchmarks/research/packed_embedding.py",
-      "evidence": "docs/evidence/research-packed-embedding-cost.json",
-      "result": "Nine fresh processes check 1,215 exact outputs. Mixed 4/3/3 packing at symbolic Qwen 39+32 geometry projects 1.643 GB of HE frames, 293.35 MB of conversion keys and 73.00 MB of boundary labels, before setup/public metadata and remaining decoder work. The bounded operator does not execute that full vocabulary. A separate twelve-prompt W8A8-source quantizer diagnostic checks 1,007,104 independent elements per profile; mixed 4/3/3 matches 10/12 prefill, 34/36 same-token decode and 6/12 eight-token trajectories, with no exact logits/KV. The tied client head retains the same 136.13 MB matrix, so embedding-only relocation releases zero weight bytes. Paper-system cost/quality, distributed conversion, provider transport and whole-client memory remain open. Details: docs/research/packed-embedding-reference.md."
+      "sdk_benchmark": {"api": "pllm.protocols.PrivateEmbeddingLookup", "coverage": "operator", "guide": "/sdk/components/protocols/private-embedding-lookup/", "configuration": "examples/benchmarks/repacked_embedding.py", "evidence": "docs/evidence/research-repacked-embedding-sdk.json"},
+      "scope": "Sections 2.2 and 4.1–4.2 encrypted one-hot mixed-width packing, extracted-LWE output consolidation and signed packed-share conversion. Direct interleaving is a BumbleBee-derived alternative. Separate party input/output handles use a local random-OT dealer and half-gates, not distributed setup or SiRNN. Public W8A8-source requantization remains separate from fine-tuning and protected checkpoint execution.",
+      "code": ["crates/pllm-core/src/packed_embedding.rs", "crates/pllm-core/src/coefficient_repacking.rs", "crates/pllm-garble/src/packed_embedding.rs", "crates/pllm-python/src/packed_embedding.rs", "python/pllm/metrics/repacked_embedding.py", "python/pllm/runtime/coefficient_repacking.py"],
+      "configuration": "benchmarks/research/repacked_embedding.py",
+      "evidence": "docs/evidence/research-repacked-embedding-cost.json",
+      "result": "Eighteen fresh processes check 3,456 exact outputs. At 4,096×64 mixed precision, online HE/conversion frames fall 1,642,896 to 180,624 bytes with higher setup material and compute. Symbolic Qwen 39+32 still needs 234.32 MB online, 409.73 MB conversion keys and 1.76 MB setup per context (123.33 MB for 70 fresh contexts). Full-width noise and execution remain unvalidated. The historical requantization cohort still matches 10/12 prefill, 34/36 decode and 6/12 trajectories for mixed 4/3/3, with no exact logits/KV. The tied client head retains the same 136.13 MB matrix and releases zero weight bytes. Distributed setup, SiRNN, transport and whole-client memory remain open. Details: docs/research/packed-embedding-reference.md."
+    },
+    "bumblebee": {
+      "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.protocols.PrivateEmbeddingLookup", "coverage": "operator", "guide": "/sdk/components/protocols/private-embedding-lookup/", "configuration": "examples/benchmarks/repacked_embedding.py", "evidence": "docs/evidence/research-repacked-embedding-sdk.json"},
+      "scope": "Section IV/Figure 6 ciphertext-RNS normalization, trace and strided interleaving, used inside bounded encrypted embedding lookup. No BumbleBee whole-transformer, nonlinear, fine-tuning or production-transport reproduction.",
+      "code": ["python/pllm/runtime/coefficient_repacking.py", "crates/pllm-core/src/coefficient_repacking.rs", "python/pllm/metrics/repacked_embedding.py"],
+      "configuration": "benchmarks/research/repacked_embedding.py",
+      "evidence": "docs/evidence/research-repacked-embedding-cost.json",
+      "result": "Direct strided interleaving and extracted-LWE packing retain identical integer outputs and online frames in the eighteen-process 3,456-output lookup cohort. Direct interleaving performs fewer automorphisms for useful strided coefficients. Context/Galois setup, party-local conversion and table storage are counted separately; full-vocabulary noise and decoder execution remain unvalidated. Details: docs/research/packed-embedding-reference.md."
     },
     "pcf-secret-replication": {
       "status": "Component reference",

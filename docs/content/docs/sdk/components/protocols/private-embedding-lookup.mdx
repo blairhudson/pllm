@@ -17,7 +17,8 @@ Install `pllm.run[he]` for the supported TenSEAL/SEAL dependency.
 from pllm.metrics import benchmark_operator, replay_operator_benchmark
 from pllm.protocols import PrivateEmbeddingLookup
 
-method = PrivateEmbeddingLookup(vocabulary_size=256, precision="mixed_4_3_3")
+method = PrivateEmbeddingLookup(vocabulary_size=256, precision="mixed_4_3_3",
+                               repacking="pack_lwes", conversion="party_local")
 report = benchmark_operator(method, lanes=64, samples=3)
 assert report.quality.exact_integer_outputs == 192
 assert report.resources.public_table_bytes_by_party[0] == 0
@@ -33,6 +34,8 @@ Component identity: `pllm/private-embedding-lookup/v1`.
 | --- | --- | --- |
 | `vocabulary_size` | 1–4,096 | Public table row count |
 | `precision` | `"int8"`, `"int4"`, `"mixed_4_3_3"` | One 8-bit, two 4-bit, or three 4/3/3-bit channels per coefficient |
+| `repacking` | `"none"` (default), `"pack_lwes"`, `"interleave"` | Full replies, extracted-LWE consolidation, or direct strided consolidation |
+| `conversion` | `"local"` (default), `"party_local"` | Local issuer receives both shares, or separate input/output-share handles with local random-OT issuance |
 
 `lanes` is the embedding width, from 1 to 256. Each coefficient reserves one
 guard bit per signed code within a 13-bit plaintext ring. Columns repeat the
@@ -61,10 +64,18 @@ online timings. Provider code and coefficient storage is asymmetric. The client
 still owns its secret HE key. SEAL pool peaks, checkpoint distribution and complete
 wire costs remain unknown.
 
-This adaptation sends full ciphertext replies: **FastQuery's PackLWEs is absent**.
-Local half-gates conversion replaces the paper's distributed SiRNN conversion;
-the local issuer sees both input shares. Neither protected conversion transport,
-malicious-query validation nor independent cryptographic review is implemented.
+Extracted-LWE packing uses native sample extraction and complete trace/interleave
+to consolidate outputs. Direct interleaving implements BumbleBee's strided
+variant. Both retain the selected integer profile and mask all unused output
+coefficients. Automorphisms use SEAL-validated 54+54-bit key parameters; each
+response must retain a positive noise budget. Setup/Galois keys, extraction
+buffers and both conversion directions remain charged.
+
+Party-local conversion hides each party's input from the other handle and returns
+only its output shares. Its trusted random-OT dealer remains in-process. Local
+half-gates conversion remains the default and its issuer sees both inputs.
+Distributed OT setup, the paper's SiRNN, authenticated role transport,
+malicious-query validation and independent cryptographic review remain absent.
 Operator availability does not authorize a decoder Experiment.
 
 The source-only per-channel quantizer diagnostic is separate from this integer
@@ -76,11 +87,19 @@ Nine fresh operator processes check 1,215 exact outputs. In the separate twelve-
 prompt Qwen requantization diagnostic, mixed 4/3/3 matches 10/12 prefill selections,
 34/36 same-token decode selections and 6/12 eight-token trajectories; no candidate
 has exact logits or KV. Full-vocabulary 39+32 costs remain a non-executable
-projection: 1.643 GB of HE frames plus 293.35 MB of conversion keys for that layout.
+historical unrepacked projection: 1.643 GB of HE frames plus 293.35 MB of
+local-conversion keys for that layout.
 See [operator costs](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-packed-embedding-cost.json) and
 [numeric/ownership evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-packed-embedding-quality-qwen25.json).
 
+The separate [repacking cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-repacked-embedding-cost.json)
+checks 3,456 outputs across eighteen fresh processes. At 4,096×64 mixed precision,
+online HE/conversion frames fall from 1,642,896 to 180,624 bytes, while setup keys
+and local compute increase. Full-vocabulary geometry remains unadmitted and tied
+head ownership still releases zero weight bytes.
+
 See the [installed example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/packed_embedding.py)
+and [repacking comparison](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/repacked_embedding.py)
 and [source/cost reference](https://github.com/blairhudson/pllm/blob/main/docs/research/packed-embedding-reference.md).
 
 API: [Protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures),

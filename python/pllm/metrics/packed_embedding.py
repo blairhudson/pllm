@@ -64,10 +64,11 @@ def _load_frame(obj, context, frame: bytes, path: Path, capacity: int):
     return obj
 
 
-def _context(seal):
+def _context(seal, *, key_switching=False, coefficient_bits=50):
     parameters = seal.EncryptionParameters(seal.SCHEME_TYPE.BFV)
     parameters.set_poly_modulus_degree(_DEGREE)
-    parameters.set_coeff_modulus(seal.CoeffModulus.Create(_DEGREE, [50]))
+    parameters.set_coeff_modulus(seal.CoeffModulus.Create(_DEGREE,
+        [coefficient_bits, coefficient_bits] if key_switching else [coefficient_bits]))
     parameters.set_plain_modulus(_MODULUS)
     context = seal.SEALContext(parameters, True, seal.SEC_LEVEL_TYPE.TC128)
     if not context.parameters_set():
@@ -168,6 +169,10 @@ class _PackedEmbeddingBenchmark(_OperatorBenchmark):
         allocation = 64 * (1 << 20) + 4 * rows * self.lanes + 32 * polynomials * _DEGREE * 2
         if allocation > 128 * (1 << 20):
             raise ConfigurationError("embedding reference exceeds the 128 MiB allocation estimate")
+        variant = params.get("repacking", "none") != "none" or params.get("conversion", "local") != "local"
+        if variant:
+            from .repacked_embedding import allocation_bound
+            allocation = allocation_bound(allocation, padded_rows, polynomials, packed_columns, params["repacking"])
         source = "public-fixture" if table is None and token is None else "caller-owned"
         if source == "public-fixture":
             table = [((i * 19 + 3) % (1 << widths[i % self.lanes % len(widths)]))
@@ -197,6 +202,9 @@ class _PackedEmbeddingBenchmark(_OperatorBenchmark):
         if geometry["polynomials"] != polynomials or geometry["padded_rows"] != padded_rows:
             raise RuntimeError("native embedding geometry differs from preflight")
         samples, conversion, groups = [], None, None
+        if variant:
+            from .repacked_embedding import run_variant
+            return run_variant(self, table, token[0], source, texts, geometry, public_setup, allocation)
         for index in range(self.samples):
             start = time.process_time()
             clear_start = time.perf_counter()

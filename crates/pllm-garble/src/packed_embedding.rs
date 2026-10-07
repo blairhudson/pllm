@@ -12,6 +12,35 @@ use zeroize::Zeroizing;
 pub const MAX_ALLOCATION_BYTES: usize = 4 << 20;
 const MAX_WIRES: usize = 8192;
 
+/// Dealer receives public layout/context only. Each party subsequently supplies
+/// its own packed share using one-use OT correlations; outputs stay shared.
+pub fn issue_party_local(
+    layout: Layout,
+    context: crate::shared_rescale_reference::Context,
+) -> Result<
+    (
+        [crate::shared_circuit::Party; 2],
+        crate::shared_circuit::Resources,
+    ),
+    String,
+> {
+    // Worst-case wire/OT/output allocation is below MAX_ALLOCATION_BYTES before
+    // issuance, including the three-channel profile.
+    crate::shared_circuit::issue_bounded(32, 1, layout.widths().len(), 4096, context, |_, x| {
+        let word = &x[0][..13];
+        let mut offset = 0;
+        let mut outputs = Vec::new();
+        for &width in layout.widths() {
+            let mut signed = word[offset..offset + width].to_vec();
+            signed.resize(32, word[offset + width - 1]);
+            outputs.push(signed);
+            offset += width + 1;
+        }
+        Ok(outputs)
+    })
+    .map_err(|e| format!("packed party conversion: {e:?}"))
+}
+
 pub struct Issuer {
     client: BooleanCircuitClient,
     channels: usize,
@@ -128,6 +157,51 @@ impl Decoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn independent_party_inputs_cover_wraps_and_signed_extension() {
+        use crate::{shared_circuit::Progress, shared_rescale_reference::Context};
+        for layout in [Layout::Int8, Layout::Int4, Layout::Mixed433] {
+            for mask in [0, 1, 31, 512, 4095, 8191] {
+                let values = layout
+                    .widths()
+                    .iter()
+                    .map(|&b| -(1_i16 << (b - 1)) as i8)
+                    .collect::<Vec<_>>();
+                let packed = layout.pack(&values).unwrap();
+                let context = Context {
+                    plan: [1; 32],
+                    session: [2; 32],
+                    operation: [3; 32],
+                    first_tensor_index: 0,
+                };
+                let ([mut a, mut b], resources) = issue_party_local(layout, context).unwrap();
+                let f = a.start(&[u64::from(mask)]).unwrap();
+                let g = b
+                    .start(&[u64::from(packed.wrapping_sub(mask) & 8191)])
+                    .unwrap();
+                assert_eq!([f.len(), g.len()], resources.phase_bytes[0]);
+                let (Progress::Open(f), Progress::Open(g)) =
+                    (a.advance(&g).unwrap(), b.advance(&f).unwrap())
+                else {
+                    panic!()
+                };
+                let (Progress::Complete(x), Progress::Complete(y)) =
+                    (a.advance(&g).unwrap(), b.advance(&f).unwrap())
+                else {
+                    panic!()
+                };
+                assert_eq!(
+                    x.iter()
+                        .zip(y.iter())
+                        .map(|(a, b)| a.wrapping_add(*b) as i32)
+                        .collect::<Vec<_>>(),
+                    values.iter().map(|&v| i32::from(v)).collect::<Vec<_>>()
+                );
+                assert!(a.advance(&g).is_err());
+            }
+        }
+    }
 
     #[test]
     fn packed_wrap_carries_signed_extension_and_output_masks_match_an_independent_oracle() {

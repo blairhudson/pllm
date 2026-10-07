@@ -10,6 +10,7 @@ pub mod cache_selection_reference;
 pub mod codec;
 pub mod coded_delegation_reference;
 pub mod coded_linear;
+pub mod coefficient_repacking;
 pub mod compact;
 pub mod compact_product;
 pub mod fixed_point;

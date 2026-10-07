@@ -1,0 +1,2137 @@
+{
+  "installed_wheel_sha256": "824f339c1762f0fedd564d6cfcdc7bc624f776f360175a9599ffe12fa7229345",
+  "reports": [
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 2.2 and 4.1\u20134.2 one-hot, mixed-width and extracted-LWE output packing; explicit BFV trace/interleave and party-local half-gates adaptations, not SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "conversion": "party_local",
+            "precision": "mixed_4_3_3",
+            "vocabulary_size": 256
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "0bd2f123939bb296366bf635ca4801f2a4de9975fdca081b96d830ce7d81cd52",
+      "environment": {
+        "minimum_bfv_noise_budget_bits": "9",
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "N=4096, t=8192; 1 50-bit key-context primes with SEAL TC128 validation; one 50-bit online data prime",
+        "Fresh setup delivery is 70144 padded bytes per sample, separate from online frames; both public-key copies and client secret polynomial are charged",
+        "Complete trace/interleave uses 0 public-geometry automorphisms per query; all other response coefficients receive uniform fresh masks",
+        "Unrepacked control sends every full BFV reply ciphertext",
+        "Party-local input/output shares use local-dealer random-OT correlations; distributed OT setup, SiRNN and authenticated role transport are absent",
+        "Every sample creates fresh HE keys and retires serial one-use conversion state; benchmark oracle alone reconstructs final words",
+        "Honest-client one-hot assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Frames include HE query/reply plus actual conversion phases; material, setup delivery, boundary estimates and public metadata remain distinct",
+        "Caller-owned integer codes; quantizer fitting, fine-tuning and full-checkpoint quality are separate",
+        "Tied client output head still retains the complete matrix: embedding relocation releases zero client weight bytes",
+        "No decoder placement, independent providers, physical-wire or measured whole-client RSS claim"
+      ],
+      "median_issuance_seconds": 0.04507279023528099,
+      "median_online_seconds": 0.021883418783545494,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "3e2898bd54ed90ae46c9645217cc2387c4afc165418606931abd750157657419",
+      "numeric_contract_digest": "sha256:ee38b713aba8a7ce13a6c1ebbf4ca888a464d54f120ec4a49517f4de59606350",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent Python signed-integer row oracle; fixed precision and numeric identity",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 0,
+        "client_mask_payload_estimate_bytes": 8204,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context-secret-and-public",
+            102912,
+            70144
+          ],
+          [
+            "repacking-galois-key-copies",
+            0,
+            0
+          ],
+          [
+            "packed-share-conversion",
+            362560,
+            68112
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          73768,
+          176488
+        ],
+        "peer_payload_bits": 2002048,
+        "peer_rounds": 45,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 76087296,
+        "public_metadata_bytes_estimate": 346368,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          32768
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          3723776,
+          1106048
+        ],
+        "raw_key_payload_bytes_per_party": [
+          465472,
+          138256
+        ],
+        "role_names": [
+          "client-decryptor-and-conversion-evaluator",
+          "provider-and-conversion-garbler"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 7.458031177520752e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.04973166901618242,
+          "native_call_process_cpu_seconds": 0.076575,
+          "online_seconds": 0.025468289852142334,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.001721457578241825,
+          "verification_seconds": null
+        },
+        {
+          "clear_seconds": 2.9169023036956787e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.04507279023528099,
+          "native_call_process_cpu_seconds": 0.06738900000000003,
+          "online_seconds": 0.021883418783545494,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.0,
+          "verification_seconds": null
+        },
+        {
+          "clear_seconds": 1.5003606677055359e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.04481070674955845,
+          "native_call_process_cpu_seconds": 0.066797,
+          "online_seconds": 0.021608000621199608,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              139264
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.0,
+          "verification_seconds": null
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "611f3e5ec05dab26d288bbdd745fce5c6f3eb5517454eb182e43ed3b5d675d72",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 2.2 and 4.1\u20134.2 one-hot, mixed-width and extracted-LWE output packing; explicit BFV trace/interleave and party-local half-gates adaptations, not SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        },
+        {
+          "paper_id": "bumblebee",
+          "scope": "Section IV coefficient trace and Figure 6 FFT-style interleaving; independently adapted to BFV one-hot embedding outputs",
+          "source_sha256": "15583a86593998079d42b8b134dc4f4f5be9ca72a7ced8f31bba05f68893516a",
+          "title": "BumbleBee: Secure Two-party Inference Framework for Large Transformers",
+          "url": "https://eprint.iacr.org/2023/1678"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "conversion": "party_local",
+            "precision": "mixed_4_3_3",
+            "repacking": "interleave",
+            "vocabulary_size": 256
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "94839c1cf1a9b358f5ffa779bf962c45454229510c470cf32316466ebb2f63b4",
+      "environment": {
+        "minimum_bfv_noise_budget_bits": "17",
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "N=4096, t=8192; 2 54-bit key-context primes with SEAL TC128 validation; one 54-bit online data prime",
+        "Fresh setup delivery is 1221120 padded bytes per sample, separate from online frames; both public-key copies and client secret polynomial are charged",
+        "Complete trace/interleave uses 15 public-geometry automorphisms per query; all other response coefficients receive uniform fresh masks",
+        "Direct interleaving is a BumbleBee-derived alternative to extracted-LWE packing; repacking choice is explicit",
+        "Party-local input/output shares use local-dealer random-OT correlations; distributed OT setup, SiRNN and authenticated role transport are absent",
+        "Every sample creates fresh HE keys and retires serial one-use conversion state; benchmark oracle alone reconstructs final words",
+        "Honest-client one-hot assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Frames include HE query/reply plus actual conversion phases; material, setup delivery, boundary estimates and public metadata remain distinct",
+        "Caller-owned integer codes; quantizer fitting, fine-tuning and full-checkpoint quality are separate",
+        "Tied client output head still retains the complete matrix: embedding relocation releases zero client weight bytes",
+        "No decoder placement, independent providers, physical-wire or measured whole-client RSS claim"
+      ],
+      "median_issuance_seconds": 0.058093917556107044,
+      "median_online_seconds": 0.028662665747106075,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "3e2898bd54ed90ae46c9645217cc2387c4afc165418606931abd750157657419",
+      "numeric_contract_digest": "sha256:ee38b713aba8a7ce13a6c1ebbf4ca888a464d54f120ec4a49517f4de59606350",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent Python signed-integer row oracle; fixed precision and numeric identity",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 0,
+        "client_mask_payload_estimate_bytes": 8204,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context-secret-and-public",
+            201216,
+            135680
+          ],
+          [
+            "repacking-galois-key-copies",
+            1085440,
+            1085440
+          ],
+          [
+            "packed-share-conversion",
+            362560,
+            68112
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          73768,
+          106856
+        ],
+        "peer_payload_bits": 1444992,
+        "peer_rounds": 45,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 84738048,
+        "public_metadata_bytes_estimate": 346368,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          32768
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          13193728,
+          10313856
+        ],
+        "raw_key_payload_bytes_per_party": [
+          1649216,
+          1289232
+        ],
+        "role_names": [
+          "client-decryptor-and-conversion-evaluator",
+          "provider-and-conversion-garbler"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.5003606677055359e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.06086837686598301,
+          "native_call_process_cpu_seconds": 0.09107499999999996,
+          "online_seconds": 0.02976941503584385,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.0003437083214521408,
+          "verification_seconds": null
+        },
+        {
+          "clear_seconds": 1.7909333109855652e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.058093917556107044,
+          "native_call_process_cpu_seconds": 0.08708600000000011,
+          "online_seconds": 0.028662665747106075,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.0,
+          "verification_seconds": null
+        },
+        {
+          "clear_seconds": 1.9166618585586548e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.057611165568232536,
+          "native_call_process_cpu_seconds": 0.08655199999999996,
+          "online_seconds": 0.02835620939731598,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.0,
+          "verification_seconds": null
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "611f3e5ec05dab26d288bbdd745fce5c6f3eb5517454eb182e43ed3b5d675d72",
+      "whole_model_executable": false
+    },
+    {
+      "benchmark_status": "completed",
+      "checkpoint_quality": null,
+      "citations": [
+        {
+          "paper_id": "fastquery",
+          "scope": "Sections 2.2 and 4.1\u20134.2 one-hot, mixed-width and extracted-LWE output packing; explicit BFV trace/interleave and party-local half-gates adaptations, not SiRNN",
+          "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+          "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+          "url": "https://arxiv.org/abs/2405.16241"
+        },
+        {
+          "paper_id": "bumblebee",
+          "scope": "Section IV coefficient trace and Figure 6 FFT-style interleaving; independently adapted to BFV one-hot embedding outputs",
+          "source_sha256": "15583a86593998079d42b8b134dc4f4f5be9ca72a7ced8f31bba05f68893516a",
+          "title": "BumbleBee: Secure Two-party Inference Framework for Large Transformers",
+          "url": "https://eprint.iacr.org/2023/1678"
+        }
+      ],
+      "configuration": {
+        "component": {
+          "component": "pllm/private-embedding-lookup/v1",
+          "params": {
+            "conversion": "party_local",
+            "precision": "mixed_4_3_3",
+            "repacking": "pack_lwes",
+            "vocabulary_size": 256
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "configuration_digest": "655c52e2195f46117750a15433e1e1db47146f61562c2a5befb74932ec7046c9",
+      "environment": {
+        "minimum_bfv_noise_budget_bits": "18",
+        "native": "0.1.0-alpha.2",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "pllm": "0.1.0a2",
+        "python": "3.13.15"
+      },
+      "full_wire_bytes": null,
+      "independent_role_transport": false,
+      "input_source": "public-fixture",
+      "limitations": [
+        "N=4096, t=8192; 2 54-bit key-context primes with SEAL TC128 validation; one 54-bit online data prime",
+        "Fresh setup delivery is 1761792 padded bytes per sample, separate from online frames; both public-key copies and client secret polynomial are charged",
+        "Complete trace/interleave uses 255 public-geometry automorphisms per query; all other response coefficients receive uniform fresh masks",
+        "Extracted-LWE PackLWEs uses native sample extraction, constant-term embedding and trace/interleave; FastQuery's full system and SiRNN are not reproduced",
+        "Party-local input/output shares use local-dealer random-OT correlations; distributed OT setup, SiRNN and authenticated role transport are absent",
+        "Every sample creates fresh HE keys and retires serial one-use conversion state; benchmark oracle alone reconstructs final words",
+        "Honest-client one-hot assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+        "Frames include HE query/reply plus actual conversion phases; material, setup delivery, boundary estimates and public metadata remain distinct",
+        "Caller-owned integer codes; quantizer fitting, fine-tuning and full-checkpoint quality are separate",
+        "Tied client output head still retains the complete matrix: embedding relocation releases zero client weight bytes",
+        "No decoder placement, independent providers, physical-wire or measured whole-client RSS claim"
+      ],
+      "median_issuance_seconds": 0.06315062753856182,
+      "median_online_seconds": 0.20337129291146994,
+      "method": "private-packed-embedding",
+      "native_implementation_digest": "3e2898bd54ed90ae46c9645217cc2387c4afc165418606931abd750157657419",
+      "numeric_contract_digest": "sha256:ee38b713aba8a7ce13a6c1ebbf4ca888a464d54f120ec4a49517f4de59606350",
+      "paper_coverage": "component-reference",
+      "peak_memory_bytes": null,
+      "privacy_reviewed": false,
+      "quality": {
+        "base_profile_exact_outputs": null,
+        "checked_outputs": 192,
+        "exact_integer_outputs": 192,
+        "float_reference": "Independent Python signed-integer row oracle; fixed precision and numeric identity",
+        "maximum_absolute_error": 0.0,
+        "maximum_encoded_profile_error": null,
+        "mean_absolute_error": 0.0
+      },
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 0,
+        "client_mask_payload_estimate_bytes": 8204,
+        "evaluator_ciphertext_bytes": null,
+        "evaluator_constant_label_bytes": null,
+        "expanded_correlation_bytes_per_party": null,
+        "key_payload_bytes_by_operation": [
+          [
+            "bfv-context-secret-and-public",
+            201216,
+            135680
+          ],
+          [
+            "repacking-galois-key-copies",
+            1626112,
+            1626112
+          ],
+          [
+            "packed-share-conversion",
+            362560,
+            68112
+          ]
+        ],
+        "peer_frame_bytes_by_direction": [
+          73768,
+          106856
+        ],
+        "peer_payload_bits": 1444992,
+        "peer_rounds": 45,
+        "prf_field_evaluations_per_party": null,
+        "protocol_allocation_estimate_bytes": 94830592,
+        "public_metadata_bytes_estimate": 346368,
+        "public_profile_bytes_estimate": null,
+        "public_table_bytes_by_party": [
+          0,
+          32768
+        ],
+        "public_table_bytes_per_party": 0,
+        "raw_key_payload_bits_per_party": [
+          17519104,
+          14639232
+        ],
+        "raw_key_payload_bytes_per_party": [
+          2189888,
+          1829904
+        ],
+        "role_names": [
+          "client-decryptor-and-conversion-evaluator",
+          "provider-and-conversion-garbler"
+        ]
+      },
+      "resources_scope": "per-sample",
+      "samples": [
+        {
+          "clear_seconds": 1.5832483768463135e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.06315062753856182,
+          "native_call_process_cpu_seconds": 0.2726660000000001,
+          "online_seconds": 0.20908845588564873,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.0002943752333521843,
+          "verification_seconds": null
+        },
+        {
+          "clear_seconds": 1.9175931811332703e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.06317445728927851,
+          "native_call_process_cpu_seconds": 0.2669060000000001,
+          "online_seconds": 0.20337129291146994,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.0,
+          "verification_seconds": null
+        },
+        {
+          "clear_seconds": 1.7918646335601807e-06,
+          "correlation_expansion_seconds": 0.0,
+          "evaluation_seconds": null,
+          "input_sharing_seconds": 0.0,
+          "issuance_seconds": 0.061996378004550934,
+          "native_call_process_cpu_seconds": 0.26439499999999994,
+          "online_seconds": 0.2021497469395399,
+          "peer_frame_bytes_by_phase": [
+            [
+              69632,
+              69632
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ],
+            [
+              110,
+              78
+            ],
+            [
+              78,
+              1614
+            ]
+          ],
+          "public_setup_seconds": 0.0,
+          "verification_seconds": null
+        }
+      ],
+      "schema": "pllm.operator_benchmark_report.v1",
+      "scope": "bounded in-process operator; fresh one-use material per sample",
+      "sdk_availability": "operator-benchmark",
+      "sdk_implementation_digest": "611f3e5ec05dab26d288bbdd745fce5c6f3eb5517454eb182e43ed3b5d675d72",
+      "whole_model_executable": false
+    }
+  ],
+  "schema": "pllm.operator_benchmark_collection.v1"
+}

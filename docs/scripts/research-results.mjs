@@ -108,9 +108,13 @@ These quality observations do not populate the performance chart's unmeasured wh
   const implementations = JSON.parse(fs.readFileSync(path.join(root, 'docs/data/research/implementations.json'))).papers;
   const componentReferences = Object.entries(implementations)
     .filter(([, paper]) => paper.status === 'Component reference' && paper.evidence)
-    .map(([id, paper]) => ({ id, ...paper }));
+    .map(([id, paper]) => {
+      const source = card.papers.find((item) => item.id === id);
+      if (!source) throw new Error(`Component reference has no paper: ${id}`);
+      return { id, ...paper, slug: source.slug };
+    });
   const referenceTable = table(['Paper', 'Scope and observations', 'Replay / evidence', 'Installed operator benchmark'], componentReferences.map((paper) => [
-    `[${paper.id}](/research/papers/${paper.id}/)`, `${paper.scope} ${paper.result}`,
+    `[${paper.id}](/research/papers/${paper.slug}/)`, `${paper.scope} ${paper.result}`,
     `${link('Python', paper.configuration)} · ${link('Report', paper.evidence)}`,
     paper.sdk_benchmark
       ? `[${paper.sdk_benchmark.api}](${paper.sdk_benchmark.guide}) · ${link('Example', paper.sdk_benchmark.configuration)} · ${link('SDK report', paper.sdk_benchmark.evidence)}`

@@ -61,6 +61,9 @@ def _sdk_digest(runner: str) -> str:
         sources += (("pllm.correlation", "__init__.py"),)
     if runner in ("packed_embedding.py", "coded_delegation.py"):
         sources += (("pllm.protocols", "__init__.py"),)
+    if runner == "repacked_embedding.py":
+        sources += (("pllm.protocols", "__init__.py"), ("pllm.metrics", "packed_embedding.py"),
+                    ("pllm.runtime", "coefficient_repacking.py"))
     if runner == "token_pruning.py":
         sources += (("pllm.passes", "__init__.py"),)
     for package, name in sources:

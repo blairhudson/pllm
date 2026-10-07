@@ -1379,7 +1379,7 @@ FastQuery-inspired one-hot BFV coefficient packing and signed packed-share
 conversion. Native bounded packing, uniform whole-polynomial masks and one-use
 half-gates conversion compose with separate client/provider SEAL contexts. Nine
 fresh processes check 1,215 exact integer outputs under a 128 MiB allocation
-estimate. Full ciphertext replies replace missing PackLWEs, and the local
+estimate. That historical control sends full ciphertext replies, and the local
 conversion issuer sees both shares rather than executing distributed SiRNN.
 The mixed 4/3/3 hypothetical Qwen 39+32 geometry needs 1.643 GB of HE frames and
 293.35 MB of conversion keys, before boundary labels, setup and remaining
@@ -1390,6 +1390,19 @@ The tied client head retains the same 136.13 MB integer matrix, so embedding-onl
 relocation releases zero weight bytes. These operator and clear numeric checks
 do not establish paper fine-tuning, full-width HE execution, provider transport
 or whole-client memory savings. Details: `docs/research/packed-embedding-reference.md`.
+The same component now optionally consolidates outputs with native extracted-LWE
+packing or BumbleBee-derived direct interleaving. Separate one-use party handles
+convert privately held packed coefficients using locally issued random-OT
+correlations, correcting carries and returning only independent ring32 shares.
+Bounded ciphertext serialization, RNS extraction/embedding and complete
+trace/packing preserve signed integer outputs. Both context/Galois-key copies,
+setup delivery, conversion phases and extraction buffers precede 128 MiB admission.
+Eighteen fresh processes check 3,456 outputs. At 4,096×64 mixed precision, online
+HE/conversion frames fall 1,642,896 to 180,624 bytes while setup material and local
+compute rise. The unadmitted Qwen 39+32 projection still needs 234.32 MB online,
+409.73 MB conversion keys and 1.76 MB setup per context; refreshing 70 contexts
+costs 123.33 MB setup. Full-width noise, distributed OT setup, SiRNN and decoder
+transport remain absent. Tied-head ownership still releases zero weight bytes.
 
 The installed `pllm.passes.CipherPruneTokenPruning` separately benchmarks exact
 Q16 attention-score thresholds, public retained counts, stable complete-record

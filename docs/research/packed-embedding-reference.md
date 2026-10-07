@@ -32,10 +32,11 @@ and non-cloneable state reject foreign labels, replay and malformed inputs;
 failure/drop consumes and retires material. The local issuer sees both input
 shares and is not a distributed production protocol.
 
-**Missing paper components:** FastQuery's PackLWEs output consolidation, SiRNN
-distributed bit-width extension, frequency-weighted STE fine-tuning and provider
-transport. Full ciphertext replies and local half-gates conversion are explicit
-adaptations. They cannot establish FastQuery's paper-system costs or quality.
+The default retains full ciphertext replies and local-issuer conversion. The
+separate bounded repacking and party-local options below extend that historical
+contract. **Missing paper components:** SiRNN bit-width extension, distributed OT
+setup, frequency-weighted STE fine-tuning and provider transport. These explicit
+adaptations cannot establish FastQuery's paper-system costs or quality.
 Honest one-hot inputs remain an assumption; no malicious-query proof or reviewed
 circuit-privacy construction is claimed.
 
@@ -74,6 +75,68 @@ HE frames are measured from the bounded operator. Material sizes come from its
 actual converter; full-width counts are geometry projections. Raw provider table
 codes and packed coefficients are additional retained owners. No measured
 full-response client/aggregate memory result follows.
+
+## Extracted-LWE packing and party-local conversion
+
+`repacking="pack_lwes"` now extracts each useful encrypted coefficient as an
+RNS LWE sample `(b,a)`, with decryption `b + <a,s>`. Native bounded negacyclic
+indexing preserves wrap signs. Its RLWE embedding places `b` at the constant
+coefficient and reverses/signs the vector; only the constant term has the intended
+plaintext meaning. A complete trace and FFT-style packing consolidate at most
+256 such samples into one ciphertext. No secret key or decrypted coefficient
+enters extraction or provider packing.
+
+`repacking="interleave"` instead directly consolidates strided useful coefficients
+from the original RLWE responses. This independently implements BumbleBee Section
+IV and Figure 6, using ciphertext-RNS division followed by the complete trace.
+Division in the 13-bit plaintext ring would be incorrect. Both choices mask
+**every** final coefficient before delivery. The public geometry determines the
+Galois-key set and exact automorphism budget. The checked source is
+`papers/r22-bumblebee.pdf`, SHA-256
+`15583a86593998079d42b8b134dc4f4f5be9ca72a7ced8f31bba05f68893516a`.
+
+Repacking with automorphisms uses a 54+54-bit key context and one 54-bit data
+prime at degree 4,096 and plaintext modulus 8,192. SEAL TC128 admits the 108-bit
+key modulus under its 109-bit limit. Monomial signs use ciphertext negation,
+avoiding the noise amplification from multiplying by plaintext `t-1`. Every
+response checks positive noise budget before decryption. Bounded
+controls cover signed extrema, zero tables, partial groups and first/last rows;
+they do not certify full-vocabulary noise after summing 38 blocks.
+
+`conversion="party_local"` gives the provider and client separate non-cloneable
+Rust handles. The provider owns only its packed mask; the client owns only the
+decrypted masked coefficient. Fresh local-dealer random-OT correlations transfer
+the client's chosen input labels without giving it both labels. The garbled
+computation handles carries, signed extraction and independent ring32 output
+masks. Each party obtains only its output shares; only the benchmark oracle
+reconstructs final integers. Plan/session/index/issuance bindings, strict frames,
+malformed Python input, replay and cancellation consume the associated material.
+Two ordered conversion phases per coefficient are charged in both directions.
+This is a local-OT-dealer half-gates adaptation, not SiRNN or distributed setup.
+
+Public preflight includes both context/key copies, setup serialization, native
+RNS copies, live extraction/packing buffers and one serial conversion before
+table packing or issuance, under the same 128 MiB ceiling. Reports separate fresh
+setup delivery, both-party retained payload, online HE/conversion frames, public
+metadata and table storage. Source serialization is a checked size-two,
+coefficient-form SEAL 4.1/4.3 boundary; unsupported representations reject.
+
+`docs/evidence/research-repacked-embedding-cost.json` retains **3,456 exact
+outputs in eighteen fresh processes** across three precisions, two table sizes
+and three packing layouts. All matched layouts bind the same integer contract.
+At 4,096×64 mixed 4/3/3, complete online HE-plus-conversion frames fall from
+1,642,896 to **180,624 bytes**. Local online CPU/wall costs increase; the measured
+single-process online medians are reported with the fresh cohort. Both-party
+retained context, Galois and conversion payload grows from 603,728 to
+4,019,792 bytes. Repacking exchanges bandwidth for keys and compute.
+
+At the same **unadmitted** full-vocabulary 39+32 geometry, the party-local
+mixed layout projects **1,681.97 to 234.32 MB** of online HE/conversion frames,
+plus **409.73 MB** of one-use conversion keys. Repacking setup delivery is
+**1.76 MB** for one context, or **123.33 MB** if refreshed for each of the 70
+lookup rows, as in the bounded benchmark. Those scopes remain separate. No
+full-width noise, provider transport or whole-client RSS measurement is implied.
+Both variants still release **zero** tied embedding/head weight bytes.
 
 ## Source-only numeric and ownership diagnostic
 
@@ -120,12 +183,14 @@ compares all layouts and replays each immutable configuration:
 
 ```sh
 python examples/benchmarks/packed_embedding.py
+python examples/benchmarks/repacked_embedding.py
 ```
 
 Repository research commands refuse to overwrite evidence:
 
 ```sh
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m benchmarks.research.packed_embedding --mode cost --output new-embedding-cost.json
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --no-sync python -m benchmarks.research.repacked_embedding --output new-repacked-embedding-cost.json
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false uv run --no-sync python -m benchmarks.research.packed_embedding --mode quality --output new-embedding-quality.json
 ```
 
@@ -133,5 +198,5 @@ The quality command admits four GiB of headroom beyond the host reserve and
 monitors reserve loss/new swap. Reports retain exact source/configuration/native
 identities and public profile commitments. Private caller inputs and outputs
 never enter operator reports. Decoder placement remains unavailable until the
-missing conversion/packing/transport contracts, fidelity and complete resource
+missing distributed setup/transport contracts, fidelity and complete resource
 owners are implemented and measured.

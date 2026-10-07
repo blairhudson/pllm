@@ -56,10 +56,15 @@ lists those symbols and their next gates.
    Whole-MLP costs remain 203 GB–3.02 TB before remaining decoder work, and fresh
    twelve-prompt quality checks preserve no complete logits/KV. See
    `docs/research/mixed-gated-reference.md`. No tensor/provider promotion follows.
-2. **FastQuery — current implementation target.** Add ciphertext coefficient
-   repacking and independently supplied party-local share conversion; measure
-   all setup keys, conversions and tied embedding/head ownership together.
-3. **MPCache / CipherPrune.** Screen cheaper private selection with complete-record
+2. **FastQuery — implemented bounded repacking/conversion slice.** Extracted-LWE
+   packing and direct interleaving compose with independently supplied party
+   inputs and local-dealer OT conversion. Eighteen fresh processes check 3,456
+   outputs. At 4,096×64 mixed precision, online frames fall 1,642,896 to 180,624
+   bytes, with higher setup material and compute. Symbolic Qwen costs still need
+   234.32 MB online plus 409.73 MB conversion keys and setup. Tied-head ownership
+   releases zero weights. Full-width noise, distributed setup and transport remain
+   open; see `docs/research/packed-embedding-reference.md`.
+3. **MPCache / CipherPrune — current implementation target.** Screen cheaper private selection with complete-record
    movement, fixed public schedules and full-width material admission.
 4. **Encrypted linear foundation / MOAI.** Implement bounded packed encrypted
    operators with explicit key ownership and reusable layouts. MOAI attribution
@@ -216,8 +221,8 @@ consumer remain open. Details: `docs/research/secret-replication-reference.md`.
 FastQuery now has the installed `PrivateEmbeddingLookup` bounded operator:
 encrypted one-hot coefficient packing, fresh uniform full-polynomial masks and
 one-use signed packed-share conversion. Nine fresh processes check 1,215 exact
-outputs. Full ciphertext replies and local half-gates conversion replace the
-missing PackLWEs and distributed SiRNN components. The mixed 4/3/3 full-vocabulary
+outputs. That historical control uses full ciphertext replies and local half-gates
+conversion, before the separate repacking/party-local slice above. Its mixed 4/3/3 full-vocabulary
 39+32 projection still needs 1.643 GB of HE frames and 293.35 MB of conversion keys,
 before boundary labels, setup and the rest of the decoder. A separate public
 W8A8-source requantization diagnostic checks 1,007,104 elements per profile; mixed
