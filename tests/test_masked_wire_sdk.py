@@ -158,9 +158,9 @@ def test_fail_closed_if_binding_disagrees_and_fresh_session_per_sample(monkeypat
     call = _native.masked_wire_benchmark
     sessions = []
 
-    def capture(gate, up, config, session):
+    def capture(gate, up, config, session, layout):
         sessions.append(session)
-        return call(gate, up, config, session)
+        return call(gate, up, config, session, layout)
 
     monkeypatch.setattr(_native, "masked_wire_benchmark", capture)
     benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=1, samples=3)
@@ -185,3 +185,28 @@ def test_replay_rejects_changed_or_extra_contract_fields():
     ):
         with pytest.raises(ValueError):
             replay_operator_benchmark(configuration | change)
+
+
+@pytest.mark.parametrize("lanes", [1, 64, 256])
+def test_fused_complete_block_preserves_numerics_and_prices_all_work(lanes):
+    plain = MaskedWireGatedMultiplyQ12()
+    fused = plain.with_params(layout="fused")
+    assert plain.params == {}
+    assert fused.with_params(layout="unfused") == plain
+    a, b = (benchmark_operator(c, lanes=lanes, samples=2) for c in (plain, fused))
+    assert a.numeric_contract_digest == b.numeric_contract_digest
+    assert a.quality == b.quality
+    assert a.configuration_digest != b.configuration_digest
+    assert (a.resources.peer_rounds, b.resources.peer_rounds) == (11, 8)
+    assert a.resources.peer_payload_bits == b.resources.peer_payload_bits
+    assert b.resources.combined_raw_key_payload_bytes > a.resources.combined_raw_key_payload_bytes
+    assert b.resources.peer_frame_bytes < a.resources.peer_frame_bytes
+    assert "fusefss" in {c.paper_id for c in b.citations}
+    replay = replay_operator_benchmark(b.configuration)
+    assert replay.quality == b.quality and replay.resources == b.resources
+
+
+@pytest.mark.parametrize("layout", ["", "automatic", [], True])
+def test_fusion_configuration_rejects_before_issuance(layout):
+    with pytest.raises(ValueError):
+        MaskedWireGatedMultiplyQ12(layout=layout)

@@ -136,8 +136,11 @@
     },
     {
       "paper_id": "R14",
-      "summary": "The installed signed-rescale operator exposes matched mask-aware fused and unfused helper layouts. It does not reproduce FuseFSS's general compiler, GPU system or whole-model results.",
-      "components": [{"title": "Shared signed rescaling", "href": "/sdk/components/nonlinear/shared-rescale/", "source": "content/docs/sdk/components/nonlinear/shared-rescale.mdx"}]
+      "summary": "The installed signed-rescale helper and complete masked-wire gated block expose matched fused and unfused layouts. Multi-view fusion preserves integer outputs while reducing dependent rounds; wider comparison keys increase complete-block material. This is a scoped CPU adaptation, not FuseFSS's general compiler or GPU system.",
+      "components": [
+        {"title": "Shared signed rescaling", "href": "/sdk/components/nonlinear/shared-rescale/", "source": "content/docs/sdk/components/nonlinear/shared-rescale.mdx"},
+        {"title": "Masked-wire gated Q12 multiplication", "href": "/sdk/components/nonlinear/masked-wire-gated-multiply-q12/", "source": "content/docs/sdk/components/nonlinear/masked-wire-gated-multiply-q12.mdx"}
+      ]
     },
     {
       "paper_id": "fss-mixed",

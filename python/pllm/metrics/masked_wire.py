@@ -46,6 +46,13 @@ _CITATIONS = (
         "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
     ),
 )
+_FUSION_CITATION = OperatorCitation(
+    "fusefss",
+    "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+    "https://arxiv.org/abs/2606.09551",
+    "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+    "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+)
 
 
 def _canonical(value: object) -> str:
@@ -125,7 +132,8 @@ class _MaskedWireBenchmark(_OperatorBenchmark):
             up = _values(up_q24, self.lanes, 128, "up_q24")
             source = "caller-owned; supply inputs again for replay"
         table, profile_digest = _profile()
-        resource = json.loads(_native.masked_wire_resources(self.lanes))
+        layout = self.component.params.get("layout", "unfused")
+        resource = json.loads(_native.masked_wire_resources(self.lanes, layout))
         if resource["profile_digest"] != profile_digest:
             raise RuntimeError("native residual table differs from the independent public profile")
         expected = []
@@ -147,6 +155,7 @@ class _MaskedWireBenchmark(_OperatorBenchmark):
                 packed_up,
                 bytes.fromhex(self.digest),
                 session,
+                layout,
             )
             cpu = (time.process_time_ns() - started) / 1e9
             measured = json.loads(raw)
@@ -209,7 +218,7 @@ class _MaskedWireBenchmark(_OperatorBenchmark):
                 math.fsum(errors) / len(errors),
             ),
             samples=tuple(samples),
-            citations=_CITATIONS,
+            citations=_CITATIONS + ((_FUSION_CITATION,) if layout == "fused" else ()),
             environment=(
                 ("platform", platform.platform()),
                 ("python", platform.python_version()),
@@ -218,7 +227,7 @@ class _MaskedWireBenchmark(_OperatorBenchmark):
             ),
             limitations=(
                 "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
-                "Fixed floor/Q12 approximation; original papers' GPU systems and FuseFSS fusion are not reproduced",
+                "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
                 "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
                 "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
                 "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",

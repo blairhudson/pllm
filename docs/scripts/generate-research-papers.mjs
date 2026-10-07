@@ -126,7 +126,9 @@ function validate(registry, library, citationRegistry, summaries, libraryNotes, 
       const document = JSON.parse(fs.readFileSync(path.resolve(dataRoot, '../../..', sdk.evidence), 'utf8'));
       const reports = document.schema === 'pllm.operator_benchmark_report.v1' ? [document]
         : document.schema === 'pllm.operator_benchmark_collection.v1' && Array.isArray(document.reports)
-          ? document.reports : [];
+          ? document.reports
+          : document.schema === 'pllm.masked_wire_fusion_sdk.v1' && Array.isArray(document.cases)
+            ? document.cases.map((entry) => entry.report) : [];
       if (!reports.length || reports.length > 256 || reports.some((report) =>
           report?.schema !== 'pllm.operator_benchmark_report.v1' ||
           report.sdk_availability !== 'operator-benchmark' || report.benchmark_status !== 'completed' ||

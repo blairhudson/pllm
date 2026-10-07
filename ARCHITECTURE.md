@@ -256,6 +256,15 @@ peer frames. Client mask/boundary estimates and public tables stay separate;
 full wire and peak memory remain unknown. No reusable secret handles escape.
 SDK operator availability, paper coverage and whole-model execution are independent
 claims. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
+The optional `MaskedWireGatedMultiplyQ12(layout="fused")` now implements bounded
+multi-view fusion on the complete block: rescaling, index reduction and predicates
+derive from one masked gate input. Eighteen fresh processes check 5,778 exact outputs.
+Rounds fall from eleven to eight; 64-lane peer frames fall from 6,020 to 5,552 bytes,
+while both-party keys rise from 82,592 to 145,984 bytes and local online time from
+7.31 to 17.51 ms. Wider direct-input comparisons cause the material increase.
+The historical 39+8 geometry projects 6.93/12.25 GB unfused/fused keys and
+397.12/387.30 MB peer frames. Both retain the same numeric profile and bounded
+operator availability; compiler tensor binding and role transport remain separate.
 Both operator methods use the ordinary immutable `NonlinearProtocol` component
 contract, discovery and serialization. `pllm.metrics.benchmark_operator` owns
 benchmark geometry and samples separately; `replay_operator_benchmark` also

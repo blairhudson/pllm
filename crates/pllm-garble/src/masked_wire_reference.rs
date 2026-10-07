@@ -5,8 +5,10 @@
 //! evaluators reconstruct only freshly masked intermediate values. The local
 //! dealer/client is research-only; no malicious security or role transport.
 //! Lookup uses the Pika Boolean selection/sign-correction algebra, with its
-//! sign shares derived from each local full-domain vector. No seeded key
-//! distribution, GPU implementation or complete transformer reproduction.
+//! sign shares derived from each local full-domain vector. The optional fused
+//! layout applies FuseFSS §4.3 / Appendix E's public-view rewrite to the input
+//! gate shift, residual-index shift and predicates. All later post-processing
+//! remains charged. No GPU implementation or complete transformer reproduction.
 
 use crate::compact_dpf::{Bits, Key};
 use pllm_core::residual_silu_reference::{
@@ -23,6 +25,7 @@ const MAGIC: &[u8; 8] = b"PLLMMW01";
 const N: u8 = RING_BITS;
 const M: u8 = EFFECTIVE_GATE_BITS;
 const Y: u8 = M - 6;
+const INPUT_GATE_BITS: u8 = M + 12;
 const WIDTHS: [&[u8]; ROUNDS] = [
     &[1, 1],
     &[N, N],
@@ -36,6 +39,46 @@ const WIDTHS: [&[u8]; ROUNDS] = [
     &[1],
     &[N],
 ];
+const FUSED_WIDTHS: [&[u8]; 8] = [
+    &[1, 1, 1, 1, 1],
+    &[N, N, Y],
+    &[10],
+    &[N],
+    &[N],
+    &[N],
+    &[1],
+    &[N],
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Layout {
+    Unfused,
+    Fused,
+}
+
+impl Layout {
+    pub fn rounds(self) -> usize {
+        self.widths().len()
+    }
+    fn widths(self) -> &'static [&'static [u8]] {
+        match self {
+            Self::Unfused => &WIDTHS,
+            Self::Fused => &FUSED_WIDTHS,
+        }
+    }
+    fn sign_bits(self) -> u8 {
+        match self {
+            Self::Unfused => Y,
+            Self::Fused => INPUT_GATE_BITS,
+        }
+    }
+    fn reduce_bits(self) -> (u8, u8) {
+        match self {
+            Self::Unfused => (M, 6),
+            Self::Fused => (INPUT_GATE_BITS, 18),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
@@ -158,30 +201,48 @@ impl Shift {
 
 struct Signs {
     key: Key,
+    bits: u8,
+    scale: u8,
     constants: Zeroizing<[u64; 2]>,
 }
 impl Signs {
     fn issue(rin: u64, dmask: u64, imask: u64) -> Result<[Self; 2], Error> {
-        let neg = 0u64.wrapping_sub(rin) & mask(Y);
-        let keys = Key::issue(Y - 1, neg & mask(Y - 1)).map_err(|_| Error::Randomness)?;
-        let d = share(dmask ^ (neg >> (Y - 1)) ^ 1, 1)?;
+        Self::issue_scaled(Y, 0, rin, dmask, imask)
+    }
+    fn issue_scaled(
+        bits: u8,
+        scale: u8,
+        rin: u64,
+        dmask: u64,
+        imask: u64,
+    ) -> Result<[Self; 2], Error> {
+        let neg = 0u64.wrapping_sub(rin) & mask(bits);
+        let keys = Key::issue(bits - 1, neg & mask(bits - 1)).map_err(|_| Error::Randomness)?;
+        let d = share(dmask ^ (neg >> (bits - 1)) ^ 1, 1)?;
         let i = share(imask, 1)?;
         let [k0, k1] = keys;
         Ok([
             Self {
                 key: k0,
+                bits,
+                scale,
                 constants: Zeroizing::new([d[0], i[0]]),
             },
             Self {
                 key: k1,
+                bits,
+                scale,
                 constants: Zeroizing::new([d[1], i[1]]),
             },
         ])
     }
     fn raw(&self, b: u8, x: u64) -> u64 {
-        let x = x & mask(Y);
-        (u64::from(b) * (x >> (Y - 1)))
-            ^ u64::from(self.key.less(b, mask(Y - 1) - (x & mask(Y - 1))))
+        let x = x & mask(self.bits);
+        (u64::from(b) * (x >> (self.bits - 1)))
+            ^ u64::from(
+                self.key
+                    .less(b, mask(self.bits - 1) - (x & mask(self.bits - 1))),
+            )
     }
     fn eval(&self, b: u8, x: u64) -> [u64; 2] {
         // Only the combined membership share is exposed. Distinct output masks
@@ -189,8 +250,8 @@ impl Signs {
         // into an unmasked, reconstructed interval-membership bit.
         [
             self.raw(b, x) ^ self.constants[0],
-            self.raw(b, x.wrapping_add(1023))
-                ^ self.raw(b, x.wrapping_sub(1024))
+            self.raw(b, x.wrapping_add(1023 << self.scale))
+                ^ self.raw(b, x.wrapping_sub(1024 << self.scale))
                 ^ self.constants[1],
         ]
     }
@@ -376,12 +437,17 @@ pub struct Resources {
 }
 
 pub fn resources(lanes: usize) -> Result<Resources, Error> {
+    resources_with_layout(lanes, Layout::Unfused)
+}
+
+pub fn resources_with_layout(lanes: usize, layout: Layout) -> Result<Resources, Error> {
     if !(1..=MAX_LANES).contains(&lanes) {
         return Err(Error::Resource);
     }
+    let (reduce_bits, reduce_shift) = layout.reduce_bits();
     let per_lane = 3 * Shift::bits(N, 12, true)
-        + Shift::bits(M, 6, false)
-        + Key::encoded_bits(Y - 1)
+        + Shift::bits(reduce_bits, reduce_shift, false)
+        + Key::encoded_bits(layout.sign_bits() - 1)
         + 2
         + 8 * 10
         + 4 * N as usize
@@ -396,12 +462,14 @@ pub fn resources(lanes: usize) -> Result<Resources, Error> {
     }
     let payload_bits = 2
         * lanes
-        * WIDTHS
+        * layout
+            .widths()
             .iter()
             .flat_map(|v| v.iter())
             .map(|&w| w as usize)
             .sum::<usize>();
-    let peer_bytes = 2 * WIDTHS
+    let peer_bytes = 2 * layout
+        .widths()
         .iter()
         .map(|widths| {
             HEADER + (lanes * widths.iter().map(|&w| w as usize).sum::<usize>()).div_ceil(8)
@@ -487,7 +555,15 @@ impl Client {
 }
 
 pub fn issue_reference(context: Context, lanes: usize) -> Result<(Client, [Party; 2]), Error> {
-    let resource = resources(lanes)?;
+    issue_reference_with_layout(context, lanes, Layout::Unfused)
+}
+
+pub fn issue_reference_with_layout(
+    context: Context,
+    lanes: usize,
+    layout: Layout,
+) -> Result<(Client, [Party; 2]), Error> {
+    let resource = resources_with_layout(lanes, layout)?;
     context
         .first_tensor_index
         .checked_add(lanes as u64)
@@ -501,6 +577,9 @@ pub fn issue_reference(context: Context, lanes: usize) -> Result<(Client, [Party
     h.update(context.operation);
     h.update(context.first_tensor_index.to_le_bytes());
     h.update((lanes as u64).to_le_bytes());
+    if layout == Layout::Fused {
+        h.update(b"masked-input-fusion.v1\0");
+    }
     let binding = h.finalize().into();
     let mut nonce = [0; 32];
     getrandom::fill(&mut nonce).map_err(|_| Error::Randomness)?;
@@ -526,8 +605,30 @@ pub fn issue_reference(context: Context, lanes: usize) -> Result<(Client, [Party
         outputs.push(r[11]);
         let gate = Shift::issue(N, 12, true, r[0], r[2])?;
         let up = Shift::issue(N, 12, true, r[1], r[3])?;
-        let reduce = Shift::issue(M, 6, false, r[2] & mask(M), r[4])?;
-        let signs = Signs::issue(r[4], r[5], r[6])?;
+        // floor(floor(g / 2^12) / 2^6) == floor(g / 2^18).
+        // The same public gate bound proves a signed 31-bit input view and
+        // 13-bit output. Predicate thresholds are lifted by 18 bits, so the
+        // sign and residual interval use the original masked wire as well.
+        let (reduce_bits, reduce_shift) = layout.reduce_bits();
+        let reduce_input_mask = if layout == Layout::Fused { r[0] } else { r[2] };
+        let reduce = Shift::issue(
+            reduce_bits,
+            reduce_shift,
+            false,
+            reduce_input_mask & mask(reduce_bits),
+            r[4],
+        )?;
+        let signs = if layout == Layout::Fused {
+            Signs::issue_scaled(
+                INPUT_GATE_BITS,
+                18,
+                r[0] & mask(INPUT_GATE_BITS),
+                r[5],
+                r[6],
+            )?
+        } else {
+            Signs::issue(r[4], r[5], r[6])?
+        };
         let clip = Select::issue(
             10,
             ((r[6] << 1) | r[5]) as usize,
@@ -589,6 +690,7 @@ pub fn issue_reference(context: Context, lanes: usize) -> Result<(Client, [Party
             index += 1;
             Party {
                 id,
+                layout,
                 binding,
                 nonce,
                 lanes,
@@ -605,6 +707,7 @@ pub fn issue_reference(context: Context, lanes: usize) -> Result<(Client, [Party
 
 pub struct Party {
     id: u8,
+    layout: Layout,
     binding: [u8; 32],
     nonce: [u8; 32],
     lanes: usize,
@@ -647,13 +750,18 @@ impl Party {
                 key.gate.start(self.id, values[0]),
                 key.up.start(self.id, values[1]),
             ]);
+            if self.layout == Layout::Fused {
+                output.push(key.reduce.start(self.id, values[0] & mask(INPUT_GATE_BITS)));
+                output.extend(key.signs.eval(self.id, values[0] & mask(INPUT_GATE_BITS)));
+            }
         }
         Ok(self.frame(0, output))
     }
     fn frame(&mut self, phase: usize, output: Vec<u64>) -> Vec<u8> {
         let mut bits = Bits::new();
         for (i, &x) in output.iter().enumerate() {
-            bits.put(x.into(), WIDTHS[phase][i % WIDTHS[phase].len()] as usize);
+            let widths = self.layout.widths()[phase];
+            bits.put(x.into(), widths[i % widths.len()] as usize);
         }
         let mut frame = Vec::with_capacity(HEADER + bits.data.len());
         frame.extend(MAGIC);
@@ -667,7 +775,7 @@ impl Party {
         frame
     }
     fn open(&self, frame: &[u8], phase: usize) -> Result<Zeroizing<Vec<u64>>, Error> {
-        let widths = WIDTHS[phase];
+        let widths = self.layout.widths()[phase];
         let bit_count = self.lanes * widths.iter().map(|&w| w as usize).sum::<usize>();
         if frame.len() != HEADER + bit_count.div_ceil(8)
             || &frame[..8] != MAGIC
@@ -708,7 +816,7 @@ impl Party {
     fn advance_inner(&mut self, peer: &[u8]) -> Result<Step, Error> {
         let phase = self.phase.ok_or(Error::Context)?;
         let opened = self.open(peer, phase)?;
-        if phase == 10 {
+        if phase + 1 == self.layout.rounds() {
             let output = MaskedOutput {
                 binding: self.binding,
                 nonce: self.nonce,
@@ -720,8 +828,30 @@ impl Party {
         let mut next = Vec::with_capacity(self.lanes * 2);
         for (lane, k) in self.keys.iter().enumerate() {
             let s = &mut self.state[lane];
-            let x = &opened[lane * WIDTHS[phase].len()..];
-            match phase {
+            let x = &opened[lane * self.layout.widths()[phase].len()..];
+            if self.layout == Layout::Fused && phase == 0 {
+                next.extend([
+                    k.gate.finish(self.id, s[0], x[0]),
+                    k.up.finish(self.id, s[1], x[1]),
+                    k.reduce.finish(self.id, s[0] & mask(INPUT_GATE_BITS), x[2]),
+                ]);
+                s[5] = x[3];
+                s[6] = x[4];
+                continue;
+            }
+            if self.layout == Layout::Fused && phase == 1 {
+                s[2] = x[0];
+                s[3] = x[1];
+                s[4] = x[2];
+                s[7] = k.relu.eval(s[5] as usize, s[2]);
+                next.push(k.clip.eval(((s[6] << 1) | s[5]) as usize, s[4] & 1023));
+                continue;
+            }
+            match if self.layout == Layout::Fused {
+                phase + 3
+            } else {
+                phase
+            } {
                 0 => next.extend([
                     k.gate.finish(self.id, s[0], x[0]),
                     k.up.finish(self.id, s[1], x[1]),
@@ -925,5 +1055,117 @@ mod tests {
         assert!(c2.encode(&[0], &[0]).is_err());
         b.cancel();
         assert!(b.advance(&l).is_err());
+    }
+
+    #[test]
+    fn fused_complete_block_matches_unfused_at_shift_interval_and_signed_boundaries() {
+        let profile = Profile::new();
+        let mut gates = vec![-(48 << 24), 48 << 24];
+        for index in [-3072i64, -1024, -1023, -1, 0, 1, 1023, 1024, 3072] {
+            for residue in [-4097, -4096, -1, 0, 1, 4095, 4096] {
+                let x = (index << 18) + residue;
+                if x.unsigned_abs() <= (GATE_BOUND as u64) << 24 {
+                    gates.push(x);
+                }
+            }
+        }
+        for layout in [Layout::Unfused, Layout::Fused] {
+            for up in [-(128 << 24), -1, 0, 1, 128 << 24] {
+                let (mut c, [mut a, mut b]) =
+                    issue_reference_with_layout(context(), gates.len(), layout).unwrap();
+                let ups = vec![up; gates.len()];
+                let input = c.encode(&gates, &ups).unwrap();
+                let mut left = a.start(&input).unwrap();
+                let mut right = b.start(&input).unwrap();
+                let mut bytes = left.len() + right.len();
+                for round in 0..layout.rounds() {
+                    match (a.advance(&right).unwrap(), b.advance(&left).unwrap()) {
+                        (Step::Send(l), Step::Send(r)) => {
+                            bytes += l.len() + r.len();
+                            left = l;
+                            right = r;
+                        }
+                        (Step::Done(l), Step::Done(r)) => {
+                            assert_eq!(round + 1, layout.rounds());
+                            assert_eq!(*l.values, *r.values);
+                            let output = c.decode(&l).unwrap();
+                            for (g, y) in gates.iter().zip(output) {
+                                assert_eq!(
+                                    y,
+                                    profile.evaluate(*g, up).unwrap(),
+                                    "{layout:?} {g} {up}"
+                                );
+                            }
+                            assert!(c.decode(&l).is_err());
+                        }
+                        _ => panic!("phase mismatch"),
+                    }
+                }
+                assert_eq!(
+                    bytes,
+                    resources_with_layout(gates.len(), layout)
+                        .unwrap()
+                        .peer_frame_bytes
+                );
+                assert!(a.advance(&right).is_err());
+                assert!(a.keys.is_empty());
+            }
+        }
+        let a = resources_with_layout(64, Layout::Unfused).unwrap();
+        let b = resources_with_layout(64, Layout::Fused).unwrap();
+        assert_eq!(a.peer_payload_bits, b.peer_payload_bits);
+        assert_eq!(a.peer_frame_bytes - b.peer_frame_bytes, 6 * HEADER);
+        assert!(a.party_key_bits < b.party_key_bits);
+        assert!(resources_with_layout(MAX_LANES, Layout::Fused).is_ok());
+    }
+
+    #[test]
+    fn fused_predicate_views_match_floor_reduction_including_mask_wraps() {
+        for rin in [0, 1, (1 << 18) - 1, (1 << 30) - 1, 1 << 30, (1 << 31) - 1] {
+            let keys = Signs::issue_scaled(INPUT_GATE_BITS, 18, rin, 1, 1).unwrap();
+            for index in -3072i64..=3072 {
+                for low in [0, (1 << 18) - 1] {
+                    let value = (index << 18) + low;
+                    let x = (value as u64).wrapping_add(rin) & mask(INPUT_GATE_BITS);
+                    let a = keys[0].eval(0, x);
+                    let b = keys[1].eval(1, x);
+                    assert_eq!(a[0] ^ b[0] ^ 1, u64::from(index >= 0));
+                    assert_eq!(a[1] ^ b[1] ^ 1, u64::from((-1023..1024).contains(&index)));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fused_phase_forgery_and_layout_mismatch_burn_material() {
+        for phase in 0..Layout::Fused.rounds() {
+            let (mut c, [mut a, mut b]) =
+                issue_reference_with_layout(context(), 1, Layout::Fused).unwrap();
+            let input = c.encode(&[1], &[-1]).unwrap();
+            let mut left = a.start(&input).unwrap();
+            let mut right = b.start(&input).unwrap();
+            for _ in 0..phase {
+                let Step::Send(l) = a.advance(&right).unwrap() else {
+                    panic!()
+                };
+                let Step::Send(r) = b.advance(&left).unwrap() else {
+                    panic!()
+                };
+                left = l;
+                right = r;
+            }
+            let valid = right.clone();
+            right[73] = (phase + 1) as u8;
+            assert_eq!(a.advance(&right).err(), Some(Error::Context));
+            assert_eq!(a.advance(&valid).err(), Some(Error::Consumed));
+            assert!(a.keys.is_empty());
+            b.cancel();
+            assert!(b.advance(&left).is_err());
+        }
+        let (mut c, _) = issue_reference(context(), 1).unwrap();
+        let (_, [mut a, _]) = issue_reference_with_layout(context(), 1, Layout::Fused).unwrap();
+        let input = c.encode(&[0], &[0]).unwrap();
+        assert_eq!(a.start(&input).err(), Some(Error::Context));
+        assert!(a.keys.is_empty());
     }
 }

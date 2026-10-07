@@ -221,7 +221,7 @@ class OperatorBenchmarkReport:
 
     @property
     def configuration(self) -> dict[str, Any]:
-        """Return an independent configuration for the probe's ``from_dict``."""
+        """Return an independent configuration for ``replay_operator_benchmark``."""
         return json.loads(self.configuration_json)
 
     @property

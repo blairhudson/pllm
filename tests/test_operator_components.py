@@ -13,7 +13,7 @@ from pllm.nonlinear import MaskedWireGatedMultiplyQ12, NonlinearProtocol, Shared
 from pllm.profiles import MaskedLinearCpu
 
 
-@pytest.mark.parametrize("component", [MaskedWireGatedMultiplyQ12(), SharedRescale()])
+@pytest.mark.parametrize("component", [MaskedWireGatedMultiplyQ12(), MaskedWireGatedMultiplyQ12(layout="fused"), SharedRescale()])
 def test_components_round_trip_through_discovery_and_experiment(component):
     assert isinstance(component, NonlinearProtocol)
     assert get(component.component) is type(component)
@@ -99,6 +99,8 @@ def test_historical_masked_wire_record_migrates_without_rewriting_evidence():
     result = replay_operator_benchmark(old["configuration"]).to_dict()
     assert result["configuration"]["component"] == MaskedWireGatedMultiplyQ12().to_spec()
     assert result["configuration_digest"] != old["configuration_digest"]
-    for key in ("numeric_contract_digest", "native_implementation_digest", "resources", "quality"):
+    # Source changes must retain a new implementation identity, while replaying
+    # the historical numeric/layout contract and preserving the original file.
+    for key in ("numeric_contract_digest", "resources", "quality"):
         assert result[key] == old[key]
     assert path.read_bytes() == original

@@ -220,12 +220,60 @@ Zero new swap is observed. This fails the predeclared numeric screen.
 Both fidelity and the selected complete-material/traffic budget fail. The
 correct bounded reference remains useful for **opt-in user-driven SDK operator
 benchmarks**; poor results should be reported, not hidden. Installed bindings and
-typed benchmark reports are the next SDK delivery. Current reproduction remains
-repository-only; it does not yet claim SDK availability or complete-paper coverage.
+typed benchmark reports now expose both layouts through the installed SDK.
+The retained checkpoint quality diagnostic remains repository-only and does not
+establish whole-model SDK execution or complete-paper coverage.
 
-Then compare source-specified FuseFSS fusion and distribution on this baseline,
-accounting for every conversion and round. Improved numeric mappings need new
-held-out prompts. Unknown costs remain unknown and offline costs remain charged.
+## Complete-block multi-view fusion
+
+`MaskedWireGatedMultiplyQ12(layout="fused")` implements a scoped CPU adaptation of
+FuseFSS's multi-view rewriting. The same original masked Q24 gate supplies its
+Q12 rescaling, Q6 lookup-index reduction, and nonnegative/interval predicates.
+Each view has the independently masked corrections it requires; input masks and
+keys are never reused across lanes or attempts. Lookup, ReLU selection, masked
+multiplication and final Q12 rounding remain fully charged.
+
+The eight-phase schedule packs input carries, index-reduction carry and predicate
+shares together, then opens the Q12 gate/up and Q6 view together. The remaining
+clipped-index, table, activation, product and final-shift phases retain their
+original numeric contracts. At one lane, byte padding changes too; reports count
+actual frames rather than deriving traffic from rounds alone.
+
+The price is wider keys: direct Q24-to-Q6 reduction needs an eighteen-bit carry
+comparison rather than six, and predicates on the original input need thirty
+bits rather than twelve. Complete raw key payload grows from **5,162 to 9,124
+bits per party/element**. This particular fusion is not a minimum-cost compiler
+schedule or a reproduction of FuseFSS's general distribution/GPU implementation.
+
+`benchmarks/research/masked_wire_fusion.py` runs three alternating-order fresh
+process pairs at 1, 64 and 256 lanes, with three fresh samples per process. All
+**5,778 outputs** agree with the independent integer oracle, and paired float64
+approximation errors agree. Zero observed new swap. Evidence:
+`docs/evidence/research-masked-wire-fusion-sdk.json`.
+
+| Complete block, 64 lanes | Unfused | Fused |
+| --- | ---: | ---: |
+| Peer rounds | 11 | 8 |
+| Peer frames, both directions | 6,020 bytes | 5,552 bytes |
+| Raw keys, both parties | 82,592 bytes | 145,984 bytes |
+| Local issuance, median of process medians | 12.87 ms | 23.02 ms |
+| Local online, median of process medians | 7.31 ms | 17.51 ms |
+
+At the retained 39+8 geometry with 256-lane batches, keys project **6.93/12.25 GB**
+and peer frames **397.12/387.30 MB** for unfused/fused. Client masks, boundary
+payload estimates and public tables are separately priced. Process CPU and RSS
+include Python; native per-sample timings remain separate. Full wire and
+whole-decoder performance are unmeasured. Fewer dependent rounds could matter
+under network delay, but these local measurements do not demonstrate that benefit.
+
+```bash
+uv run python -m benchmarks.research.masked_wire_fusion \
+  --output .artifacts/masked-wire-fusion-sdk.json
+```
+
+Compiler-bound tensor execution and transport are the next runtime slice.
+Improved numeric mappings need new held-out prompts. Unknown costs remain unknown
+and offline costs remain charged.
 
 ## Reproduction and remaining gates
 

@@ -108,6 +108,30 @@ wire, peak RSS and whole-checkpoint quality stay null. Compare samples only unde
 matching numeric contract, input workload, lane geometry, implementation and
 environment; the benchmark performs no automatic ranking.
 
+## Compare complete-block fusion
+
+The complete-block fusion option uses the same numeric profile:
+
+```python
+from pllm.metrics import benchmark_operator
+from pllm.nonlinear import MaskedWireGatedMultiplyQ12
+
+method = MaskedWireGatedMultiplyQ12()
+control = benchmark_operator(method, lanes=64, samples=3)
+fused = benchmark_operator(method.with_params(layout="fused"), lanes=64, samples=3)
+assert fused.quality == control.quality
+assert fused.resources.peer_rounds == 8
+```
+
+An eighteen-process matched CPU cohort checks 5,778 exact outputs. At 64 lanes,
+fusion cuts peer frames from 6,020 to 5,552 bytes and rounds from eleven to eight,
+but increases both-party keys from 82,592 to 145,984 bytes and local online time
+from 7.31 to 17.51 ms. The complete operator includes lookup, masked multiplication
+and final rounding; fewer rounds alone do not establish a performance improvement.
+The [saved comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-masked-wire-fusion-sdk.json)
+retains process RSS, separate issuance/online costs and historical Qwen-shaped
+projections. It measures neither distributed transport nor a complete decoder.
+
 ## Compare fused and unfused rescaling
 
 `pllm.nonlinear.SharedRescale` selects the independent signed truncate/reduce
@@ -175,8 +199,8 @@ physical wire and measured peak memory remain unknown.
   early-terminated Boolean DPFs.
 - [Pika](/research/papers/pika/): Boolean-DPF lookup/sign correction, with explicit
   correction shares and full-domain local lookup.
-- [FuseFSS](/research/papers/fusefss/): the separately benchmarked rescale/sign
-  helper adapts mask-aware fusion with matched unfused controls.
+- [FuseFSS](/research/papers/fusefss/): the rescale/sign helper and complete
+  masked-wire block adapt mask-aware multi-view fusion with matched unfused controls.
 - [Mixed-Mode FSS](/research/papers/fss-mixed/): compact DCF and universal interval
   backends for that rescale helper.
 

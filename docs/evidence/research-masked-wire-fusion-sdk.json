@@ -1,0 +1,4820 @@
+{
+  "cases": [
+    {
+      "lanes": 1,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.10982600000000001,
+      "process_peak_rss_bytes": 33554432,
+      "repetition": 0,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 1,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "dfdf9bb4b6290aa7b7a0651a4263d0e3bc8be36607410035de4615f5947e240f",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.000245,
+        "median_online_seconds": 0.000124792,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 3,
+          "exact_integer_outputs": 3,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 8.756208124360306e-18,
+          "mean_absolute_error": 8.756208124360306e-18
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 25,
+          "client_mask_payload_estimate_bytes": 15,
+          "peer_frame_bytes_by_direction": [
+            896,
+            896
+          ],
+          "peer_payload_bits": 538,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 156416,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            5162,
+            5162
+          ],
+          "raw_key_payload_bytes_per_party": [
+            646,
+            646
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 1.959e-06,
+            "issuance_seconds": 0.000273,
+            "native_call_process_cpu_seconds": 0.000535,
+            "online_seconds": 0.00013225,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.25e-07,
+            "issuance_seconds": 0.000245,
+            "native_call_process_cpu_seconds": 0.000462,
+            "online_seconds": 0.000124792,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.25e-07,
+            "issuance_seconds": 0.000242208,
+            "native_call_process_cpu_seconds": 0.000455,
+            "online_seconds": 0.000124417,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 1,
+      "layout": "fused",
+      "process_cpu_seconds": 0.110272,
+      "process_peak_rss_bytes": 33570816,
+      "repetition": 0,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 1,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "098ea9824dde576b38747d3798318999e7f82447b408829a4a26b1eda72f0543",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.00040925,
+        "median_online_seconds": 0.000279959,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 3,
+          "exact_integer_outputs": 3,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 8.756208124360306e-18,
+          "mean_absolute_error": 8.756208124360306e-18
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 25,
+          "client_mask_payload_estimate_bytes": 15,
+          "peer_frame_bytes_by_direction": [
+            660,
+            660
+          ],
+          "peer_payload_bits": 538,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 219776,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            9124,
+            9124
+          ],
+          "raw_key_payload_bytes_per_party": [
+            1141,
+            1141
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 1.875e-06,
+            "issuance_seconds": 0.000433708,
+            "native_call_process_cpu_seconds": 0.000865,
+            "online_seconds": 0.00029,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 8.3e-08,
+            "issuance_seconds": 0.00040925,
+            "native_call_process_cpu_seconds": 0.000782,
+            "online_seconds": 0.000279959,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.25e-07,
+            "issuance_seconds": 0.000406125,
+            "native_call_process_cpu_seconds": 0.000772,
+            "online_seconds": 0.000277125,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 64,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.17069399999999998,
+      "process_peak_rss_bytes": 33783808,
+      "repetition": 0,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 64,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "01ab350d1c26deae19152d8176e8e9b61e44653bd8ca5c40bb2126993a9e5e96",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.012868834,
+        "median_online_seconds": 0.0073005,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 192,
+          "exact_integer_outputs": 192,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8940394474525616,
+          "mean_absolute_error": 0.02808263955087901
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 1600,
+          "client_mask_payload_estimate_bytes": 960,
+          "peer_frame_bytes_by_direction": [
+            3010,
+            3010
+          ],
+          "peer_payload_bits": 34432,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 5875712,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            330368,
+            330368
+          ],
+          "raw_key_payload_bytes_per_party": [
+            41296,
+            41296
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 5.25e-06,
+            "issuance_seconds": 0.0129315,
+            "native_call_process_cpu_seconds": 0.020416,
+            "online_seconds": 0.007335167,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.084e-06,
+            "issuance_seconds": 0.012860542,
+            "native_call_process_cpu_seconds": 0.020277,
+            "online_seconds": 0.0073005,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 7.92e-07,
+            "issuance_seconds": 0.012868834,
+            "native_call_process_cpu_seconds": 0.02027,
+            "online_seconds": 0.007298125,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 64,
+      "layout": "fused",
+      "process_cpu_seconds": 0.231678,
+      "process_peak_rss_bytes": 34078720,
+      "repetition": 0,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 64,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "75c0f0b4929ead150206023628cb50d8e64fbd5159a2bb7f8afe820aec47c274",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.023278375,
+        "median_online_seconds": 0.017532666,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 192,
+          "exact_integer_outputs": 192,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8940394474525616,
+          "mean_absolute_error": 0.02808263955087901
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 1600,
+          "client_mask_payload_estimate_bytes": 960,
+          "peer_frame_bytes_by_direction": [
+            2776,
+            2776
+          ],
+          "peer_payload_bits": 34432,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 9932800,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            583936,
+            583936
+          ],
+          "raw_key_payload_bytes_per_party": [
+            72992,
+            72992
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 4.583e-06,
+            "issuance_seconds": 0.023379125,
+            "native_call_process_cpu_seconds": 0.041081,
+            "online_seconds": 0.017532666,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.125e-06,
+            "issuance_seconds": 0.023237959,
+            "native_call_process_cpu_seconds": 0.040821,
+            "online_seconds": 0.017451042,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 9.16e-07,
+            "issuance_seconds": 0.023278375,
+            "native_call_process_cpu_seconds": 0.040943,
+            "online_seconds": 0.017540792,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 256,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.35116400000000003,
+      "process_peak_rss_bytes": 34963456,
+      "repetition": 0,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 256,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "97cfa6604d478633e88e39f71e8f591ec8293dcb5f72c8ac97767a03e01f6003",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.0514115,
+        "median_online_seconds": 0.029269041,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 768,
+          "exact_integer_outputs": 768,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8864711191726357,
+          "mean_absolute_error": 0.01721116882209626
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 6400,
+          "client_mask_payload_estimate_bytes": 3840,
+          "peer_frame_bytes_by_direction": [
+            9466,
+            9466
+          ],
+          "peer_payload_bits": 137728,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 23306240,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            1321472,
+            1321472
+          ],
+          "raw_key_payload_bytes_per_party": [
+            165184,
+            165184
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 7.083e-06,
+            "issuance_seconds": 0.051628625,
+            "native_call_process_cpu_seconds": 0.081088,
+            "online_seconds": 0.029269041,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.958e-06,
+            "issuance_seconds": 0.0514115,
+            "native_call_process_cpu_seconds": 0.080954,
+            "online_seconds": 0.029378791,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 2.083e-06,
+            "issuance_seconds": 0.051327291,
+            "native_call_process_cpu_seconds": 0.080755,
+            "online_seconds": 0.0292555,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 256,
+      "layout": "fused",
+      "process_cpu_seconds": 0.599815,
+      "process_peak_rss_bytes": 35864576,
+      "repetition": 0,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 256,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "ae1c7a884543c68c0936789f37bca3bdf8c191ef601b4384b40873fcafd0d589",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.091689375,
+        "median_online_seconds": 0.069943958,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 768,
+          "exact_integer_outputs": 768,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8864711191726357,
+          "mean_absolute_error": 0.01721116882209626
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 6400,
+          "client_mask_payload_estimate_bytes": 3840,
+          "peer_frame_bytes_by_direction": [
+            9232,
+            9232
+          ],
+          "peer_payload_bits": 137728,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 39534592,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            2335744,
+            2335744
+          ],
+          "raw_key_payload_bytes_per_party": [
+            291968,
+            291968
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 5.917e-06,
+            "issuance_seconds": 0.092866667,
+            "native_call_process_cpu_seconds": 0.163524,
+            "online_seconds": 0.071203042,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 2.375e-06,
+            "issuance_seconds": 0.091510958,
+            "native_call_process_cpu_seconds": 0.161709,
+            "online_seconds": 0.069943958,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 2.291e-06,
+            "issuance_seconds": 0.091689375,
+            "native_call_process_cpu_seconds": 0.161711,
+            "online_seconds": 0.069825083,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 1,
+      "layout": "fused",
+      "process_cpu_seconds": 0.109985,
+      "process_peak_rss_bytes": 33751040,
+      "repetition": 1,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 1,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "098ea9824dde576b38747d3798318999e7f82447b408829a4a26b1eda72f0543",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.00040825,
+        "median_online_seconds": 0.000280166,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 3,
+          "exact_integer_outputs": 3,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 8.756208124360306e-18,
+          "mean_absolute_error": 8.756208124360306e-18
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 25,
+          "client_mask_payload_estimate_bytes": 15,
+          "peer_frame_bytes_by_direction": [
+            660,
+            660
+          ],
+          "peer_payload_bits": 538,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 219776,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            9124,
+            9124
+          ],
+          "raw_key_payload_bytes_per_party": [
+            1141,
+            1141
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 1.833e-06,
+            "issuance_seconds": 0.000429625,
+            "native_call_process_cpu_seconds": 0.000866,
+            "online_seconds": 0.000291125,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 8.3e-08,
+            "issuance_seconds": 0.00040825,
+            "native_call_process_cpu_seconds": 0.000785,
+            "online_seconds": 0.000280166,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 8.3e-08,
+            "issuance_seconds": 0.000405667,
+            "native_call_process_cpu_seconds": 0.00077,
+            "online_seconds": 0.000278084,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 1,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.10507,
+      "process_peak_rss_bytes": 33554432,
+      "repetition": 1,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 1,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "dfdf9bb4b6290aa7b7a0651a4263d0e3bc8be36607410035de4615f5947e240f",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.000251375,
+        "median_online_seconds": 0.00012175,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 3,
+          "exact_integer_outputs": 3,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 8.756208124360306e-18,
+          "mean_absolute_error": 8.756208124360306e-18
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 25,
+          "client_mask_payload_estimate_bytes": 15,
+          "peer_frame_bytes_by_direction": [
+            896,
+            896
+          ],
+          "peer_payload_bits": 538,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 156416,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            5162,
+            5162
+          ],
+          "raw_key_payload_bytes_per_party": [
+            646,
+            646
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 1.458e-06,
+            "issuance_seconds": 0.000279291,
+            "native_call_process_cpu_seconds": 0.000558,
+            "online_seconds": 0.000139167,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 4.2e-08,
+            "issuance_seconds": 0.000251375,
+            "native_call_process_cpu_seconds": 0.00047,
+            "online_seconds": 0.00012175,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 4.1e-08,
+            "issuance_seconds": 0.000242875,
+            "native_call_process_cpu_seconds": 0.000447,
+            "online_seconds": 0.000120125,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 64,
+      "layout": "fused",
+      "process_cpu_seconds": 0.227291,
+      "process_peak_rss_bytes": 33964032,
+      "repetition": 1,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 64,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "75c0f0b4929ead150206023628cb50d8e64fbd5159a2bb7f8afe820aec47c274",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.023020667,
+        "median_online_seconds": 0.01751375,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 192,
+          "exact_integer_outputs": 192,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8940394474525616,
+          "mean_absolute_error": 0.02808263955087901
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 1600,
+          "client_mask_payload_estimate_bytes": 960,
+          "peer_frame_bytes_by_direction": [
+            2776,
+            2776
+          ],
+          "peer_payload_bits": 34432,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 9932800,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            583936,
+            583936
+          ],
+          "raw_key_payload_bytes_per_party": [
+            72992,
+            72992
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 6.834e-06,
+            "issuance_seconds": 0.023211625,
+            "native_call_process_cpu_seconds": 0.040909,
+            "online_seconds": 0.017535458,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1e-06,
+            "issuance_seconds": 0.023020667,
+            "native_call_process_cpu_seconds": 0.04064,
+            "online_seconds": 0.01751375,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 8.33e-07,
+            "issuance_seconds": 0.022998083,
+            "native_call_process_cpu_seconds": 0.040603,
+            "online_seconds": 0.017506583,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 64,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.17340299999999997,
+      "process_peak_rss_bytes": 33751040,
+      "repetition": 1,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 64,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "01ab350d1c26deae19152d8176e8e9b61e44653bd8ca5c40bb2126993a9e5e96",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.012895916,
+        "median_online_seconds": 0.007306042,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 192,
+          "exact_integer_outputs": 192,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8940394474525616,
+          "mean_absolute_error": 0.02808263955087901
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 1600,
+          "client_mask_payload_estimate_bytes": 960,
+          "peer_frame_bytes_by_direction": [
+            3010,
+            3010
+          ],
+          "peer_payload_bits": 34432,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 5875712,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            330368,
+            330368
+          ],
+          "raw_key_payload_bytes_per_party": [
+            41296,
+            41296
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 8.292e-06,
+            "issuance_seconds": 0.013289416,
+            "native_call_process_cpu_seconds": 0.020712,
+            "online_seconds": 0.007328667,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 9.58e-07,
+            "issuance_seconds": 0.012895916,
+            "native_call_process_cpu_seconds": 0.020318,
+            "online_seconds": 0.007306042,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 7.09e-07,
+            "issuance_seconds": 0.012868209,
+            "native_call_process_cpu_seconds": 0.020267,
+            "online_seconds": 0.007299584,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 256,
+      "layout": "fused",
+      "process_cpu_seconds": 0.602719,
+      "process_peak_rss_bytes": 35946496,
+      "repetition": 1,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 256,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "ae1c7a884543c68c0936789f37bca3bdf8c191ef601b4384b40873fcafd0d589",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.091748167,
+        "median_online_seconds": 0.070084042,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 768,
+          "exact_integer_outputs": 768,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8864711191726357,
+          "mean_absolute_error": 0.01721116882209626
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 6400,
+          "client_mask_payload_estimate_bytes": 3840,
+          "peer_frame_bytes_by_direction": [
+            9232,
+            9232
+          ],
+          "peer_payload_bits": 137728,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 39534592,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            2335744,
+            2335744
+          ],
+          "raw_key_payload_bytes_per_party": [
+            291968,
+            291968
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 1.45e-05,
+            "issuance_seconds": 0.092049208,
+            "native_call_process_cpu_seconds": 0.162325,
+            "online_seconds": 0.069924125,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 2.125e-06,
+            "issuance_seconds": 0.091748167,
+            "native_call_process_cpu_seconds": 0.162013,
+            "online_seconds": 0.07009125,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.958e-06,
+            "issuance_seconds": 0.091441041,
+            "native_call_process_cpu_seconds": 0.161687,
+            "online_seconds": 0.070084042,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 256,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.350056,
+      "process_peak_rss_bytes": 34668544,
+      "repetition": 1,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 256,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "97cfa6604d478633e88e39f71e8f591ec8293dcb5f72c8ac97767a03e01f6003",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.051271917,
+        "median_online_seconds": 0.029308083,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 768,
+          "exact_integer_outputs": 768,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8864711191726357,
+          "mean_absolute_error": 0.01721116882209626
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 6400,
+          "client_mask_payload_estimate_bytes": 3840,
+          "peer_frame_bytes_by_direction": [
+            9466,
+            9466
+          ],
+          "peer_payload_bits": 137728,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 23306240,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            1321472,
+            1321472
+          ],
+          "raw_key_payload_bytes_per_party": [
+            165184,
+            165184
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 6.5e-06,
+            "issuance_seconds": 0.051364833,
+            "native_call_process_cpu_seconds": 0.080949,
+            "online_seconds": 0.029404875,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.917e-06,
+            "issuance_seconds": 0.051244875,
+            "native_call_process_cpu_seconds": 0.080593,
+            "online_seconds": 0.029156583,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.5e-06,
+            "issuance_seconds": 0.051271917,
+            "native_call_process_cpu_seconds": 0.080729,
+            "online_seconds": 0.029308083,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 1,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.10833499999999999,
+      "process_peak_rss_bytes": 33685504,
+      "repetition": 2,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 1,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "dfdf9bb4b6290aa7b7a0651a4263d0e3bc8be36607410035de4615f5947e240f",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.00024525,
+        "median_online_seconds": 0.000125958,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 3,
+          "exact_integer_outputs": 3,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 8.756208124360306e-18,
+          "mean_absolute_error": 8.756208124360306e-18
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 25,
+          "client_mask_payload_estimate_bytes": 15,
+          "peer_frame_bytes_by_direction": [
+            896,
+            896
+          ],
+          "peer_payload_bits": 538,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 156416,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            5162,
+            5162
+          ],
+          "raw_key_payload_bytes_per_party": [
+            646,
+            646
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 1.583e-06,
+            "issuance_seconds": 0.000274875,
+            "native_call_process_cpu_seconds": 0.000545,
+            "online_seconds": 0.000136125,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.25e-07,
+            "issuance_seconds": 0.000242292,
+            "native_call_process_cpu_seconds": 0.000458,
+            "online_seconds": 0.000125958,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 4.2e-08,
+            "issuance_seconds": 0.00024525,
+            "native_call_process_cpu_seconds": 0.000458,
+            "online_seconds": 0.000124667,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                88,
+                88
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 1,
+      "layout": "fused",
+      "process_cpu_seconds": 0.111729,
+      "process_peak_rss_bytes": 33701888,
+      "repetition": 2,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 1,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "098ea9824dde576b38747d3798318999e7f82447b408829a4a26b1eda72f0543",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.000414292,
+        "median_online_seconds": 0.000282041,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 3,
+          "exact_integer_outputs": 3,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 8.756208124360306e-18,
+          "mean_absolute_error": 8.756208124360306e-18
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 25,
+          "client_mask_payload_estimate_bytes": 15,
+          "peer_frame_bytes_by_direction": [
+            660,
+            660
+          ],
+          "peer_payload_bits": 538,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 219776,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            9124,
+            9124
+          ],
+          "raw_key_payload_bytes_per_party": [
+            1141,
+            1141
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 2.458e-06,
+            "issuance_seconds": 0.000441167,
+            "native_call_process_cpu_seconds": 0.000942,
+            "online_seconds": 0.000291416,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.25e-07,
+            "issuance_seconds": 0.000414292,
+            "native_call_process_cpu_seconds": 0.000787,
+            "online_seconds": 0.000282041,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 8.4e-08,
+            "issuance_seconds": 0.000406875,
+            "native_call_process_cpu_seconds": 0.00077,
+            "online_seconds": 0.000279042,
+            "peer_frame_bytes_by_phase": [
+              [
+                79,
+                79
+              ],
+              [
+                90,
+                90
+              ],
+              [
+                80,
+                80
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                83,
+                83
+              ],
+              [
+                79,
+                79
+              ],
+              [
+                83,
+                83
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 64,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.166328,
+      "process_peak_rss_bytes": 33964032,
+      "repetition": 2,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 64,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "01ab350d1c26deae19152d8176e8e9b61e44653bd8ca5c40bb2126993a9e5e96",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.012863166,
+        "median_online_seconds": 0.007321042,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 192,
+          "exact_integer_outputs": 192,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8940394474525616,
+          "mean_absolute_error": 0.02808263955087901
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 1600,
+          "client_mask_payload_estimate_bytes": 960,
+          "peer_frame_bytes_by_direction": [
+            3010,
+            3010
+          ],
+          "peer_payload_bits": 34432,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 5875712,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            330368,
+            330368
+          ],
+          "raw_key_payload_bytes_per_party": [
+            41296,
+            41296
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 5.417e-06,
+            "issuance_seconds": 0.01293575,
+            "native_call_process_cpu_seconds": 0.020429,
+            "online_seconds": 0.007341375,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 9.17e-07,
+            "issuance_seconds": 0.012863166,
+            "native_call_process_cpu_seconds": 0.020296,
+            "online_seconds": 0.007321042,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 8.75e-07,
+            "issuance_seconds": 0.012850041,
+            "native_call_process_cpu_seconds": 0.020259,
+            "online_seconds": 0.007312167,
+            "peer_frame_bytes_by_phase": [
+              [
+                94,
+                94
+              ],
+              [
+                718,
+                718
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                182,
+                182
+              ],
+              [
+                94,
+                94
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 64,
+      "layout": "fused",
+      "process_cpu_seconds": 0.227967,
+      "process_peak_rss_bytes": 33931264,
+      "repetition": 2,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 64,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "75c0f0b4929ead150206023628cb50d8e64fbd5159a2bb7f8afe820aec47c274",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.022955125,
+        "median_online_seconds": 0.0174725,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 192,
+          "exact_integer_outputs": 192,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8940394474525616,
+          "mean_absolute_error": 0.02808263955087901
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 1600,
+          "client_mask_payload_estimate_bytes": 960,
+          "peer_frame_bytes_by_direction": [
+            2776,
+            2776
+          ],
+          "peer_payload_bits": 34432,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 9932800,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            583936,
+            583936
+          ],
+          "raw_key_payload_bytes_per_party": [
+            72992,
+            72992
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 5.334e-06,
+            "issuance_seconds": 0.023103667,
+            "native_call_process_cpu_seconds": 0.040824,
+            "online_seconds": 0.01755725,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1e-06,
+            "issuance_seconds": 0.022926542,
+            "native_call_process_cpu_seconds": 0.040508,
+            "online_seconds": 0.0174725,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 7.08e-07,
+            "issuance_seconds": 0.022955125,
+            "native_call_process_cpu_seconds": 0.04047,
+            "online_seconds": 0.017419709,
+            "peer_frame_bytes_by_phase": [
+              [
+                118,
+                118
+              ],
+              [
+                822,
+                822
+              ],
+              [
+                158,
+                158
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                86,
+                86
+              ],
+              [
+                398,
+                398
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 256,
+      "layout": "unfused",
+      "process_cpu_seconds": 0.34799499999999994,
+      "process_peak_rss_bytes": 34766848,
+      "repetition": 2,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {}
+          },
+          "lanes": 256,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "97cfa6604d478633e88e39f71e8f591ec8293dcb5f72c8ac97767a03e01f6003",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.051241958,
+        "median_online_seconds": 0.029276083,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 768,
+          "exact_integer_outputs": 768,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8864711191726357,
+          "mean_absolute_error": 0.01721116882209626
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 6400,
+          "client_mask_payload_estimate_bytes": 3840,
+          "peer_frame_bytes_by_direction": [
+            9466,
+            9466
+          ],
+          "peer_payload_bits": 137728,
+          "peer_rounds": 11,
+          "protocol_allocation_estimate_bytes": 23306240,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            1321472,
+            1321472
+          ],
+          "raw_key_payload_bytes_per_party": [
+            165184,
+            165184
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 5.417e-06,
+            "issuance_seconds": 0.051493667,
+            "native_call_process_cpu_seconds": 0.080974,
+            "online_seconds": 0.0293115,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 2.083e-06,
+            "issuance_seconds": 0.051190916,
+            "native_call_process_cpu_seconds": 0.080606,
+            "online_seconds": 0.029276083,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.667e-06,
+            "issuance_seconds": 0.051241958,
+            "native_call_process_cpu_seconds": 0.080554,
+            "online_seconds": 0.0291805,
+            "peer_frame_bytes_by_phase": [
+              [
+                142,
+                142
+              ],
+              [
+                2638,
+                2638
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                494,
+                494
+              ],
+              [
+                142,
+                142
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    },
+    {
+      "lanes": 256,
+      "layout": "fused",
+      "process_cpu_seconds": 0.593272,
+      "process_peak_rss_bytes": 35913728,
+      "repetition": 2,
+      "report": {
+        "benchmark_status": "completed",
+        "checkpoint_quality": null,
+        "citations": [
+          {
+            "paper_id": "sigma",
+            "scope": "Sections 2.5\u20132.6, 4.2.2, 5.1 and Figure 7: gap shifts, residual SiLU and masked wires; CPU/Q12 adaptation",
+            "source_sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+            "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+            "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php"
+          },
+          {
+            "paper_id": "grotto",
+            "scope": "Sections 5\u20136: suffix-parity comparison using early-terminated Boolean DPFs",
+            "source_sha256": "f476bca15ac55a0b8f2c1df86f0dd98e7b370bbafc8facc29c7dd9bd99be391c",
+            "title": "Grotto: Screaming fast (2 + 1)-PC for Z2^n via (2, 2)-DPFs",
+            "url": "https://eprint.iacr.org/2023/108"
+          },
+          {
+            "paper_id": "pika",
+            "scope": "Boolean-DPF signed lookup and sign correction; explicit correction shares instead of seeded distribution",
+            "source_sha256": "52af6d2c46f366ed3756982c0f2c24831743de4b2a5e5be6f5c9ab51af0710ba",
+            "title": "Pika: Secure Computation using Function Secret Sharing over Rings",
+            "url": "https://eprint.iacr.org/2022/826"
+          },
+          {
+            "paper_id": "fusefss",
+            "scope": "Section 4.3, Appendix E and I.1: multi-view masked-input fusion of shifts and predicates; charged complete-block post-processing",
+            "source_sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+            "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+            "url": "https://arxiv.org/abs/2606.09551"
+          }
+        ],
+        "configuration": {
+          "component": {
+            "component": "pllm/masked-wire-gated-multiply-q12/v1",
+            "params": {
+              "layout": "fused"
+            }
+          },
+          "lanes": 256,
+          "samples": 3,
+          "schema": "pllm.operator_benchmark.v1"
+        },
+        "configuration_digest": "ae1c7a884543c68c0936789f37bca3bdf8c191ef601b4384b40873fcafd0d589",
+        "environment": {
+          "native": "0.1.0-alpha.2",
+          "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+          "pllm": "0.1.0a2",
+          "python": "3.13.15"
+        },
+        "full_wire_bytes": null,
+        "independent_role_transport": false,
+        "input_source": "public-boundary-fixture-v1",
+        "limitations": [
+          "Trusted local dealer/client and two in-process evaluators; no independent cryptographic review",
+          "Fixed floor/Q12 approximation; scoped masked-input fusion, not the general FuseFSS compiler or paper GPU systems",
+          "Raw key payloads exclude dealer metadata and transport framing; client-mask and entry/exit bytes are estimates",
+          "Peer bytes are serialized local frames, not physical wire; public tables are separate storage",
+          "Allocation estimate is not measured peak memory; phase wall timings include local roles and client boundary",
+          "No protected float conversion, compiled tensor schedule, whole-model quality or serving recommendation",
+          "Caller-owned inputs and outputs are omitted; reports contain derived aggregate approximation errors"
+        ],
+        "median_issuance_seconds": 0.091730417,
+        "median_online_seconds": 0.06993375,
+        "method": "masked-wire-gated-block",
+        "native_implementation_digest": "1767a6c49c99aa7a04eb754f0b2286fd1f37f4bdd215aadb57498d3a36ad74b7",
+        "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+        "paper_coverage": "component-reference",
+        "peak_memory_bytes": null,
+        "privacy_reviewed": false,
+        "quality": {
+          "checked_outputs": 768,
+          "exact_integer_outputs": 768,
+          "float_reference": "Python float64 SiLU(gate) * up on supplied Q24 inputs; operator error only",
+          "maximum_absolute_error": 0.8864711191726357,
+          "mean_absolute_error": 0.01721116882209626
+        },
+        "resources": {
+          "client_entry_exit_payload_estimate_bytes": 6400,
+          "client_mask_payload_estimate_bytes": 3840,
+          "peer_frame_bytes_by_direction": [
+            9232,
+            9232
+          ],
+          "peer_payload_bits": 137728,
+          "peer_rounds": 8,
+          "protocol_allocation_estimate_bytes": 39534592,
+          "public_table_bytes_per_party": 8192,
+          "raw_key_payload_bits_per_party": [
+            2335744,
+            2335744
+          ],
+          "raw_key_payload_bytes_per_party": [
+            291968,
+            291968
+          ]
+        },
+        "resources_scope": "per-sample",
+        "samples": [
+          {
+            "clear_seconds": 6.375e-06,
+            "issuance_seconds": 0.092049541,
+            "native_call_process_cpu_seconds": 0.162281,
+            "online_seconds": 0.07002625,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 4.75e-06,
+            "issuance_seconds": 0.091469125,
+            "native_call_process_cpu_seconds": 0.161585,
+            "online_seconds": 0.06993375,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          },
+          {
+            "clear_seconds": 1.875e-06,
+            "issuance_seconds": 0.091730417,
+            "native_call_process_cpu_seconds": 0.161579,
+            "online_seconds": 0.069702375,
+            "peer_frame_bytes_by_phase": [
+              [
+                238,
+                238
+              ],
+              [
+                3054,
+                3054
+              ],
+              [
+                398,
+                398
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                1358,
+                1358
+              ],
+              [
+                110,
+                110
+              ],
+              [
+                1358,
+                1358
+              ]
+            ]
+          }
+        ],
+        "schema": "pllm.operator_benchmark_report.v1",
+        "scope": "bounded in-process operator; fresh one-use material per sample",
+        "sdk_availability": "operator-benchmark",
+        "sdk_implementation_digest": "89a2517e6b4fb8fba2e04c8faf51c5cfff7adee43ba92565dda3b17b34fbfd21",
+        "whole_model_executable": false
+      }
+    }
+  ],
+  "checked_outputs": 5778,
+  "configuration": {
+    "function": "complete signed Q24-to-Q12 SiLU(gate) * up, fixed floor/residual-table profile",
+    "fusion": "same masked gate input supplies Q12 shift, Q6 index shift and sign/interval predicates",
+    "input_source": "installed public-boundary-fixture-v1",
+    "lanes": [
+      1,
+      64,
+      256
+    ],
+    "layouts": [
+      "unfused",
+      "fused"
+    ],
+    "repetitions": 3,
+    "samples": 3,
+    "scope": "CPU component adaptation of FuseFSS multi-view rewriting on the SIGMA-derived block"
+  },
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "geometry_projections": [
+    {
+      "bounded_256_lane_batches": 20976,
+      "gated_elements": 5369856,
+      "input_tokens": 39,
+      "layouts": [
+        {
+          "both_party_raw_key_payload_bytes": 6929799168,
+          "client_entry_exit_payload_estimate_bytes": 134246400,
+          "client_mask_payload_estimate_bytes": 80547840,
+          "full_wire_bytes": null,
+          "layout": "unfused",
+          "local_issuance_seconds_linear_projection": 1075.479730992,
+          "local_online_seconds_linear_projection": 614.095117008,
+          "peer_frame_bytes": 397117632,
+          "public_table_bytes_per_party": 8192,
+          "whole_decoder_execution": false
+        },
+        {
+          "both_party_raw_key_payload_bytes": 12248641536,
+          "client_entry_exit_payload_estimate_bytes": 134246400,
+          "client_mask_payload_estimate_bytes": 80547840,
+          "full_wire_bytes": null,
+          "layout": "fused",
+          "local_issuance_seconds_linear_projection": 1924.1372269919998,
+          "local_online_seconds_linear_projection": 1467.144463008,
+          "peer_frame_bytes": 387300864,
+          "public_table_bytes_per_party": 8192,
+          "whole_decoder_execution": false
+        }
+      ],
+      "output_tokens": 8,
+      "scope": "historical semantic shapes only; complete operator costs, not a measured decoder",
+      "semantic_plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1"
+    },
+    {
+      "bounded_256_lane_batches": 31920,
+      "gated_elements": 8171520,
+      "input_tokens": 39,
+      "layouts": [
+        {
+          "both_party_raw_key_payload_bytes": 10545346560,
+          "client_entry_exit_payload_estimate_bytes": 204288000,
+          "client_mask_payload_estimate_bytes": 122572800,
+          "full_wire_bytes": null,
+          "layout": "unfused",
+          "local_issuance_seconds_linear_projection": 1636.59959064,
+          "local_online_seconds_linear_projection": 934.4925693600001,
+          "peer_frame_bytes": 604309440,
+          "public_table_bytes_per_party": 8192,
+          "whole_decoder_execution": false
+        },
+        {
+          "both_party_raw_key_payload_bytes": 18639237120,
+          "client_entry_exit_payload_estimate_bytes": 204288000,
+          "client_mask_payload_estimate_bytes": 122572800,
+          "full_wire_bytes": null,
+          "layout": "fused",
+          "local_issuance_seconds_linear_projection": 2928.03491064,
+          "local_online_seconds_linear_projection": 2232.61113936,
+          "peer_frame_bytes": 589370880,
+          "public_table_bytes_per_party": 8192,
+          "whole_decoder_execution": false
+        }
+      ],
+      "output_tokens": 32,
+      "scope": "historical semantic shapes only; complete operator costs, not a measured decoder",
+      "semantic_plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d"
+    }
+  ],
+  "geometry_source": {
+    "path": "docs/evidence/research-masked-wire-reference-qwen25.json",
+    "sha256": "a1f4aa9f5680d401c87283f3f9c807fb7d7e26aaf5b5556a5fe9b72c08b144b9"
+  },
+  "limitations": [
+    "Three fresh-process repetitions, alternating layout order; no paper GPU or Internet measurement",
+    "Trusted in-process dealer/client; two one-use party-local native evaluators; no independent privacy review",
+    "Fusion changes public-view widths and round schedule, not integer or approximation semantics",
+    "Key payloads exclude dealer framing and metadata; boundary mask/entry-exit sizes are estimates",
+    "RSS and process CPU include Python import/runtime; native per-sample timings remain separate",
+    "The semantic projections are operator-only; protected float conversion and other decoder operations are absent"
+  ],
+  "memory_guard": {
+    "host": {
+      "available": 14024589312,
+      "disk_free": 52757262336,
+      "swap_used": 982515712,
+      "total": 34359738368
+    },
+    "maximum_swap_growth_bytes": 0
+  },
+  "schema": "pllm.masked_wire_fusion_sdk.v1",
+  "source_sha256": {
+    "Cargo.lock": "be735861945742b6d892d797255833c529e0266ff4f44d1fbac9d99840e5a06f",
+    "benchmarks/research/masked_wire_fusion.py": "9cf2a97497a0aa9a407282373a8677ad67e8d8e57f1777b505a8ce7d649ee292",
+    "crates/pllm-core/src/residual_silu_reference.rs": "e6e397770006840d0f1428cc7e4a00df712ea9fca27dc912a0a004410097b8e9",
+    "crates/pllm-garble/src/compact_dpf.rs": "8f2aabead2e53ad2fa7b5e987eb39c338d3642546c62bbccdf56ac0073879fdf",
+    "crates/pllm-garble/src/masked_wire_reference.rs": "74f50af449bcc73017fd317c44c1ad072a3f393c3e74fd081ee2997ed61baeb7",
+    "crates/pllm-python/src/masked_wire.rs": "85a0fb7e87ce61bddd99bf0d16b007d632029bad9b34996c19a7527ada79721e",
+    "python/pllm/metrics/masked_wire.py": "f63587ee1bb071ce7fdaebca11178c04b1b34d0d8c5c5e0ddff90557efa479b4",
+    "python/pllm/metrics/operator_benchmarks.py": "a05f96f7403d801dc188dd72e721826001fc48981edfdcc13ef3fa9f2aed0494",
+    "python/pllm/nonlinear/__init__.py": "a39c759233bf7e55371d749536950acb081cda48f8867df51274d0407d1babdd"
+  },
+  "summary": [
+    {
+      "configuration": {
+        "component": {
+          "component": "pllm/masked-wire-gated-multiply-q12/v1",
+          "params": {}
+        },
+        "lanes": 1,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "lanes": 1,
+      "layout": "unfused",
+      "median_issuance_seconds": 0.00024525,
+      "median_online_seconds": 0.000124792,
+      "median_process_cpu_seconds": 0.10833499999999999,
+      "median_process_peak_rss_bytes": 33554432,
+      "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 25,
+        "client_mask_payload_estimate_bytes": 15,
+        "peer_frame_bytes_by_direction": [
+          896,
+          896
+        ],
+        "peer_payload_bits": 538,
+        "peer_rounds": 11,
+        "protocol_allocation_estimate_bytes": 156416,
+        "public_table_bytes_per_party": 8192,
+        "raw_key_payload_bits_per_party": [
+          5162,
+          5162
+        ],
+        "raw_key_payload_bytes_per_party": [
+          646,
+          646
+        ]
+      }
+    },
+    {
+      "configuration": {
+        "component": {
+          "component": "pllm/masked-wire-gated-multiply-q12/v1",
+          "params": {
+            "layout": "fused"
+          }
+        },
+        "lanes": 1,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "lanes": 1,
+      "layout": "fused",
+      "median_issuance_seconds": 0.00040925,
+      "median_online_seconds": 0.000280166,
+      "median_process_cpu_seconds": 0.110272,
+      "median_process_peak_rss_bytes": 33701888,
+      "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 25,
+        "client_mask_payload_estimate_bytes": 15,
+        "peer_frame_bytes_by_direction": [
+          660,
+          660
+        ],
+        "peer_payload_bits": 538,
+        "peer_rounds": 8,
+        "protocol_allocation_estimate_bytes": 219776,
+        "public_table_bytes_per_party": 8192,
+        "raw_key_payload_bits_per_party": [
+          9124,
+          9124
+        ],
+        "raw_key_payload_bytes_per_party": [
+          1141,
+          1141
+        ]
+      }
+    },
+    {
+      "configuration": {
+        "component": {
+          "component": "pllm/masked-wire-gated-multiply-q12/v1",
+          "params": {}
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "lanes": 64,
+      "layout": "unfused",
+      "median_issuance_seconds": 0.012868834,
+      "median_online_seconds": 0.007306042,
+      "median_process_cpu_seconds": 0.17069399999999998,
+      "median_process_peak_rss_bytes": 33783808,
+      "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1600,
+        "client_mask_payload_estimate_bytes": 960,
+        "peer_frame_bytes_by_direction": [
+          3010,
+          3010
+        ],
+        "peer_payload_bits": 34432,
+        "peer_rounds": 11,
+        "protocol_allocation_estimate_bytes": 5875712,
+        "public_table_bytes_per_party": 8192,
+        "raw_key_payload_bits_per_party": [
+          330368,
+          330368
+        ],
+        "raw_key_payload_bytes_per_party": [
+          41296,
+          41296
+        ]
+      }
+    },
+    {
+      "configuration": {
+        "component": {
+          "component": "pllm/masked-wire-gated-multiply-q12/v1",
+          "params": {
+            "layout": "fused"
+          }
+        },
+        "lanes": 64,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "lanes": 64,
+      "layout": "fused",
+      "median_issuance_seconds": 0.023020667,
+      "median_online_seconds": 0.01751375,
+      "median_process_cpu_seconds": 0.227967,
+      "median_process_peak_rss_bytes": 33964032,
+      "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 1600,
+        "client_mask_payload_estimate_bytes": 960,
+        "peer_frame_bytes_by_direction": [
+          2776,
+          2776
+        ],
+        "peer_payload_bits": 34432,
+        "peer_rounds": 8,
+        "protocol_allocation_estimate_bytes": 9932800,
+        "public_table_bytes_per_party": 8192,
+        "raw_key_payload_bits_per_party": [
+          583936,
+          583936
+        ],
+        "raw_key_payload_bytes_per_party": [
+          72992,
+          72992
+        ]
+      }
+    },
+    {
+      "configuration": {
+        "component": {
+          "component": "pllm/masked-wire-gated-multiply-q12/v1",
+          "params": {}
+        },
+        "lanes": 256,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "lanes": 256,
+      "layout": "unfused",
+      "median_issuance_seconds": 0.051271917,
+      "median_online_seconds": 0.029276083,
+      "median_process_cpu_seconds": 0.350056,
+      "median_process_peak_rss_bytes": 34766848,
+      "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 6400,
+        "client_mask_payload_estimate_bytes": 3840,
+        "peer_frame_bytes_by_direction": [
+          9466,
+          9466
+        ],
+        "peer_payload_bits": 137728,
+        "peer_rounds": 11,
+        "protocol_allocation_estimate_bytes": 23306240,
+        "public_table_bytes_per_party": 8192,
+        "raw_key_payload_bits_per_party": [
+          1321472,
+          1321472
+        ],
+        "raw_key_payload_bytes_per_party": [
+          165184,
+          165184
+        ]
+      }
+    },
+    {
+      "configuration": {
+        "component": {
+          "component": "pllm/masked-wire-gated-multiply-q12/v1",
+          "params": {
+            "layout": "fused"
+          }
+        },
+        "lanes": 256,
+        "samples": 3,
+        "schema": "pllm.operator_benchmark.v1"
+      },
+      "lanes": 256,
+      "layout": "fused",
+      "median_issuance_seconds": 0.091730417,
+      "median_online_seconds": 0.069943958,
+      "median_process_cpu_seconds": 0.599815,
+      "median_process_peak_rss_bytes": 35913728,
+      "numeric_contract_digest": "9f7916215f40dc48e4700d0cad6766299f88ba7f5589181441a6e9446515bfbc",
+      "resources": {
+        "client_entry_exit_payload_estimate_bytes": 6400,
+        "client_mask_payload_estimate_bytes": 3840,
+        "peer_frame_bytes_by_direction": [
+          9232,
+          9232
+        ],
+        "peer_payload_bits": 137728,
+        "peer_rounds": 8,
+        "protocol_allocation_estimate_bytes": 39534592,
+        "public_table_bytes_per_party": 8192,
+        "raw_key_payload_bits_per_party": [
+          2335744,
+          2335744
+        ],
+        "raw_key_payload_bytes_per_party": [
+          291968,
+          291968
+        ]
+      }
+    }
+  ]
+}

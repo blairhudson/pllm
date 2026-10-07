@@ -194,7 +194,14 @@ per-party costs are in `docs/research/interval-rescale-reference.md`.
 Both follow existing `NonlinearProtocol`/`ComponentRef` conventions. The separate
 `pllm.metrics.benchmark_operator` owns lanes, samples and reports; historical
 probe-v1 evidence remains replayable with explicit migrated identities.
-**Next: compare source-specified FuseFSS fusion and distribution on this baseline.**
+The complete masked-wire block now exposes `layout="fused"`: Q12 rescaling,
+Q6 index reduction and sign/interval views share the original masked gate input.
+Eighteen fresh-process SDK cases check 5,778 exact outputs. Rounds fall from eleven
+to eight; 64-lane peer frames fall from 6,020 to 5,552 bytes, while both-party keys
+rise from 82,592 to 145,984 bytes and local online time from 7.31 to 17.51 ms.
+The historical 39+8 geometry projects 6.93/12.25 GB unfused/fused keys and
+397.12/387.30 MB peer frames. Both layouts remain opt-in operator choices.
+**Next: bind tensor execution, conversions and two-party transport to Experiments.**
 Validate improved numeric mappings on new prompts. Poor measured
 quality/cost stays visible rather than excluding the method from research use.
 Protected conversions, other operators, reviewed transport and the paper's GPU

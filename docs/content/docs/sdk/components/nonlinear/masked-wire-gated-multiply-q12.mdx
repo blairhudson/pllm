@@ -19,6 +19,9 @@ method = MaskedWireGatedMultiplyQ12()
 assert create_component(method.component, method.params) == method
 report = benchmark_operator(method, lanes=4, samples=1)
 assert report.quality.exact_integer_outputs == 4
+fused = method.with_params(layout="fused")
+fused_report = benchmark_operator(fused, lanes=4, samples=1)
+assert fused_report.quality == report.quality
 ```
 
 The fixed numeric contract admits gate in `[-48,48]` and up in `[-128,128]`,
@@ -26,8 +29,15 @@ encoded as Q24 integers. It uses public-gap floor shifts, a 1,024-entry Q12
 residual SiLU table and a masked product. Invalid inputs reject before issuance.
 The local dealer and both evaluators use fresh non-reusable material per sample.
 
+The default `layout="unfused"` retains its original component identity.
+`layout="fused"` derives the gate's rescaling, lookup-index reduction and
+sign/interval predicates from the same masked input. It preserves exact integer
+semantics and reduces dependent peer rounds from eleven to eight. Wider comparison
+keys increase material and local execution time in the retained CPU cohort.
+
 The method independently adapts [SIGMA](/research/papers/sigma/),
-[Grotto](/research/papers/grotto/) and [Pika](/research/papers/pika/).
+[Grotto](/research/papers/grotto/) and [Pika](/research/papers/pika/); its optional
+multi-view fusion follows [FuseFSS](/research/papers/fusefss/).
 Operator integer parity, approximation error, complete material and peer frames
 appear in the [benchmark guide](/sdk/evaluate/paper-operators/).
 `Pipeline`/`Experiment` serialization accepts the component; whole-model

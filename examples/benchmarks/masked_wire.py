@@ -11,9 +11,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lanes", type=int, default=64)
     parser.add_argument("--samples", type=int, default=3)
+    parser.add_argument("--layout", choices=("unfused", "fused"), default="unfused")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    report = benchmark_operator(MaskedWireGatedMultiplyQ12(), lanes=args.lanes, samples=args.samples)
+    report = benchmark_operator(
+        MaskedWireGatedMultiplyQ12(layout=args.layout), lanes=args.lanes, samples=args.samples,
+    )
     if args.output is None:
         print(report.to_json(), end="")
     else:

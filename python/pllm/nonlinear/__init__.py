@@ -109,8 +109,10 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
     """SIGMA-derived masked-wire ``SiLU(gate) * up`` with signed Q24 inputs.
 
     Gate and up ranges are [-48, 48] and [-128, 128]. The fixed residual
-    table and floor shifts produce Q12 output. Bounded operator benchmarking
-    uses a local dealer and two one-use evaluators.
+    table and floor shifts produce Q12 output. ``layout="fused"`` computes the
+    input gate shifts and predicates through public masked views, preserving
+    the numeric contract. Bounded benchmarking uses a local dealer and two
+    one-use evaluators.
     """
 
     __slots__ = ()
@@ -122,17 +124,23 @@ class MaskedWireGatedMultiplyQ12(NonlinearProtocol):
         category="pllm/nonlinear-protocol",
         category_version="1",
         lifecycle_phase="runtime",
-        parameter_schema={"type": "object", "additionalProperties": False},
+        parameter_schema={
+            "type": "object", "properties": {"layout": {"enum": ["unfused", "fused"]}},
+            "additionalProperties": False,
+        },
         capabilities=("protected-gated-multiply-q12", "bounded-operator-benchmark"),
         required_host_features=("native-core", "local-fss-dealer"),
         role_eligibility=("client",),
     )
 
-    def __init__(self) -> None:
-        super().__init__(self.descriptor.component)
+    def __init__(self, *, layout: str = "unfused") -> None:
+        if type(layout) is not str or layout not in {"unfused", "fused"}:
+            raise ConfigurationError("layout must be unfused or fused")
+        # Preserve the original default component and historical configurations.
+        super().__init__(self.descriptor.component, {} if layout == "unfused" else {"layout": layout})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {}
+        return {"layout": self.params.get("layout", "unfused")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

@@ -1,7 +1,7 @@
 //! Installed, bounded local benchmark boundary. No reusable secret handles escape.
 use crate::invalid;
 use pllm_core::residual_silu_reference::Profile;
-use pllm_garble::masked_wire_reference::{self as native, Context, Step};
+use pllm_garble::masked_wire_reference::{self as native, Context, Layout, Step};
 use pyo3::{prelude::*, types::PyBytes};
 use serde_json::{json, Value};
 use std::{sync::OnceLock, time::Instant};
@@ -30,8 +30,18 @@ fn implementation_digest() -> &'static str {
     })
 }
 
-fn resource_record(lanes: usize) -> PyResult<Value> {
-    let resource = native::resources(lanes).map_err(error)?;
+fn parse_layout(layout: &str) -> PyResult<Layout> {
+    match layout {
+        "unfused" => Ok(Layout::Unfused),
+        "fused" => Ok(Layout::Fused),
+        _ => Err(invalid(
+            "masked-wire layout must be unfused or fused".into(),
+        )),
+    }
+}
+
+fn resource_record(lanes: usize, layout: Layout) -> PyResult<Value> {
+    let resource = native::resources_with_layout(lanes, layout).map_err(error)?;
     Ok(json!({
         "lanes": lanes,
         "party_key_bits": resource.party_key_bits,
@@ -40,7 +50,7 @@ fn resource_record(lanes: usize) -> PyResult<Value> {
         "peer_payload_bits": resource.peer_payload_bits,
         "public_table_bytes_per_party": resource.public_table_bytes,
         "protocol_allocation_estimate_bytes": resource.combined_allocation_estimate_bytes,
-        "rounds": native::ROUNDS,
+        "rounds": layout.rounds(),
         "frame_header_bytes": native::HEADER,
         "profile_digest": pllm_types::Digest::from_sha256(Profile::new().digest()),
         "native_implementation_digest": implementation_digest(),
@@ -49,17 +59,20 @@ fn resource_record(lanes: usize) -> PyResult<Value> {
 }
 
 #[pyfunction]
-fn masked_wire_resources(lanes: usize) -> PyResult<String> {
-    Ok(resource_record(lanes)?.to_string())
+#[pyo3(signature = (lanes, layout="unfused"))]
+fn masked_wire_resources(lanes: usize, layout: &str) -> PyResult<String> {
+    Ok(resource_record(lanes, parse_layout(layout)?)?.to_string())
 }
 
 #[pyfunction]
+#[pyo3(signature = (gate_q24, up_q24, configuration, session, layout="unfused"))]
 fn masked_wire_benchmark<'py>(
     py: Python<'py>,
     gate_q24: &[u8],
     up_q24: &[u8],
     configuration: &[u8],
     session: &[u8],
+    layout: &str,
 ) -> PyResult<(Bound<'py, PyBytes>, String)> {
     // Lengths and resource admission precede decoding, allocation or issuance.
     if gate_q24.is_empty()
@@ -72,7 +85,8 @@ fn masked_wire_benchmark<'py>(
         ));
     }
     let lanes = gate_q24.len() / 8;
-    let mut metadata = resource_record(lanes)?;
+    let layout = parse_layout(layout)?;
+    let mut metadata = resource_record(lanes, layout)?;
     let plan = configuration
         .try_into()
         .map_err(|_| invalid("masked-wire configuration digest requires 32 bytes".into()))?;
@@ -107,7 +121,8 @@ fn masked_wire_benchmark<'py>(
             );
             let clear_ns = now.elapsed().as_nanos() as u64;
             let now = Instant::now();
-            let (mut client, [mut a, mut b]) = native::issue_reference(context, lanes)?;
+            let (mut client, [mut a, mut b]) =
+                native::issue_reference_with_layout(context, lanes, layout)?;
             let issuance_ns = now.elapsed().as_nanos() as u64;
             let now = Instant::now();
             let result = (|| {
@@ -115,14 +130,14 @@ fn masked_wire_benchmark<'py>(
                 let mut left = a.start(&input)?;
                 let mut right = b.start(&input)?;
                 let mut phases = vec![[left.len(), right.len()]];
-                for round in 0..native::ROUNDS {
+                for round in 0..layout.rounds() {
                     match (a.advance(&right)?, b.advance(&left)?) {
-                        (Step::Send(l), Step::Send(r)) if round + 1 < native::ROUNDS => {
+                        (Step::Send(l), Step::Send(r)) if round + 1 < layout.rounds() => {
                             phases.push([l.len(), r.len()]);
                             left = l;
                             right = r;
                         }
-                        (Step::Done(output), Step::Done(_)) if round + 1 == native::ROUNDS => {
+                        (Step::Done(output), Step::Done(_)) if round + 1 == layout.rounds() => {
                             return Ok((Zeroizing::new(client.decode(&output)?), phases));
                         }
                         _ => return Err(native::Error::Context),
@@ -136,9 +151,9 @@ fn masked_wire_benchmark<'py>(
             let online_ns = now.elapsed().as_nanos() as u64;
             let (output, phases) = result?;
             if *output != *expected
-                || phases.len() != native::ROUNDS
+                || phases.len() != layout.rounds()
                 || phases.iter().flatten().sum::<usize>()
-                    != native::resources(lanes)?.peer_frame_bytes
+                    != native::resources_with_layout(lanes, layout)?.peer_frame_bytes
             {
                 return Err(native::Error::Context);
             }
