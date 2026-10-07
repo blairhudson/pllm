@@ -85,6 +85,16 @@ stage shapes have a synthetic-weight native reproduction, separate from
 checkpoint values, decoder quality, provider transport and WAN evidence. The
 22.90 GB whole-body `P+Q` lower bound remains a storage gate. Source analysis and
 reproduction live in `docs/research/maverick-reference.md`.
+The installed `pllm.protocols.MaverickDelegatedLinear` now exposes this bounded
+algebra through ordinary operator benchmarks, with exact Python signed-integer
+oracles and separate preprocessing, mask issuance, evaluation and verification
+timings. Nine fresh processes check 50,688 outputs across a tiny control and two
+Qwen-derived synthetic stage shapes. Client public payload remains 51.72/66.45 MB;
+both MLP shapes reject before preprocessing. SDK admission also prices native
+copies and scratch under 256 MiB and bounds product work. Code-distance and
+dual-LPN certification, batch delegation and decoder transport remain absent.
+Query payload, public tables and estimated field-boundary bytes remain separate;
+there is no full-wire or process peak-memory result.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The separate direct `pllm.native.PagedGEMM` API owns an authenticated private

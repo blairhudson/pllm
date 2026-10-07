@@ -212,9 +212,21 @@ admission rejects full-width issuance. Learned thresholds, selected polynomial
 execution and causal KV mapping remain absent, so checkpoint quality is unknown.
 See `docs/research/token-pruning-reference.md` for source deviations and costs.
 
-Next approved slice: revisit Maverick's actual field, code-distance assumptions
-and preprocessing storage. Each slice retains paper deviations, complete costs
-and explicit unsupported decoder coverage.
+Maverick now exposes the existing RAA algebra through the installed
+`MaverickDelegatedLinear` operator with explicit geometry and configuration replay.
+Nine fresh processes check 50,688 exact signed outputs. Public preprocessing,
+fresh masking, evaluator work and post-response checks have separate timings;
+the admitted Qwen attention shapes retain 51.72/66.45 MB client public payload.
+Both MLP shapes still reject; whole-body P+Q remains at least 22.90 GB. The source's
+cited field-range theorem excludes BabyBear and no seeded-code distance or
+dual-LPN certificate has appeared. Operator availability therefore adds no
+decoder/privacy claim. See `docs/research/maverick-reference.md`.
+
+The authorized LogRow → Compact → Secret Replication → FastQuery → CipherPrune →
+Maverick sequence now has installed bounded operators, replay and cost evidence.
+The individual source, numeric, storage and security failures above still prevent
+new full-decoder promotion. Each slice retains paper deviations and explicit
+unsupported coverage.
 
 Each whole-model delivery ends with:
 

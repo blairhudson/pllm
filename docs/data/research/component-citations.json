@@ -163,8 +163,13 @@
     },
     {
       "paper_id": "R24",
-      "summary": "PLLM tests Maverick Appendix E public-subspace leakage, a bounded coded-matvec verifier and RAA numeric algebra. It has no LPN input privacy, full-width resource admission or complete Maverick delegation protocol.",
+      "summary": "The installed MaverickDelegatedLinear operator benchmarks RAA delegation algebra with fresh sparse masks and post-response coded checks. Client P/Q storage, conditional code distance, dual-LPN privacy and missing decoder transport remain explicit. Appendix E leakage controls stay separate.",
       "components": [
+        {
+          "title": "RAA delegated matvec reference",
+          "href": "/sdk/components/protocols/maverick-delegated-linear/",
+          "source": "content/docs/sdk/components/protocols/maverick-delegated-linear.mdx"
+        },
         {
           "title": "Public mask subspace leakage",
           "href": "/sdk/components/assurance/public-subspace-mask-regression/",

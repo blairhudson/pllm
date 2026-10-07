@@ -1,0 +1,2191 @@
+{
+  "admitted_reference_stages": 48,
+  "cases": [
+    {
+      "columns": 64,
+      "compiled_stage_count": 0,
+      "median_seconds": {
+        "clear_seconds": 4.748000000000001e-06,
+        "evaluation_seconds": 1.7002e-05,
+        "issuance_seconds": 0.00343679,
+        "online_seconds": 0.001586208,
+        "public_setup_seconds": 0.002650375,
+        "verification_seconds": 0.001570625
+      },
+      "projection": {
+        "admitted": true,
+        "code_payload_bytes": 24576,
+        "columns": 64,
+        "distance_certified": false,
+        "evaluator_weight_bytes": 4096,
+        "field": 2013265921,
+        "field_boundary_payload_estimate_bytes": 4096,
+        "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+        "native_version": "0.1.0-alpha.2",
+        "persistent_client_payload_bytes": 286720,
+        "privacy_certified": false,
+        "privacy_matrix_bytes": 131072,
+        "privacy_sparsity": 165,
+        "protocol_allocation_estimate_bytes": 338944,
+        "queries": 8,
+        "rows": 64,
+        "serial_query_payload_bytes": 512,
+        "total_query_payload_bytes": 4096,
+        "verification_matrix_bytes": 131072
+      },
+      "queries": 8,
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 64,
+              "rows": 64
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "24c11051de720fffdcd2e9f563b5224e86e55f23be62ed2de79d1b594cf77dd8",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.0034390410000000003,
+          "median_online_seconds": 0.00158575,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 512,
+            "exact_integer_outputs": 512,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4096,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                4096,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 338944,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              286720,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              32768,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              4096,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.709e-06,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 1.5125e-05,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.0034390410000000003,
+              "native_call_process_cpu_seconds": 0.007712,
+              "online_seconds": 0.00158575,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.002633125,
+              "verification_seconds": 0.001570625
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 64,
+              "rows": 64
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "24c11051de720fffdcd2e9f563b5224e86e55f23be62ed2de79d1b594cf77dd8",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.0034150009999999995,
+          "median_online_seconds": 0.001586208,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 512,
+            "exact_integer_outputs": 512,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4096,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                4096,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 338944,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              286720,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              32768,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              4096,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 5.665999999999999e-06,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 1.7002e-05,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.0034150009999999995,
+              "native_call_process_cpu_seconds": 0.007725,
+              "online_seconds": 0.001586208,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.002676625,
+              "verification_seconds": 0.001569206
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 64,
+              "rows": 64
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "24c11051de720fffdcd2e9f563b5224e86e55f23be62ed2de79d1b594cf77dd8",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.00343679,
+          "median_online_seconds": 0.0016077499999999998,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 512,
+            "exact_integer_outputs": 512,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4096,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                4096,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 338944,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              286720,
+              4096
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              32768,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              4096,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.748000000000001e-06,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 1.8e-05,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.00343679,
+              "native_call_process_cpu_seconds": 0.007763,
+              "online_seconds": 0.0016077499999999998,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.002650375,
+              "verification_seconds": 0.0015897499999999998
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        }
+      ],
+      "rows": 64
+    },
+    {
+      "columns": 896,
+      "compiled_stage_count": 24,
+      "median_seconds": {
+        "clear_seconds": 0.000490209,
+        "evaluation_seconds": 0.001008291,
+        "issuance_seconds": 0.019070166,
+        "online_seconds": 0.004915832,
+        "public_setup_seconds": 0.204577,
+        "verification_seconds": 0.0039075410000000005
+      },
+      "projection": {
+        "admitted": true,
+        "code_payload_bytes": 344064,
+        "columns": 896,
+        "distance_certified": false,
+        "evaluator_weight_bytes": 802816,
+        "field": 2013265921,
+        "field_boundary_payload_estimate_bytes": 57344,
+        "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+        "native_version": "0.1.0-alpha.2",
+        "persistent_client_payload_bytes": 51724288,
+        "privacy_certified": false,
+        "privacy_matrix_bytes": 25690112,
+        "privacy_sparsity": 160,
+        "protocol_allocation_estimate_bytes": 53946368,
+        "queries": 8,
+        "rows": 896,
+        "serial_query_payload_bytes": 7168,
+        "total_query_payload_bytes": 57344,
+        "verification_matrix_bytes": 25690112
+      },
+      "queries": 8,
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 896,
+              "rows": 896
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "8d555617cc53d35127feba27ae2024f58a7894a8fc741bded8d938fd1c6070f2",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.014161,
+          "median_online_seconds": 0.004697583,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 7168,
+            "exact_integer_outputs": 7168,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 57344,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                57344,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 53946368,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              51724288,
+              802816
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              458752,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              57344,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.000503997,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.001001667,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.014161,
+              "native_call_process_cpu_seconds": 0.224007,
+              "online_seconds": 0.004697583,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.2044655,
+              "verification_seconds": 0.003695916
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 896,
+              "rows": 896
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "8d555617cc53d35127feba27ae2024f58a7894a8fc741bded8d938fd1c6070f2",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.019070166,
+          "median_online_seconds": 0.004915832,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 7168,
+            "exact_integer_outputs": 7168,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 57344,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                57344,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 53946368,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              51724288,
+              802816
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              458752,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              57344,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.000488459,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.001008291,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.019070166,
+              "native_call_process_cpu_seconds": 0.229235,
+              "online_seconds": 0.004915832,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.204577,
+              "verification_seconds": 0.0039075410000000005
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 896,
+              "rows": 896
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "8d555617cc53d35127feba27ae2024f58a7894a8fc741bded8d938fd1c6070f2",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.019535458,
+          "median_online_seconds": 0.00513304,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 7168,
+            "exact_integer_outputs": 7168,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 57344,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                57344,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 53946368,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              51724288,
+              802816
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              458752,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              57344,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.000490209,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.0010691250000000002,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.019535458,
+              "native_call_process_cpu_seconds": 0.230723,
+              "online_seconds": 0.00513304,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.205365583,
+              "verification_seconds": 0.004063915
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        }
+      ],
+      "rows": 896
+    },
+    {
+      "columns": 4864,
+      "compiled_stage_count": 24,
+      "median_seconds": null,
+      "projection": {
+        "admitted": false,
+        "code_payload_bytes": 1105920,
+        "columns": 4864,
+        "distance_certified": false,
+        "evaluator_weight_bytes": 4358144,
+        "field": 2013265921,
+        "field_boundary_payload_estimate_bytes": 184320,
+        "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+        "native_version": "0.1.0-alpha.2",
+        "persistent_client_payload_bytes": 280027136,
+        "privacy_certified": false,
+        "privacy_matrix_bytes": 139460608,
+        "privacy_sparsity": 157,
+        "protocol_allocation_estimate_bytes": 290566144,
+        "queries": 8,
+        "rows": 896,
+        "serial_query_payload_bytes": 23040,
+        "total_query_payload_bytes": 184320,
+        "verification_matrix_bytes": 139460608
+      },
+      "queries": 8,
+      "reports": [],
+      "rows": 896
+    },
+    {
+      "columns": 896,
+      "compiled_stage_count": 24,
+      "median_seconds": {
+        "clear_seconds": 0.0006430419999999999,
+        "evaluation_seconds": 0.001323957,
+        "issuance_seconds": 0.025282082000000004,
+        "online_seconds": 0.005644374,
+        "public_setup_seconds": 0.262425042,
+        "verification_seconds": 0.004320417
+      },
+      "projection": {
+        "admitted": true,
+        "code_payload_bytes": 393216,
+        "columns": 896,
+        "distance_certified": false,
+        "evaluator_weight_bytes": 1032192,
+        "field": 2013265921,
+        "field_boundary_payload_estimate_bytes": 65536,
+        "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+        "native_version": "0.1.0-alpha.2",
+        "persistent_client_payload_bytes": 66453504,
+        "privacy_certified": false,
+        "privacy_matrix_bytes": 33030144,
+        "privacy_sparsity": 160,
+        "protocol_allocation_estimate_bytes": 69232640,
+        "queries": 8,
+        "rows": 1152,
+        "serial_query_payload_bytes": 8192,
+        "total_query_payload_bytes": 65536,
+        "verification_matrix_bytes": 33030144
+      },
+      "queries": 8,
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 896,
+              "rows": 1152
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "34f6b55bc6456fda46ea844ec733dc7a55f302fedd289102c7e370e6b7ad2b50",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.026185664999999997,
+          "median_online_seconds": 0.005644374,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 9216,
+            "exact_integer_outputs": 9216,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 65536,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                65536,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 69232640,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              66453504,
+              1032192
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              524288,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              65536,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0006430419999999999,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.001323957,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.026185664999999997,
+              "native_call_process_cpu_seconds": 0.295671,
+              "online_seconds": 0.005644374,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.262911166,
+              "verification_seconds": 0.004320417
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 896,
+              "rows": 1152
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "34f6b55bc6456fda46ea844ec733dc7a55f302fedd289102c7e370e6b7ad2b50",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.025282082000000004,
+          "median_online_seconds": 0.005510624999999999,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 9216,
+            "exact_integer_outputs": 9216,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 65536,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                65536,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 69232640,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              66453504,
+              1032192
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              524288,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              65536,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0006293330000000001,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.0013154159999999998,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.025282082000000004,
+              "native_call_process_cpu_seconds": 0.294048,
+              "online_seconds": 0.005510624999999999,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.262425042,
+              "verification_seconds": 0.004195208999999999
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "maverick",
+              "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+              "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+              "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+              "url": "https://arxiv.org/abs/2609.10264v1"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/maverick-delegated-linear/v1",
+              "params": {
+                "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+              }
+            },
+            "geometry": {
+              "columns": 896,
+              "rows": 1152
+            },
+            "lanes": 8,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "34f6b55bc6456fda46ea844ec733dc7a55f302fedd289102c7e370e6b7ad2b50",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+            "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+            "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+            "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+            "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+            "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+            "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+            "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+            "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+            "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+            "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+            "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+          ],
+          "median_issuance_seconds": 0.023264333,
+          "median_online_seconds": 0.005818205999999999,
+          "method": "maverick-raa-matvec",
+          "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+          "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 9216,
+            "exact_integer_outputs": 9216,
+            "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 65536,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "one-use-query-payload",
+                65536,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 69232640,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              66453504,
+              1032192
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              524288,
+              0
+            ],
+            "raw_key_payload_bytes_per_party": [
+              65536,
+              0
+            ],
+            "role_names": [
+              "client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.000651667,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 0.0013322479999999999,
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 0.023264333,
+              "native_call_process_cpu_seconds": 0.290663,
+              "online_seconds": 0.005818205999999999,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.260684875,
+              "verification_seconds": 0.004485958
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+          "whole_model_executable": false
+        }
+      ],
+      "rows": 1152
+    },
+    {
+      "columns": 896,
+      "compiled_stage_count": 24,
+      "median_seconds": null,
+      "projection": {
+        "admitted": false,
+        "code_payload_bytes": 2039808,
+        "columns": 896,
+        "distance_certified": false,
+        "evaluator_weight_bytes": 8716288,
+        "field": 2013265921,
+        "field_boundary_payload_estimate_bytes": 339968,
+        "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+        "native_version": "0.1.0-alpha.2",
+        "persistent_client_payload_bytes": 559882240,
+        "privacy_certified": false,
+        "privacy_matrix_bytes": 278921216,
+        "privacy_sparsity": 160,
+        "protocol_allocation_estimate_bytes": 581322752,
+        "queries": 8,
+        "rows": 9728,
+        "serial_query_payload_bytes": 42496,
+        "total_query_payload_bytes": 339968,
+        "verification_matrix_bytes": 278921216
+      },
+      "queries": 8,
+      "reports": [],
+      "rows": 9728
+    }
+  ],
+  "checked_outputs": 50688,
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "fresh_processes": 9,
+  "memory_guard": {
+    "host": {
+      "available": 13055164416,
+      "disk_free": 51075706880,
+      "swap_used": 982515712,
+      "total": 34359738368
+    },
+    "maximum_swap_growth_bytes": 0
+  },
+  "model": {
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+  },
+  "model_config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+  "samples_per_case": 3,
+  "schema": "pllm.coded_delegation_cost.v1",
+  "scope": {
+    "checkpoint_quality": null,
+    "component": "RAA standard-mode masked matrix-vector reference with conditional coded checks",
+    "distance_certified": false,
+    "full_model_storage_admitted": false,
+    "full_wire_bytes": null,
+    "inputs": "synthetic public signed-i8 weights and vectors; source-bound stage shapes only",
+    "peak_memory_bytes": null,
+    "privacy_certified": false,
+    "provider_transport": false,
+    "source_distance_theorem_applies_to_babybear": false,
+    "whole_model_executable": false
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "source_sha256": {
+    "Cargo.lock": "be735861945742b6d892d797255833c529e0266ff4f44d1fbac9d99840e5a06f",
+    "benchmarks/research/coded_delegation.py": "bc1e0d4b1ef780d10028206dfaa70f18340b7b6a58545b8ccc20d9f75ff033a1",
+    "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+    "benchmarks/research/paper_baseline.py": "34d519d6db3ce4ec498d56de928e5b9b0552c68120a98809cc44fff411e6fd88",
+    "crates/pllm-core/src/coded_delegation_reference.rs": "1537445a3ba0a8c19842852f91d5b97bd6ae08ddf187eefab77138fcad41d9cd",
+    "crates/pllm-core/src/coded_linear.rs": "9a774a772029e84a55a89f56bdf2d92b02cdef71da16d9f3b0b985d752142df9",
+    "crates/pllm-core/src/kernels.rs": "47f7e29a1e3e416ed9b7adda1ab10828b28481a8e59b777b25c2170aecec2e45",
+    "crates/pllm-python/src/coded_delegation.rs": "134ab5b9f61d4c2bbd5572ad6016d9d4f0ac18422e05bfa44b5190bcf7344424",
+    "python/pllm/metrics/coded_delegation.py": "805aa25f3e83d8e363f85a223a06c360b34459d7110d535e3ddf2add57feadde",
+    "python/pllm/metrics/operator_benchmarks.py": "f72018db4b9051e5cb5fc4229cb6996b56122eaac70f20fb03037fe39d31be98",
+    "python/pllm/protocols/__init__.py": "a874fa6b21133c5bb6c6693beb77eb76f625f336cf268b46ac3faef0a8991c44",
+    "python/pllm/runtime/coded_resources.py": "f9e22ca14ef80d85d9ae607ea192d2e4bd94dffde27123a75cbc358291f553f6"
+  },
+  "storage_lower_bound": {
+    "cached_budget_bytes": 6442450944,
+    "composition_digest": "8525ca6a9b0033e3b0ac3adeb94ce8276ec0ffccccf0bd8fa51576ae5f7dcc1d",
+    "executable": false,
+    "field_modulus": 2013265921,
+    "full_response_compute_cap_checked": false,
+    "fully_cached_within_budget": false,
+    "fully_resident_within_budget": false,
+    "plan_digest": "159e35f75f01d5ee0a2167dde11082e6f52f5c7b3c539310dbf90d27f61dcd23",
+    "preprocessing_bytes_lower_bound": 22900899840,
+    "privacy_code_rate_denominator": 8,
+    "privacy_p_bytes_lower_bound": 11450449920,
+    "public_w8_weight_bytes": 357826560,
+    "remote_stages": 96,
+    "resident_budget_bytes": 2147483648,
+    "schedule_digest": "c58a714c2ec6f42795bd4bff4a0326a9bbf5aef00ee00a016d8ecfea605923ab",
+    "schema": "pllm.coded_delegation_resource_lower_bound.v1",
+    "scope": "public W8A8 remote stages in one complete semantic prefill schedule",
+    "stage_dimensions": [
+      {
+        "input_width": 896,
+        "order": 2,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 18,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 21,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 24,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 27,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 43,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 46,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 49,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 52,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 68,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 71,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 74,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 77,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 93,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 96,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 99,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 102,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 118,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 121,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 124,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 127,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 143,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 146,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 149,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 152,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 168,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 171,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 174,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 177,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 193,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 196,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 199,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 202,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 218,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 221,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 224,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 227,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 243,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 246,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 249,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 252,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 268,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 271,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 274,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 277,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 293,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 296,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 299,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 302,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 318,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 321,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 324,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 327,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 343,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 346,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 349,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 352,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 368,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 371,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 374,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 377,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 393,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 396,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 399,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 402,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 418,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 421,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 424,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 427,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 443,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 446,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 449,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 452,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 468,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 471,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 474,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 477,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 493,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 496,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 499,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 502,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 518,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 521,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 524,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 527,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 543,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 546,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 549,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 552,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 568,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 571,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 574,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      },
+      {
+        "input_width": 896,
+        "order": 577,
+        "output_width": 1152,
+        "privacy_p_bytes_lower_bound": 33030144,
+        "public_w8_weight_bytes": 1032192,
+        "verification_q_bytes_lower_bound": 33030144
+      },
+      {
+        "input_width": 896,
+        "order": 593,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 25690112,
+        "public_w8_weight_bytes": 802816,
+        "verification_q_bytes_lower_bound": 25690112
+      },
+      {
+        "input_width": 896,
+        "order": 596,
+        "output_width": 9728,
+        "privacy_p_bytes_lower_bound": 278921216,
+        "public_w8_weight_bytes": 8716288,
+        "verification_q_bytes_lower_bound": 278921216
+      },
+      {
+        "input_width": 4864,
+        "order": 599,
+        "output_width": 896,
+        "privacy_p_bytes_lower_bound": 139460608,
+        "public_w8_weight_bytes": 4358144,
+        "verification_q_bytes_lower_bound": 139460608
+      }
+    ],
+    "total_wire_bytes_measured": false,
+    "unmeasured": [
+      "batch-verification auxiliary matrix and code-distance certificate",
+      "preprocessing CPU, memory-mapping overhead, distribution and cache misses",
+      "dual-LPN security, finite-field checkpoint parity, transport and session burn"
+    ],
+    "verification_code_rate_denominator": 8,
+    "verification_q_bytes_lower_bound": 11450449920
+  }
+}

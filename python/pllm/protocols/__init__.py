@@ -173,9 +173,37 @@ class MosaicMaskedGpuOutsourcing(PendingMethod):
     pass
 
 
-@pending("maverick")
-class MaverickDelegatedLinear(PendingMethod):
-    pass
+class MaverickDelegatedLinear(ProtocolMethod):
+    """Bounded RAA masked-matvec benchmark with an uncertified coded check.
+
+    Public preprocessing stays client-local. Code distance and dual-LPN privacy
+    remain unproved; this component cannot select decoder execution.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/maverick-delegated-linear/v1", provider="pllm",
+        distribution="pllm.run", version="1", category="pllm/protocol",
+        category_version="1", lifecycle_phase="runtime",
+        parameter_schema={"type": "object", "additionalProperties": False,
+            "properties": {"public_code_seed": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+            "required": ["public_code_seed"]},
+        capabilities=("raa-delegation-reference", "bounded-operator-benchmark"),
+        required_host_features=("native-core",), role_eligibility=("client", "inference"),
+    )
+
+    def __init__(self, *, public_code_seed: str = "0d" * 32) -> None:
+        if (type(public_code_seed) is not str or len(public_code_seed) != 64
+                or any(c not in "0123456789abcdef" for c in public_code_seed)):
+            raise ConfigurationError("public_code_seed must be 64 lowercase hexadecimal characters")
+        super().__init__(self.descriptor.component, {"public_code_seed": public_code_seed})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return self.to_spec()["params"]
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
 
 
 @pending("oblivious-compression")

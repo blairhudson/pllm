@@ -1,4 +1,4 @@
 {
   "title": "Protocol methods",
-  "pages": ["index", "masked-linear", "client-bundle-transport", "guarded-linear", "blinded-linear", "direct-fhe", "secure-linear", "cleartext-linear", "two-online-offset-linear", "logrow-reference", "composition"]
+  "pages": ["index", "masked-linear", "client-bundle-transport", "guarded-linear", "blinded-linear", "direct-fhe", "secure-linear", "cleartext-linear", "two-online-offset-linear", "logrow-reference", "private-embedding-lookup", "maverick-delegated-linear", "composition"]
 }

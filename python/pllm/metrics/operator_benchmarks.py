@@ -56,7 +56,7 @@ def _sdk_digest(runner: str) -> str:
         sources += (("pllm.metrics", "wavelet_gated.py"), ("pllm.metrics", "activations.py"))
     if runner == "secret_replication.py":
         sources += (("pllm.correlation", "__init__.py"),)
-    if runner == "packed_embedding.py":
+    if runner in ("packed_embedding.py", "coded_delegation.py"):
         sources += (("pllm.protocols", "__init__.py"),)
     if runner == "token_pruning.py":
         sources += (("pllm.passes", "__init__.py"),)
@@ -88,6 +88,8 @@ def benchmark_operator(
     ``lanes`` is the embedding width.
     Token pruning accepts ``attention_q16`` and row-major ``words``; ``lanes``
     is the feature width and ``geometry`` supplies ``tokens`` and ``heads``.
+    RAA delegation accepts signed-i8 ``weights`` and ``vectors``; ``lanes`` counts
+    serial queries and ``geometry`` supplies matrix ``rows`` and ``columns``.
     Input values and their fingerprints are never stored in the report.
     """
     from pllm.components import create_component
@@ -96,7 +98,7 @@ def benchmark_operator(
         CompactPiecewiseActivation, CompactGatedMultiplyQ12, CurlWaveletEncodedTable, CurlWaveletGatedMultiplyQ9,
         LogRowGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, SharedRescale,
     )
-    from pllm.protocols import LogRowGarbledLookup, PrivateEmbeddingLookup
+    from pllm.protocols import LogRowGarbledLookup, PrivateEmbeddingLookup, MaverickDelegatedLinear
     from pllm.passes import CipherPruneTokenPruning
     from .activations import _ActivationBenchmark
     from .masked_wire import _MaskedWireBenchmark
@@ -107,13 +109,21 @@ def benchmark_operator(
     from .secret_replication import _SecretReplicationBenchmark
     from .packed_embedding import _PackedEmbeddingBenchmark
     from .token_pruning import _TokenPruningBenchmark
+    from .coded_delegation import _CodedDelegationBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
     component = create_component(component.component, component.params)
-    if geometry is not None and not isinstance(component, CipherPruneTokenPruning):
+    if geometry is not None and not isinstance(component, (CipherPruneTokenPruning, MaverickDelegatedLinear)):
         raise ConfigurationError("this operator does not accept additional benchmark geometry")
-    if isinstance(component, CipherPruneTokenPruning):
+    if isinstance(component, MaverickDelegatedLinear):
+        if geometry is None:
+            geometry = {"rows": 64, "columns": 64}
+        if not isinstance(geometry, Mapping) or set(geometry) != {"rows", "columns"}:
+            raise ConfigurationError("Maverick geometry requires exactly rows and columns")
+        benchmark = _CodedDelegationBenchmark(component, lanes, samples, **geometry)
+        fields = {"weights", "vectors"}
+    elif isinstance(component, CipherPruneTokenPruning):
         if geometry is None:
             geometry = {"tokens": 4, "heads": 1}
         if not isinstance(geometry, Mapping) or set(geometry) != {"tokens", "heads"}:
@@ -232,6 +242,8 @@ class OperatorBenchmarkSample:
     public_setup_seconds: float = 0.0
     correlation_expansion_seconds: float = 0.0
     input_sharing_seconds: float = 0.0
+    evaluation_seconds: float | None = None
+    verification_seconds: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

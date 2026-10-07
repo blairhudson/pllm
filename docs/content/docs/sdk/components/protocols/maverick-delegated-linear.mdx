@@ -1,0 +1,88 @@
+---
+title: "Maverick delegated linear reference"
+description: "Measure bounded RAA matvec algebra, client preprocessing and conditional result checks."
+---
+
+`pllm.protocols.MaverickDelegatedLinear` benchmarks the bounded
+[Maverick](/research/papers/maverick/) repeat-accumulate-accumulate (RAA)
+delegation reference. It composes client-owned preprocessing, fresh sparse
+input masking, native evaluator matrix products and post-response coded checks.
+Code distance and dual-LPN privacy remain uncertified.
+
+## Python SDK example
+
+```python
+from pllm.metrics import benchmark_operator, replay_operator_benchmark
+from pllm.protocols import MaverickDelegatedLinear
+
+method = MaverickDelegatedLinear()
+report = benchmark_operator(method, lanes=2, samples=1,
+                            geometry={"rows": 64, "columns": 64})
+assert report.quality.exact_integer_outputs == 128
+assert report.resources.role_names == ("client", "evaluator")
+assert report.resources.public_table_bytes_by_party[1] == 4096
+assert replay_operator_benchmark(report.configuration).resources == report.resources
+```
+
+## Contract and options
+
+Component identity: `pllm/maverick-delegated-linear/v1`.
+
+| Option | Values | Meaning |
+| --- | --- | --- |
+| `public_code_seed` | 64 lowercase hexadecimal characters; default `"0d" * 32` | Public code construction seed, never an input-mask seed |
+
+Benchmark geometry owns `rows` and `columns`, each 64–16,384. `lanes` counts
+1–256 serial queries; `samples` counts 1–16 fresh preprocessing runs. A
+256 MiB native allocation estimate and a `2^26` matrix-product-element bound
+precede loading weights or issuing material. Maximum geometry combinations reject.
+
+Caller input uses `inputs={"weights": row_major_i8, "vectors": row_major_i8}`.
+Weights contain `rows * columns` signed integers in `[-128,127]`; vectors contain
+`lanes * columns`. The independent Python oracle checks exact signed-i32 dot
+products. Omitting inputs uses deterministic public fixtures. Reports retain
+neither inputs, outputs nor their fingerprints; caller-owned replay requires
+supplying inputs again.
+
+## Ownership and measurement
+
+Public `P`, `Q` and code tables remain client-owned. The evaluator's i8 matrix
+is counted separately. Each query uses new OS-random sparse support and nonzero
+coefficients; its non-cloneable handle is consumed before the next query. Two
+fresh secret checks are drawn only after the evaluator response is fixed.
+Correction material is zeroized on completion and failure. The native call
+releases the interpreter lock and exposes no live secret handles.
+
+The report distinguishes `public_setup_seconds`, input-dependent
+`issuance_seconds`, `evaluation_seconds`, `verification_seconds` and the
+one-thread `clear_seconds` control. `online_seconds` sums evaluation and
+verification; **complete query time also includes issuance**. Native-call CPU
+also includes preprocessing and the clear control. The Python oracle, import,
+distribution and network execution are outside those timings.
+
+The generic key-payload field counts total masked-input/correction payload
+across serial queries, with only one live query. Public tables and estimated raw
+field request/reply bytes are separate. Zero measured peer frames means there is
+no transport codec, not free communication. Allocation estimates include native
+copies and scratch; Python objects, process peak RSS and physical wire remain
+unmeasured.
+
+## Research limits
+
+The cited Appendix B field condition `q > 2^31` excludes this BabyBear field.
+There is no distance/failure certificate for the seeded code ensemble or complete
+dual-LPN security estimate. Rejecting changed outputs does not prove adversarial
+soundness. The source's 31-weight verifier is adapted to two 41-weight checks;
+neither choice removes the missing certificate.
+
+The reference omits batch Protocol 2, authenticated provider transport, checkpoint
+values and decoder numeric mapping. The existing Qwen body needs at least
+22.90 GB of `P+Q`, excluding codes, scratch and distribution. This installed
+operator remains unavailable for executable decoder Experiments.
+
+See the [installed example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/coded_delegation.py),
+[source/security audit](https://github.com/blairhudson/pllm/blob/main/docs/research/maverick-reference.md)
+and [fresh SDK costs](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-coded-delegation-cost.json).
+
+API: [Protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures),
+[operator benchmarks](/sdk/evaluate/paper-operators/).

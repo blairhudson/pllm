@@ -5,7 +5,9 @@ Protocol 3 algebra. The public code construction follows Appendix B; fresh
 private sparse vectors follow the exact fixed-weight distribution in Appendix A.
 This is a **component reference**. Its code-distance and dual-LPN assumptions
 remain uncertified, so it cannot be selected by an SDK Experiment or ranked as
-private Qwen inference.
+private Qwen inference. The separately installed
+`pllm.protocols.MaverickDelegatedLinear` exposes the bounded algebra through
+`benchmark_operator` and configuration replay, with those limits intact.
 
 Source: [Maverick v1](https://arxiv.org/abs/2609.10264v1), Sections 5.2, 6, 7.1
 and Appendices A/B. The pinned PDF hash is
@@ -107,6 +109,43 @@ costs 38.7×/36.5× the corresponding clear matvec in these eight-query medians.
 Each field reply/request pair counts 7,168/8,192 raw bytes, before framing.
 Observed new swap is zero. These measurements expose costs of this independent,
 untuned reference; they do not reproduce the paper's hardware or implementation.
+
+## Installed SDK cohort
+
+`benchmarks/research/coded_delegation.py` repeats this standard-mode algebra
+through the installed component boundary with a separate Python signed-integer
+oracle. Its Qwen dimensions come from the same pinned compiler configuration;
+weight and input values remain synthetic. Nine fresh processes check **50,688**
+outputs, covering a 64-by-64 control and the two admitted full-width shapes.
+The other 48 MLP stages reject before weight import or preprocessing. No new
+swap growth was observed. These are new observations, not replacements for the
+historical native timings above.
+
+| Output × input | Persistent client MB | Setup ms | Mask issuance ms / 8 queries | Evaluation ms / 8 queries | Checking ms / 8 queries | Clear SIMD ms / 8 queries |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 896 × 896 | 51.72 | 204.58 | 19.07 | 1.008 | 3.908 | 0.490 |
+| 1152 × 896 | 66.45 | 262.43 | 25.28 | 1.324 | 4.320 | 0.643 |
+
+Each entry is the median of three fresh processes. Public setup is paid once
+per sample, mask issuance is input-dependent, and reported online time sums
+evaluation and verification. Complete query latency must include issuance;
+component medians need not sum to the median of combined timings. The clear
+control uses the same weights and inputs. These local elapsed timings exclude
+Python's independent oracle, transport, import, distribution and complete responses.
+
+Public `P`, `Q` and code payload remain client-owned; evaluator i8 weights are
+separate. Generic key fields count the total one-use query payload across serial
+queries, with only one query live. Raw field request/reply estimates remain
+separate from measured peer frames. The SDK's 256 MiB admission additionally
+prices native weight/input/output copies and conservative scratch, and bounds
+matrix products at `2^26` elements per sample. Python allocations, allocator
+overhead and process peak memory remain unknown. All handles retire inside the
+GIL-released native call.
+
+Replay with `python -m benchmarks.research.coded_delegation --output NEW.json`;
+the installed-wheel example is `examples/benchmarks/coded_delegation.py`.
+New evidence: `docs/evidence/research-coded-delegation-cost.json` and
+`docs/evidence/research-coded-delegation-sdk.json`.
 
 ## Next promotion gate
 

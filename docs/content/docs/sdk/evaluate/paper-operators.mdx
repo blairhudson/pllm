@@ -48,6 +48,13 @@ existing report.
 
 ## Supply your own bounded data
 
+The same runner also supports the
+[Maverick RAA matvec reference](/sdk/components/protocols/maverick-delegated-linear/):
+its geometry declares matrix dimensions, lanes count serial queries, and reports
+separate public preprocessing, input-dependent mask issuance, evaluation and
+conditional verification. Its public client tables and field-boundary estimates
+do not become measured network traffic or certified privacy.
+
 ```python
 from pllm.metrics import benchmark_operator
 from pllm.nonlinear import MaskedWireGatedMultiplyQ12

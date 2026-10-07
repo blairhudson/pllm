@@ -378,6 +378,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/protocols/client-bundle-transport/', 'pllm/client-bundle-transport/v1', null],
     ['/sdk/components/protocols/logrow-reference/', 'pllm/logrow-garbled-lookup-q7/v1', '/research/papers/logrow/'],
     ['/sdk/components/protocols/private-embedding-lookup/', 'pllm/private-embedding-lookup/v1', '/research/papers/fastquery/'],
+    ['/sdk/components/protocols/maverick-delegated-linear/', 'pllm/maverick-delegated-linear/v1', '/research/papers/maverick/'],
     ['/sdk/components/preparation/model-aware-corrections/', 'pllm/model-aware-corrections', null],
     ['/sdk/components/preparation/inventory-policy/', 'pllm/prepared-inventory-policy/v1', null],
     ['/sdk/components/preparation/bfv-correlations/', 'pllm/bfv-correlations/v1', null],

@@ -1,0 +1,155 @@
+{
+  "benchmark_status": "completed",
+  "checkpoint_quality": null,
+  "citations": [
+    {
+      "paper_id": "maverick",
+      "scope": "Protocol 3, Eq. (1), Appendices A/B; BabyBear RAA algebra without distance or dual-LPN certification",
+      "source_sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+      "title": "Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+      "url": "https://arxiv.org/abs/2609.10264v1"
+    }
+  ],
+  "configuration": {
+    "component": {
+      "component": "pllm/maverick-delegated-linear/v1",
+      "params": {
+        "public_code_seed": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+      }
+    },
+    "geometry": {
+      "columns": 64,
+      "rows": 64
+    },
+    "lanes": 8,
+    "samples": 3,
+    "schema": "pllm.operator_benchmark.v2"
+  },
+  "configuration_digest": "4d60a3a75aad4f1442091db48b549a5121b7b40c71043d0de9832dbf1cee88d1",
+  "environment": {
+    "native": "0.1.0-alpha.2",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "full_wire_bytes": null,
+  "independent_role_transport": false,
+  "input_source": "public-fixture",
+  "limitations": [
+    "RAA distance and dual-LPN privacy are uncertified; conditional checks and fresh masks are not security proofs",
+    "Appendix B's cited field range q > 2^31 excludes BabyBear; the seeded code ensemble has no distance certificate",
+    "Privacy sparsity follows conditional Eq. (1); verification uses two fresh weight-41 challenges after the response",
+    "Public P, Q and code payload stay client-owned; the evaluator's public i8 matrix is counted separately",
+    "Key fields count total one-use masked-input/correction payload across serial queries, with only one query live at once",
+    "Boundary bytes estimate raw field requests/replies; no wire codec, measured peer frames or authenticated transport exists",
+    "Every sample builds fresh preprocessing; public setup, mask issuance, evaluation, verification and clear control are separate",
+    "online_seconds includes evaluation plus verification; issuance requires the input and must be added to complete query time",
+    "Native CPU includes setup/control; the independent Python oracle, import and distribution are outside those timings",
+    "Native allocation estimate prices copied weights, inputs, outputs and scratch; Python objects, allocator/RSS and OS cache are unmeasured",
+    "No public-seed input masks, reusable query handles, batch Protocol 2, decoder binding or checkpoint-quality result",
+    "The historical Qwen2.5 whole-body P+Q lower bound is 22.90 GB before code payload, scratch and distribution"
+  ],
+  "median_issuance_seconds": 0.003416417,
+  "median_online_seconds": 0.0015898309999999999,
+  "method": "maverick-raa-matvec",
+  "native_implementation_digest": "128c1f1da5df6155410fc2223f479379bc178cda9e95429e8564c5f4b0e490ce",
+  "numeric_contract_digest": "sha256:86bfa2e02436b10b43c345cc8858b2527e2ee6a6a5ca3f312e7d02546ec45c10",
+  "paper_coverage": "component-reference",
+  "peak_memory_bytes": null,
+  "privacy_reviewed": false,
+  "quality": {
+    "base_profile_exact_outputs": null,
+    "checked_outputs": 1536,
+    "exact_integer_outputs": 1536,
+    "float_reference": "Exact Python signed-integer dot products; floating-point model fidelity not measured",
+    "maximum_absolute_error": 0.0,
+    "maximum_encoded_profile_error": null,
+    "mean_absolute_error": 0.0
+  },
+  "resources": {
+    "client_entry_exit_payload_estimate_bytes": 4096,
+    "client_mask_payload_estimate_bytes": 0,
+    "evaluator_ciphertext_bytes": null,
+    "evaluator_constant_label_bytes": null,
+    "expanded_correlation_bytes_per_party": null,
+    "key_payload_bytes_by_operation": [
+      [
+        "one-use-query-payload",
+        4096,
+        0
+      ]
+    ],
+    "peer_frame_bytes_by_direction": [
+      0,
+      0
+    ],
+    "peer_payload_bits": 0,
+    "peer_rounds": 0,
+    "prf_field_evaluations_per_party": null,
+    "protocol_allocation_estimate_bytes": 338944,
+    "public_metadata_bytes_estimate": null,
+    "public_profile_bytes_estimate": null,
+    "public_table_bytes_by_party": [
+      286720,
+      4096
+    ],
+    "public_table_bytes_per_party": 0,
+    "raw_key_payload_bits_per_party": [
+      32768,
+      0
+    ],
+    "raw_key_payload_bytes_per_party": [
+      4096,
+      0
+    ],
+    "role_names": [
+      "client",
+      "evaluator"
+    ]
+  },
+  "resources_scope": "per-sample",
+  "samples": [
+    {
+      "clear_seconds": 4.042e-06,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 3.9791e-05,
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 0.003416417,
+      "native_call_process_cpu_seconds": 0.007806,
+      "online_seconds": 0.001606916,
+      "peer_frame_bytes_by_phase": [],
+      "public_setup_seconds": 0.002683042,
+      "verification_seconds": 0.001567125
+    },
+    {
+      "clear_seconds": 3.416e-06,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 1.0625e-05,
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 0.0034218760000000003,
+      "native_call_process_cpu_seconds": 0.007627,
+      "online_seconds": 0.0015898309999999999,
+      "peer_frame_bytes_by_phase": [],
+      "public_setup_seconds": 0.002588167,
+      "verification_seconds": 0.0015792059999999999
+    },
+    {
+      "clear_seconds": 3.332e-06,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 1.0707e-05,
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 0.0033920420000000005,
+      "native_call_process_cpu_seconds": 0.007591,
+      "online_seconds": 0.001579996,
+      "peer_frame_bytes_by_phase": [],
+      "public_setup_seconds": 0.002598792,
+      "verification_seconds": 0.001569289
+    }
+  ],
+  "schema": "pllm.operator_benchmark_report.v1",
+  "scope": "bounded in-process operator; fresh one-use material per sample",
+  "sdk_availability": "operator-benchmark",
+  "sdk_implementation_digest": "5e005326f587d5c2255a5209e2e7cae5599a9e333c0dc88165bb1cbfe549db6c",
+  "whole_model_executable": false
+}
+
