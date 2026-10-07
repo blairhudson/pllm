@@ -1370,6 +1370,24 @@ relocation releases zero weight bytes. These operator and clear numeric checks
 do not establish paper fine-tuning, full-width HE execution, provider transport
 or whole-client memory savings. Details: `docs/research/packed-embedding-reference.md`.
 
+The installed `pllm.passes.CipherPruneTokenPruning` separately benchmarks exact
+Q16 attention-score thresholds, public retained counts, stable complete-record
+compaction and disclosed compacted-order degree decisions. Up to two fresh
+one-use half-gates circuits adapt CipherPrune's OT primitives; a dedicated marker
+preserves all payload bits. Empty/all-retained outputs skip compaction, and
+all-retained outputs preserve their original shares without degree disclosure.
+Geometry-only worst-case pricing checks every possible retained count against a
+64 MiB combined allocation estimate before issuance. Fifteen fresh processes
+check 381 exact outputs. Keeping 19/39 hypothetical Qwen-width token records
+projects 631 MB evaluator material before client encodings and public metadata
+to retire 143 kB of two-party record payload. All full-width shapes reject
+admission. Public counts and degree decisions disclose information even when
+original positions are not separately opened. Learned thresholds, selected
+polynomials, protected float conversion, causal KV mapping, distributed input
+encoding and decoder transport remain absent; checkpoint quality, physical wire
+and measured memory benefits are unknown. Details:
+`docs/research/token-pruning-reference.md`.
+
 Public model bundles also carry the quantized token-lookup and output-head
 matrices. The client evaluates token lookup locally and applies the output
 head only to the final prefill row. This removes vocabulary-sized HE work from

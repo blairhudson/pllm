@@ -58,6 +58,8 @@ def _sdk_digest(runner: str) -> str:
         sources += (("pllm.correlation", "__init__.py"),)
     if runner == "packed_embedding.py":
         sources += (("pllm.protocols", "__init__.py"),)
+    if runner == "token_pruning.py":
+        sources += (("pllm.passes", "__init__.py"),)
     for package, name in sources:
         contents = files(package).joinpath(name).read_bytes()
         digest.update(f"{package}/{name}".encode() + b"\0")
@@ -72,6 +74,7 @@ def benchmark_operator(
     lanes: int = 64,
     samples: int = 3,
     inputs: Mapping[str, Sequence[int]] | None = None,
+    geometry: Mapping[str, int] | None = None,
 ) -> OperatorBenchmarkReport:
     """Measure a supported operator component with fresh one-use material.
 
@@ -83,6 +86,8 @@ def benchmark_operator(
     PCF scalar/vector multiplication accepts ``scalar`` (one value) and ``vector``.
     Private embedding lookup accepts row-major ``table`` and one-element ``token``;
     ``lanes`` is the embedding width.
+    Token pruning accepts ``attention_q16`` and row-major ``words``; ``lanes``
+    is the feature width and ``geometry`` supplies ``tokens`` and ``heads``.
     Input values and their fingerprints are never stored in the report.
     """
     from pllm.components import create_component
@@ -92,6 +97,7 @@ def benchmark_operator(
         LogRowGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, SharedRescale,
     )
     from pllm.protocols import LogRowGarbledLookup, PrivateEmbeddingLookup
+    from pllm.passes import CipherPruneTokenPruning
     from .activations import _ActivationBenchmark
     from .masked_wire import _MaskedWireBenchmark
     from .shared_rescale import _SharedRescaleBenchmark
@@ -100,11 +106,21 @@ def benchmark_operator(
     from .compact_product import _CompactProductBenchmark
     from .secret_replication import _SecretReplicationBenchmark
     from .packed_embedding import _PackedEmbeddingBenchmark
+    from .token_pruning import _TokenPruningBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
     component = create_component(component.component, component.params)
-    if isinstance(component, PrivateEmbeddingLookup):
+    if geometry is not None and not isinstance(component, CipherPruneTokenPruning):
+        raise ConfigurationError("this operator does not accept additional benchmark geometry")
+    if isinstance(component, CipherPruneTokenPruning):
+        if geometry is None:
+            geometry = {"tokens": 4, "heads": 1}
+        if not isinstance(geometry, Mapping) or set(geometry) != {"tokens", "heads"}:
+            raise ConfigurationError("pruning geometry requires exactly tokens and heads")
+        benchmark = _TokenPruningBenchmark(component, lanes, samples, **geometry)
+        fields = {"attention_q16", "words"}
+    elif isinstance(component, PrivateEmbeddingLookup):
         benchmark = _PackedEmbeddingBenchmark(component, lanes, samples)
         fields = {"table", "token"}
     elif isinstance(component, SecretReplicationPcf):
@@ -160,8 +176,15 @@ def replay_operator_benchmark(
     if not isinstance(configuration, Mapping):
         raise ConfigurationError("operator benchmark configuration must be a mapping")
     schema = configuration.get("schema")
-    if schema == _CONFIGURATION_SCHEMA:
-        if set(configuration) != {"schema", "component", "lanes", "samples"}:
+    geometry = None
+    if schema in (_CONFIGURATION_SCHEMA, "pllm.operator_benchmark.v2"):
+        expected_fields = {"schema", "component", "lanes", "samples"}
+        if schema == "pllm.operator_benchmark.v2":
+            expected_fields.add("geometry")
+            geometry = configuration.get("geometry")
+            if not isinstance(geometry, Mapping):
+                raise ConfigurationError("operator benchmark v2 requires explicit geometry")
+        if set(configuration) != expected_fields:
             raise ConfigurationError("unsupported operator benchmark configuration fields")
         spec = configuration["component"]
         if not isinstance(spec, Mapping) or set(spec) != {"component", "params"}:
@@ -182,7 +205,7 @@ def replay_operator_benchmark(
     else:
         raise ConfigurationError("unsupported operator benchmark configuration schema")
     return benchmark_operator(
-        component, lanes=configuration["lanes"], samples=configuration["samples"], inputs=inputs,
+        component, lanes=configuration["lanes"], samples=configuration["samples"], inputs=inputs, geometry=geometry,
     )
 
 
@@ -208,6 +231,7 @@ class OperatorBenchmarkSample:
     peer_frame_bytes_by_phase: tuple[tuple[int, int], ...]
     public_setup_seconds: float = 0.0
     correlation_expansion_seconds: float = 0.0
+    input_sharing_seconds: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)

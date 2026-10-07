@@ -1,4 +1,4 @@
 {
   "title": "Plan passes",
-  "pages": ["index", "kv-cache-eviction"]
+  "pages": ["index", "kv-cache-eviction", "cipherprune-token-pruning"]
 }

@@ -61,12 +61,16 @@ reduction additionally discloses a mask in compacted order. These disclosures
 must be stated in any proposed PLLM leakage contract, rather than inherited as
 an unspecified claim that selection is private.
 
-No CipherPrune executor or benchmark is added by this review. Required work:
+This historical source-only review issued no material. The subsequent
+[bounded token-pruning operator](token-pruning-reference.md) implements exact
+threshold/count and stable compaction with local one-use half-gates. It explicitly
+discloses counts and compacted degree decisions, preserves complete token words,
+and records full-layout resource gates. Remaining decoder work:
 
-1. Independently implement one-use comparison, bit/arithmetic conversion and
-   oblivious compaction, including complete material and swap costs.
-2. Declare count/reduction-mask leakage or implement padded hidden alternatives
-   under their own costs and contracts.
+1. Replace local garbling with distributed input encoding/transport and reviewed
+   complete-operator costs; full Qwen-width layouts currently reject admission.
+2. Bind the explicit count/reduction-mask leakage to an executable privacy contract,
+   or implement padded alternatives under their own costs and contracts.
 3. Bind original positions, RoPE and persistent KV under progressive pruning;
    a shortened full-KV array is not an admitted decoder state.
 4. Lock the trained/calibrated model and validate held-out same-token and

@@ -234,7 +234,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
-  assert.equal(citations.size, 19);
+  assert.equal(citations.size, 20);
   assert.ok(citations.has('R05') && citations.has('R08') && citations.has('R24'));
   assert.ok(citations.has('sigma') && citations.has('grotto') && citations.has('pika'));
   assert.ok(citations.has('R14') && citations.has('fss-mixed'));
@@ -416,6 +416,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/verification/freivalds/', 'pllm/freivalds-verify/v1', '/research/papers/slalom/'],
     ['/sdk/components/verification/linear-integrity/', 'pllm/linear-integrity', null],
     ['/sdk/components/passes/kv-cache-eviction/', 'pllm/kv-cache-eviction', '/research/papers/mpcache/'],
+    ['/sdk/components/passes/cipherprune-token-pruning/', 'pllm/cipherprune-token-pruning/v1', '/research/papers/cipherprune/'],
   ];
   for (const [route, identity, citation] of options) {
     const content = byRoute.get(route)?.content;

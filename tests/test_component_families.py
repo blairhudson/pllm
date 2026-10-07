@@ -37,7 +37,7 @@ from pllm.nonlinear import (
     R03CrtGatedMultiplyQ7,
     SharedRescale,
 )
-from pllm.passes import KvCacheEviction, PlanPass
+from pllm.passes import CipherPruneTokenPruning, KvCacheEviction, PlanPass
 from pllm.preparation import (
     BFVCorrelations,
     HEAuthenticatedPreprocessing,
@@ -92,6 +92,7 @@ def _instances():
         BlindedLinear(),
         BoundedIndependentElementsProtectedTensorSchedule(),
         ChunkedIndependentLanesProtectedTensorSchedule(max_elements=4096),
+        CipherPruneTokenPruning(),
         CleartextLinear(),
         ClientLocalKv(),
         ClientBundleTransport(),

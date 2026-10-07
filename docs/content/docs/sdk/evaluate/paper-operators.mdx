@@ -90,6 +90,13 @@ Reports distinguish HE frames from local conversion keys/boundary labels and
 asymmetric provider table storage. FastQuery's PackLWEs, distributed conversion,
 decoder placement and client-memory savings remain unimplemented.
 
+[`CipherPruneTokenPruning`](/sdk/components/passes/cipherprune-token-pruning/)
+uses the same runner for threshold/count, stable complete-record compaction and
+degree selection. Its explicit `geometry={"tokens": 4, "heads": 2}` belongs to
+benchmark configuration v2, while `lanes` is the feature width. Retained counts
+and compacted degree decisions are disclosed; worst-case material is admitted
+before the first disclosure. Existing v1 operator configurations keep their format.
+
 `OperatorBenchmarkReport` retains immutable `OperatorBenchmarkResources`,
 `OperatorBenchmarkQuality`, `OperatorBenchmarkSample` and `OperatorCitation`
 records. JSON includes configuration, numeric-contract, native-source and SDK-source

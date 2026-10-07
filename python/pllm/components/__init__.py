@@ -53,7 +53,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         R03CrtGatedMultiplyQ7,
         SharedRescale,
     )
-    from pllm.passes import KvCacheEviction
+    from pllm.passes import CipherPruneTokenPruning, KvCacheEviction
     from pllm.preparation import (
         BFVCorrelations,
         HEAuthenticatedPreprocessing,
@@ -123,6 +123,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         IndependentLanesProtectedTensorSchedule,
         Inference,
         KvCacheEviction,
+        CipherPruneTokenPruning,
         Latency,
         LinearIntegrity,
         LogRowGarbledLookup,

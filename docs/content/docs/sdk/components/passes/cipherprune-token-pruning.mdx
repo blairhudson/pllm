@@ -1,0 +1,98 @@
+---
+title: "CipherPrune token pruning"
+description: "Benchmark protected threshold counts, stable token compaction and explicit degree-mask disclosure."
+---
+
+[`CipherPruneTokenPruning`](/sdk/reference/python/pllm/passes/#cipherprunetokenpruning)
+(`pllm/cipherprune-token-pruning/v1`) is an immutable component with a bounded
+operator benchmark. It compares exact Q16 attention-score numerators, opens the
+retained count, stably compacts complete 32-bit token records and selects a
+compacted-order polynomial degree mask when pruning occurs.
+
+## Python SDK example
+
+API: [pllm.passes](/sdk/reference/python/pllm/passes/#objects-and-signatures) · [pllm.metrics](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
+
+```python
+from pllm.metrics import benchmark_operator, replay_operator_benchmark
+from pllm.passes import CipherPruneTokenPruning
+
+method = CipherPruneTokenPruning(
+    threshold_q16=8192, reduction_threshold_q16=24576,
+)
+report = benchmark_operator(
+    method, lanes=8, samples=3, geometry={"tokens": 4, "heads": 2},
+)
+assert report.quality.checked_outputs == report.quality.exact_integer_outputs
+replay = replay_operator_benchmark(report.configuration)
+assert replay.resources == report.resources
+```
+
+The [installed-wheel example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/token_pruning.py)
+checks this path and replay. No decoder `Pipeline` or `ModelPlan.apply()` execution
+is available for this component; those paths reject its unsupported transformation.
+
+## Options and inputs
+
+| Setting | Contract |
+| --- | --- |
+| `threshold_q16` | Integer in `[0, 65535]`; strict `score > threshold` |
+| `reduction_threshold_q16` | Integer in `(threshold_q16, 65536]`; strict high-degree comparison |
+| `geometry` | Benchmark-only mapping with exactly `tokens` (1–256) and `heads` (1–32) |
+| `lanes` | Benchmark-only complete 32-bit feature words per token (1–256) |
+| `samples` | 1–16 fresh independent invocations |
+
+Custom `inputs` contains `attention_q16` and `words`. Attention has
+`heads × tokens × tokens` unsigned values in `[0,65536]`, ordered head/query/key.
+Words are `tokens × lanes` unsigned integers in `[0,2³²−1]`, ordered token/feature;
+every bit survives compaction, including signed or floating-point bit patterns.
+The scorer sums key-column numerators exactly and multiplies the public threshold
+by `heads × tokens`; it never divides individual secret shares. The fixture uses
+normalized attention rows, but arbitrary caller-owned bounded inputs do not acquire
+a proof that their rows sum to one.
+
+Input values, output words and masks are not archived. Report resources depend on
+the public retained count. Replay of caller-owned inputs requires those inputs
+again. Geometry is recorded separately in benchmark configuration v2; existing
+v1 operator configurations remain replayable.
+
+## Disclosure and ownership
+
+Retained count and compacted-order degree decisions are explicit disclosures from
+the source contract. Even normalized two-token attention can produce distinguishable
+counts. Equal counts use the same circuit schedule regardless of original selected locations;
+this does not hide information inferable from counts or degree decisions.
+
+The local trusted issuer creates independent uniform shares and up to two fresh one-use
+half-gates circuits. Only that client holds output decoders. This adaptation
+replaces CipherPrune's OT-based comparison, conversion and multiplexing; it does
+not implement distributed input encoding or provider transport. A separate marker
+bit avoids overwriting a signed token word. Empty output skips compaction; retaining
+all tokens preserves the original shares and skips compaction and degree selection,
+matching the selected source branch.
+
+## Costs and evidence
+
+Worst-case counts across every possible retained size must fit a **64 MiB combined
+allocation estimate before any count is opened**. Reports charge garbler encodings,
+evaluator ciphertexts, constant labels, boundary estimates and public metadata
+separately. Local input-sharing, issuance and online timings remain separate.
+No inter-evaluator frames exist in this half-gates adaptation; that is not a
+zero-network claim. Process peak memory and physical wire are unknown.
+
+- [Fresh-process cost and disclosure screen](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-token-pruning-cost.json)
+- [Installed-wheel operator report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-token-pruning-sdk.json)
+- [Source contract and resource gates](https://github.com/blairhudson/pllm/blob/main/docs/research/token-pruning-reference.md)
+
+Declared Qwen-shaped full-width layouts reject resource admission. Learned
+thresholds, selected-polynomial execution, protected float conversion, original
+causal positions/KV mapping and held-out model quality remain absent. Operator
+correctness is not a CipherPrune system reproduction or a decoder memory saving.
+
+<Callout type="info" title="Research citation">
+
+[CipherPrune](/research/papers/cipherprune/) sections 3.2–3.3 and Appendix A
+Figures 13–14 specify the pruning and reduction contracts. This is a local
+half-gates component adaptation, with public thresholds and explicit disclosure.
+
+</Callout>

@@ -1,0 +1,2240 @@
+{
+  "cases": [
+    {
+      "features": 1,
+      "fixture": "half",
+      "heads": 2,
+      "median_seconds": {
+        "input_sharing_seconds": 1.4584e-05,
+        "issuance_seconds": 0.010450417,
+        "online_seconds": 0.00449925
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 1,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "8e5181e84e7ce76d47bdc71081ce30465c00a51426c7c2f124d9691e9c6aedcb",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.010684083,
+          "median_online_seconds": 0.004658832999999999,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 5,
+            "exact_integer_outputs": 5,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 14672,
+            "client_mask_payload_estimate_bytes": 156,
+            "evaluator_ciphertext_bytes": 46240,
+            "evaluator_constant_label_bytes": 496,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13456
+              ],
+              [
+                "stable-compaction-degree",
+                20800,
+                33280
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 6184320,
+            "public_metadata_bytes_estimate": 80256,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              234752,
+              373888
+            ],
+            "raw_key_payload_bytes_per_party": [
+              29344,
+              46736
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 3.4834e-05,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 3.0917e-05,
+              "issuance_seconds": 0.010684083,
+              "native_call_process_cpu_seconds": 0.016287,
+              "online_seconds": 0.004658832999999999,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 1,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "8e5181e84e7ce76d47bdc71081ce30465c00a51426c7c2f124d9691e9c6aedcb",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.010440709,
+          "median_online_seconds": 0.00449925,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 5,
+            "exact_integer_outputs": 5,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 14672,
+            "client_mask_payload_estimate_bytes": 156,
+            "evaluator_ciphertext_bytes": 46240,
+            "evaluator_constant_label_bytes": 496,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13456
+              ],
+              [
+                "stable-compaction-degree",
+                20800,
+                33280
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 6184320,
+            "public_metadata_bytes_estimate": 80256,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              234752,
+              373888
+            ],
+            "raw_key_payload_bytes_per_party": [
+              29344,
+              46736
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.291e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.4584e-05,
+              "issuance_seconds": 0.010440709,
+              "native_call_process_cpu_seconds": 0.015526,
+              "online_seconds": 0.00449925,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 1,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "8e5181e84e7ce76d47bdc71081ce30465c00a51426c7c2f124d9691e9c6aedcb",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.010450417,
+          "median_online_seconds": 0.004488458,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 5,
+            "exact_integer_outputs": 5,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 14672,
+            "client_mask_payload_estimate_bytes": 156,
+            "evaluator_ciphertext_bytes": 46240,
+            "evaluator_constant_label_bytes": 496,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13456
+              ],
+              [
+                "stable-compaction-degree",
+                20800,
+                33280
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 6184320,
+            "public_metadata_bytes_estimate": 80256,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              234752,
+              373888
+            ],
+            "raw_key_payload_bytes_per_party": [
+              29344,
+              46736
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.333e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1e-05,
+              "issuance_seconds": 0.010450417,
+              "native_call_process_cpu_seconds": 0.015519,
+              "online_seconds": 0.004488458,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        }
+      ],
+      "tokens": 4
+    },
+    {
+      "features": 16,
+      "fixture": "half",
+      "heads": 2,
+      "median_seconds": {
+        "input_sharing_seconds": 1.0917e-05,
+        "issuance_seconds": 0.064325917,
+        "online_seconds": 0.026234625
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "60453b98dd8dfa17eb0e7f06822e94fb6bc93f585e246c0da011299a1f142811",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.065044167,
+          "median_online_seconds": 0.028607666,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 35,
+            "exact_integer_outputs": 35,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 106832,
+            "client_mask_payload_estimate_bytes": 516,
+            "evaluator_ciphertext_bytes": 307360,
+            "evaluator_constant_label_bytes": 1936,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13456
+              ],
+              [
+                "stable-compaction-degree",
+                205120,
+                295840
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18384960,
+            "public_metadata_bytes_estimate": 578586,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              1709312,
+              2474368
+            ],
+            "raw_key_payload_bytes_per_party": [
+              213664,
+              309296
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.667e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.0917e-05,
+              "issuance_seconds": 0.065044167,
+              "native_call_process_cpu_seconds": 0.094257,
+              "online_seconds": 0.028607666,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "60453b98dd8dfa17eb0e7f06822e94fb6bc93f585e246c0da011299a1f142811",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.064325917,
+          "median_online_seconds": 0.026234625,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 35,
+            "exact_integer_outputs": 35,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 106832,
+            "client_mask_payload_estimate_bytes": 516,
+            "evaluator_ciphertext_bytes": 307360,
+            "evaluator_constant_label_bytes": 1936,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13456
+              ],
+              [
+                "stable-compaction-degree",
+                205120,
+                295840
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18384960,
+            "public_metadata_bytes_estimate": 578586,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              1709312,
+              2474368
+            ],
+            "raw_key_payload_bytes_per_party": [
+              213664,
+              309296
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.875e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.3584e-05,
+              "issuance_seconds": 0.064325917,
+              "native_call_process_cpu_seconds": 0.091106,
+              "online_seconds": 0.026234625,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "60453b98dd8dfa17eb0e7f06822e94fb6bc93f585e246c0da011299a1f142811",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.060496916000000005,
+          "median_online_seconds": 0.025927791000000002,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 35,
+            "exact_integer_outputs": 35,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 106832,
+            "client_mask_payload_estimate_bytes": 516,
+            "evaluator_ciphertext_bytes": 307360,
+            "evaluator_constant_label_bytes": 1936,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13456
+              ],
+              [
+                "stable-compaction-degree",
+                205120,
+                295840
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18384960,
+            "public_metadata_bytes_estimate": 578586,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              1709312,
+              2474368
+            ],
+            "raw_key_payload_bytes_per_party": [
+              213664,
+              309296
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.667e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.0166e-05,
+              "issuance_seconds": 0.060496916000000005,
+              "native_call_process_cpu_seconds": 0.086956,
+              "online_seconds": 0.025927791000000002,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        }
+      ],
+      "tokens": 4
+    },
+    {
+      "features": 4,
+      "fixture": "half",
+      "heads": 4,
+      "median_seconds": {
+        "input_sharing_seconds": 2.3709e-05,
+        "issuance_seconds": 0.049782541,
+        "online_seconds": 0.021901001
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 4,
+              "tokens": 8
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "25efa700595c8629c7f687ca752642e7833e2e69b3cb9da9539bf4bc17ccd23c",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.049782541,
+          "median_online_seconds": 0.021932043,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 21,
+            "exact_integer_outputs": 21,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 66176,
+            "client_mask_payload_estimate_bytes": 1224,
+            "evaluator_ciphertext_bytes": 259264,
+            "evaluator_constant_label_bytes": 1552,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                17024,
+                27408
+              ],
+              [
+                "stable-compaction-degree",
+                115328,
+                233408
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 16405376,
+            "public_metadata_bytes_estimate": 507447,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              1058816,
+              2086528
+            ],
+            "raw_key_payload_bytes_per_party": [
+              132352,
+              260816
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 5.25e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 2.075e-05,
+              "issuance_seconds": 0.049782541,
+              "native_call_process_cpu_seconds": 0.072289,
+              "online_seconds": 0.021932043,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 4,
+              "tokens": 8
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "25efa700595c8629c7f687ca752642e7833e2e69b3cb9da9539bf4bc17ccd23c",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.049828751000000004,
+          "median_online_seconds": 0.021901001,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 21,
+            "exact_integer_outputs": 21,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 66176,
+            "client_mask_payload_estimate_bytes": 1224,
+            "evaluator_ciphertext_bytes": 259264,
+            "evaluator_constant_label_bytes": 1552,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                17024,
+                27408
+              ],
+              [
+                "stable-compaction-degree",
+                115328,
+                233408
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 16405376,
+            "public_metadata_bytes_estimate": 507447,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              1058816,
+              2086528
+            ],
+            "raw_key_payload_bytes_per_party": [
+              132352,
+              260816
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.583e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 2.3709e-05,
+              "issuance_seconds": 0.049828751000000004,
+              "native_call_process_cpu_seconds": 0.072283,
+              "online_seconds": 0.021901001,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 24576,
+                "threshold_q16": 8192
+              }
+            },
+            "geometry": {
+              "heads": 4,
+              "tokens": 8
+            },
+            "lanes": 4,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "25efa700595c8629c7f687ca752642e7833e2e69b3cb9da9539bf4bc17ccd23c",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.049742417,
+          "median_online_seconds": 0.021844416000000002,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "b15af5d211b764be0a268916f0b9c267e57ca8881ef63331074fe339332d7a49",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 21,
+            "exact_integer_outputs": 21,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 66176,
+            "client_mask_payload_estimate_bytes": 1224,
+            "evaluator_ciphertext_bytes": 259264,
+            "evaluator_constant_label_bytes": 1552,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                17024,
+                27408
+              ],
+              [
+                "stable-compaction-degree",
+                115328,
+                233408
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 16405376,
+            "public_metadata_bytes_estimate": 507447,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              1058816,
+              2086528
+            ],
+            "raw_key_payload_bytes_per_party": [
+              132352,
+              260816
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.458e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 2.5333e-05,
+              "issuance_seconds": 0.049742417,
+              "native_call_process_cpu_seconds": 0.072137,
+              "online_seconds": 0.021844416000000002,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        }
+      ],
+      "tokens": 8
+    },
+    {
+      "features": 16,
+      "fixture": "all",
+      "heads": 2,
+      "median_seconds": {
+        "input_sharing_seconds": 1.4833e-05,
+        "issuance_seconds": 0.002672208,
+        "online_seconds": 0.001112792
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 65536,
+                "threshold_q16": 0
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "980836d1dd5e4d9241234daf12548f6798c901c7a0668e630d553a637b8f7c1f",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.002677583,
+          "median_online_seconds": 0.0011140409999999999,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "eab7567d0d77baac84b6c6bc85d35579322656831ea6232d411a8577ea370cd2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 65,
+            "exact_integer_outputs": 65,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4272,
+            "client_mask_payload_estimate_bytes": 644,
+            "evaluator_ciphertext_bytes": 13056,
+            "evaluator_constant_label_bytes": 272,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13328
+              ],
+              [
+                "stable-compaction-degree",
+                0,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18380352,
+            "public_metadata_bytes_estimate": 18801,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              68352,
+              106624
+            ],
+            "raw_key_payload_bytes_per_party": [
+              8544,
+              13328
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 5.209e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.8875e-05,
+              "issuance_seconds": 0.002677583,
+              "native_call_process_cpu_seconds": 0.004317,
+              "online_seconds": 0.0011140409999999999,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 65536,
+                "threshold_q16": 0
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "980836d1dd5e4d9241234daf12548f6798c901c7a0668e630d553a637b8f7c1f",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.002644458,
+          "median_online_seconds": 0.001107833,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "eab7567d0d77baac84b6c6bc85d35579322656831ea6232d411a8577ea370cd2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 65,
+            "exact_integer_outputs": 65,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4272,
+            "client_mask_payload_estimate_bytes": 644,
+            "evaluator_ciphertext_bytes": 13056,
+            "evaluator_constant_label_bytes": 272,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13328
+              ],
+              [
+                "stable-compaction-degree",
+                0,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18380352,
+            "public_metadata_bytes_estimate": 18801,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              68352,
+              106624
+            ],
+            "raw_key_payload_bytes_per_party": [
+              8544,
+              13328
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 5.667e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.4833e-05,
+              "issuance_seconds": 0.002644458,
+              "native_call_process_cpu_seconds": 0.004285,
+              "online_seconds": 0.001107833,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 65536,
+                "threshold_q16": 0
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "980836d1dd5e4d9241234daf12548f6798c901c7a0668e630d553a637b8f7c1f",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.002672208,
+          "median_online_seconds": 0.001112792,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "eab7567d0d77baac84b6c6bc85d35579322656831ea6232d411a8577ea370cd2",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 65,
+            "exact_integer_outputs": 65,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4272,
+            "client_mask_payload_estimate_bytes": 644,
+            "evaluator_ciphertext_bytes": 13056,
+            "evaluator_constant_label_bytes": 272,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                13328
+              ],
+              [
+                "stable-compaction-degree",
+                0,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18380352,
+            "public_metadata_bytes_estimate": 18801,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              68352,
+              106624
+            ],
+            "raw_key_payload_bytes_per_party": [
+              8544,
+              13328
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 4.459e-06,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.3084e-05,
+              "issuance_seconds": 0.002672208,
+              "native_call_process_cpu_seconds": 0.004299,
+              "online_seconds": 0.001112792,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        }
+      ],
+      "tokens": 4
+    },
+    {
+      "features": 16,
+      "fixture": "none",
+      "heads": 2,
+      "median_seconds": {
+        "input_sharing_seconds": 1.7625e-05,
+        "issuance_seconds": 0.002979166,
+        "online_seconds": 0.001284583
+      },
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 65536,
+                "threshold_q16": 65535
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "3595313123a3c8536f2f32c47bb59cf5ff2164d06a17e46e4b4b1e08e450a411",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.00296925,
+          "median_online_seconds": 0.001300375,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "357c0281bcd1f39b757c24fa95022c480cb8e991d507dc354da70c16e4b1cb66",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 1,
+            "exact_integer_outputs": 1,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4272,
+            "client_mask_payload_estimate_bytes": 388,
+            "evaluator_ciphertext_bytes": 15104,
+            "evaluator_constant_label_bytes": 272,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                15376
+              ],
+              [
+                "stable-compaction-degree",
+                0,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18429504,
+            "public_metadata_bytes_estimate": 21489,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              68352,
+              123008
+            ],
+            "raw_key_payload_bytes_per_party": [
+              8544,
+              15376
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 7.92e-07,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.3417e-05,
+              "issuance_seconds": 0.00296925,
+              "native_call_process_cpu_seconds": 0.004787,
+              "online_seconds": 0.001300375,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 65536,
+                "threshold_q16": 65535
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "3595313123a3c8536f2f32c47bb59cf5ff2164d06a17e46e4b4b1e08e450a411",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.002979166,
+          "median_online_seconds": 0.001284583,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "357c0281bcd1f39b757c24fa95022c480cb8e991d507dc354da70c16e4b1cb66",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 1,
+            "exact_integer_outputs": 1,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4272,
+            "client_mask_payload_estimate_bytes": 388,
+            "evaluator_ciphertext_bytes": 15104,
+            "evaluator_constant_label_bytes": 272,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                15376
+              ],
+              [
+                "stable-compaction-degree",
+                0,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18429504,
+            "public_metadata_bytes_estimate": 21489,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              68352,
+              123008
+            ],
+            "raw_key_payload_bytes_per_party": [
+              8544,
+              15376
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 8.33e-07,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.7833e-05,
+              "issuance_seconds": 0.002979166,
+              "native_call_process_cpu_seconds": 0.004828,
+              "online_seconds": 0.001284583,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "cipherprune",
+              "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+              "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+              "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+              "url": "https://arxiv.org/html/2502.16782v2"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/cipherprune-token-pruning/v1",
+              "params": {
+                "reduction_threshold_q16": 65536,
+                "threshold_q16": 65535
+              }
+            },
+            "geometry": {
+              "heads": 2,
+              "tokens": 4
+            },
+            "lanes": 16,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "3595313123a3c8536f2f32c47bb59cf5ff2164d06a17e46e4b4b1e08e450a411",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "caller-owned",
+          "limitations": [
+            "Retained count determines public resources; compacted-order degree decisions are also disclosed; original keep positions are not separately opened",
+            "Disclosed decisions and token words are checked locally but not archived; count reveals an aggregate threshold predicate even for normalized attention",
+            "Public Q16 thresholds and exact numerator comparison replace learned thresholds and sharewise fixed-point division",
+            "A dedicated marker bit preserves all signed/unsigned payload bits; complete score and token records move together",
+            "Up to two fresh one-use half-gates circuits replace source OT primitives; count-dependent issuance follows worst-case 64 MiB preflight; empty/all-retained outputs skip compaction",
+            "Only the trusted local garbler decodes; the in-process dealer holds fixture inputs and creates both independent share owners",
+            "Local share generation has its own timing; no distributed input encoding, peer codec, authenticated provider transport or measured wire",
+            "Keys include issuer encodings, evaluator ciphertexts and constant labels; boundary and public metadata sizes remain estimates",
+            "Degree decisions do not execute selected polynomials; trained checkpoint, protected float conversion, causal state integration and decoder quality remain absent"
+          ],
+          "median_issuance_seconds": 0.003004375,
+          "median_online_seconds": 0.001277583,
+          "method": "cipherprune-threshold-stable-compaction",
+          "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+          "numeric_contract_digest": "357c0281bcd1f39b757c24fa95022c480cb8e991d507dc354da70c16e4b1cb66",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 1,
+            "exact_integer_outputs": 1,
+            "float_reference": "Exact Python integer thresholds and stable word filtering; no floating approximation or model quality measured",
+            "maximum_absolute_error": 0.0,
+            "maximum_encoded_profile_error": null,
+            "mean_absolute_error": 0.0
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 4272,
+            "client_mask_payload_estimate_bytes": 388,
+            "evaluator_ciphertext_bytes": 15104,
+            "evaluator_constant_label_bytes": 272,
+            "expanded_correlation_bytes_per_party": null,
+            "key_payload_bytes_by_operation": [
+              [
+                "threshold-count",
+                8544,
+                15376
+              ],
+              [
+                "stable-compaction-degree",
+                0,
+                0
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              0,
+              0
+            ],
+            "peer_payload_bits": 0,
+            "peer_rounds": 0,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 18429504,
+            "public_metadata_bytes_estimate": 21489,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": null,
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              68352,
+              123008
+            ],
+            "raw_key_payload_bytes_per_party": [
+              8544,
+              15376
+            ],
+            "role_names": [
+              "garbler_client",
+              "evaluator"
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 7.08e-07,
+              "correlation_expansion_seconds": 0.0,
+              "input_sharing_seconds": 1.7625e-05,
+              "issuance_seconds": 0.003004375,
+              "native_call_process_cpu_seconds": 0.004803,
+              "online_seconds": 0.001277583,
+              "peer_frame_bytes_by_phase": [],
+              "public_setup_seconds": 0.0
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "83d596620081b456aecd7fdc605d86c2395f042da7aa58082c0f499472375082",
+          "whole_model_executable": false
+        }
+      ],
+      "tokens": 4
+    }
+  ],
+  "checked_outputs": 381,
+  "disclosure_witnesses": {
+    "algebraic_one_token_count_identity": [
+      {
+        "private_keep": false,
+        "public_retained": 0
+      },
+      {
+        "private_keep": true,
+        "public_retained": 1
+      }
+    ],
+    "compacted_degree_reveals_threshold_predicate": [
+      {
+        "private_score_q16": 16384,
+        "public_degree_bit": false
+      },
+      {
+        "private_score_q16": 32768,
+        "public_degree_bit": true
+      }
+    ],
+    "constant_schedule_hides_original_positions_only_within_equal_public_counts": true,
+    "independent_cryptographic_review": false,
+    "normalized_one_token_attention_fixes_keep_bit": true,
+    "two_token_normalized_attention_count_disclosure": [
+      {
+        "private_repeated_attention_row_q16": [
+          32768,
+          32768
+        ],
+        "public_retained": 0,
+        "threshold_q16": 32768
+      },
+      {
+        "private_repeated_attention_row_q16": [
+          49152,
+          16384
+        ],
+        "public_retained": 1,
+        "threshold_q16": 32768
+      }
+    ]
+  },
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "fresh_processes": 15,
+  "full_width_projections": [
+    {
+      "adjacent_swaps": 570,
+      "admitted": false,
+      "boundary_label_bytes_estimate": 53298000,
+      "evaluator_material_bytes": 631086400,
+      "features": 896,
+      "heads": 14,
+      "issuer_key_bytes": 106596000,
+      "material_issued": false,
+      "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+      "phases": [
+        {
+          "and_gates": 4329,
+          "boundary_payload_estimate_bytes": 41280,
+          "constant_label_bytes": 2512,
+          "evaluator_ciphertext_bytes": 138528,
+          "evaluator_material_bytes": 141040,
+          "input_bits": 2535,
+          "issuer_key_bytes": 82560,
+          "output_bits": 45,
+          "public_metadata_bytes_estimate": 199286,
+          "wires": 12949
+        },
+        {
+          "and_gates": 19691020,
+          "boundary_payload_estimate_bytes": 53256720,
+          "constant_label_bytes": 832720,
+          "evaluator_ciphertext_bytes": 630112640,
+          "evaluator_material_bytes": 630945360,
+          "input_bits": 2783758,
+          "issuer_key_bytes": 106513440,
+          "output_bits": 544787,
+          "public_metadata_bytes_estimate": 1425835200,
+          "wires": 77695950
+        }
+      ],
+      "protocol_allocation_estimate_bytes": 35991831712,
+      "public_metadata_bytes_estimate": 1426034486,
+      "retained": 19,
+      "scope": "one hypothetical full-width pruning invocation",
+      "tokens": 39,
+      "two_party_payload_bytes_retired": 143360
+    },
+    {
+      "adjacent_swaps": 0,
+      "admitted": false,
+      "boundary_label_bytes_estimate": 41280,
+      "evaluator_material_bytes": 141040,
+      "features": 896,
+      "heads": 14,
+      "issuer_key_bytes": 82560,
+      "material_issued": false,
+      "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+      "phases": [
+        {
+          "and_gates": 4329,
+          "boundary_payload_estimate_bytes": 41280,
+          "constant_label_bytes": 2512,
+          "evaluator_ciphertext_bytes": 138528,
+          "evaluator_material_bytes": 141040,
+          "input_bits": 2535,
+          "issuer_key_bytes": 82560,
+          "output_bits": 45,
+          "public_metadata_bytes_estimate": 199286,
+          "wires": 12949
+        },
+        {
+          "and_gates": 0,
+          "boundary_payload_estimate_bytes": 0,
+          "constant_label_bytes": 0,
+          "evaluator_ciphertext_bytes": 0,
+          "evaluator_material_bytes": 0,
+          "input_bits": 0,
+          "issuer_key_bytes": 0,
+          "output_bits": 0,
+          "public_metadata_bytes_estimate": 0,
+          "wires": 0
+        }
+      ],
+      "protocol_allocation_estimate_bytes": 35991831712,
+      "public_metadata_bytes_estimate": 199286,
+      "retained": 39,
+      "scope": "one hypothetical full-width pruning invocation",
+      "tokens": 39,
+      "two_party_payload_bytes_retired": 0
+    },
+    {
+      "adjacent_swaps": 8400,
+      "admitted": false,
+      "boundary_label_bytes_estimate": 206756528,
+      "evaluator_material_bytes": 8132976016,
+      "features": 896,
+      "heads": 14,
+      "issuer_key_bytes": 413513056,
+      "material_issued": false,
+      "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+      "phases": [
+        {
+          "and_gates": 17400,
+          "boundary_payload_estimate_bytes": 158528,
+          "constant_label_bytes": 9616,
+          "evaluator_ciphertext_bytes": 556800,
+          "evaluator_material_bytes": 566416,
+          "input_bits": 9750,
+          "issuer_key_bytes": 317056,
+          "output_bits": 158,
+          "public_metadata_bytes_estimate": 802779,
+          "wires": 51601
+        },
+        {
+          "and_gates": 254036850,
+          "boundary_payload_estimate_bytes": 206598000,
+          "constant_label_bytes": 3230400,
+          "evaluator_ciphertext_bytes": 8129179200,
+          "evaluator_material_bytes": 8132409600,
+          "input_bits": 10761900,
+          "issuer_key_bytes": 413196000,
+          "output_bits": 2150475,
+          "public_metadata_bytes_estimate": 19033621564,
+          "wires": 1012047000
+        }
+      ],
+      "protocol_allocation_estimate_bytes": 505072239552,
+      "public_metadata_bytes_estimate": 19034424343,
+      "retained": 75,
+      "scope": "one hypothetical full-width pruning invocation",
+      "tokens": 150,
+      "two_party_payload_bytes_retired": 537600
+    },
+    {
+      "adjacent_swaps": 0,
+      "admitted": false,
+      "boundary_label_bytes_estimate": 158528,
+      "evaluator_material_bytes": 566416,
+      "features": 896,
+      "heads": 14,
+      "issuer_key_bytes": 317056,
+      "material_issued": false,
+      "native_implementation_digest": "34bca7e7aa37d4887240a796b925f912790a399890e935a7cf07115ec2a5ca49",
+      "phases": [
+        {
+          "and_gates": 17400,
+          "boundary_payload_estimate_bytes": 158528,
+          "constant_label_bytes": 9616,
+          "evaluator_ciphertext_bytes": 556800,
+          "evaluator_material_bytes": 566416,
+          "input_bits": 9750,
+          "issuer_key_bytes": 317056,
+          "output_bits": 158,
+          "public_metadata_bytes_estimate": 802779,
+          "wires": 51601
+        },
+        {
+          "and_gates": 0,
+          "boundary_payload_estimate_bytes": 0,
+          "constant_label_bytes": 0,
+          "evaluator_ciphertext_bytes": 0,
+          "evaluator_material_bytes": 0,
+          "input_bits": 0,
+          "issuer_key_bytes": 0,
+          "output_bits": 0,
+          "public_metadata_bytes_estimate": 0,
+          "wires": 0
+        }
+      ],
+      "protocol_allocation_estimate_bytes": 505072239552,
+      "public_metadata_bytes_estimate": 802779,
+      "retained": 150,
+      "scope": "one hypothetical full-width pruning invocation",
+      "tokens": 150,
+      "two_party_payload_bytes_retired": 0
+    }
+  ],
+  "samples_per_case": 3,
+  "schema": "pllm.token_pruning_cost.v1",
+  "scope": {
+    "causal_kv_mapping": false,
+    "checkpoint_quality": null,
+    "component": "threshold/count plus stable full-record compaction and degree selection",
+    "distributed_input_encoding": false,
+    "full_width_geometry": "declared 14-head/896-feature shapes; no source-bound decoder",
+    "full_wire_bytes": null,
+    "inputs": "synthetic public normalized Q16 attention and arbitrary complete words",
+    "peak_memory_bytes": null,
+    "provider_transport": false,
+    "selected_polynomial_execution": false,
+    "source_ot_primitives": false,
+    "trained_thresholds": false,
+    "whole_model_executable": false
+  },
+  "source_sha256": {
+    "Cargo.lock": "be735861945742b6d892d797255833c529e0266ff4f44d1fbac9d99840e5a06f",
+    "benchmarks/research/token_pruning.py": "14cde070816a3fdb60a6bb884595e610b707cf79fb0f85e91d60c896e7e6ab7c",
+    "crates/pllm-core/src/token_pruning.rs": "0fac77e1fc192ec51200842cccdd2a5a9100c27812d3a6da32a154341425fc70",
+    "crates/pllm-garble/src/boolean.rs": "15cfb4ce3575cde9d14f54ff51dea908f4e8e16f9a573e813d03ba81fce16aea",
+    "crates/pllm-garble/src/token_pruning.rs": "0144d302ae73c0065a6b53818c5a59b443e6203e49467af238dbc2f15b186420",
+    "crates/pllm-python/src/token_pruning.rs": "037d2eddddae8714360d17ba7dc83d2923e9aa4b1161e44c0a767d139f9cb5d1",
+    "python/pllm/metrics/operator_benchmarks.py": "ef424dc3f12f6f7946394afb0c07d2c7da69184934c949126ee282a453d50f9c",
+    "python/pllm/metrics/token_pruning.py": "4452025a61b1a5a68f86d7f74b55febbc0b6ad4b7e801e8f2d77f1ab1e9e5ca4",
+    "python/pllm/passes/__init__.py": "687ae7273d2c5f85490757fcb152655dc4bc4d95e9290803135515fd4e04b069"
+  }
+}

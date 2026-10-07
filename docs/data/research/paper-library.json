@@ -589,7 +589,7 @@
       "contribution": "Explicit token-pruning and degree-selection transformations with protected dynamic decisions where required.",
       "first_experiment": "Check quality and observable execution shape after pruning.",
       "promotion_gate": "Lossy semantic changes and token-dependent leakage must be explicit.",
-      "evidence_boundary": "The basic pruning mask is opened; optional oblivious compaction hides original locations but discloses retained counts, and polynomial reduction opens a compacted-order mask. Learned thresholds/model quality and this leakage need explicit contracts.",
+      "evidence_boundary": "The bounded SDK operator substitutes one-use half-gates for OT, checks exact Q16 thresholds and stable complete-record compaction, and explicitly discloses retained counts and compacted degree masks. Full-width resource admission fails. Learned thresholds, selected polynomials, causal-state mapping, model quality and provider transport remain absent; this is not the complete CipherPrune system.",
       "map_year": 2025,
       "file": "papers/cipherprune.pdf",
       "pdf_url": "https://arxiv.org/pdf/2502.16782v2",

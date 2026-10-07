@@ -26,6 +26,7 @@ mod retained_kv;
 mod row_memo;
 mod secret_replication;
 mod shared_rescale;
+mod token_pruning;
 mod wavelet_gated;
 
 use pyo3::exceptions::{PyBufferError, PyRuntimeError, PyTypeError, PyValueError};
@@ -1713,6 +1714,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     logrow_product::register(module)?;
     secret_replication::register(module)?;
     packed_embedding::register(module)?;
+    token_pruning::register(module)?;
     compact_product::register(module)?;
     shared_rescale::register(module)?;
     mask_stream::register(module)?;

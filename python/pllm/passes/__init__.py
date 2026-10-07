@@ -162,9 +162,37 @@ class BreakingLayerBarrierAssignment(PendingMethod):
     pass
 
 
-@pending("cipherprune")
-class CipherPruneTokenPruning(PendingMethod):
-    pass
+class CipherPruneTokenPruning(PlanPass):
+    """Bounded operator benchmark for private pruning and disclosed degree selection."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/cipherprune-token-pruning/v1", provider="pllm",
+        distribution="pllm.run", version="1", category="pllm/compiler-pass",
+        category_version="1", lifecycle_phase="online-execution",
+        parameter_schema={
+            "type": "object", "additionalProperties": False,
+            "properties": {
+                "threshold_q16": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "reduction_threshold_q16": {"type": "integer", "minimum": 1, "maximum": 65536},
+            },
+            "required": ["threshold_q16", "reduction_threshold_q16"],
+        },
+        capabilities=("bounded-private-token-pruning", "operator-benchmark"),
+        required_host_features=("native-token-pruning-reference-v1",),
+    )
+
+    def __init__(self, *, threshold_q16: int = 8192, reduction_threshold_q16: int = 24576) -> None:
+        if (type(threshold_q16) is not int or type(reduction_threshold_q16) is not int
+                or not 0 <= threshold_q16 < reduction_threshold_q16 <= 65536):
+            raise ConfigurationError("pruning thresholds must satisfy 0 <= theta < beta <= 65536")
+        super().__init__(self.descriptor.component, {
+            "threshold_q16": threshold_q16, "reduction_threshold_q16": reduction_threshold_q16,
+        })
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
 
 
 @pending("redash")

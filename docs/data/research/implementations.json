@@ -1,6 +1,15 @@
 {
   "schema": "pllm.paper_implementations.v1",
   "papers": {
+    "cipherprune": {
+      "status": "Component reference",
+      "sdk_benchmark": {"api": "pllm.passes.CipherPruneTokenPruning", "coverage": "operator", "guide": "/sdk/components/passes/cipherprune-token-pruning/", "configuration": "examples/benchmarks/token_pruning.py", "evidence": "docs/evidence/research-token-pruning-sdk.json"},
+      "scope": "Sections 3.2–3.3 and Appendix A threshold/count, stable full-record compaction and compacted-order degree disclosure. Public Q16 numerator thresholds and up to two one-use half-gates circuits replace learned thresholds and OT primitives. No selected-polynomial execution, trained checkpoint, causal-state mapping or provider transport.",
+      "code": ["crates/pllm-core/src/token_pruning.rs", "crates/pllm-garble/src/token_pruning.rs", "crates/pllm-python/src/token_pruning.rs", "python/pllm/metrics/token_pruning.py", "python/pllm/passes/__init__.py"],
+      "configuration": "benchmarks/research/token_pruning.py",
+      "evidence": "docs/evidence/research-token-pruning-cost.json",
+      "result": "Fifteen fresh processes check 381 exact count, complete-word and degree outputs. A hypothetical 39-token/896-feature invocation retaining 19 tokens projects 631 MB of evaluator material before client encodings and metadata to retire only 143 kB of two-party record payload. Worst-case 64 MiB admission rejects complete Qwen-width layouts before issuance. Normalized two-token attention already distinguishes public counts; count and degree disclosures are explicit contract outputs, not hidden by oblivious compaction. Full-width material, quality, measured peak memory and complete wire remain unavailable. Details: docs/research/token-pruning-reference.md."
+    },
     "fastquery": {
       "status": "Component reference",
       "sdk_benchmark": {"api": "pllm.protocols.PrivateEmbeddingLookup", "coverage": "operator", "guide": "/sdk/components/protocols/private-embedding-lookup/", "configuration": "examples/benchmarks/packed_embedding.py", "evidence": "docs/evidence/research-packed-embedding-sdk.json"},

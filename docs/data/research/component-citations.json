@@ -1,6 +1,11 @@
 {
   "citations": [
     {
+      "paper_id": "cipherprune",
+      "summary": "Bounded protected threshold/count, stable complete-record compaction and compacted degree selection. Local half-gates replace source OT primitives; retained counts and degree decisions are explicit disclosures. Learned thresholds, selected polynomials and causal decoder state remain unimplemented.",
+      "components": [{"title": "CipherPrune token pruning", "href": "/sdk/components/passes/cipherprune-token-pruning/", "source": "content/docs/sdk/components/passes/cipherprune-token-pruning.mdx"}]
+    },
+    {
       "paper_id": "fastquery",
       "summary": "Bounded encrypted one-hot coefficient lookup and signed 13-bit channel packing, with explicitly charged local half-gates conversion. Full ciphertext replies replace missing PackLWEs; source-only quantization, tied-head ownership and operator costs remain separate from a protected decoder.",
       "components": [{"title": "Private embedding lookup", "href": "/sdk/components/protocols/private-embedding-lookup/", "source": "content/docs/sdk/components/protocols/private-embedding-lookup.mdx"}]

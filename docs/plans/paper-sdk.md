@@ -201,10 +201,20 @@ weights, so embedding-only relocation releases zero matrix bytes. This establish
 neither paper-system costs/quality nor full-response client-memory savings.
 Details: `docs/research/packed-embedding-reference.md`.
 
-Next approved sequence: screen CipherPrune quality and observable execution shape;
-then revisit Maverick's actual field,
-code-distance assumptions and preprocessing storage. Each slice retains paper
-deviations, complete costs and explicit unsupported decoder coverage.
+CipherPrune now has the bounded `CipherPruneTokenPruning` operator: exact Q16
+score-numerator thresholds, disclosed count, stable full-record compaction and
+compacted degree selection. Fifteen fresh processes check 381 exact outputs.
+Public-count and degree disclosures remain explicit; even normalized two-token
+attention can produce distinguishable counts. A hypothetical 39-token/896-feature
+invocation retaining 19 records projects 631 MB evaluator material before client
+encodings and metadata to retire 143 kB of two-party payload. Worst-case 64 MiB
+admission rejects full-width issuance. Learned thresholds, selected polynomial
+execution and causal KV mapping remain absent, so checkpoint quality is unknown.
+See `docs/research/token-pruning-reference.md` for source deviations and costs.
+
+Next approved slice: revisit Maverick's actual field, code-distance assumptions
+and preprocessing storage. Each slice retains paper deviations, complete costs
+and explicit unsupported decoder coverage.
 
 Each whole-model delivery ends with:
 
