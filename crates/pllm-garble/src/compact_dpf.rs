@@ -12,6 +12,19 @@ pub(crate) struct Bits {
     pub len: usize,
 }
 
+pub(crate) trait BitSink {
+    fn put(&mut self, value: u128, width: usize);
+}
+
+#[derive(Default)]
+pub(crate) struct BitCount(pub usize);
+
+impl BitSink for BitCount {
+    fn put(&mut self, _value: u128, width: usize) {
+        self.0 += width;
+    }
+}
+
 impl Bits {
     pub fn new() -> Self {
         Self {
@@ -19,7 +32,10 @@ impl Bits {
             len: 0,
         }
     }
-    pub fn put(&mut self, value: u128, width: usize) {
+}
+
+impl BitSink for Bits {
+    fn put(&mut self, value: u128, width: usize) {
         for i in 0..width {
             if self.len % 8 == 0 {
                 self.data.push(0);
@@ -108,8 +124,8 @@ fn random() -> Result<u128, getrandom::Error> {
 }
 
 // AES-CTR under the seed. Distinct counter 2 supplies control bits without
-// taking bits out of the secret seed. This CPU reference recomputes the flags:
-// two child calls use 4 AES invocations; one child call uses 2.
+// taking bits out of the secret seed. Single-path traversal needs two blocks;
+// paired expansion below shares the key schedule and control block.
 fn child(seed: u128, branch: usize) -> (u128, u8) {
     let cipher = Aes128::new(&seed.to_le_bytes().into());
     let mut block = (branch as u128).to_le_bytes().into();
@@ -117,6 +133,24 @@ fn child(seed: u128, branch: usize) -> (u128, u8) {
     cipher.encrypt_block(&mut block);
     cipher.encrypt_block(&mut flags);
     (u128::from_le_bytes(block.into()), (flags[0] >> branch) & 1)
+}
+
+fn children(seed: u128) -> [(u128, u8); 2] {
+    // Identical AES(seed, 0/1/2) PRG words. No expansion crosses a seed boundary.
+    let cipher = Aes128::new(&seed.to_le_bytes().into());
+    let mut blocks = [
+        0u128.to_le_bytes().into(),
+        1u128.to_le_bytes().into(),
+        2u128.to_le_bytes().into(),
+    ];
+    cipher.encrypt_blocks(&mut blocks);
+    [
+        (u128::from_le_bytes(blocks[0].into()), blocks[2][0] & 1),
+        (
+            u128::from_le_bytes(blocks[1].into()),
+            (blocks[2][0] >> 1) & 1,
+        ),
+    ]
 }
 
 impl Key {
@@ -150,8 +184,8 @@ impl Key {
         let mut words = [Vec::new(), Vec::new()];
         for level in (7..bits).rev() {
             let keep = ((point >> level) & 1) as usize;
-            let a = [child(seeds[0], 0), child(seeds[0], 1)];
-            let b = [child(seeds[1], 0), child(seeds[1], 1)];
+            let a = children(seeds[0]);
+            let b = children(seeds[1]);
             let seed = a[1 - keep].0 ^ b[1 - keep].0;
             let cw = [
                 a[0].1 ^ b[0].1 ^ keep as u8 ^ 1,
@@ -247,8 +281,11 @@ impl Key {
                 let leaf = seed ^ (key.leaf & 0u128.wrapping_sub(u128::from(flag)));
                 out.extend((0..128).map(|i| ((leaf >> i) & 1) as u8));
             } else {
-                for branch in 0..2 {
-                    let (s, t) = key.descend(depth, seed, flag, branch);
+                let cw = &key.words[depth];
+                let enabled = 0u128.wrapping_sub(flag.into());
+                for (branch, (s, t)) in children(seed).into_iter().enumerate() {
+                    let s = s ^ (cw.seed & enabled);
+                    let t = t ^ (cw.control[branch] & flag);
                     walk(key, depth + 1, s, t, out);
                 }
             }
@@ -262,7 +299,7 @@ impl Key {
         out
     }
 
-    pub fn encode(&self, output: &mut Bits) {
+    pub fn encode(&self, output: &mut impl BitSink) {
         if self.bits <= 7 {
             output.put(self.leaf, 1 << self.bits);
         } else {
@@ -308,6 +345,16 @@ impl Key {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn paired_children_preserve_every_prg_word() {
+        for seed in [0, u128::MAX, 0x123456789abcdef0fedcba9876543210]
+            .into_iter()
+            .chain((0..128).map(|bit| 1u128 << bit))
+        {
+            assert_eq!(children(seed), [child(seed, 0), child(seed, 1)]);
+        }
+    }
 
     #[test]
     fn exhaustive_small_points_and_parities_and_tree_boundaries() {
@@ -370,6 +417,9 @@ mod tests {
             for (party, key) in keys.iter().enumerate() {
                 let mut out = Bits::new();
                 key.encode(&mut out);
+                let mut count = BitCount::default();
+                key.encode(&mut count);
+                assert_eq!(count.0, out.len);
                 let mut reader = BitReader::new(&out.data, out.len).unwrap();
                 let restored = Key::decode(width, &mut reader).unwrap();
                 reader.finish().unwrap();

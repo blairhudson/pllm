@@ -235,10 +235,10 @@ measurements. No secret keys, masks or reusable handles enter the report.
 The three GapARS rescalings account for **52.1%** of unfused microprofile issuance
 and **59.6%** of its key bits. Fused direct-input index reduction and sign/interval
 comparisons together account for **54.6%** of issuance and **54.4%** of its key
-bits. The implementation serializes material once to measure resources and again
-on packet export. DPF construction also repeats the AES key schedule and control
-block when expanding both children. These identify concrete CPU targets; they do
-not establish a traffic reduction or change the public numeric/security contract.
+bits. That measured implementation serialized material once to measure resources
+and again on packet export. DPF construction repeated the AES key schedule and
+control block when expanding both children. The following implementation pair
+measures removal of that redundant work.
 
 Evidence: `docs/evidence/research-masked-wire-issuance.json`. The native test-only
 module and wrapper are source-hashed. This is a bounded local implementation
@@ -247,6 +247,36 @@ profile, not distributed worker or whole-response timing:
 ```sh
 uv run python -m benchmarks.research.masked_wire_issuance \
   --output masked-wire-issuance-reproduction.json
+```
+
+### Paired expansion and allocation-free resource counting
+
+The DPF issuer and full-table walker now expand both children using one AES key
+schedule and three AES blocks instead of two schedules and four blocks. A fixed-seed
+regression checks identical PRG words. Point/comparison evaluation, key entropy,
+correction words and fresh issuance remain unchanged. The ordinary encoder also
+accepts a counting sink: resource validation walks the actual fields without
+allocating or writing secret bytes; export performs the sole serialization.
+
+Six interleaved fresh native processes compare frozen control and optimized
+release binaries on the same 18 cases each. All **11,556 outputs** match the
+independent oracle, with identical key sizes and per-phase peer frames.
+
+| Median, 256 lanes | Unfused control | Unfused optimized | Fused control | Fused optimized |
+| --- | ---: | ---: | ---: | ---: |
+| Issuance | 51.317 ms | 36.837 ms | 91.633 ms | 61.193 ms |
+| Complete local execution | 88.555 ms | 71.051 ms | 175.403 ms | 142.032 ms |
+
+Issuance falls 28.22%/33.22%; complete local time falls 19.77%/19.03%. Export and
+import costs remain nearly equal. These are local implementation measurements,
+excluding HTTP, peak memory and whole-response execution. Payload reduction is a
+separate change. Evidence: `docs/evidence/research-masked-wire-issuance-optimized.json`.
+The comparison driver freezes a control with `--save-control DIRECTORY`, then
+runs `--control DIRECTORY --output RESULT.json` after building the candidate:
+
+```sh
+uv run python -m benchmarks.research.masked_wire_issuance_comparison \
+  --control frozen-issuance-control --output issuance-comparison.json
 ```
 
 ## Qwen3-4B allocation gate

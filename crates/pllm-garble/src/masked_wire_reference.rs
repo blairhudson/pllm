@@ -10,7 +10,7 @@
 //! gate shift, residual-index shift and predicates. All later post-processing
 //! remains charged. No GPU implementation or complete transformer reproduction.
 
-use crate::compact_dpf::{Bits, Key};
+use crate::compact_dpf::{BitCount, BitSink, Bits, Key};
 use pllm_core::residual_silu_reference::{
     Profile, EFFECTIVE_GATE_BITS, GATE_BOUND, RING_BITS, UP_BOUND,
 };
@@ -189,7 +189,7 @@ impl Shift {
                 2 * (n - shift) as usize
             }
     }
-    fn encode(&self, out: &mut Bits) {
+    fn encode(&self, out: &mut impl BitSink) {
         self.dpf.encode(out);
         let w = if self.gap {
             self.n
@@ -260,7 +260,7 @@ impl Signs {
                 ^ self.constants[1],
         ]
     }
-    fn encode(&self, out: &mut Bits) {
+    fn encode(&self, out: &mut impl BitSink) {
         self.key.encode(out);
         for x in *self.constants {
             out.put(x.into(), 1);
@@ -300,7 +300,7 @@ impl Select {
         let [a, b] = self.coefficients[selector];
         a.wrapping_mul(x).wrapping_add(b) & mask(self.bits)
     }
-    fn encode(&self, out: &mut Bits) {
+    fn encode(&self, out: &mut impl BitSink) {
         for row in self.coefficients.iter() {
             for x in row {
                 out.put((*x).into(), self.bits as usize);
@@ -361,7 +361,7 @@ impl Lookup {
             .wrapping_add(self.constants[1])
             & mask(N)
     }
-    fn encode(&self, out: &mut Bits) {
+    fn encode(&self, out: &mut impl BitSink) {
         self.dpf.encode(out);
         for x in *self.constants {
             out.put(x.into(), N as usize);
@@ -390,7 +390,7 @@ impl Multiply {
             .wrapping_add(self.coefficients[2])
             & mask(N)
     }
-    fn encode(&self, out: &mut Bits) {
+    fn encode(&self, out: &mut impl BitSink) {
         for x in *self.coefficients {
             out.put(x.into(), N as usize);
         }
@@ -409,7 +409,7 @@ struct Lane {
     output: Shift,
 }
 impl Lane {
-    fn encode(&self, out: &mut Bits) {
+    fn encode(&self, out: &mut impl BitSink) {
         self.gate.encode(out);
         self.up.encode(out);
         self.reduce.encode(out);
@@ -659,13 +659,14 @@ pub fn issue_reference_with_layout(
             });
         }
     }
-    // Count real packed secret payloads, then erase the temporary serialization.
+    // Traverse the actual encoder with a counting sink. Export serializes once;
+    // accounting does not allocate or write a temporary copy of the secret keys.
     for party in &parties {
-        let mut encoded = Bits::new();
+        let mut encoded = BitCount::default();
         for lane in party {
             lane.encode(&mut encoded);
         }
-        if encoded.len != resource.party_key_bits || encoded.data.len() != resource.party_key_bytes
+        if encoded.0 != resource.party_key_bits || encoded.0.div_ceil(8) != resource.party_key_bytes
         {
             return Err(Error::Resource);
         }

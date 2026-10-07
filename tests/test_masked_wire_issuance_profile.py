@@ -64,3 +64,18 @@ def test_whole_response_dispatch_factories_replay_saved_observations(monkeypatch
         assert run["tokens"]["output_tokens"] == 2
         outputs.add(run["generation"]["output_text_digest"])
     assert len(outputs) == 1
+
+
+def test_optimized_issuance_comparison_preserves_every_payload_and_oracle(profile):
+    _, validate = profile
+    root = Path(__file__).resolve().parents[1]
+    report = json.loads((root / "docs/evidence/research-masked-wire-issuance-optimized.json").read_text())
+    assert report["schema"] == "pllm.masked_wire_issuance_comparison.v1"
+    assert report["checked_integer_outputs"] == 11556
+    assert [(r["pair"], r["implementation"]) for r in report["reports"]] == [
+        (0, "control"), (0, "candidate"), (1, "candidate"), (1, "control"),
+        (2, "control"), (2, "candidate"),
+    ]
+    for entry in report["reports"]:
+        validate(entry["report"])
+    assert report["implementations"]["control"]["executable_sha256"] != report["implementations"]["candidate"]["executable_sha256"]
