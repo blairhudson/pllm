@@ -235,6 +235,24 @@
       }
     },
     {
+      "id": "qwen3-client-memory-16-8",
+      "title": "Qwen3-4B client memory · 16 input / 8 output tokens · native 100/40",
+      "report": "docs/evidence/research-qwen3-client-memory.json",
+      "publisher_report": "docs/evidence/research-qwen3-client-memory-publisher.json",
+      "configuration_sources": {
+        "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+        "benchmarks/research/qwen3_artifacts.py": "497b736fcc4986b303b86ccf027be08b7485f0ce73154fb5e1e408c2e586524c",
+        "benchmarks/research/qwen3_memory_frontier.py": "1dfd301df858d139d275946dac2eb1f6423aca539929dc5d77b072ee130dbf89",
+        "docs/evidence/research-qwen3-client-memory-publisher.json": "4bb041b18640a498813507f5f40853908cbf814eebc8f08ad1fdeda5eb979409"
+      },
+      "baseline": "qwen3-memory-resident",
+      "scope": "One cold 16+8-token response per ordinary SDK Experiment, fresh native clients and shared 100/40 TCP-stream caps. Indexed tokenization, paged Preparation and demand issuance are shared; only client weight storage differs. Paging lowers client peak RSS 3.91x and raises request time 8.97%, with equal output text and application bodies and zero observed new swap. The resident control includes the native-view ownership fix. Public index and checkpoint are pre-positioned; broad quality, filesystem cache, physical wire and independent deployment remain outside scope.",
+      "candidates": {
+        "qwen3-memory-resident": {"file": "benchmarks/research/qwen3_memory_resident.py", "sha256": "2cbb272038872af439d01ac1c246da97b57edea778dedc3b817aa7c00e07d80b", "label": "Resident client weights", "artifact_bytes": 9285852},
+        "qwen3-memory-paged": {"file": "benchmarks/research/qwen3_memory_paged.py", "sha256": "a288d6663ef5f4bf8b67b1d56eaa3c1f3f221f9afc9d9a5d6b7e7e97200c7a24", "label": "Paged client weights", "artifact_bytes": 9285852}
+      }
+    },
+    {
       "id": "qwen25-prepared-150-8",
       "title": "Uncapped prepared stacks · 150 input / 8 output tokens",
       "report": "docs/evidence/research-scorecard-qwen25.json",

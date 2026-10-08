@@ -1,0 +1,21 @@
+{
+  "schema": "pllm.benchmark_configuration_sources.v1",
+  "reports": {
+    "docs/evidence/research-qwen3-client-memory.json": "3ebe715a7482b5e5d91f26b1895e1d9a9004bb638a144a8f8204b44c12809654",
+    "docs/evidence/research-client-weight-ownership.json": "150221e5707e3490d859225c021ab5ddc83ece363ac3aa71a0669598f15bd6ab",
+    "docs/evidence/research-qwen3-client-memory-publisher.json": "4bb041b18640a498813507f5f40853908cbf814eebc8f08ad1fdeda5eb979409",
+    "docs/evidence/research-qwen3-client-memory-quality.json": "815ab62f3c78e03d728ebeee13c144f35a19b86ced154b13ba482a38ea6780c4"
+  },
+  "configuration_sources": {
+    "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+    "benchmarks/research/qwen3_artifacts.py": "497b736fcc4986b303b86ccf027be08b7485f0ce73154fb5e1e408c2e586524c",
+    "benchmarks/research/qwen3_memory_frontier.py": "1dfd301df858d139d275946dac2eb1f6423aca539929dc5d77b072ee130dbf89",
+    "scripts/probe_client_weight_ownership.py": "28b908d4f800a83d8332e16c6deb8989043769789eda4e271ce1e01efc020f35",
+    "python/pllm/runtime/transformer_client.py": "5c30a8068443306caefba663d8db0dc34cd01cf26e27355c6817ecdee5399ce5",
+    "benchmarks/research/qwen3_memory_resident.py": "2cbb272038872af439d01ac1c246da97b57edea778dedc3b817aa7c00e07d80b",
+    "benchmarks/research/qwen3_memory_paged.py": "a288d6663ef5f4bf8b67b1d56eaa3c1f3f221f9afc9d9a5d6b7e7e97200c7a24",
+    "benchmarks/research/qwen3_memory_quality.py": "cca37edde8f34e568f5dca9bf226fb0da522914cc7f76c845a8254ac68597ff6",
+    "benchmarks/research/data/paper-quality-prompts.json": "5b370390d07b6a12a43e414be83c57425a291ba53d22989c4062eb08d26368f9",
+    "python/pllm/runtime/reference_benchmark.py": "9823190be2f6b3355cc205b94bf77969c43dfdc2773c099092d19352be9d0680"
+  }
+}

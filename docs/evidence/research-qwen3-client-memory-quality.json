@@ -1,0 +1,36 @@
+{
+  "admission": {
+    "fp32_weight_payload_lower_bound_bytes": 16089872384,
+    "headroom_bytes": 13838516224,
+    "host": {
+      "available": 18133483520,
+      "disk_free": 50815287296,
+      "swap_used": 965738496,
+      "total": 34359738368
+    },
+    "required_bytes": 22259824128,
+    "reserve_bytes": 4294967296,
+    "tensor_count": 398
+  },
+  "checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586",
+  "configuration_digest": "bf56589bac162acd7ea7ee7f760fb2885d6077e11559aebadbb65f984f200d96",
+  "dataset_sha256": "5b370390d07b6a12a43e414be83c57425a291ba53d22989c4062eb08d26368f9",
+  "model": {
+    "endpoint": null,
+    "kind": "huggingface",
+    "local_files_only": true,
+    "model_id": null,
+    "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "source": "Qwen/Qwen3-4B"
+  },
+  "pipeline_digest": "69de1cbd194f8cf6df6ee9a6b39224106685f97eee5a1b592821e0a6bdf0fe5b",
+  "quality": null,
+  "schema": "pllm.qwen3_memory_quality_probe.v1",
+  "scope": "held-out local clear-kernel prefill agreement with locked float32 reference",
+  "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+  "source_sha256": {
+    "benchmarks/research/qwen3_memory_quality.py": "cca37edde8f34e568f5dca9bf226fb0da522914cc7f76c845a8254ac68597ff6",
+    "python/pllm/runtime/reference_benchmark.py": "9823190be2f6b3355cc205b94bf77969c43dfdc2773c099092d19352be9d0680"
+  },
+  "status": "memory-rejected"
+}

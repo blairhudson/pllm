@@ -1183,6 +1183,20 @@ Request latency stays about 166 seconds; sampled aggregate RSS rises 5.57 to
 packed/residue codecs. The 9.29 MB public index and 0.73-second compiler CPU are
 additional; checkpoint distribution, physical wire, quality and a resident 4B
 control remain unmeasured. See `docs/research/qwen3-sdk-artifacts.md`.
+A subsequent matched Qwen3-4B 16+8-token pair isolates resident versus paged client
+weights within that indexed-tokenizer stack, using fresh native clients and shared
+100/40 caps. Client peak RSS falls from 1,020.46 to 261.05 MB (3.91x), while request
+time rises from 142.665 to 155.460 seconds. Outputs and covered application bodies
+match with zero observed new swap. Sampled simultaneous client/provider RSS falls
+6.38 to 5.80 GB; aggregate cold-first CPU is nearly equal. The resident control
+includes the shared native weight-view ownership correction, whose separate
+synthetic probe halves retained matrix payload but leaves import peak unchanged.
+This closes the matched resident-control measurement gap for one short workload,
+without establishing 10x savings, representative quality, filesystem-cache or
+whole-device memory savings. Evidence: `docs/research/qwen3-client-memory.md`.
+The separate twelve-prompt FP32 quality attempt rejects before tensor loading:
+16.09 GB of reference weights alone exceeds 13.84 GB of post-reserve headroom.
+The admitted memory pair therefore has no new held-out reference-quality result.
 Compiled unscaled float32 RoPE now also shares exact coefficients
 within a phase under a 16-table/1 MiB bound, priced by admission and cleared on
 completion or failure. It preserves the original vector shapes and arithmetic
@@ -1230,6 +1244,12 @@ A matrix is copied into Rust once at compilation, then reused for later calls.
 `CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that
 immutable owner. Provider stage loading retires the original i8 allocation or
 mapping; metadata, preparation and GPU import use the shared CPU snapshot.
+Resident client bundles likewise rebind all stages sharing an imported matrix to
+its immutable native view after first compilation, retiring the duplicate owner.
+Tied token lookup/head and untied matrices preserve their original weight and
+compiled binding identities. First-import overlap remains, and callers retaining
+the original array still own its storage; retained-payload reduction alone is not
+a peak-memory improvement. Details: `docs/research/qwen3-client-memory.md`.
 Floating-point stage import and weight validation use bounded row chunks.
 Fresh public role launchers retain checked stage metadata after retiring weights
 unused by that role, without allocating a native snapshot for those stages.

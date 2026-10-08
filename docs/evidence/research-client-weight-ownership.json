@@ -1,0 +1,349 @@
+{
+  "schema": "pllm.client_weight_ownership_probe.v1",
+  "scope": "Fresh-process client snapshot ownership probe with exact boundary oracles.\n\nSynthetic signed-i8 weights exercise the ordinary ClientBundle token/head path.\nThe retained-import control holds the source metadata across execution, matching\nthe old bundle's duplicate ownership. Its numeric kernels are unchanged. Phase\nRSS samples and process peaks are separate; this is not whole-decoder evidence.\n",
+  "shape": [
+    151936,
+    2560
+  ],
+  "samples": [
+    {
+      "mode": "retained-import",
+      "weight_sha256": "8b7ff89a1bac435dcb086f431c17d4afa5c2deb9a76a1a710303ff75058f69c7",
+      "output_sha256": "c3e69e809413755ad53582290c7417849e6639f5e2931cb6009d41b6cbf2d621",
+      "matrix_bytes": 388956160,
+      "retained_matrix_payload_bytes": 777912320,
+      "import_array_retired": false,
+      "checked_outputs": 638464,
+      "phases": [
+        {
+          "phase": "imports",
+          "rss_bytes": 41009152,
+          "process_peak_rss_bytes": 41009152,
+          "elapsed_seconds": 1.9459053874015808e-05,
+          "process_cpu_seconds": 1.9999999999999185e-05
+        },
+        {
+          "phase": "bundle_import",
+          "rss_bytes": 432062464,
+          "process_peak_rss_bytes": 432062464,
+          "elapsed_seconds": 0.13891720864921808,
+          "process_cpu_seconds": 0.13902799999999998
+        },
+        {
+          "phase": "token_lookup",
+          "rss_bytes": 435257344,
+          "process_peak_rss_bytes": 435257344,
+          "elapsed_seconds": 0.15381283406168222,
+          "process_cpu_seconds": 0.145586
+        },
+        {
+          "phase": "first_head",
+          "rss_bytes": 827277312,
+          "process_peak_rss_bytes": 827277312,
+          "elapsed_seconds": 0.2290264591574669,
+          "process_cpu_seconds": 0.23630800000000002
+        },
+        {
+          "phase": "repeated_boundaries",
+          "rss_bytes": 828194816,
+          "process_peak_rss_bytes": 828194816,
+          "elapsed_seconds": 0.2463626665994525,
+          "process_cpu_seconds": 0.300456
+        },
+        {
+          "phase": "retired",
+          "rss_bytes": 828129280,
+          "process_peak_rss_bytes": 828243968,
+          "elapsed_seconds": 0.2485719993710518,
+          "process_cpu_seconds": 0.302798
+        }
+      ],
+      "repeat": 0
+    },
+    {
+      "mode": "single-snapshot",
+      "weight_sha256": "8b7ff89a1bac435dcb086f431c17d4afa5c2deb9a76a1a710303ff75058f69c7",
+      "output_sha256": "c3e69e809413755ad53582290c7417849e6639f5e2931cb6009d41b6cbf2d621",
+      "matrix_bytes": 388956160,
+      "retained_matrix_payload_bytes": 388956160,
+      "import_array_retired": true,
+      "checked_outputs": 638464,
+      "phases": [
+        {
+          "phase": "imports",
+          "rss_bytes": 41205760,
+          "process_peak_rss_bytes": 41205760,
+          "elapsed_seconds": 2.0165927708148956e-05,
+          "process_cpu_seconds": 2.0000000000006124e-05
+        },
+        {
+          "phase": "bundle_import",
+          "rss_bytes": 432242688,
+          "process_peak_rss_bytes": 432242688,
+          "elapsed_seconds": 0.13721566647291183,
+          "process_cpu_seconds": 0.137349
+        },
+        {
+          "phase": "token_lookup",
+          "rss_bytes": 435404800,
+          "process_peak_rss_bytes": 435404800,
+          "elapsed_seconds": 0.14255483355373144,
+          "process_cpu_seconds": 0.142689
+        },
+        {
+          "phase": "first_head",
+          "rss_bytes": 827392000,
+          "process_peak_rss_bytes": 827392000,
+          "elapsed_seconds": 0.21714716590940952,
+          "process_cpu_seconds": 0.232812
+        },
+        {
+          "phase": "repeated_boundaries",
+          "rss_bytes": 829014016,
+          "process_peak_rss_bytes": 829014016,
+          "elapsed_seconds": 0.23439570795744658,
+          "process_cpu_seconds": 0.296709
+        },
+        {
+          "phase": "retired",
+          "rss_bytes": 828882944,
+          "process_peak_rss_bytes": 829014016,
+          "elapsed_seconds": 0.2364020412787795,
+          "process_cpu_seconds": 0.298828
+        }
+      ],
+      "repeat": 0
+    },
+    {
+      "mode": "retained-import",
+      "weight_sha256": "8b7ff89a1bac435dcb086f431c17d4afa5c2deb9a76a1a710303ff75058f69c7",
+      "output_sha256": "c3e69e809413755ad53582290c7417849e6639f5e2931cb6009d41b6cbf2d621",
+      "matrix_bytes": 388956160,
+      "retained_matrix_payload_bytes": 777912320,
+      "import_array_retired": false,
+      "checked_outputs": 638464,
+      "phases": [
+        {
+          "phase": "imports",
+          "rss_bytes": 40976384,
+          "process_peak_rss_bytes": 40976384,
+          "elapsed_seconds": 2.7041882276535034e-05,
+          "process_cpu_seconds": 2.6999999999999247e-05
+        },
+        {
+          "phase": "bundle_import",
+          "rss_bytes": 432046080,
+          "process_peak_rss_bytes": 432046080,
+          "elapsed_seconds": 0.13639304228127003,
+          "process_cpu_seconds": 0.136409
+        },
+        {
+          "phase": "token_lookup",
+          "rss_bytes": 435240960,
+          "process_peak_rss_bytes": 435240960,
+          "elapsed_seconds": 0.14186862483620644,
+          "process_cpu_seconds": 0.141878
+        },
+        {
+          "phase": "first_head",
+          "rss_bytes": 827260928,
+          "process_peak_rss_bytes": 827260928,
+          "elapsed_seconds": 0.21669566724449396,
+          "process_cpu_seconds": 0.232141
+        },
+        {
+          "phase": "repeated_boundaries",
+          "rss_bytes": 828817408,
+          "process_peak_rss_bytes": 828817408,
+          "elapsed_seconds": 0.23420475050807,
+          "process_cpu_seconds": 0.296908
+        },
+        {
+          "phase": "retired",
+          "rss_bytes": 828784640,
+          "process_peak_rss_bytes": 828899328,
+          "elapsed_seconds": 0.2370138755068183,
+          "process_cpu_seconds": 0.299883
+        }
+      ],
+      "repeat": 1
+    },
+    {
+      "mode": "single-snapshot",
+      "weight_sha256": "8b7ff89a1bac435dcb086f431c17d4afa5c2deb9a76a1a710303ff75058f69c7",
+      "output_sha256": "c3e69e809413755ad53582290c7417849e6639f5e2931cb6009d41b6cbf2d621",
+      "matrix_bytes": 388956160,
+      "retained_matrix_payload_bytes": 388956160,
+      "import_array_retired": true,
+      "checked_outputs": 638464,
+      "phases": [
+        {
+          "phase": "imports",
+          "rss_bytes": 41025536,
+          "process_peak_rss_bytes": 41025536,
+          "elapsed_seconds": 1.995731145143509e-05,
+          "process_cpu_seconds": 1.9999999999999185e-05
+        },
+        {
+          "phase": "bundle_import",
+          "rss_bytes": 432111616,
+          "process_peak_rss_bytes": 432111616,
+          "elapsed_seconds": 0.1371141653507948,
+          "process_cpu_seconds": 0.137252
+        },
+        {
+          "phase": "token_lookup",
+          "rss_bytes": 435306496,
+          "process_peak_rss_bytes": 435306496,
+          "elapsed_seconds": 0.14248758275061846,
+          "process_cpu_seconds": 0.142626
+        },
+        {
+          "phase": "first_head",
+          "rss_bytes": 827310080,
+          "process_peak_rss_bytes": 827310080,
+          "elapsed_seconds": 0.21683862432837486,
+          "process_cpu_seconds": 0.23249099999999998
+        },
+        {
+          "phase": "repeated_boundaries",
+          "rss_bytes": 828899328,
+          "process_peak_rss_bytes": 828899328,
+          "elapsed_seconds": 0.23430441599339247,
+          "process_cpu_seconds": 0.29708599999999996
+        },
+        {
+          "phase": "retired",
+          "rss_bytes": 828817408,
+          "process_peak_rss_bytes": 828932096,
+          "elapsed_seconds": 0.2365799993276596,
+          "process_cpu_seconds": 0.299485
+        }
+      ],
+      "repeat": 1
+    },
+    {
+      "mode": "retained-import",
+      "weight_sha256": "8b7ff89a1bac435dcb086f431c17d4afa5c2deb9a76a1a710303ff75058f69c7",
+      "output_sha256": "c3e69e809413755ad53582290c7417849e6639f5e2931cb6009d41b6cbf2d621",
+      "matrix_bytes": 388956160,
+      "retained_matrix_payload_bytes": 777912320,
+      "import_array_retired": false,
+      "checked_outputs": 638464,
+      "phases": [
+        {
+          "phase": "imports",
+          "rss_bytes": 40976384,
+          "process_peak_rss_bytes": 40976384,
+          "elapsed_seconds": 2.345908433198929e-05,
+          "process_cpu_seconds": 2.3000000000002185e-05
+        },
+        {
+          "phase": "bundle_import",
+          "rss_bytes": 432029696,
+          "process_peak_rss_bytes": 432029696,
+          "elapsed_seconds": 0.13661266770213842,
+          "process_cpu_seconds": 0.136639
+        },
+        {
+          "phase": "token_lookup",
+          "rss_bytes": 435224576,
+          "process_peak_rss_bytes": 435224576,
+          "elapsed_seconds": 0.14182491786777973,
+          "process_cpu_seconds": 0.14184999999999998
+        },
+        {
+          "phase": "first_head",
+          "rss_bytes": 827228160,
+          "process_peak_rss_bytes": 827228160,
+          "elapsed_seconds": 0.21857145987451077,
+          "process_cpu_seconds": 0.234072
+        },
+        {
+          "phase": "repeated_boundaries",
+          "rss_bytes": 828784640,
+          "process_peak_rss_bytes": 828784640,
+          "elapsed_seconds": 0.2359985001385212,
+          "process_cpu_seconds": 0.298419
+        },
+        {
+          "phase": "retired",
+          "rss_bytes": 828719104,
+          "process_peak_rss_bytes": 828833792,
+          "elapsed_seconds": 0.2380861258134246,
+          "process_cpu_seconds": 0.300618
+        }
+      ],
+      "repeat": 2
+    },
+    {
+      "mode": "single-snapshot",
+      "weight_sha256": "8b7ff89a1bac435dcb086f431c17d4afa5c2deb9a76a1a710303ff75058f69c7",
+      "output_sha256": "c3e69e809413755ad53582290c7417849e6639f5e2931cb6009d41b6cbf2d621",
+      "matrix_bytes": 388956160,
+      "retained_matrix_payload_bytes": 388956160,
+      "import_array_retired": true,
+      "checked_outputs": 638464,
+      "phases": [
+        {
+          "phase": "imports",
+          "rss_bytes": 41025536,
+          "process_peak_rss_bytes": 41025536,
+          "elapsed_seconds": 1.933332532644272e-05,
+          "process_cpu_seconds": 1.9999999999999185e-05
+        },
+        {
+          "phase": "bundle_import",
+          "rss_bytes": 432062464,
+          "process_peak_rss_bytes": 432062464,
+          "elapsed_seconds": 0.13517395872622728,
+          "process_cpu_seconds": 0.135239
+        },
+        {
+          "phase": "token_lookup",
+          "rss_bytes": 435273728,
+          "process_peak_rss_bytes": 435273728,
+          "elapsed_seconds": 0.14054074976593256,
+          "process_cpu_seconds": 0.140598
+        },
+        {
+          "phase": "first_head",
+          "rss_bytes": 827260928,
+          "process_peak_rss_bytes": 827260928,
+          "elapsed_seconds": 0.21461704187095165,
+          "process_cpu_seconds": 0.23027100000000003
+        },
+        {
+          "phase": "repeated_boundaries",
+          "rss_bytes": 828882944,
+          "process_peak_rss_bytes": 828882944,
+          "elapsed_seconds": 0.2319563338533044,
+          "process_cpu_seconds": 0.294605
+        },
+        {
+          "phase": "retired",
+          "rss_bytes": 828768256,
+          "process_peak_rss_bytes": 828899328,
+          "elapsed_seconds": 0.23408416658639908,
+          "process_cpu_seconds": 0.29685399999999995
+        }
+      ],
+      "repeat": 2
+    }
+  ],
+  "parity": true,
+  "host": {
+    "total": 34359738368,
+    "available": 18531155968,
+    "swap_used": 965738496,
+    "disk_free": 50877059072
+  },
+  "maximum_swap_growth_bytes": 0,
+  "measured_at": "2026-10-08T04:08:03.622856+00:00",
+  "python": "3.13.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "source_sha256": {
+    "scripts/probe_client_weight_ownership.py": "28b908d4f800a83d8332e16c6deb8989043769789eda4e271ce1e01efc020f35",
+    "python/pllm/runtime/transformer_client.py": "5c30a8068443306caefba663d8db0dc34cd01cf26e27355c6817ecdee5399ce5"
+  }
+}

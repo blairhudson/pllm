@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import hashlib
+import json
 import weakref
 
 import numpy as np
@@ -146,3 +147,48 @@ def test_client_bundle_weights_reuse_immutable_bytes_and_preserve_tied_lookup(tm
         head.client_weight.setflags(write=True)
     np.testing.assert_array_equal(bundle.local_token_lookup(np.array([1, 2, 3])), before)
     np.testing.assert_array_equal(bundle.local_linear("lm_head", value), result)
+
+
+@pytest.mark.parametrize("tied", [False, True])
+def test_client_snapshot_retires_import_owner_without_changing_binding(tmp_path, tied):
+    from pllm import Model, lower_model
+    from pllm.model_loader import resolve_model
+    from pllm.runtime.model_binding import compile_runtime_model
+    from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
+    from pllm.runtime.transformer_client import ClientBundle
+    from pllm.runtime.transformer_engine import MaskedTransformerEngine
+
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "model", num_hidden_layers=1, tie_word_embeddings=tied,
+    )
+    source = resolve_model(Model.path(str(root), model_id="client-owner"))
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    asyncio.run(engine.load(source.manifest))
+    bundle = ClientBundle.unpack(engine.client_bundle("client-owner"))
+    plan = lower_model(json.loads((root / "config.json").read_text()),
+                       batch=1, max_input_tokens=4, max_new_tokens=2)
+    binding = compile_runtime_model(plan, bundle)
+    identity = binding.digest
+    original = bundle.stages["lm_head"].client_weight
+    imported = weakref.ref(original)
+    expected = original.copy()
+    inputs = np.ones((1, original.shape[1]), np.float32)
+    before = bundle.local_token_lookup(np.array([1, 2, 3]))
+    del original
+    result = bundle.local_linear("lm_head", inputs)
+    gc.collect()
+    assert imported() is None
+    view = bundle.stages["lm_head"].client_weight
+    assert np.shares_memory(view, bundle._local_matrices["lm_head"].weight_view())
+    assert (bundle.stages["token_lookup"].client_weight is view) is tied
+    assert bundle.stages["embed_tokens"] is bundle.stages["token_lookup"]
+    with pytest.raises(ValueError):
+        view.setflags(write=True)
+    np.testing.assert_array_equal(view, expected)
+    np.testing.assert_allclose(result, expected.astype(np.int32).sum(1)[None].astype(np.float32)
+                               * bundle.stages["lm_head"].client_weight_scales, rtol=2e-6)
+    np.testing.assert_array_equal(bundle.local_token_lookup(np.array([1, 2, 3])), before)
+    assert compile_runtime_model(plan, bundle).digest == identity
+    del bundle, binding
+    gc.collect()
+    np.testing.assert_array_equal(view, expected)

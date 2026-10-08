@@ -7,7 +7,7 @@ import json
 import secrets
 import threading
 from collections import OrderedDict, defaultdict, deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable, Protocol, cast
 
 import msgpack
@@ -768,6 +768,23 @@ class ClientBundle:
                     if self._local_kernel is None:
                         self._local_kernel = MaskedGEMM()
                     matrix = self._local_kernel.compile(stage.client_weight)
+                    # Transfer bundle ownership to the immutable native snapshot.
+                    # Tied token/head aliases must move together; callers retaining
+                    # old metadata or source bytes still own those allocations.
+                    source = stage.client_weight
+                    view = matrix.weight_view()
+                    replaced = {}
+                    for key, owner in self.stages.items():
+                        if owner.client_weight is source or owner.client_aux_weight is source:
+                            if id(owner) not in replaced:
+                                replaced[id(owner)] = replace(
+                                    owner,
+                                    client_weight=(view if owner.client_weight is source
+                                                   else owner.client_weight),
+                                    client_aux_weight=(view if owner.client_aux_weight is source
+                                                       else owner.client_aux_weight),
+                                )
+                            self.stages[key] = replaced[id(owner)]
                 self._local_matrices[stage_id] = matrix
         metal = self._body_metal_matrices.get(stage_id)
         if metal is not None and quantized.rows >= self._body_metal_min_rows:

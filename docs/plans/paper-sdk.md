@@ -69,6 +69,17 @@ factory, publisher costs, source hashes and retained rejected initial screen are
 documented in `docs/research/prepared-frontier.md`. These single pairs do not
 establish a general fresh-prompt or 10× memory improvement.
 
+The subsequent matched Qwen3-4B 16+8-token pair uses fresh clients, indexed
+tokenization and native 100/40 caps. Paged versus resident client storage lowers
+client peak RSS 1,020.46 to 261.05 MB (3.91×), with identical output text and zero
+observed new swap; request time rises 142.665 to 155.460 seconds. A separate
+resident ownership fix halves retained matrix payload but leaves import peak
+RSS unchanged. These results do not establish 10× memory savings or broad model
+quality. Evidence and replay: `docs/research/qwen3-client-memory.md`.
+The held-out FP32 quality attempt rejects before tensor loading: 16.09 GB of
+reference weights alone exceeds 13.84 GB of post-reserve headroom. Its separate
+replay and rejected admission are retained; a quality score remains pending.
+
 Protected selection now exposes bounded independent phase batches, with complete
 frame/header accounting and fresh material per operation. Its fresh-process
 comparison lives in `benchmarks/research/batched_selection.py`; provider-state
