@@ -1,0 +1,494 @@
+{
+  "admission": {
+    "headroom_bytes": 8198045696,
+    "host": {
+      "available": 12493012992,
+      "disk_free": 50076643328,
+      "swap_used": 932708352,
+      "total": 34359738368
+    },
+    "required_bytes": 3581832544
+  },
+  "calibration_sha256": "39e813914bbaea7fb5f06e2fd6243aa4f386b316bc12f569d670e7fbb970c3bc",
+  "command": "quality",
+  "diagnostic_peak_rss_bytes": 2310782976,
+  "elapsed_seconds": 374.99268733430654,
+  "experiment_factory": "benchmarks.research.prepared_frontier:serial",
+  "experiments": [
+    {
+      "budget": {
+        "max_input_tokens": 128,
+        "max_new_tokens": 4,
+        "requests": 12
+      },
+      "deployment": {
+        "kind": "local",
+        "root": "local://research-scorecard"
+      },
+      "name": "precision-w8a8",
+      "pipeline": {
+        "components": {
+          "delivery": {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "batch_objects": 64,
+              "compression": "zlib",
+              "encoding": "artifacts"
+            }
+          },
+          "inference": {
+            "component": "pllm/inference",
+            "params": {}
+          },
+          "inventory": {
+            "component": "pllm/prepared-inventory-policy/v1",
+            "params": {
+              "allocation": "demand",
+              "policy": "request-sized",
+              "refill": "on-demand",
+              "rows": 1
+            }
+          },
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          "linear": {
+            "component": "pllm/masked-linear",
+            "params": {
+              "output_encoding": "row_residues",
+              "prefill_pruning": "terminal",
+              "request_encoding": "stage_packed"
+            }
+          },
+          "preparation": {
+            "component": "pllm/model-aware-corrections",
+            "params": {
+              "storage": "paged"
+            }
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 8,
+              "weight_bits": 8
+            }
+          },
+          "tokenizer": {
+            "component": "pllm/indexed-tokenizer/v1",
+            "params": {
+              "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+              "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+            }
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "schema": "pllm.experiment.v2"
+    },
+    {
+      "budget": {
+        "max_input_tokens": 128,
+        "max_new_tokens": 4,
+        "requests": 12
+      },
+      "deployment": {
+        "kind": "local",
+        "root": "local://research-scorecard"
+      },
+      "name": "precision-w4a8",
+      "pipeline": {
+        "components": {
+          "delivery": {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "batch_objects": 64,
+              "compression": "zlib",
+              "encoding": "artifacts"
+            }
+          },
+          "inference": {
+            "component": "pllm/inference",
+            "params": {}
+          },
+          "inventory": {
+            "component": "pllm/prepared-inventory-policy/v1",
+            "params": {
+              "allocation": "demand",
+              "policy": "request-sized",
+              "refill": "on-demand",
+              "rows": 1
+            }
+          },
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          "linear": {
+            "component": "pllm/masked-linear",
+            "params": {
+              "output_encoding": "row_residues",
+              "prefill_pruning": "terminal",
+              "request_encoding": "stage_packed"
+            }
+          },
+          "preparation": {
+            "component": "pllm/model-aware-corrections",
+            "params": {
+              "storage": "paged"
+            }
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 8,
+              "weight_bits": 4
+            }
+          },
+          "tokenizer": {
+            "component": "pllm/indexed-tokenizer/v1",
+            "params": {
+              "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+              "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+            }
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "schema": "pllm.experiment.v2"
+    },
+    {
+      "budget": {
+        "max_input_tokens": 128,
+        "max_new_tokens": 4,
+        "requests": 12
+      },
+      "deployment": {
+        "kind": "local",
+        "root": "local://research-scorecard"
+      },
+      "name": "precision-w8a4",
+      "pipeline": {
+        "components": {
+          "delivery": {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "batch_objects": 64,
+              "compression": "zlib",
+              "encoding": "artifacts"
+            }
+          },
+          "inference": {
+            "component": "pllm/inference",
+            "params": {}
+          },
+          "inventory": {
+            "component": "pllm/prepared-inventory-policy/v1",
+            "params": {
+              "allocation": "demand",
+              "policy": "request-sized",
+              "refill": "on-demand",
+              "rows": 1
+            }
+          },
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          "linear": {
+            "component": "pllm/masked-linear",
+            "params": {
+              "output_encoding": "row_residues",
+              "prefill_pruning": "terminal",
+              "request_encoding": "stage_packed"
+            }
+          },
+          "preparation": {
+            "component": "pllm/model-aware-corrections",
+            "params": {
+              "storage": "paged"
+            }
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 4,
+              "weight_bits": 8
+            }
+          },
+          "tokenizer": {
+            "component": "pllm/indexed-tokenizer/v1",
+            "params": {
+              "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+              "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+            }
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "schema": "pllm.experiment.v2"
+    },
+    {
+      "budget": {
+        "max_input_tokens": 128,
+        "max_new_tokens": 4,
+        "requests": 12
+      },
+      "deployment": {
+        "kind": "local",
+        "root": "local://research-scorecard"
+      },
+      "name": "precision-equalized-w8a8",
+      "pipeline": {
+        "components": {
+          "delivery": {
+            "component": "pllm/client-bundle-transport/v1",
+            "params": {
+              "batch_objects": 64,
+              "compression": "zlib",
+              "encoding": "artifacts"
+            }
+          },
+          "inference": {
+            "component": "pllm/inference",
+            "params": {}
+          },
+          "inventory": {
+            "component": "pllm/prepared-inventory-policy/v1",
+            "params": {
+              "allocation": "demand",
+              "policy": "request-sized",
+              "refill": "on-demand",
+              "rows": 1
+            }
+          },
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          "linear": {
+            "component": "pllm/masked-linear",
+            "params": {
+              "output_encoding": "row_residues",
+              "prefill_pruning": "terminal",
+              "request_encoding": "stage_packed"
+            }
+          },
+          "preparation": {
+            "component": "pllm/model-aware-corrections",
+            "params": {
+              "storage": "paged"
+            }
+          },
+          "quantization": {
+            "component": "pllm/public-per-channel-equalized/v1",
+            "params": {
+              "profile_digest": "a1024e2b0376a5d8baa57b6c972d18f641a2817a57b204cc1e1c4182dc0f430b"
+            }
+          },
+          "tokenizer": {
+            "component": "pllm/indexed-tokenizer/v1",
+            "params": {
+              "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+              "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+            }
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "schema": "pllm.experiment.v2"
+    }
+  ],
+  "held_out_sha256": "3b11ec95f515f0e123c29f3017a1550b61b83ce31777684266f8a9b4fb8ea14b",
+  "maximum_swap_growth_bytes": 0,
+  "model": {
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+  },
+  "process_cpu_seconds": 385.332363,
+  "profile_bytes": 729527,
+  "profile_digest": "a1024e2b0376a5d8baa57b6c972d18f641a2817a57b204cc1e1c4182dc0f430b",
+  "profile_report_sha256": "363384df6a4b58b990970dbc2e2f4644f17cf6f0e81d5ddf38eeb71e7bbb71b3",
+  "quality": {
+    "candidates": [
+      {
+        "activation_bits": 8,
+        "configuration_digest": "73aeed18aa3f84cea125d044c8b1c6720589b1611ca0e033b7c03cd7db6e15e3",
+        "kernel_backend": "pllm/cpu",
+        "kernel_threads": 4,
+        "max_abs_logit_error": 3.625753164291382,
+        "name": "precision-w8a8",
+        "pipeline_digest": "1d1917bb63cdf878f65ed105f67314a26919cb7cf69d4ec39046a40c1abb0462",
+        "same_token_decode": {
+          "max_abs_logit_error": 3.7555178701877594,
+          "sample_count": 36,
+          "top1_agreement": 0.9722222222222222,
+          "top_k_recall": 0.8777777777777778
+        },
+        "sample_count": 12,
+        "top1_agreement": 0.8333333333333334,
+        "top_k_recall": 0.7833333333333333,
+        "weight_bits": 8
+      },
+      {
+        "activation_bits": 8,
+        "configuration_digest": "fe81f8d2e2d9edb353c915fca54cf23244029f97ae9c68502104ddbdeed1b434",
+        "kernel_backend": "pllm/cpu",
+        "kernel_threads": 4,
+        "max_abs_logit_error": 14.91258430480957,
+        "name": "precision-w4a8",
+        "pipeline_digest": "17a072d9ac83840d39289bf5d4bde68cfa40e5a65358bcc6f2290c8f593ce2f0",
+        "same_token_decode": {
+          "max_abs_logit_error": 14.68099069595337,
+          "sample_count": 36,
+          "top1_agreement": 0.5833333333333334,
+          "top_k_recall": 0.5722222222222223
+        },
+        "sample_count": 12,
+        "top1_agreement": 0.08333333333333333,
+        "top_k_recall": 0.3333333333333333,
+        "weight_bits": 4
+      },
+      {
+        "activation_bits": 4,
+        "configuration_digest": "76c2cd897379e7554794ad2bceffb9863a90f11f528cc852a26705a81c02f86c",
+        "kernel_backend": "pllm/cpu",
+        "kernel_threads": 4,
+        "max_abs_logit_error": 22.949941158294678,
+        "name": "precision-w8a4",
+        "pipeline_digest": "1432a377ba0b9d954d157238a7a05dc76287c87a6ab0e8b2a4d4d633d90a9663",
+        "same_token_decode": {
+          "max_abs_logit_error": 27.88296151161194,
+          "sample_count": 36,
+          "top1_agreement": 0.0,
+          "top_k_recall": 0.06666666666666667
+        },
+        "sample_count": 12,
+        "top1_agreement": 0.0,
+        "top_k_recall": 0.03333333333333333,
+        "weight_bits": 8
+      },
+      {
+        "activation_bits": 8,
+        "configuration_digest": "9196a22ee015fb79c746795d0022f452879e40c2696484c0e3a8ba2fefd3f5bc",
+        "kernel_backend": "pllm/cpu",
+        "kernel_threads": 4,
+        "max_abs_logit_error": 2.178642839193344,
+        "name": "precision-equalized-w8a8",
+        "pipeline_digest": "554d4b370524c81de46fc1815a3b8d8f35d389f108de8abf2035b4e0e4c01618",
+        "public_calibration_digest": "6ab979ed4620a93ee8c1e322bdf50a466db2b2b0e2c07b5d0b3c4bffa3d9ecbf",
+        "public_equalization_profile_digest": "a1024e2b0376a5d8baa57b6c972d18f641a2817a57b204cc1e1c4182dc0f430b",
+        "public_profile_bytes": 729527,
+        "same_token_decode": {
+          "max_abs_logit_error": 3.2925594449043274,
+          "sample_count": 36,
+          "top1_agreement": 0.8888888888888888,
+          "top_k_recall": 0.9166666666666666
+        },
+        "sample_count": 12,
+        "top1_agreement": 0.9166666666666666,
+        "top_k_recall": 0.8666666666666667,
+        "weight_bits": 8
+      }
+    ],
+    "cohort": {
+      "dataset_digest": "424cdb83d6e32fafd072a03c2250d15e19f8ef0b3ea69c7a201af1be2b8f8a90",
+      "input_token_counts": [
+        8,
+        7,
+        10,
+        8,
+        10,
+        8,
+        8,
+        10,
+        9,
+        6,
+        8,
+        6
+      ],
+      "metric": {
+        "component": "pllm/reference-agreement/v1",
+        "params": {
+          "dataset_digest": "424cdb83d6e32fafd072a03c2250d15e19f8ef0b3ea69c7a201af1be2b8f8a90",
+          "reference_checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "top_k": 5
+        }
+      },
+      "phase": "prefill",
+      "prompt_count": 12,
+      "same_token_decode": {
+        "steps_per_prompt": 3,
+        "teacher_configuration_digest": "73aeed18aa3f84cea125d044c8b1c6720589b1611ca0e033b7c03cd7db6e15e3",
+        "teacher_forcing": "first-candidate-greedy",
+        "token_cohort_digest": "e6f1c1ba847f1a1fc26fdd3886935815f402ecbd7858a05a857f3f463f034694"
+      },
+      "token_cohort_digest": "fbdd97d0b35a1bb6a01ee3a44801f025601230a42c04897eff02239631b50b82"
+    },
+    "environment": {
+      "machine": "arm64",
+      "numpy": "2.5.3",
+      "python_reference": "transformers/5.16.1",
+      "reference_attention": "eager",
+      "reference_dtype": "float32",
+      "reference_threads": 4,
+      "reference_weight_storage": "module-streamed",
+      "system": "Darwin",
+      "torch": "2.14.0"
+    },
+    "environment_digest": "e756b60447ba828559cbc09c6dd7011b982bf3c9344b0e2603dae6ed1766494f",
+    "limitations": [
+      "local clear integer kernels, not a provider transport or privacy measurement",
+      "prefill and optional same-token decode agreement, not full-generation or task accuracy",
+      "float32 reference loading and evaluation excluded from provider latency and cost"
+    ],
+    "model": {
+      "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+      "id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+    },
+    "reference_loading": {
+      "active_weight_bound_bytes": 544538624,
+      "allocation_estimate_bytes": 1892055040,
+      "buffer_bytes": 256,
+      "kv_payload_bound_bytes": 3219456,
+      "load_seconds": 24.386316064745188,
+      "loaded_float32_bytes": 120992145408,
+      "maximum_swap_growth_bytes": 0,
+      "parameter_loads": 13968,
+      "peak_active_weight_bytes": 544538624,
+      "storage": "module-streamed"
+    },
+    "schema_version": "pllm.reference_quality_benchmark.v1",
+    "scope": "local-compiled-clear-kernel-prefill-and-same-token-decode-reference"
+  },
+  "schema": "pllm.prepared_precision.v1",
+  "scope": "Source-locked, public-calibrated prepared precision screen.\n\nFit and quality are separate commands. Frozen W8A8, W4A8, W8A4 and equalized\nW8A8 choices use ordinary Experiments and the shared clear-kernel quality driver.\nThe held-out set is never a calibration input. This does not benchmark providers\nor select a serving default. Public profile compilation and bytes stay explicit.\n",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "source_sha256": {
+    "benchmarks/research/prepared_precision.py": "218b56661ee0ef403974af113ac609972139dfae985082d6f8d58ab381cf4c3a",
+    "python/pllm/runtime/public_equalization.py": "9ef0e8eb4ee9a61c057ce01efbda6513dea87dd17bf19a45695bc4ca45047b5d",
+    "python/pllm/runtime/reference_benchmark.py": "658b33fd9680a8694211a68397f1fbf86d5b1063ed9bc8417ece27dc844aa551"
+  },
+  "status": "completed"
+}

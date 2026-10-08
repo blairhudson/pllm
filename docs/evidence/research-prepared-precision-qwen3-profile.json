@@ -1,0 +1,31 @@
+{
+  "admission": {
+    "headroom_bytes": 8121139200,
+    "host": {
+      "available": 12416106496,
+      "disk_free": 50065854464,
+      "swap_used": 932708352,
+      "total": 34359738368
+    },
+    "required_bytes": 9509305728
+  },
+  "calibration_sha256": "39e813914bbaea7fb5f06e2fd6243aa4f386b316bc12f569d670e7fbb970c3bc",
+  "command": "fit",
+  "experiment_factory": "benchmarks.research.qwen3_memory_frontier:paged",
+  "held_out_sha256": "3b11ec95f515f0e123c29f3017a1550b61b83ce31777684266f8a9b4fb8ea14b",
+  "model": {
+    "local_files_only": true,
+    "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "source": "Qwen/Qwen3-4B"
+  },
+  "quality": null,
+  "schema": "pllm.prepared_precision.v1",
+  "scope": "Source-locked, public-calibrated prepared precision screen.\n\nFit and quality are separate commands. Frozen W8A8, W4A8, W8A4 and equalized\nW8A8 choices use ordinary Experiments and the shared clear-kernel quality driver.\nThe held-out set is never a calibration input. This does not benchmark providers\nor select a serving default. Public profile compilation and bytes stay explicit.\n",
+  "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+  "source_sha256": {
+    "benchmarks/research/prepared_precision.py": "c43e0a7697a1494d2c361269699c76a830fad300989502c030e875132390c733",
+    "python/pllm/runtime/public_equalization.py": "9ef0e8eb4ee9a61c057ce01efbda6513dea87dd17bf19a45695bc4ca45047b5d",
+    "python/pllm/runtime/reference_benchmark.py": "658b33fd9680a8694211a68397f1fbf86d5b1063ed9bc8417ece27dc844aa551"
+  },
+  "status": "memory-rejected"
+}
