@@ -187,6 +187,52 @@ def test_token_id_decoder_does_not_load_an_unused_tokenizer(tmp_path, monkeypatc
     assert calls == [bundle.model_id]
 
 
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3", "llama"])
+@pytest.mark.parametrize("rows", [16, 65])
+def test_compiled_kv_capacity_preserves_logits_state_and_restored_growth(
+    tmp_path, monkeypatch, model_type, rows,
+):
+    from pllm.runtime.transformer_client import LayerCache
+
+    engine, bundle, config = _bundle(tmp_path, model_type=model_type,
+        with_qkv_bias=model_type == "qwen2", qk_norm=model_type == "qwen3")
+    compiled = compile_runtime_model(_plan(config, max_input_tokens=rows, max_new_tokens=8), bundle)
+    remote = _remote(engine, "tiny-binding", bundle)
+    original = LayerCache.append
+    ids = np.random.default_rng(rows).integers(2, 258, size=rows).tolist()
+    reference = compiled.runtime(remote)
+    with monkeypatch.context() as historical:
+        historical.setattr(LayerCache, "append", lambda self, key, value, **_: original(self, key, value))
+        expected = [reference.prepare_ids(ids)[1].copy()]
+        prefill = reference.snapshot()
+        for token in range(7):
+            expected.append(reference.decode_step(token, reference.caches)[0].copy())
+        golden = reference.snapshot()
+        legacy_bytes = sum(row.key.nbytes + row.value.nbytes for row in reference.caches)
+
+    for restored in (False, True):
+        runtime = compiled.runtime(remote)
+        if restored:
+            # A smaller earlier workload must not constrain restored growth.
+            short = compile_runtime_model(_plan(config, max_input_tokens=rows, max_new_tokens=1), bundle)
+            prior = short.runtime(remote)
+            np.testing.assert_array_equal(prior.prepare_ids(ids)[1], expected[0])
+            runtime.restore(prior.snapshot())
+        else:
+            np.testing.assert_array_equal(runtime.prepare_ids(ids)[1], expected[0])
+        for token in range(7):
+            np.testing.assert_array_equal(runtime.decode_step(token, runtime.caches)[0], expected[token + 1])
+        for actual, wanted in zip(runtime.snapshot().caches, golden.caches, strict=True):
+            np.testing.assert_array_equal(actual.key, wanted.key)
+            np.testing.assert_array_equal(actual.value, wanted.value)
+        assert all(row.key.shape[0] == rows + 7 for row in runtime.caches)
+        assert sum(row.key.nbytes + row.value.nbytes for row in runtime.caches) < legacy_bytes
+    # Restores and subsequent appends must not mutate the earlier snapshot.
+    for saved, final in zip(prefill.caches, golden.caches, strict=True):
+        np.testing.assert_array_equal(saved.key, final.key[:rows])
+        np.testing.assert_array_equal(saved.value, final.value[:rows])
+
+
 def test_stage_plan_roles_and_layers():
     fused = transformer_stage_plan(
         hidden_size=32,

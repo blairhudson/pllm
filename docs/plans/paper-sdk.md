@@ -79,6 +79,11 @@ quality. Evidence and replay: `docs/research/qwen3-client-memory.md`.
 The held-out FP32 quality attempt rejects before tensor loading: 16.09 GB of
 reference weights alone exceeds 13.84 GB of post-reserve headroom. Its separate
 replay and rejected admission are retained; a quality score remains pending.
+A later compiler-bounded KV allocation removes the short-response 64-row floor,
+preserving generated-model logits and active KV bits. The matched Qwen3 pair
+reduces array payload from 18.87 to 6.78 MB but changes client peak RSS only
+235.24 to 234.98 MB (0.11%). Further frontier work must target the measured
+process peak; this payload reduction alone did not improve it.
 
 Protected selection now exposes bounded independent phase batches, with complete
 frame/header accounting and fresh material per operation. Its fresh-process

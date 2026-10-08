@@ -115,7 +115,7 @@ def decoder_memory(plan, schedule):
                 continue
             identity = (row["layer"], row["kind"])
             states[identity] = max(states.get(identity, 0),
-                4 * shape[1] * shape[3] * max(64, 1 << (shape[2] - 1).bit_length()))
+                4 * shape[1] * shape[3] * shape[2])
     qualified &= bool(states) and all((layer, kind) in states for layer, _ in states for kind in ("key", "value"))
     if not qualified:
         return {"mode": "unreleased_outputs", "working_bytes": legacy + rotary,
@@ -123,11 +123,12 @@ def decoder_memory(plan, schedule):
                 "rotary_coefficient_bytes": rotary}
     working = max(_phase_working_bytes(graph, phases[phase])
                   for phase, graph in zip(("prefill", "decode"), graphs, strict=True))
-    # Geometric KV capacity, growth overlap, restored state, completed-response
+    # KV growth is capped at the compiled sequence bound. Growth overlap,
+    # restored state, completed-response
     # snapshot and prefix-cache qualification temporaries. Persistent prefix-cache
     # payload capacity is charged separately by the caller. Benchmark response
     # snapshots must be retired after each run; arbitrary SDK history is unbounded.
     state = 6 * sum(states.values())
-    return {"mode": "full_kv_live_roots_v1", "working_bytes": working + rotary,
+    return {"mode": "full_kv_bounded_live_roots_v2", "working_bytes": working + rotary,
             "state_bytes": state, "legacy_working_bytes": legacy,
             "rotary_coefficient_bytes": rotary}

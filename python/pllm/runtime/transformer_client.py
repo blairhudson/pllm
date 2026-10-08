@@ -1347,12 +1347,21 @@ class LayerCache:
     value: np.ndarray | None = None
     length: int = 0
 
-    def append(self, key: np.ndarray, value: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def append(
+        self, key: np.ndarray, value: np.ndarray, *, maximum_sequence: int | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
         required = self.length + key.shape[0]
+        if maximum_sequence is not None and (
+            type(maximum_sequence) is not int or maximum_sequence < 1 or required > maximum_sequence
+        ):
+            raise TransformerClientError("KV cache append exceeds its sequence bound")
         key_storage = self.key
         value_storage = self.value
-        if key_storage is None or value_storage is None or required > key_storage.shape[0]:
+        if (key_storage is None or value_storage is None or required > key_storage.shape[0]
+                or maximum_sequence is not None and key_storage.shape[0] > maximum_sequence):
             capacity = max(64, 1 << (required - 1).bit_length())
+            if maximum_sequence is not None:
+                capacity = min(capacity, maximum_sequence)
             next_key = np.empty((capacity, *key.shape[1:]), dtype=key.dtype)
             next_value = np.empty((capacity, *value.shape[1:]), dtype=value.dtype)
             if self.length:

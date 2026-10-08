@@ -815,7 +815,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                         raise TransformerClientError(str(exc)) from exc
                     values[key_id] = key_view
                     return value_view
-                key, value = cache.append(key_tensor, tensor)
+                key, value = cache.append(
+                    key_tensor, tensor, maximum_sequence=self._graphs["decode"]["maximum_key_sequence"],
+                )
                 values[key_id] = key.transpose(1, 0, 2)[None]
                 return value.transpose(1, 0, 2)[None]
         elif kind == "cache_suffix":

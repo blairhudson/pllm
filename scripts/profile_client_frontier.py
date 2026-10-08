@@ -36,6 +36,7 @@ def main():
 
     from pllm.runtime.benchmark_memory import process_memory
     phases, events, originals = {}, [], []
+    allocation_points = {}
     lock = threading.Lock()
     started = time.perf_counter()
 
@@ -63,7 +64,12 @@ def main():
     source_hashes = {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
                      for path in sources}
 
-    def watch(owner, name):
+    def allocation_sample():
+        return [{"file": row.traceback[0].filename, "line": row.traceback[0].lineno,
+                 "bytes": row.size, "count": row.count}
+                for row in tracemalloc.take_snapshot().statistics("lineno")[:40]]
+
+    def watch(owner, name, *, trace_phase=False):
         descriptor = inspect.getattr_static(owner, name)
         special = isinstance(descriptor, (classmethod, staticmethod))
         original = descriptor.__func__ if special else descriptor
@@ -92,21 +98,23 @@ def main():
                         (after["lifetime_peak_rss_bytes"] or 0) - (before["lifetime_peak_rss_bytes"] or 0))
                     if row["calls"] <= 2 and len(events) < 64:
                         events.append({"phase": label, "before": before, "after": after})
+                    if args.allocations and trace_phase and label not in allocation_points:
+                        allocation_points[label] = allocation_sample()
 
         originals.append((owner, name, descriptor))
         setattr(owner, name, type(descriptor)(measured) if special else measured)
 
     for name in ("_load_artifact_bundle", "_transformer_state", "_prepare_inventory", "_make_tokenizer"):
-        watch(client.RuntimeClient, name)
+        watch(client.RuntimeClient, name, trace_phase=True)
     for name in ("parse_manifest", "reconstruct_document"):
-        watch(client, name)
-    watch(model_binding, "compile_runtime_model")
+        watch(client, name, trace_phase=True)
+    watch(model_binding, "compile_runtime_model", trace_phase=True)
     watch(model_binding.CompiledRuntimeModel, "runtime")
     for name in ("_from_document", "local_linear", "local_token_lookup"):
         watch(transformer_client.ClientBundle, name)
     watch(transformer_client.PreparedRemoteLinear, "__call__")
     for name in ("__init__", "prepare_ids", "forward_ids", "snapshot"):
-        watch(semantic_executor.SemanticDecoderRuntime, name)
+        watch(semantic_executor.SemanticDecoderRuntime, name, trace_phase=True)
 
     def interrupted(*_):
         raise KeyboardInterrupt()
@@ -126,13 +134,12 @@ def main():
         final = sample()
         allocations = None
         if args.allocations:
-            allocations = [{"file": row.traceback[0].filename, "line": row.traceback[0].lineno,
-                "bytes": row.size, "count": row.count}
-                for row in tracemalloc.take_snapshot().statistics("lineno")[:40]]
+            allocations = allocation_sample()
             tracemalloc.stop()
         document = {"schema": "pllm.client_frontier_profile.v1", "scope": __doc__,
             "initial": initial, "final": final, "phases": phases, "events": events,
-            "python_allocations": allocations, "report": report,
+            "python_allocations": allocations, "phase_python_allocations": allocation_points,
+            "report": report,
             "source_sha256": source_hashes,
             "sources_unchanged": all(hashlib.sha256(path.read_bytes()).hexdigest()
                 == source_hashes[str(path.relative_to(root))] for path in sources)}

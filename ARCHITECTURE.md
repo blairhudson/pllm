@@ -1254,6 +1254,19 @@ the guard. This one-response allocation ablation does not establish zero swap,
 whole-topology savings or held-out quality. Evidence and replay are in
 `docs/research/qwen3-client-memory.md`.
 
+Dense full-KV growth is capped at the compiled response's maximum key sequence,
+so short responses no longer allocate the historical 64-row minimum. Restored
+state grows under the receiving workload bound; overflow rejects before mutation.
+Admission prices the same ceiling with its existing six-owner overlap allowance.
+Generated Qwen2/Qwen3/Llama prefill, decode and restored-state controls preserve
+every logit and active KV bit. Windowed and retained-state owners have separate
+contracts. A fresh Qwen3-4B 16+8 pair reduces the KV-array payload from 18.87 to
+6.78 MB but leaves client peak RSS nearly unchanged, 235.24 to 234.98 MB (0.11%);
+end-of-run RSS rises. Outputs and covered bodies match with zero observed new
+swap. This bounded allocation change does not establish a client-memory or
+causal latency improvement. Details and matched resource evidence:
+`docs/research/qwen3-client-memory.md`.
+
 A matrix is copied into Rust once at compilation, then reused for later calls.
 `CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that
 immutable owner. Provider stage loading retires the original i8 allocation or

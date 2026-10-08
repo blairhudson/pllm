@@ -47,6 +47,26 @@ def test_layer_cache_grows_geometrically_and_snapshots_only_active_rows():
     assert snapshot.key.shape == (71, 2, 2)
 
 
+@pytest.mark.parametrize("bound", [23, 71, 143])
+def test_layer_cache_caps_storage_and_rejects_overflow_before_mutation(bound):
+    cache = LayerCache()
+    expected = np.arange(bound * 4, dtype=np.float32).reshape(bound, 2, 2)
+    for start in range(0, bound, 7):
+        key = expected[start:start + 7]
+        keys, values = cache.append(key, -key, maximum_sequence=bound)
+        assert cache.length <= cache.key.shape[0] <= bound
+        np.testing.assert_array_equal(keys, expected[:cache.length])
+        np.testing.assert_array_equal(values, -expected[:cache.length])
+    before = cache.copy_active()
+    storage = cache.key, cache.value
+    with pytest.raises(TransformerClientError, match="sequence bound"):
+        cache.append(expected[:1], expected[:1], maximum_sequence=bound)
+    assert cache.length == bound and cache.key is storage[0] and cache.value is storage[1]
+    np.testing.assert_array_equal(cache.key, before.key)
+    np.testing.assert_array_equal(cache.value, before.value)
+    assert not np.shares_memory(cache.key, before.key)
+
+
 def test_safetensors_engine_loads_fused_stage_and_executes_masked(tmp_path: Path):
     root = create_tiny_gemma4_checkpoint(tmp_path / "model")
     manifest = load_hf_directory(root, model_id="tiny")

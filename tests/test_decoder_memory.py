@@ -17,11 +17,19 @@ def _plan(layers=2, rows=64):
 def test_layer_depth_prices_state_but_releases_finished_tensor_roots():
     shallow = decoder_memory(*_plan(2))
     deep = decoder_memory(*_plan(16))
-    assert deep["mode"] == "full_kv_live_roots_v1"
+    assert deep["mode"] == "full_kv_bounded_live_roots_v2"
     assert deep["state_bytes"] == 8 * shallow["state_bytes"]
     assert deep["working_bytes"] < 2 * shallow["working_bytes"]
     assert deep["legacy_working_bytes"] > 6 * shallow["legacy_working_bytes"]
     assert deep["working_bytes"] + deep["state_bytes"] < deep["legacy_working_bytes"]
+
+
+@pytest.mark.parametrize("rows", [1, 16, 64, 129])
+def test_full_kv_admission_prices_bound_and_all_six_overlapping_owners(rows):
+    plan, schedule = _plan(rows=rows)
+    cfg = _tiny_model_config() | {"num_hidden_layers": 2}
+    per_row = 2 * cfg["num_hidden_layers"] * cfg["num_key_value_heads"] * cfg["head_dim"] * 4
+    assert decoder_memory(plan, schedule)["state_bytes"] == 6 * (rows + 7) * per_row
 
 
 def test_view_keeps_wide_allocation_alive_beyond_base_last_use():

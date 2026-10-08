@@ -168,6 +168,65 @@ uv run --no-sync python -m scripts.probe_client_response_memory \
   --output target/evidence/qwen3-response-memory.json
 ```
 
+## Compiler-bounded full-KV capacity
+
+Phase-local Python allocation snapshots now supplement the profiler's RSS samples.
+The post-lifetime-fix profile identifies full-KV buffers with a minimum capacity
+of 64 rows even for a compiled 16+8-token response. Across this checkpoint's 36
+layers, eight KV heads and 128 features per head, those float32 key/value arrays
+own 18,874,368 bytes. The compiled 23-row maximum needs only 6,782,976 bytes.
+These are array payloads, not process RSS or a held-out quality measurement.
+
+The semantic executor now passes the compiled maximum key sequence to each dense
+KV append. Geometric growth remains below that ceiling; overflow rejects before
+mutation. A restored snapshot can grow under its new admitted workload bound.
+Memory admission prices the same ceiling and retains all six overlapping
+state/snapshot/transient owners. Windowed and retained-state contracts keep their
+separate allocation rules.
+
+Generated Qwen2, Qwen3 and Llama controls compare the old and bounded allocation
+paths at 16 and 65 input rows. Every prefill/decode logit and active KV element is
+bit-identical, including snapshot restoration into a larger response budget.
+Tests also check atomic overflow rejection, snapshot independence and matching
+admission. The installed-wheel suite passes 195 tests, with the optional pinned
+checkpoint and unavailable Metal dependency skipped.
+
+The `kv-capacity` mode of `scripts/probe_client_response_memory.py` restores only
+the historical `LayerCache.append` and matching memory estimate from `6ba400f`.
+Both candidates retain the scoped HTTP/artifact lifetimes. It uses fresh clients,
+one private cohort salt and cold artifact caches, shared native 100/40 caps,
+ordinary SDK execution, and no tracing or forced garbage collection. Control and
+candidate use their corresponding allocation estimate in both parent and child.
+
+The fresh 16+8-token Qwen3-4B pair passes every request and comparison check,
+preserves output text and covered application bodies, and observes zero new swap.
+Its retained report is `docs/evidence/research-qwen3-kv-capacity.json`.
+
+| Metric | Historical capacity | Compiled-bound capacity |
+| --- | ---: | ---: |
+| Client/dashboard lifetime peak RSS | 235.24 MB | 234.98 MB |
+| Client/dashboard end-of-run RSS | 204.29 MB | 224.85 MB |
+| Sampled simultaneous topology RSS peak | 5.565 GB | 5.557 GB |
+| Complete request | 166.821 s | 158.317 s |
+| Aggregate cold-first process CPU | 235.145 s | 219.236 s |
+| Covered application bodies | 556.31 MB | 556.31 MB |
+
+The **0.11% peak-RSS change does not establish a client-memory improvement**;
+end-of-run RSS instead rises 10.06%. The smaller live KV payload did not translate
+into a meaningful process-peak reduction. Request time falls 5.10% in this single
+pair, but unchanged provider roles also consume less CPU, so it does not isolate
+a causal KV-allocation speedup. Historical allocation cohorts remain separate.
+Checkpoint distribution, physical wire and held-out quality remain unmeasured.
+
+```sh
+PLLM_RESEARCH_ARTIFACTS=target/qwen3-memory-artifacts HF_HUB_OFFLINE=1 \
+uv run --no-sync python -m scripts.probe_client_response_memory \
+  --allocation-control kv-capacity \
+  --experiment benchmarks.research.qwen3_memory_frontier:paged \
+  --prompt-file target/qwen3-memory-artifacts/prompt.txt \
+  --output target/evidence/qwen3-kv-capacity.json
+```
+
 ## Held-out quality admission
 
 The twelve public prompts in `benchmarks/research/data/paper-quality-prompts.json`
