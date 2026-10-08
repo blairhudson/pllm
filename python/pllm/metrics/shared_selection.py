@@ -19,7 +19,7 @@ def run_pruning(benchmark, scores, words, source, expected, degrees, retained, s
 
     params = benchmark.component.get_params()
     factor = benchmark.heads * benchmark.tokens
-    specification = {"rows": benchmark.tokens, "words": benchmark.lanes, "selection": {
+    specification = {"rows": benchmark.tokens, "words": benchmark.lanes, "batch_size": params["batch_size"], "selection": {
         "method": "threshold", "threshold": params["threshold_q16"] * factor,
         "reduction": params["reduction_threshold_q16"] * factor,
     }}
@@ -50,7 +50,7 @@ def run_pruning(benchmark, scores, words, source, expected, degrees, retained, s
     keys = tuple(raw["key_bytes"])
     frames = tuple(raw["frame_bytes"])
     numeric = {"schema": "pllm.numeric.token_pruning.q16.v1", "parameters": {
-        k: v for k, v in params.items() if k != "backend"},
+        k: v for k, v in params.items() if k not in ("backend", "batch_size")},
         "score": "exact nonnegative Q16 column-sum numerator", "comparison": "strict greater",
         "records": "stable opaque 32-bit words", "degree_selection": "only after pruning"}
     digest = hashlib.sha256(json.dumps(numeric, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -63,7 +63,7 @@ def run_pruning(benchmark, scores, words, source, expected, degrees, retained, s
         sdk_implementation_digest=_sdk_digest("shared_selection.py"), input_source=source,
         resources=OperatorBenchmarkResources(
             keys, tuple(v * 8 for v in keys), frames,
-            8 * (sum(frames) - 2 * 78 * raw["rounds"]), raw["rounds"], 0,
+            8 * (sum(frames) - raw["framing_bytes"]), raw["rounds"], 0,
             resources["allocation_estimate_bytes"], 4 * (sum(sizes) + len(expected)) + benchmark.tokens,
             8 * (len(scores) + len(words) + len(expected)),
             role_names=("party_0", "party_1"),
@@ -82,7 +82,7 @@ def run_pruning(benchmark, scores, words, source, expected, degrees, retained, s
             "One-shot garbled comparisons return arithmetic predicate shares; every full-record conditional move uses fresh Beaver triples",
             "Two party-local primitives consume independent shares; trusted in-process issuance supplies random OT and triples",
             "Client-local exact attention scoring precedes sharing; no provider scoring or trained thresholds are implemented",
-            "Serial issuance preflights all possible counts under 64 MiB allocation, 8,388,608 products and 512 MiB cumulative keys",
+            "Bounded independent batches preflight all possible counts under 64 MiB allocation, 8,388,608 products and 512 MiB cumulative keys",
             "Frames bind shape/context/role/issuance and burn on malformed input, replay or cancellation; transport authentication and malicious security are absent",
             "Both-party keys, conversions, constant labels, public metadata and all peer frames are charged; boundary bytes are estimates",
             "Final output opens only at the local benchmark oracle; no compiler-bound causal KV owner, degree polynomial execution or provider transport",

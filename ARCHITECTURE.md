@@ -662,6 +662,16 @@ under 64 MiB live allocation, 512 MiB cumulative material and bounded product
 work. Complete 39×896 synthetic pruning executes with 13.09 MB keys and 8.39 MB
 peer frames; 150-row worst-case admission rejects. These are independent bounded
 operator results, not decoder memory savings or reviewed role transport.
+The explicit mixed `batch_size=4` or `16` coalesces independent primitive phases
+under the same admission ceiling, retaining fresh material and context bindings
+for every operation. A public dependency-preserving compaction wavefront hides
+selected positions within the existing count disclosure. Thirty-six fresh
+processes check 468,585 complete outputs. At 256×257 top-k, size 16 reduces
+exchanges from 19,200 to 1,200 with unchanged 295.26 MB keys and nearly unchanged
+local CPU. Outer framing raises peer bodies 78.59 to 78.77 MB and the conservative
+live-allocation estimate rises 15.45 to 58.29 MB. Complete 39×896 pruning drops
+688 to 78 exchanges, retaining 13.09 MB keys. These local round reductions do
+not establish WAN latency, protected scoring or live provider-state integration.
 Details: `docs/research/shared-selection-reference.md`.
 The separate common-profile Compact/LogRow/Curl
 screen counts activation-only material and missing conversions explicitly;

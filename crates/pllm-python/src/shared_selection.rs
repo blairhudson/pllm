@@ -13,7 +13,13 @@ use zeroize::Zeroizing;
 struct Specification {
     rows: usize,
     words: usize,
+    #[serde(default = "serial_batch")]
+    batch_size: usize,
     selection: Method,
+}
+
+fn serial_batch() -> usize {
+    1
 }
 
 #[derive(Deserialize)]
@@ -32,6 +38,7 @@ fn parse(raw: &str) -> PyResult<Plan> {
     Ok(Plan {
         rows: p.rows,
         words: p.words,
+        batch_size: p.batch_size,
         selection: match p.selection {
             Method::TopK { keep, recent } => Selection::TopK { keep, recent },
             Method::Threshold {
@@ -56,6 +63,7 @@ fn implementation_digest() -> &'static str {
         for source in [
             include_bytes!("shared_selection.rs").as_slice(),
             include_bytes!("../../pllm-garble/src/shared_selection.rs").as_slice(),
+            include_bytes!("../../pllm-garble/src/shared_selection/batch.rs").as_slice(),
             include_bytes!("../../pllm-garble/src/shared_circuit.rs").as_slice(),
             include_bytes!("../../pllm-garble/src/shared_arithmetic_reference.rs").as_slice(),
             include_bytes!("../../pllm-garble/src/boolean.rs").as_slice(),
@@ -75,6 +83,7 @@ fn implementation_digest() -> &'static str {
 fn resources(r: &native::Resources) -> Value {
     json!({
         "key_bytes": r.key_bytes, "frame_bytes": r.frame_bytes, "rounds": r.rounds,
+        "framing_bytes": r.framing_bytes,
         "predicates": r.predicates, "products": r.products,
         "ciphertext_bytes": r.ciphertext_bytes, "constant_bytes": r.constant_bytes,
         "public_metadata_bytes_estimate": r.public_metadata_bytes,

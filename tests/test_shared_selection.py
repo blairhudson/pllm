@@ -100,3 +100,28 @@ def test_mixed_pruning_still_rejects_decoder_transform():
     plan = lower_model(config, batch=1, max_input_tokens=4, max_new_tokens=2)
     with pytest.raises(ValueError):
         plan.apply(CipherPruneTokenPruning(backend="mixed"))
+
+
+@pytest.mark.parametrize("batch_size", [4, 16])
+def test_batched_pruning_preserves_numeric_replay_and_charges_all_frames(batch_size):
+    control = CipherPruneTokenPruning(backend="mixed", threshold_q16=10, reduction_threshold_q16=20)
+    candidate = control.with_params(batch_size=batch_size)
+    inputs = {"attention_q16": [21, 0, 11, 0] * 4,
+              "words": [(i * 0x8765abcd) & 0xffffffff for i in range(4 * 1025)]}
+    a, b = [benchmark_operator(c, lanes=1025, samples=1, inputs=inputs) for c in (control, candidate)]
+    assert a.numeric_contract_digest == b.numeric_contract_digest
+    assert a.resources.raw_key_payload_bytes_per_party == b.resources.raw_key_payload_bytes_per_party
+    assert a.resources.peer_rounds > b.resources.peer_rounds
+    assert a.resources.peer_payload_bits == b.resources.peer_payload_bits
+    assert b.resources == replay_operator_benchmark(b.configuration, inputs=inputs).resources
+    assert create_component(candidate.component, candidate.params) == candidate
+    phases = b.samples[0].peer_frame_bytes_by_phase
+    assert len(phases) == b.resources.peer_rounds
+    assert tuple(sum(p[i] for p in phases) for i in (0, 1)) == b.resources.peer_frame_bytes_by_direction
+    assert b.resources.protocol_allocation_estimate_bytes <= 64 << 20
+
+
+@pytest.mark.parametrize("batch_size", [False, 0, 2, 17])
+def test_bad_batch_rejects_before_issuance(batch_size):
+    with pytest.raises(ConfigurationError):
+        CipherPruneTokenPruning(backend="mixed", batch_size=batch_size)

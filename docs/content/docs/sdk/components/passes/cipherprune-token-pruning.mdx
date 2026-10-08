@@ -39,6 +39,7 @@ is available for this component; those paths reject its unsupported transformati
 | `threshold_q16` | Integer in `[0, 65535]`; strict `score > threshold` |
 | `reduction_threshold_q16` | Integer in `(threshold_q16, 65536]`; strict high-degree comparison |
 | `backend` | `"half_gates"` (default) or `"mixed"`; same numeric/disclosure contract, separately identified execution |
+| `batch_size` | 1 (default), 4 or 16 independent operations per exchange; larger batches require `backend="mixed"` and retain the 64 MiB live-allocation ceiling |
 | `geometry` | Benchmark-only mapping with exactly `tokens` (1–256) and `heads` (1–32) |
 | `lanes` | Benchmark-only complete 32-bit feature words per token; 1–256 for half-gates, 1–8192 for mixed, subject to aggregate admission |
 | `samples` | 1–16 fresh independent invocations |
@@ -92,12 +93,27 @@ No inter-evaluator frames exist in this half-gates adaptation; that is not a
 zero-network claim. Process peak memory and physical wire are unknown.
 The mixed backend reports each direction and phase of its actual local peer
 frames, including OT conversions, record movement and count/degree disclosure.
-Keys retire serially, so cumulative material and live allocation are distinct.
+Independent comparisons and record moves can share bounded phase envelopes.
+Compaction uses a dependency-preserving public wavefront; private positions never
+choose the schedule. Each operation still receives fresh one-use material and
+its own context/issuance binding. Inner headers and outer batch envelopes are
+charged. All batch members burn on failure. Keys retire between batches, so
+cumulative material and live allocation are distinct. Fewer exchanges do not
+imply fewer arithmetic products, key bytes or measured WAN latency.
 
 - [Fresh-process cost and disclosure screen](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-token-pruning-cost.json)
 - [Installed-wheel operator report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-token-pruning-sdk.json)
 - [Source contract and resource gates](https://github.com/blairhudson/pllm/blob/main/docs/research/token-pruning-reference.md)
 - [Mixed selection and complete-record costs](https://github.com/blairhudson/pllm/blob/main/docs/research/shared-selection-reference.md)
+- [Matched phase-batching cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-batched-selection-cost.json)
+- [Installed-wheel mixed batch/replay report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-batched-selection-sdk.json)
+
+The batching cohort checks 468,585 exact outputs in 36 fresh processes. Complete
+256-row/128-feature K/V top-k reduces local exchanges from 19,200 to 1,200 at
+`batch_size=16`, with unchanged 295.26 MB of keys and almost unchanged local CPU.
+Its live-allocation estimate rises from 15.45 to 58.29 MB. For 39×896 pruning,
+exchanges fall from 688 to 78 with unchanged 13.09 MB keys. These are bounded
+local protocol measurements; a measured WAN speedup remains unknown.
 
 The default half-gates full-width layouts reject resource admission. The mixed
 backend separately admits bounded full-width synthetic records. Learned

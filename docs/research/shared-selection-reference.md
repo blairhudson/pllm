@@ -39,7 +39,8 @@ foreign context and cancellation retire it. Count and degree disclosure frames
 bind context, shape, direction and a fresh issuance. Framing is not authenticated
 transport or malicious-result verification.
 
-The local harness creates both initial share owners and issues material serially.
+The local harness creates both initial share owners and issues material in bounded
+batches; the default batch size remains one.
 It opens only authorized disclosures and the final independent-oracle result.
 Client-local clear score calculation is outside the protected selector; no
 provider attention-score computation is implemented. Caller-supplied context is
@@ -51,7 +52,7 @@ retained counts must fit a **64 MiB combined live-allocation estimate**,
 **8,388,608 product limit** and **512 MiB cumulative both-party key limit**.
 Both share owners, padded sorting and returned-record overlap, bounded predicate
 and product workspaces, and phase-accounting storage are included. External
-Python inputs and oracle records remain additional owners. Serial issuance lowers
+Python inputs and oracle records remain additional owners. Bounded issuance limits
 peak live material; it does not remove cumulative issuance, key delivery or
 dependent peer exchanges.
 
@@ -96,8 +97,51 @@ ciphertext, 0.246 MB constants and 101.32 MB client encodings; the compact-index
 control projects 8.662 GB ciphertext with the same client encodings. Boundary
 label and metadata categories remain separate in the report. Mixed movement
 passes full-width live-allocation admission but remains a poor state-reduction
-tradeoff. These serial round counts are the implemented schedule, not a claim
-that independent comparisons cannot be batched in a future construction.
+tradeoff. These round counts describe the historical serial layout.
+
+## Bounded phase batching
+
+The explicit `CipherPruneTokenPruning(backend="mixed", batch_size=4)` or
+`batch_size=16` coalesces independent predicate and record-movement frames.
+Top-k uses disjoint bitonic layers; threshold compaction uses a public
+dependency-preserving wavefront of the original adjacent moves. Private selected
+positions never choose a batch. The disclosed retained count still determines
+the compaction geometry.
+
+Every member retains its own context, fresh OT/triple material and one-use
+state. Failure burns the entire outstanding batch. Headers for each inner frame
+and the outer envelope are charged separately from masked payload; material
+is retired between batches. Larger batches increase the live-allocation estimate
+and retain the same 64 MiB ceiling and pre-disclosure worst-count admission.
+Numeric identity, selection results, cumulative keys and product counts remain
+unchanged. This is bounded local exchange coalescing; provider transport and
+measured WAN latency remain separate work.
+
+`benchmarks/research/batched_selection.py` compares sizes 1, 4 and 16 in fresh
+processes for complete top-k and threshold-pruning records. It checks an
+independent oracle and retains every sample's complete costs and phase lengths.
+
+`docs/evidence/research-batched-selection-cost.json` records **468,585 exact
+outputs across 36 fresh processes**, three per geometry/batch case. All batch
+sizes preserve complete words, selection order, masked payload, keys and product
+counts. Extra outer envelopes increase serialized peer frames slightly.
+
+| Consumer / rows / words / retained | Batch | Both-party keys | Peer frames | Peer exchanges | Live-allocation estimate | Median issuance / online |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Top-k / 256 / 257 / 128 | 1 | 295.26 MB | 78.59 MB | 19,200 | 15.45 MB | 37.480 / 10.991 s |
+| Top-k / 256 / 257 / 128 | 4 | 295.26 MB | 78.86 MB | 4,800 | 23.33 MB | 37.520 / 10.998 s |
+| Top-k / 256 / 257 / 128 | 16 | 295.26 MB | 78.77 MB | 1,200 | 58.29 MB | 37.505 / 10.998 s |
+| Pruning / 39 / 896 / 19 | 1 | 13.09 MB | 8.39 MB | 688 | 13.69 MB | 2.760 / 0.062 s |
+| Pruning / 39 / 896 / 19 | 4 | 13.09 MB | 8.40 MB | 197 | 22.45 MB | 2.759 / 0.063 s |
+| Pruning / 39 / 896 / 19 | 16 | 13.09 MB | 8.40 MB | 78 | 57.64 MB | 2.763 / 0.064 s |
+
+The 16-operation top-k batch removes **93.75% of exchanges**, while local online
+CPU is almost unchanged and admission prices **3.77×** the live allocation.
+It still spends 295.26 MB of one-use keys to retire 131,584 clear-state bytes.
+At 39×896, the dependency-preserving pruning wavefront reduces exchanges 88.66%;
+its retained-count dependency prevents a simple 16-fold reduction. Both remain
+local operator results, without measured network latency, live provider state,
+protected scoring or reviewed transport. Batching does not satisfy those gates.
 
 Native checks cover every small keep mask, strict ties, stable complete-word
 movement, padded non-power-of-two geometry, mandatory recent rows, fixed public
@@ -116,6 +160,11 @@ uv run --no-sync python -m benchmarks.research.shared_selection \
 uv run --no-sync python examples/benchmarks/token_pruning.py \
   --backend mixed --lanes 128 --samples 3 \
   --output docs/evidence/research-shared-selection-sdk-reproduction.json
+uv run --no-sync python -m benchmarks.research.batched_selection \
+  --output docs/evidence/research-batched-selection-cost-reproduction.json
+uv run --no-sync python examples/benchmarks/token_pruning.py \
+  --backend mixed --batch-size 16 --lanes 128 --samples 3 \
+  --output docs/evidence/research-batched-selection-sdk-reproduction.json
 cargo test --locked --release -p pllm-garble shared_selection
 uv run --no-sync pytest -q tests/test_shared_selection.py tests/test_token_pruning.py
 ```

@@ -1,0 +1,282 @@
+{
+  "benchmark_status": "completed",
+  "checkpoint_quality": null,
+  "citations": [
+    {
+      "paper_id": "cipherprune",
+      "scope": "Sections 3.2\u20133.3 and Appendix A Figures 13\u201314: exact score-numerator thresholds, protected count, stable compaction and disclosed compacted degree decisions; local half-gates adaptation",
+      "source_sha256": "cc6df60a5e12bcc65caec5a94a51a810d7b5cab25daf55c5b476949cb2c4dbb2",
+      "title": "CipherPrune: Efficient and Scalable Private Transformer Inference",
+      "url": "https://arxiv.org/html/2502.16782v2"
+    }
+  ],
+  "configuration": {
+    "component": {
+      "component": "pllm/cipherprune-token-pruning/v1",
+      "params": {
+        "backend": "mixed",
+        "batch_size": 16,
+        "reduction_threshold_q16": 24576,
+        "threshold_q16": 8192
+      }
+    },
+    "geometry": {
+      "heads": 2,
+      "tokens": 4
+    },
+    "lanes": 128,
+    "samples": 3,
+    "schema": "pllm.operator_benchmark.v2"
+  },
+  "configuration_digest": "e4616c904a72d97f0ddfc00211b105e7029d35a79c148c419c53913d9821b46e",
+  "environment": {
+    "native": "0.1.0-alpha.2",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "full_wire_bytes": null,
+  "independent_role_transport": false,
+  "input_source": "public-fixture",
+  "limitations": [
+    "Retained count and compacted-order degree predicates are disclosed; schedules depend only on public geometry/count",
+    "One-shot garbled comparisons return arithmetic predicate shares; every full-record conditional move uses fresh Beaver triples",
+    "Two party-local primitives consume independent shares; trusted in-process issuance supplies random OT and triples",
+    "Client-local exact attention scoring precedes sharing; no provider scoring or trained thresholds are implemented",
+    "Bounded independent batches preflight all possible counts under 64 MiB allocation, 8,388,608 products and 512 MiB cumulative keys",
+    "Frames bind shape/context/role/issuance and burn on malformed input, replay or cancellation; transport authentication and malicious security are absent",
+    "Both-party keys, conversions, constant labels, public metadata and all peer frames are charged; boundary bytes are estimates",
+    "Final output opens only at the local benchmark oracle; no compiler-bound causal KV owner, degree polynomial execution or provider transport",
+    "Checkpoint quality, measured process peak memory, full wire and independent cryptographic review remain unknown"
+  ],
+  "median_issuance_seconds": 0.013195166000000001,
+  "median_online_seconds": 0.004446292000000001,
+  "method": "cipherprune-mixed-threshold-stable-compaction",
+  "native_implementation_digest": "e005d4920bdbd35dfbe4cddff19f8e1e7f7551d7ebcd655e942add966009b851",
+  "numeric_contract_digest": "01ec45ac9552e027614cc8c99db072cb84a344e7773308f4403a74b1afe4e797",
+  "paper_coverage": "component-reference",
+  "peak_memory_bytes": null,
+  "privacy_reviewed": false,
+  "quality": {
+    "absolute_tolerance": null,
+    "base_profile_exact_outputs": null,
+    "checked_outputs": 1164,
+    "exact_integer_outputs": 1164,
+    "float_reference": "Exact independent Python threshold/filter oracle; no floating approximation or model quality measured",
+    "maximum_absolute_error": 0.0,
+    "maximum_encoded_profile_error": null,
+    "maximum_normalization_error": null,
+    "maximum_profile_absolute_error": null,
+    "mean_absolute_error": 0.0,
+    "mean_profile_absolute_error": null,
+    "outputs_within_tolerance": null
+  },
+  "resources": {
+    "client_entry_exit_payload_estimate_bytes": 7200,
+    "client_mask_payload_estimate_bytes": 3716,
+    "evaluator_ciphertext_bytes": 50176,
+    "evaluator_constant_label_bytes": 7728,
+    "expanded_correlation_bytes_per_party": null,
+    "homomorphic_coefficient_bits": null,
+    "homomorphic_polynomial_degree": null,
+    "homomorphic_scale_bits": null,
+    "key_payload_bytes_by_operation": [
+      [
+        "garbled-decisions",
+        21560,
+        76048
+      ],
+      [
+        "record-movement",
+        4680,
+        4680
+      ]
+    ],
+    "peer_frame_bytes_by_direction": [
+      15474,
+      4946
+    ],
+    "peer_payload_bits": 137984,
+    "peer_rounds": 9,
+    "prf_field_evaluations_per_party": null,
+    "protocol_allocation_estimate_bytes": 53986496,
+    "public_metadata_bytes_estimate": 81543,
+    "public_profile_bytes_estimate": null,
+    "public_table_bytes_by_party": null,
+    "public_table_bytes_per_party": 0,
+    "raw_key_payload_bits_per_party": [
+      209920,
+      645824
+    ],
+    "raw_key_payload_bytes_per_party": [
+      26240,
+      80728
+    ],
+    "role_names": [
+      "party_0",
+      "party_1"
+    ],
+    "setup_frame_bytes_by_operation": null
+  },
+  "resources_scope": "per-sample",
+  "samples": [
+    {
+      "clear_seconds": 0.0,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": null,
+      "homomorphic_operations": null,
+      "input_sharing_seconds": 0.000562417,
+      "issuance_seconds": 0.013272252,
+      "minimum_remaining_depth": null,
+      "native_call_process_cpu_seconds": 0.018404,
+      "online_seconds": 0.004525248000000001,
+      "peer_frame_bytes_by_phase": [
+        [
+          340,
+          468
+        ],
+        [
+          6484,
+          340
+        ],
+        [
+          82,
+          82
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          258,
+          354
+        ],
+        [
+          4866,
+          258
+        ],
+        [
+          90,
+          90
+        ]
+      ],
+      "public_setup_seconds": 0.0,
+      "verification_seconds": null
+    },
+    {
+      "clear_seconds": 0.0,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": null,
+      "homomorphic_operations": null,
+      "input_sharing_seconds": 0.000548792,
+      "issuance_seconds": 0.013195166000000001,
+      "minimum_remaining_depth": null,
+      "native_call_process_cpu_seconds": 0.018222,
+      "online_seconds": 0.004446292000000001,
+      "peer_frame_bytes_by_phase": [
+        [
+          340,
+          468
+        ],
+        [
+          6484,
+          340
+        ],
+        [
+          82,
+          82
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          258,
+          354
+        ],
+        [
+          4866,
+          258
+        ],
+        [
+          90,
+          90
+        ]
+      ],
+      "public_setup_seconds": 0.0,
+      "verification_seconds": null
+    },
+    {
+      "clear_seconds": 0.0,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": null,
+      "homomorphic_operations": null,
+      "input_sharing_seconds": 0.0005425,
+      "issuance_seconds": 0.013183166999999999,
+      "minimum_remaining_depth": null,
+      "native_call_process_cpu_seconds": 0.018173,
+      "online_seconds": 0.004428666000000001,
+      "peer_frame_bytes_by_phase": [
+        [
+          340,
+          468
+        ],
+        [
+          6484,
+          340
+        ],
+        [
+          82,
+          82
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          1118,
+          1118
+        ],
+        [
+          258,
+          354
+        ],
+        [
+          4866,
+          258
+        ],
+        [
+          90,
+          90
+        ]
+      ],
+      "public_setup_seconds": 0.0,
+      "verification_seconds": null
+    }
+  ],
+  "schema": "pllm.operator_benchmark_report.v1",
+  "scope": "bounded in-process operator; fresh one-use material per sample",
+  "sdk_availability": "operator-benchmark",
+  "sdk_implementation_digest": "ab9c8082d098872627ea0f759f345c08b9728a92024cdd53130c0441d566abd1",
+  "whole_model_executable": false
+}

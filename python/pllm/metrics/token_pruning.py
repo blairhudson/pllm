@@ -45,7 +45,7 @@ class _TokenPruningBenchmark(_OperatorBenchmark):
             from pllm import _native
             params = self.component.get_params()
             factor = self.heads * self.tokens
-            plan = {"rows": self.tokens, "words": self.lanes, "selection": {
+            plan = {"rows": self.tokens, "words": self.lanes, "batch_size": params["batch_size"], "selection": {
                 "method": "threshold", "threshold": params["threshold_q16"] * factor,
                 "reduction": params["reduction_threshold_q16"] * factor,
             }}
@@ -110,7 +110,7 @@ class _TokenPruningBenchmark(_OperatorBenchmark):
         phases = resources["phases"]
         keys = tuple(sum(p[name] for p in phases) for name in ("issuer_key_bytes", "evaluator_material_bytes"))
         numeric = {"schema": "pllm.numeric.token_pruning.q16.v1", "parameters": {
-                       k: v for k, v in params.items() if k != "backend"},
+                       k: v for k, v in params.items() if k not in ("backend", "batch_size")},
                    "score": "exact nonnegative Q16 column-sum numerator", "comparison": "strict greater",
                    "records": "stable opaque 32-bit words", "degree_selection": "only after pruning"}
         digest = hashlib.sha256(json.dumps(numeric, sort_keys=True, separators=(",", ":")).encode()).hexdigest()

@@ -176,6 +176,7 @@ class CipherPruneTokenPruning(PlanPass):
                 "threshold_q16": {"type": "integer", "minimum": 0, "maximum": 65535},
                 "reduction_threshold_q16": {"type": "integer", "minimum": 1, "maximum": 65536},
                 "backend": {"type": "string", "enum": ["half_gates", "mixed"]},
+                "batch_size": {"type": "integer", "enum": [1, 4, 16]},
             },
             "required": ["threshold_q16", "reduction_threshold_q16"],
         },
@@ -184,19 +185,22 @@ class CipherPruneTokenPruning(PlanPass):
     )
 
     def __init__(self, *, threshold_q16: int = 8192, reduction_threshold_q16: int = 24576,
-                 backend: str = "half_gates") -> None:
+                 backend: str = "half_gates", batch_size: int = 1) -> None:
         if (type(threshold_q16) is not int or type(reduction_threshold_q16) is not int
                 or not 0 <= threshold_q16 < reduction_threshold_q16 <= 65536):
             raise ConfigurationError("pruning thresholds must satisfy 0 <= theta < beta <= 65536")
         if type(backend) is not str or backend not in ("half_gates", "mixed"):
             raise ConfigurationError("pruning backend must be half_gates or mixed")
+        if type(batch_size) is not int or batch_size not in (1, 4, 16) or (backend != "mixed" and batch_size != 1):
+            raise ConfigurationError("pruning batch_size requires mixed backend and 1, 4 or 16")
         super().__init__(self.descriptor.component, {
             "threshold_q16": threshold_q16, "reduction_threshold_q16": reduction_threshold_q16,
             **({"backend": backend} if backend != "half_gates" else {}),
+            **({"batch_size": batch_size} if batch_size != 1 else {}),
         })
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"backend": "half_gates", **self.to_spec()["params"]}
+        return {"backend": "half_gates", "batch_size": 1, **self.to_spec()["params"]}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

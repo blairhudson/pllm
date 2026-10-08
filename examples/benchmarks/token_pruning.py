@@ -15,10 +15,11 @@ def main():
     parser.add_argument("--lanes", type=int, default=8, help="complete 32-bit words per token")
     parser.add_argument("--samples", type=int, default=3)
     parser.add_argument("--backend", choices=("half_gates", "mixed"), default="half_gates")
+    parser.add_argument("--batch-size", type=int, choices=(1, 4, 16), default=1)
     args = parser.parse_args()
     if args.output.exists():
         parser.error("provide a new output path")
-    report = benchmark_operator(CipherPruneTokenPruning(backend=args.backend), lanes=args.lanes, samples=args.samples,
+    report = benchmark_operator(CipherPruneTokenPruning(backend=args.backend, batch_size=args.batch_size), lanes=args.lanes, samples=args.samples,
                                 geometry={"tokens": 4, "heads": 2})
     replay = replay_operator_benchmark(report.to_dict()["configuration"])
     assert report.resources == replay.resources

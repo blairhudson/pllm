@@ -13,6 +13,8 @@ use sha2::{Digest, Sha256};
 use std::time::Instant;
 use zeroize::{Zeroize, Zeroizing};
 
+mod batch;
+
 pub const MAX_ALLOCATION: usize = 64 << 20;
 const MAX_PRODUCTS: usize = 8 << 20;
 const MAX_MATERIAL: u64 = 512 << 20;
@@ -32,6 +34,7 @@ pub enum Selection {
 pub struct Plan {
     pub rows: usize,
     pub words: usize,
+    pub batch_size: usize,
     pub selection: Selection,
 }
 
@@ -114,6 +117,7 @@ impl Predicate {
 pub struct Resources {
     pub key_bytes: [u64; 2],
     pub frame_bytes: [u64; 2],
+    pub framing_bytes: u64,
     pub rounds: usize,
     pub predicates: usize,
     pub products: usize,
@@ -124,6 +128,23 @@ pub struct Resources {
 }
 
 impl Resources {
+    fn predicate_group(&mut self, p: Predicate, count: usize) {
+        self.predicate(p, count);
+        self.rounds -= 2 * (count - 1);
+        self.framing_bytes += (4 * batch::overhead(count)) as u64;
+        for bytes in &mut self.frame_bytes {
+            *bytes += (2 * batch::overhead(count)) as u64;
+        }
+    }
+    fn movement_group(&mut self, stride: usize, count: usize) {
+        self.movement(stride, count);
+        let chunks = stride.div_ceil(mul::MAX_LANES);
+        self.rounds -= chunks * (count - 1);
+        self.framing_bytes += (2 * chunks * batch::overhead(count)) as u64;
+        for bytes in &mut self.frame_bytes {
+            *bytes += (chunks * batch::overhead(count)) as u64;
+        }
+    }
     fn predicate(&mut self, p: Predicate, count: usize) {
         let r = p.resources();
         for (out, value) in self.key_bytes.iter_mut().zip(r.key_bytes) {
@@ -138,12 +159,15 @@ impl Resources {
         }
     }
     fn phase(&mut self, phase: [usize; 2], count: usize) {
+        self.framing_bytes += (2 * gc::HEADER * count) as u64;
         for (out, value) in self.frame_bytes.iter_mut().zip(phase) {
             *out += value as u64 * count as u64;
         }
         self.rounds += count;
     }
     fn movement(&mut self, stride: usize, swaps: usize) {
+        self.framing_bytes +=
+            (2 * mul::HEADER_BYTES * stride.div_ceil(mul::MAX_LANES) * swaps) as u64;
         self.products += stride * swaps;
         for value in &mut self.key_bytes {
             *value += (12 * stride * swaps) as u64;
@@ -157,15 +181,12 @@ impl Resources {
     }
 }
 
-fn comparisons(n: usize) -> usize {
-    let n = n.next_power_of_two();
-    let log = n.ilog2() as usize;
-    n * log * (log + 1) / 4
-}
-
 impl Plan {
     fn validate(self) -> Result<(), Error> {
-        if !(1..=256).contains(&self.rows) || !(1..=8192).contains(&self.words) {
+        if !(1..=256).contains(&self.rows)
+            || !(1..=8192).contains(&self.words)
+            || !matches!(self.batch_size, 1 | 4 | 16)
+        {
             return Err(Error::Resource);
         }
         match self.selection {
@@ -202,22 +223,48 @@ impl Plan {
                     return Err(Error::Domain);
                 }
                 if keep != self.rows {
-                    r.predicate(Predicate::Rank, comparisons(self.rows));
-                    r.predicate(Predicate::Order, comparisons(keep));
-                    r.movement(self.stride(), comparisons(self.rows) + comparisons(keep));
+                    for (rows, p) in [
+                        (self.rows.next_power_of_two(), Predicate::Rank),
+                        (keep.next_power_of_two(), Predicate::Order),
+                    ] {
+                        for layer in batch::sort_layers(rows) {
+                            for pairs in layer.chunks(self.batch_size) {
+                                r.predicate_group(p, pairs.len());
+                                r.movement_group(self.stride(), pairs.len());
+                            }
+                        }
+                    }
                 }
             }
             Selection::Threshold {
                 threshold,
                 reduction,
             } => {
-                r.predicate(Predicate::Greater(threshold), self.rows);
+                for start in (0..self.rows).step_by(self.batch_size) {
+                    r.predicate_group(
+                        Predicate::Greater(threshold),
+                        (self.rows - start).min(self.batch_size),
+                    );
+                }
                 r.phase([gc::HEADER + 4; 2], 1);
                 if retained != 0 && retained != self.rows {
-                    let swaps = pllm_core::token_pruning::swaps(self.rows, retained)
-                        .map_err(|_| Error::Domain)?;
-                    r.movement(self.stride(), swaps);
-                    r.predicate(Predicate::Greater(reduction), retained);
+                    if self.batch_size == 1 {
+                        let swaps = pllm_core::token_pruning::swaps(self.rows, retained)
+                            .map_err(|_| Error::Domain)?;
+                        r.movement(self.stride(), swaps);
+                    } else {
+                        for layer in batch::compact_layers(self.rows, retained) {
+                            for pairs in layer.chunks(self.batch_size) {
+                                r.movement_group(self.stride(), pairs.len());
+                            }
+                        }
+                    }
+                    for start in (0..retained).step_by(self.batch_size) {
+                        r.predicate_group(
+                            Predicate::Greater(reduction),
+                            (retained - start).min(self.batch_size),
+                        );
+                    }
                     r.phase([gc::HEADER + 4 * retained; 2], 1);
                 }
             }
@@ -225,7 +272,7 @@ impl Plan {
         Ok(r)
     }
     /// All possible public counts are priced before sharing inputs or disclosing
-    /// the first count. Only one bounded predicate/product chunk is live at once.
+    /// the first count. Only one bounded independent batch is live at once.
     pub fn admit(self) -> Result<usize, Error> {
         self.validate()?;
         let mut max_rounds = 0;
@@ -245,7 +292,9 @@ impl Plan {
         let bytes = 64 * self.rows.next_power_of_two() * self.stride()
             + 64 * max_rounds
             + PREDICATE_WIRES * 384
-            + (8 << 20);
+            + (8 << 20)
+            + (self.batch_size - 1)
+                * (PREDICATE_WIRES * 384 + 1024 * (192 + 32) + (1 << 20) + mul::MAX_LANES * 80);
         if bytes > MAX_ALLOCATION {
             return Err(Error::Resource);
         }
@@ -257,6 +306,10 @@ impl Plan {
         hash.update(context.operation);
         hash.update((self.rows as u64).to_le_bytes());
         hash.update((self.words as u64).to_le_bytes());
+        if self.batch_size != 1 {
+            hash.update(b"batched.v1");
+            hash.update((self.batch_size as u64).to_le_bytes());
+        }
         match self.selection {
             Selection::TopK { keep, recent } => {
                 hash.update([0]);
@@ -367,6 +420,7 @@ struct Execution {
     context: Context,
     counter: u64,
     stride: usize,
+    batch_size: usize,
     resources: Resources,
     issuance_seconds: f64,
 }
@@ -463,21 +517,142 @@ impl Execution {
         self.resources.movement(self.stride, 1);
         Ok(())
     }
-    fn sort(&mut self, rows: usize, rank: bool) -> Result<(), Error> {
-        let mut group = 2;
-        while group <= rows {
-            let mut distance = group / 2;
-            while distance > 0 {
-                for left in 0..rows {
-                    let right = left ^ distance;
-                    if right <= left {
-                        continue;
+    fn predicates(
+        &mut self,
+        p: Predicate,
+        inputs: Vec<[Zeroizing<Vec<u64>>; 2]>,
+    ) -> Result<Vec<[u32; 2]>, Error> {
+        if inputs.len() == 1 {
+            return Ok(vec![self.predicate(p, inputs.into_iter().next().unwrap())?]);
+        }
+        if inputs.is_empty() || inputs.len() > self.batch_size {
+            return Err(Error::Resource);
+        }
+        let r = p.resources();
+        let mut parties = batch::Predicates(Vec::new());
+        for _ in &inputs {
+            let context = self.context()?;
+            let start = Instant::now();
+            let (pair, actual) =
+                gc::issue_bounded(32, p.words(), 1, PREDICATE_WIRES, context, |b, x| {
+                    p.build(b, x)
+                })?;
+            self.issuance_seconds += start.elapsed().as_secs_f64();
+            parties.0.push(pair);
+            if actual != r {
+                return Err(Error::Resource);
+            }
+        }
+        self.resources.predicate_group(p, inputs.len());
+        let mut frames = [Vec::new(), Vec::new()];
+        for (pair, input) in parties.0.iter_mut().zip(&inputs) {
+            for id in 0..2 {
+                frames[id].push(pair[id].start(&input[id])?);
+            }
+        }
+        for (phase, sizes) in r.phase_bytes.into_iter().enumerate() {
+            let packets = [batch::pack(&frames[0])?, batch::pack(&frames[1])?];
+            let decoded = [
+                batch::unpack(&packets[0], &vec![sizes[0]; inputs.len()])?,
+                batch::unpack(&packets[1], &vec![sizes[1]; inputs.len()])?,
+            ];
+            self.resources
+                .phases
+                .push(packets.each_ref().map(|p| p.len()));
+            let mut next = [Vec::new(), Vec::new()];
+            let mut output = Vec::new();
+            for (i, pair) in parties.0.iter_mut().enumerate() {
+                match (
+                    pair[0].advance(decoded[1][i])?,
+                    pair[1].advance(decoded[0][i])?,
+                ) {
+                    (gc::Progress::Open(a), gc::Progress::Open(b)) if phase == 0 => {
+                        next[0].push(a);
+                        next[1].push(b);
                     }
-                    let (a, b) = if left & group == 0 {
-                        (left, right)
-                    } else {
-                        (right, left)
-                    };
+                    (gc::Progress::Complete(a), gc::Progress::Complete(b)) if phase == 1 => {
+                        output.push([a[0] as u32, b[0] as u32]);
+                    }
+                    _ => return Err(Error::Context),
+                }
+            }
+            if phase == 1 {
+                return Ok(output);
+            }
+            frames = next;
+        }
+        Err(Error::Context)
+    }
+
+    fn swaps(&mut self, pairs: &[(usize, usize)], flags: &[[u32; 2]]) -> Result<(), Error> {
+        if pairs.len() != flags.len() || pairs.is_empty() || pairs.len() > self.batch_size {
+            return Err(Error::Resource);
+        }
+        // Reject a dependent batch before any correlated material is issued.
+        let mut seen = std::collections::BTreeSet::new();
+        for &(a, b) in pairs {
+            if !seen.insert(a) || !seen.insert(b) {
+                return Err(Error::Context);
+            }
+        }
+        if pairs.len() == 1 {
+            return self.swap(pairs[0].0, pairs[0].1, flags[0]);
+        }
+        for start in (0..self.stride).step_by(mul::MAX_LANES) {
+            let len = (self.stride - start).min(mul::MAX_LANES);
+            let mut parties = batch::Products(Vec::new());
+            let mut frames = [Vec::new(), Vec::new()];
+            for (&(left, right), flag) in pairs.iter().zip(flags) {
+                let context = self.context()?;
+                let clock = Instant::now();
+                parties.0.push(mul::issue_reference(32, len, context)?);
+                self.issuance_seconds += clock.elapsed().as_secs_f64();
+                let pair = parties.0.last_mut().unwrap();
+                for id in 0..2 {
+                    let input = Zeroizing::new(
+                        (start..start + len)
+                            .map(|i| {
+                                self.owners[id].records[right * self.stride + i]
+                                    .wrapping_sub(self.owners[id].records[left * self.stride + i])
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+                    frames[id].push(pair[id].start(&Zeroizing::new(vec![flag[id]; len]), &input)?);
+                }
+            }
+            let packets = [batch::pack(&frames[0])?, batch::pack(&frames[1])?];
+            let sizes = vec![mul::HEADER_BYTES + 8 * len; pairs.len()];
+            let decoded = [
+                batch::unpack(&packets[0], &sizes)?,
+                batch::unpack(&packets[1], &sizes)?,
+            ];
+            self.resources
+                .phases
+                .push(packets.each_ref().map(|p| p.len()));
+            for (i, (&(left, right), pair)) in pairs.iter().zip(&mut parties.0).enumerate() {
+                let movement = [
+                    pair[0].finish(decoded[1][i])?,
+                    pair[1].finish(decoded[0][i])?,
+                ];
+                for (owner, movement) in self.owners.iter_mut().zip(movement) {
+                    for (column, &delta) in (start..start + len).zip(movement.iter()) {
+                        let a = left * self.stride + column;
+                        let b = right * self.stride + column;
+                        owner.records[a] = owner.records[a].wrapping_add(delta);
+                        owner.records[b] = owner.records[b].wrapping_sub(delta);
+                    }
+                }
+            }
+        }
+        self.resources.movement_group(self.stride, pairs.len());
+        Ok(())
+    }
+
+    fn sort(&mut self, rows: usize, rank: bool) -> Result<(), Error> {
+        for layer in batch::sort_layers(rows) {
+            for pairs in layer.chunks(self.batch_size) {
+                let mut inputs = Vec::new();
+                for &(a, b) in pairs {
                     let input = std::array::from_fn(|id| {
                         let owner = &self.owners[id].records;
                         Zeroizing::new(if rank {
@@ -493,19 +668,18 @@ impl Execution {
                             ]
                         })
                     });
-                    let flag = self.predicate(
-                        if rank {
-                            Predicate::Rank
-                        } else {
-                            Predicate::Order
-                        },
-                        input,
-                    )?;
-                    self.swap(left, right, flag)?;
+                    inputs.push(input);
                 }
-                distance /= 2;
+                let flags = self.predicates(
+                    if rank {
+                        Predicate::Rank
+                    } else {
+                        Predicate::Order
+                    },
+                    inputs,
+                )?;
+                self.swaps(pairs, &flags)?;
             }
-            group *= 2;
         }
         Ok(())
     }
@@ -610,6 +784,7 @@ pub fn run_reference(
         context: plan.binding(context),
         counter: 0,
         stride,
+        batch_size: plan.batch_size,
         resources: Resources::default(),
         issuance_seconds: 0.0,
     };
@@ -632,16 +807,23 @@ pub fn run_reference(
             reduction,
         } => {
             let mut sums = [0_u32; 2];
-            for row in 0..rows {
-                let input = std::array::from_fn(|id| {
-                    Zeroizing::new(vec![u64::from(
-                        execution.owners[id].records[row * stride + 1],
-                    )])
-                });
-                let flag = execution.predicate(Predicate::Greater(threshold), input)?;
-                for id in 0..2 {
-                    execution.owners[id].records[row * stride] = flag[id];
-                    sums[id] = sums[id].wrapping_add(flag[id]);
+            for start in (0..rows).step_by(plan.batch_size) {
+                let end = (start + plan.batch_size).min(rows);
+                let inputs = (start..end)
+                    .map(|row| {
+                        std::array::from_fn(|id| {
+                            Zeroizing::new(vec![u64::from(
+                                execution.owners[id].records[row * stride + 1],
+                            )])
+                        })
+                    })
+                    .collect();
+                let flags = execution.predicates(Predicate::Greater(threshold), inputs)?;
+                for (row, flag) in (start..end).zip(flags) {
+                    for id in 0..2 {
+                        execution.owners[id].records[row * stride] = flag[id];
+                        sums[id] = sums[id].wrapping_add(flag[id]);
+                    }
                 }
             }
             let retained = execution.disclose(sums.map(|v| Zeroizing::new(vec![v])))?[0] as usize;
@@ -652,26 +834,43 @@ pub fn run_reference(
                 high_degree = Some(Vec::new());
             }
             if retained > 0 && retained < rows {
-                for pass in 0..rows - retained {
-                    for row in 0..rows - pass - 1 {
-                        let flag = [
-                            1_u32.wrapping_sub(execution.owners[0].records[row * stride]),
-                            0_u32.wrapping_sub(execution.owners[1].records[row * stride]),
-                        ];
-                        execution.swap(row, row + 1, flag)?;
+                let layers = if plan.batch_size == 1 {
+                    (0..rows - retained)
+                        .flat_map(|pass| (0..rows - pass - 1).map(|row| vec![(row, row + 1)]))
+                        .collect()
+                } else {
+                    batch::compact_layers(rows, retained)
+                };
+                for layer in layers {
+                    for pairs in layer.chunks(plan.batch_size) {
+                        let flags: Vec<_> = pairs
+                            .iter()
+                            .map(|&(row, _)| {
+                                [
+                                    1_u32.wrapping_sub(execution.owners[0].records[row * stride]),
+                                    0_u32.wrapping_sub(execution.owners[1].records[row * stride]),
+                                ]
+                            })
+                            .collect();
+                        execution.swaps(pairs, &flags)?;
                     }
                 }
                 let mut degrees: [Zeroizing<Vec<u32>>; 2] =
                     std::array::from_fn(|_| Zeroizing::new(Vec::new()));
-                for row in 0..retained {
-                    let input = std::array::from_fn(|id| {
-                        Zeroizing::new(vec![u64::from(
-                            execution.owners[id].records[row * stride + 1],
-                        )])
-                    });
-                    let bit = execution.predicate(Predicate::Greater(reduction), input)?;
-                    for id in 0..2 {
-                        degrees[id].push(bit[id]);
+                for start in (0..retained).step_by(plan.batch_size) {
+                    let inputs = (start..(start + plan.batch_size).min(retained))
+                        .map(|row| {
+                            std::array::from_fn(|id| {
+                                Zeroizing::new(vec![u64::from(
+                                    execution.owners[id].records[row * stride + 1],
+                                )])
+                            })
+                        })
+                        .collect();
+                    for bit in execution.predicates(Predicate::Greater(reduction), inputs)? {
+                        for id in 0..2 {
+                            degrees[id].push(bit[id]);
+                        }
                     }
                 }
                 let values = execution.disclose(degrees)?;
@@ -759,6 +958,7 @@ mod tests {
                     let p = Plan {
                         rows,
                         words: 5,
+                        batch_size: 1,
                         selection: Selection::TopK { keep, recent },
                     };
                     let mut indices: Vec<_> = (0..rows).collect();
@@ -798,6 +998,7 @@ mod tests {
             let p = Plan {
                 rows: 5,
                 words: 3,
+                batch_size: 1,
                 selection: Selection::Threshold {
                     threshold: 10,
                     reduction: 25,
@@ -821,6 +1022,7 @@ mod tests {
         let p = Plan {
             rows: 4,
             words: 1025,
+            batch_size: 1,
             selection: Selection::TopK { keep: 2, recent: 0 },
         };
         let scores = [0., 3., 1., 2.].map(f32::to_bits);
@@ -833,6 +1035,7 @@ mod tests {
         assert!(Plan {
             rows: 256,
             words: 8192,
+            batch_size: 1,
             selection: Selection::Threshold {
                 threshold: 1,
                 reduction: 2
@@ -853,6 +1056,118 @@ mod tests {
         )
         .is_err());
     }
+    #[test]
+    fn batched_sort_and_wavefront_preserve_complete_words_and_material() {
+        for selection in [
+            Selection::TopK { keep: 7, recent: 2 },
+            Selection::Threshold {
+                threshold: 2,
+                reduction: 5,
+            },
+        ] {
+            let scores: Vec<_> = (0..17)
+                .map(|i| {
+                    if matches!(selection, Selection::TopK { .. }) {
+                        ((i * 7 % 9) as f32).to_bits()
+                    } else {
+                        i * 7 % 9
+                    }
+                })
+                .collect();
+            let words: Vec<_> = (0..17 * 5_u32)
+                .map(|i| i.wrapping_mul(0xabcd_8123))
+                .collect();
+            let p = Plan {
+                rows: 17,
+                words: 5,
+                batch_size: 1,
+                selection,
+            };
+            let serial = run_reference(p, &scores, &words, context()).unwrap();
+            for batch_size in [4, 16] {
+                let batched =
+                    run_reference(Plan { batch_size, ..p }, &scores, &words, context()).unwrap();
+                assert_eq!(serial.output, batched.output);
+                assert_eq!(serial.high_degree, batched.high_degree);
+                assert_eq!(serial.resources.key_bytes, batched.resources.key_bytes);
+                assert!(batched.resources.rounds < serial.resources.rounds);
+                assert_eq!(serial.resources.products, batched.resources.products);
+                assert_eq!(
+                    serial.resources.frame_bytes.iter().sum::<u64>()
+                        - serial.resources.framing_bytes,
+                    batched.resources.frame_bytes.iter().sum::<u64>()
+                        - batched.resources.framing_bytes
+                );
+            }
+        }
+        // Every five-row keep mask, including zero/all and ties at threshold.
+        for mask in 0..32 {
+            let scores: Vec<_> = (0..5)
+                .map(|i| if mask & (1 << i) == 0 { 10 } else { 20 })
+                .collect();
+            let words = (0..15).collect::<Vec<_>>();
+            let p = Plan {
+                rows: 5,
+                words: 3,
+                batch_size: 16,
+                selection: Selection::Threshold {
+                    threshold: 10,
+                    reduction: 15,
+                },
+            };
+            let actual = run_reference(p, &scores, &words, context()).unwrap();
+            let expected: Vec<_> = (0..5)
+                .filter(|&i| mask & (1 << i) != 0)
+                .flat_map(|i| words[i * 3..i * 3 + 3].iter().copied())
+                .collect();
+            assert_eq!(*actual.output, expected);
+        }
+        let p = Plan {
+            rows: 256,
+            words: 257,
+            batch_size: 16,
+            selection: Selection::TopK {
+                keep: 128,
+                recent: 2,
+            },
+        };
+        assert!(p.admit().unwrap() <= MAX_ALLOCATION);
+        assert_eq!(p.project(128).unwrap().rounds, 1200);
+        assert!(Plan {
+            batch_size: 17,
+            ..p
+        }
+        .admit()
+        .is_err());
+    }
+
+    #[test]
+    fn batch_envelopes_reject_lengths_and_children_reject_permutation() {
+        let mut guard = batch::Products(Vec::new());
+        let mut frames = Vec::new();
+        for _ in 0..4 {
+            let mut pair = mul::issue_reference(32, 2, context()).unwrap();
+            frames.push(pair[0].start(&[1, 2], &[3, 4]).unwrap());
+            pair[1].start(&[9, 8], &[7, 6]).unwrap();
+            guard.0.push(pair);
+        }
+        let packet = batch::pack(&frames).unwrap();
+        let sizes = vec![mul::HEADER_BYTES + 16; 4];
+        assert_eq!(
+            batch::unpack(&packet, &sizes).unwrap(),
+            frames.iter().map(Vec::as_slice).collect::<Vec<_>>()
+        );
+        for byte in [0, 8, 12, 16] {
+            let mut bad = packet.clone();
+            bad[byte] ^= 1;
+            assert!(batch::unpack(&bad, &sizes).is_err());
+        }
+        assert!(batch::unpack(&packet[..packet.len() - 1], &sizes).is_err());
+        // Same caller context still gets fresh issuance nonces in every child.
+        assert!(guard.0[1][1].finish(&frames[0]).is_err());
+        assert!(guard.0[1][1].finish(&frames[1]).is_err());
+    }
+
     #[test]
     fn disclosure_frames_bind_context_role_shape_and_burn_every_attempt() {
         for byte in [0, 8, 40, 72, 73, 74, gc::HEADER + 4] {
