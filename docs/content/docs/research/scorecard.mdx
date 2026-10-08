@@ -15,19 +15,52 @@ canonical reports and rerunnable Python files. Separate cohorts remain separate.
 
 ## Reading the frontier
 
-One line follows each experiment across nine default axes: **request tokens/s,
-MB/output token, body-linear compute offloaded, client/aggregate CPU,
-client/aggregate memory and client/aggregate network**. Speed and cost axes map
-their observed range to 0–100, with the best at 100; lower-cost axes are inverted.
-Body offload uses its absolute 0–100% scale. Equal values stay tied, including a
+One line follows each experiment across seven priority axes: **client peak RSS,
+client CPU, Preparation CPU, Preparation peak RSS, request tokens/s,
+decode tokens/s and all-link TCP-stream bytes**. Speed and cost axes map their
+observed range to 0–100, with the best at 100; lower-cost axes are inverted.
+The optional body-offload axis uses its absolute 0–100% scale. Equal values stay tied, including a
 genuine zero, and unmeasured values leave gaps. Every axis is higher-is-better;
 positions are not percentages of baseline or a composite score. Actual units
 and costs appear in line details and the results table.
-Axes are grouped as **Performance → Client → Agg (Aggregate)**, with CPU, memory and
-network together within each cost group. Optional provider metrics form their
-own group; selections retain this grouping when metrics are added or removed.
+Priority axes are grouped as **Client → Preparation → Performance → Network**.
+Additional aggregate and provider metrics remain selectable. Missing measurements
+and topologies without Preparation leave gaps rather than receiving a zero cost.
 
-### Rewarding offload
+### Why these metrics come first
+
+Our preferred practical topology pairs inexpensive, controllable **offline
+Preparation with one online Inference provider**. The priorities follow from that
+deployment and the goal of keeping private inference usable on ordinary devices:
+
+- **Client memory:** peak RSS helps assess device capacity and exposure to swapping.
+  Fresh-process measurements include the client/dashboard and relay; isolated
+  buffer savings alone do not establish a smaller complete client.
+- **Client CPU:** less local computation leaves more capacity for the application.
+  CPU seconds are a resource measurement, not measured battery use or energy.
+- **Preparation cost:** CPU and RAM determine how practical it is to self-host
+  Preparation or choose a separate trusted operator. Its CPU covers process birth
+  through the first cold response; its RSS is a lifetime peak. Moving work offline
+  does not make that work free or establish non-collusion.
+- **WAN throughput:** complete-request tokens/s includes request-bound setup and first-output
+  wait; N−1 decode tokens/s exposes later-token responsiveness. Use matched capped
+  cohorts to evaluate constrained links. Local bandwidth caps do not imply Internet RTT.
+- **All-link traffic:** counting client and provider-peer streams includes correction
+  delivery and prevents a client-only byte saving from hiding traffic elsewhere.
+  These covered TCP-stream bytes exclude physical headers, retransmissions,
+  checkpoint distribution and delivery of pre-positioned public artifacts.
+
+Numeric quality and the deployment's privacy contract remain requirements for
+useful improvements. Comparisons retain source, numeric, workload and output
+identity; a faster changed numeric profile needs its own quality evidence.
+The axes expose trade-offs rather than collapsing them into a universal winner.
+
+The latest [prepared-serving investigation](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-serving-reference.md)
+profiles combined-stack client allocations, calibrates shared native TCP pacing,
+and measures public-artifact publication across fresh HTTP clients. It retains
+the blocked Qwen3 memory admission and the prototype's full measured cost scope.
+
+### Optional offload metric
 
 **Body offload = 100 × remote body-linear MACs / (client + remote body-linear MACs).**
 Counts come from the compiled placement's declared per-row work, with each model
@@ -48,7 +81,7 @@ time and traffic effects; they do not change this per-row ownership fraction.
 Client-only and naive two-offset controls have distinct line styles. The naive
 offset control uses full input/output shares and sequential CPU execution;
 optimized offset finalists are separate lines. The metric picker also exposes
-decode throughput, body-only traffic, latency and provider memory. Baseline
+body offload, body-only traffic, latency, aggregate resources and provider memory. Baseline
 controls remain visible when candidate-placement or public-prefix filters change.
 
 Select a line to inspect actual units and its Python configuration. A paper

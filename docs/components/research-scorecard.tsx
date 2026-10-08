@@ -65,10 +65,18 @@ export function ResearchScorecard() {
 
   return <section className={styles.scorecard} aria-label="Measured SDK performance">
     <div className={styles.heading}>
-      <div><span className={styles.eyebrow}>The measured frontier</span><h2>One model.<br />Every trade-off.</h2></div>
-      <p>Follow each experiment across the measures. Higher always means better.
-        Body offload rewards moving linear work off the client. Distinct baselines show local execution and naive offloading.</p>
+      <div><span className={styles.eyebrow}>The measured frontier</span><h2>A lighter client.<br />Practical private inference.</h2></div>
+      <p>Our priority is a small, efficient client with affordable offline Preparation and responsive use over constrained links.
+        The preferred deployment pairs Preparation under your control with one online Inference provider.</p>
     </div>
+    <section className={styles.priorities} aria-labelledby={`${id}-priorities`}>
+      <h3 id={`${id}-priorities`}>Why these metrics come first</h3>
+      <dl>{data.priorities.map((priority) => <div key={priority.label}>
+        <dt>{priority.label}</dt><dd>{priority.why}</dd>
+      </div>)}</dl>
+      <p>Quality and privacy are requirements for useful improvements. Compare matching numeric, workload and output contracts;
+        inspect each deployment's trust assumptions. CPU and RAM measure resource cost, not price or energy.</p>
+    </section>
     <div className={styles.controls}>
       <label htmlFor={`${id}-model`}>Model<select id={`${id}-model`} value={model} onChange={(event) => setModel(event.target.value)}>
         {models.map((value) => <option key={value}>{value}</option>)}
@@ -83,13 +91,13 @@ export function ResearchScorecard() {
         {data.papers.map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
       </select></label>
     </div>
-    <details className={styles.metricPicker}><summary>Choose metrics <span>{metrics.length} selected · speed, efficiency, CPU, memory and network</span></summary>
+    <details className={styles.metricPicker}><summary>Choose metrics <span>{metrics.length} selected · client, Preparation, throughput and all-link traffic</span></summary>
       <div>{groupedMetrics(data.metrics).map((group) => <fieldset key={group.label}><legend title={group.title}>{group.label}</legend>
         {group.metrics.map((metric) => <label key={metric.id}><input type="checkbox"
         checked={metricIds.includes(metric.id)} disabled={metricIds.length === 1 && metricIds.includes(metric.id)}
         onChange={(event) => setMetrics(event.target.checked ? [...metricIds, metric.id] : metricIds.filter((key) => key !== metric.id))} />
         {metric.label}</label>)}</fieldset>)}</div>
-      <button type="button" onClick={() => setMetrics(data.defaultMetrics)}>Restore defaults</button>
+      <button type="button" onClick={() => setMetrics(data.defaultMetrics)}>Restore priority metrics</button>
     </details>
     <div className={styles.filters}>
       {cohort.rows.some((row) => row.publicPrefixTokens > 0) && <label><input type="checkbox" checked={publicPrefix}
@@ -108,7 +116,7 @@ export function ResearchScorecard() {
         <svg viewBox={`0 0 ${width} 502`} style={{ minWidth: Math.max(640, metrics.length * 84) }} aria-labelledby={`${id}-title ${id}-desc`}>
           <title id={`${id}-title`}>SDK experiment frontier — every metric normalized higher is better</title>
           <desc id={`${id}-desc`}>Each line is one experiment. Costs and speed run from worst observed at zero to best at one hundred.
-            Body offload uses its absolute zero-to-one-hundred percentage of plan body-linear work delegated to providers.
+            {metricIds.includes('bodyOffload') && ' Body offload uses its absolute zero-to-one-hundred percentage of plan body-linear work delegated to providers. '}
             Lower costs are inverted. Missing measurements leave gaps. Dashed amber is client-only; dotted purple is naive offset.</desc>
           {groups.map((group) => {
             const first = metrics.indexOf(group.metrics[0]), last = first + group.metrics.length - 1;
@@ -149,10 +157,13 @@ export function ResearchScorecard() {
                 fill={color(row)} stroke={value === 100 ? 'var(--panel)' : 'none'} strokeWidth={1.5} />)}
             </g>;
           })}
-          <text x={48} y={487} className={styles.chartNote}>↑ Higher is better · speed/costs use observed ranges · body offload uses absolute %</text>
+          <text x={48} y={487} className={styles.chartNote}>↑ Higher is better · lower costs score higher · missing measurements leave gaps</text>
         </svg>
       </div>
-      <figcaption>Every axis runs 0–100, higher is better. Body offload is the plan's percentage of body-linear work assigned to providers: client-only scores 0%. It excludes client attention, nonlinear and token-boundary work. Speed and costs normalize by observed range; lower CPU, memory and network costs earn higher scores. Hover or select for actual values. Axes do not form a composite ranking.</figcaption>
+      <figcaption>Every axis runs 0–100, higher is better. Speed and costs normalize within the selected cohort; lower CPU, memory and traffic earn higher scores.
+        Hover or select for actual values. Missing Preparation measurements and topologies without that role leave gaps.
+        {metricIds.includes('bodyOffload') && " Body offload uses the plan's absolute percentage of body-linear work assigned to providers; it excludes client attention, nonlinear and token-boundary work."}
+        {' '}Axes do not form a composite ranking.</figcaption>
     </figure>
     <div className={styles.legend} aria-label="Experiment lines">
       {rows.map((row) => <button type="button" key={row.id} aria-pressed={selected === row.id}
@@ -193,6 +204,9 @@ export function ResearchScorecard() {
       <p>Agg means aggregate across all roles. Client peaks require fresh processes. Aggregate RAM is the largest sampled sum of simultaneously live client/provider RSS, not summed lifetime peaks;
         it may double-count shared pages and miss short spikes. CPU includes startup and native relay overhead; GPU compute and uncharged GPU memory remain unmeasured.
         Historical shared-client runs leave incomparable memory fields empty. Client-only holds the full decoder; remote placements still keep attention and nonlinear work at the client.</p>
+      <p>Client CPU includes the benchmark/dashboard and native relay. Preparation CPU runs from that role's process birth through the first cold response;
+        its RAM is a process-lifetime peak. Request throughput uses all generated outputs over complete request time;
+        decode throughput uses the later N−1 outputs. All-link traffic covers the recorded cold lifecycle across every directed role link.</p>
       <p><a href={repository + cohort.report}>Canonical report ↗</a> · <a href={withBasePath('/research/scorecard/')}>Commands and methodology</a></p>
       <p>Report SHA-256: <code>{cohort.reportSha256}</code></p>
       {rows.map((row) => <details key={row.id}><summary>{row.label}</summary><p>Configuration: <code>{row.configurationDigest}</code><br />Python SHA-256: <code>{row.fileSha256}</code></p>
@@ -200,6 +214,6 @@ export function ResearchScorecard() {
         <pre>{JSON.stringify(row.pipeline, null, 2)}</pre></details>)}
     </details>
     <p className={styles.scope}><a href={withBasePath('/research/results/')}>All research data: confirmed results and every search trial →</a></p>
-    <p className={styles.scope}>Next model: Qwen3-4B. The model selector grows when matched evidence is available.</p>
+    <p className={styles.scope}>Model and condition selectors include only registered, matched evidence.</p>
   </section>;
 }

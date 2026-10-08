@@ -9,7 +9,7 @@ import pytest
 
 from pllm.deployment import WanConditions
 from pllm.metrics.wan import _check_native_sample
-from pllm.runtime.native_wan import CHUNK_BYTES, NativePartyNetwork, SharedPacer
+from pllm.runtime.native_wan import CHUNK_BYTES, READ_CHUNK_BYTES, NativePartyNetwork, SharedPacer
 
 
 @pytest.mark.parametrize("direction", ("upload", "download"))
@@ -71,8 +71,14 @@ def test_cancelled_pacing_does_not_consume_budget_or_record_unsent_chunk():
     assert pacer.snapshot()["total_stream_bytes"] == 0
 
 
-def test_native_relay_duplex_bytes_and_cancellation_leave_no_owned_sockets():
+def test_native_relay_duplex_bytes_and_cancellation_leave_no_owned_sockets(monkeypatch):
     network = NativePartyNetwork(WanConditions(), ("client", "inference"))
+    reservations = []
+    reserve = network.pacer.reserve
+    async def capture(source, destination, size):
+        reservations.append(size)
+        await reserve(source, destination, size)
+    monkeypatch.setattr(network.pacer, "reserve", capture)
     async def run():
         async def echo(reader, writer):
             try:
@@ -94,6 +100,9 @@ def test_native_relay_duplex_bytes_and_cancellation_leave_no_owned_sockets():
         assert sample["directed_stream_bytes"] == {
             "client->inference": len(payload), "inference->client": len(payload)}
         assert sample["total_stream_bytes"] == 2 * len(payload)
+        assert sample["burst_bytes"] == 16384
+        assert sample["read_chunk_bytes"] == READ_CHUNK_BYTES
+        assert max(reservations) == READ_CHUNK_BYTES == 8192
         network.close()  # Active keepalive must be cancelled, not left hanging.
         assert not network.thread.is_alive()
         assert await asyncio.wait_for(reader.read(), 2) == b""
@@ -104,6 +113,36 @@ def test_native_relay_duplex_bytes_and_cancellation_leave_no_owned_sockets():
         asyncio.run(run())
     finally:
         network.close()
+
+
+def test_late_wakeups_preserve_capacity_without_enlarging_burst(monkeypatch):
+    from pllm.runtime import native_wan
+    # Deterministic 1 ms timer granularity; no wall-clock speed assertion.
+    import math
+    now = [0.0]
+    monkeypatch.setattr(native_wan, "time", SimpleNamespace(monotonic=lambda: now[0]))
+    async def sleep(delay):
+        now[0] += math.ceil(delay * 1000) / 1000
+    monkeypatch.setattr(native_wan.asyncio, "sleep", sleep)
+    conditions = WanConditions()
+    async def transfer(size):
+        now[0] = 0.0
+        pacer = SharedPacer(conditions, ("client", "inference"))
+        events = [(0.0, 0)]
+        for _ in range((1 << 20) // size):
+            await pacer.reserve("client", "inference", size)
+            events.append((now[0], pacer.links["client->inference"]))
+        # Every observed window respects the same rate plus 16 KiB burst.
+        for start, sent in events:
+            for end, total in events:
+                if end >= start:
+                    assert total - sent <= (end - start) * 5_000_000 + CHUNK_BYTES + 1
+        _check_native_sample(pacer.snapshot(), conditions, pacer.assignments)
+        return now[0]
+    legacy = asyncio.run(transfer(CHUNK_BYTES))
+    current = asyncio.run(transfer(READ_CHUNK_BYTES))
+    assert current >= ((1 << 20) - CHUNK_BYTES) / 5_000_000
+    assert current < legacy * 0.9
 
 
 def test_total_memory_uses_same_window_sum_not_sum_of_independent_peaks(monkeypatch):

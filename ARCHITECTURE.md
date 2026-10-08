@@ -1462,6 +1462,21 @@ but exclude kernel headers, ACKs, retransmissions, telemetry and checkpoint
 distribution. The relay and sampler belong to measured client CPU/RSS. Kernel
 shaping and native stream pacing retain distinct evidence scopes; automatic
 fallback cannot silently substitute one for the other.
+Native relay reads now use 8 KiB under the same 16 KiB shared burst, preserving
+late timer refill without enlarging access allowances. Eighteen fresh TCP
+processes check 251,658,240 payload bytes: a saturated 40 Mbps link rises from
+about 31.91 to 40.03 Mbps, with increased relay CPU. This is emulator calibration;
+historical rate-capped decoder cohorts retain their original pacing scope.
+A matched Qwen2.5 150+8 cold/repeat pair preserves outputs and application bodies
+with zero observed new swap. Calibrated request latency falls 17.45%/17.52%, but
+client peak RSS rises 229.82 to 251.18 MB and decode throughput remains mixed.
+The separate fresh-client public-artifact HTTP screen amortizes pre-encoding by
+the second client; four clients reduce publication-inclusive provider CPU from
+1.28 to 0.39 seconds while adding 10.15 MB of disk and barely changing client
+CPU. It covers two public objects, not an SDK provider cache or complete bundle.
+The combined-stack allocation profile localizes Qwen2.5 growth to loading and
+prefill, while the corresponding Qwen3 profile remains admission-blocked.
+Evidence and replay: `docs/research/prepared-serving-reference.md`.
 `--isolate-candidates` starts a fresh native client for each Experiment under
 one private parent-owned cohort salt. Native memory reports additionally sample
 the live client/provider RSS sum every 50 ms; they never sum independent lifetime
@@ -1470,6 +1485,10 @@ price uncharged GPU allocations or OS cache. The idle launcher is outside the
 measured role graph. Research's parallel-coordinates chart normalizes each
 selected metric with best-at-top, preserves unknown gaps and raw units, identifies
 client-only/naive-offset controls, and links paper attribution to chronology cards.
+Its priority axes are client RSS/CPU, Preparation CPU/RSS, complete-request and
+N−1 decode throughput, and all-link traffic, with their device, trust-control
+and access-link rationale visible beside the chart. Missing Preparation roles
+remain unknown rather than scoring as free work.
 Generated research-data tables preserve every registered cohort and all exploratory
 trials with digest-checked Python configurations, without ranking across cohorts.
 A fresh-client 17-configuration Qwen2.5 150+8-token native 100/40 cohort matches

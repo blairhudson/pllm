@@ -1,0 +1,1464 @@
+{
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.15",
+  "records": [
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 8388608,
+      "combined_payload_mbps": 32.21501297856288,
+      "cpu_seconds": 0.08718399999999998,
+      "geometry": "correction",
+      "offered_capacity_utilization": 0.805375324464072,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 0,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 32,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 2.0895662503317,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 8388640
+      },
+      "wall_seconds": 2.083154957741499
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 8388608,
+      "combined_payload_mbps": 39.63781903495395,
+      "cpu_seconds": 0.136844,
+      "geometry": "correction",
+      "offered_capacity_utilization": 0.9909454758738487,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 0,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 32,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 1.6988178752362728,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 8388640
+      },
+      "wall_seconds": 1.6930513745173812
+    },
+    {
+      "access_floor_seconds": 3.3554432,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 31.84794670087341,
+      "cpu_seconds": 0.365482,
+      "geometry": "shared_upload",
+      "offered_capacity_utilization": 0.7961986675218353,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 0,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 8388640,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "client->preparation": 32,
+          "inference->preparation": 32,
+          "preparation->client": 8388608,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 4.220910375006497,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 64,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 16777216,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 4.214329082518816
+    },
+    {
+      "access_floor_seconds": 3.3554432,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 39.54592123741658,
+      "cpu_seconds": 0.41558300000000004,
+      "geometry": "shared_upload",
+      "offered_capacity_utilization": 0.9886480309354145,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 0,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 8388640,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "client->preparation": 32,
+          "inference->preparation": 32,
+          "preparation->client": 8388608,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 3.400581084191799,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 64,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 16777216,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 3.3939714590087533
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 64.30169575964277,
+      "cpu_seconds": 0.229233,
+      "geometry": "duplex",
+      "offered_capacity_utilization": 0.8037711969955346,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 0,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 8388640,
+          "preparation->inference": 8388640
+        },
+        "elapsed_seconds": 2.093782916665077,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 2.0873124171048403
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 80.00582060993786,
+      "cpu_seconds": 0.32489900000000005,
+      "geometry": "duplex",
+      "offered_capacity_utilization": 1.0000727576242232,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 0,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 8388640,
+          "preparation->inference": 8388640
+        },
+        "elapsed_seconds": 1.6842877911403775,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 1.6775995418429375
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 8388608,
+      "combined_payload_mbps": 40.034572156247414,
+      "cpu_seconds": 0.190983,
+      "geometry": "correction",
+      "offered_capacity_utilization": 1.0008643039061853,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 1,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 32,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 1.6827119588851929,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 8388640
+      },
+      "wall_seconds": 1.6762727908790112
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 8388608,
+      "combined_payload_mbps": 31.908858267495113,
+      "cpu_seconds": 0.15752000000000002,
+      "geometry": "correction",
+      "offered_capacity_utilization": 0.7977214566873778,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 1,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 32,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 2.1099515836685896,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 8388640
+      },
+      "wall_seconds": 2.103142125532031
+    },
+    {
+      "access_floor_seconds": 3.3554432,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 40.011478568127714,
+      "cpu_seconds": 0.312901,
+      "geometry": "shared_upload",
+      "offered_capacity_utilization": 1.0002869642031929,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 1,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 8388640,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "client->preparation": 32,
+          "inference->preparation": 32,
+          "preparation->client": 8388608,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 3.361134458333254,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 64,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 16777216,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 3.354480584152043
+    },
+    {
+      "access_floor_seconds": 3.3554432,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 31.947039664846443,
+      "cpu_seconds": 0.317998,
+      "geometry": "shared_upload",
+      "offered_capacity_utilization": 0.798675991621161,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 1,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 8388640,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "client->preparation": 32,
+          "inference->preparation": 32,
+          "preparation->client": 8388608,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 4.207864708267152,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 64,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 16777216,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 4.20125712454319
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 79.98705871179864,
+      "cpu_seconds": 0.308627,
+      "geometry": "duplex",
+      "offered_capacity_utilization": 0.9998382338974829,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 1,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 8388640,
+          "preparation->inference": 8388640
+        },
+        "elapsed_seconds": 1.6850016675889492,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 1.6779930423945189
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 64.17856947936896,
+      "cpu_seconds": 0.25928999999999996,
+      "geometry": "duplex",
+      "offered_capacity_utilization": 0.802232118492112,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 1,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 8388640,
+          "preparation->inference": 8388640
+        },
+        "elapsed_seconds": 2.0983779998496175,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 2.0913169160485268
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 8388608,
+      "combined_payload_mbps": 31.606732915041555,
+      "cpu_seconds": 0.15487,
+      "geometry": "correction",
+      "offered_capacity_utilization": 0.7901683228760389,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 2,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 32,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 2.130148666910827,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 8388640
+      },
+      "wall_seconds": 2.1232458343729377
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 8388608,
+      "combined_payload_mbps": 40.025204188224755,
+      "cpu_seconds": 0.20345100000000002,
+      "geometry": "correction",
+      "offered_capacity_utilization": 1.0006301047056188,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 2,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 32,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 1.6830710843205452,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 8388640
+      },
+      "wall_seconds": 1.6766651254147291
+    },
+    {
+      "access_floor_seconds": 3.3554432,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 31.90367913481634,
+      "cpu_seconds": 0.348113,
+      "geometry": "shared_upload",
+      "offered_capacity_utilization": 0.7975919783704085,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 2,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 8388640,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "client->preparation": 32,
+          "inference->preparation": 32,
+          "preparation->client": 8388608,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 4.213631499558687,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 64,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 16777216,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 4.206967084668577
+    },
+    {
+      "access_floor_seconds": 3.3554432,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 40.01564279472307,
+      "cpu_seconds": 0.4410609999999999,
+      "geometry": "shared_upload",
+      "offered_capacity_utilization": 1.000391069868077,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 2,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 8388640,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "client->preparation": 32,
+          "inference->preparation": 32,
+          "preparation->client": 8388608,
+          "preparation->inference": 8388608
+        },
+        "elapsed_seconds": 3.3609967082738876,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388608,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 32,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 64,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 16777216,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 3.35413150023669
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 63.46748950248735,
+      "cpu_seconds": 0.250849,
+      "geometry": "duplex",
+      "offered_capacity_utilization": 0.7933436187810919,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 16384,
+      "repetition": 2,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 8388640,
+          "preparation->inference": 8388640
+        },
+        "elapsed_seconds": 2.1214426662772894,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 16384,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 2.1147477086633444
+    },
+    {
+      "access_floor_seconds": 1.6777216,
+      "burst_bytes": 16384,
+      "checked_payload_bytes": 16777216,
+      "combined_payload_mbps": 80.01966923593528,
+      "cpu_seconds": 0.315391,
+      "geometry": "duplex",
+      "offered_capacity_utilization": 1.000245865449191,
+      "payload_sha256_per_stream": "7d212b9c884f5c77896de960ae17cc341cda43b14d6a971f34ca29ebd4badf7f",
+      "read_chunk_bytes": 8192,
+      "repetition": 2,
+      "resources_retired": true,
+      "snapshot": {
+        "backend": "native-shared-tcp-pacer",
+        "burst_bytes": 16384,
+        "client_stream_bytes": 0,
+        "conditions": {
+          "download_mbps": 100.0,
+          "parties": [],
+          "role_parties": [],
+          "schema": "pllm.wan_conditions.v1",
+          "upload_mbps": 40.0
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "directed_stream_bytes": {
+          "inference->preparation": 8388640,
+          "preparation->inference": 8388640
+        },
+        "elapsed_seconds": 1.683844625018537,
+        "enforced": true,
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ],
+        "max_connections": 32,
+        "parties": {
+          "client": {
+            "download": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 0,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "inference": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          },
+          "preparation": {
+            "download": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 12500000.0
+            },
+            "upload": {
+              "admitted_bytes": 8388640,
+              "bytes_per_second": 5000000.0
+            }
+          }
+        },
+        "read_chunk_bytes": 8192,
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "schema": "pllm.native_wan.v1",
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "total_stream_bytes": 16777280
+      },
+      "wall_seconds": 1.6773092076182365
+    }
+  ],
+  "schema": "pllm.native_pacing_calibration.v1",
+  "scope": "Calibrate bounded native TCP pacing against its configured shared access rate.\n\nFresh processes transfer public bytes through the real relay. Read size changes\nonly; access rates, 16 KiB burst, connection and socket-buffer bounds stay fixed.\nThis measures the local rate emulator, not a decoder or Internet connection.\n",
+  "source_sha256": {
+    "/Users/blairhudson/workspace/pllm/python/pllm/runtime/native_wan.py": "08cb749dd1f38f5c96d932861c0e97621f169504297c1d4adffa9caa8e6b418b",
+    "/Users/blairhudson/workspace/pllm/scripts/probe_native_pacing.py": "919949a035558a4a8f50bf0c43d8037e5f63705d7f2c3f92162c3034ae3660c8"
+  }
+}

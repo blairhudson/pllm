@@ -14,6 +14,10 @@ from pllm.deployment import WanConditions
 from .servers import LocalTopology, TopologyError
 
 CHUNK_BYTES = 16 << 10
+# Leave refill headroom when the event loop wakes later than a requested sleep.
+# Reserving an entire burst discards every late refill at the bucket ceiling.
+# Socket buffers and the aggregate per-party burst remain independently bounded.
+READ_CHUNK_BYTES = CHUNK_BYTES // 2
 MAX_CONNECTIONS = 32
 
 
@@ -59,7 +63,8 @@ class SharedPacer:
             "schema": "pllm.native_wan.v1", "backend": "native-shared-tcp-pacer",
             "enforced": True, "conditions": self.conditions.to_spec(),
             "conditions_digest": self.conditions.digest, "role_parties": self.assignments,
-            "burst_bytes": CHUNK_BYTES, "max_connections": MAX_CONNECTIONS,
+            "burst_bytes": CHUNK_BYTES, "read_chunk_bytes": READ_CHUNK_BYTES,
+            "max_connections": MAX_CONNECTIONS,
             "elapsed_seconds": time.monotonic() - self.started,
             "parties": {party: {direction: {
                 "bytes_per_second": self.buckets[party, direction]["rate"],
@@ -104,7 +109,7 @@ class NativePartyNetwork:
                 stream.transport.set_write_buffer_limits(high=2 * CHUNK_BYTES, low=CHUNK_BYTES)
 
             async def copy(origin, output, a, b):
-                while chunk := await origin.read(CHUNK_BYTES):
+                while chunk := await origin.read(READ_CHUNK_BYTES):
                     await self.pacer.reserve(a, b, len(chunk))
                     output.write(chunk)
                     await output.drain()

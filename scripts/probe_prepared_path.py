@@ -130,7 +130,7 @@ def worker(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe", choices=("kernels", "responses"), required=True)
-    parser.add_argument("--change-scope", choices=("kernels", "client-fusion", "prepared-refinements"), default="kernels")
+    parser.add_argument("--change-scope", choices=("kernels", "client-fusion", "prepared-refinements", "native-pacing"), default="kernels")
     parser.add_argument("--baseline-python", type=Path)
     parser.add_argument("--candidate-python", type=Path)
     parser.add_argument("--experiment")
@@ -226,10 +226,10 @@ def main():
             for key in ("python", "platform", "dependencies"):
                 if any(item[key] != identities[0][key] for item in identities):
                     raise ValueError(f"installed builds have different {key}")
-            if args.change_scope == "prepared-refinements" and any(
+            if args.change_scope in {"prepared-refinements", "native-pacing"} and any(
                 item["native_sha256"] != identities[0]["native_sha256"] for item in identities
             ):
-                raise ValueError("prepared-refinements requires identical native libraries")
+                raise ValueError(f"{args.change_scope} requires identical native libraries")
             for mode in MODES:
                 if len({json.dumps(row["identity"], sort_keys=True) for row in records if row["mode"] == mode}) != 1:
                     raise ValueError("installed implementation changed during cohort")
@@ -239,6 +239,7 @@ def main():
                 "kernels": ["runtime/bundle_compression.py"],
                 "client-fusion": ["runtime/stage_protocol.py", "runtime/transformer_client.py"],
                 "prepared-refinements": ["runtime/client.py", "runtime/transformer_engine.py"],
+                "native-pacing": ["runtime/native_wan.py"],
             }[args.change_scope]
             if changed != expected:
                 raise ValueError(f"installed Python changes differ from {args.change_scope}: {changed}")

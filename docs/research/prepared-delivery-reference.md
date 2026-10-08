@@ -93,6 +93,10 @@ a separately measured multiple-fresh-client reuse horizon, bounded cache
 lifecycle and resource admission before promotion. This screen does not
 establish savings for the historical 91.52-second bundle-loading profile.
 
+The subsequent [prepared-serving follow-up](prepared-serving-reference.md)
+measures publication across fresh HTTP clients and calibrates native relay
+utilization before attributing the correction upload gap to protocol work.
+
 ## Matched installed-SDK response pair
 
 `docs/evidence/research-prepared-refinements-qwen25.json` retains a separate

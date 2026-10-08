@@ -156,3 +156,8 @@ A separate [frozen precision screen](prepared-precision-reference.md) compares
 four numeric choices against streamed float32 prefill and same-token decode.
 Equalization improves this cohort's prefill selections but regresses decode;
 neither it nor the lower-bit choices earns a default change.
+
+The [prepared-serving follow-up](prepared-serving-reference.md) profiles the
+combined client, calibrates shared native TCP pacing and charges public-artifact
+publication across independent fresh clients. It retains the blocked Qwen3
+admission and the artifact prototype's storage and client costs.

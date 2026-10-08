@@ -43,6 +43,11 @@ each Experiment a fresh client while preserving one shared private comparison
 salt, so client memory peaks are comparable. Reports also sample the total live
 client/provider RSS in one window. [Full definitions](/sdk/deployment/wan/).
 
+Native snapshots also record the relay read size. The calibrated implementation
+uses 8 KiB reads under the same 16 KiB shared burst; this avoids losing available
+capacity on late timer wakeups. Historical 16 KiB-read cohorts retain their
+original pacing scope. Match the emulator implementation when comparing speeds.
+
 ## Account for preparation and delivery
 
 For the public prepared graph, the report's `topology_accounting` includes

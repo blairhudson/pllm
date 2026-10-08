@@ -3,6 +3,12 @@
 .heading h2 { margin: .6rem 0 1rem; font-size: clamp(1.9rem, 4vw, 3.2rem); line-height: 1.05; letter-spacing: -.045em; font-weight: 550; }
 .heading p, .scope { color: var(--muted); line-height: 1.7; }
 .eyebrow { color: var(--accent); text-transform: uppercase; font-family: var(--font-mono), monospace; font-size: .7rem; letter-spacing: .12em; }
+.priorities { border-top: 1px solid var(--line); padding-top: 1rem; margin-top: 1rem; }
+.priorities h3 { margin: 0 0 1rem; font-size: .9rem; font-weight: 600; }
+.priorities dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 1rem 1.4rem; margin: 0; }
+.priorities dt { color: var(--text); font-size: .8rem; font-weight: 600; margin-bottom: .45rem; }
+.priorities dd, .priorities p { color: var(--muted); font-size: .78rem; line-height: 1.65; margin: 0; }
+.priorities p { margin-top: 1rem; }
 .controls { display: grid; grid-template-columns: 1fr 1.4fr 1.2fr; gap: 1rem; margin-block: 1.8rem 1rem; }
 .controls label { display: grid; min-width: 0; gap: .5rem; font-size: .75rem; font-weight: 600; }
 .controls select { width: 100%; min-width: 0; padding: .8rem .6rem; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font: inherit; font-weight: 400; }

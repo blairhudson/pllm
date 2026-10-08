@@ -173,7 +173,7 @@ test('parallel coordinates invert cost, preserve ties and break lines at unknown
   assert.deepEqual(axes[2].scores, { a: 100, b: 100, c: 100 });
   assert.deepEqual(axes[3].scores, { a: null, b: null, c: null });
   assert.deepEqual(measuredSegments([20, 0, null, 100]), [[{ index: 0, value: 20 }, { index: 1, value: 0 }], [{ index: 3, value: 100 }]]);
-  assert.deepEqual(defaultMetrics, ['requestTps', 'networkPerToken', 'bodyOffload', 'clientCpu', 'clientPeak', 'clientNetwork', 'aggregateCpu', 'totalPeak', 'totalNetwork']);
+  assert.deepEqual(defaultMetrics, ['clientPeak', 'clientCpu', 'preparationCpu', 'preparationPeak', 'requestTps', 'decodeTps', 'totalNetwork']);
 });
 
 test('declared subcohorts preserve their original salted observations exactly', () => {
@@ -357,11 +357,22 @@ test('native 100/40 frontier measures client and total for every matched finalis
   assert.ok(frontier.rows.filter((row) => row.placement.ownership === 'Selected body linear stages at client')
     .every((row) => Math.abs(row.metrics.bodyOffload - 12.307692307692308) < 1e-10));
   for (const row of frontier.rows) {
-    for (const metric of defaultMetrics) assert.ok(Number.isFinite(row.metrics[metric]), `${row.id}: ${metric}`);
+    for (const metric of defaultMetrics) {
+      if (metric.startsWith('preparation') && row.placement.topology !== 'Prepared') {
+        assert.equal(row.metrics[metric], null);
+      } else assert.ok(Number.isFinite(row.metrics[metric]), `${row.id}: ${metric}`);
+    }
     assert.ok(row.metrics.clientCpu <= row.metrics.aggregateCpu);
     assert.ok(row.metrics.clientNetwork <= row.metrics.totalNetwork);
     if (row.metrics.covered !== null) assert.ok(row.metrics.networkPerToken >= row.metrics.covered);
     const report = raw.candidates.find((item) => item.name === row.id).report;
+    if (row.placement.topology === 'Prepared') {
+      assert.equal(row.metrics.preparationCpu, report.process_cpu_accounting.cold_first_response_cpu_seconds_by_role.preparation);
+      assert.equal(row.metrics.preparationPeak, report.runs[0].processes.preparation.rss_peak_bytes / 1e6);
+      const missing = structuredClone(report);
+      delete missing.process_cpu_accounting.cold_first_response_cpu_seconds_by_role.preparation;
+      assert.equal(reportMetrics(missing).preparationCpu, null);
+    }
     const sample = report.native_network_accounting.samples.runs[0].after.wan_emulation;
     for (const party of Object.values(sample.parties)) {
       assert.equal(party.download.bytes_per_second, 12_500_000);

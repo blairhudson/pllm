@@ -12,12 +12,23 @@ export function improvement(value, baseline, direction) {
   return (direction === 'min' ? 1 - value / baseline : value / baseline - 1) * 100;
 }
 
-// Performance first, followed by client costs and then aggregate costs.
-export const defaultMetrics = ['requestTps', 'networkPerToken', 'bodyOffload', 'clientCpu', 'clientPeak',
-  'clientNetwork', 'aggregateCpu', 'totalPeak', 'totalNetwork'];
+// One source for the chart's default axes and their visible rationale.
+export const priorities = [
+  { label: 'Client memory', metrics: ['clientPeak'],
+    why: 'Peak RSS shows the client memory footprint, helping assess device capacity and swap pressure.' },
+  { label: 'Client CPU', metrics: ['clientCpu'],
+    why: 'Less local computation leaves more device capacity for the application using the model.' },
+  { label: 'Preparation cost', metrics: ['preparationCpu', 'preparationPeak'],
+    why: 'Low offline CPU and RAM make Preparation easier to run under your control, separate from online Inference.' },
+  { label: 'WAN throughput', metrics: ['requestTps', 'decodeTps'],
+    why: 'Request speed includes request-bound setup and first-output wait; decode speed measures later tokens. Capped cohorts show how both behave on constrained links.' },
+  { label: 'All-link traffic', metrics: ['totalNetwork'],
+    why: 'Every link consumes bandwidth. Including correction delivery and setup keeps work shifted away from the client visible.' },
+];
+export const defaultMetrics = priorities.flatMap((priority) => priority.metrics);
 
 export function groupedMetrics(metrics) {
-  return ['Performance', 'Client', 'Agg', 'Providers'].map((label) => ({
+  return ['Client', 'Preparation', 'Performance', 'Network', 'Agg', 'Providers'].map((label) => ({
     label, title: label === 'Agg' ? 'Aggregate across all roles' : `${label} metrics`,
     metrics: metrics.filter((metric) => metric.group === label),
   })).filter((group) => group.metrics.length);

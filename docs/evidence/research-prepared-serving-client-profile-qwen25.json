@@ -1,0 +1,5287 @@
+{
+  "events": [
+    {
+      "after": {
+        "elapsed_seconds": 27.993670375086367,
+        "lifetime_peak_rss_bytes": 161677312,
+        "rss_bytes": 161677312,
+        "traced_current_bytes": 54051931,
+        "traced_peak_bytes": 56543335,
+        "tracer_bytes": 26437632
+      },
+      "before": {
+        "elapsed_seconds": 27.93088662531227,
+        "lifetime_peak_rss_bytes": 161611776,
+        "rss_bytes": 161611776,
+        "traced_current_bytes": 53278843,
+        "traced_peak_bytes": 56543335,
+        "tracer_bytes": 26118912
+      },
+      "phase": "pllm.runtime.client.parse_manifest"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 62.72288900054991,
+        "lifetime_peak_rss_bytes": 251101184,
+        "rss_bytes": 247005184,
+        "traced_current_bytes": 56915719,
+        "traced_peak_bytes": 62395692,
+        "tracer_bytes": 34889824
+      },
+      "before": {
+        "elapsed_seconds": 29.512246750295162,
+        "lifetime_peak_rss_bytes": 251101184,
+        "rss_bytes": 235372544,
+        "traced_current_bytes": 53637412,
+        "traced_peak_bytes": 62395692,
+        "tracer_bytes": 34649408
+      },
+      "phase": "pllm.runtime.client.reconstruct_document"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 64.76241275016218,
+        "lifetime_peak_rss_bytes": 272105472,
+        "rss_bytes": 272105472,
+        "traced_current_bytes": 59575874,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 34948832
+      },
+      "before": {
+        "elapsed_seconds": 64.15624000038952,
+        "lifetime_peak_rss_bytes": 271007744,
+        "rss_bytes": 271007744,
+        "traced_current_bytes": 56291294,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 34882080
+      },
+      "phase": "ClientBundle._from_document"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 64.77066037524492,
+        "lifetime_peak_rss_bytes": 272105472,
+        "rss_bytes": 272105472,
+        "traced_current_bytes": 56256448,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 34673312
+      },
+      "before": {
+        "elapsed_seconds": 27.770540833473206,
+        "lifetime_peak_rss_bytes": 161562624,
+        "rss_bytes": 161562624,
+        "traced_current_bytes": 53012614,
+        "traced_peak_bytes": 56543335,
+        "tracer_bytes": 26099584
+      },
+      "phase": "RuntimeClient._load_artifact_bundle"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 66.1135182082653,
+        "lifetime_peak_rss_bytes": 272433152,
+        "rss_bytes": 264044544,
+        "traced_current_bytes": 56189237,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 34685344
+      },
+      "before": {
+        "elapsed_seconds": 27.75015379115939,
+        "lifetime_peak_rss_bytes": 161497088,
+        "rss_bytes": 161497088,
+        "traced_current_bytes": 52798271,
+        "traced_peak_bytes": 56543335,
+        "tracer_bytes": 25995776
+      },
+      "phase": "RuntimeClient._transformer_state"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 67.66981716640294,
+        "lifetime_peak_rss_bytes": 275087360,
+        "rss_bytes": 275087360,
+        "traced_current_bytes": 58101700,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 35248480
+      },
+      "before": {
+        "elapsed_seconds": 67.60257354099303,
+        "lifetime_peak_rss_bytes": 272433152,
+        "rss_bytes": 271843328,
+        "traced_current_bytes": 57629625,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 35152416
+      },
+      "phase": "RuntimeClient._make_tokenizer"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 69.08561604097486,
+        "lifetime_peak_rss_bytes": 279216128,
+        "rss_bytes": 279216128,
+        "traced_current_bytes": 58232075,
+        "traced_peak_bytes": 66789613,
+        "tracer_bytes": 35324576
+      },
+      "before": {
+        "elapsed_seconds": 69.06996491644531,
+        "lifetime_peak_rss_bytes": 279216128,
+        "rss_bytes": 279216128,
+        "traced_current_bytes": 58168134,
+        "traced_peak_bytes": 66789613,
+        "tracer_bytes": 35307392
+      },
+      "phase": "RuntimeClient._transformer_state"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 73.41254729125649,
+        "lifetime_peak_rss_bytes": 280608768,
+        "rss_bytes": 280608768,
+        "traced_current_bytes": 59068119,
+        "traced_peak_bytes": 67819988,
+        "tracer_bytes": 35535040
+      },
+      "before": {
+        "elapsed_seconds": 69.81326654087752,
+        "lifetime_peak_rss_bytes": 279560192,
+        "rss_bytes": 279560192,
+        "traced_current_bytes": 58879870,
+        "traced_peak_bytes": 66789613,
+        "tracer_bytes": 35430528
+      },
+      "phase": "pllm.runtime.model_binding.compile_runtime_model"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 115.28920179139823,
+        "lifetime_peak_rss_bytes": 282853376,
+        "rss_bytes": 282853376,
+        "traced_current_bytes": 60072036,
+        "traced_peak_bytes": 67819988,
+        "tracer_bytes": 35850208
+      },
+      "before": {
+        "elapsed_seconds": 74.98689075000584,
+        "lifetime_peak_rss_bytes": 282361856,
+        "rss_bytes": 282361856,
+        "traced_current_bytes": 58465017,
+        "traced_peak_bytes": 67819988,
+        "tracer_bytes": 35504352
+      },
+      "phase": "RuntimeClient._prepare_inventory"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 121.80133437551558,
+        "lifetime_peak_rss_bytes": 285900800,
+        "rss_bytes": 285900800,
+        "traced_current_bytes": 60087481,
+        "traced_peak_bytes": 68751499,
+        "tracer_bytes": 35961376
+      },
+      "before": {
+        "elapsed_seconds": 118.00743483286351,
+        "lifetime_peak_rss_bytes": 285507584,
+        "rss_bytes": 285507584,
+        "traced_current_bytes": 59769034,
+        "traced_peak_bytes": 67852043,
+        "tracer_bytes": 35848416
+      },
+      "phase": "pllm.runtime.model_binding.compile_runtime_model"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 126.74451225064695,
+        "lifetime_peak_rss_bytes": 287637504,
+        "rss_bytes": 287637504,
+        "traced_current_bytes": 63979998,
+        "traced_peak_bytes": 69225587,
+        "tracer_bytes": 37725792
+      },
+      "before": {
+        "elapsed_seconds": 126.67815566621721,
+        "lifetime_peak_rss_bytes": 285949952,
+        "rss_bytes": 285949952,
+        "traced_current_bytes": 61948888,
+        "traced_peak_bytes": 69225587,
+        "tracer_bytes": 37003008
+      },
+      "phase": "SemanticDecoderRuntime.__init__"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 128.3389992080629,
+        "lifetime_peak_rss_bytes": 301809664,
+        "rss_bytes": 301809664,
+        "traced_current_bytes": 63955976,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37641984
+      },
+      "before": {
+        "elapsed_seconds": 122.00554504152387,
+        "lifetime_peak_rss_bytes": 285900800,
+        "rss_bytes": 285900800,
+        "traced_current_bytes": 60111537,
+        "traced_peak_bytes": 68751499,
+        "tracer_bytes": 35968544
+      },
+      "phase": "CompiledRuntimeModel.runtime"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 128.35792225040495,
+        "lifetime_peak_rss_bytes": 301924352,
+        "rss_bytes": 301924352,
+        "traced_current_bytes": 64680246,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37664352
+      },
+      "before": {
+        "elapsed_seconds": 128.34689795784652,
+        "lifetime_peak_rss_bytes": 301842432,
+        "rss_bytes": 301842432,
+        "traced_current_bytes": 64031767,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37651328
+      },
+      "phase": "ClientBundle.local_token_lookup"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 128.61302029155195,
+        "lifetime_peak_rss_bytes": 302202880,
+        "rss_bytes": 302202880,
+        "traced_current_bytes": 65885521,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37673408
+      },
+      "before": {
+        "elapsed_seconds": 128.3625060832128,
+        "lifetime_peak_rss_bytes": 301957120,
+        "rss_bytes": 301957120,
+        "traced_current_bytes": 65131270,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37661664
+      },
+      "phase": "PreparedRemoteLinear.__call__"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 129.09521691594273,
+        "lifetime_peak_rss_bytes": 303087616,
+        "rss_bytes": 303087616,
+        "traced_current_bytes": 66828857,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37700832
+      },
+      "before": {
+        "elapsed_seconds": 128.88568095862865,
+        "lifetime_peak_rss_bytes": 303054848,
+        "rss_bytes": 303054848,
+        "traced_current_bytes": 66222781,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37692992
+      },
+      "phase": "PreparedRemoteLinear.__call__"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 194.39882245846093,
+        "lifetime_peak_rss_bytes": 350240768,
+        "rss_bytes": 350240768,
+        "traced_current_bytes": 74228943,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37881888
+      },
+      "before": {
+        "elapsed_seconds": 194.3509765835479,
+        "lifetime_peak_rss_bytes": 350175232,
+        "rss_bytes": 350175232,
+        "traced_current_bytes": 73604998,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37875584
+      },
+      "phase": "ClientBundle.local_linear"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 194.4619085835293,
+        "lifetime_peak_rss_bytes": 350240768,
+        "rss_bytes": 350240768,
+        "traced_current_bytes": 69593265,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37883488
+      },
+      "before": {
+        "elapsed_seconds": 128.33978683315217,
+        "lifetime_peak_rss_bytes": 301809664,
+        "rss_bytes": 301809664,
+        "traced_current_bytes": 64224181,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37643648
+      },
+      "phase": "SemanticDecoderRuntime.prepare_ids"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 196.15343429148197,
+        "lifetime_peak_rss_bytes": 352796672,
+        "rss_bytes": 352796672,
+        "traced_current_bytes": 68793132,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37800960
+      },
+      "before": {
+        "elapsed_seconds": 196.1529660411179,
+        "lifetime_peak_rss_bytes": 352796672,
+        "rss_bytes": 352796672,
+        "traced_current_bytes": 68788803,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37799872
+      },
+      "phase": "ClientBundle.local_token_lookup"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 196.72548508364707,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 69584825,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37836672
+      },
+      "before": {
+        "elapsed_seconds": 196.6800627084449,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 68975821,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37834432
+      },
+      "phase": "ClientBundle.local_linear"
+    },
+    {
+      "after": {
+        "elapsed_seconds": 200.55840075016022,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 73357955,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37928640
+      },
+      "before": {
+        "elapsed_seconds": 200.5575950415805,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 69490763,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37918784
+      },
+      "phase": "SemanticDecoderRuntime.snapshot"
+    }
+  ],
+  "final": {
+    "elapsed_seconds": 203.48918083310127,
+    "lifetime_peak_rss_bytes": 355188736,
+    "rss_bytes": 354828288,
+    "traced_current_bytes": 59958740,
+    "traced_peak_bytes": 97504818,
+    "tracer_bytes": 36023648
+  },
+  "initial": {
+    "elapsed_seconds": 0.009929833002388477,
+    "lifetime_peak_rss_bytes": 26951680,
+    "rss_bytes": 26935296,
+    "traced_current_bytes": 0,
+    "traced_peak_bytes": 0,
+    "tracer_bytes": 0
+  },
+  "phase_python_allocations": {
+    "RuntimeClient._load_artifact_bundle": [
+      {
+        "bytes": 24948061,
+        "count": 187174,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 2917206,
+        "count": 32797,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1838752,
+        "count": 290,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 506
+      },
+      {
+        "bytes": 1742321,
+        "count": 13904,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 937886,
+        "count": 3247,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 485
+      },
+      {
+        "bytes": 533161,
+        "count": 2512,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 517836,
+        "count": 7032,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 324963,
+        "count": 3284,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 307352,
+        "count": 97,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+        "line": 39
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 278515,
+        "count": 1920,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 253200,
+        "count": 2110,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 233324,
+        "count": 2063,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 181488,
+        "count": 155,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 694
+      },
+      {
+        "bytes": 164932,
+        "count": 466,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 141448,
+        "count": 802,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 139384,
+        "count": 921,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 134704,
+        "count": 200,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 125376,
+        "count": 1959,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/tracemalloc.py",
+        "line": 67
+      },
+      {
+        "bytes": 121520,
+        "count": 1787,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 117574,
+        "count": 1160,
+        "file": "<frozen abc>",
+        "line": 123
+      },
+      {
+        "bytes": 114333,
+        "count": 5,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/httpcore/_sync/http11.py",
+        "line": 205
+      },
+      {
+        "bytes": 113264,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 511
+      },
+      {
+        "bytes": 107848,
+        "count": 2006,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 103480,
+        "count": 921,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 100376,
+        "count": 260,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 100208,
+        "count": 893,
+        "file": "<string>",
+        "line": 2
+      },
+      {
+        "bytes": 99800,
+        "count": 957,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 169
+      },
+      {
+        "bytes": 98800,
+        "count": 304,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3251
+      },
+      {
+        "bytes": 98620,
+        "count": 1863,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      },
+      {
+        "bytes": 97728,
+        "count": 1487,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 503
+      },
+      {
+        "bytes": 94240,
+        "count": 393,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 283
+      },
+      {
+        "bytes": 94166,
+        "count": 405,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 965
+      }
+    ],
+    "RuntimeClient._make_tokenizer": [
+      {
+        "bytes": 25854634,
+        "count": 194204,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 3175645,
+        "count": 34097,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1838752,
+        "count": 290,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 506
+      },
+      {
+        "bytes": 1742321,
+        "count": 13904,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 944870,
+        "count": 3272,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 485
+      },
+      {
+        "bytes": 533161,
+        "count": 2512,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 524919,
+        "count": 7132,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 339622,
+        "count": 3407,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 307296,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+        "line": 39
+      },
+      {
+        "bytes": 290285,
+        "count": 2001,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 253200,
+        "count": 2110,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 242591,
+        "count": 2133,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 181104,
+        "count": 147,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 694
+      },
+      {
+        "bytes": 175972,
+        "count": 494,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 162115,
+        "count": 528,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/jinja2/nodes.py",
+        "line": 68
+      },
+      {
+        "bytes": 145248,
+        "count": 960,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 142288,
+        "count": 808,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 140688,
+        "count": 208,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 126280,
+        "count": 1857,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 115136,
+        "count": 280,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 113264,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 511
+      },
+      {
+        "bytes": 107872,
+        "count": 956,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 107792,
+        "count": 2005,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 105032,
+        "count": 1007,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 169
+      },
+      {
+        "bytes": 101903,
+        "count": 1925,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      },
+      {
+        "bytes": 100208,
+        "count": 893,
+        "file": "<string>",
+        "line": 2
+      },
+      {
+        "bytes": 99584,
+        "count": 1556,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/tracemalloc.py",
+        "line": 67
+      },
+      {
+        "bytes": 98800,
+        "count": 304,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3251
+      },
+      {
+        "bytes": 97728,
+        "count": 1487,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 503
+      },
+      {
+        "bytes": 94240,
+        "count": 393,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 283
+      },
+      {
+        "bytes": 94166,
+        "count": 405,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 965
+      },
+      {
+        "bytes": 94024,
+        "count": 1403,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 3108
+      }
+    ],
+    "RuntimeClient._prepare_inventory": [
+      {
+        "bytes": 25975373,
+        "count": 195179,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 3175362,
+        "count": 34091,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1838752,
+        "count": 290,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 506
+      },
+      {
+        "bytes": 1742321,
+        "count": 13904,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 987080,
+        "count": 3425,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 740236,
+        "count": 10128,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 485
+      },
+      {
+        "bytes": 565588,
+        "count": 19,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/httpcore/_sync/http11.py",
+        "line": 205
+      },
+      {
+        "bytes": 533161,
+        "count": 2512,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 339622,
+        "count": 3407,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 307296,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+        "line": 39
+      },
+      {
+        "bytes": 295415,
+        "count": 2035,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 253200,
+        "count": 2110,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 245806,
+        "count": 2159,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 181774,
+        "count": 510,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 181104,
+        "count": 147,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 694
+      },
+      {
+        "bytes": 162115,
+        "count": 528,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/jinja2/nodes.py",
+        "line": 68
+      },
+      {
+        "bytes": 150776,
+        "count": 852,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 147376,
+        "count": 974,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 145920,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/preparation_protocol.py",
+        "line": 466
+      },
+      {
+        "bytes": 142872,
+        "count": 214,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 139200,
+        "count": 600,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/dashboard.py",
+        "line": 217
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 128320,
+        "count": 1887,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 116784,
+        "count": 284,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 113264,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 511
+      },
+      {
+        "bytes": 107928,
+        "count": 957,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 107792,
+        "count": 2005,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 105032,
+        "count": 1007,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 169
+      },
+      {
+        "bytes": 102934,
+        "count": 1945,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      },
+      {
+        "bytes": 100208,
+        "count": 893,
+        "file": "<string>",
+        "line": 2
+      },
+      {
+        "bytes": 98800,
+        "count": 304,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3251
+      },
+      {
+        "bytes": 97728,
+        "count": 1487,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 503
+      },
+      {
+        "bytes": 94240,
+        "count": 393,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 283
+      }
+    ],
+    "RuntimeClient._transformer_state": [
+      {
+        "bytes": 24948061,
+        "count": 187174,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 2917206,
+        "count": 32797,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1838752,
+        "count": 290,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 506
+      },
+      {
+        "bytes": 1742321,
+        "count": 13904,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 937886,
+        "count": 3247,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 485
+      },
+      {
+        "bytes": 533161,
+        "count": 2512,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 517289,
+        "count": 7025,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 324963,
+        "count": 3284,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 307296,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+        "line": 39
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 278515,
+        "count": 1920,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 253200,
+        "count": 2110,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 233324,
+        "count": 2063,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 181104,
+        "count": 147,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 694
+      },
+      {
+        "bytes": 164932,
+        "count": 466,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 141448,
+        "count": 802,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 139384,
+        "count": 921,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 134704,
+        "count": 200,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 126400,
+        "count": 1975,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/tracemalloc.py",
+        "line": 67
+      },
+      {
+        "bytes": 121520,
+        "count": 1787,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 117519,
+        "count": 1159,
+        "file": "<frozen abc>",
+        "line": 123
+      },
+      {
+        "bytes": 113264,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 511
+      },
+      {
+        "bytes": 107792,
+        "count": 2005,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 103544,
+        "count": 922,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 100376,
+        "count": 260,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 100208,
+        "count": 893,
+        "file": "<string>",
+        "line": 2
+      },
+      {
+        "bytes": 99800,
+        "count": 957,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 169
+      },
+      {
+        "bytes": 98800,
+        "count": 304,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3251
+      },
+      {
+        "bytes": 98620,
+        "count": 1863,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      },
+      {
+        "bytes": 97728,
+        "count": 1487,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 503
+      },
+      {
+        "bytes": 94240,
+        "count": 393,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 283
+      },
+      {
+        "bytes": 94166,
+        "count": 405,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 965
+      },
+      {
+        "bytes": 94024,
+        "count": 1403,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 3108
+      }
+    ],
+    "SemanticDecoderRuntime.__init__": [
+      {
+        "bytes": 26061899,
+        "count": 195764,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 3969379,
+        "count": 60370,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 3752015,
+        "count": 36454,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1838752,
+        "count": 290,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 506
+      },
+      {
+        "bytes": 1745213,
+        "count": 13928,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 992290,
+        "count": 3447,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 485
+      },
+      {
+        "bytes": 535936,
+        "count": 2525,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 374649,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/modeling.py",
+        "line": 235
+      },
+      {
+        "bytes": 339622,
+        "count": 3407,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 307296,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+        "line": 39
+      },
+      {
+        "bytes": 297751,
+        "count": 2051,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 253800,
+        "count": 2115,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 249938,
+        "count": 2193,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 181774,
+        "count": 510,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 181104,
+        "count": 147,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 694
+      },
+      {
+        "bytes": 162115,
+        "count": 528,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/jinja2/nodes.py",
+        "line": 68
+      },
+      {
+        "bytes": 151544,
+        "count": 857,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 149200,
+        "count": 986,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 145920,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/preparation_protocol.py",
+        "line": 466
+      },
+      {
+        "bytes": 145800,
+        "count": 2383,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/modeling.py",
+        "line": 18
+      },
+      {
+        "bytes": 145136,
+        "count": 216,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 139200,
+        "count": 600,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/dashboard.py",
+        "line": 217
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 128728,
+        "count": 1893,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 116968,
+        "count": 285,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 113264,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 511
+      },
+      {
+        "bytes": 108879,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/model_binding.py",
+        "line": 583
+      },
+      {
+        "bytes": 107864,
+        "count": 956,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 107792,
+        "count": 2005,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 105032,
+        "count": 1007,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 169
+      },
+      {
+        "bytes": 104802,
+        "count": 1977,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      },
+      {
+        "bytes": 100368,
+        "count": 894,
+        "file": "<string>",
+        "line": 2
+      },
+      {
+        "bytes": 98800,
+        "count": 304,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3251
+      }
+    ],
+    "SemanticDecoderRuntime.prepare_ids": [
+      {
+        "bytes": 26203277,
+        "count": 196634,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 3971377,
+        "count": 60316,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 3742761,
+        "count": 36307,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1931568,
+        "count": 49,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 1417
+      },
+      {
+        "bytes": 1931520,
+        "count": 48,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 1416
+      },
+      {
+        "bytes": 1838752,
+        "count": 290,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 506
+      },
+      {
+        "bytes": 1751316,
+        "count": 13977,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 992170,
+        "count": 3446,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 607872,
+        "count": 3,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/quantization.py",
+        "line": 199
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 485
+      },
+      {
+        "bytes": 542644,
+        "count": 15,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/httpcore/_sync/http11.py",
+        "line": 205
+      },
+      {
+        "bytes": 535936,
+        "count": 2525,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 374649,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/modeling.py",
+        "line": 235
+      },
+      {
+        "bytes": 339622,
+        "count": 3407,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 307296,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+        "line": 39
+      },
+      {
+        "bytes": 300182,
+        "count": 2068,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 255240,
+        "count": 2127,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 251075,
+        "count": 2203,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 181774,
+        "count": 510,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 181104,
+        "count": 147,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 694
+      },
+      {
+        "bytes": 162115,
+        "count": 528,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/jinja2/nodes.py",
+        "line": 68
+      },
+      {
+        "bytes": 153184,
+        "count": 661,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/dashboard.py",
+        "line": 217
+      },
+      {
+        "bytes": 151544,
+        "count": 857,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 150416,
+        "count": 994,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 145920,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/preparation_protocol.py",
+        "line": 466
+      },
+      {
+        "bytes": 145864,
+        "count": 218,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 129816,
+        "count": 1909,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 117776,
+        "count": 288,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 113264,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 511
+      },
+      {
+        "bytes": 108879,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/model_binding.py",
+        "line": 583
+      },
+      {
+        "bytes": 107984,
+        "count": 958,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 107792,
+        "count": 2005,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 105211,
+        "count": 1985,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      }
+    ],
+    "SemanticDecoderRuntime.snapshot": [
+      {
+        "bytes": 26201125,
+        "count": 196620,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 3976452,
+        "count": 60377,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 3742601,
+        "count": 36306,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1932632,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 1433
+      },
+      {
+        "bytes": 1932528,
+        "count": 69,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 1432
+      },
+      {
+        "bytes": 1931568,
+        "count": 49,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 1417
+      },
+      {
+        "bytes": 1931520,
+        "count": 48,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 1416
+      },
+      {
+        "bytes": 1838752,
+        "count": 290,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 506
+      },
+      {
+        "bytes": 1751316,
+        "count": 13977,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 992170,
+        "count": 3446,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 485
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/quantization.py",
+        "line": 199
+      },
+      {
+        "bytes": 535936,
+        "count": 2525,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 374649,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/modeling.py",
+        "line": 235
+      },
+      {
+        "bytes": 345412,
+        "count": 11,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/httpcore/_sync/http11.py",
+        "line": 205
+      },
+      {
+        "bytes": 339622,
+        "count": 3407,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 307296,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+        "line": 39
+      },
+      {
+        "bytes": 300182,
+        "count": 2068,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 255240,
+        "count": 2127,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 251075,
+        "count": 2203,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 181774,
+        "count": 510,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 181104,
+        "count": 147,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 694
+      },
+      {
+        "bytes": 162115,
+        "count": 528,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/jinja2/nodes.py",
+        "line": 68
+      },
+      {
+        "bytes": 153120,
+        "count": 660,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/dashboard.py",
+        "line": 217
+      },
+      {
+        "bytes": 151544,
+        "count": 857,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 150416,
+        "count": 994,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 145920,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/preparation_protocol.py",
+        "line": 466
+      },
+      {
+        "bytes": 145864,
+        "count": 218,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 129816,
+        "count": 1909,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 124352,
+        "count": 1943,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/tracemalloc.py",
+        "line": 67
+      },
+      {
+        "bytes": 117776,
+        "count": 288,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 113264,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 511
+      },
+      {
+        "bytes": 108879,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/model_binding.py",
+        "line": 583
+      },
+      {
+        "bytes": 107920,
+        "count": 957,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      }
+    ],
+    "pllm.runtime.client.parse_manifest": [
+      {
+        "bytes": 24935350,
+        "count": 187092,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 2917206,
+        "count": 32797,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1744161,
+        "count": 13915,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 937949,
+        "count": 3248,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 596432,
+        "count": 6838,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 533161,
+        "count": 2512,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 440411,
+        "count": 5881,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 324963,
+        "count": 3284,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 283592,
+        "count": 4607,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/modeling.py",
+        "line": 18
+      },
+      {
+        "bytes": 278268,
+        "count": 1918,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 263244,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/client.py",
+        "line": 1611
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 253200,
+        "count": 2110,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 233324,
+        "count": 2063,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 199016,
+        "count": 1050,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 177
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 164932,
+        "count": 466,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 141448,
+        "count": 802,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 139232,
+        "count": 920,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 134704,
+        "count": 200,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 121384,
+        "count": 1785,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 118124,
+        "count": 1170,
+        "file": "<frozen abc>",
+        "line": 123
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 103680,
+        "count": 922,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 100960,
+        "count": 806,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 253
+      },
+      {
+        "bytes": 100608,
+        "count": 895,
+        "file": "<string>",
+        "line": 2
+      },
+      {
+        "bytes": 100376,
+        "count": 260,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 99800,
+        "count": 957,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 169
+      },
+      {
+        "bytes": 98800,
+        "count": 304,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3251
+      },
+      {
+        "bytes": 98620,
+        "count": 1863,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      },
+      {
+        "bytes": 97728,
+        "count": 1487,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 503
+      },
+      {
+        "bytes": 94240,
+        "count": 393,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 283
+      },
+      {
+        "bytes": 94166,
+        "count": 405,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 965
+      },
+      {
+        "bytes": 94024,
+        "count": 1403,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 3108
+      },
+      {
+        "bytes": 92664,
+        "count": 525,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic/fields.py",
+        "line": 567
+      },
+      {
+        "bytes": 89160,
+        "count": 471,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/components/_planned.py",
+        "line": 249
+      }
+    ],
+    "pllm.runtime.client.reconstruct_document": [
+      {
+        "bytes": 24934606,
+        "count": 187086,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 2917206,
+        "count": 32797,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 2119691,
+        "count": 171,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/client.py",
+        "line": 1637
+      },
+      {
+        "bytes": 1742321,
+        "count": 13904,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 937886,
+        "count": 3247,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 591784,
+        "count": 6755,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 533161,
+        "count": 2512,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 515700,
+        "count": 7010,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 324963,
+        "count": 3284,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 278268,
+        "count": 1918,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 277123,
+        "count": 11,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/httpcore/_sync/http11.py",
+        "line": 205
+      },
+      {
+        "bytes": 263244,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/client.py",
+        "line": 1611
+      },
+      {
+        "bytes": 262264,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_document.py",
+        "line": 50
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 253200,
+        "count": 2110,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 233324,
+        "count": 2063,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 199016,
+        "count": 1050,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 177
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 164932,
+        "count": 466,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 141448,
+        "count": 802,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 139232,
+        "count": 920,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 134704,
+        "count": 200,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 126640,
+        "count": 797,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 524
+      },
+      {
+        "bytes": 121384,
+        "count": 1785,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 117684,
+        "count": 1162,
+        "file": "<frozen abc>",
+        "line": 123
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 103480,
+        "count": 921,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 100376,
+        "count": 260,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 100208,
+        "count": 893,
+        "file": "<string>",
+        "line": 2
+      },
+      {
+        "bytes": 99800,
+        "count": 957,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 169
+      },
+      {
+        "bytes": 98800,
+        "count": 304,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3251
+      },
+      {
+        "bytes": 98620,
+        "count": 1863,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      },
+      {
+        "bytes": 97728,
+        "count": 1487,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 503
+      },
+      {
+        "bytes": 94240,
+        "count": 393,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 283
+      },
+      {
+        "bytes": 94166,
+        "count": 405,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 965
+      },
+      {
+        "bytes": 94024,
+        "count": 1403,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 3108
+      }
+    ],
+    "pllm.runtime.model_binding.compile_runtime_model": [
+      {
+        "bytes": 25853202,
+        "count": 194194,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 781
+      },
+      {
+        "bytes": 3175463,
+        "count": 34093,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 488
+      },
+      {
+        "bytes": 1838752,
+        "count": 290,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 506
+      },
+      {
+        "bytes": 1742321,
+        "count": 13904,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 498
+      },
+      {
+        "bytes": 944870,
+        "count": 3272,
+        "file": "<frozen abc>",
+        "line": 106
+      },
+      {
+        "bytes": 607840,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 485
+      },
+      {
+        "bytes": 554699,
+        "count": 7479,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+        "line": 361
+      },
+      {
+        "bytes": 533161,
+        "count": 2512,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 1293
+      },
+      {
+        "bytes": 374649,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/modeling.py",
+        "line": 235
+      },
+      {
+        "bytes": 339622,
+        "count": 3407,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 1031
+      },
+      {
+        "bytes": 307296,
+        "count": 96,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+        "line": 39
+      },
+      {
+        "bytes": 290285,
+        "count": 2001,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 133
+      },
+      {
+        "bytes": 288686,
+        "count": 1171,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3186
+      },
+      {
+        "bytes": 255463,
+        "count": 331,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+        "line": 925
+      },
+      {
+        "bytes": 253200,
+        "count": 2110,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 403
+      },
+      {
+        "bytes": 242591,
+        "count": 2133,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1701
+      },
+      {
+        "bytes": 196952,
+        "count": 2006,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+        "line": 168
+      },
+      {
+        "bytes": 181104,
+        "count": 147,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 694
+      },
+      {
+        "bytes": 175972,
+        "count": 494,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+        "line": 569
+      },
+      {
+        "bytes": 162115,
+        "count": 528,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/jinja2/nodes.py",
+        "line": 68
+      },
+      {
+        "bytes": 145248,
+        "count": 960,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 866
+      },
+      {
+        "bytes": 142680,
+        "count": 1993,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+        "line": 4350
+      },
+      {
+        "bytes": 142288,
+        "count": 808,
+        "file": "<frozen abc>",
+        "line": 107
+      },
+      {
+        "bytes": 140688,
+        "count": 208,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1684
+      },
+      {
+        "bytes": 131288,
+        "count": 2,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+        "line": 25
+      },
+      {
+        "bytes": 127114,
+        "count": 1052,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 226
+      },
+      {
+        "bytes": 126280,
+        "count": 1857,
+        "file": "<frozen importlib._bootstrap>",
+        "line": 49
+      },
+      {
+        "bytes": 124608,
+        "count": 1947,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/tracemalloc.py",
+        "line": 67
+      },
+      {
+        "bytes": 115136,
+        "count": 280,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+        "line": 764
+      },
+      {
+        "bytes": 113264,
+        "count": 71,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+        "line": 511
+      },
+      {
+        "bytes": 108879,
+        "count": 1,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/model_binding.py",
+        "line": 583
+      },
+      {
+        "bytes": 107808,
+        "count": 955,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 429
+      },
+      {
+        "bytes": 107792,
+        "count": 2005,
+        "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+        "line": 181
+      },
+      {
+        "bytes": 106128,
+        "count": 134,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+        "line": 3027
+      },
+      {
+        "bytes": 105032,
+        "count": 1007,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 169
+      },
+      {
+        "bytes": 101903,
+        "count": 1925,
+        "file": "<frozen importlib._bootstrap_external>",
+        "line": 1676
+      },
+      {
+        "bytes": 100208,
+        "count": 893,
+        "file": "<string>",
+        "line": 2
+      },
+      {
+        "bytes": 98800,
+        "count": 304,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+        "line": 3251
+      },
+      {
+        "bytes": 97728,
+        "count": 1487,
+        "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+        "line": 503
+      },
+      {
+        "bytes": 94240,
+        "count": 393,
+        "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+        "line": 283
+      }
+    ]
+  },
+  "phase_timings": {
+    "decode.decoder": {
+      "calls": 7,
+      "cpu_seconds": 3.660854999999998,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 4.355292081832886
+    },
+    "decode.dequantize_matmul": {
+      "calls": 7,
+      "cpu_seconds": 0.002044000000026358,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.0018200818449258804
+    },
+    "decode.paged_clear": {
+      "calls": 7,
+      "cpu_seconds": 0.8201609999999846,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.2845775820314884
+    },
+    "decode.paged_gather_rows": {
+      "calls": 7,
+      "cpu_seconds": 0.0012010000000088894,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.0011695846915245056
+    },
+    "decode.quantize_activation_per_row": {
+      "calls": 7,
+      "cpu_seconds": 0.000736999999986665,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.0007229596376419067
+    },
+    "decode.remote_exchange": {
+      "calls": 672,
+      "cpu_seconds": 0.5629829999996758,
+      "download_payload_bytes": 6215370,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 4018224,
+      "wall_seconds": 1.8025910966098309
+    },
+    "decode.remote_linear": {
+      "calls": 672,
+      "cpu_seconds": 1.235433999999799,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 2.4717774242162704
+    },
+    "decode.reply_decode": {
+      "calls": 672,
+      "cpu_seconds": 0.07100800000020513,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.24733451499999945,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.06994388345628977
+    },
+    "prefill.decoder": {
+      "calls": 1,
+      "cpu_seconds": 19.25690500000001,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 66.12191204167902
+    },
+    "prefill.dequantize_matmul": {
+      "calls": 1,
+      "cpu_seconds": 0.00040300000000570435,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.00040295906364917755
+    },
+    "prefill.paged_clear": {
+      "calls": 1,
+      "cpu_seconds": 0.1143199999999922,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.046852000057697296
+    },
+    "prefill.paged_gather_rows": {
+      "calls": 1,
+      "cpu_seconds": 0.013081999999997151,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.00959191657602787
+    },
+    "prefill.quantize_activation_per_row": {
+      "calls": 1,
+      "cpu_seconds": 0.00012000000000966793,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.00011933408677577972
+    },
+    "prefill.remote_exchange": {
+      "calls": 96,
+      "cpu_seconds": 9.757890000000053,
+      "download_payload_bytes": 126597360,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 82371735,
+      "wall_seconds": 56.96066124550998
+    },
+    "prefill.remote_linear": {
+      "calls": 96,
+      "cpu_seconds": 11.672632999999976,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 58.77524128835648
+    },
+    "prefill.reply_decode": {
+      "calls": 96,
+      "cpu_seconds": 0.45720899999997755,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 1.6521771629999997,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.4156191600486636
+    },
+    "setup.paged_from_raw_executor": {
+      "calls": 1,
+      "cpu_seconds": 0.5706610000000012,
+      "download_payload_bytes": 0,
+      "failures": 0,
+      "reported_server_seconds": 0.0,
+      "upload_payload_bytes": 0,
+      "wall_seconds": 0.5406904155388474
+    }
+  },
+  "phases": {
+    "ClientBundle._from_document": {
+      "calls": 1,
+      "cpu_seconds": 0.6357800000000005,
+      "first_before": {
+        "elapsed_seconds": 64.15624000038952,
+        "lifetime_peak_rss_bytes": 271007744,
+        "rss_bytes": 271007744,
+        "traced_current_bytes": 56291294,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 34882080
+      },
+      "last_after": {
+        "elapsed_seconds": 64.76241275016218,
+        "lifetime_peak_rss_bytes": 272105472,
+        "rss_bytes": 272105472,
+        "traced_current_bytes": 59575874,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 34948832
+      },
+      "new_highwater_max": 1097728,
+      "peak_after_max": 272105472,
+      "rss_after_max": 272105472,
+      "wall_seconds": 0.6058825412765145
+    },
+    "ClientBundle.local_linear": {
+      "calls": 8,
+      "cpu_seconds": 0.9386980000000023,
+      "first_before": {
+        "elapsed_seconds": 194.3509765835479,
+        "lifetime_peak_rss_bytes": 350175232,
+        "rss_bytes": 350175232,
+        "traced_current_bytes": 73604998,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37875584
+      },
+      "last_after": {
+        "elapsed_seconds": 200.46009566634893,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 70159145,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37911360
+      },
+      "new_highwater_max": 65536,
+      "peak_after_max": 352862208,
+      "rss_after_max": 352862208,
+      "wall_seconds": 0.33542887307703495
+    },
+    "ClientBundle.local_token_lookup": {
+      "calls": 8,
+      "cpu_seconds": 0.01629400000000203,
+      "first_before": {
+        "elapsed_seconds": 128.34689795784652,
+        "lifetime_peak_rss_bytes": 301842432,
+        "rss_bytes": 301842432,
+        "traced_current_bytes": 64031767,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37651328
+      },
+      "last_after": {
+        "elapsed_seconds": 199.8910459158942,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 69308564,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37884832
+      },
+      "new_highwater_max": 81920,
+      "peak_after_max": 352862208,
+      "rss_after_max": 352862208,
+      "wall_seconds": 0.012575916014611721
+    },
+    "CompiledRuntimeModel.runtime": {
+      "calls": 1,
+      "cpu_seconds": 6.265022000000002,
+      "first_before": {
+        "elapsed_seconds": 122.00554504152387,
+        "lifetime_peak_rss_bytes": 285900800,
+        "rss_bytes": 285900800,
+        "traced_current_bytes": 60111537,
+        "traced_peak_bytes": 68751499,
+        "tracer_bytes": 35968544
+      },
+      "last_after": {
+        "elapsed_seconds": 128.3389992080629,
+        "lifetime_peak_rss_bytes": 301809664,
+        "rss_bytes": 301809664,
+        "traced_current_bytes": 63955976,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37641984
+      },
+      "new_highwater_max": 15908864,
+      "peak_after_max": 301809664,
+      "rss_after_max": 301809664,
+      "wall_seconds": 6.33334575034678
+    },
+    "PreparedRemoteLinear.__call__": {
+      "calls": 768,
+      "cpu_seconds": 12.73034999999998,
+      "first_before": {
+        "elapsed_seconds": 128.3625060832128,
+        "lifetime_peak_rss_bytes": 301957120,
+        "rss_bytes": 301957120,
+        "traced_current_bytes": 65131270,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37661664
+      },
+      "last_after": {
+        "elapsed_seconds": 200.41596779134125,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 69540179,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37907456
+      },
+      "new_highwater_max": 25018368,
+      "peak_after_max": 352862208,
+      "rss_after_max": 352862208,
+      "wall_seconds": 61.068897751159966
+    },
+    "RuntimeClient._load_artifact_bundle": {
+      "calls": 1,
+      "cpu_seconds": 11.121834999999999,
+      "first_before": {
+        "elapsed_seconds": 27.770540833473206,
+        "lifetime_peak_rss_bytes": 161562624,
+        "rss_bytes": 161562624,
+        "traced_current_bytes": 53012614,
+        "traced_peak_bytes": 56543335,
+        "tracer_bytes": 26099584
+      },
+      "last_after": {
+        "elapsed_seconds": 64.77066037524492,
+        "lifetime_peak_rss_bytes": 272105472,
+        "rss_bytes": 272105472,
+        "traced_current_bytes": 56256448,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 34673312
+      },
+      "new_highwater_max": 110542848,
+      "peak_after_max": 272105472,
+      "rss_after_max": 272105472,
+      "wall_seconds": 36.999911250546575
+    },
+    "RuntimeClient._make_tokenizer": {
+      "calls": 1,
+      "cpu_seconds": 0.05591700000000088,
+      "first_before": {
+        "elapsed_seconds": 67.60257354099303,
+        "lifetime_peak_rss_bytes": 272433152,
+        "rss_bytes": 271843328,
+        "traced_current_bytes": 57629625,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 35152416
+      },
+      "last_after": {
+        "elapsed_seconds": 67.66981716640294,
+        "lifetime_peak_rss_bytes": 275087360,
+        "rss_bytes": 275087360,
+        "traced_current_bytes": 58101700,
+        "traced_peak_bytes": 64566134,
+        "tracer_bytes": 35248480
+      },
+      "new_highwater_max": 2654208,
+      "peak_after_max": 275087360,
+      "rss_after_max": 275087360,
+      "wall_seconds": 0.06692566722631454
+    },
+    "RuntimeClient._prepare_inventory": {
+      "calls": 1,
+      "cpu_seconds": 5.682839000000001,
+      "first_before": {
+        "elapsed_seconds": 74.98689075000584,
+        "lifetime_peak_rss_bytes": 282361856,
+        "rss_bytes": 282361856,
+        "traced_current_bytes": 58465017,
+        "traced_peak_bytes": 67819988,
+        "tracer_bytes": 35504352
+      },
+      "last_after": {
+        "elapsed_seconds": 115.28920179139823,
+        "lifetime_peak_rss_bytes": 282853376,
+        "rss_bytes": 282853376,
+        "traced_current_bytes": 60072036,
+        "traced_peak_bytes": 67819988,
+        "tracer_bytes": 35850208
+      },
+      "new_highwater_max": 491520,
+      "peak_after_max": 282853376,
+      "rss_after_max": 282853376,
+      "wall_seconds": 40.302077082917094
+    },
+    "RuntimeClient._transformer_state": {
+      "calls": 7,
+      "cpu_seconds": 12.537975,
+      "first_before": {
+        "elapsed_seconds": 27.75015379115939,
+        "lifetime_peak_rss_bytes": 161497088,
+        "rss_bytes": 161497088,
+        "traced_current_bytes": 52798271,
+        "traced_peak_bytes": 56543335,
+        "tracer_bytes": 25995776
+      },
+      "last_after": {
+        "elapsed_seconds": 121.9081229167059,
+        "lifetime_peak_rss_bytes": 285900800,
+        "rss_bytes": 285900800,
+        "traced_current_bytes": 60094597,
+        "traced_peak_bytes": 68751499,
+        "tracer_bytes": 35959936
+      },
+      "new_highwater_max": 110936064,
+      "peak_after_max": 285900800,
+      "rss_after_max": 285900800,
+      "wall_seconds": 38.4611982088536
+    },
+    "SemanticDecoderRuntime.__init__": {
+      "calls": 1,
+      "cpu_seconds": 0.061168999999999585,
+      "first_before": {
+        "elapsed_seconds": 126.67815566621721,
+        "lifetime_peak_rss_bytes": 285949952,
+        "rss_bytes": 285949952,
+        "traced_current_bytes": 61948888,
+        "traced_peak_bytes": 69225587,
+        "tracer_bytes": 37003008
+      },
+      "last_after": {
+        "elapsed_seconds": 126.74451225064695,
+        "lifetime_peak_rss_bytes": 287637504,
+        "rss_bytes": 287637504,
+        "traced_current_bytes": 63979998,
+        "traced_peak_bytes": 69225587,
+        "tracer_bytes": 37725792
+      },
+      "new_highwater_max": 1687552,
+      "peak_after_max": 287637504,
+      "rss_after_max": 287637504,
+      "wall_seconds": 0.06615316774696112
+    },
+    "SemanticDecoderRuntime.prepare_ids": {
+      "calls": 1,
+      "cpu_seconds": 19.257025,
+      "first_before": {
+        "elapsed_seconds": 128.33978683315217,
+        "lifetime_peak_rss_bytes": 301809664,
+        "rss_bytes": 301809664,
+        "traced_current_bytes": 64224181,
+        "traced_peak_bytes": 72973397,
+        "tracer_bytes": 37643648
+      },
+      "last_after": {
+        "elapsed_seconds": 194.4619085835293,
+        "lifetime_peak_rss_bytes": 350240768,
+        "rss_bytes": 350240768,
+        "traced_current_bytes": 69593265,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37883488
+      },
+      "new_highwater_max": 48431104,
+      "peak_after_max": 350240768,
+      "rss_after_max": 350240768,
+      "wall_seconds": 66.12203408405185
+    },
+    "SemanticDecoderRuntime.snapshot": {
+      "calls": 1,
+      "cpu_seconds": 0.0007080000000030395,
+      "first_before": {
+        "elapsed_seconds": 200.5575950415805,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 69490763,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37918784
+      },
+      "last_after": {
+        "elapsed_seconds": 200.55840075016022,
+        "lifetime_peak_rss_bytes": 352862208,
+        "rss_bytes": 352862208,
+        "traced_current_bytes": 73357955,
+        "traced_peak_bytes": 97504818,
+        "tracer_bytes": 37928640
+      },
+      "new_highwater_max": 0,
+      "peak_after_max": 352862208,
+      "rss_after_max": 352862208,
+      "wall_seconds": 0.0007076254114508629
+    },
+    "pllm.runtime.client.parse_manifest": {
+      "calls": 1,
+      "cpu_seconds": 0.06203299999999956,
+      "first_before": {
+        "elapsed_seconds": 27.93088662531227,
+        "lifetime_peak_rss_bytes": 161611776,
+        "rss_bytes": 161611776,
+        "traced_current_bytes": 53278843,
+        "traced_peak_bytes": 56543335,
+        "tracer_bytes": 26118912
+      },
+      "last_after": {
+        "elapsed_seconds": 27.993670375086367,
+        "lifetime_peak_rss_bytes": 161677312,
+        "rss_bytes": 161677312,
+        "traced_current_bytes": 54051931,
+        "traced_peak_bytes": 56543335,
+        "tracer_bytes": 26437632
+      },
+      "new_highwater_max": 65536,
+      "peak_after_max": 161677312,
+      "rss_after_max": 161677312,
+      "wall_seconds": 0.06256145797669888
+    },
+    "pllm.runtime.client.reconstruct_document": {
+      "calls": 1,
+      "cpu_seconds": 7.528481999999999,
+      "first_before": {
+        "elapsed_seconds": 29.512246750295162,
+        "lifetime_peak_rss_bytes": 251101184,
+        "rss_bytes": 235372544,
+        "traced_current_bytes": 53637412,
+        "traced_peak_bytes": 62395692,
+        "tracer_bytes": 34649408
+      },
+      "last_after": {
+        "elapsed_seconds": 62.72288900054991,
+        "lifetime_peak_rss_bytes": 251101184,
+        "rss_bytes": 247005184,
+        "traced_current_bytes": 56915719,
+        "traced_peak_bytes": 62395692,
+        "tracer_bytes": 34889824
+      },
+      "new_highwater_max": 0,
+      "peak_after_max": 251101184,
+      "rss_after_max": 247005184,
+      "wall_seconds": 33.210243792273104
+    },
+    "pllm.runtime.model_binding.compile_runtime_model": {
+      "calls": 3,
+      "cpu_seconds": 11.921907999999998,
+      "first_before": {
+        "elapsed_seconds": 69.81326654087752,
+        "lifetime_peak_rss_bytes": 279560192,
+        "rss_bytes": 279560192,
+        "traced_current_bytes": 58879870,
+        "traced_peak_bytes": 66789613,
+        "tracer_bytes": 35430528
+      },
+      "last_after": {
+        "elapsed_seconds": 126.58550441637635,
+        "lifetime_peak_rss_bytes": 285949952,
+        "rss_bytes": 285949952,
+        "traced_current_bytes": 60472074,
+        "traced_peak_bytes": 69225587,
+        "tracer_bytes": 36109440
+      },
+      "new_highwater_max": 1048576,
+      "peak_after_max": 285949952,
+      "rss_after_max": 285949952,
+      "wall_seconds": 11.969494915567338
+    }
+  },
+  "python_allocations": [
+    {
+      "bytes": 26237797,
+      "count": 196895,
+      "file": "<frozen importlib._bootstrap_external>",
+      "line": 781
+    },
+    {
+      "bytes": 3742202,
+      "count": 36298,
+      "file": "<frozen importlib._bootstrap>",
+      "line": 488
+    },
+    {
+      "bytes": 1838752,
+      "count": 290,
+      "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+      "line": 506
+    },
+    {
+      "bytes": 1750956,
+      "count": 13974,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+      "line": 498
+    },
+    {
+      "bytes": 992050,
+      "count": 3445,
+      "file": "<frozen abc>",
+      "line": 106
+    },
+    {
+      "bytes": 607840,
+      "count": 2,
+      "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+      "line": 485
+    },
+    {
+      "bytes": 535936,
+      "count": 2525,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+      "line": 1293
+    },
+    {
+      "bytes": 489935,
+      "count": 6166,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/json/decoder.py",
+      "line": 361
+    },
+    {
+      "bytes": 339622,
+      "count": 3407,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+      "line": 1031
+    },
+    {
+      "bytes": 307296,
+      "count": 96,
+      "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/residue_codec.py",
+      "line": 39
+    },
+    {
+      "bytes": 300700,
+      "count": 2072,
+      "file": "<frozen importlib._bootstrap_external>",
+      "line": 133
+    },
+    {
+      "bytes": 288686,
+      "count": 1171,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+      "line": 3186
+    },
+    {
+      "bytes": 255463,
+      "count": 331,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/inspect.py",
+      "line": 925
+    },
+    {
+      "bytes": 255240,
+      "count": 2127,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+      "line": 403
+    },
+    {
+      "bytes": 251075,
+      "count": 2203,
+      "file": "<frozen importlib._bootstrap_external>",
+      "line": 1701
+    },
+    {
+      "bytes": 196952,
+      "count": 2006,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/linecache.py",
+      "line": 168
+    },
+    {
+      "bytes": 181774,
+      "count": 510,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/enum.py",
+      "line": 569
+    },
+    {
+      "bytes": 181104,
+      "count": 147,
+      "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+      "line": 694
+    },
+    {
+      "bytes": 162115,
+      "count": 528,
+      "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/jinja2/nodes.py",
+      "line": 68
+    },
+    {
+      "bytes": 159035,
+      "count": 9,
+      "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/httpcore/_sync/http11.py",
+      "line": 205
+    },
+    {
+      "bytes": 151544,
+      "count": 857,
+      "file": "<frozen abc>",
+      "line": 107
+    },
+    {
+      "bytes": 150720,
+      "count": 996,
+      "file": "<frozen importlib._bootstrap_external>",
+      "line": 866
+    },
+    {
+      "bytes": 145864,
+      "count": 218,
+      "file": "<frozen importlib._bootstrap_external>",
+      "line": 1684
+    },
+    {
+      "bytes": 142680,
+      "count": 1993,
+      "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/pydantic_core/core_schema.py",
+      "line": 4350
+    },
+    {
+      "bytes": 139200,
+      "count": 600,
+      "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/dashboard.py",
+      "line": 217
+    },
+    {
+      "bytes": 131288,
+      "count": 2,
+      "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/rich/cells.py",
+      "line": 25
+    },
+    {
+      "bytes": 130088,
+      "count": 1913,
+      "file": "<frozen importlib._bootstrap>",
+      "line": 49
+    },
+    {
+      "bytes": 127114,
+      "count": 1052,
+      "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/attr/_make.py",
+      "line": 226
+    },
+    {
+      "bytes": 121265,
+      "count": 1231,
+      "file": "<frozen abc>",
+      "line": 123
+    },
+    {
+      "bytes": 117776,
+      "count": 288,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/re/_compiler.py",
+      "line": 764
+    },
+    {
+      "bytes": 116160,
+      "count": 1815,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/tracemalloc.py",
+      "line": 67
+    },
+    {
+      "bytes": 113264,
+      "count": 71,
+      "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/transformer_client.py",
+      "line": 511
+    },
+    {
+      "bytes": 107920,
+      "count": 957,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+      "line": 429
+    },
+    {
+      "bytes": 107792,
+      "count": 2005,
+      "file": "/Users/blairhudson/workspace/pllm/python/pllm/runtime/bundle_artifacts.py",
+      "line": 181
+    },
+    {
+      "bytes": 106128,
+      "count": 134,
+      "file": "/Users/blairhudson/workspace/pllm/.venv/lib/python3.13/site-packages/click/core.py",
+      "line": 3027
+    },
+    {
+      "bytes": 105211,
+      "count": 1985,
+      "file": "<frozen importlib._bootstrap_external>",
+      "line": 1676
+    },
+    {
+      "bytes": 105032,
+      "count": 1007,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+      "line": 169
+    },
+    {
+      "bytes": 101048,
+      "count": 899,
+      "file": "<string>",
+      "line": 2
+    },
+    {
+      "bytes": 98800,
+      "count": 304,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/typing.py",
+      "line": 3251
+    },
+    {
+      "bytes": 98259,
+      "count": 1496,
+      "file": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/dataclasses.py",
+      "line": 503
+    }
+  ],
+  "report": {
+    "checks": {
+      "all_runs_completed": true,
+      "authoritative_token_usage": true,
+      "memory_guard_passed": true,
+      "model_fingerprint_present": true,
+      "no_online_preparation_requests": true,
+      "no_plaintext_prompt_bytes_sent": true,
+      "no_plaintext_token_ids_sent": true,
+      "passed": true,
+      "sampling_matches_request": true
+    },
+    "client_body_placement": {
+      "client_body_i8_weight_bytes": 0,
+      "client_body_paged_metadata_bytes": 0,
+      "client_body_paged_transient_weight_bytes": 0,
+      "client_body_paged_weight_bytes": 0,
+      "client_body_scale_bytes": 0,
+      "declared_body_linear_macs_per_row_client": 0,
+      "declared_body_linear_macs_per_row_remote": 357826560,
+      "local_stage_count": 0,
+      "metal_body_i8_snapshot_bytes": 0,
+      "native_body_i8_snapshot_bytes": 0,
+      "peak_client_memory_bytes": null,
+      "remote_stage_count": 96,
+      "sample_boundary": "after-final-measured-response",
+      "schema": "pllm.client_body_placement.v1"
+    },
+    "client_process_memory": {
+      "after": {
+        "lifetime_peak_rss_bytes": 355188736,
+        "rss_bytes": 354828288
+      },
+      "before": {
+        "lifetime_peak_rss_bytes": 89440256,
+        "rss_bytes": 89440256
+      },
+      "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+      "scope": "client and in-process dashboard; excludes provider processes and OS file cache"
+    },
+    "communication_per_token": {
+      "byte_unit": "decimal MB (1000000 bytes)",
+      "decode_scope": "online bodies after first output through completion, divided by N-1",
+      "denominator": "authoritative generated output tokens, not input tokens or output cap",
+      "runs": [
+        {
+          "covered_body_bytes": 476952886,
+          "covered_mb_per_output_token": 59.61911075,
+          "decode_online_body_bytes": 10233594,
+          "decode_online_mb_per_output_token": 1.461942,
+          "decode_output_tokens": 7,
+          "generated_output_tokens": 8,
+          "online_body_bytes": 219202689,
+          "online_mb_per_output_token": 27.400336125
+        }
+      ],
+      "schema": "pllm.communication_per_generated_token.v1",
+      "scope": "covered application bodies; no full wire or checkpoint download",
+      "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+      "summary": {
+        "cold_first_response_mb_per_output_token": 59.61911075,
+        "covered_mb_per_output_token": 59.61911075,
+        "decode_online_mb_per_output_token": 1.461942,
+        "generated_output_tokens": 8,
+        "online_mb_per_output_token": 27.400336125,
+        "setup_inclusive_mb_per_output_token": 59.61911075
+      }
+    },
+    "configuration": {
+      "bundle_compression": "artifacts-zlib",
+      "capture_output_digest": true,
+      "inventory_policy": "request-sized",
+      "max_output_tokens": 8,
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "prefill_cache_bound_tokens": null,
+      "prefill_cache_mib": 0,
+      "prefill_cache_mode": "exact",
+      "prompt_digest": "71708ade3ecfbb1559d83c2247e0367d7988167c7f42a7837d703f0dbe29af1c",
+      "prompt_sequence_digest": null,
+      "provider_backend": "native",
+      "repetitions": 1,
+      "roles": [
+        "client",
+        "inference",
+        "preparation"
+      ],
+      "sampling": {
+        "effective_temperature": 0.0,
+        "mode": "greedy",
+        "requested_temperature": 0.0,
+        "top_p": null
+      },
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "tiny": false,
+      "wan_emulation": true,
+      "wan_emulation_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+      "warmup_prompt_digest": "71708ade3ecfbb1559d83c2247e0367d7988167c7f42a7837d703f0dbe29af1c",
+      "warmups": 0
+    },
+    "experiment": {
+      "configuration_digest": "588b68f6526bb21b50ce9fca9df39dc4a5902797f67d1509cad4f2a7cdfafdfb",
+      "name": "paged-demand-serial",
+      "pipeline_digest": "ca7811503996b54bf71c749d5af29248c843f63b9de651a9db1a15b5f8bf5cd5"
+    },
+    "limitations": [
+      "single host and loopback network",
+      "diagnostic record, not a canonical EvidenceReport",
+      "does not establish model quality, energy, price, adversarial security, or non-collusion"
+    ],
+    "memory_guard": {
+      "maximum_host_swap_growth_bytes": 0,
+      "minimum_host_available_bytes": 11812356096,
+      "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+      "tripped": false
+    },
+    "memory_preflight": {
+      "admitted": true,
+      "candidates": {
+        "docker": {
+          "admitted": false,
+          "docker": null,
+          "reasons": [
+            "Docker memory capacity is unavailable"
+          ],
+          "required_disk_bytes": 4024622080,
+          "required_host_bytes": 4135747410
+        },
+        "native": {
+          "admitted": true,
+          "docker": null,
+          "reasons": [],
+          "required_disk_bytes": 4024622080,
+          "required_host_bytes": 4169301842
+        }
+      },
+      "enforced_wan": true,
+      "estimate": {
+        "allocation_slack_percent": 25,
+        "bundle_storage": "streamed_paged_v1; raw cache and private files are separate disk owners",
+        "client_peak_bytes": 898545490,
+        "compiled_input_bound": 256,
+        "components": {
+          "checkpoint_bytes": 988097824,
+          "client_additional_paged_disk_bytes": 406487040,
+          "client_bundle_work_bytes": 112015360,
+          "client_cache_bytes": 0,
+          "client_live_tensor_bytes": 221122568,
+          "client_mask_bytes": 44927648,
+          "client_mask_cursor_bytes": 221856,
+          "client_metal_bytes": 0,
+          "client_nonlinear_work_bytes": 0,
+          "client_paged_metadata_bytes": 2464768,
+          "client_public_artifact_work_bytes": 33554432,
+          "client_rotary_coefficient_bytes": 131072,
+          "client_state_work_bytes": 38780928,
+          "client_tensor_work_bytes": 259903496,
+          "client_tokenizer_snapshot_disk_bytes": 67108864,
+          "float_quantization_work_bytes": 25525248,
+          "largest_loading_temporary_bytes": 272269312,
+          "legacy_client_mask_bytes": 2042462208,
+          "legacy_client_tensor_work_bytes": 2242915872,
+          "legacy_largest_loading_temporary_bytes": 544538624,
+          "legacy_per_engine_i8_and_native_bytes": 1260191744,
+          "legacy_verifier_bytes": 0,
+          "per_engine_compiled_disk_bytes": 272269312,
+          "per_engine_i8_and_native_bytes": 630095872,
+          "per_provider_metal_bytes": 0,
+          "per_provider_nonlinear_work_bytes": 0,
+          "per_role_i8_and_native_bytes": {
+            "inference": 493961216,
+            "preparation": 0
+          },
+          "per_role_loading_temporary_bytes": {
+            "inference": 272269312,
+            "preparation": 161659904
+          },
+          "preparation_additional_paged_disk_bytes": 493961216,
+          "provider_correction_bytes": 639885312,
+          "raw_client_bundle_bytes": 182521344,
+          "verifier_bytes": 0
+        },
+        "docker_provider_peak_bytes": {
+          "inference": 3909382400,
+          "preparation": 2850096000
+        },
+        "inventory_rows": 263,
+        "kernel": "cpu",
+        "limitations": [],
+        "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+        "max_input_tokens": 256,
+        "max_output_tokens": 8,
+        "model_plan_digest": "10fd65837eea42f1b7398be078a4ee830eee3fb1a898453a41fd9f57fed5db5b",
+        "native_total_peak_bytes": 4135747410,
+        "pipeline_digest": "ca7811503996b54bf71c749d5af29248c843f63b9de651a9db1a15b5f8bf5cd5",
+        "preparation_storage": "paged",
+        "provider_peak_bytes": {
+          "inference": 1937288320,
+          "preparation": 1299913600
+        },
+        "scope": "conservative allocation estimate; not measured peak RSS",
+        "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+        "verification_allocation": null,
+        "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+      },
+      "host": {
+        "admission_budget_bytes": 7627505664,
+        "available": 11922472960,
+        "disk_free": 49382076416,
+        "reserve_bytes": 4294967296,
+        "swap_used": 932708352,
+        "total": 34359738368
+      },
+      "requested_backend": "native",
+      "schema": "pllm.benchmark_memory.v1",
+      "selected_backend": "native"
+    },
+    "native_network_accounting": {
+      "samples": {
+        "runs": [
+          {
+            "after": {
+              "wan_emulation": {
+                "backend": "native-shared-tcp-pacer",
+                "burst_bytes": 16384,
+                "client_stream_bytes": 345095953,
+                "conditions": {
+                  "download_mbps": 100.0,
+                  "parties": [],
+                  "role_parties": [],
+                  "schema": "pllm.wan_conditions.v1",
+                  "upload_mbps": 40.0
+                },
+                "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+                "directed_stream_bytes": {
+                  "client->inference": 86677039,
+                  "client->preparation": 48584,
+                  "inference->client": 258346699,
+                  "inference->preparation": 8484,
+                  "preparation->client": 23631,
+                  "preparation->inference": 132828706
+                },
+                "elapsed_seconds": 196.7376326676458,
+                "enforced": true,
+                "excluded": [
+                  "IP/TCP headers, ACKs and retransmissions",
+                  "telemetry",
+                  "checkpoint distribution"
+                ],
+                "max_connections": 32,
+                "parties": {
+                  "client": {
+                    "download": {
+                      "admitted_bytes": 258370330,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 86725623,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "inference": {
+                    "download": {
+                      "admitted_bytes": 219505745,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 258355183,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "preparation": {
+                    "download": {
+                      "admitted_bytes": 57068,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 132852337,
+                      "bytes_per_second": 5000000.0
+                    }
+                  }
+                },
+                "role_parties": {
+                  "client": "client",
+                  "inference": "inference",
+                  "preparation": "preparation"
+                },
+                "schema": "pllm.native_wan.v1",
+                "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+                "total_stream_bytes": 477933143
+              }
+            },
+            "before": {
+              "wan_emulation": {
+                "backend": "native-shared-tcp-pacer",
+                "burst_bytes": 16384,
+                "client_stream_bytes": 3326,
+                "conditions": {
+                  "download_mbps": 100.0,
+                  "parties": [],
+                  "role_parties": [],
+                  "schema": "pllm.wan_conditions.v1",
+                  "upload_mbps": 40.0
+                },
+                "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+                "directed_stream_bytes": {
+                  "client->inference": 513,
+                  "client->preparation": 300,
+                  "inference->client": 2153,
+                  "preparation->client": 360
+                },
+                "elapsed_seconds": 21.623079292476177,
+                "enforced": true,
+                "excluded": [
+                  "IP/TCP headers, ACKs and retransmissions",
+                  "telemetry",
+                  "checkpoint distribution"
+                ],
+                "max_connections": 32,
+                "parties": {
+                  "client": {
+                    "download": {
+                      "admitted_bytes": 2513,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 813,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "inference": {
+                    "download": {
+                      "admitted_bytes": 513,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 2153,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "preparation": {
+                    "download": {
+                      "admitted_bytes": 300,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 360,
+                      "bytes_per_second": 5000000.0
+                    }
+                  }
+                },
+                "role_parties": {
+                  "client": "client",
+                  "inference": "inference",
+                  "preparation": "preparation"
+                },
+                "schema": "pllm.native_wan.v1",
+                "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+                "total_stream_bytes": 3326
+              }
+            }
+          }
+        ],
+        "startup": {
+          "wan_emulation": {
+            "backend": "native-shared-tcp-pacer",
+            "burst_bytes": 16384,
+            "client_stream_bytes": 3326,
+            "conditions": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            },
+            "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+            "directed_stream_bytes": {
+              "client->inference": 513,
+              "client->preparation": 300,
+              "inference->client": 2153,
+              "preparation->client": 360
+            },
+            "elapsed_seconds": 21.62242287490517,
+            "enforced": true,
+            "excluded": [
+              "IP/TCP headers, ACKs and retransmissions",
+              "telemetry",
+              "checkpoint distribution"
+            ],
+            "max_connections": 32,
+            "parties": {
+              "client": {
+                "download": {
+                  "admitted_bytes": 2513,
+                  "bytes_per_second": 12500000.0
+                },
+                "upload": {
+                  "admitted_bytes": 813,
+                  "bytes_per_second": 5000000.0
+                }
+              },
+              "inference": {
+                "download": {
+                  "admitted_bytes": 513,
+                  "bytes_per_second": 12500000.0
+                },
+                "upload": {
+                  "admitted_bytes": 2153,
+                  "bytes_per_second": 5000000.0
+                }
+              },
+              "preparation": {
+                "download": {
+                  "admitted_bytes": 300,
+                  "bytes_per_second": 12500000.0
+                },
+                "upload": {
+                  "admitted_bytes": 360,
+                  "bytes_per_second": 5000000.0
+                }
+              }
+            },
+            "role_parties": {
+              "client": "client",
+              "inference": "inference",
+              "preparation": "preparation"
+            },
+            "schema": "pllm.native_wan.v1",
+            "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+            "total_stream_bytes": 3326
+          }
+        },
+        "warmups": []
+      },
+      "schema": "pllm.native_network_accounting.v1",
+      "scope": "native shared TCP-stream caps; kernel headers/retransmissions and telemetry excluded"
+    },
+    "native_process_memory": {
+      "complete": true,
+      "limitations": "sampling can miss short peaks; shared pages may count in more than one process; excludes OS file cache and GPU allocations not charged to process RSS",
+      "maximum_sample_span_seconds": 0.003728209063410759,
+      "sample_interval_seconds": 0.05,
+      "sampled_total_peak_rss_bytes": 1664401408,
+      "samples": 3391,
+      "schema": "pllm.native_process_memory.v1",
+      "scope": "same-window sum of client/dashboard and live provider RSS, startup through responses; includes native relay and sampler"
+    },
+    "prepared_material_accounting": {
+      "conserved": true,
+      "counts": {
+        "burned": 0,
+        "claimed": 14625,
+        "discarded": 0,
+        "issued": 14625,
+        "reserved": 14625
+      },
+      "remaining_stage_rows": 0,
+      "schema": "pllm.prepared_material_accounting.v1",
+      "scope": "sealed stage rows after client close; claims burn on use, not successful output"
+    },
+    "privacy_admission": null,
+    "process_cpu_accounting": {
+      "aggregate_cold_first_response_cpu_seconds": 118.58215322400001,
+      "aggregate_startup_cpu_seconds": 25.173083096,
+      "cold_first_response_cpu_seconds_by_role": {
+        "client": 70.620789,
+        "inference": 29.212089088000003,
+        "preparation": 18.749275136
+      },
+      "full_response_compute_cap_checked": false,
+      "schema": "pllm.topology_process_cpu.v1",
+      "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+      "startup_cpu_seconds_by_role": {
+        "client": 4.941207,
+        "inference": 9.50860416,
+        "preparation": 10.723271936
+      },
+      "unmeasured": [
+        "source resolution before dashboard startup, if any",
+        "accelerator compute, energy, and CPU after the first response",
+        "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+      ]
+    },
+    "runs": [
+      {
+        "cold": true,
+        "context_tokens": 150,
+        "durations": {
+          "full_seconds": 174.447224084,
+          "generation_seconds": 4.385394458,
+          "online_seconds": 84.908169584,
+          "preparation_seconds": 47.615099958,
+          "tokens_per_second": 1.5962076084695958,
+          "transition_seconds": 0.602978125,
+          "ttft_seconds": 78.861049209
+        },
+        "failure": null,
+        "generation": {
+          "output_text_digest": "20dc626ea4f5c2bdb0862df4a68be132d0491a3e26ae39ac674682de8f24d9a9",
+          "response_status": "incomplete"
+        },
+        "inventory": {
+          "burned": 149,
+          "consumed": 8,
+          "generated": 157,
+          "required": 157,
+          "reused": 0
+        },
+        "max_output_tokens": 8,
+        "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+        "network": {
+          "decode_online_body_bytes": 10233594,
+          "decode_output_tokens": 7,
+          "decode_scope": "after-first-output-through-completion"
+        },
+        "privacy": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 124905091,
+          "correction_push_bytes": 132823543,
+          "correction_push_ns": 36990902452,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "generation_completed_responses": 1,
+          "generation_decode_online_body_bytes": 10233594,
+          "generation_decode_output_tokens": 7,
+          "generation_output_tokens": 8,
+          "generation_prefill_online_body_bytes": 208969095,
+          "inference_download_bytes": 132812730,
+          "inference_server_ns": 1899511678,
+          "inference_stage_calls": 768,
+          "inference_upload_bytes": 86389959,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 133019158,
+          "masked_online_upload_bytes": 86615511,
+          "nonlinear_chunks": 0,
+          "nonlinear_client_issuance_cpu_ns": 0,
+          "nonlinear_client_issuance_ns": 0,
+          "nonlinear_elements": 0,
+          "nonlinear_party_key_bytes": 0,
+          "nonlinear_peer_frame_bytes": 0,
+          "online_steps": 14625,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 96,
+          "preparation_download_bytes": 8572,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 14625,
+          "preparation_server_ns": 1919582875,
+          "preparation_upload_bytes": 9981,
+          "prepared_stage_rows_burned": 0,
+          "prepared_stage_rows_claimed": 14625,
+          "prepared_stage_rows_discarded": 0,
+          "prepared_stage_rows_issued": 14625,
+          "prepared_stage_rows_reserved": 14625,
+          "public_context_bytes": 0,
+          "public_prefix_artifact_local_bytes": 0,
+          "role_link.worker_a.online_download_bytes": 0,
+          "role_link.worker_a.online_upload_bytes": 0,
+          "role_link.worker_a.setup_download_bytes": 0,
+          "role_link.worker_a.setup_upload_bytes": 0,
+          "role_link.worker_a.teardown_download_bytes": 0,
+          "role_link.worker_a.teardown_upload_bytes": 0,
+          "role_link.worker_b.online_download_bytes": 0,
+          "role_link.worker_b.online_upload_bytes": 0,
+          "role_link.worker_b.setup_download_bytes": 0,
+          "role_link.worker_b.setup_upload_bytes": 0,
+          "role_link.worker_b.teardown_download_bytes": 0,
+          "role_link.worker_b.teardown_upload_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 2966,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0,
+          "tokenizer_artifact_local_bytes": 9285336
+        },
+        "processes": {
+          "client": {
+            "cpu_seconds": 65.649951,
+            "rss_peak_bytes": null
+          },
+          "inference": {
+            "cpu_seconds": 19.704694784,
+            "rss_peak_bytes": 1135951872
+          },
+          "preparation": {
+            "cpu_seconds": 8.022424064,
+            "rss_peak_bytes": 193134592
+          }
+        },
+        "run_id": "bench-1787bd7568d26e083c0f270a6fb6d50d",
+        "sampling": {
+          "effective_temperature": 0.0,
+          "mode": "greedy",
+          "requested_temperature": 0.0,
+          "top_p": null
+        },
+        "schema_version": 3,
+        "status": "completed",
+        "timestamps": {
+          "finished_at_ns": 1791495908588540000,
+          "first_token_at_ns": 1791495902541444000,
+          "last_token_at_ns": 1791495906926824000,
+          "online_started_at_ns": 1791495823680651000,
+          "preparation_finished_at_ns": 1791495823077679000,
+          "preparation_started_at_ns": 1791495775462735000,
+          "started_at_ns": 1791495734141895000
+        },
+        "tokens": {
+          "authoritative": true,
+          "input_tokens": 150,
+          "output_tokens": 8,
+          "total_tokens": 158
+        },
+        "warm": false
+      }
+    ],
+    "schema_version": "pllm.loopback_benchmark.v1",
+    "scope": "single-host-loopback-diagnostic",
+    "summary": {
+      "accounted_setup_through_first_response_body_bytes": 476952886,
+      "cold_first_response_mb_per_output_token": 59.61911075,
+      "completed_runs": 1,
+      "covered_mb_per_output_token": 59.61911075,
+      "decode_online_mb_per_output_token": 1.461942,
+      "generated_output_tokens": 8,
+      "median_covered_all_link_serialized_body_bytes": 476952886,
+      "median_full_seconds": 174.447224084,
+      "median_online_all_link_serialized_body_bytes": 219202689,
+      "median_online_seconds": 84.908169584,
+      "median_tokens_per_second": 1.5962076084695958,
+      "median_ttft_seconds": 78.861049209,
+      "online_mb_per_output_token": 27.400336125,
+      "setup_inclusive_mb_per_output_token": 59.61911075,
+      "total_accounted_benchmark_body_bytes": 476952886,
+      "total_output_tokens": 8,
+      "total_run_covered_all_link_serialized_body_bytes": 476952886,
+      "total_run_full_seconds": 174.447224084,
+      "total_run_online_all_link_serialized_body_bytes": 219202689
+    },
+    "topology_accounting": {
+      "runs": [
+        {
+          "aggregate_run_window_cpu_seconds": 93.377069848,
+          "all_link_serialized_body_bytes": 476952886,
+          "body_bytes_by_edge": [
+            {
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 12947,
+              "source": "client"
+            },
+            {
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 8616,
+              "source": "preparation"
+            },
+            {
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 132823543,
+              "source": "preparation"
+            },
+            {
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 124905091,
+              "source": "inference"
+            },
+            {
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 86389959,
+              "source": "client"
+            },
+            {
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 132812730,
+              "source": "inference"
+            }
+          ],
+          "client_serialized_body_bytes": 344129343,
+          "full_response_compute_cap_checked": false,
+          "online_all_link_serialized_body_bytes": 219202689,
+          "online_client_serialized_body_bytes": 219202689,
+          "run_window_cpu_seconds_by_role": {
+            "client": 65.649951,
+            "inference": 19.704694784,
+            "preparation": 8.022424064
+          },
+          "schema": "pllm.topology_body_accounting.v1",
+          "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only",
+          "total_wire_bytes": null,
+          "tracked_body_counter_set_present": true,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and control traffic",
+            "inference-to-preparation correction acknowledgements",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ]
+        }
+      ],
+      "stages": {
+        "runs": [
+          {
+            "body_bytes_by_stage_and_edge": {
+              "layers.0.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 441268,
+                "preparation->client": 86,
+                "preparation->inference": 441170
+              },
+              "layers.0.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4384743,
+                "preparation->client": 89,
+                "preparation->inference": 4385445
+              },
+              "layers.0.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 400536,
+                "preparation->client": 89,
+                "preparation->inference": 400388
+              },
+              "layers.0.self_attn.qkv_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 516668,
+                "preparation->client": 91,
+                "preparation->inference": 516543
+              },
+              "layers.1.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 442192,
+                "preparation->client": 86,
+                "preparation->inference": 442117
+              },
+              "layers.1.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4385289,
+                "preparation->client": 89,
+                "preparation->inference": 4385978
+              },
+              "layers.1.self_attn.o_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 404423,
+                "preparation->client": 89,
+                "preparation->inference": 404149
+              },
+              "layers.1.self_attn.qkv_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 519808,
+                "preparation->client": 91,
+                "preparation->inference": 519510
+              },
+              "layers.10.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 437471,
+                "preparation->client": 87,
+                "preparation->inference": 437368
+              },
+              "layers.10.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4379432,
+                "preparation->client": 90,
+                "preparation->inference": 4380484
+              },
+              "layers.10.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 402835,
+                "preparation->client": 90,
+                "preparation->inference": 402624
+              },
+              "layers.10.self_attn.qkv_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 519057,
+                "preparation->client": 92,
+                "preparation->inference": 518806
+              },
+              "layers.11.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 437534,
+                "preparation->client": 87,
+                "preparation->inference": 437395
+              },
+              "layers.11.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4378924,
+                "preparation->client": 90,
+                "preparation->inference": 4380029
+              },
+              "layers.11.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403583,
+                "preparation->client": 90,
+                "preparation->inference": 403338
+              },
+              "layers.11.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 517016,
+                "preparation->client": 92,
+                "preparation->inference": 516810
+              },
+              "layers.12.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 438689,
+                "preparation->client": 87,
+                "preparation->inference": 438512
+              },
+              "layers.12.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4378352,
+                "preparation->client": 90,
+                "preparation->inference": 4379532
+              },
+              "layers.12.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403545,
+                "preparation->client": 90,
+                "preparation->inference": 403307
+              },
+              "layers.12.self_attn.qkv_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 519409,
+                "preparation->client": 92,
+                "preparation->inference": 519135
+              },
+              "layers.13.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 437471,
+                "preparation->client": 87,
+                "preparation->inference": 437324
+              },
+              "layers.13.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4378748,
+                "preparation->client": 90,
+                "preparation->inference": 4379913
+              },
+              "layers.13.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 404173,
+                "preparation->client": 90,
+                "preparation->inference": 403903
+              },
+              "layers.13.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 518504,
+                "preparation->client": 92,
+                "preparation->inference": 518257
+              },
+              "layers.14.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 435938,
+                "preparation->client": 87,
+                "preparation->inference": 435845
+              },
+              "layers.14.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4376531,
+                "preparation->client": 90,
+                "preparation->inference": 4377847
+              },
+              "layers.14.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403878,
+                "preparation->client": 90,
+                "preparation->inference": 403625
+              },
+              "layers.14.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 518190,
+                "preparation->client": 92,
+                "preparation->inference": 517988
+              },
+              "layers.15.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 436611,
+                "preparation->client": 87,
+                "preparation->inference": 436501
+              },
+              "layers.15.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4369736,
+                "preparation->client": 90,
+                "preparation->inference": 4371361
+              },
+              "layers.15.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403979,
+                "preparation->client": 90,
+                "preparation->inference": 403707
+              },
+              "layers.15.self_attn.qkv_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 518504,
+                "preparation->client": 92,
+                "preparation->inference": 518273
+              },
+              "layers.16.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 436491,
+                "preparation->client": 87,
+                "preparation->inference": 436439
+              },
+              "layers.16.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4369089,
+                "preparation->client": 90,
+                "preparation->inference": 4370769
+              },
+              "layers.16.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 399721,
+                "preparation->client": 90,
+                "preparation->inference": 399589
+              },
+              "layers.16.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 516325,
+                "preparation->client": 92,
+                "preparation->inference": 516094
+              },
+              "layers.17.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 438985,
+                "preparation->client": 87,
+                "preparation->inference": 438903
+              },
+              "layers.17.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4382867,
+                "preparation->client": 90,
+                "preparation->inference": 4383758
+              },
+              "layers.17.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 404211,
+                "preparation->client": 90,
+                "preparation->inference": 403934
+              },
+              "layers.17.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 517775,
+                "preparation->client": 92,
+                "preparation->inference": 517546
+              },
+              "layers.18.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 440712,
+                "preparation->client": 87,
+                "preparation->inference": 440626
+              },
+              "layers.18.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4386082,
+                "preparation->client": 90,
+                "preparation->inference": 4386672
+              },
+              "layers.18.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 404387,
+                "preparation->client": 90,
+                "preparation->inference": 404111
+              },
+              "layers.18.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 516601,
+                "preparation->client": 92,
+                "preparation->inference": 516406
+              },
+              "layers.19.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 437471,
+                "preparation->client": 87,
+                "preparation->inference": 437420
+              },
+              "layers.19.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4376430,
+                "preparation->client": 90,
+                "preparation->inference": 4377657
+              },
+              "layers.19.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 404211,
+                "preparation->client": 90,
+                "preparation->inference": 403938
+              },
+              "layers.19.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 518542,
+                "preparation->client": 92,
+                "preparation->inference": 518284
+              },
+              "layers.2.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 441545,
+                "preparation->client": 86,
+                "preparation->inference": 441473
+              },
+              "layers.2.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4382822,
+                "preparation->client": 89,
+                "preparation->inference": 4383770
+              },
+              "layers.2.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 402143,
+                "preparation->client": 89,
+                "preparation->inference": 401974
+              },
+              "layers.2.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 517767,
+                "preparation->client": 91,
+                "preparation->inference": 517549
+              },
+              "layers.20.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 438099,
+                "preparation->client": 87,
+                "preparation->inference": 438032
+              },
+              "layers.20.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4378157,
+                "preparation->client": 90,
+                "preparation->inference": 4379340
+              },
+              "layers.20.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 402779,
+                "preparation->client": 90,
+                "preparation->inference": 402574
+              },
+              "layers.20.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 515402,
+                "preparation->client": 92,
+                "preparation->inference": 515221
+              },
+              "layers.21.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 441145,
+                "preparation->client": 87,
+                "preparation->inference": 441054
+              },
+              "layers.21.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4385731,
+                "preparation->client": 90,
+                "preparation->inference": 4386343
+              },
+              "layers.21.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403602,
+                "preparation->client": 90,
+                "preparation->inference": 403358
+              },
+              "layers.21.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 513166,
+                "preparation->client": 92,
+                "preparation->inference": 513040
+              },
+              "layers.22.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 441497,
+                "preparation->client": 87,
+                "preparation->inference": 441411
+              },
+              "layers.22.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4382673,
+                "preparation->client": 90,
+                "preparation->inference": 4383598
+              },
+              "layers.22.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 404783,
+                "preparation->client": 90,
+                "preparation->inference": 404455
+              },
+              "layers.22.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 514190,
+                "preparation->client": 92,
+                "preparation->inference": 514064
+              },
+              "layers.23.mlp.down_proj": {
+                "client->inference": 126920,
+                "client->preparation": 103,
+                "inference->client": 23312,
+                "preparation->client": 85,
+                "preparation->inference": 23158
+              },
+              "layers.23.mlp.gate_up_proj": {
+                "client->inference": 21960,
+                "client->preparation": 103,
+                "inference->client": 224432,
+                "preparation->client": 90,
+                "preparation->inference": 224952
+              },
+              "layers.23.self_attn.o_proj": {
+                "client->inference": 21064,
+                "client->preparation": 103,
+                "inference->client": 21424,
+                "preparation->client": 88,
+                "preparation->inference": 21198
+              },
+              "layers.23.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 517958,
+                "preparation->client": 92,
+                "preparation->inference": 517711
+              },
+              "layers.3.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 441212,
+                "preparation->client": 86,
+                "preparation->inference": 441100
+              },
+              "layers.3.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4383977,
+                "preparation->client": 89,
+                "preparation->inference": 4384776
+              },
+              "layers.3.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403814,
+                "preparation->client": 89,
+                "preparation->inference": 403569
+              },
+              "layers.3.self_attn.qkv_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 518358,
+                "preparation->client": 91,
+                "preparation->inference": 518155
+              },
+              "layers.4.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 438192,
+                "preparation->client": 86,
+                "preparation->inference": 438141
+              },
+              "layers.4.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4379562,
+                "preparation->client": 89,
+                "preparation->inference": 4380644
+              },
+              "layers.4.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403519,
+                "preparation->client": 89,
+                "preparation->inference": 403286
+              },
+              "layers.4.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 519023,
+                "preparation->client": 91,
+                "preparation->inference": 518785
+              },
+              "layers.5.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 439762,
+                "preparation->client": 86,
+                "preparation->inference": 439663
+              },
+              "layers.5.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4385566,
+                "preparation->client": 89,
+                "preparation->inference": 4386249
+              },
+              "layers.5.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 404046,
+                "preparation->client": 89,
+                "preparation->inference": 403788
+              },
+              "layers.5.self_attn.qkv_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 518967,
+                "preparation->client": 91,
+                "preparation->inference": 518727
+              },
+              "layers.6.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 439171,
+                "preparation->client": 86,
+                "preparation->inference": 439099
+              },
+              "layers.6.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4379682,
+                "preparation->client": 89,
+                "preparation->inference": 4380766
+              },
+              "layers.6.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403814,
+                "preparation->client": 89,
+                "preparation->inference": 403561
+              },
+              "layers.6.self_attn.qkv_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 518691,
+                "preparation->client": 91,
+                "preparation->inference": 518468
+              },
+              "layers.7.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 437029,
+                "preparation->client": 86,
+                "preparation->inference": 436935
+              },
+              "layers.7.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4380893,
+                "preparation->client": 89,
+                "preparation->inference": 4381934
+              },
+              "layers.7.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403298,
+                "preparation->client": 89,
+                "preparation->inference": 403090
+              },
+              "layers.7.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 518006,
+                "preparation->client": 91,
+                "preparation->inference": 517785
+              },
+              "layers.8.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 438913,
+                "preparation->client": 86,
+                "preparation->inference": 438787
+              },
+              "layers.8.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4378695,
+                "preparation->client": 89,
+                "preparation->inference": 4379772
+              },
+              "layers.8.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403851,
+                "preparation->client": 89,
+                "preparation->inference": 403600
+              },
+              "layers.8.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 518496,
+                "preparation->client": 91,
+                "preparation->inference": 518260
+              },
+              "layers.9.mlp.down_proj": {
+                "client->inference": 2484699,
+                "client->preparation": 104,
+                "inference->client": 437407,
+                "preparation->client": 86,
+                "preparation->inference": 437288
+              },
+              "layers.9.mlp.gate_up_proj": {
+                "client->inference": 424859,
+                "client->preparation": 104,
+                "inference->client": 4382194,
+                "preparation->client": 89,
+                "preparation->inference": 4383122
+              },
+              "layers.9.self_attn.o_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 403298,
+                "preparation->client": 89,
+                "preparation->inference": 403074
+              },
+              "layers.9.self_attn.qkv_proj": {
+                "client->inference": 407275,
+                "client->preparation": 104,
+                "inference->client": 517730,
+                "preparation->client": 91,
+                "preparation->inference": 517514
+              }
+            },
+            "expected_stage_body_bytes_by_edge": {
+              "client->inference": 86389959,
+              "client->preparation": 9981,
+              "inference->client": 132812730,
+              "preparation->client": 8572,
+              "preparation->inference": 132823543
+            },
+            "measured_body_bytes_by_edge": {
+              "client->inference": 86389959,
+              "client->preparation": 9981,
+              "inference->client": 132812730,
+              "preparation->client": 8572,
+              "preparation->inference": 132823543
+            },
+            "reconciled_with_protocol_bodies": true,
+            "schema": "pllm.prepared_stage_body_attribution.v1",
+            "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+            "unmeasured": [
+              "session authorization, bundle delivery and other bodies with no semantic stage",
+              "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+            ]
+          }
+        ],
+        "startup": {
+          "body_bytes_by_stage_and_edge": {},
+          "expected_stage_body_bytes_by_edge": {
+            "client->inference": 0,
+            "client->preparation": 0,
+            "inference->client": 0,
+            "preparation->client": 0,
+            "preparation->inference": 0
+          },
+          "measured_body_bytes_by_edge": {
+            "client->inference": 0,
+            "client->preparation": 0,
+            "inference->client": 0,
+            "preparation->client": 0,
+            "preparation->inference": 0
+          },
+          "reconciled_with_protocol_bodies": true,
+          "schema": "pllm.prepared_stage_body_attribution.v1",
+          "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+          "unmeasured": [
+            "session authorization, bundle delivery and other bodies with no semantic stage",
+            "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+          ]
+        },
+        "warmups": []
+      },
+      "startup": {
+        "aggregate_run_window_cpu_seconds": null,
+        "all_link_serialized_body_bytes": 0,
+        "body_bytes_by_edge": [
+          {
+            "destination": "preparation",
+            "phase": "offline",
+            "serialized_body_bytes": 0,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "offline",
+            "serialized_body_bytes": 0,
+            "source": "preparation"
+          },
+          {
+            "destination": "inference",
+            "phase": "offline",
+            "serialized_body_bytes": 0,
+            "source": "preparation"
+          },
+          {
+            "destination": "client",
+            "phase": "cold",
+            "serialized_body_bytes": 0,
+            "source": "inference"
+          },
+          {
+            "destination": "inference",
+            "phase": "online",
+            "serialized_body_bytes": 0,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "online",
+            "serialized_body_bytes": 0,
+            "source": "inference"
+          }
+        ],
+        "client_serialized_body_bytes": 0,
+        "full_response_compute_cap_checked": false,
+        "online_all_link_serialized_body_bytes": 0,
+        "online_client_serialized_body_bytes": 0,
+        "run_window_cpu_seconds_by_role": null,
+        "schema": "pllm.topology_body_accounting.v1",
+        "scope": "initial inventory and client-bundle serialized bodies; startup CPU unmeasured",
+        "total_wire_bytes": null,
+        "tracked_body_counter_set_present": true,
+        "unmeasured": [
+          "HTTP/TLS/WebSocket framing and control traffic",
+          "inference-to-preparation correction acknowledgements",
+          "duplicate or failed transport attempts not represented by client audit counters",
+          "model import and checkpoint distribution before initial inventory",
+          "GPU work, uninstrumented client work, and cold checkpoint distribution"
+        ]
+      },
+      "warmups": []
+    },
+    "wan_readiness": {
+      "assumptions": [
+        "independent full-duplex upload/download ports",
+        "each party's peers share its access port"
+      ],
+      "conditions": {
+        "download_mbps": 100.0,
+        "parties": [],
+        "role_parties": [],
+        "schema": "pllm.wan_conditions.v1",
+        "upload_mbps": 40.0
+      },
+      "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+      "emulation": {
+        "backend": "native-shared-tcp-pacer",
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "decode_scope": "first-to-last output interval with N-1 authoritative outputs",
+        "inter_party_links_present": true,
+        "internet_measurement": false,
+        "kernel_rate_snapshots_checked": false,
+        "native_stream_rate_snapshots_checked": true,
+        "request_scope": "demand preparation and request execution; excludes provider startup and warmups",
+        "runs": [
+          {
+            "decode_output_tokens": 7,
+            "decode_seconds": 4.385394458,
+            "decode_tokens_per_second": 1.5962076084695958,
+            "end_to_end_tokens_per_second": 0.04585914188091541,
+            "full_seconds": 174.447224084,
+            "generated_output_tokens": 8,
+            "online_seconds": 84.908169584,
+            "online_tokens_per_second": 0.09421943776665173
+          }
+        ],
+        "schema": "pllm.measured_wan_throughput.v1",
+        "scope": "measured local inference under enforced shared party access rates",
+        "summary": {
+          "decode_tokens_per_second": 1.5962076084695958,
+          "end_to_end_tokens_per_second": 0.04585914188091541,
+          "online_tokens_per_second": 0.09421943776665173
+        }
+      },
+      "internet_ready": null,
+      "measured_wan_latency_seconds": null,
+      "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+      "runs": [
+        {
+          "covered": {
+            "bottleneck": {
+              "direction": "upload",
+              "party_id": "inference"
+            },
+            "intra_party_body_bytes": 0,
+            "minimum_transfer_seconds": 51.5435642,
+            "parties": {
+              "client": {
+                "download_bytes": 257726437,
+                "download_mbps": 100.0,
+                "download_seconds": 20.61811496,
+                "upload_bytes": 86402906,
+                "upload_mbps": 40.0,
+                "upload_seconds": 17.2805812
+              },
+              "inference": {
+                "download_bytes": 219213502,
+                "download_mbps": 100.0,
+                "download_seconds": 17.53708016,
+                "upload_bytes": 257717821,
+                "upload_mbps": 40.0,
+                "upload_seconds": 51.5435642
+              },
+              "preparation": {
+                "download_bytes": 12947,
+                "download_mbps": 100.0,
+                "download_seconds": 0.00103576,
+                "upload_bytes": 132832159,
+                "upload_mbps": 40.0,
+                "upload_seconds": 26.5664318
+              }
+            },
+            "wan_body_bytes": 476952886
+          },
+          "executed_role_parties": null,
+          "generated_output_tokens": 8,
+          "online": {
+            "bottleneck": {
+              "direction": "upload",
+              "party_id": "inference"
+            },
+            "intra_party_body_bytes": 0,
+            "minimum_transfer_seconds": 26.562546,
+            "parties": {
+              "client": {
+                "download_bytes": 132812730,
+                "download_mbps": 100.0,
+                "download_seconds": 10.6250184,
+                "upload_bytes": 86389959,
+                "upload_mbps": 40.0,
+                "upload_seconds": 17.2779918
+              },
+              "inference": {
+                "download_bytes": 86389959,
+                "download_mbps": 100.0,
+                "download_seconds": 6.91119672,
+                "upload_bytes": 132812730,
+                "upload_mbps": 40.0,
+                "upload_seconds": 26.562546
+              }
+            },
+            "wan_body_bytes": 219202689
+          }
+        }
+      ],
+      "schema": "pllm.wan_readiness.v1",
+      "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+      "summary": {
+        "online": {
+          "bottleneck": {
+            "direction": "upload",
+            "party_id": "inference"
+          },
+          "intra_party_body_bytes": 0,
+          "minimum_transfer_seconds": 26.562546,
+          "parties": {
+            "client": {
+              "download_bytes": 132812730,
+              "download_mbps": 100.0,
+              "download_seconds": 10.6250184,
+              "upload_bytes": 86389959,
+              "upload_mbps": 40.0,
+              "upload_seconds": 17.2779918
+            },
+            "inference": {
+              "download_bytes": 86389959,
+              "download_mbps": 100.0,
+              "download_seconds": 6.91119672,
+              "upload_bytes": 132812730,
+              "upload_mbps": 40.0,
+              "upload_seconds": 26.562546
+            }
+          },
+          "wan_body_bytes": 219202689
+        },
+        "online_generated_tokens_per_second_ceiling": 0.3011759490223565,
+        "setup_inclusive": {
+          "bottleneck": {
+            "direction": "upload",
+            "party_id": "inference"
+          },
+          "intra_party_body_bytes": 0,
+          "minimum_transfer_seconds": 51.5435642,
+          "parties": {
+            "client": {
+              "download_bytes": 257726437,
+              "download_mbps": 100.0,
+              "download_seconds": 20.61811496,
+              "upload_bytes": 86402906,
+              "upload_mbps": 40.0,
+              "upload_seconds": 17.2805812
+            },
+            "inference": {
+              "download_bytes": 219213502,
+              "download_mbps": 100.0,
+              "download_seconds": 17.53708016,
+              "upload_bytes": 257717821,
+              "upload_mbps": 40.0,
+              "upload_seconds": 51.5435642
+            },
+            "preparation": {
+              "download_bytes": 12947,
+              "download_mbps": 100.0,
+              "download_seconds": 0.00103576,
+              "upload_bytes": 132832159,
+              "upload_mbps": 40.0,
+              "upload_seconds": 26.5664318
+            }
+          },
+          "wan_body_bytes": 476952886
+        },
+        "setup_inclusive_generated_tokens_per_second_ceiling": 0.15520851388852927
+      },
+      "unmeasured": [
+        "RTT and dependent protocol rounds",
+        "headers/TLS/ACKs, loss and retries",
+        "checkpoint distribution",
+        "WAN compute/queueing latency"
+      ]
+    },
+    "warmup_runs": []
+  },
+  "schema": "pllm.client_frontier_profile.v2",
+  "scope": "Observe client allocation phases through one ordinary native SDK benchmark.\n\nInstrumentation adds overhead. Nested process samples/timings are non-additive,\nand optional Python allocation tracing excludes unregistered native allocations.\nOnly code locations and aggregate sizes are retained; no arguments or results.\nUse a fresh process/output for each diagnostic. Uninstrumented matched cohorts\nremain the authority for performance and memory comparisons.\n",
+  "source_sha256": {
+    "python/pllm/runtime/bundle_artifacts.py": "3395f5d885f0899cccf3b3713ef3edd2ac39c260843c953d786ca93f8f09f4e7",
+    "python/pllm/runtime/client.py": "59501ad3a1d3f53d7572ee8c5473b6e89a5afe19e866a6ad13c3268ced764ce2",
+    "python/pllm/runtime/http_response.py": "105a0a94bb81385b6ffe3d2c154a200587e3da4d6d74b213bc1982eed3530049",
+    "python/pllm/runtime/model_binding.py": "c14f3a17fb28cd30db50bc53edf30fbcb3cb793566ff937f2333bfd483881add",
+    "python/pllm/runtime/paged.py": "8c47c4bc6c68dbd482e99c7856dd63415664e8a326cafbacf7f228f43cb29951",
+    "python/pllm/runtime/semantic_executor.py": "6ae5c313a911d736f551ad6abb4fd156be55e78cde7c4ad4058da527196bd336",
+    "python/pllm/runtime/transformer_client.py": "e0b052b410ce160b3d39a7046e89bf2b971a2533504e7c2b9f36e90ffd579ad3",
+    "scripts/profile_client_frontier.py": "f6f398c6bd5fc69ac8fd4b86ee4c14db5e3416b01fbfebb25c698cfefc08f028"
+  },
+  "sources_unchanged": true,
+  "timing_scope": "nested wall and process-wide client CPU; server-reported stage elapsed; exchange payloads exclude outer HTTP/WebSocket envelopes; pacing and network wait are not isolated from provider/serialization time"
+}

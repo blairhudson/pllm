@@ -4,7 +4,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { defaultMetrics } from '../lib/research-rankings.mjs';
+import { defaultMetrics, priorities } from '../lib/research-rankings.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -19,6 +19,7 @@ export const metrics = [
   { id: 'decodeTps', label: 'Decode throughput (N−1)', unit: 'tokens/s', direction: 'max' },
   { id: 'aggregateCpu', label: 'Cold aggregate process CPU', unit: 'CPU s', direction: 'min' },
   { id: 'clientCpu', label: 'Cold client process CPU', unit: 'CPU s', direction: 'min' },
+  { id: 'preparationCpu', label: 'Cold Preparation process CPU', unit: 'CPU s', direction: 'min' },
   { id: 'bodyOffload', label: 'Body-linear compute offloaded (plan)', unit: '%', direction: 'max', scoreBounds: [0, 100] },
   { id: 'providerPeak', label: 'Largest provider process peak RSS', unit: 'MB', direction: 'min' },
   { id: 'preparationPeak', label: 'Preparation lifetime peak RSS', unit: 'MB', direction: 'min' },
@@ -38,15 +39,18 @@ const shortLabels = {
   requestTps: 'Request speed', decodeTps: 'Decode speed', covered: 'Covered traffic',
   aggregateCpu: 'Agg CPU', providerPeak: 'Provider RAM', online: 'Online traffic',
   decodeBytes: 'Decode traffic', full: 'Request latency', ttft: 'First token',
-  clientCpu: 'Client CPU', bodyOffload: 'Body offload', preparationPeak: 'Preparation RAM', inferencePeak: 'Inference RAM',
+  clientCpu: 'Client CPU', preparationCpu: 'Prep CPU', bodyOffload: 'Body offload', preparationPeak: 'Prep RAM', inferencePeak: 'Inference RAM',
   artifactBytes: 'Public artifacts', clientPeak: 'Client RAM', wire: 'Physical wire',
   quality: 'Quality', energy: 'Energy',
-  totalPeak: 'Agg RAM', clientNetwork: 'Client network', totalNetwork: 'Agg network', networkPerToken: 'MB / token',
+  totalPeak: 'Agg RAM', clientNetwork: 'Client network', totalNetwork: 'All-link traffic', networkPerToken: 'MB / token',
 };
 const metricGroups = {
   clientCpu: 'Client', bodyOffload: 'Client', clientPeak: 'Client', clientNetwork: 'Client',
-  aggregateCpu: 'Agg', totalPeak: 'Agg', totalNetwork: 'Agg', energy: 'Agg', artifactBytes: 'Agg',
-  providerPeak: 'Providers', preparationPeak: 'Providers', inferencePeak: 'Providers',
+  aggregateCpu: 'Agg', totalPeak: 'Agg', energy: 'Agg',
+  preparationCpu: 'Preparation', preparationPeak: 'Preparation',
+  totalNetwork: 'Network', networkPerToken: 'Network', covered: 'Network', online: 'Network',
+  decodeBytes: 'Network', wire: 'Network', artifactBytes: 'Network',
+  providerPeak: 'Providers', inferencePeak: 'Providers',
 };
 for (const metric of metrics) {
   metric.shortLabel = shortLabels[metric.id];
@@ -165,9 +169,12 @@ export function reportMetrics(report, artifactBytes = null) {
       ? (run.tokens.output_tokens - 1) / run.durations.generation_seconds : null,
     aggregateCpu: cpu?.aggregate_cold_first_response_cpu_seconds ?? null,
     clientCpu: cpu?.cold_first_response_cpu_seconds_by_role?.client ?? null,
+    preparationCpu: config.roles.includes('preparation')
+      ? cpu?.cold_first_response_cpu_seconds_by_role?.preparation ?? null : null,
     bodyOffload: clientMacPercent === null ? null : 100 - clientMacPercent,
     providerPeak: providerPeak(config.roles, run.processes),
-    preparationPeak: run.processes?.preparation?.rss_peak_bytes == null ? null : run.processes.preparation.rss_peak_bytes / 1e6,
+    preparationPeak: !config.roles.includes('preparation') || run.processes?.preparation?.rss_peak_bytes == null
+      ? null : run.processes.preparation.rss_peak_bytes / 1e6,
     inferencePeak: run.processes?.inference?.rss_peak_bytes == null ? null : run.processes.inference.rss_peak_bytes / 1e6,
     artifactBytes: artifactBytes === null ? null : artifactBytes / 1e6,
     ...clientAndTotalResources(report), wire: null, quality: null, energy: null,
@@ -345,7 +352,7 @@ export function buildScorecard() {
       }
       return { ...value, reportSha256: hash(raw) };
     });
-  return { schema: 'pllm.research_scorecard.v1', metrics, defaultMetrics, papers, cohorts };
+  return { schema: 'pllm.research_scorecard.v1', metrics, defaultMetrics, priorities, papers, cohorts };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
