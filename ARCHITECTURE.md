@@ -46,6 +46,20 @@ cryptographic dependency.
 `crates/pllm-core` contains the integer matrix executor, scalar reference paths,
 runtime AVX2 and NEON selection, bounded coefficient arithmetic, codecs,
 quantization, masking, output subtraction, and operating system random sampling.
+NEON power-of-two modular products use exact ring32 accumulation with four
+independent vector accumulators; odd moduli retain widened arithmetic. A
+six-process synthetic Qwen3-shaped screen checks 2,138,112 output positions and
+reduces modular process CPU 24–44%. Bounded bundle-frame decoding additionally
+removes encoded-frame copies, saving about 1 MiB of Python-traced temporary
+allocation. These isolated measurements do not establish complete Preparation,
+request-latency or client-RSS improvements. A separate fresh-client Qwen2.5
+150+8-token cold/repeat pair under native shared 100/40 caps reduces Preparation
+run-window CPU 42.48%/43.87% and aggregate cold-first CPU 12.52%, while complete
+request latency improves only 1.68%/2.62%. Outputs and covered application bodies
+match with zero observed swap growth. Client lifetime peak RSS rises 248.87 to
+261.82 MB; these single samples establish no client-memory improvement or
+Qwen3-4B whole-response result. Replay and scope are in
+`docs/research/prepared-kernel-reference.md`.
 The separate opt-in `pllm.native.MetalGEMM` MLX/Metal direct kernel accepts
 bounded signed-i8 weights and i8/u32 inputs for exact clear and wrap32 outputs
 on Apple Silicon. It owns a GPU weight snapshot and synchronizes output to

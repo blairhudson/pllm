@@ -22,7 +22,7 @@ fn modular_all_paths_and_tails() {
             let m = 5;
             let w: Vec<u8> = (0..m * n).map(|i| ((i * 17) % 256) as u8).collect();
             let matrix = Matrix::new(&w, m, n).unwrap();
-            for p in [65537, 33554467, 2147483647] {
+            for p in [2, 65536, 65537, 1 << 24, 33554467, 1 << 30, 2147483647] {
                 let x: Vec<u32> = (0..batch * n)
                     .map(|i| ((i as u64 * 7919 + 2147000000) % p as u64) as u32)
                     .collect();

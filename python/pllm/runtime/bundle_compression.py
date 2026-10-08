@@ -61,13 +61,15 @@ def iter_bundle_frames(
             frame_size = _HEADER.size + encoded_size
             if len(pending) < frame_size:
                 break
-            compressed = bytes(pending[_HEADER.size : frame_size])
-            del pending[:frame_size]
             try:
                 decoder = zlib.decompressobj()
-                block = decoder.decompress(compressed, raw_size + 1)
+                # Consume the bounded input buffer directly. Release its view
+                # before resizing pending, including when decompression fails.
+                with memoryview(pending)[_HEADER.size:frame_size] as compressed:
+                    block = decoder.decompress(compressed, raw_size + 1)
             except zlib.error as exc:
                 raise BundleFrameError("compressed bundle frame is invalid") from exc
+            del pending[:frame_size]
             if (
                 len(block) != raw_size
                 or not decoder.eof

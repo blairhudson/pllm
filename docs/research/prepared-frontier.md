@@ -133,3 +133,8 @@ The initial repetitions-based screen is retained separately in
 requests passed their runtime/audit checks and matched output digests, but the
 comparison rejected mixed cold/warm repetitions. Its failed comparison is not a
 ranked cohort; the ordered-sequence contract explicitly represents that lifecycle.
+
+The subsequent [prepared-kernel implementation ablation](prepared-kernel-reference.md)
+keeps this topology and numeric contract while measuring NEON correction/online
+kernels and bounded compressed-frame decoding. Its synthetic kernel screen and
+matched installed-build response measurements have separate scopes.

@@ -164,7 +164,8 @@ impl Matrix {
         }
         Ok(size)
     }
-    /// Canonical residues in 2 <= p < 2^31. Multiplications widen BEFORE accumulating.
+    /// Canonical residues in 2 <= p < 2^31. Products widen before accumulation,
+    /// except where a power-of-two modulus permits exact wrapping arithmetic.
     pub fn modular(
         &self,
         executor: &Executor,
@@ -363,7 +364,15 @@ fn dot(w: &[i8], x: &[u32], p: u32, simd: bool) -> i64 {
     #[cfg(target_arch = "aarch64")]
     if simd {
         // SAFETY: the executor checked NEON availability and validated slice lengths.
-        return unsafe { arm::dot_wide(w, x) };
+        return unsafe {
+            if p.is_power_of_two() {
+                // p divides 2^32, so the final reduction preserves the exact
+                // signed dot product even after intermediate ring32 wraps.
+                arm::dot_wrap32(w, x) as i64
+            } else {
+                arm::dot_wide(w, x)
+            }
+        };
     }
     let _ = (p, simd);
     w.iter()
@@ -668,16 +677,32 @@ mod arm {
     pub unsafe fn dot_wrap32(w: &[i8], x: &[u32]) -> u32 {
         debug_assert_eq!(w.len(), x.len());
         let mut index = 0;
-        let mut accum = vdupq_n_u32(0);
-        while index + 8 <= w.len() {
-            let weights = vmovl_s8(vld1_s8(w.as_ptr().add(index)));
-            let low = vreinterpretq_u32_s32(vmovl_s16(vget_low_s16(weights)));
-            let high = vreinterpretq_u32_s32(vmovl_s16(vget_high_s16(weights)));
-            accum = vaddq_u32(accum, vmulq_u32(low, vld1q_u32(x.as_ptr().add(index))));
-            accum = vaddq_u32(accum, vmulq_u32(high, vld1q_u32(x.as_ptr().add(index + 4))));
-            index += 8;
+        // Independent accumulators avoid serializing every multiply-add behind
+        // the same lane sum. All products and reductions remain in Z/(2^32).
+        let mut accum = [vdupq_n_u32(0); 4];
+        while index + 16 <= w.len() {
+            let packed = vld1q_s8(w.as_ptr().add(index));
+            let a = vmovl_s8(vget_low_s8(packed));
+            let b = vmovl_s8(vget_high_s8(packed));
+            let weights = [
+                vmovl_s16(vget_low_s16(a)),
+                vmovl_s16(vget_high_s16(a)),
+                vmovl_s16(vget_low_s16(b)),
+                vmovl_s16(vget_high_s16(b)),
+            ];
+            for lane in 0..4 {
+                accum[lane] = vmlaq_u32(
+                    accum[lane],
+                    vreinterpretq_u32_s32(weights[lane]),
+                    vld1q_u32(x.as_ptr().add(index + lane * 4)),
+                );
+            }
+            index += 16;
         }
-        let mut total = vaddvq_u32(accum);
+        let mut total = vaddvq_u32(vaddq_u32(
+            vaddq_u32(accum[0], accum[1]),
+            vaddq_u32(accum[2], accum[3]),
+        ));
         for (&weight, &input) in w[index..].iter().zip(&x[index..]) {
             total = total.wrapping_add((weight as i32 as u32).wrapping_mul(input));
         }
