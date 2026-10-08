@@ -1,0 +1,1033 @@
+{
+  "records": [
+    {
+      "checked_values": 12288,
+      "median_cpu_seconds": 0.0002570000000000072,
+      "median_wall_seconds": 0.00025683268904685974,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7f639203b9ffbc2ffbfb645bb8f96beaad15ecca0647645fc83c411eed4d09b0",
+      "python_traced_peak_bytes": [
+        216353,
+        216289,
+        216289
+      ],
+      "repetition": 0,
+      "samples": [
+        {
+          "cpu_seconds": 0.00033800000000000496,
+          "wall_seconds": 0.0003386661410331726
+        },
+        {
+          "cpu_seconds": 0.00029199999999995896,
+          "wall_seconds": 0.00029191654175519943
+        },
+        {
+          "cpu_seconds": 0.0002649999999999597,
+          "wall_seconds": 0.00026554055511951447
+        },
+        {
+          "cpu_seconds": 0.00026599999999998847,
+          "wall_seconds": 0.0002656253054738045
+        },
+        {
+          "cpu_seconds": 0.00025599999999997847,
+          "wall_seconds": 0.00025575049221515656
+        },
+        {
+          "cpu_seconds": 0.0002570000000000072,
+          "wall_seconds": 0.00025683268904685974
+        },
+        {
+          "cpu_seconds": 0.00019299999999999873,
+          "wall_seconds": 0.00019295793026685715
+        },
+        {
+          "cpu_seconds": 0.00019199999999996997,
+          "wall_seconds": 0.0001914994791150093
+        },
+        {
+          "cpu_seconds": 0.00018599999999996397,
+          "wall_seconds": 0.00018570851534605026
+        }
+      ],
+      "shape": [
+        1,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 12288,
+      "median_cpu_seconds": 8.099999999999774e-05,
+      "median_wall_seconds": 8.066743612289429e-05,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7f639203b9ffbc2ffbfb645bb8f96beaad15ecca0647645fc83c411eed4d09b0",
+      "python_traced_peak_bytes": [
+        163210,
+        163210,
+        163210
+      ],
+      "repetition": 0,
+      "samples": [
+        {
+          "cpu_seconds": 8.499999999998786e-05,
+          "wall_seconds": 8.475035429000854e-05
+        },
+        {
+          "cpu_seconds": 8.999999999999286e-05,
+          "wall_seconds": 9.029172360897064e-05
+        },
+        {
+          "cpu_seconds": 8.099999999999774e-05,
+          "wall_seconds": 8.066743612289429e-05
+        },
+        {
+          "cpu_seconds": 8.500000000000174e-05,
+          "wall_seconds": 8.404254913330078e-05
+        },
+        {
+          "cpu_seconds": 8.099999999999774e-05,
+          "wall_seconds": 8.200015872716904e-05
+        },
+        {
+          "cpu_seconds": 8.099999999999774e-05,
+          "wall_seconds": 8.04997980594635e-05
+        },
+        {
+          "cpu_seconds": 7.899999999999574e-05,
+          "wall_seconds": 7.899943739175797e-05
+        },
+        {
+          "cpu_seconds": 7.899999999999574e-05,
+          "wall_seconds": 7.949955761432648e-05
+        },
+        {
+          "cpu_seconds": 7.799999999999474e-05,
+          "wall_seconds": 7.745809853076935e-05
+        }
+      ],
+      "shape": [
+        1,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 12288,
+      "median_cpu_seconds": 8.099999999999774e-05,
+      "median_wall_seconds": 8.016638457775116e-05,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7f639203b9ffbc2ffbfb645bb8f96beaad15ecca0647645fc83c411eed4d09b0",
+      "python_traced_peak_bytes": [
+        163210,
+        163210,
+        163210
+      ],
+      "repetition": 1,
+      "samples": [
+        {
+          "cpu_seconds": 8.799999999999086e-05,
+          "wall_seconds": 8.904095739126205e-05
+        },
+        {
+          "cpu_seconds": 7.899999999999574e-05,
+          "wall_seconds": 7.950048893690109e-05
+        },
+        {
+          "cpu_seconds": 8.099999999999774e-05,
+          "wall_seconds": 8.016638457775116e-05
+        },
+        {
+          "cpu_seconds": 8.099999999999774e-05,
+          "wall_seconds": 8.129142224788666e-05
+        },
+        {
+          "cpu_seconds": 7.699999999999374e-05,
+          "wall_seconds": 7.708370685577393e-05
+        },
+        {
+          "cpu_seconds": 8.099999999999774e-05,
+          "wall_seconds": 8.204206824302673e-05
+        },
+        {
+          "cpu_seconds": 7.999999999999674e-05,
+          "wall_seconds": 7.958430796861649e-05
+        },
+        {
+          "cpu_seconds": 8.199999999999874e-05,
+          "wall_seconds": 8.133426308631897e-05
+        },
+        {
+          "cpu_seconds": 7.999999999999674e-05,
+          "wall_seconds": 8.016638457775116e-05
+        }
+      ],
+      "shape": [
+        1,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 12288,
+      "median_cpu_seconds": 8.699999999998986e-05,
+      "median_wall_seconds": 8.691754192113876e-05,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7f639203b9ffbc2ffbfb645bb8f96beaad15ecca0647645fc83c411eed4d09b0",
+      "python_traced_peak_bytes": [
+        216473,
+        216289,
+        216289
+      ],
+      "repetition": 1,
+      "samples": [
+        {
+          "cpu_seconds": 0.00011699999999999211,
+          "wall_seconds": 0.0001166248694062233
+        },
+        {
+          "cpu_seconds": 8.899999999999186e-05,
+          "wall_seconds": 8.908286690711975e-05
+        },
+        {
+          "cpu_seconds": 9.499999999999786e-05,
+          "wall_seconds": 9.50424000620842e-05
+        },
+        {
+          "cpu_seconds": 9.199999999999486e-05,
+          "wall_seconds": 9.158346801996231e-05
+        },
+        {
+          "cpu_seconds": 8.699999999998986e-05,
+          "wall_seconds": 8.691754192113876e-05
+        },
+        {
+          "cpu_seconds": 7.799999999999474e-05,
+          "wall_seconds": 7.88755714893341e-05
+        },
+        {
+          "cpu_seconds": 7.700000000000762e-05,
+          "wall_seconds": 7.712468504905701e-05
+        },
+        {
+          "cpu_seconds": 8.600000000000274e-05,
+          "wall_seconds": 8.541718125343323e-05
+        },
+        {
+          "cpu_seconds": 8.400000000000074e-05,
+          "wall_seconds": 8.429214358329773e-05
+        }
+      ],
+      "shape": [
+        1,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 12288,
+      "median_cpu_seconds": 9.299999999999586e-05,
+      "median_wall_seconds": 9.15825366973877e-05,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7f639203b9ffbc2ffbfb645bb8f96beaad15ecca0647645fc83c411eed4d09b0",
+      "python_traced_peak_bytes": [
+        216473,
+        216289,
+        216289
+      ],
+      "repetition": 2,
+      "samples": [
+        {
+          "cpu_seconds": 0.00011400000000000299,
+          "wall_seconds": 0.00011279154568910599
+        },
+        {
+          "cpu_seconds": 0.00010000000000000286,
+          "wall_seconds": 9.987503290176392e-05
+        },
+        {
+          "cpu_seconds": 9.299999999999586e-05,
+          "wall_seconds": 9.15825366973877e-05
+        },
+        {
+          "cpu_seconds": 9.399999999999686e-05,
+          "wall_seconds": 9.316578507423401e-05
+        },
+        {
+          "cpu_seconds": 8.199999999999874e-05,
+          "wall_seconds": 8.150003850460052e-05
+        },
+        {
+          "cpu_seconds": 8.700000000000374e-05,
+          "wall_seconds": 8.65831971168518e-05
+        },
+        {
+          "cpu_seconds": 0.00010300000000000586,
+          "wall_seconds": 0.0001033758744597435
+        },
+        {
+          "cpu_seconds": 8.599999999998886e-05,
+          "wall_seconds": 8.687563240528107e-05
+        },
+        {
+          "cpu_seconds": 7.799999999999474e-05,
+          "wall_seconds": 7.808301597833633e-05
+        }
+      ],
+      "shape": [
+        1,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 12288,
+      "median_cpu_seconds": 8.400000000000074e-05,
+      "median_wall_seconds": 8.370727300643921e-05,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7f639203b9ffbc2ffbfb645bb8f96beaad15ecca0647645fc83c411eed4d09b0",
+      "python_traced_peak_bytes": [
+        163210,
+        163210,
+        163210
+      ],
+      "repetition": 2,
+      "samples": [
+        {
+          "cpu_seconds": 9.099999999999386e-05,
+          "wall_seconds": 9.237509220838547e-05
+        },
+        {
+          "cpu_seconds": 8.299999999999974e-05,
+          "wall_seconds": 8.27917829155922e-05
+        },
+        {
+          "cpu_seconds": 8.600000000000274e-05,
+          "wall_seconds": 8.562486618757248e-05
+        },
+        {
+          "cpu_seconds": 8.199999999999874e-05,
+          "wall_seconds": 8.316710591316223e-05
+        },
+        {
+          "cpu_seconds": 8.400000000000074e-05,
+          "wall_seconds": 8.370727300643921e-05
+        },
+        {
+          "cpu_seconds": 8.400000000000074e-05,
+          "wall_seconds": 8.375011384487152e-05
+        },
+        {
+          "cpu_seconds": 8.500000000000174e-05,
+          "wall_seconds": 8.499994874000549e-05
+        },
+        {
+          "cpu_seconds": 8.299999999999974e-05,
+          "wall_seconds": 8.358340710401535e-05
+        },
+        {
+          "cpu_seconds": 8.000000000001062e-05,
+          "wall_seconds": 8.079223334789276e-05
+        }
+      ],
+      "shape": [
+        1,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.010471999999999981,
+      "median_wall_seconds": 0.010471208952367306,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "bec469dc6a93eba63f01e48b836bd5b4458d223d1e07d5de73f2286e347f5807",
+      "python_traced_peak_bytes": [
+        32211453,
+        32211269,
+        32211269
+      ],
+      "repetition": 0,
+      "samples": [
+        {
+          "cpu_seconds": 0.010471999999999981,
+          "wall_seconds": 0.010471208952367306
+        },
+        {
+          "cpu_seconds": 0.010597000000000023,
+          "wall_seconds": 0.01059604063630104
+        },
+        {
+          "cpu_seconds": 0.011156,
+          "wall_seconds": 0.011155166663229465
+        },
+        {
+          "cpu_seconds": 0.009238999999999997,
+          "wall_seconds": 0.00923966709524393
+        },
+        {
+          "cpu_seconds": 0.010149000000000019,
+          "wall_seconds": 0.010148166678845882
+        },
+        {
+          "cpu_seconds": 0.010752999999999985,
+          "wall_seconds": 0.01075225044041872
+        },
+        {
+          "cpu_seconds": 0.009929999999999994,
+          "wall_seconds": 0.009929332882165909
+        },
+        {
+          "cpu_seconds": 0.010618000000000016,
+          "wall_seconds": 0.010618625208735466
+        },
+        {
+          "cpu_seconds": 0.00966100000000003,
+          "wall_seconds": 0.009661582298576832
+        }
+      ],
+      "shape": [
+        150,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.008575,
+      "median_wall_seconds": 0.00857579242438078,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "bec469dc6a93eba63f01e48b836bd5b4458d223d1e07d5de73f2286e347f5807",
+      "python_traced_peak_bytes": [
+        12856222,
+        12856222,
+        12856222
+      ],
+      "repetition": 0,
+      "samples": [
+        {
+          "cpu_seconds": 0.008679000000000006,
+          "wall_seconds": 0.008678250014781952
+        },
+        {
+          "cpu_seconds": 0.008517999999999998,
+          "wall_seconds": 0.008518083021044731
+        },
+        {
+          "cpu_seconds": 0.00855800000000001,
+          "wall_seconds": 0.008557625114917755
+        },
+        {
+          "cpu_seconds": 0.008575,
+          "wall_seconds": 0.00857579242438078
+        },
+        {
+          "cpu_seconds": 0.008846999999999994,
+          "wall_seconds": 0.008846708573400974
+        },
+        {
+          "cpu_seconds": 0.008782000000000012,
+          "wall_seconds": 0.008781708776950836
+        },
+        {
+          "cpu_seconds": 0.008536999999999989,
+          "wall_seconds": 0.00853750016540289
+        },
+        {
+          "cpu_seconds": 0.008775000000000005,
+          "wall_seconds": 0.008776458911597729
+        },
+        {
+          "cpu_seconds": 0.00848299999999999,
+          "wall_seconds": 0.008482874371111393
+        }
+      ],
+      "shape": [
+        150,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.008660000000000001,
+      "median_wall_seconds": 0.008659999817609787,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "bec469dc6a93eba63f01e48b836bd5b4458d223d1e07d5de73f2286e347f5807",
+      "python_traced_peak_bytes": [
+        12856222,
+        12856222,
+        12856222
+      ],
+      "repetition": 1,
+      "samples": [
+        {
+          "cpu_seconds": 0.008660000000000001,
+          "wall_seconds": 0.008659999817609787
+        },
+        {
+          "cpu_seconds": 0.009095999999999993,
+          "wall_seconds": 0.00909529160708189
+        },
+        {
+          "cpu_seconds": 0.008461000000000024,
+          "wall_seconds": 0.008461167104542255
+        },
+        {
+          "cpu_seconds": 0.00864200000000001,
+          "wall_seconds": 0.008642874658107758
+        },
+        {
+          "cpu_seconds": 0.008973999999999982,
+          "wall_seconds": 0.008974332362413406
+        },
+        {
+          "cpu_seconds": 0.008876999999999996,
+          "wall_seconds": 0.008876833133399487
+        },
+        {
+          "cpu_seconds": 0.00859399999999999,
+          "wall_seconds": 0.008594709448516369
+        },
+        {
+          "cpu_seconds": 0.008459999999999995,
+          "wall_seconds": 0.00845891609787941
+        },
+        {
+          "cpu_seconds": 0.008751999999999982,
+          "wall_seconds": 0.00875158328562975
+        }
+      ],
+      "shape": [
+        150,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.009749000000000008,
+      "median_wall_seconds": 0.009749333374202251,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "bec469dc6a93eba63f01e48b836bd5b4458d223d1e07d5de73f2286e347f5807",
+      "python_traced_peak_bytes": [
+        32211453,
+        32211269,
+        32211269
+      ],
+      "repetition": 1,
+      "samples": [
+        {
+          "cpu_seconds": 0.009749000000000008,
+          "wall_seconds": 0.009749333374202251
+        },
+        {
+          "cpu_seconds": 0.01073200000000002,
+          "wall_seconds": 0.010731415823101997
+        },
+        {
+          "cpu_seconds": 0.009775000000000006,
+          "wall_seconds": 0.009774625301361084
+        },
+        {
+          "cpu_seconds": 0.009791000000000022,
+          "wall_seconds": 0.009790374897420406
+        },
+        {
+          "cpu_seconds": 0.010521000000000003,
+          "wall_seconds": 0.01052104216068983
+        },
+        {
+          "cpu_seconds": 0.00927900000000001,
+          "wall_seconds": 0.009278291836380959
+        },
+        {
+          "cpu_seconds": 0.009123999999999993,
+          "wall_seconds": 0.00912270974367857
+        },
+        {
+          "cpu_seconds": 0.009660000000000002,
+          "wall_seconds": 0.009659916162490845
+        },
+        {
+          "cpu_seconds": 0.008496000000000004,
+          "wall_seconds": 0.008495374582707882
+        }
+      ],
+      "shape": [
+        150,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.009831000000000006,
+      "median_wall_seconds": 0.009829875081777573,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "bec469dc6a93eba63f01e48b836bd5b4458d223d1e07d5de73f2286e347f5807",
+      "python_traced_peak_bytes": [
+        32211453,
+        32211269,
+        32211269
+      ],
+      "repetition": 2,
+      "samples": [
+        {
+          "cpu_seconds": 0.009839999999999988,
+          "wall_seconds": 0.009839500300586224
+        },
+        {
+          "cpu_seconds": 0.009831000000000006,
+          "wall_seconds": 0.009829875081777573
+        },
+        {
+          "cpu_seconds": 0.009311999999999987,
+          "wall_seconds": 0.009308082982897758
+        },
+        {
+          "cpu_seconds": 0.009316000000000019,
+          "wall_seconds": 0.009314583614468575
+        },
+        {
+          "cpu_seconds": 0.009536000000000017,
+          "wall_seconds": 0.00953254196792841
+        },
+        {
+          "cpu_seconds": 0.010002999999999984,
+          "wall_seconds": 0.01000241655856371
+        },
+        {
+          "cpu_seconds": 0.00961200000000001,
+          "wall_seconds": 0.00961225014179945
+        },
+        {
+          "cpu_seconds": 0.010703000000000018,
+          "wall_seconds": 0.010702165775001049
+        },
+        {
+          "cpu_seconds": 0.010084999999999983,
+          "wall_seconds": 0.010084500536322594
+        }
+      ],
+      "shape": [
+        150,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.008771000000000001,
+      "median_wall_seconds": 0.008770083077251911,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "bec469dc6a93eba63f01e48b836bd5b4458d223d1e07d5de73f2286e347f5807",
+      "python_traced_peak_bytes": [
+        12856222,
+        12856222,
+        12856222
+      ],
+      "repetition": 2,
+      "samples": [
+        {
+          "cpu_seconds": 0.009800000000000003,
+          "wall_seconds": 0.009807749651372433
+        },
+        {
+          "cpu_seconds": 0.008771000000000001,
+          "wall_seconds": 0.008770083077251911
+        },
+        {
+          "cpu_seconds": 0.008594000000000018,
+          "wall_seconds": 0.008594040758907795
+        },
+        {
+          "cpu_seconds": 0.008785000000000015,
+          "wall_seconds": 0.008785332553088665
+        },
+        {
+          "cpu_seconds": 0.008973000000000009,
+          "wall_seconds": 0.008972791954874992
+        },
+        {
+          "cpu_seconds": 0.008590000000000014,
+          "wall_seconds": 0.008589250035583973
+        },
+        {
+          "cpu_seconds": 0.008719000000000005,
+          "wall_seconds": 0.008719750680029392
+        },
+        {
+          "cpu_seconds": 0.009357000000000004,
+          "wall_seconds": 0.009356750175356865
+        },
+        {
+          "cpu_seconds": 0.008731000000000017,
+          "wall_seconds": 0.008731749840080738
+        }
+      ],
+      "shape": [
+        150,
+        2560,
+        9728
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.012714000000000003,
+      "median_wall_seconds": 0.012713749893009663,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7dc650b5d7e40bb0bab26515bd5d0a73d3c9ef88c9045bdda8892b852741813e",
+      "python_traced_peak_bytes": [
+        19205373,
+        19205189,
+        19205189
+      ],
+      "repetition": 0,
+      "samples": [
+        {
+          "cpu_seconds": 0.013230000000000006,
+          "wall_seconds": 0.013229499571025372
+        },
+        {
+          "cpu_seconds": 0.012714000000000003,
+          "wall_seconds": 0.012713749893009663
+        },
+        {
+          "cpu_seconds": 0.013041000000000025,
+          "wall_seconds": 0.013041874393820763
+        },
+        {
+          "cpu_seconds": 0.012780000000000014,
+          "wall_seconds": 0.012780457735061646
+        },
+        {
+          "cpu_seconds": 0.01296899999999998,
+          "wall_seconds": 0.01296891737729311
+        },
+        {
+          "cpu_seconds": 0.012641000000000013,
+          "wall_seconds": 0.012640584260225296
+        },
+        {
+          "cpu_seconds": 0.012062000000000017,
+          "wall_seconds": 0.01206295844167471
+        },
+        {
+          "cpu_seconds": 0.012669999999999987,
+          "wall_seconds": 0.012669750489294529
+        },
+        {
+          "cpu_seconds": 0.012701000000000018,
+          "wall_seconds": 0.012700499966740608
+        }
+      ],
+      "shape": [
+        150,
+        9728,
+        2560
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.008084999999999981,
+      "median_wall_seconds": 0.00808529183268547,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7dc650b5d7e40bb0bab26515bd5d0a73d3c9ef88c9045bdda8892b852741813e",
+      "python_traced_peak_bytes": [
+        15869532,
+        15869532,
+        15869532
+      ],
+      "repetition": 0,
+      "samples": [
+        {
+          "cpu_seconds": 0.00898199999999999,
+          "wall_seconds": 0.008982541970908642
+        },
+        {
+          "cpu_seconds": 0.007847999999999994,
+          "wall_seconds": 0.007847416214644909
+        },
+        {
+          "cpu_seconds": 0.007923999999999987,
+          "wall_seconds": 0.007922208867967129
+        },
+        {
+          "cpu_seconds": 0.007860000000000006,
+          "wall_seconds": 0.007859333418309689
+        },
+        {
+          "cpu_seconds": 0.008424000000000015,
+          "wall_seconds": 0.008436083793640137
+        },
+        {
+          "cpu_seconds": 0.008209999999999995,
+          "wall_seconds": 0.008210541680455208
+        },
+        {
+          "cpu_seconds": 0.008316999999999991,
+          "wall_seconds": 0.008316874504089355
+        },
+        {
+          "cpu_seconds": 0.008084999999999981,
+          "wall_seconds": 0.00808529183268547
+        },
+        {
+          "cpu_seconds": 0.00800099999999998,
+          "wall_seconds": 0.008001666516065598
+        }
+      ],
+      "shape": [
+        150,
+        9728,
+        2560
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.008541999999999994,
+      "median_wall_seconds": 0.008541499264538288,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7dc650b5d7e40bb0bab26515bd5d0a73d3c9ef88c9045bdda8892b852741813e",
+      "python_traced_peak_bytes": [
+        15869532,
+        15869532,
+        15869532
+      ],
+      "repetition": 1,
+      "samples": [
+        {
+          "cpu_seconds": 0.010461999999999999,
+          "wall_seconds": 0.010464584454894066
+        },
+        {
+          "cpu_seconds": 0.008572999999999997,
+          "wall_seconds": 0.008571083657443523
+        },
+        {
+          "cpu_seconds": 0.008541999999999994,
+          "wall_seconds": 0.008541499264538288
+        },
+        {
+          "cpu_seconds": 0.008897000000000016,
+          "wall_seconds": 0.008897208608686924
+        },
+        {
+          "cpu_seconds": 0.008355000000000001,
+          "wall_seconds": 0.008354083634912968
+        },
+        {
+          "cpu_seconds": 0.008438000000000001,
+          "wall_seconds": 0.00843745842576027
+        },
+        {
+          "cpu_seconds": 0.008428999999999992,
+          "wall_seconds": 0.008428417146205902
+        },
+        {
+          "cpu_seconds": 0.008549000000000001,
+          "wall_seconds": 0.008548499085009098
+        },
+        {
+          "cpu_seconds": 0.007876000000000022,
+          "wall_seconds": 0.007876249961555004
+        }
+      ],
+      "shape": [
+        150,
+        9728,
+        2560
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.014648999999999995,
+      "median_wall_seconds": 0.014648334123194218,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7dc650b5d7e40bb0bab26515bd5d0a73d3c9ef88c9045bdda8892b852741813e",
+      "python_traced_peak_bytes": [
+        19205373,
+        19205189,
+        19205189
+      ],
+      "repetition": 1,
+      "samples": [
+        {
+          "cpu_seconds": 0.01508799999999999,
+          "wall_seconds": 0.015087791718542576
+        },
+        {
+          "cpu_seconds": 0.014648999999999995,
+          "wall_seconds": 0.014648334123194218
+        },
+        {
+          "cpu_seconds": 0.015270000000000006,
+          "wall_seconds": 0.015270666219294071
+        },
+        {
+          "cpu_seconds": 0.015376,
+          "wall_seconds": 0.015376250259578228
+        },
+        {
+          "cpu_seconds": 0.01489600000000002,
+          "wall_seconds": 0.014894915744662285
+        },
+        {
+          "cpu_seconds": 0.013295000000000001,
+          "wall_seconds": 0.013295166194438934
+        },
+        {
+          "cpu_seconds": 0.013742000000000004,
+          "wall_seconds": 0.01374137494713068
+        },
+        {
+          "cpu_seconds": 0.012390000000000012,
+          "wall_seconds": 0.012389957904815674
+        },
+        {
+          "cpu_seconds": 0.012363000000000013,
+          "wall_seconds": 0.012363792397081852
+        }
+      ],
+      "shape": [
+        150,
+        9728,
+        2560
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.01320099999999999,
+      "median_wall_seconds": 0.013201375491917133,
+      "mode": "separate",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7dc650b5d7e40bb0bab26515bd5d0a73d3c9ef88c9045bdda8892b852741813e",
+      "python_traced_peak_bytes": [
+        19205373,
+        19205189,
+        19205189
+      ],
+      "repetition": 2,
+      "samples": [
+        {
+          "cpu_seconds": 0.014829000000000009,
+          "wall_seconds": 0.014829957857728004
+        },
+        {
+          "cpu_seconds": 0.014261000000000024,
+          "wall_seconds": 0.014259584248065948
+        },
+        {
+          "cpu_seconds": 0.012233999999999995,
+          "wall_seconds": 0.012233832851052284
+        },
+        {
+          "cpu_seconds": 0.01320099999999999,
+          "wall_seconds": 0.013201375491917133
+        },
+        {
+          "cpu_seconds": 0.012888999999999984,
+          "wall_seconds": 0.0128888338804245
+        },
+        {
+          "cpu_seconds": 0.013539999999999996,
+          "wall_seconds": 0.013539082370698452
+        },
+        {
+          "cpu_seconds": 0.012913000000000008,
+          "wall_seconds": 0.012912167236208916
+        },
+        {
+          "cpu_seconds": 0.012542999999999999,
+          "wall_seconds": 0.012543125078082085
+        },
+        {
+          "cpu_seconds": 0.014604999999999979,
+          "wall_seconds": 0.014604874886572361
+        }
+      ],
+      "shape": [
+        150,
+        9728,
+        2560
+      ]
+    },
+    {
+      "checked_values": 1843200,
+      "median_cpu_seconds": 0.007881999999999972,
+      "median_wall_seconds": 0.00788258295506239,
+      "mode": "fused",
+      "native_sha256": "e89599eef2983587d4bc5c972d99d78eab8e5412305eb2c3ba4f70151e3ad7e8",
+      "output_sha256": "7dc650b5d7e40bb0bab26515bd5d0a73d3c9ef88c9045bdda8892b852741813e",
+      "python_traced_peak_bytes": [
+        15869532,
+        15869532,
+        15869532
+      ],
+      "repetition": 2,
+      "samples": [
+        {
+          "cpu_seconds": 0.008317000000000005,
+          "wall_seconds": 0.00831566657871008
+        },
+        {
+          "cpu_seconds": 0.008099999999999996,
+          "wall_seconds": 0.008097999729216099
+        },
+        {
+          "cpu_seconds": 0.007893000000000011,
+          "wall_seconds": 0.007893792353570461
+        },
+        {
+          "cpu_seconds": 0.00783700000000001,
+          "wall_seconds": 0.007837125100195408
+        },
+        {
+          "cpu_seconds": 0.00778100000000001,
+          "wall_seconds": 0.007781333290040493
+        },
+        {
+          "cpu_seconds": 0.007845999999999992,
+          "wall_seconds": 0.007846792228519917
+        },
+        {
+          "cpu_seconds": 0.007937,
+          "wall_seconds": 0.007937166839838028
+        },
+        {
+          "cpu_seconds": 0.007862999999999981,
+          "wall_seconds": 0.007863916456699371
+        },
+        {
+          "cpu_seconds": 0.007881999999999972,
+          "wall_seconds": 0.00788258295506239
+        }
+      ],
+      "shape": [
+        150,
+        9728,
+        2560
+      ]
+    }
+  ],
+  "schema": "pllm.prepared_boundaries.v1",
+  "scope": "Fresh-process synthetic client-boundary screen, without matrix execution.\n\nPublic Qwen3-shaped geometry; private-value stand-ins use reproducible randomness.\nTimes cover NumPy/bytes boundaries, native quantization/masking/packing and reply\nreconstruction. Allocation tracing is separate from timing. No whole-client RSS,\nnetwork, checkpoint quality or cryptographic claim follows from this screen.\n",
+  "script_sha256": "d26b3efe0f49062d4cb21cd3c244ca1e67d606ced5381d44fb3a74a0d1607a1a"
+}

@@ -72,6 +72,8 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(prepared_pack_correction, module)?)?;
     module.add_function(wrap_pyfunction!(prepared_pack_output, module)?)?;
     module.add_function(wrap_pyfunction!(prepared_unpack_output, module)?)?;
+    module.add_function(wrap_pyfunction!(prepared_quantize_pack, module)?)?;
+    module.add_function(wrap_pyfunction!(prepared_dequantize_output, module)?)?;
     module.add_function(wrap_pyfunction!(unpack_residue_rows, module)?)?;
     module.add_function(wrap_pyfunction!(offset_seeded_share, module)?)?;
     module.add_function(wrap_pyfunction!(offset_row_bits, module)?)?;
@@ -154,6 +156,61 @@ fn unpack_residue_rows<'py>(
 ) -> PyResult<Bound<'py, PyBytes>> {
     let result = py
         .detach(|| pllm_core::offset_transport::unpack_rows(payload, widths, rows))
+        .map_err(invalid)?;
+    Ok(PyBytes::new(py, &result))
+}
+
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn prepared_quantize_pack<'py>(
+    py: Python<'py>,
+    input: &[u8],
+    mask: &[u8],
+    rows: usize,
+    columns: usize,
+    activation_bits: u8,
+    input_bits: u8,
+) -> PyResult<(Bound<'py, PyBytes>, Bound<'py, PyBytes>)> {
+    let (packed, scales) = py
+        .detach(|| {
+            pllm_core::offset_transport::quantize_mask_pack(
+                input,
+                mask,
+                rows,
+                columns,
+                activation_bits,
+                input_bits,
+            )
+        })
+        .map_err(invalid)?;
+    Ok((PyBytes::new(py, &packed), PyBytes::new(py, &scales)))
+}
+
+#[pyfunction]
+#[pyo3(signature = (payload, mask, widths, rows, activation_scales, weight_scales, bias=None))]
+#[allow(clippy::too_many_arguments)]
+fn prepared_dequantize_output<'py>(
+    py: Python<'py>,
+    payload: &[u8],
+    mask: &[u8],
+    widths: &[u8],
+    rows: usize,
+    activation_scales: &[u8],
+    weight_scales: &[u8],
+    bias: Option<&[u8]>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let result = py
+        .detach(|| {
+            pllm_core::offset_transport::unmask_dequantize(
+                payload,
+                mask,
+                widths,
+                rows,
+                activation_scales,
+                weight_scales,
+                bias,
+            )
+        })
         .map_err(invalid)?;
     Ok(PyBytes::new(py, &result))
 }

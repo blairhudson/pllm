@@ -130,6 +130,7 @@ def worker(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe", choices=("kernels", "responses"), required=True)
+    parser.add_argument("--change-scope", choices=("kernels", "client-fusion", "prepared-refinements"), default="kernels")
     parser.add_argument("--baseline-python", type=Path)
     parser.add_argument("--candidate-python", type=Path)
     parser.add_argument("--experiment")
@@ -160,7 +161,8 @@ def main():
     from pllm.metrics import benchmark_memory
 
     interpreters = dict(zip(MODES, (args.baseline_python.absolute(), args.candidate_python.absolute())))
-    provenance = {"scope": __doc__, "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    provenance = {"scope": __doc__, "change_scope": args.change_scope,
+                  "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()}
     records = []
     salt = os.urandom(32).hex()
@@ -229,8 +231,13 @@ def main():
                     raise ValueError("installed implementation changed during cohort")
             changed = sorted(name for name in set(identities[0]["python_sha256"]) | set(identities[1]["python_sha256"])
                 if identities[0]["python_sha256"].get(name) != identities[1]["python_sha256"].get(name))
-            if changed != ["runtime/bundle_compression.py"]:
-                raise ValueError("builds must differ only in native kernels and bundle frame decoding")
+            expected = {
+                "kernels": ["runtime/bundle_compression.py"],
+                "client-fusion": ["runtime/stage_protocol.py", "runtime/transformer_client.py"],
+                "prepared-refinements": ["runtime/client.py", "runtime/transformer_engine.py"],
+            }[args.change_scope]
+            if changed != expected:
+                raise ValueError(f"installed Python changes differ from {args.change_scope}: {changed}")
             comparison = None
             if args.probe == "responses":
                 comparison = build_comparison_report([(experiment(args.experiment, row["mode"]), row["report"])

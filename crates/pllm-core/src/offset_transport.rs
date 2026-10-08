@@ -254,9 +254,147 @@ pub fn unmask_packed(
     Ok(output)
 }
 
+/// Quantize, subtract a one-use mask, and pack directly into the existing wire
+/// layout. No quantized or expanded masked tensor is retained. Width is public.
+pub fn quantize_mask_pack(
+    input: &[u8],
+    mask: &[u8],
+    rows: usize,
+    columns: usize,
+    activation_bits: u8,
+    input_bits: u8,
+) -> Result<(Vec<u8>, Vec<u8>), String> {
+    if !(1..=4096).contains(&rows)
+        || columns == 0
+        || columns > 4_000_000 / rows
+        || !(2..=8).contains(&activation_bits)
+        || !(1..=32).contains(&input_bits)
+        || input.len() != rows * columns * 4
+        || mask.len() != input.len()
+    {
+        return Err("invalid fused prepared input dimensions or precision".into());
+    }
+    let qmax = ((1_u16 << (activation_bits - 1)) - 1) as f32;
+    let ring_mask = (1_u64 << input_bits) - 1;
+    let mut output = Vec::with_capacity((rows * columns * usize::from(input_bits)).div_ceil(8));
+    let mut scales = Vec::with_capacity(rows * 4);
+    let (mut buffer, mut used) = (0_u64, 0_u8);
+    for (row, masks) in input
+        .chunks_exact(columns * 4)
+        .zip(mask.chunks_exact(columns * 4))
+    {
+        let mut max = 0_f32;
+        for raw in row.chunks_exact(4) {
+            let value = f32::from_le_bytes(raw.try_into().unwrap());
+            if !value.is_finite() {
+                return Err("nonfinite activation".into());
+            }
+            max = max.max(value.abs());
+        }
+        let scale = if max > 0. { max / qmax } else { 1. };
+        if scale <= 0. || !scale.is_finite() {
+            return Err("row scale underflow or overflow".into());
+        }
+        scales.extend_from_slice(&scale.to_le_bytes());
+        for (raw, mask) in row.chunks_exact(4).zip(masks.chunks_exact(4)) {
+            let value = f32::from_le_bytes(raw.try_into().unwrap());
+            let quantized = (value / scale).round_ties_even().clamp(-qmax, qmax) as i8;
+            let masked = (quantized as i32 as u32)
+                .wrapping_sub(u32::from_le_bytes(mask.try_into().unwrap()));
+            buffer |= (u64::from(masked) & ring_mask) << used;
+            used += input_bits;
+            while used >= 8 {
+                output.push(buffer as u8);
+                buffer >>= 8;
+                used -= 8;
+            }
+        }
+    }
+    if used != 0 {
+        output.push(buffer as u8);
+    }
+    Ok((output, scales))
+}
+
+/// Reconstruct and dequantize unverified public stages without an i64 tensor.
+/// Preserve NumPy's separate float32 cast, multiply, multiply, then bias steps.
+/// Verified stages must instead expose integers to their one-use verifier first.
+pub fn unmask_dequantize(
+    packed: &[u8],
+    mask: &[u8],
+    widths: &[u8],
+    rows: usize,
+    activation_scales: &[u8],
+    weight_scales: &[u8],
+    bias: Option<&[u8]>,
+) -> Result<Vec<u8>, String> {
+    let (size, bits) = packed_size(widths, rows)?;
+    validate_packed(packed, size, bits)?;
+    if mask.len() != rows * widths.len() * 4
+        || activation_scales.len() != rows * 4
+        || weight_scales.len() != widths.len() * 4
+        || bias.is_some_and(|b| b.len() != widths.len() * 4)
+    {
+        return Err("fused prepared output shape differs".into());
+    }
+    let float = |bytes: &[u8], index: usize| {
+        f32::from_le_bytes(bytes[index * 4..index * 4 + 4].try_into().unwrap())
+    };
+    for scales in [activation_scales, weight_scales] {
+        if scales.chunks_exact(4).any(|v| {
+            let x = f32::from_le_bytes(v.try_into().unwrap());
+            !x.is_finite() || x <= 0.
+        }) {
+            return Err("invalid fused prepared scales".into());
+        }
+    }
+    if bias.is_some_and(|b| {
+        b.chunks_exact(4)
+            .any(|v| !f32::from_le_bytes(v.try_into().unwrap()).is_finite())
+    }) {
+        return Err("nonfinite prepared bias".into());
+    }
+    let mut reader = BitReader::new(packed);
+    let mut output = Vec::with_capacity(rows * widths.len() * 4);
+    for (index, (mask, &width)) in mask.chunks_exact(4).zip(widths.iter().cycle()).enumerate() {
+        let modulus = 1_u64 << width;
+        let value = (reader.read(width) + u64::from(u32::from_le_bytes(mask.try_into().unwrap())))
+            & (modulus - 1);
+        let centered = if value >= modulus / 2 {
+            value as i64 - modulus as i64
+        } else {
+            value as i64
+        };
+        let column = index % widths.len();
+        let scaled = (centered as f32 * float(activation_scales, index / widths.len()))
+            * float(weight_scales, column);
+        let result = bias.map_or(scaled, |b| scaled + float(b, column));
+        output.extend_from_slice(&result.to_le_bytes());
+    }
+    Ok(output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn fused_boundaries_match_separate_integer_primitives() {
+        let input = [-7_f32, 7., 0.5, 1.5, 2.5, -0.5, -1.5, -2.5];
+        let raw: Vec<_> = input.iter().flat_map(|v| v.to_le_bytes()).collect();
+        let masks: Vec<_> = (0..8).flat_map(|n| (u32::MAX - n).to_le_bytes()).collect();
+        let (q, s) = crate::codec::quantize(&input, 1, 8, 4, None).unwrap();
+        for bits in [3, 7, 16, 24, 32] {
+            let (packed, scales) = quantize_mask_pack(&raw, &masks, 1, 8, 4, bits).unwrap();
+            let ordinary = crate::codec::prepared_mask_input(&q, &masks, 32).unwrap();
+            assert_eq!(packed, pack_row_residues(&ordinary, &[bits; 8], 1).unwrap());
+            assert_eq!(
+                scales,
+                s.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>()
+            );
+        }
+        assert!(quantize_mask_pack(&[], &[], usize::MAX, 1, 8, 16).is_err());
+        assert!(unmask_dequantize(&[], &[], &[32], usize::MAX, &[], &[], None).is_err());
+    }
     #[test]
     fn prepared_correction_and_online_residues_preserve_signed_outputs() {
         let widths = [3, 12, 24, 32];

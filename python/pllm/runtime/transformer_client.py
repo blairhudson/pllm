@@ -1214,7 +1214,7 @@ class PreparedRemoteLinear:
             raise TransformerClientError("service returned a mismatched seeded ring result")
         return results
 
-    def _decode_reply(self, payload, stage, output_mask, batch_id, attempt_id):
+    def _decode_reply(self, payload, stage, output_mask, batch_id, attempt_id, scales=None):
         profile, rows = stage.seeded_profile, output_mask.shape[0]
         if stage.output_residue_bits is not None:
             from pllm import _native
@@ -1222,6 +1222,13 @@ class PreparedRemoteLinear:
             packed, server_ns = unpack_row_response(
                 payload, ticket=batch_id or attempt_id, stage=stage.id,
                 widths=stage.output_residue_bits, rows=rows, bits=profile.wire_bits, namespace="prepared")
+            if scales is not None:
+                values = _native.prepared_dequantize_output(packed,
+                    output_mask.astype("<u4", copy=False).tobytes(), stage.output_residue_bits, rows,
+                    scales.astype("<f4", copy=False).tobytes(),
+                    stage.weight_scales.astype("<f4", copy=False).tobytes(),
+                    None if stage.bias is None else stage.bias.astype("<f4", copy=False).tobytes())
+                return np.frombuffer(values, "<f4").reshape(rows, stage.out_features), server_ns
             values = np.frombuffer(_native.prepared_unpack_output(packed,
                 output_mask.astype("<u4", copy=False).tobytes(), stage.output_residue_bits, rows), "<i8")
             return values.reshape(rows, stage.out_features), server_ns
@@ -1246,22 +1253,34 @@ class PreparedRemoteLinear:
             )
         if stage.input_equalization is not None:
             value = equalize_activation(value, stage.input_equalization)
-        quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
         profile = stage.seeded_profile
         if profile is None or profile.wire_bits not in {16, 24, 32} or profile.modulus != 1 << profile.wire_bits:
             raise TransformerClientError("stage lacks a seeded ring profile")
+        from .residue_codec import MAX_ROWS, MAX_VALUES
+        rows = value.size // stage.in_features
+        output_shape = value.shape[:-1] + (stage.out_features,)
+        fused_input = (self.verification_component == "none" and self.request_encoding != "raw"
+                       and 0 < rows <= MAX_ROWS and value.size <= MAX_VALUES)
+        if fused_input:
+            # Native quantization retains exactly the same float32 scale and
+            # ties-even arithmetic, emitting packed masks instead of intermediates.
+            value = value.reshape(rows, stage.in_features)
+            scales = np.empty(rows, dtype=np.float32)
+            clear_signed = None
+        else:
+            quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
+            clear_signed, scales = quantized.values, quantized.scales
         input_bits = None
         if self.request_encoding == "stage_packed":
             from .residue_codec import MAX_VALUES
             widths = stage.output_residue_bits
             if (not widths or min(widths) < 1 or max(widths) > profile.wire_bits
-                    or quantized.rows * stage.in_features > MAX_VALUES):
+                    or rows * stage.in_features > MAX_VALUES):
                 raise TransformerClientError("stage lacks an admitted packed-input layout")
             # All omitted input contributions are multiples of every output ring.
             # Masks and corrections retain their original domains and one-use rules.
             input_bits = max(widths)
-        clear_signed = quantized.values.reshape(quantized.rows, stage.in_features)
-        mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
+        mask, output_mask, attempt_ids = self.inventory.take(stage_id, rows)
         verifier = self.inventory.take_verifier(stage_id)
         if self.verification_component not in {"none", "pllm/freivalds-verify/v1"} or (
             verifier is None
@@ -1269,14 +1288,25 @@ class PreparedRemoteLinear:
             if verifier is not None:
                 verifier.cancel()
             raise TransformerClientError("prepared stage verification does not match its contract")
-        complement = mask_prepared_input(clear_signed, mask, profile.wire_bits)
-        chunk_rows = self.prefill_chunk_rows or quantized.rows
+        complement = None if fused_input else mask_prepared_input(clear_signed, mask, profile.wire_bits)
+        chunk_rows = self.prefill_chunk_rows or rows
         chunks, inference_requests = [], []
-        for start in range(0, quantized.rows, chunk_rows):
-            end = min(quantized.rows, start + chunk_rows)
+        for start in range(0, rows, chunk_rows):
+            end = min(rows, start + chunk_rows)
             batch_id = secrets.token_hex(16) if end - start > 1 or self.request_encoding != "raw" else None
             chunks.append((start, end, batch_id))
-            if batch_id is not None:
+            if fused_input:
+                from pllm import _native
+                packed, row_scales = _native.prepared_quantize_pack(
+                    value[start:end].astype("<f4", copy=False).tobytes(),
+                    mask[start:end].astype("<u4", copy=False).tobytes(), end - start,
+                    stage.in_features, stage.activation_bits, input_bits or profile.wire_bits)
+                scales[start:end] = np.frombuffer(row_scales, "<f4")
+                inference_requests.append(PreparedStageBatchRequest.pack_encoded(
+                    batch_id, tuple(attempt_ids[start:end]), packed, end - start,
+                    stage.in_features, profile.wire_bits, input_bits))
+                del packed, row_scales
+            elif batch_id is not None:
                 inference_requests.append(PreparedStageBatchRequest(
                     batch_id=batch_id, correlation_ids=tuple(attempt_ids[start:end]),
                     masked_input=complement[start:end], wire_bits=profile.wire_bits,
@@ -1299,6 +1329,8 @@ class PreparedRemoteLinear:
                     out_features=stage.out_features,
                     signed_output_bound=profile.signed_output_bound,
                 ).pack())
+        del mask, complement, value
+        fused_output = verifier is None and stage.output_residue_bits is not None
         inference_upload_bytes = sum(map(len, inference_requests))
         self.stats.inference_upload_bytes += inference_upload_bytes
         self.stats.upload_bytes += inference_upload_bytes
@@ -1317,11 +1349,14 @@ class PreparedRemoteLinear:
             parts, inference_server_ns = [], 0
             for payload, (start, end, batch_id) in zip(inference_payloads, chunks, strict=True):
                 part, server_ns = self._decode_reply(payload, stage, output_mask[start:end],
-                                                    batch_id, attempt_ids[start])
+                                                     batch_id, attempt_ids[start],
+                                                     scales[start:end] if fused_output else None)
                 parts.append(part)
                 inference_server_ns += server_ns
             accumulators = parts[0] if len(parts) == 1 else np.concatenate(parts)
         except Exception as exc:
+            if verifier is not None:
+                verifier.cancel()
             protocol_span.record_exception(exc)
             protocol_span.end()
             raise
@@ -1337,19 +1372,18 @@ class PreparedRemoteLinear:
             accumulators = (
                 np.frombuffer(verified, dtype="<i8")
                 .copy()
-                .reshape(quantized.rows, stage.out_features)
+                .reshape(rows, stage.out_features)
             )
             self.verified_calls += 1
-        output = dequantize_matmul(
-            accumulators,
-            quantized.scales,
-            stage.weight_scales,
-            output_shape=quantized.original_shape[:-1] + (stage.out_features,),
-        )
-        if stage.bias is not None:
-            output = output + stage.bias
+        if fused_output:
+            output = accumulators.reshape(output_shape)
+        else:
+            output = dequantize_matmul(accumulators, scales, stage.weight_scales,
+                                      output_shape=output_shape)
+            if stage.bias is not None:
+                output = output + stage.bias
         self.stats.calls += 1
-        self.stats.rows += quantized.rows
+        self.stats.rows += rows
         self.stats.inference_server_ns += inference_server_ns
         self.stats.server_ns += inference_server_ns
         return np.ascontiguousarray(output, dtype=np.float32)

@@ -98,16 +98,8 @@ class PreparedStageBatchRequest:
         if value.ndim != 2 or value.shape[0] < 1 or value.shape[1] <= 0:
             raise ProtocolError("prepared stage batch must be a non-empty matrix")
         rows, columns = value.shape
-        if len(self.correlation_ids) != rows or len(set(self.correlation_ids)) != rows:
-            raise ProtocolError("prepared stage batch tickets must be unique per row")
-        batch = _packed_stage_id(self.batch_id, kind="prepared stage batch ID")
-        tickets = b"".join(
-            _packed_stage_id(item, kind="prepared stage ticket")
-            for item in self.correlation_ids
-        )
-        magic = PREPARED_STAGE_SINGLE_REQUEST_MAGIC if rows == 1 else PREPARED_STAGE_BATCH_REQUEST_MAGIC
         if self.input_bits is None:
-            fields = [batch, tickets, columns, self.wire_bits, pack_residues(value, self.wire_bits)]
+            data = pack_residues(value, self.wire_bits)
         else:
             from pllm import _native
             from .residue_codec import MAX_ROWS, MAX_VALUES
@@ -116,7 +108,35 @@ class PreparedStageBatchRequest:
                     or rows > MAX_ROWS or rows * columns > MAX_VALUES):
                 raise ProtocolError("invalid prepared packed-input layout")
             data = _native.offset_pack_rows(value.astype("<u4", copy=False).tobytes(), bytes([self.input_bits]) * columns, rows)
-            fields = [batch, tickets, columns, self.wire_bits, self.input_bits, data]
+        return self.pack_encoded(self.batch_id, self.correlation_ids, data, rows, columns,
+                                 self.wire_bits, self.input_bits)
+
+    @staticmethod
+    def pack_encoded(batch_id, correlation_ids, data, rows, columns, wire_bits, input_bits=None):
+        """Frame canonical native bytes without expanding a second masked tensor."""
+        if (type(rows) is not int or type(columns) is not int or rows < 1 or columns < 1
+                or wire_bits not in {16, 24, 32}
+                or input_bits is not None and (type(input_bits) is not int or not 1 <= input_bits <= wire_bits)):
+            raise ProtocolError("invalid prepared packed-input layout")
+        bits = wire_bits if input_bits is None else input_bits
+        if (type(data) is not bytes or len(data) != (rows * columns * bits + 7) // 8
+                or rows * columns * bits % 8 and data[-1] >> (rows * columns * bits % 8)):
+            raise ProtocolError("invalid prepared encoded payload")
+        if len(correlation_ids) != rows or len(set(correlation_ids)) != rows:
+            raise ProtocolError("prepared stage batch tickets must be unique per row")
+        batch = _packed_stage_id(batch_id, kind="prepared stage batch ID")
+        tickets = b"".join(
+            _packed_stage_id(item, kind="prepared stage ticket")
+            for item in correlation_ids
+        )
+        magic = PREPARED_STAGE_SINGLE_REQUEST_MAGIC if rows == 1 else PREPARED_STAGE_BATCH_REQUEST_MAGIC
+        if input_bits is None:
+            fields = [batch, tickets, columns, wire_bits, data]
+        else:
+            from .residue_codec import MAX_ROWS, MAX_VALUES
+            if rows > MAX_ROWS or rows * columns > MAX_VALUES:
+                raise ProtocolError("invalid prepared packed-input layout")
+            fields = [batch, tickets, columns, wire_bits, input_bits, data]
             magic = PREPARED_STAGE_PACKED_REQUEST_MAGIC
         body = msgpack.packb(fields, use_bin_type=True)
         return magic + struct.pack(">I", rows) + body
