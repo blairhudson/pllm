@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import hashlib
 import threading
 import time
+import weakref
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -97,6 +99,65 @@ def test_direct_import_checks_object_and_whole_bundle_before_return(bundles):
     manifest["raw"]["sha256"] = "0" * 64
     with pytest.raises(ArtifactError, match="raw digest"):
         reconstruct_document(manifest, read)
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_document_reader_owner_retires_without_cyclic_gc(bundles, fail):
+    exported, manifest = parsed(bundles[0])
+
+    class Reader:
+        def __call__(self, row):
+            return bytes(exported.objects[row["sha256"]])
+
+    reader = Reader()
+    owner = weakref.ref(reader)
+    was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        if fail:
+            manifest["raw"]["sha256"] = "0" * 64
+            with pytest.raises(ArtifactError, match="raw digest"):
+                reconstruct_document(manifest, reader)
+        else:
+            value = reconstruct_document(manifest, reader)
+            assert msgpack.packb(value, use_bin_type=True) == bundles[0]
+        del reader
+        assert owner() is None
+    finally:
+        if was_enabled:
+            gc.enable()
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_batched_reader_manifest_retires_without_cyclic_gc(bundles, tmp_path, fail):
+    from pllm.runtime.bundle_artifacts import batched_reader
+
+    exported, manifest = parsed(bundles[0])
+    class Marker:
+        pass
+    marker = Marker()
+    manifest["lifetime_marker"] = marker
+    owner = weakref.ref(marker)
+    del marker
+    if fail:
+        manifest["graph"] = [manifest["graph"], msgpack.ExtType(1, b"\xff\xff\xff\xff")]
+    was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        if fail:
+            with pytest.raises(IndexError):
+                batched_reader(manifest, None, None, None, maximum=64)
+        else:
+            reader = batched_reader(manifest, ArtifactObjectCache(tmp_path),
+                lambda row: exported.objects[row["sha256"]],
+                lambda rows: {row["sha256"]: exported.objects[row["sha256"]] for row in rows}, maximum=64)
+            assert reconstruct_document(manifest, reader)
+            del reader
+        del manifest
+        assert owner() is None
+    finally:
+        if was_enabled:
+            gc.enable()
 
 
 def test_artifact_export_preserves_subclass_privacy_boundary(bundles, tmp_path):

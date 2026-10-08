@@ -1240,6 +1240,20 @@ folding changes the W8A8 input codes, weights and outputs and cannot inherit
 the original numeric identity. These isolated references retain non-collusion
 or trusted-issuance assumptions and activate no Pipeline or provider protocol.
 
+Bulk stage and bundle HTTP responses close their real transport and detach
+HTTPX's response/stream reference cycle after consumption or failure. Recursive
+artifact walkers likewise retire temporary readers and loaded-object owners.
+These explicit lifetimes preserve returned bytes, bundle identities and response
+metadata without relying on forced global garbage collection; GC-disabled
+regressions cover success, failure and interrupted-stream cleanup.
+A separate fresh-client Qwen3-4B 16+8 pair lowers paged-client peak RSS from
+253.94 to 226.98 MB (10.61%), with matching outputs and covered application bodies
+and nearly equal 166-second request time. Sampled simultaneous topology RSS rises
+2.80%; the scoped run observes 524,288 bytes of host swap growth without tripping
+the guard. This one-response allocation ablation does not establish zero swap,
+whole-topology savings or held-out quality. Evidence and replay are in
+`docs/research/qwen3-client-memory.md`.
+
 A matrix is copied into Rust once at compilation, then reused for later calls.
 `CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that
 immutable owner. Provider stage loading retires the original i8 allocation or

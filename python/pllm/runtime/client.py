@@ -43,6 +43,7 @@ from .bundle_artifacts import (
     reconstruct_document,
 )
 from .prefill_cache import ExactPrefillCache, prefill_key
+from .http_response import owned_response
 
 from .bfv_correlations import BFVCorrelationClient, he_worker_threads
 from .masked_runtime import (
@@ -355,16 +356,16 @@ class _Channel:
         self.frame_limit = frame_limit
 
     def _http(self, payload: bytes) -> bytes:
-        response = self.client.post(
+        with owned_response(self.client.post(
             f"/v1/runtime/sessions/{self.session_id}/execute",
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/vnd.pllm.runtime+msgpack",
             },
             content=payload,
-        )
-        _raise(response)
-        return response.content
+        )) as response:
+            _raise(response)
+            return response.content
 
     def _connect(self) -> None:
         if self.socket is not None:
@@ -1477,7 +1478,7 @@ class RuntimeClient:
 
         with self.http.stream(
             "GET", f"/v1/runtime/models/{model_id}/client-bundle", headers=headers
-        ) as response:
+        ) as response, owned_response(response):
             if not response.is_success:
                 response.read()
             _raise(response)
@@ -1551,7 +1552,7 @@ class RuntimeClient:
             request_headers = dict(headers)
             if compressed:
                 request_headers["X-PLLM-Accept-Object-Encoding"] = BUNDLE_ENCODING
-            with self.http.stream("GET", path, headers=request_headers, follow_redirects=False) as response:
+            with self.http.stream("GET", path, headers=request_headers, follow_redirects=False) as response, owned_response(response):
                 if not response.is_success:
                     response.read()
                 _raise(response)
@@ -3685,15 +3686,15 @@ class RuntimeClient:
                 upload = encode_length_prefixed(payloads)
                 if state.privacy_protocol != "direct_bfv_w4a4":
                     self.audit.masked_online_upload_bytes += len(upload)
-                response = self.http.post(
+                with owned_response(self.http.post(
                     f"/v1/runtime/sessions/{session_id}/stages/{stage_id}",
                     headers={**self.headers, "Content-Type": "application/octet-stream"},
                     content=upload,
-                )
-                _raise(response)
-                if state.privacy_protocol != "direct_bfv_w4a4":
-                    self.audit.masked_online_download_bytes += len(response.content)
-                results = list(iter_length_prefixed(response.content))
+                )) as response:
+                    _raise(response)
+                    if state.privacy_protocol != "direct_bfv_w4a4":
+                        self.audit.masked_online_download_bytes += len(response.content)
+                    results = list(iter_length_prefixed(response.content))
                 self.audit.online_steps += compact_rows or len(payloads)
                 return results
             envelope = ProtocolEnvelope.create(

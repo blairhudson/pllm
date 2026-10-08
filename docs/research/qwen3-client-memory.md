@@ -5,6 +5,10 @@ The matched fresh-client SDK pair reduces client peak RSS **3.91×**, from
 swap. Paging increases request time 8.97%. This is a one-response storage
 comparison within the indexed-tokenizer stack; it does not establish 10× savings.
 
+A separate response-lifetime pair lowers paged-client peak RSS another **10.61%**
+within its own cohort, from 253.94 to 226.98 MB, with nearly identical request
+time. These separate cohorts are not multiplied.
+
 ## Ownership correction
 
 Resident client bundles originally kept their imported signed-i8 matrix after
@@ -93,6 +97,77 @@ Publisher cost and source fingerprints are retained in
 scorecard registers this pair as its own cohort. Generated-checkpoint parity,
 real-checkpoint text equality and broad model quality remain separate claims.
 
+## Response-scoped lifetime follow-up
+
+`scripts/profile_client_frontier.py` attributes client RSS growth to bounded SDK
+phases and can additionally trace Python allocations. Nested phase timings and
+memory samples are not additive; tracing itself owns memory and changes timing.
+These diagnostics guide investigation, while fresh, uninstrumented SDK pairs
+measure improvements.
+
+The lifetime audit found two delayed owners. HTTPX's closed bound stream points
+back to its response, retaining request and reply bodies until cyclic collection.
+The recursive artifact walkers likewise retain their closure, reader and loaded
+objects after import. Bulk stage and bundle HTTP responses now close their real stream
+and detach that cycle in a `finally` block. Artifact walkers clear their temporary
+owners on success and failure. Returned documents, bytes and response metadata
+keep their ordinary ownership and content.
+
+`tests/test_http_response_memory.py` and the artifact lifetime regressions disable
+cyclic GC, check immediate weak-reference retirement, and exercise failures and
+interrupted streams. The real stream closes once, without reading its remainder
+on cancellation. The implementation does not force a global garbage collection.
+
+`scripts/probe_client_response_memory.py` runs the ordinary paged Experiment in
+fresh clients with one private cohort salt and separate cold artifact caches.
+Its historical control restores only the two artifact walkers from `48ad67d`
+and leaves HTTPX's closed stream attached. Both children use the same numeric
+execution and shared native 100/40 Mbps caps, without allocation instrumentation.
+The report binds the control commit and measured implementation hashes; the
+control is a checkout-only allocation ablation, not another Pipeline option.
+
+The matched 16+8-token pair passes every reported runtime and comparison check.
+Both consume the same 3,267 stage rows, return the same output-text digest and
+exchange exactly the same covered application bodies. Results are decimal MB:
+
+| Metric | Historical lifetimes | Scoped lifetimes |
+| --- | ---: | ---: |
+| Client/dashboard lifetime peak RSS | 253.94 MB | 226.98 MB |
+| Client/dashboard end-of-run RSS | 253.69 MB | 204.93 MB |
+| Sampled simultaneous total RSS | 5,409.28 MB | 5,560.88 MB |
+| Complete request | 166.161 s | 166.152 s |
+| Preparation within request | 31.931 s | 32.034 s |
+| Online execution | 42.448 s | 42.373 s |
+| Client cold-first CPU | 42.475 s | 42.302 s |
+| Aggregate cold-first CPU | 226.642 s | 226.163 s |
+| Covered setup-inclusive application bodies | 556.31 MB | 556.31 MB |
+| Covered online application bodies | 127.58 MB | 127.58 MB |
+| Cold-first TCP-stream bytes | 557.81 MB | 557.81 MB |
+| Maximum observed host swap growth | 0 | 0.524288 MB |
+
+Client peak RSS falls 10.61% and end-of-run RSS falls 19.22%. Request time and
+aggregate CPU are nearly equal; TCP-stream totals differ by 49 framing/control
+bytes. Sampled simultaneous total RSS instead rises 2.80%, so this pair does not
+establish a whole-topology memory reduction. The scoped sample records 524,288
+bytes of host swap growth, below the existing 256 MiB abort threshold; neither
+sample trips the memory guard. It is not a zero-swap cohort.
+
+This is one cold response per allocation control with cached checkpoint and
+pre-positioned tokenizer index. Full logits/KV, held-out quality, filesystem
+cache, physical wire and independent operators remain outside this measurement.
+The canonical report, including source hashes and the pinned control, is
+`docs/evidence/research-qwen3-response-memory.json`. The installed-wheel lifetime,
+bundle and prepared-transport suite passes 80 tests, including GC-disabled
+retirement and generated-model full-logit/KV controls.
+
+```sh
+PLLM_RESEARCH_ARTIFACTS=target/qwen3-memory-artifacts \
+uv run --no-sync python -m scripts.probe_client_response_memory \
+  --experiment benchmarks.research.qwen3_memory_frontier:paged \
+  --prompt-file target/qwen3-memory-artifacts/prompt.txt \
+  --output target/evidence/qwen3-response-memory.json
+```
+
 ## Held-out quality admission
 
 The twelve public prompts in `benchmarks/research/data/paper-quality-prompts.json`
@@ -116,7 +191,8 @@ held-out model quality.
 Run from the checkout with the release extension and locked dependencies. The
 artifact builder resolves the pinned source and creates the trusted public
 tokenizer index. The benchmark performs whole-topology admission before loading
-values or launching providers and aborts on reserve loss or new swap growth.
+values or launching providers and aborts on reserve loss or host swap growth
+beyond its declared threshold.
 Use fresh report paths.
 
 ```sh

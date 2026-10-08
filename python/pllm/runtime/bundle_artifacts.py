@@ -95,7 +95,11 @@ def batched_reader(manifest, cache, download_one, download_many, *, maximum: int
             if row["sha256"] not in seen:
                 seen.add(row["sha256"])
                 ordered.append(row)
-    visit(manifest["graph"])
+    try:
+        visit(manifest["graph"])
+    finally:
+        # Recursive closure cells otherwise keep the manifest after reader exit.
+        visit = None
     positions = {row["sha256"]: i for i, row in enumerate(ordered)}
     pending, served = {}, set()
 
@@ -521,11 +525,17 @@ def reconstruct_document(manifest: dict[str, Any], read: Callable[[dict[str, Any
                 loaded[index] = payload
             return loaded[index]
         return node
-    value = visit(manifest["graph"])
-    expected = manifest["raw"]
-    if document_identity(value, maximum=expected["size"]) != (expected["size"], expected["sha256"]):
-        raise ArtifactError("artifact reconstructed original raw digest mismatch")
-    return value
+    try:
+        value = visit(manifest["graph"])
+        expected = manifest["raw"]
+        if document_identity(value, maximum=expected["size"]) != (expected["size"], expected["sha256"]):
+            raise ArtifactError("artifact reconstructed original raw digest mismatch")
+        return value
+    finally:
+        # Only the returned document owns its payloads. Do not leave them or the
+        # reader/client reachable through visit's self-referential closure.
+        loaded.clear()
+        visit = None
 
 
 @dataclass
