@@ -494,6 +494,10 @@ def build_parser() -> _Parser:
     benchmark_quality.add_argument("--trust-python", action="store_true")
     benchmark_quality.add_argument("--prompts-file", type=Path, required=True, metavar="PATH")
     benchmark_quality.add_argument("--top-k", type=int, default=5)
+    benchmark_quality.add_argument("--reference-storage", choices=("resident", "streamed"),
+                                   default="resident", help="FP32 reference parameter ownership")
+    benchmark_quality.add_argument("--decode-steps", type=int, choices=range(9), default=0,
+                                   help="same-token cached decode steps per prompt (0-8)")
     benchmark_quality.add_argument("--output", type=Path, help="write the prompt-free JSON report")
     benchmark_quality.add_argument("--force", action="store_true", help="replace --output")
 
@@ -1217,6 +1221,8 @@ def _benchmark_quality(
             "candidate_digests": [item.configuration_digest() for item in experiments],
             "prompt_count": len(prompts),
             "top_k": args.top_k,
+            "reference_storage": args.reference_storage,
+            "decode_steps": args.decode_steps,
         }
         if output_format == "human":
             print("Would compare pinned local compiled decoder logits with the FP32 reference")
@@ -1230,7 +1236,9 @@ def _benchmark_quality(
     )
 
     try:
-        report = run_reference_benchmark(experiments, prompts, top_k=args.top_k)
+        report = run_reference_benchmark(experiments, prompts, top_k=args.top_k,
+                                         reference_storage=args.reference_storage,
+                                         decode_steps=args.decode_steps)
     except (ReferenceBenchmarkError, TypeError, ValueError) as exc:
         raise RuntimeFailure("QUALITY_FAILED", str(exc)) from exc
     if output is not None:
@@ -1250,6 +1258,13 @@ def _benchmark_quality(
                 f"top-{args.top_k} recall {candidate['top_k_recall']:.3f}, "
                 f"max logit error {candidate['max_abs_logit_error']:.3f}"
             )
+            if decode := candidate.get("same_token_decode"):
+                print(
+                    f"  Same-token decode ({decode['sample_count']} positions): "
+                    f"top-1 {decode['top1_agreement']:.3f}, "
+                    f"top-{args.top_k} recall {decode['top_k_recall']:.3f}, "
+                    f"max logit error {decode['max_abs_logit_error']:.3f}"
+                )
         if output is not None:
             print(f"Wrote {output}")
     else:

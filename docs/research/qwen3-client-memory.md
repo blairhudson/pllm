@@ -354,9 +354,60 @@ need **16.09 GB** for FP32 weights alone, versus **13.84 GB** available after th
 4 GiB host reserve. The complete conservative reference estimate is 22.26 GB,
 including 25% slack and 2 GiB for loading/workspace. No quality score was produced;
 the original host's existing swap is not admission capacity. The rejected report
-is `docs/evidence/research-qwen3-client-memory-quality.json`. Retry with sufficient
-headroom remains required; this slice establishes matched memory behavior, not
-held-out model quality.
+is `docs/evidence/research-qwen3-client-memory-quality.json`. It remains the
+historical resident-loader rejection, with no quality score.
+
+### Module-streamed independent reference
+
+The ordinary quality diagnostic additionally accepts
+`reference_storage="streamed"` (CLI `--reference-storage streamed`). It constructs
+the upstream eager FP32 model on the meta device, reads source-locked checkpoint
+rows into each active parameter owner, executes the upstream operator, and retires
+those weights immediately. Parent/child overlap, tied source aliases, conversion
+buffers, touched source pages, logits, eager workspaces and optional cached decode
+state enter allocation admission before values load. Unsupported parameter or
+buffer contracts reject. The existing host reserve and swap-pressure guard remain.
+
+Generated Qwen2, Qwen3 and Llama controls preserve every checked upstream prefill
+and cached-decode logit. Tests also cover tied/untied weights, sharded checkpoints,
+source mutation, pre-allocation bounds and failure retirement. These checks
+validate the reference's ownership change; candidate W8A8 accuracy is measured
+separately.
+
+Optional `decode_steps` (CLI `--decode-steps`) uses the first candidate's greedy
+tokens for every candidate and the reference. Prefill and cached same-token
+decode receive separate scores and cohort commitments. No prompts, token IDs,
+logits or retained KV enter the report. This is bounded numeric agreement,
+not free-running generation or task accuracy.
+
+The fresh pinned Qwen3-4B cohort completes all twelve public prompts and three
+same-token decode steps per prompt. Its source-checked report is
+`docs/evidence/research-qwen3-streamed-quality.json`.
+
+| W8A8 phase | Checked selections | Top-1 agreement | Top-5 recall | Worst absolute logit error |
+| --- | ---: | ---: | ---: | ---: |
+| Prefill | 12 | 11/12 (91.67%) | 0.8667 | 5.4303 |
+| Same-token decode | 36 | 35/36 (97.22%) | 0.8889 | 10.8132 |
+
+Peak active FP32 weight payload is **1.56 GB** under a 4.35 GB conservative
+reference allocation estimate. Candidate loading is separately priced; the
+complete diagnostic requires 7.18 GB against 13.45 GB post-reserve headroom.
+Both reference and outer guards observe zero new swap. This is an ownership
+bound, not measured process peak RSS. The diagnostic reloads 846.99 GB of
+cumulative FP32 parameter payload across 19,152 loads, taking 818.41 seconds in
+loading alone. Its time is excluded from serving or provider-cost comparisons.
+
+This closes the bounded held-out numeric measurement gap while retaining the
+original resident-memory rejection. W8A8 is not exact, and 48 checked selections
+do not establish broad task accuracy, free-running generation quality, private
+provider execution or a 10× client-memory result.
+
+```sh
+PLLM_RESEARCH_ARTIFACTS=target/qwen3-memory-artifacts HF_HUB_OFFLINE=1 \
+uv run --no-sync python -m benchmarks.research.qwen3_memory_quality \
+  --reference-storage streamed --decode-steps 3 \
+  --output target/evidence/qwen3-quality-streamed-decode.json
+```
 
 ## Reproduction
 

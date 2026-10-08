@@ -79,14 +79,22 @@ def run_reference_benchmark(
     prompts: Sequence[str],
     *,
     top_k: int = 5,
+    reference_storage: str = "resident",
+    decode_steps: int = 0,
 ) -> dict[str, Any]:
-    """Measure prefill logits locally; never put prompts, tokens or logits in the report.
+    """Measure prefill and optional same-token decode without recording private payloads.
 
     This clear-kernel diagnostic shares the compiled numeric path with public
     masked-linear execution, but neither starts provider roles nor measures wire
     traffic or private online latency. Reference setup cost is excluded.
+    Optional decode uses the first candidate's greedy tokens for every candidate
+    and the reference; it reports those comparisons separately from prefill.
     """
     prompt_set = _prompts(prompts)
+    if reference_storage not in {"resident", "streamed"}:
+        raise ReferenceBenchmarkError("reference_storage must be resident or streamed")
+    if type(decode_steps) is not int or not 0 <= decode_steps <= 8:
+        raise ReferenceBenchmarkError("decode_steps must be an integer from 0 to 8")
     if not isinstance(experiments, (tuple, list)) or not 1 <= len(experiments) <= 8:
         raise ReferenceBenchmarkError("quality benchmark needs 1 to 8 Experiments")
     if type(top_k) is not int or not 1 <= top_k <= 100:
@@ -110,6 +118,8 @@ def run_reference_benchmark(
             )
         if not 1 <= experiment.budget.max_input_tokens <= 128:
             raise ReferenceBenchmarkError("quality diagnostic requires at most 128 input tokens")
+        if decode_steps >= experiment.budget.max_new_tokens:
+            raise ReferenceBenchmarkError("decode steps exceed the Experiment output budget")
         if len(prompt_set) > experiment.budget.requests:
             raise ReferenceBenchmarkError("prompt cohort exceeds the Experiment request budget")
         resolved = resolve_model(experiment.pipeline.model)
@@ -141,7 +151,8 @@ def run_reference_benchmark(
     # Hold only bounded logits from clear candidates, release their stage kernels,
     # then load the float32 reference. This avoids keeping two large model bodies
     # resident at once and does not put logits or token IDs in the report.
-    logit_bytes = (len(experiments) + 1) * len(prompt_set) * resolved_source.manifest.vocab_size * 4
+    logit_bytes = ((len(experiments) + 1) * len(prompt_set)
+                   * (decode_steps + 1) * resolved_source.manifest.vocab_size * 4)
     if logit_bytes > MAX_LOGIT_WORKING_SET_BYTES:
         raise ReferenceBenchmarkError("quality logit working set exceeds 512 MiB")
 
@@ -161,6 +172,8 @@ def run_reference_benchmark(
         top_k=top_k,
     )
     token_cohort: tuple[tuple[int, ...], ...] | None = None
+    decode_cohort: list[tuple[int, ...]] = []
+    pending_decode: list[list[np.ndarray]] = []
     pending: list[tuple[dict[str, Any], list[np.ndarray]]] = []
     for experiment, options, resolved in configurations:
         assert resolved.path is not None
@@ -177,9 +190,14 @@ def run_reference_benchmark(
             client_prefix_layers=options.client_prefix_layers,
             client_linear_roles=options.client_linear_roles,
             remote_output_head=options.remote_output_head,
+            prepared_output_encoding=options.prepared_output_encoding,
         )
         asyncio.run(engine.load(resolved.manifest))
-        bundle = ClientBundle.unpack(engine.client_bundle(model_id))
+        # Streamed diagnostics reuse the same immutable provider document and
+        # client validator without materializing a second contiguous weight body.
+        bundle = (ClientBundle._from_document(engine.client_bundle_document(model_id)._value)
+                  if reference_storage == "streamed"
+                  else ClientBundle.unpack(engine.client_bundle(model_id)))
         config_bytes = (resolved.path / "config.json").read_bytes()
         from pllm.modeling import lower_model
 
@@ -193,22 +211,46 @@ def run_reference_benchmark(
         remote = _candidate_remote(engine, model_id)
         ids_this_candidate: list[tuple[int, ...]] = []
         actual_rows: list[np.ndarray] = []
-        for prompt in prompt_set:
+        decode_rows: list[np.ndarray] = []
+        for prompt_index, prompt in enumerate(prompt_set):
             ids = tuple(compiled.runtime(remote).encode_prompt(prompt))
             if not 1 <= len(ids) <= experiment.budget.max_input_tokens:
                 raise ReferenceBenchmarkError(
                     "tokenized prompt exceeds the Experiment input budget"
                 )
             ids_this_candidate.append(ids)
-            session = compiled.session(remote)
-            actual = np.array(session.prefill_ids(ids), dtype=np.float32, copy=True)
-            session.finish()
-            actual_rows.append(actual)
-            del session
+            session = compiled.session(remote) if not decode_steps else None
+            runtime = compiled.runtime(remote) if decode_steps else None
+            try:
+                compiled.validate()
+                prefill = (session.prefill_ids(ids) if session is not None
+                           else runtime.prepare_ids(ids)[1])
+                actual = np.array(prefill, dtype=np.float32, copy=True)
+                actual_rows.append(actual)
+                selected = []
+                for step in range(decode_steps):
+                    # The first candidate freezes the public diagnostic trajectory;
+                    # every candidate and the reference consume the same tokens.
+                    token = (int(np.argmax(actual)) if token_cohort is None
+                             else decode_cohort[prompt_index][step])
+                    selected.append(token)
+                    compiled.validate()
+                    actual = np.array(runtime.decode_step(token, runtime.caches, len(ids) + step)[0],
+                                      dtype=np.float32, copy=True)
+                    decode_rows.append(actual)
+                if token_cohort is None:
+                    decode_cohort.append(tuple(selected))
+            finally:
+                if session is not None:
+                    session.close()
+                if runtime is not None:
+                    runtime.reset()
+                del session, runtime
         current_cohort = tuple(ids_this_candidate)
         if token_cohort is not None and token_cohort != current_cohort:
             raise ReferenceBenchmarkError("quality candidates tokenized the cohort differently")
         token_cohort = current_cohort
+        pending_decode.append(decode_rows)
         pending.append(
             (
                 {
@@ -235,25 +277,55 @@ def run_reference_benchmark(
         del remote, compiled, bundle, engine
         gc.collect()
     assert token_cohort is not None
-    try:
-        reference = transformers.AutoModelForCausalLM.from_pretrained(
+    loading = None
+    if reference_storage == "streamed":
+        from pllm.runtime.streamed_reference import StreamedFloat32Reference
+
+        with StreamedFloat32Reference(
             resolved_source.path,
-            local_files_only=True,
-            trust_remote_code=False,
-            dtype=torch.float32,
-            attn_implementation="eager",
-        ).eval()
-    except Exception as exc:
-        raise ReferenceBenchmarkError("the locked local FP32 reference cannot be loaded") from exc
-    with torch.inference_mode():
-        expected_rows = [
-            reference(input_ids=torch.tensor([ids])).logits[0, -1].float().numpy().copy()
-            for ids in token_cohort
-        ]
-    del reference
+            max_input_tokens=max(item.budget.max_input_tokens for item, _, _ in configurations),
+            max_decode_steps=decode_steps,
+        ) as reference:
+            trajectories = [reference.trajectory(ids, continuation)
+                            for ids, continuation in zip(token_cohort, decode_cohort, strict=True)]
+            loading = {"storage": "module-streamed", "active_weight_bound_bytes": reference.weight_bound,
+                       "allocation_estimate_bytes": reference.allocation_estimate_bytes,
+                       "maximum_swap_growth_bytes": reference._guard.maximum_swap_growth_bytes,
+                       "kv_payload_bound_bytes": reference.kv_bound_bytes,
+                       "buffer_bytes": reference.buffer_bytes, **reference.stats}
+        del reference
+    else:
+        try:
+            reference = transformers.AutoModelForCausalLM.from_pretrained(
+                resolved_source.path,
+                local_files_only=True,
+                trust_remote_code=False,
+                dtype=torch.float32,
+                attn_implementation="eager",
+            ).eval()
+        except Exception as exc:
+            raise ReferenceBenchmarkError("the locked local FP32 reference cannot be loaded") from exc
+        with torch.inference_mode():
+            trajectories = []
+            for ids, continuation in zip(token_cohort, decode_cohort, strict=True):
+                output = reference(input_ids=torch.tensor([ids]), use_cache=bool(continuation))
+                rows = [output.logits[0, -1].float().numpy().copy()]
+                cache = output.past_key_values if continuation else None
+                del output
+                for token in continuation:
+                    output = reference(input_ids=torch.tensor([[token]]), past_key_values=cache,
+                                       use_cache=True)
+                    rows.append(output.logits[0, -1].float().numpy().copy())
+                    cache = output.past_key_values
+                    del output
+                del cache
+                trajectories.append(rows)
+        del reference
     gc.collect()
+    expected_rows = [rows[0] for rows in trajectories]
+    expected_decode = [row for rows in trajectories for row in rows[1:]]
     candidates: list[dict[str, Any]] = []
-    for metadata, actual_rows in pending:
+    for (metadata, actual_rows), decode_rows in zip(pending, pending_decode, strict=True):
         samples = [
             measure_reference_agreement(actual, expected, top_k=top_k)
             for actual, expected in zip(actual_rows, expected_rows, strict=True)
@@ -267,6 +339,15 @@ def run_reference_benchmark(
                 "max_abs_logit_error": max(row["max_abs_logit_error"] for row in samples),
             }
         )
+        if decode_steps:
+            samples = [measure_reference_agreement(actual, expected, top_k=top_k)
+                       for actual, expected in zip(decode_rows, expected_decode, strict=True)]
+            candidates[-1]["same_token_decode"] = {
+                "sample_count": len(samples),
+                "top1_agreement": sum(row["top1_agreement"] for row in samples) / len(samples),
+                "top_k_recall": sum(row["top_k_recall"] for row in samples) / len(samples),
+                "max_abs_logit_error": max(row["max_abs_logit_error"] for row in samples),
+            }
     environment = {
         "system": platform.system(),
         "machine": platform.machine(),
@@ -277,9 +358,12 @@ def run_reference_benchmark(
         "reference_attention": "eager",
         "reference_threads": reference_threads,
     }
+    if loading is not None:
+        environment["reference_weight_storage"] = "module-streamed"
     return {
         "schema_version": SCHEMA,
-        "scope": "local-compiled-clear-kernel-prefill-reference",
+        "scope": ("local-compiled-clear-kernel-prefill-and-same-token-decode-reference"
+                  if decode_steps else "local-compiled-clear-kernel-prefill-reference"),
         "model": {
             "id": resolved_source.manifest.id,
             "checkpoint_digest": checkpoint_digest,
@@ -292,13 +376,20 @@ def run_reference_benchmark(
             "input_token_counts": [len(ids) for ids in token_cohort],
             "phase": "prefill",
             "metric": metric.to_spec(),
+            **({"same_token_decode": {
+                "steps_per_prompt": decode_steps,
+                "teacher_forcing": "first-candidate-greedy",
+                "teacher_configuration_digest": configurations[0][0].configuration_digest(),
+                "token_cohort_digest": _digest(b"pllm.reference_decode_tokens.v1\0", decode_cohort),
+            }} if decode_steps else {}),
         },
         "environment": environment,
         "environment_digest": _digest(b"pllm.reference_environment.v1\0", environment),
         "candidates": candidates,
+        **({"reference_loading": loading} if loading is not None else {}),
         "limitations": [
             "local clear integer kernels, not a provider transport or privacy measurement",
-            "prefill next-token reference agreement, not full-generation or task accuracy",
+            "prefill and optional same-token decode agreement, not full-generation or task accuracy",
             "float32 reference loading and evaluation excluded from provider latency and cost",
         ],
     }

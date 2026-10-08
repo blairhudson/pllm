@@ -540,6 +540,8 @@ def assure() -> EvidenceReport:
 
 def benchmark_reference_quality(
     experiments: Iterable[Any], prompts: Iterable[str], *, top_k: int = 5,
+    reference_storage: str = "resident",
+    decode_steps: int = 0,
 ) -> dict[str, Any]:
     """Score bounded immutable candidates against one same-token local reference.
 
@@ -548,7 +550,8 @@ def benchmark_reference_quality(
     """
     from pllm.runtime.reference_benchmark import run_reference_benchmark
 
-    return run_reference_benchmark(list(experiments), list(prompts), top_k=top_k)
+    return run_reference_benchmark(list(experiments), list(prompts), top_k=top_k,
+                                   reference_storage=reference_storage, decode_steps=decode_steps)
 
 
 def benchmark_network_candidates(

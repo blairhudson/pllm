@@ -36,6 +36,57 @@ def test_reference_benchmark_rejects_malformed_cohorts_before_import() -> None:
         run_reference_benchmark([experiment], ["Hello"], top_k=True)
     with pytest.raises(ReferenceBenchmarkError, match="request budget"):
         run_reference_benchmark([experiment], ["A", "B", "C"])
+    with pytest.raises(ReferenceBenchmarkError, match="reference_storage"):
+        run_reference_benchmark([experiment], ["A"], reference_storage="unknown")
+    with pytest.raises(ReferenceBenchmarkError, match="decode_steps"):
+        run_reference_benchmark([experiment], ["A"], decode_steps=True)
+    with pytest.raises(ReferenceBenchmarkError, match="output budget"):
+        run_reference_benchmark([experiment], ["A"], decode_steps=1)
+
+
+@pytest.mark.rust
+def test_streamed_quality_reference_matches_resident_metrics_and_cohort():
+    pytest.importorskip("transformers")
+    experiment = _experiment("streamed-tiny-w8", 8)
+    resident = run_reference_benchmark([experiment], ["Hello"])
+    streamed = run_reference_benchmark([experiment], ["Hello"], reference_storage="streamed")
+    assert streamed["model"] == resident["model"]
+    assert streamed["cohort"] == resident["cohort"]
+    assert streamed["candidates"] == resident["candidates"]
+    assert streamed["environment"]["reference_weight_storage"] == "module-streamed"
+    loading = streamed["reference_loading"]
+    assert 0 < loading["peak_active_weight_bytes"] <= loading["active_weight_bound_bytes"]
+
+
+@pytest.mark.rust
+def test_same_token_decode_uses_one_trajectory_and_matches_reference_storage():
+    pytest.importorskip("transformers")
+    experiments = [_experiment(f"quality-decode-w{bits}", bits).with_params(budget__max_new_tokens=4)
+                   for bits in (8, 4)]
+    resident = run_reference_benchmark(experiments, ["Hello"], decode_steps=3)
+    streamed = run_reference_benchmark(experiments, ["Hello"], decode_steps=3,
+                                       reference_storage="streamed")
+    assert streamed["cohort"] == resident["cohort"]
+    assert streamed["candidates"] == resident["candidates"]
+    assert streamed["cohort"]["same_token_decode"]["teacher_forcing"] == "first-candidate-greedy"
+    assert all(row["same_token_decode"]["sample_count"] == 3 for row in streamed["candidates"])
+    assert "Hello" not in json.dumps(streamed)
+
+
+@pytest.mark.rust
+def test_quality_benchmark_preserves_prepared_residue_encoding():
+    pytest.importorskip("transformers")
+    from pllm.protocols import MaskedLinear
+
+    plain = _experiment("quality-raw", 8)
+    packed = plain.with_params(
+        name="quality-residues",
+        pipeline__linear=MaskedLinear(
+            output_encoding="row_residues", request_encoding="stage_packed"),
+    )
+    report = run_reference_benchmark([plain, packed], ["Hello"], reference_storage="streamed")
+    for metric in ("top1_agreement", "top_k_recall", "max_abs_logit_error"):
+        assert report["candidates"][0][metric] == report["candidates"][1][metric]
 
 
 def test_quality_preflights_checkpoint_and_aggregate_logit_memory(monkeypatch) -> None:
@@ -139,6 +190,7 @@ def test_quality_benchmark_uses_selected_metal_stage_kernel(
 
 @pytest.mark.rust
 def test_quality_benchmark_preserves_selected_client_attention_numeric_path() -> None:
+    pytest.importorskip("transformers")
     from pllm.preparation import PreparedInventory
     from pllm.protocols import ClientBundleTransport
     from pllm.roles import ClientLinearRoles
@@ -163,7 +215,10 @@ def test_quality_benchmark_preserves_selected_client_attention_numeric_path() ->
 
 @pytest.mark.rust
 @pytest.mark.slow
-def test_quality_cli_compares_typed_experiments_without_emitting_prompts(tmp_path) -> None:
+@pytest.mark.parametrize("reference_storage,decode_steps", [("resident", 0), ("streamed", 3)])
+def test_quality_cli_compares_typed_experiments_without_emitting_prompts(
+    tmp_path, reference_storage, decode_steps,
+) -> None:
     pytest.importorskip("transformers")
     prompt = "Hello"
     cohort = tmp_path / "prompts.json"
@@ -171,7 +226,7 @@ def test_quality_cli_compares_typed_experiments_without_emitting_prompts(tmp_pat
     candidates = []
     for name, bits in (("tiny-w4", 4), ("tiny-w8", 8)):
         path = tmp_path / f"{name}.json"
-        path.write_bytes(_experiment(name, bits).canonical_bytes())
+        path.write_bytes(_experiment(name, bits).with_params(budget__max_new_tokens=4).canonical_bytes())
         candidates.extend(["--experiment", str(path)])
     command = [
         sys.executable,
@@ -184,11 +239,19 @@ def test_quality_cli_compares_typed_experiments_without_emitting_prompts(tmp_pat
         str(cohort),
         "--format",
         "json",
+        "--reference-storage",
+        reference_storage,
+        "--decode-steps",
+        str(decode_steps),
     ]
     result = subprocess.run(command, text=True, capture_output=True, check=True, timeout=120)
     payload = json.loads(result.stdout)
     assert payload["command"] == "benchmark.quality"
     assert [row["weight_bits"] for row in payload["data"]["report"]["candidates"]] == [4, 8]
+    if decode_steps:
+        report = payload["data"]["report"]
+        assert report["environment"]["reference_weight_storage"] == "module-streamed"
+        assert all(row["same_token_decode"]["sample_count"] == 3 for row in report["candidates"])
     assert prompt not in result.stdout
 
 

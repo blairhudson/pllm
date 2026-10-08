@@ -28,6 +28,8 @@ def main():
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--reference-storage", choices=("resident", "streamed"), default="resident")
+    parser.add_argument("--decode-steps", type=int, choices=range(8), default=0)
     args = parser.parse_args()
     if args.output.exists():
         parser.error("output already exists; use a fresh path")
@@ -53,6 +55,18 @@ def main():
     # and 25% slack separately; do not use swap or the client-only estimate.
     fp32_bytes = elements * 4
     required = (fp32_bytes * 5 + 3) // 4 + 2 * GiB
+    reference_bound = None
+    if args.reference_storage == "streamed":
+        from pllm.runtime.streamed_reference import StreamedFloat32Reference
+
+        with StreamedFloat32Reference(source.path,
+                                     max_input_tokens=candidate.budget.max_input_tokens,
+                                     max_decode_steps=args.decode_steps) as reference:
+            reference_bound = reference.allocation_estimate_bytes
+        # The clear candidate owns full i8 body weights, boundary copies and
+        # bounded loading/execution scratch. It retires before FP32 streaming.
+        candidate_bound = (elements * 5 + 3) // 4 + 2 * GiB
+        required = max(candidate_bound, reference_bound)
     host = host_memory()
     admitted = host.available - host.reserve >= required
     report = {
@@ -64,15 +78,19 @@ def main():
         "configuration_digest": candidate.configuration_digest(),
         "pipeline_digest": candidate.pipeline.digest(),
         "dataset_sha256": hashlib.sha256(PROMPTS.read_bytes()).hexdigest(),
-        "scope": "held-out local clear-kernel prefill agreement with locked float32 reference",
+        "scope": "held-out local clear-kernel prefill and optional same-token decode agreement with locked float32 reference",
+        "decode_steps": args.decode_steps,
         "admission": {"host": asdict(host), "reserve_bytes": host.reserve,
                       "headroom_bytes": host.available - host.reserve,
-                      "fp32_weight_payload_lower_bound_bytes": fp32_bytes,
+                       "fp32_weight_payload_lower_bound_bytes": fp32_bytes,
+                       "reference_storage": args.reference_storage,
+                       "streamed_reference_estimate_bytes": reference_bound,
                       "required_bytes": required, "tensor_count": tensors},
         "quality": None,
         "source_sha256": {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
                           for path in (Path(__file__).resolve(),
-                                       ROOT / "python/pllm/runtime/reference_benchmark.py")},
+                                        ROOT / "python/pllm/runtime/reference_benchmark.py",
+                                        ROOT / "python/pllm/runtime/streamed_reference.py")},
     }
     if admitted:
         guard = MemoryWatchdog({"host": asdict(host) | {"reserve_bytes": host.reserve}},
@@ -80,7 +98,8 @@ def main():
         guard.start()
         try:
             report["quality"] = run_reference_benchmark(
-                [candidate], json.loads(PROMPTS.read_text()), top_k=5)
+                [candidate], json.loads(PROMPTS.read_text()), top_k=5,
+                reference_storage=args.reference_storage, decode_steps=args.decode_steps)
             guard.check()
             if guard.error:
                 raise RuntimeError(guard.error)

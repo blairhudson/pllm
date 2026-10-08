@@ -1194,9 +1194,21 @@ synthetic probe halves retained matrix payload but leaves import peak unchanged.
 This closes the matched resident-control measurement gap for one short workload,
 without establishing 10x savings, representative quality, filesystem-cache or
 whole-device memory savings. Evidence: `docs/research/qwen3-client-memory.md`.
-The separate twelve-prompt FP32 quality attempt rejects before tensor loading:
+The historical twelve-prompt FP32 quality attempt rejects before tensor loading:
 16.09 GB of reference weights alone exceeds 13.84 GB of post-reserve headroom.
-The admitted memory pair therefore has no new held-out reference-quality result.
+The ordinary quality diagnostic now optionally streams upstream eager FP32
+parameters module by module under separate allocation and host-pressure admission.
+Generated Qwen2/Qwen3/Llama prefill and cached-decode logits match the resident
+upstream reference exactly; weights retire after every operator and failure.
+A subsequent pinned Qwen3-4B twelve-prompt cohort matches 11/12 W8A8 prefill
+selections and 35/36 same-token decode selections, with worst logit errors of
+5.43/10.81. Peak active reference weights are 1.56 GB, not a process-RSS result;
+all 19,152 parameter loads preserve the bound with zero observed swap growth.
+The optional decode diagnostic freezes the first candidate's greedy trajectory
+and retains separate phase scores and token-cohort commitments. This closes the
+bounded held-out numeric measurement gap, not representative generation quality,
+provider performance or cryptographic review. The original rejected cohort stays
+separate; replay and evidence are in `docs/research/qwen3-client-memory.md`.
 Compiled unscaled float32 RoPE now also shares exact coefficients
 within a phase under a 16-table/1 MiB bound, priced by admission and cleared on
 completion or failure. It preserves the original vector shapes and arithmetic

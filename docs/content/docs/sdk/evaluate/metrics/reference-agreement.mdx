@@ -47,8 +47,11 @@ The vectors above exercise scoring only; no model was evaluated. The
 [benchmark quality command](/cli/reference/benchmark/quality/) accepts
 multiple immutable Experiments, runs their compiled local clear-kernel path
 against one locked float32 checkpoint and emits only digests, cohort token
-counts and aggregate prefill scores. It needs the optional `quality` dependencies
-(Torch and Transformers). The
+counts and aggregate prefill scores. `--decode-steps` adds separately reported
+cached same-token decode scores; the first candidate supplies the shared greedy
+trajectory. `--reference-storage streamed` loads and retires upstream FP32
+parameters module by module under explicit allocation and host-pressure bounds.
+It needs the optional `quality` dependencies (Torch and Transformers). The
 [pinned Qwen3-0.6B comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen3-0.6b-reference-quality-2026-09-24.json)
 and [pinned Qwen2.5-0.5B comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen2.5-0.5b-reference-quality-2026-09-24.json)
 and [pinned Phi-4-mini comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/phi4mini-reference-quality-2026-09-24.json)
@@ -61,5 +64,11 @@ uses the *same* checkpoint and two-prompt cohort as plain W8A8 (2/2 versus
 Profile fitting uses only declared public calibration tokens; neither report
 stores those tokens, prompts, IDs or logits. Small cohorts and selected
 hyperparameters do not establish representative generation quality.
+
+The separate [Qwen3-4B streamed-reference cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/research-qwen3-streamed-quality.json)
+matches 11/12 W8A8 prefill and 35/36 same-token decode selections, with worst
+absolute logit errors of 5.43 and 10.81. Streaming limits active reference weights
+to 1.56 GB; that payload bound is not measured process peak RSS. Its twelve
+public prompts and cached decode remain a bounded numeric diagnostic.
 
 API: [`ReferenceAgreement` and `measure_reference_agreement`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).

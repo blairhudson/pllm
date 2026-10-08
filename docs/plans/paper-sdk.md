@@ -76,14 +76,29 @@ observed new swap; request time rises 142.665 to 155.460 seconds. A separate
 resident ownership fix halves retained matrix payload but leaves import peak
 RSS unchanged. These results do not establish 10× memory savings or broad model
 quality. Evidence and replay: `docs/research/qwen3-client-memory.md`.
-The held-out FP32 quality attempt rejects before tensor loading: 16.09 GB of
+The historical held-out FP32 quality attempt rejects before tensor loading: 16.09 GB of
 reference weights alone exceeds 13.84 GB of post-reserve headroom. Its separate
-replay and rejected admission are retained; a quality score remains pending.
+replay and rejected admission are retained. A subsequent module-streamed upstream
+reference admits the same checkpoint without keeping its full FP32 body resident.
+The twelve-prompt cohort matches 11/12 prefill and 35/36 same-token decode
+selections, with 0.867/0.889 top-5 recall and 5.43/10.81 worst absolute logit
+error. Reference active-weight payload peaks at 1.56 GB with zero observed swap
+growth. `docs/evidence/research-qwen3-streamed-quality.json` retains this bounded
+numeric evidence; representative generation quality and provider costs remain
+separate measurements.
 A later compiler-bounded KV allocation removes the short-response 64-row floor,
 preserving generated-model logits and active KV bits. The matched Qwen3 pair
 reduces array payload from 18.87 to 6.78 MB but changes client peak RSS only
 235.24 to 234.98 MB (0.11%). Further frontier work must target the measured
 process peak; this payload reduction alone did not improve it.
+The later file-backed tokenizer-source ablation does improve the measured client
+peak, 231.29 to 207.70 MB (10.20%), with matching outputs and traffic and nearly
+equal 169-second request time. Aggregate CPU and sampled topology RSS rise
+1.30%/5.29%. A contaminated preliminary allocation pair is excluded. A separate
+fresh-prompt instrumented profile places only 0.66 seconds in client page kernels
+versus 36.44 seconds in remote exchanges and 91.52 seconds in cold bundle loading.
+Further latency work should target those exchanges and transfers rather than
+infer a page-cache benefit. Cohorts remain separate; no general 10× result follows.
 
 Protected selection now exposes bounded independent phase batches, with complete
 frame/header accounting and fresh material per operation. Its fresh-process

@@ -1,0 +1,133 @@
+{
+  "admission": {
+    "fp32_weight_payload_lower_bound_bytes": 16089872384,
+    "headroom_bytes": 13447643136,
+    "host": {
+      "available": 17742610432,
+      "disk_free": 50744643584,
+      "swap_used": 941096960,
+      "total": 34359738368
+    },
+    "reference_storage": "streamed",
+    "required_bytes": 7175568768,
+    "reserve_bytes": 4294967296,
+    "streamed_reference_estimate_bytes": 4345139200,
+    "tensor_count": 398
+  },
+  "checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586",
+  "configuration_digest": "bf56589bac162acd7ea7ee7f760fb2885d6077e11559aebadbb65f984f200d96",
+  "dataset_sha256": "5b370390d07b6a12a43e414be83c57425a291ba53d22989c4062eb08d26368f9",
+  "decode_steps": 3,
+  "maximum_swap_growth_bytes": 0,
+  "model": {
+    "endpoint": null,
+    "kind": "huggingface",
+    "local_files_only": true,
+    "model_id": null,
+    "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "source": "Qwen/Qwen3-4B"
+  },
+  "pipeline_digest": "69de1cbd194f8cf6df6ee9a6b39224106685f97eee5a1b592821e0a6bdf0fe5b",
+  "quality": {
+    "candidates": [
+      {
+        "activation_bits": 8,
+        "configuration_digest": "bf56589bac162acd7ea7ee7f760fb2885d6077e11559aebadbb65f984f200d96",
+        "kernel_backend": "pllm/cpu",
+        "kernel_threads": 4,
+        "max_abs_logit_error": 5.430283784866333,
+        "name": "qwen3-memory-quality-w8a8",
+        "pipeline_digest": "69de1cbd194f8cf6df6ee9a6b39224106685f97eee5a1b592821e0a6bdf0fe5b",
+        "same_token_decode": {
+          "max_abs_logit_error": 10.81317675113678,
+          "sample_count": 36,
+          "top1_agreement": 0.9722222222222222,
+          "top_k_recall": 0.8888888888888888
+        },
+        "sample_count": 12,
+        "top1_agreement": 0.9166666666666666,
+        "top_k_recall": 0.8666666666666667,
+        "weight_bits": 8
+      }
+    ],
+    "cohort": {
+      "dataset_digest": "24c215e3082f01c874be6ab08eed0ee7f2bd94122f7bce6346ac59411e497cea",
+      "input_token_counts": [
+        7,
+        6,
+        10,
+        8,
+        13,
+        9,
+        8,
+        9,
+        9,
+        6,
+        8,
+        5
+      ],
+      "metric": {
+        "component": "pllm/reference-agreement/v1",
+        "params": {
+          "dataset_digest": "24c215e3082f01c874be6ab08eed0ee7f2bd94122f7bce6346ac59411e497cea",
+          "reference_checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586",
+          "top_k": 5
+        }
+      },
+      "phase": "prefill",
+      "prompt_count": 12,
+      "same_token_decode": {
+        "steps_per_prompt": 3,
+        "teacher_configuration_digest": "bf56589bac162acd7ea7ee7f760fb2885d6077e11559aebadbb65f984f200d96",
+        "teacher_forcing": "first-candidate-greedy",
+        "token_cohort_digest": "eb9a8260425e2d6a968c50a00cf7d5468afcade538a8bbc3de8e15c67de5a8b7"
+      },
+      "token_cohort_digest": "29060d7b85a138426113922d3ba8790263b1efd663b9e8f471886f2ed8a7a4a0"
+    },
+    "environment": {
+      "machine": "arm64",
+      "numpy": "2.5.3",
+      "python_reference": "transformers/5.16.1",
+      "reference_attention": "eager",
+      "reference_dtype": "float32",
+      "reference_threads": 4,
+      "reference_weight_storage": "module-streamed",
+      "system": "Darwin",
+      "torch": "2.14.0"
+    },
+    "environment_digest": "e756b60447ba828559cbc09c6dd7011b982bf3c9344b0e2603dae6ed1766494f",
+    "limitations": [
+      "local clear integer kernels, not a provider transport or privacy measurement",
+      "prefill and optional same-token decode agreement, not full-generation or task accuracy",
+      "float32 reference loading and evaluation excluded from provider latency and cost"
+    ],
+    "model": {
+      "checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586",
+      "id": "Qwen/Qwen3-4B",
+      "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1"
+    },
+    "reference_loading": {
+      "active_weight_bound_bytes": 1555824640,
+      "allocation_estimate_bytes": 4345139200,
+      "buffer_bytes": 512,
+      "kv_payload_bound_bytes": 10321920,
+      "load_seconds": 818.4057350447401,
+      "loaded_float32_bytes": 846993457152,
+      "maximum_swap_growth_bytes": 0,
+      "parameter_loads": 19152,
+      "peak_active_weight_bytes": 1555824640,
+      "storage": "module-streamed"
+    },
+    "schema_version": "pllm.reference_quality_benchmark.v1",
+    "scope": "local-compiled-clear-kernel-prefill-and-same-token-decode-reference"
+  },
+  "schema": "pllm.qwen3_memory_quality_probe.v1",
+  "scope": "held-out local clear-kernel prefill and optional same-token decode agreement with locked float32 reference",
+  "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+  "source_sha256": {
+    "benchmarks/research/qwen3_memory_quality.py": "806195fc38afdb03bc9f3fbff5abae0f3122ee1538ed42e0fd2860452adc9d12",
+    "python/pllm/runtime/reference_benchmark.py": "658b33fd9680a8694211a68397f1fbf86d5b1063ed9bc8417ece27dc844aa551",
+    "python/pllm/runtime/streamed_reference.py": "2b9d26d83fe09c329e157e0067864e4d1a9236fbab4126bb617da0f9f52937ab"
+  },
+  "status": "completed"
+}

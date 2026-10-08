@@ -188,6 +188,19 @@ network metrics. Neither setting meets a general model-quality gate from
 these two prompts. For interpretation and the typed metric, see
 [reference agreement](/sdk/evaluate/metrics/reference-agreement/).
 
+`--reference-storage streamed` keeps upstream FP32 parameters on the meta device,
+loads each active module in bounded checkpoint chunks and retires its weights
+after the forward call. Supported ownership layouts are checked before values
+load; host-reserve and swap-growth guards remain active. This reduces resident
+reference weights at the cost of repeated checkpoint reads. It does not change
+the candidate's storage or count reference work as provider performance.
+
+`--decode-steps 3` additionally measures three cached decode positions per prompt.
+Every candidate and the reference consume the first candidate's greedy token
+trajectory. Reports retain only its digest and separate decode aggregates;
+the Experiment output budget must allow prefill plus those decode steps.
+These are same-token numeric comparisons, not free-generation or task scores.
+
 The same source-locked two-prompt comparison was also run for
 [Qwen2.5-0.5B-Instruct](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen2.5-0.5b-reference-quality-2026-09-24.json):
 
