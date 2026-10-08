@@ -1651,7 +1651,12 @@ class MaskedTransformerEngine:
             return result
 
         transformed = await asyncio.to_thread(multiply)
-        correction = (transformed.astype(np.int64) - output_mask.astype(np.int64)) % request.modulus
+        # The validated seeded profile is a power-of-two ring of at most 32 bits.
+        # Unsigned subtraction wraps exactly; narrowing keeps the same residue
+        # without retaining two widened inputs and an int64 remainder tensor.
+        correction = np.subtract(transformed, output_mask, dtype=np.uint32)
+        if request.wire_bits < 32:
+            np.bitwise_and(correction, np.uint32(request.modulus - 1), out=correction)
         elapsed = time.perf_counter_ns() - started
         runtime.calls += 1
         runtime.rows += request.rows
@@ -1673,7 +1678,7 @@ class MaskedTransformerEngine:
             ring=request.ring,
             modulus=request.modulus,
             wire_bits=request.wire_bits,
-            correction=correction.astype(np.uint32),
+            correction=correction,
             output_residue_bits=self.prepared_output_widths(request.model, request.stage_id),
         )
 

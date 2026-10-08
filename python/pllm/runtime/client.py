@@ -344,7 +344,7 @@ class PrivacyAudit:
 class _Channel:
     def __init__(
         self, client: httpx.Client, base_url: str, api_key: str, session_id: str, mode: str,
-        *, frame_limit: int | None = None,
+        *, frame_limit: int | None = None, compression: str | None = "deflate",
     ) -> None:
         self.client = client
         self.base_url = base_url.rstrip("/")
@@ -354,6 +354,7 @@ class _Channel:
         self.socket: Any = None
         self._send_pool = None
         self.frame_limit = frame_limit
+        self.compression = compression
 
     def _http(self, payload: bytes) -> bytes:
         with owned_response(self.client.post(
@@ -381,6 +382,7 @@ class _Channel:
             url,
             subprotocols=["pllm-runtime-v1"],
             additional_headers={"Authorization": f"Bearer {self.api_key}"},
+            compression=self.compression,
             open_timeout=30,
             max_size=self.frame_limit,
             max_queue=2 if self.frame_limit else 16,
@@ -3643,6 +3645,8 @@ class RuntimeClient:
                     self.http, self.base_url, self.api_key, session_id,
                     "websocket" if self.prefill_chunk_rows else self.session_transport,
                     frame_limit=(16 << 20) if self.prefill_chunk_rows else None,
+                    # Prepared words already use the negotiated arithmetic codec.
+                    compression=None if state.privacy_mode == "public" else "deflate",
                 )
             except BaseException:
                 abandon_transformer_session()
