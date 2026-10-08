@@ -138,3 +138,21 @@ The subsequent [prepared-kernel implementation ablation](prepared-kernel-referen
 keeps this topology and numeric contract while measuring NEON correction/online
 kernels and bounded compressed-frame decoding. Its synthetic kernel screen and
 matched installed-build response measurements have separate scopes.
+
+The later [fused client-boundary ablation](prepared-boundary-reference.md)
+preserves encoded inputs and output bits while removing intermediate tensors.
+Its matched cold/repeat pair measures a 2.51% client peak-RSS reduction with
+inconclusive complete-request latency benefit.
+
+The subsequent [correction, decode and artifact screen](prepared-delivery-reference.md)
+narrows exact correction subtraction and declines WebSocket deflate on prepared
+arithmetic frames. A matched SDK pair improves decode throughput 19–24% and
+reduces Preparation peak RSS 8.35%, but cold latency and client peak RSS rise.
+Application bodies match while TCP-stream traffic rises slightly. Prebuilt
+public-artifact replay is cheaper locally, but first-use publication plus replay
+costs more CPU; ordinary warm clients already reuse their own object cache.
+
+A separate [frozen precision screen](prepared-precision-reference.md) compares
+four numeric choices against streamed float32 prefill and same-token decode.
+Equalization improves this cohort's prefill selections but regresses decode;
+neither it nor the lower-bit choices earns a default change.

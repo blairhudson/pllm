@@ -226,6 +226,10 @@ def main():
             for key in ("python", "platform", "dependencies"):
                 if any(item[key] != identities[0][key] for item in identities):
                     raise ValueError(f"installed builds have different {key}")
+            if args.change_scope == "prepared-refinements" and any(
+                item["native_sha256"] != identities[0]["native_sha256"] for item in identities
+            ):
+                raise ValueError("prepared-refinements requires identical native libraries")
             for mode in MODES:
                 if len({json.dumps(row["identity"], sort_keys=True) for row in records if row["mode"] == mode}) != 1:
                     raise ValueError("installed implementation changed during cohort")

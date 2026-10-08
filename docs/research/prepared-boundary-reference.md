@@ -48,8 +48,8 @@ binds matching outputs and workload; there is no KV reuse on the repeat.
 
 The control is the installed `94b738c` implementation. The candidate Python tree
 differs only in stage framing and transformer-client boundaries; the native
-library is separately hashed. Dependencies agree. All four runtime checks and
-the canonical comparison pass, with zero observed new swap.
+library is separately hashed. Dependencies agree. All four responses and the
+canonical comparison pass their checks, with zero observed new swap.
 
 | Metric | Control cold / repeat | Fused cold / repeat |
 | --- | ---: | ---: |

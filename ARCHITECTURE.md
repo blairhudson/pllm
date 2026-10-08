@@ -60,6 +60,27 @@ match with zero observed swap growth. Client lifetime peak RSS rises 248.87 to
 261.82 MB; these single samples establish no client-memory improvement or
 Qwen3-4B whole-response result. Replay and scope are in
 `docs/research/prepared-kernel-reference.md`.
+The prepared client additionally fuses quantize/mask/pack and residue
+unpack/unmask/dequantize through bounded, interpreter-lock-released native calls.
+Freivalds retains integer outputs until verification. Eighteen fresh synthetic
+processes preserve 22,192,128 checked boundary values with 12–39% lower CPU and
+up to 60.09% less Python-traced allocation. A separate matched Qwen2.5 150+8
+cold/repeat SDK pair lowers client peak RSS 246.79 to 240.60 MB (2.51%), with
+identical outputs and application bodies and zero observed swap growth. Cold
+latency rises 0.56%, repeat latency falls 0.39%, and cold-first aggregate CPU
+rises 1.12%; complete-request speed benefit remains inconclusive. Details:
+`docs/research/prepared-boundary-reference.md`.
+Preparation also subtracts output masks directly in uint32 before exact ring
+narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
+separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%
+and lowers Preparation peak RSS 218.87 to 200.59 MB. Cold request latency rises
+7.99%, repeat latency falls 3.23%, client peak RSS rises 230.16 to 238.39 MB and
+cold-first aggregate CPU rises 1.88%. Outputs and application bodies match with
+zero observed swap growth; TCP-stream traffic rises slightly. A separately
+costed public-artifact pre-encoding prototype lowers replay CPU but raises
+publication-plus-first-read CPU about 5%; ordinary warm clients already reuse
+their own object cache. It does not activate provider caching. Full evidence:
+`docs/research/prepared-delivery-reference.md`.
 The separate opt-in `pllm.native.MetalGEMM` MLX/Metal direct kernel accepts
 bounded signed-i8 weights and i8/u32 inputs for exact clear and wrap32 outputs
 on Apple Silicon. It owns a GPU weight snapshot and synchronizes output to
@@ -1495,6 +1516,16 @@ to 70.24 s, TCP-stream traffic from 289.41 to 251.25 MB and client peak RSS from
 equalized bodies rank separately; profile publication and distribution remain
 outside response counters. All paper controls and the held-out numeric report
 are retained in the Research data with rerunnable, digest-checked Python files.
+
+A subsequent frozen four-choice Qwen2.5 quality screen uses separate public
+calibration and twelve fresh held-out prompts with three same-token decode steps.
+W8A8 matches 10/12 prefill and 35/36 decode selections; equalization improves
+prefill to 11/12 but regresses decode to 32/36. W4A8 scores 1/12 and 21/36;
+W8A4 scores zero. Public profile compilation costs 21.78 CPU seconds and 729,527
+bytes. No default changes or same-quality cost ranking follow. Qwen3 calibration
+rejects its 9.51 GB allocation estimate against 8.12 GB headroom. Exact source,
+numeric and cohort identities remain separate from earlier quality samples;
+details are in `docs/research/prepared-precision-reference.md`.
 
 The installed `pllm.protocols.PrivateEmbeddingLookup` separately benchmarks
 FastQuery-inspired one-hot BFV coefficient packing and signed packed-share
