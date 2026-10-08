@@ -110,6 +110,15 @@ estimate rises 15.45 to 58.29 MB. Evidence:
 `docs/evidence/research-batched-selection-cost.json`. Encrypted attention
 range/bootstrap work remains a separate longer-horizon track.
 
+The separate public-bounded metadata conversion preserves complete ring32
+records and checks 239,010 words in 18 fresh processes. At the same full width
+and batch size 16, keys fall 295.26 to 164.74 MB and peer frames 78.77 to
+50.35 MB, with unchanged 1,200 exchanges and 58.29 MB live-allocation estimate.
+Stable index, priority and nonnegative float32 score bounds are public; no
+private range selects conversion width. Complete selection remains cost-blocked
+relative to 131,584 retired clear-state bytes. Evidence:
+`docs/evidence/research-bounded-selection-cost.json`.
+
 1. **Mixed arithmetic — implemented bounded operator slice.** Curl, LogRow and
    Compact accept an explicit mixed backend without changing numeric profiles or
    default identities. Thirty-six fresh processes check 2,916 exact outputs.

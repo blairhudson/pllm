@@ -15,6 +15,8 @@ struct Specification {
     words: usize,
     #[serde(default = "serial_batch")]
     batch_size: usize,
+    #[serde(default)]
+    bounded_metadata: bool,
     selection: Method,
 }
 
@@ -39,6 +41,7 @@ fn parse(raw: &str) -> PyResult<Plan> {
         rows: p.rows,
         words: p.words,
         batch_size: p.batch_size,
+        bounded_metadata: p.bounded_metadata,
         selection: match p.selection {
             Method::TopK { keep, recent } => Selection::TopK { keep, recent },
             Method::Threshold {
@@ -151,6 +154,7 @@ fn shared_selection_benchmark<'py>(
         let m = native::run_reference(plan, &scores, &words, context).map_err(failure)?;
         let metadata = json!({
             "rows": plan.rows, "words": plan.words, "retained": m.retained,
+            "bounded_metadata": plan.bounded_metadata,
             "degree_disclosed": m.high_degree.is_some(), "resources": resources(&m.resources),
             "allocation_estimate_bytes": m.allocation_bytes, "sharing_seconds": m.sharing_seconds,
             "issuance_seconds": m.issuance_seconds, "online_seconds": m.online_seconds,

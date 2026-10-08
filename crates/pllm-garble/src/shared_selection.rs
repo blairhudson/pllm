@@ -35,29 +35,48 @@ pub struct Plan {
     pub rows: usize,
     pub words: usize,
     pub batch_size: usize,
+    /// Use proven score/index/priority bounds in top-k predicate conversions.
+    pub bounded_metadata: bool,
     pub selection: Selection,
 }
 
 #[derive(Clone, Copy)]
 enum Predicate {
-    Rank,
-    Order,
+    Rank(usize),
+    Order(usize),
     Greater(u32),
 }
 
 impl Predicate {
     fn words(self) -> usize {
         match self {
-            Self::Rank => 6,
-            Self::Order => 2,
+            Self::Rank(_) => 6,
+            Self::Order(_) => 2,
             Self::Greater(_) => 1,
+        }
+    }
+    fn widths(self) -> Vec<usize> {
+        match self {
+            Self::Rank(32) => vec![32; 6],
+            Self::Rank(index) => vec![31, index, 2, 31, index, 2],
+            Self::Order(index) => vec![index; 2],
+            Self::Greater(_) => vec![32],
+        }
+    }
+    fn reduce(self, values: &mut [u64]) {
+        for (value, bits) in values.iter_mut().zip(self.widths()) {
+            *value &= gc::mask(bits);
         }
     }
     fn counts(self) -> Counts {
         let words = self.words() as u64;
-        let width = if matches!(self, Self::Rank) { 96 } else { 32 };
+        let count = self.widths().iter().sum::<usize>() as u64;
+        let width = match self {
+            Self::Rank(_) | Self::Order(_) => count / 2,
+            Self::Greater(_) => 32,
+        };
         Counts {
-            input_bits: 64 * words,
+            input_bits: 2 * count,
             output_bits: 32,
             constants: words
                 + 36
@@ -67,13 +86,13 @@ impl Predicate {
                     0
                 },
             nots: 64 + 2 * width,
-            xors: 96 * (words + 1) + 2 * width,
-            ands: 64 * (words + 1) + 3 * width,
+            xors: 3 * (count + 32) + 2 * width,
+            ands: 2 * (count + 32) + 3 * width,
         }
     }
     fn resources(self) -> gc::Resources {
         let c = self.counts();
-        let count = 32 * self.words();
+        let count = self.widths().iter().sum::<usize>();
         gc::Resources {
             key_bytes: [
                 96 * count + 8,
@@ -95,12 +114,12 @@ impl Predicate {
         x: &[Vec<BooleanWire>],
     ) -> Result<Vec<Vec<BooleanWire>>, String> {
         let bit = match self {
-            Self::Rank => {
+            Self::Rank(_) => {
                 let a = [&x[1][..], &x[0][..], &x[2][..]].concat();
                 let c = [&x[4][..], &x[3][..], &x[5][..]].concat();
                 b.compare_unsigned(&a, &c)?.0
             }
-            Self::Order => b.compare_unsigned(&x[0], &x[1])?.0,
+            Self::Order(_) => b.compare_unsigned(&x[0], &x[1])?.0,
             Self::Greater(threshold) => {
                 let t = b.constant_word(u128::from(threshold), 32)?;
                 b.compare_unsigned(&t, &x[0])?.0
@@ -182,10 +201,20 @@ impl Resources {
 }
 
 impl Plan {
+    fn index_bits(self) -> usize {
+        if self.bounded_metadata {
+            // Low bits of u32::MAX-row must stay strictly positive even for the
+            // last real row; padding uses zero. In particular 256 rows need 9.
+            (usize::BITS - self.rows.leading_zeros()).max(2) as usize
+        } else {
+            32
+        }
+    }
     fn validate(self) -> Result<(), Error> {
         if !(1..=256).contains(&self.rows)
             || !(1..=8192).contains(&self.words)
             || !matches!(self.batch_size, 1 | 4 | 16)
+            || (self.bounded_metadata && !matches!(self.selection, Selection::TopK { .. }))
         {
             return Err(Error::Resource);
         }
@@ -224,8 +253,14 @@ impl Plan {
                 }
                 if keep != self.rows {
                     for (rows, p) in [
-                        (self.rows.next_power_of_two(), Predicate::Rank),
-                        (keep.next_power_of_two(), Predicate::Order),
+                        (
+                            self.rows.next_power_of_two(),
+                            Predicate::Rank(self.index_bits()),
+                        ),
+                        (
+                            keep.next_power_of_two(),
+                            Predicate::Order(self.index_bits()),
+                        ),
                     ] {
                         for layer in batch::sort_layers(rows) {
                             for pairs in layer.chunks(self.batch_size) {
@@ -309,6 +344,9 @@ impl Plan {
         if self.batch_size != 1 {
             hash.update(b"batched.v1");
             hash.update((self.batch_size as u64).to_le_bytes());
+        }
+        if self.bounded_metadata {
+            hash.update(b"bounded_metadata.v1");
         }
         match self.selection {
             Selection::TopK { keep, recent } => {
@@ -421,6 +459,7 @@ struct Execution {
     counter: u64,
     stride: usize,
     batch_size: usize,
+    index_bits: usize,
     resources: Resources,
     issuance_seconds: f64,
 }
@@ -441,12 +480,12 @@ impl Execution {
     fn predicate(
         &mut self,
         p: Predicate,
-        input: [Zeroizing<Vec<u64>>; 2],
+        mut input: [Zeroizing<Vec<u64>>; 2],
     ) -> Result<[u32; 2], Error> {
         let context = self.context()?;
         let start = Instant::now();
         let ([mut a, mut b], resources) =
-            gc::issue_bounded(32, p.words(), 1, PREDICATE_WIRES, context, |b, x| {
+            gc::issue_widths(&p.widths(), 32, 1, PREDICATE_WIRES, context, |b, x| {
                 p.build(b, x)
             })?;
         self.issuance_seconds += start.elapsed().as_secs_f64();
@@ -454,6 +493,9 @@ impl Execution {
             return Err(Error::Resource);
         }
         self.resources.predicate(p, 1);
+        for values in &mut input {
+            p.reduce(values);
+        }
         let result = (|| {
             let mut frames = [a.start(&input[0])?, b.start(&input[1])?];
             for expected in resources.phase_bytes {
@@ -520,7 +562,7 @@ impl Execution {
     fn predicates(
         &mut self,
         p: Predicate,
-        inputs: Vec<[Zeroizing<Vec<u64>>; 2]>,
+        mut inputs: Vec<[Zeroizing<Vec<u64>>; 2]>,
     ) -> Result<Vec<[u32; 2]>, Error> {
         if inputs.len() == 1 {
             return Ok(vec![self.predicate(p, inputs.into_iter().next().unwrap())?]);
@@ -534,7 +576,7 @@ impl Execution {
             let context = self.context()?;
             let start = Instant::now();
             let (pair, actual) =
-                gc::issue_bounded(32, p.words(), 1, PREDICATE_WIRES, context, |b, x| {
+                gc::issue_widths(&p.widths(), 32, 1, PREDICATE_WIRES, context, |b, x| {
                     p.build(b, x)
                 })?;
             self.issuance_seconds += start.elapsed().as_secs_f64();
@@ -544,6 +586,11 @@ impl Execution {
             }
         }
         self.resources.predicate_group(p, inputs.len());
+        for input in &mut inputs {
+            for values in input {
+                p.reduce(values);
+            }
+        }
         let mut frames = [Vec::new(), Vec::new()];
         for (pair, input) in parties.0.iter_mut().zip(&inputs) {
             for id in 0..2 {
@@ -672,9 +719,9 @@ impl Execution {
                 }
                 let flags = self.predicates(
                     if rank {
-                        Predicate::Rank
+                        Predicate::Rank(self.index_bits)
                     } else {
-                        Predicate::Order
+                        Predicate::Order(self.index_bits)
                     },
                     inputs,
                 )?;
@@ -785,6 +832,7 @@ pub fn run_reference(
         counter: 0,
         stride,
         batch_size: plan.batch_size,
+        index_bits: plan.index_bits(),
         resources: Resources::default(),
         issuance_seconds: 0.0,
     };
@@ -932,13 +980,17 @@ mod tests {
     #[test]
     fn exact_resource_projection_matches_each_issued_predicate() {
         for p in [
-            Predicate::Rank,
-            Predicate::Order,
+            Predicate::Rank(32),
+            Predicate::Rank(2),
+            Predicate::Rank(9),
+            Predicate::Order(32),
+            Predicate::Order(2),
+            Predicate::Order(9),
             Predicate::Greater(0),
             Predicate::Greater(u32::MAX),
         ] {
             let (_, actual) =
-                gc::issue_bounded(32, p.words(), 1, PREDICATE_WIRES, context(), |b, x| {
+                gc::issue_widths(&p.widths(), 32, 1, PREDICATE_WIRES, context(), |b, x| {
                     p.build(b, x)
                 })
                 .unwrap();
@@ -959,6 +1011,7 @@ mod tests {
                         rows,
                         words: 5,
                         batch_size: 1,
+                        bounded_metadata: false,
                         selection: Selection::TopK { keep, recent },
                     };
                     let mut indices: Vec<_> = (0..rows).collect();
@@ -999,6 +1052,7 @@ mod tests {
                 rows: 5,
                 words: 3,
                 batch_size: 1,
+                bounded_metadata: false,
                 selection: Selection::Threshold {
                     threshold: 10,
                     reduction: 25,
@@ -1023,6 +1077,7 @@ mod tests {
             rows: 4,
             words: 1025,
             batch_size: 1,
+            bounded_metadata: false,
             selection: Selection::TopK { keep: 2, recent: 0 },
         };
         let scores = [0., 3., 1., 2.].map(f32::to_bits);
@@ -1036,6 +1091,7 @@ mod tests {
             rows: 256,
             words: 8192,
             batch_size: 1,
+            bounded_metadata: false,
             selection: Selection::Threshold {
                 threshold: 1,
                 reduction: 2
@@ -1081,6 +1137,7 @@ mod tests {
                 rows: 17,
                 words: 5,
                 batch_size: 1,
+                bounded_metadata: false,
                 selection,
             };
             let serial = run_reference(p, &scores, &words, context()).unwrap();
@@ -1110,6 +1167,7 @@ mod tests {
                 rows: 5,
                 words: 3,
                 batch_size: 16,
+                bounded_metadata: false,
                 selection: Selection::Threshold {
                     threshold: 10,
                     reduction: 15,
@@ -1126,6 +1184,7 @@ mod tests {
             rows: 256,
             words: 257,
             batch_size: 16,
+            bounded_metadata: false,
             selection: Selection::TopK {
                 keep: 128,
                 recent: 2,
@@ -1139,6 +1198,70 @@ mod tests {
         }
         .admit()
         .is_err());
+    }
+
+    #[test]
+    fn bounded_metadata_preserves_extreme_scores_padding_ties_and_full_words() {
+        for rows in [1_usize, 3, 16, 17, 256] {
+            let scores: Vec<_> = (0..rows)
+                .map(|i| [0, 1, f32::MAX.to_bits(), 1.0_f32.to_bits()][i % 4])
+                .collect();
+            let words: Vec<_> = (0..rows * 3)
+                .map(|i| (i as u32).wrapping_mul(0x8000_1234))
+                .collect();
+            for batch_size in [1, 16] {
+                let keep = rows.div_ceil(2);
+                let recent = keep.min(2);
+                let p = Plan {
+                    rows,
+                    words: 3,
+                    batch_size,
+                    bounded_metadata: true,
+                    selection: Selection::TopK { keep, recent },
+                };
+                let mut order: Vec<_> = (0..rows).collect();
+                order.sort_by_key(|&i| {
+                    (
+                        std::cmp::Reverse(i >= rows - recent),
+                        std::cmp::Reverse(scores[i]),
+                        i,
+                    )
+                });
+                order.truncate(keep);
+                order.sort_unstable();
+                let expected: Vec<_> = order
+                    .iter()
+                    .flat_map(|&i| words[3 * i..3 * i + 3].iter().copied())
+                    .collect();
+                let actual = run_reference(p, &scores, &words, context()).unwrap();
+                assert_eq!(*actual.output, expected);
+                let mut measured = actual.resources.clone();
+                measured.phases.clear();
+                assert_eq!(measured, p.project(keep).unwrap());
+                let full = Plan {
+                    bounded_metadata: false,
+                    ..p
+                };
+                assert_ne!(
+                    p.binding(context()).operation,
+                    full.binding(context()).operation
+                );
+                if keep < rows {
+                    assert!(
+                        actual.resources.key_bytes.iter().sum::<u64>()
+                            < full.project(keep).unwrap().key_bytes.iter().sum::<u64>()
+                    );
+                }
+                for invalid in [
+                    (-0.0_f32).to_bits(),
+                    (-1.0_f32).to_bits(),
+                    f32::INFINITY.to_bits(),
+                    f32::NAN.to_bits(),
+                ] {
+                    assert!(run_reference(p, &vec![invalid; rows], &words, context()).is_err());
+                }
+            }
+        }
     }
 
     #[test]

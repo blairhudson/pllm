@@ -57,7 +57,8 @@ def test_same_public_count_has_same_schedule_despite_changed_private_positions()
 
 
 @pytest.mark.parametrize("rows,keep,recent", [(1, 1, 0), (7, 3, 1), (16, 8, 2)])
-def test_top_k_compares_scores_and_preserves_complete_original_positions(rows, keep, recent):
+@pytest.mark.parametrize("bounded", [False, True])
+def test_top_k_compares_scores_and_preserves_complete_original_positions(rows, keep, recent, bounded):
     width = 257  # one absolute position plus full 128-feature K and V words
     scores = [float(i * 7 % 5) for i in range(rows)]
     words = [(i * 0x87ABCDEF) & 0xFFFFFFFF for i in range(rows * width)]
@@ -65,7 +66,8 @@ def test_top_k_compares_scores_and_preserves_complete_original_positions(rows, k
         words[i * width] = 2 * i + 11
     selected = sorted(sorted(range(rows), key=lambda i: (-(i >= rows - recent), -scores[i], i))[:keep])
     expected = [v for i in selected for v in words[i * width:(i + 1) * width]]
-    spec = json.dumps({"rows": rows, "words": width, "selection": {"method": "top_k", "keep": keep, "recent": recent}})
+    spec = json.dumps({"rows": rows, "words": width, "bounded_metadata": bounded,
+                      "selection": {"method": "top_k", "keep": keep, "recent": recent}})
     output, degrees, raw = _native.shared_selection_benchmark(spec, struct.pack(f"<{rows}f", *scores), struct.pack(f"<{len(words)}I", *words))
     assert output == struct.pack(f"<{len(expected)}I", *expected)
     assert degrees == b""
@@ -76,6 +78,7 @@ def test_top_k_compares_scores_and_preserves_complete_original_positions(rows, k
     phases = measured["resources"].pop("phases")
     assert measured["resources"] == {k: v for k, v in projected["resources"].items() if k != "phases"}
     assert len(phases) == measured["resources"]["rounds"]
+    assert measured["bounded_metadata"] is bounded
 
 
 def test_worst_public_count_and_bad_spec_reject_before_input_loading():
@@ -83,7 +86,10 @@ def test_worst_public_count_and_bad_spec_reject_before_input_loading():
     assert not json.loads(_native.shared_selection_projection(json.dumps(spec), 256))["admitted"]
     with pytest.raises(ValueError):
         _native.shared_selection_benchmark(json.dumps(spec), b"", b"")
-    for invalid in ({**spec, "extra": 1}, {**spec, "rows": 2**64 - 1}, {**spec, "selection": {"method": "unknown"}}):
+    for invalid in ({**spec, "extra": 1}, {**spec, "rows": 2**64 - 1},
+                    {**spec, "selection": {"method": "unknown"}},
+                    {**spec, "rows": 4, "words": 4, "bounded_metadata": True},
+                    {**spec, "bounded_metadata": 1}):
         with pytest.raises(ValueError):
             _native.shared_selection_projection(json.dumps(invalid), 1)
     for backend in (False, "unknown", None):

@@ -143,6 +143,56 @@ its retained-count dependency prevents a simple 16-fold reduction. Both remain
 local operator results, without measured network latency, live provider state,
 protected scoring or reviewed transport. Batching does not satisfy those gates.
 
+## Public-bounded metadata conversions
+
+The internal top-k benchmark additionally accepts `bounded_metadata=true`.
+Complete records and conditional-movement products remain ring32. Only predicate
+inputs use narrower rings justified by public invariants:
+
+- Nonnegative finite float32 score bits fit 31 bits; negative zero, negative
+  values, infinities and NaNs reject before sharing.
+- Real/padded/recent priority takes values 0, 1 or 2, requiring two bits.
+- Stable reverse indices use `max(2, floor(log2(rows)) + 1)` bits. In particular,
+  256 rows need nine bits so the last real row stays above zero-valued padding.
+
+Reducing each additive share modulo the selected power of two preserves the
+reconstructed value in that ring. The fixed sorting network only permutes these
+bounded values. No private score range or selected position determines a width.
+Predicates return independently masked full-ring output shares, and every record
+word keeps its original 32 bits. Fresh OT correlations, triples, party ownership
+and one-use burns remain unchanged. Context binding includes the width contract;
+the option rejects threshold pruning, whose separate score-sum domain is not
+covered by these bounds. Omission preserves the historical full-ring layout.
+
+`benchmarks/research/bounded_selection.py` compares both layouts at batch size 16
+with complete 16/39/256-row, 257-word records. It checks an independent stable-sort
+oracle and reconciles actual issuance and every peer frame against geometry-only
+resource projections. The conservative live-allocation estimate retains the
+existing maximum predicate workspace; smaller cumulative keys do not establish
+smaller process peaks or provider-state feasibility.
+
+The retained cohort in `docs/evidence/research-bounded-selection-cost.json`
+checks **239,010 complete output words across 18 fresh processes**, three per
+case. Sizes below are decimal MB; both layouts use batch size 16.
+
+| Rows × words | Keys, full / bounded | Peer frames, full / bounded | Exchanges, both | Live allocation estimate, both |
+| --- | ---: | ---: | ---: | ---: |
+| 16 × 257 | 4.95 / 2.57 | 1.31 / 0.79 | 48 | 54.22 |
+| 39 × 257 | 42.52 / 22.47 | 11.32 / 6.96 | 171 | 55.03 |
+| 256 × 257 | 295.26 / 164.74 | 78.77 / 50.35 | 1,200 | 58.29 |
+
+At full width, combined keys fall **44.21%** and peer bodies **36.08%**, with
+unchanged outputs, products and exchanges. Recorded full/bounded local issuance
+medians are 38.35/22.86 seconds and online medians 11.27/5.51 seconds. These are
+in-process timings on the development host; part of the cohort overlapped an
+independent FP32 quality diagnostic. The exact key/frame reductions do not
+depend on those timings, and no isolated-host or WAN speedup is claimed.
+
+The full-width bounded layout still issues 164.74 MB of keys and exchanges
+50.35 MB to retire just 131,584 clear-state bytes. Protected scoring, live
+owner/revision binding, distributed setup and provider transport remain absent;
+the smaller layout does not authorize a decoder memory optimization.
+
 Native checks cover every small keep mask, strict ties, stable complete-word
 movement, padded non-power-of-two geometry, mandatory recent rows, fixed public
 schedules, exact geometry/resource counts, pre-disclosure admission and one-use
@@ -162,6 +212,8 @@ uv run --no-sync python examples/benchmarks/token_pruning.py \
   --output docs/evidence/research-shared-selection-sdk-reproduction.json
 uv run --no-sync python -m benchmarks.research.batched_selection \
   --output docs/evidence/research-batched-selection-cost-reproduction.json
+uv run --no-sync python -m benchmarks.research.bounded_selection \
+  --output docs/evidence/research-bounded-selection-cost-reproduction.json
 uv run --no-sync python examples/benchmarks/token_pruning.py \
   --backend mixed --batch-size 16 --lanes 128 --samples 3 \
   --output docs/evidence/research-batched-selection-sdk-reproduction.json

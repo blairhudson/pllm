@@ -673,6 +673,16 @@ live-allocation estimate rises 15.45 to 58.29 MB. Complete 39×896 pruning drops
 688 to 78 exchanges, retaining 13.09 MB keys. These local round reductions do
 not establish WAN latency, protected scoring or live provider-state integration.
 Details: `docs/research/shared-selection-reference.md`.
+The separate bounded-metadata top-k layout narrows only public-proven predicate
+domains: nonnegative finite float32 score bits, stable reverse indices and
+real/padded/recent priorities. Complete record words and movement products stay
+ring32. Eighteen fresh processes check 239,010 complete words with exact
+issuance/frame reconciliation. At 256×257 and batch size 16, keys fall from
+295.26 to 164.74 MB and peer bodies from 78.77 to 50.35 MB; 1,200 exchanges and
+the conservative 58.29 MB live-allocation estimate remain. No private score range
+selects a width, and threshold pruning rejects this contract. The cost still
+exceeds retiring 131,584 clear-state bytes by orders of magnitude; protected
+scoring, live state binding and provider integration remain gated.
 The separate common-profile Compact/LogRow/Curl
 screen counts activation-only material and missing conversions explicitly;
 four-level Curl still projects 1.40 GB material and 730.30 MB peer bodies at

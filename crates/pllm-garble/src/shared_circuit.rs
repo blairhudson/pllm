@@ -47,6 +47,7 @@ pub struct Party {
     id: u8,
     bits: usize,
     words: usize,
+    input_widths: Vec<usize>,
     outputs: usize,
     binding: [u8; 32],
     nonce: [u8; 32],
@@ -125,16 +126,46 @@ pub(crate) fn issue_bounded(
     if !(2..=64).contains(&bits) || !(1..=8).contains(&words) || !(1..=8).contains(&outputs) {
         return Err(Error::Resource);
     }
+    issue_widths(
+        &vec![bits; words],
+        bits,
+        outputs,
+        wire_limit,
+        context,
+        build,
+    )
+}
+
+/// Reconstruct each input in its own public ring, while keeping full-width
+/// independently masked output shares. Callers must establish input range bounds.
+pub(crate) fn issue_widths(
+    input_widths: &[usize],
+    bits: usize,
+    outputs: usize,
+    wire_limit: usize,
+    context: Context,
+    build: impl FnOnce(&mut Builder, &[Vec<BooleanWire>]) -> Result<Vec<Vec<BooleanWire>>, String>,
+) -> Result<([Party; 2], Resources), Error> {
+    let words = input_widths.len();
+    if !(2..=64).contains(&bits)
+        || !(1..=8).contains(&words)
+        || !(1..=8).contains(&outputs)
+        || input_widths.iter().any(|width| !(2..=64).contains(width))
+    {
+        return Err(Error::Resource);
+    }
     if wire_limit > MAX_WIRES {
         return Err(Error::Resource);
     }
     let mut b = Builder::with_wire_limit(wire_limit).map_err(domain)?;
-    let a = (0..words)
-        .map(|_| b.input_word(bits))
+    let a = input_widths
+        .iter()
+        .map(|&width| b.input_word(width))
         .collect::<Result<Vec<_>, _>>()
         .map_err(domain)?;
-    let c = (0..words)
-        .map(|_| b.input_word(bits))
+    let c = input_widths
+        .iter()
+        .map(|&width| b.input_word(width))
         .collect::<Result<Vec<_>, _>>()
         .map_err(domain)?;
     let x = a
@@ -159,7 +190,7 @@ pub(crate) fn issue_bounded(
     let nonce = program.issuance_id();
     let (inputs, decoder) = client.into_shared_parts();
     debug_assert_eq!(inputs.id(), nonce);
-    let count = words * bits;
+    let count: usize = input_widths.iter().sum();
     let mut sender = Zeroizing::new(Vec::with_capacity(count));
     let mut receiver = Zeroizing::new(Vec::with_capacity(count));
     let mut choices = Zeroizing::new(Vec::with_capacity(count));
@@ -195,12 +226,19 @@ pub(crate) fn issue_bounded(
     hash.update(context.operation);
     hash.update(context.first_tensor_index.to_le_bytes());
     hash.update([bits as u8, words as u8, outputs as u8]);
+    if input_widths.iter().any(|&width| width != bits) {
+        hash.update(b"pllm.shared_circuit.input_widths.v1\0");
+        for &width in input_widths {
+            hash.update([width as u8]);
+        }
+    }
     hash.update(program.public_schedule_digest());
     let binding = hash.finalize().into();
     let make = |id, material| Party {
         id,
         bits,
         words,
+        input_widths: input_widths.to_vec(),
         outputs,
         binding,
         nonce,
@@ -268,30 +306,37 @@ impl Party {
         let mut material = self.material.take().ok_or(Error::Consumed)?;
         if self.phase != 0
             || values.len() != self.words
-            || values.iter().any(|&v| v > mask(self.bits))
+            || values
+                .iter()
+                .zip(&self.input_widths)
+                .any(|(&v, &bits)| v > mask(bits))
         {
             return Err(Error::Domain);
         }
         let mut body = Zeroizing::new(Vec::new());
         match &mut material {
             Material::Sender(a) => {
-                for (w, &value) in values.iter().enumerate() {
-                    for bit in 0..self.bits {
+                let mut offset = 0;
+                for (&value, &bits) in values.iter().zip(&self.input_widths) {
+                    for bit in 0..bits {
                         a.labels.push(
                             a.inputs
-                                .encode(w * self.bits + bit, (value >> bit) & 1 != 0)
+                                .encode(offset + bit, (value >> bit) & 1 != 0)
                                 .map_err(domain)?,
                         );
                     }
+                    offset += bits;
                 }
             }
             Material::Receiver(b) => {
-                for (w, &value) in values.iter().enumerate() {
-                    for bit in 0..self.bits {
+                let mut offset = 0;
+                for (&value, &bits) in values.iter().zip(&self.input_widths) {
+                    for bit in 0..bits {
                         let choice = ((value >> bit) & 1) as u8;
                         b.requested.push(choice);
-                        body.push(choice ^ b.choices[w * self.bits + bit]);
+                        body.push(choice ^ b.choices[offset + bit]);
                     }
+                    offset += bits;
                 }
             }
         }
@@ -315,7 +360,7 @@ impl Party {
                 for label in a.labels.iter() {
                     response.extend(label);
                 }
-                let count = self.words * self.bits;
+                let count: usize = self.input_widths.iter().sum();
                 for (i, &d) in body.iter().enumerate() {
                     for bit in 0..2 {
                         let label =
@@ -334,7 +379,7 @@ impl Party {
         match material {
             Material::Sender(a) => Ok(Progress::Complete(a.masks)),
             Material::Receiver(b) => {
-                let count = self.words * self.bits;
+                let count: usize = self.input_widths.iter().sum();
                 let mut labels = Zeroizing::new(Vec::with_capacity(2 * count));
                 for raw in body[..count * 16].chunks_exact(16) {
                     labels.push(raw.try_into().unwrap());
@@ -420,6 +465,43 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn distinct_input_rings_preserve_carries_and_burn_invalid_shares() {
+        let build = |b: &mut Builder, x: &[Vec<BooleanWire>]| {
+            let zero = b.constant(false)?;
+            let mut word = x[0].clone();
+            word.extend(&x[1]);
+            word.resize(32, zero);
+            Ok(vec![word])
+        };
+        let ([mut a, mut b], r) = issue_widths(&[2, 9], 32, 1, MAX_WIRES, ctx(), build).unwrap();
+        // Reconstruct 1 mod 4 and 300 mod 512, including sharewise wraps.
+        let f = a.start(&[3, 500]).unwrap();
+        let g = b.start(&[2, 312]).unwrap();
+        assert_eq!([f.len(), g.len()], r.phase_bytes[0]);
+        let (Progress::Open(f), Progress::Open(g)) =
+            (a.advance(&g).unwrap(), b.advance(&f).unwrap())
+        else {
+            panic!()
+        };
+        assert_eq!([f.len(), g.len()], r.phase_bytes[1]);
+        let (Progress::Complete(x), Progress::Complete(y)) =
+            (a.advance(&g).unwrap(), b.advance(&f).unwrap())
+        else {
+            panic!()
+        };
+        assert_eq!(x[0].wrapping_add(y[0]) & mask(32), 1 + (300 << 2));
+        assert_eq!(a.key_bytes() + b.key_bytes(), 0);
+        for bad in [&[4, 0][..], &[0, 512][..], &[0][..]] {
+            let ([mut a, mut b], _) =
+                issue_widths(&[2, 9], 32, 1, MAX_WIRES, ctx(), build).unwrap();
+            assert!(a.start(bad).is_err());
+            assert_eq!(a.key_bytes(), 0);
+            assert!(a.start(&[0, 0]).is_err());
+            b.cancel();
+        }
+    }
+
     #[test]
     fn foreign_context_malformed_ot_and_cancellation_burn() {
         for index in [0, 8, 40, 72, 73, 74, 78] {
