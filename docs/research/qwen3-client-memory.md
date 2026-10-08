@@ -7,7 +7,9 @@ comparison within the indexed-tokenizer stack; it does not establish 10× saving
 
 A separate response-lifetime pair lowers paged-client peak RSS another **10.61%**
 within its own cohort, from 253.94 to 226.98 MB, with nearly identical request
-time. These separate cohorts are not multiplied.
+time. A later tokenizer-source ownership pair measures **231.29 to 207.70 MB**
+(10.20%) with unchanged application bodies and nearly equal request time.
+These separate cohorts are not multiplied.
 
 ## Ownership correction
 
@@ -225,6 +227,117 @@ uv run --no-sync python -m scripts.probe_client_response_memory \
   --experiment benchmarks.research.qwen3_memory_frontier:paged \
   --prompt-file target/qwen3-memory-artifacts/prompt.txt \
   --output target/evidence/qwen3-kv-capacity.json
+```
+
+## File-backed tokenizer source
+
+The indexed tokenizer needs the original tokenizer's authenticated identity, but
+does not need its full 11.42 MB serialized source resident in the client. Paged
+artifact delivery now streams that source through bounded files. Bundle import
+creates an independently verified private snapshot; source mutation or closure
+cannot alter it. Binding and indexed-tokenizer verification hash actual file
+contents in bounded chunks. Ordinary tokenizer libraries retain an explicit
+bytes compatibility boundary. Client shutdown closes its source snapshot.
+
+The source size is bounded at 64 MiB. Admission adds separate transient and
+private-snapshot disk owners, while the authenticated object cache retains its
+existing accounting. No tokenizer queries leave the client. Raw bundle, source,
+numeric and execution identities remain unchanged, as do one-use stage rows.
+Artifact tests cover batched/unbatched and raw/zlib delivery, cold/cache-hit
+identity, source isolation, immediate shutdown retirement and unchanged compiled
+prefill/decode logits and KV.
+
+The `tokenizer-source` allocation ablation restores only the historical resident
+object reader and delivery function from `52ecda9`. Both fresh children compile
+the same historical functions before measurement and retire their source/AST
+owners. A preliminary pair accidentally retained the full `client.py` parsing
+tree in the legacy context-manager frame; it is excluded from evidence. A
+GC-disabled weak-reference regression guards both controls, and the retained
+rerun starts them at nearly equal RSS: 79.28/79.48 MB.
+
+The corrected 16+8-token pair uses the same ordinary paged/indexed Experiment,
+one private cohort salt, cold artifact caches, native shared 100/40 Mbps caps,
+and separate Inference/Preparation children. Every runtime and comparison check
+passes, all 3,267 stage rows are consumed once, outputs and application bodies
+match, and neither sample observes swap growth.
+
+| Metric | Resident tokenizer source | File-backed tokenizer source |
+| --- | ---: | ---: |
+| Client/dashboard lifetime peak RSS | 231.29 MB | 207.70 MB |
+| Client/dashboard end-of-run RSS | 231.00 MB | 207.45 MB |
+| Sampled simultaneous topology RSS peak | 5,298.57 MB | 5,579.01 MB |
+| Complete request | 169.480 s | 169.402 s |
+| Preparation within request | 32.738 s | 33.057 s |
+| Online execution | 43.392 s | 43.932 s |
+| Client cold-first CPU | 49.834 s | 49.787 s |
+| Aggregate cold-first CPU | 240.356 s | 243.474 s |
+| Covered application bodies | 556.31 MB | 556.31 MB |
+| Cold-first TCP-stream bytes | 557.81 MB | 557.81 MB |
+| Maximum observed new swap | 0 | 0 |
+
+Client peak RSS falls **10.20%**. Request time is almost equal; aggregate CPU
+rises 1.30% and sampled simultaneous topology RSS rises 5.29%. TCP-stream totals
+differ by 43 framing/control bytes. This one-response pair establishes a scoped
+client-memory improvement, not whole-device or whole-topology savings. It excludes
+checkpoint/index distribution, filesystem cache, physical wire, independent
+operators and representative generation quality. Its retained report is
+`docs/evidence/research-qwen3-tokenizer-source-memory.json`.
+
+```sh
+PLLM_RESEARCH_ARTIFACTS=target/qwen3-memory-artifacts HF_HUB_OFFLINE=1 \
+uv run --no-sync python -m scripts.probe_client_response_memory \
+  --allocation-control tokenizer-source \
+  --experiment benchmarks.research.qwen3_memory_frontier:paged \
+  --prompt-file target/qwen3-memory-artifacts/prompt.txt \
+  --max-output-tokens 8 \
+  --output target/evidence/qwen3-tokenizer-source-memory.json
+```
+
+## Fresh-prompt paging and exchange profile
+
+`scripts/profile_client_frontier.py` now times paged kernels, activation
+quantization/masking, remote exchanges and reply decoding separately for prefill
+and decode. It records only aggregate counters and source hashes, never arguments
+or tensors. Timings are nested and client CPU includes concurrent relay/telemetry
+threads; they must not be summed into an aggregate-compute claim. Provider-reported
+stage elapsed time is not a separate measurement of provider CPU.
+
+One fresh 16+8-token Qwen3-4B paged/indexed SDK request under native shared 100/40
+caps passes every runtime check with unchanged sources and zero observed new swap.
+It takes 169.17 seconds, including 43.97 seconds in the online window. The retained
+instrumented report is `docs/evidence/research-qwen3-client-timings.json`.
+
+| Timed region | Prefill | Seven decode steps |
+| --- | ---: | ---: |
+| Decoder phase | 27.681 s | 11.756 s |
+| Remote stage exchanges | 26.545 s / 144 calls | 9.898 s / 1,008 calls |
+| Provider-reported stage elapsed | 4.582 s | 2.295 s |
+| Paged head kernel | 0.099 s | 0.552 s |
+| Paged token gather | 0.0027 s | 0.0012 s |
+| Activation quantization | 0.054 s | 0.060 s |
+| Input masking | 0.024 s | 0.023 s |
+| Reply decoding | 0.096 s | 0.077 s |
+
+Cold bundle loading takes 91.52 seconds, of which the private paged weight import
+takes 1.55 seconds; inventory preparation takes 30.11 seconds. The eight client
+paged head/gather calls together consume only **0.66 seconds**, against **36.44
+seconds** in remote exchanges. Even eliminating those paged calls cannot recover
+the historical resident/paged pair's 12.80-second request gap. That comparison is
+a prioritization bound, not a matched causal ablation across cohorts.
+
+Read-ahead or retained page caches therefore have little demonstrated upside for
+this workload. Bundle transfer, exact artifact reuse and dependent remote stage
+exchanges are the larger measured targets. Exchange time includes provider work,
+serialization and access-cap waiting; this profile does not isolate those terms
+or establish Internet latency. Instrumented RSS is not a new memory comparison,
+and these phase times do not replace uninstrumented matched SDK evidence.
+
+```sh
+PLLM_RESEARCH_ARTIFACTS=target/qwen3-memory-artifacts HF_HUB_OFFLINE=1 \
+uv run --no-sync python -m scripts.profile_client_frontier \
+  --experiment benchmarks.research.qwen3_memory_frontier:paged \
+  --prompt-file target/qwen3-memory-artifacts/prompt.txt \
+  --max-output-tokens 8 --output target/evidence/qwen3-frontier-timings.json
 ```
 
 ## Held-out quality admission

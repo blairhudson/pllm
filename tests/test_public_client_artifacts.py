@@ -73,6 +73,66 @@ def test_index_exact_random_unicode_and_private_snapshot(tmp_path):
         IndexedClientTokenizer(bundle, selection)
 
 
+def test_paged_tokenizer_source_checks_identity_without_materialization(artifacts, monkeypatch):
+    import hashlib
+    import msgpack
+    from pllm.model_loader import resolve_model
+    from pllm.runtime.bundle_artifacts import export_bundle, parse_manifest, reconstruct_document, file_backed_object
+    from pllm.runtime.bundle_storage import FilePayload
+    from pllm.runtime.model_binding import RuntimeBindingError
+
+    pipeline, original, index, _, _ = artifacts
+    engine = MaskedTransformerEngine(weight_bits=8, activation_bits=8, threads=1,
+                                     prepared_output_encoding="row_residues")
+    manifest = resolve_model(pipeline.model).manifest
+    asyncio.run(engine.load(manifest))
+    raw = engine.client_bundle(manifest.id)
+    exported = export_bundle(raw)
+    manifest = parse_manifest(exported.manifest, fingerprint=hashlib.sha256(raw).hexdigest(), size=len(raw))
+    temporaries = []
+    def read(row):
+        data = exported.objects[row["sha256"]]
+        if not file_backed_object(row, paged=True):
+            return data
+        payload = FilePayload([data], size=len(data), digest=row["content_sha256"])
+        temporaries.append(payload)
+        return payload
+    imported = None
+    try:
+        document = reconstruct_document(manifest, read)
+        imported = ClientBundle._from_document(document, storage="paged", threads=1)
+        for payload in temporaries:
+            payload.close()
+        owned = imported.tokenizer_descriptor["model"]
+        path = Path(owned.path)
+        assert path.exists()
+        def forbidden(*_):
+            raise AssertionError("indexed tokenizer must not materialize its source")
+        monkeypatch.setattr(FilePayload, "__bytes__", forbidden)
+        compiled = compile_runtime_model(original._plan, imported, composition=pipeline)
+        assert compiled.tokenizer_digest == original.tokenizer_digest
+        tokenizer = IndexedClientTokenizer(imported, index)
+        try:
+            reference = original._bundle.tokenizer()
+            for text in ("hello café", "中文 🙂", "<bos>hello<eos>"):
+                assert tokenizer.encode(text) == reference.encode(text)
+        finally:
+            tokenizer.close()
+        # Rebinding hashes the actual private snapshot, not its cached descriptor.
+        with path.open("r+b") as stream:
+            stream.write(b"!")
+        with pytest.raises(RuntimeBindingError):
+            compiled.validate()
+        with pytest.raises(ValueError, match="source mismatch"):
+            IndexedClientTokenizer(imported, index)
+    finally:
+        for payload in temporaries:
+            payload.close()
+        if imported is not None:
+            imported.close()
+            assert not path.exists()
+
+
 @pytest.fixture
 def artifacts(tmp_path):
     root = create_tiny_llama_checkpoint(tmp_path / "model", vocab_size=512, num_hidden_layers=2, seed=179)
@@ -178,6 +238,16 @@ def test_all_four_artifacts_through_prepared_sdk(artifacts, tmp_path, monkeypatc
         return result
     monkeypatch.setattr(SemanticDecoderRuntime, "_forward_phase", capture)
     paths = []
+    source_paths = []
+    original_import = ClientBundle._from_document.__func__
+    def capture_source(cls, *args, **kwargs):
+        bundle = original_import(cls, *args, **kwargs)
+        from pllm.runtime.bundle_storage import FilePayload
+        payload = bundle.tokenizer_descriptor.get("model")
+        if type(payload) is FilePayload:
+            source_paths.append(Path(payload.path))
+        return bundle
+    monkeypatch.setattr(ClientBundle, "_from_document", classmethod(capture_source))
     original_index = IndexedClientTokenizer.__init__
     def capture_index(tokenizer, *args, **kwargs):
         original_index(tokenizer, *args, **kwargs)
@@ -208,6 +278,7 @@ def test_all_four_artifacts_through_prepared_sdk(artifacts, tmp_path, monkeypatc
                         response = client.responses.create(input=prompt, max_output_tokens=2, temperature=0)
                     audit = client.privacy_audit.to_dict()
             assert all(not path.exists() for path in paths)
+            assert source_paths and all(not path.exists() for path in source_paths)
             actual.append((response.output_text, response.usage, snapshots.copy(), audit))
             snapshots.clear()
     assert actual[0][:2] == actual[1][:2]

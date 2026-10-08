@@ -9,6 +9,7 @@ remain the authority for performance and memory comparisons.
 from __future__ import annotations
 
 import argparse
+from contextvars import ContextVar
 from functools import wraps
 import hashlib
 import importlib
@@ -35,7 +36,8 @@ def main():
         parser.error("output bound must be 1..32")
 
     from pllm.runtime.benchmark_memory import process_memory
-    phases, events, originals = {}, [], []
+    phases, events, originals, timings = {}, [], [], {}
+    execution_phase = ContextVar("profile_execution_phase", default="setup")
     allocation_points = {}
     lock = threading.Lock()
     started = time.perf_counter()
@@ -52,7 +54,8 @@ def main():
     if args.allocations:
         tracemalloc.start(1)
     from pllm.runtime import (
-        bundle_artifacts, client, http_response, model_binding, semantic_executor, transformer_client,
+        bundle_artifacts, client, http_response, model_binding, paged, semantic_executor,
+        transformer_client,
     )
     from pllm.runtime.benchmark_cli import run_loopback_benchmark
     from pllm.deployment import WanConditions
@@ -60,7 +63,7 @@ def main():
     root = Path(__file__).resolve().parents[1]
     sources = [Path(__file__).resolve(), *(Path(module.__file__).resolve()
                for module in (bundle_artifacts, client, http_response, model_binding,
-                              semantic_executor, transformer_client))]
+                               paged, semantic_executor, transformer_client))]
     source_hashes = {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
                      for path in sources}
 
@@ -68,6 +71,43 @@ def main():
         return [{"file": row.traceback[0].filename, "line": row.traceback[0].lineno,
                  "bytes": row.size, "count": row.count}
                 for row in tracemalloc.take_snapshot().statistics("lineno")[:40]]
+
+    def timed(label, function, *values, exchange=False, server=False, **kwargs):
+        key = execution_phase.get() + "." + label
+        wall, cpu = time.perf_counter(), time.process_time()
+        received, server_seconds, succeeded = 0, 0., False
+        sent = sum(map(len, values[1])) if exchange else 0
+        try:
+            result = function(*values, **kwargs)
+            if exchange:
+                received = sum(map(len, result))
+            if server:
+                server_seconds = result[1] / 1e9
+            succeeded = True
+            return result
+        finally:
+            elapsed, compute = time.perf_counter() - wall, time.process_time() - cpu
+            with lock:
+                row = timings.setdefault(key, {"calls": 0, "failures": 0,
+                    "wall_seconds": 0., "cpu_seconds": 0., "upload_payload_bytes": 0,
+                    "download_payload_bytes": 0, "reported_server_seconds": 0.})
+                row["calls"] += 1
+                row["failures"] += int(not succeeded)
+                row["wall_seconds"] += elapsed
+                row["cpu_seconds"] += compute
+                row["upload_payload_bytes"] += sent
+                row["download_payload_bytes"] += received
+                row["reported_server_seconds"] += server_seconds
+
+    def time_watch(owner, name, label, *, server=False):
+        descriptor = inspect.getattr_static(owner, name)
+        special = isinstance(descriptor, (classmethod, staticmethod))
+        original = descriptor.__func__ if special else descriptor
+        @wraps(original)
+        def measured(*values, **kwargs):
+            return timed(label, original, *values, server=server, **kwargs)
+        originals.append((owner, name, descriptor))
+        setattr(owner, name, type(descriptor)(measured) if special else measured)
 
     def watch(owner, name, *, trace_phase=False):
         descriptor = inspect.getattr_static(owner, name)
@@ -116,6 +156,37 @@ def main():
     for name in ("__init__", "prepare_ids", "forward_ids", "snapshot"):
         watch(semantic_executor.SemanticDecoderRuntime, name, trace_phase=True)
 
+    # Fine timers omit RSS sampling. These nested, process-wide CPU intervals
+    # include relay/telemetry threads and are diagnostic, not additive costs.
+    original_phase = semantic_executor.SemanticDecoderRuntime._forward_phase
+    @wraps(original_phase)
+    def phase(runtime, *values, **kwargs):
+        token = execution_phase.set("prefill" if runtime.position == 0
+                                    or kwargs.get("continuation") else "decode")
+        try:
+            return timed("decoder", original_phase, runtime, *values, **kwargs)
+        finally:
+            execution_phase.reset(token)
+    originals.append((semantic_executor.SemanticDecoderRuntime, "_forward_phase", original_phase))
+    semantic_executor.SemanticDecoderRuntime._forward_phase = phase
+
+    original_remote = transformer_client.PreparedRemoteLinear.__init__
+    @wraps(original_remote)
+    def remote(runtime, *values, **kwargs):
+        original_remote(runtime, *values, **kwargs)
+        exchange = runtime.inference
+        def measured_exchange(*args, **options):
+            return timed("remote_exchange", exchange, *args, exchange=True, **options)
+        runtime.inference = measured_exchange
+    originals.append((transformer_client.PreparedRemoteLinear, "__init__", original_remote))
+    transformer_client.PreparedRemoteLinear.__init__ = remote
+    time_watch(transformer_client.PreparedRemoteLinear, "__call__", "remote_linear")
+    time_watch(transformer_client.PreparedRemoteLinear, "_decode_reply", "reply_decode", server=True)
+    for name in ("quantize_activation_per_row", "mask_prepared_input", "dequantize_matmul"):
+        time_watch(transformer_client, name, name)
+    for name in ("_from_raw_executor", "clear", "wrap32", "gather_rows", "gather_columns"):
+        time_watch(paged.PagedGEMM, name, "paged_" + name.strip("_"))
+
     def interrupted(*_):
         raise KeyboardInterrupt()
     signal.signal(signal.SIGTERM, interrupted)
@@ -136,8 +207,12 @@ def main():
         if args.allocations:
             allocations = allocation_sample()
             tracemalloc.stop()
-        document = {"schema": "pllm.client_frontier_profile.v1", "scope": __doc__,
+        document = {"schema": "pllm.client_frontier_profile.v2", "scope": __doc__,
             "initial": initial, "final": final, "phases": phases, "events": events,
+            "phase_timings": timings,
+            "timing_scope": "nested wall and process-wide client CPU; server-reported stage elapsed; "
+                "exchange payloads exclude outer HTTP/WebSocket envelopes; pacing and network wait "
+                "are not isolated from provider/serialization time",
             "python_allocations": allocations, "phase_python_allocations": allocation_points,
             "report": report,
             "source_sha256": source_hashes,

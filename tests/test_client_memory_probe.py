@@ -1,4 +1,7 @@
 from pathlib import Path
+import ast
+import gc
+import weakref
 
 import numpy as np
 import pytest
@@ -34,3 +37,32 @@ def test_kv_probe_restores_matching_execution_and_admission_even_on_failure(monk
         cache.append(row, row, maximum_sequence=23)
         assert cache.key.shape[0] == 23
         assert decoder_memory.decoder_memory(plan, schedule) == current
+
+
+@pytest.mark.parametrize("control", ["tokenizer-source", "kv-capacity"])
+def test_ablation_retires_source_parsing_owners_before_either_response(monkeypatch, control):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+    from scripts import probe_client_response_memory as probe
+
+    parse, references = ast.parse, []
+
+    def tracked(*args, **kwargs):
+        tree = parse(*args, **kwargs)
+        references.extend(weakref.ref(node) for node in ast.walk(tree)
+                          if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef)))
+        return tree
+
+    monkeypatch.setattr(ast, "parse", tracked)
+    enabled = gc.isenabled()
+    gc.disable()
+    try:
+        counts = []
+        for mode in ("legacy", "scoped"):
+            references.clear()
+            with probe.allocation_control(control, mode):
+                assert references and all(reference() is None for reference in references)
+                counts.append(len(references))
+        assert counts[0] == counts[1]
+    finally:
+        if enabled:
+            gc.enable()

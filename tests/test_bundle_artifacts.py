@@ -44,6 +44,14 @@ def parsed(payload):
     return exported, manifest
 
 
+def test_streamed_descriptor_digest_preserves_typed_and_strided_views():
+    from array import array
+    from pllm.runtime.model_binding import _canonicalize_descriptor
+
+    for view in (memoryview(array("I", [1, 0xFFFFFFFF])), memoryview(b"abcdef")[::2]):
+        assert _canonicalize_descriptor(view) == _canonicalize_descriptor(bytes(view))
+
+
 def test_original_raw_digest_order_and_common_objects(bundles):
     baseline, attention = [parsed(payload) for payload in bundles]
     for payload, (exported, manifest) in zip(bundles, (baseline, attention), strict=True):

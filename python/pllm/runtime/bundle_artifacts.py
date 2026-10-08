@@ -25,7 +25,7 @@ from typing import Any, Callable, Iterator
 import msgpack
 
 from .bundle_document import BundleDocument, binary_view, document_identity
-from .bundle_storage import FilePayload
+from .bundle_storage import FilePayload, MAX_TOKENIZER_BYTES
 
 ENCODING = "pllm-public-artifacts/1"
 MAX_RAW_BYTES = 4 << 30
@@ -78,6 +78,16 @@ def object_batch(exported, keys: str) -> tuple[bytes, str]:
     return b"".join(exported.objects[key] for key in selected), hashlib.sha256(keys.encode("ascii")).hexdigest()
 
 
+def file_backed_object(row, *, paged):
+    if not paged:
+        return False
+    if row["metadata"]["orientation"] == "serialized-tokenizer":
+        if row["size"] > MAX_TOKENIZER_BYTES:
+            raise ArtifactError("paged tokenizer exceeds its 64 MiB source bound")
+        return True
+    return row["metadata"]["dtype"] == "i1"
+
+
 def batched_reader(manifest, cache, download_one, download_many, *, maximum: int,
                    paged: bool = False):
     """At most one 1-MiB lookahead group, ordered by first use in the raw bundle."""
@@ -104,7 +114,7 @@ def batched_reader(manifest, cache, download_one, download_many, *, maximum: int
     pending, served = {}, set()
 
     def file_backed(row):
-        return paged and row["metadata"]["dtype"] == "i1"
+        return file_backed_object(row, paged=paged)
 
     def take(row):
         # The whole coalesced group is capped at 1 MiB. Small matrices can keep

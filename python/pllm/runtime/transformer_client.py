@@ -699,17 +699,34 @@ class ClientBundle:
         advertised_ids = set(privacy.get("local_quantized_stages", []))
         if advertised_ids and advertised_ids != local_ids:
             raise TransformerClientError("local stage weight advertisement mismatch")
+        tokenizer = dict(value["tokenizer"])
+        if type(tokenizer.get("model")) is FilePayload:
+            from .bundle_storage import MAX_TOKENIZER_BYTES
+            source = tokenizer["model"]
+            if storage != "paged" or len(source) > MAX_TOKENIZER_BYTES:
+                raise TransformerClientError("file tokenizer requires bounded paged storage")
+            # The caller may close or alter its temporary after import. Own an
+            # independently verified snapshot, just as the native matrices do.
+            tokenizer["model"] = FilePayload(source.chunks(), size=len(source), digest=source.digest)
+            snapshots.append(tokenizer["model"])
         return cls(
             model_id=str(manifest["id"]),
             manifest=manifest,
             cfg=runtime_config,
-            tokenizer_descriptor=dict(value["tokenizer"]),
+            tokenizer_descriptor=tokenizer,
             stages=stages,
             arrays=arrays,
             privacy=privacy,
             schema_version=version,
             weight_storage=storage,
         )
+
+    def close(self) -> None:
+        """Retire bundle-owned tokenizer source storage on client shutdown."""
+        from .bundle_storage import FilePayload
+        payload = self.tokenizer_descriptor.get("model")
+        if type(payload) is FilePayload:
+            payload.close()
 
     def _bind_body_kernel(self, kernels, stage_ids: tuple[str, ...]) -> None:
         """Bind only validated compiler-owned body stages, once per bundle.

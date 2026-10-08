@@ -921,15 +921,17 @@ def _runtime_config(
 
 
 def _canonicalize_descriptor(value: Any) -> Any:
+    from .bundle_storage import FilePayload, binary_digest
+
     if value is None or isinstance(value, (bool, int, str)):
         return value
     if isinstance(value, float):
         if not math.isfinite(value):
             raise RuntimeBindingError("tokenizer descriptor has a non-finite number")
         return value
-    if isinstance(value, (bytes, bytearray, memoryview)):
-        data = bytes(value)
-        return {"$bytes_sha256": _sha256(data), "length": len(data)}
+    if isinstance(value, (bytes, bytearray, memoryview)) or type(value) is FilePayload:
+        size = len(value) if type(value) is FilePayload else memoryview(value).nbytes
+        return {"$bytes_sha256": binary_digest(value), "length": size}
     if isinstance(value, (list, tuple)):
         return [_canonicalize_descriptor(item) for item in value]
     if isinstance(value, dict):

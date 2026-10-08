@@ -4,7 +4,8 @@ Both children run the same ordinary Experiment. The historical control restores
 only the two artifact walkers from a pinned PLLM commit and leaves HTTPX's closed
 response streams attached, as before the lifetime fix. The optional kv-capacity
 control instead restores geometric full-KV growth and its original admission
-estimate. No tracing or forced GC runs inside either response. One private
+estimate. The tokenizer-source control restores resident tokenizer object
+delivery from before paged source storage. No tracing or forced GC runs inside either response. One private
 parent-owned salt binds both reports; parent and child use matching admission.
 """
 from __future__ import annotations
@@ -26,7 +27,22 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "48ad67d"
 KV_BASELINE = "6ba400fe0ed17b2bb8675506d77ad5b0638646f3"
+TOKENIZER_BASELINE = "52ecda9"
 MODES = ("legacy", "scoped")
+
+
+def pinned_function(module, name, owner, revision):
+    """Retire source/AST owners before entering either measured response."""
+    path = f"python/pllm/runtime/{module.__name__.rsplit('.', 1)[1]}.py"
+    source = subprocess.check_output(["git", "show", f"{revision}:{path}"], cwd=ROOT)
+    nodes = ast.parse(source).body
+    if owner is not None:
+        nodes = next(node.body for node in nodes if isinstance(node, ast.ClassDef) and node.name == owner)
+    function = next(node for node in nodes if isinstance(node, ast.FunctionDef) and node.name == name)
+    namespace = dict(vars(module))
+    exec(compile(ast.Module(body=[function], type_ignores=[]), f"{revision}:{path}", "exec"), namespace)
+    result = namespace.pop(name)
+    return result
 
 
 def restore_legacy_lifetimes():
@@ -55,30 +71,34 @@ def allocation_control(control, mode):
         (bundle_artifacts, "reconstruct_document", bundle_artifacts.reconstruct_document),
         (client, "reconstruct_document", client.reconstruct_document),
         (client, "owned_response", client.owned_response),
+        (client.RuntimeClient, "_load_artifact_bundle", client.RuntimeClient._load_artifact_bundle),
         (transformer_client.LayerCache, "append", transformer_client.LayerCache.append),
         (decoder_memory, "decoder_memory", decoder_memory.decoder_memory)]
     try:
         if mode == "legacy" and control == "response-lifetimes":
             restore_legacy_lifetimes()
-        elif mode == "legacy" and control == "kv-capacity":
+        elif control == "tokenizer-source":
+            # Both children compile the same controls before measurement. Only
+            # legacy installs them; neither retains parsing owners during chat.
+            replacements = [(module, name, owner, pinned_function(module, name, owner, TOKENIZER_BASELINE))
+                            for module, name, owner in ((bundle_artifacts, "batched_reader", None),
+                                                       (client, "_load_artifact_bundle", "RuntimeClient"))]
+            if mode == "legacy":
+                for module, name, owner, function in replacements:
+                    setattr(getattr(module, owner) if owner else module, name, function)
+        elif control == "kv-capacity":
             functions = []
             for module, name, owner in ((transformer_client, "append", "LayerCache"),
-                                       (decoder_memory, "decoder_memory", None)):
-                path = f"python/pllm/runtime/{module.__name__.rsplit('.', 1)[1]}.py"
-                source = subprocess.check_output(["git", "show", f"{KV_BASELINE}:{path}"], cwd=ROOT)
-                nodes = ast.parse(source).body
-                if owner is not None:
-                    nodes = next(node.body for node in nodes if isinstance(node, ast.ClassDef) and node.name == owner)
-                function = next(node for node in nodes if isinstance(node, ast.FunctionDef) and node.name == name)
-                namespace = dict(vars(module))
-                exec(compile(ast.Module(body=[function], type_ignores=[]), f"{KV_BASELINE}:{path}", "exec"), namespace)
-                functions.append(namespace[name])
-            legacy_append, decoder_memory.decoder_memory = functions
+                                        (decoder_memory, "decoder_memory", None)):
+                functions.append(pinned_function(module, name, owner, KV_BASELINE))
+            legacy_append, legacy_memory = functions
 
             def append(self, key, value, *, maximum_sequence=None):
                 return legacy_append(self, key, value)
 
-            transformer_client.LayerCache.append = append
+            if mode == "legacy":
+                transformer_client.LayerCache.append = append
+                decoder_memory.decoder_memory = legacy_memory
         yield
     finally:
         for owner, name, original in originals:
@@ -116,7 +136,7 @@ def main():
     parser.add_argument("--prompt-file", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--max-output-tokens", type=int, default=8)
-    parser.add_argument("--allocation-control", choices=("response-lifetimes", "kv-capacity"),
+    parser.add_argument("--allocation-control", choices=("response-lifetimes", "kv-capacity", "tokenizer-source"),
                         default="response-lifetimes")
     parser.add_argument("--child", choices=MODES, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -138,15 +158,18 @@ def main():
     from pllm.runtime.benchmark_memory import BenchmarkMemoryError, require_admission
 
     salt = os.urandom(32).hex()
-    baseline = BASELINE if args.allocation_control == "response-lifetimes" else KV_BASELINE
+    baseline = {"response-lifetimes": BASELINE, "kv-capacity": KV_BASELINE,
+                "tokenizer-source": TOKENIZER_BASELINE}[args.allocation_control]
     baseline_files = (("bundle_artifacts.py",) if args.allocation_control == "response-lifetimes"
+                      else ("client.py", "bundle_artifacts.py") if args.allocation_control == "tokenizer-source"
                       else ("transformer_client.py", "decoder_memory.py"))
     baseline_hashes = {name: hashlib.sha256(subprocess.check_output(
         ["git", "show", f"{baseline}:python/pllm/runtime/{name}"], cwd=ROOT)).hexdigest()
         for name in baseline_files}
     sources = [Path(__file__).resolve(), *(ROOT / "python/pllm/runtime" / name
                 for name in ("client.py", "bundle_artifacts.py", "http_response.py", "transformer_client.py",
-                             "semantic_executor.py", "decoder_memory.py"))]
+                              "semantic_executor.py", "decoder_memory.py", "model_binding.py",
+                              "bundle_storage.py", "indexed_tokenizer.py", "benchmark_memory.py"))]
     provenance = {
         "baseline_commit": subprocess.check_output(["git", "rev-parse", baseline], cwd=ROOT, text=True).strip(),
         "allocation_control": args.allocation_control,

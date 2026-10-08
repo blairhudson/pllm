@@ -1267,6 +1267,19 @@ swap. This bounded allocation change does not establish a client-memory or
 causal latency improvement. Details and matched resource evidence:
 `docs/research/qwen3-client-memory.md`.
 
+Paged artifact delivery additionally keeps the original tokenizer source in an
+authenticated private file under a 64 MiB bound. Binding and indexed-tokenizer
+verification stream its actual contents without retaining the serialized blob;
+ordinary tokenizer libraries retain an explicit bytes boundary. Admission prices
+transient and snapshot disk owners separately, and client shutdown closes the
+snapshot. A corrected fresh-client Qwen3-4B 16+8 allocation pair lowers client
+peak RSS from 231.29 to 207.70 MB (10.20%), preserving outputs and application
+bodies with nearly equal 169-second requests and zero observed swap growth.
+Sampled topology RSS rises 5.29% and aggregate cold-first CPU rises 1.30%.
+Historical-control parsing owners retire before both responses; a preliminary
+AST-contaminated pair is excluded. These scoped client savings do not establish
+whole-device memory savings or representative quality.
+
 A matrix is copied into Rust once at compilation, then reused for later calls.
 `CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that
 immutable owner. Provider stage loading retires the original i8 allocation or

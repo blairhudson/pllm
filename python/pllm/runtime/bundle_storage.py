@@ -10,6 +10,19 @@ import tempfile
 import threading
 
 CHUNK_BYTES = 1 << 20
+MAX_TOKENIZER_BYTES = 64 << 20
+
+
+def binary_digest(value):
+    """Hash actual binary contents, including owned file snapshots."""
+    digest = hashlib.sha256()
+    if type(value) is FilePayload:
+        for chunk in value.chunks():
+            digest.update(chunk)
+    else:
+        view = memoryview(value)
+        digest.update(view if view.c_contiguous else bytes(view))
+    return digest.hexdigest()
 
 
 class FilePayload:
@@ -42,6 +55,11 @@ class FilePayload:
 
     def __len__(self):
         return self._size
+
+    def __bytes__(self):
+        # Explicit compatibility boundary for ordinary tokenizer libraries.
+        # Indexed tokenization and binding only need a streaming digest.
+        return b"".join(self.chunks())
 
     @property
     def digest(self):

@@ -1544,6 +1544,7 @@ class RuntimeClient:
 
         paged = getattr(self, "bundle_weight_storage", "memory") == "paged"
         from .bundle_storage import FilePayload
+        from .bundle_artifacts import file_backed_object
         public_files = []
 
         def download(path: str, maximum: int, *, object_key: str | None = None, file_row=None):
@@ -1619,7 +1620,7 @@ class RuntimeClient:
                 return download(
                     f"/v1/runtime/models/{model_path}/client-bundle-objects/{fingerprint}/{row['sha256']}",
                     row["size"], object_key=row["sha256"],
-                    file_row=row if paged and row["metadata"]["dtype"] == "i1" else None,
+                    file_row=row if file_backed_object(row, paged=paged) else None,
                 )
 
             def fetch_many(rows):
@@ -1644,7 +1645,7 @@ class RuntimeClient:
             def read(row):
                 before = stats.to_dict()
                 payload = group_reader(row) if group_reader else cache.fetch(
-                    row, lambda: fetch_one(row), file_backed=paged and row["metadata"]["dtype"] == "i1")
+                    row, lambda: fetch_one(row), file_backed=file_backed_object(row, paged=paged))
                 self.audit.bundle_cache_corruptions += stats.corruptions - before["corruptions"]
                 if isinstance(payload, FilePayload):
                     public_files.append(payload)
@@ -3057,6 +3058,7 @@ class RuntimeClient:
         with self._transformer_state_lock:
             inventories: list[PreparedInventory] = []
             for state in self._transformer_states.values():
+                state.bundle.close()
                 if state.prefill_cache is not None:
                     state.prefill_cache.clear()
                 if state.prepared_inventory is not None:

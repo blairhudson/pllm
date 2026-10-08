@@ -240,6 +240,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                         + 8 * max(s.in_features, s.out_features) for s in client_stages) if paged else 0
     bundle_work = 2 * metadata + paged_indices + 16 * MiB if paged else 6 * bundle
     paged_disk = 2 * (boundary + local_weights) if paged else 0
+    if paged:
+        from .bundle_storage import MAX_TOKENIZER_BYTES
+        paged_disk += 2 * MAX_TOKENIZER_BYTES  # transient source and private tokenizer snapshot
     cpu_weights = weights  # NumPy stage views retain the same immutable Rust owner
     from .transformer_engine import WEIGHT_CHUNK_ELEMENTS
     # Whole-stage i8 staging and its immutable binding input are still charged.

@@ -87,6 +87,7 @@ class IndexedClientTokenizer(TokenizerContract):
 
     def __init__(self, bundle, selection):
         from tokenizers import Tokenizer
+        from .bundle_storage import binary_digest
 
         self._lock = threading.RLock()
         self._temporary = None
@@ -101,7 +102,7 @@ class IndexedClientTokenizer(TokenizerContract):
             raise ValueError("untrusted tokenizer contract")
         contract = json.loads(payload)
         if (contract["schema"] != SCHEMA
-            or contract["source_sha256"] != hashlib.sha256(bytes(descriptor["model"])).hexdigest()):
+            or contract["source_sha256"] != binary_digest(descriptor["model"])):
             raise ValueError("tokenizer index source mismatch")
         self.light = Tokenizer.from_str(json.dumps(contract["light_tokenizer"]))
         added = contract["light_tokenizer"]["added_tokens"]
