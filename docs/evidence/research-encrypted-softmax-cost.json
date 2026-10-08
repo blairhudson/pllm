@@ -1,0 +1,4295 @@
+{
+  "cases": [
+    {
+      "median_seconds": {
+        "evaluation_seconds": 1.819685459136963,
+        "issuance_seconds": 2.683193000033498,
+        "native_call_process_cpu_seconds": 4.851041,
+        "online_seconds": 2.173729917034507
+      },
+      "method": "repeated_squaring",
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 1
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "e40473e9e04c3cb75beca800e5b212ffb626226e16050768793c5836c2444334",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 2.6962566673755646,
+          "median_online_seconds": 2.173548374325037,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:479c059e5e36dc8846b8840fcd48e0ff71e25fba09b26079871042101d3ec239",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 3,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 3.2026974574606015e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.2026974574606015e-05,
+            "maximum_profile_absolute_error": 3.267411972929235e-05,
+            "mean_absolute_error": 3.0001191332044524e-05,
+            "mean_profile_absolute_error": 3.23554975264854e-05,
+            "outputs_within_tolerance": 3
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                134291456
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 956641280,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              1074331648
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              134291456
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0001732492819428444,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 1.8226093333214521,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 2.6962566673755646,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 4.861686,
+              "online_seconds": 2.173548374325037,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 1
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "e40473e9e04c3cb75beca800e5b212ffb626226e16050768793c5836c2444334",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 2.683193000033498,
+          "median_online_seconds": 2.174369708634913,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:479c059e5e36dc8846b8840fcd48e0ff71e25fba09b26079871042101d3ec239",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 3,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 3.2026519664496433e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.2026519664496433e-05,
+            "maximum_profile_absolute_error": 3.267006561002983e-05,
+            "mean_absolute_error": 2.9999712695572e-05,
+            "mean_profile_absolute_error": 3.235401889001288e-05,
+            "outputs_within_tolerance": 3
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                134291456
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 956641280,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              1074331648
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              134291456
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0001777075231075287,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 1.819685459136963,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 2.683193000033498,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 4.851041,
+              "online_seconds": 2.174369708634913,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 1
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "e40473e9e04c3cb75beca800e5b212ffb626226e16050768793c5836c2444334",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 2.671568582765758,
+          "median_online_seconds": 2.173729917034507,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:479c059e5e36dc8846b8840fcd48e0ff71e25fba09b26079871042101d3ec239",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 3,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 3.2030686416106846e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.2030686416106846e-05,
+            "maximum_profile_absolute_error": 3.266751367381193e-05,
+            "mean_absolute_error": 3.0003283936504605e-05,
+            "mean_profile_absolute_error": 3.235759013094549e-05,
+            "outputs_within_tolerance": 3
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                134291456
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 956641280,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              1074331648
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              134291456
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.00017616618424654007,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 1.8177192490547895,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 2.671568582765758,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 4.8314829999999995,
+              "online_seconds": 2.173729917034507,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        }
+      ],
+      "width": 1
+    },
+    {
+      "median_seconds": {
+        "evaluation_seconds": 4.10692058224231,
+        "issuance_seconds": 2.693243875168264,
+        "native_call_process_cpu_seconds": 7.141195000000001,
+        "online_seconds": 4.461474415846169
+      },
+      "method": "square_normalize",
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 1
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "34361d8ec5961b430df6984767dbcec388b380f0599f0244004a897964eeb180",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 2.6972414581105113,
+          "median_online_seconds": 4.461474415846169,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:e45c0a1f953f5a7a115ba438e27ab6148dcbae43075d9a9c6da013545260399f",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 3,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 2.1770877939752964e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 2.1770877939752964e-05,
+            "maximum_profile_absolute_error": 2.1770877939752964e-05,
+            "mean_absolute_error": 2.1766038625766388e-05,
+            "mean_profile_absolute_error": 2.1766038625766388e-05,
+            "outputs_within_tolerance": 3
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                134291456
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 956641280,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              1074331648
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              134291456
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.00020670797675848007,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 4.110404834151268,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  42
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 2.6972414581105113,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 7.154631,
+              "online_seconds": 4.461474415846169,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 1
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "34361d8ec5961b430df6984767dbcec388b380f0599f0244004a897964eeb180",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 2.671373166143894,
+          "median_online_seconds": 4.462379208765924,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:e45c0a1f953f5a7a115ba438e27ab6148dcbae43075d9a9c6da013545260399f",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 3,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 2.1757511508679883e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 2.1757511508679883e-05,
+            "maximum_profile_absolute_error": 2.1757511508679883e-05,
+            "mean_absolute_error": 2.1756783365652527e-05,
+            "mean_profile_absolute_error": 2.1756783365652527e-05,
+            "outputs_within_tolerance": 3
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                134291456
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 956641280,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              1074331648
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              134291456
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.00020587537437677383,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 4.10692058224231,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  42
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 2.671373166143894,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 7.13206,
+              "online_seconds": 4.462379208765924,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 1
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "34361d8ec5961b430df6984767dbcec388b380f0599f0244004a897964eeb180",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 2.693243875168264,
+          "median_online_seconds": 4.452658750116825,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:e45c0a1f953f5a7a115ba438e27ab6148dcbae43075d9a9c6da013545260399f",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 3,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 2.1765130739259675e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 2.1765130739259675e-05,
+            "maximum_profile_absolute_error": 2.1765130739259675e-05,
+            "mean_absolute_error": 2.1748440994118212e-05,
+            "mean_profile_absolute_error": 2.1748440994118212e-05,
+            "outputs_within_tolerance": 3
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                134291456
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 956641280,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              1074331648
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              134291456
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0001917090266942978,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 4.099470250308514,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  42
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 2.693243875168264,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 7.141195000000001,
+              "online_seconds": 4.452658750116825,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        }
+      ],
+      "width": 1
+    },
+    {
+      "median_seconds": {
+        "evaluation_seconds": 2.136306625790894,
+        "issuance_seconds": 4.411216375418007,
+        "native_call_process_cpu_seconds": 6.894794,
+        "online_seconds": 2.4863901659846306
+      },
+      "method": "repeated_squaring",
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 8
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "447f8f234a9879515cad8face33d572f61adc67a5cf91ed303f418b57ba81b4b",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.389865041710436,
+          "median_online_seconds": 2.483038540929556,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:9a1a73bd598ec93de078a80103c6863b24d4a50fcefd77c128f6769df75f3516",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 24,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 1.6472368892822553e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.8816633439742176e-05,
+            "maximum_profile_absolute_error": 1.1454003512628708e-05,
+            "mean_absolute_error": 5.894343956102527e-06,
+            "mean_profile_absolute_error": 4.766454448698956e-06,
+            "outputs_within_tolerance": 24
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0006034998223185539,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 2.131756165996194,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  21
+                ],
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "rotations",
+                  21
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.389865041710436,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 6.869117,
+              "online_seconds": 2.483038540929556,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 8
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "447f8f234a9879515cad8face33d572f61adc67a5cf91ed303f418b57ba81b4b",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.442881708033383,
+          "median_online_seconds": 2.4863901659846306,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:9a1a73bd598ec93de078a80103c6863b24d4a50fcefd77c128f6769df75f3516",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 24,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 1.0628522913253002e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 2.863082280968321e-05,
+            "maximum_profile_absolute_error": 4.6334923151925e-06,
+            "mean_absolute_error": 5.3969211939082955e-06,
+            "mean_profile_absolute_error": 3.544727179212101e-06,
+            "outputs_within_tolerance": 24
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0005943747237324715,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 2.136306625790894,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  21
+                ],
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "rotations",
+                  21
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.442881708033383,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 6.921641,
+              "online_seconds": 2.4863901659846306,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 8
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "447f8f234a9879515cad8face33d572f61adc67a5cf91ed303f418b57ba81b4b",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.411216375418007,
+          "median_online_seconds": 2.488329374231398,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:9a1a73bd598ec93de078a80103c6863b24d4a50fcefd77c128f6769df75f3516",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 24,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 1.0734101521886474e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.398881473248849e-05,
+            "maximum_profile_absolute_error": 6.082127225748302e-06,
+            "mean_absolute_error": 5.838819381252571e-06,
+            "mean_profile_absolute_error": 4.209879520847166e-06,
+            "outputs_within_tolerance": 24
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0005954578518867493,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 2.1367038739845157,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  21
+                ],
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "rotations",
+                  21
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.411216375418007,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 6.894794,
+              "online_seconds": 2.488329374231398,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        }
+      ],
+      "width": 8
+    },
+    {
+      "median_seconds": {
+        "evaluation_seconds": 4.990407331846654,
+        "issuance_seconds": 4.407048209570348,
+        "native_call_process_cpu_seconds": 9.743820999999999,
+        "online_seconds": 5.341215790249407
+      },
+      "method": "square_normalize",
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 8
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "eef1792083becf38c23728f07d945265836935a1b73d59da8be6427acb3e81ea",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.4238156247884035,
+          "median_online_seconds": 5.333137041889131,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:92a60be4912b8d19bc0f222a0ea555ed0e0a858f486b5d55ce7d0897f029c1d7",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 24,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 2.51236371375807e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 4.291695734170986e-05,
+            "maximum_profile_absolute_error": 2.5109570115283697e-05,
+            "mean_absolute_error": 5.0842465312006535e-06,
+            "mean_profile_absolute_error": 5.084247310258028e-06,
+            "outputs_within_tolerance": 24
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0007350416854023933,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 4.983511749655008,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  93
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "rotations",
+                  42
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.4238156247884035,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 9.753413,
+              "online_seconds": 5.333137041889131,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 8
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "eef1792083becf38c23728f07d945265836935a1b73d59da8be6427acb3e81ea",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.407048209570348,
+          "median_online_seconds": 5.3454125840216875,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:92a60be4912b8d19bc0f222a0ea555ed0e0a858f486b5d55ce7d0897f029c1d7",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 24,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 5.132765134252537e-06,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 8.75074703809986e-06,
+            "maximum_profile_absolute_error": 5.1428242592022055e-06,
+            "mean_absolute_error": 3.019706554049581e-06,
+            "mean_profile_absolute_error": 3.020558117126579e-06,
+            "outputs_within_tolerance": 24
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0007237503305077553,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 4.990407331846654,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  93
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "rotations",
+                  42
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.407048209570348,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 9.743820999999999,
+              "online_seconds": 5.3454125840216875,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 8
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "eef1792083becf38c23728f07d945265836935a1b73d59da8be6427acb3e81ea",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.39541641715914,
+          "median_online_seconds": 5.341215790249407,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:92a60be4912b8d19bc0f222a0ea555ed0e0a858f486b5d55ce7d0897f029c1d7",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 24,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 3.25758171790258e-06,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 1.694046119937731e-05,
+            "maximum_profile_absolute_error": 3.2604115314804893e-06,
+            "mean_absolute_error": 2.084381432067642e-06,
+            "mean_profile_absolute_error": 2.0832910103748873e-06,
+            "outputs_within_tolerance": 24
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0007276246324181557,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 4.9916433757171035,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  93
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "rotations",
+                  42
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.39541641715914,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 9.732005,
+              "online_seconds": 5.341215790249407,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        }
+      ],
+      "width": 8
+    },
+    {
+      "median_seconds": {
+        "evaluation_seconds": 3.2125240424647927,
+        "issuance_seconds": 4.4489315412938595,
+        "native_call_process_cpu_seconds": 8.007102,
+        "online_seconds": 3.5643509160727262
+      },
+      "method": "repeated_squaring",
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 32
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "721890fb24c170ce00fe6d1579cc3ccfb03e54435a4f3f00422b16e0fd06b373",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.4489315412938595,
+          "median_online_seconds": 3.5625488748773932,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:7201ff6f87b561d583f1da168ff4fd212b4dfb5dba5cf03e9ab31a74ed891fd8",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 96,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 4.847427257648196e-06,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.4496438253261985e-05,
+            "maximum_profile_absolute_error": 3.7746773107819043e-06,
+            "mean_absolute_error": 1.4521842886824263e-06,
+            "mean_profile_absolute_error": 1.07280004129421e-06,
+            "outputs_within_tolerance": 96
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.001895541325211525,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 3.210393041372299,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  93
+                ],
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "rotations",
+                  93
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.4489315412938595,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 8.007102,
+              "online_seconds": 3.5625488748773932,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 32
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "721890fb24c170ce00fe6d1579cc3ccfb03e54435a4f3f00422b16e0fd06b373",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.411890500225127,
+          "median_online_seconds": 3.5643509160727262,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:7201ff6f87b561d583f1da168ff4fd212b4dfb5dba5cf03e9ab31a74ed891fd8",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 96,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 4.461509322845059e-06,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.7854672288561986e-05,
+            "maximum_profile_absolute_error": 3.2192623895324624e-06,
+            "mean_absolute_error": 1.5224489348445254e-06,
+            "mean_profile_absolute_error": 1.1665361976674297e-06,
+            "outputs_within_tolerance": 96
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0018785828724503517,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 3.2125240424647927,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  93
+                ],
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "rotations",
+                  93
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.411890500225127,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 7.972199000000001,
+              "online_seconds": 3.5643509160727262,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "nexus",
+              "scope": "Equation (4) repeated-squaring exponential; fixed public shift, narrow domain and three unrelaxed reciprocal iterations are PLLM adaptations; no secure maximum or bootstrap",
+              "source_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+              "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+              "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "repeated_squaring"
+              }
+            },
+            "geometry": {
+              "width": 32
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "721890fb24c170ce00fe6d1579cc3ccfb03e54435a4f3f00422b16e0fd06b373",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.474128374829888,
+          "median_online_seconds": 3.576204249635339,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:7201ff6f87b561d583f1da168ff4fd212b4dfb5dba5cf03e9ab31a74ed891fd8",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 96,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 4.0122571068404445e-06,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.4109229618106696e-05,
+            "maximum_profile_absolute_error": 2.770010173527848e-06,
+            "mean_absolute_error": 1.4389903458799378e-06,
+            "mean_profile_absolute_error": 1.0413339329406357e-06,
+            "outputs_within_tolerance": 96
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              0
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0018885405734181404,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 3.2256158320233226,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  93
+                ],
+                [
+                  "ciphertext_multiplications",
+                  39
+                ],
+                [
+                  "ciphertext_negations",
+                  3
+                ],
+                [
+                  "modulus_switches",
+                  6
+                ],
+                [
+                  "plaintext_additions",
+                  15
+                ],
+                [
+                  "plaintext_multiplications",
+                  6
+                ],
+                [
+                  "relinearizations",
+                  39
+                ],
+                [
+                  "rescales",
+                  45
+                ],
+                [
+                  "rotations",
+                  93
+                ],
+                [
+                  "scale_normalizations",
+                  45
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.474128374829888,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 8.042682,
+              "online_seconds": 3.576204249635339,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        }
+      ],
+      "width": 32
+    },
+    {
+      "median_seconds": {
+        "evaluation_seconds": 8.033104210160673,
+        "issuance_seconds": 4.462884083390236,
+        "native_call_process_cpu_seconds": 12.837999,
+        "online_seconds": 8.383206208236516
+      },
+      "method": "square_normalize",
+      "reports": [
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 32
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "0139997a0edc89e98abaa680f6352c86fd18b7c1387cd9cb6ca244cb7bd2f5a2",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.373966250568628,
+          "median_online_seconds": 8.373113417066634,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:8877381adbbae0554f6a007af57e68201da8aa58e4c50fb872ce0c6faad9acae",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 96,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 2.5937301282336067e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 8.361573936244149e-06,
+            "maximum_profile_absolute_error": 2.5936491071125445e-05,
+            "mean_absolute_error": 1.3695926349014552e-06,
+            "mean_profile_absolute_error": 1.3695746862466675e-06,
+            "outputs_within_tolerance": 96
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0023813340812921524,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 8.021276376210153,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  243
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "rotations",
+                  186
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.373966250568628,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 12.743833,
+              "online_seconds": 8.373113417066634,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 32
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "0139997a0edc89e98abaa680f6352c86fd18b7c1387cd9cb6ca244cb7bd2f5a2",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.467088041827083,
+          "median_online_seconds": 8.390482417307794,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:8877381adbbae0554f6a007af57e68201da8aa58e4c50fb872ce0c6faad9acae",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 96,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 8.178055123451988e-06,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.061424505745869e-05,
+            "maximum_profile_absolute_error": 8.17796789275016e-06,
+            "mean_absolute_error": 9.320794901790169e-07,
+            "mean_profile_absolute_error": 9.320998677926759e-07,
+            "outputs_within_tolerance": 96
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.0023885834962129593,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 8.038642207160592,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  243
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "rotations",
+                  186
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.467088041827083,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 12.852977,
+              "online_seconds": 8.390482417307794,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        },
+        {
+          "benchmark_status": "completed",
+          "checkpoint_quality": null,
+          "citations": [
+            {
+              "paper_id": "thor",
+              "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+              "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+              "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+              "url": "https://eprint.iacr.org/2024/1881"
+            }
+          ],
+          "configuration": {
+            "component": {
+              "component": "pllm/packed-encrypted-softmax/v1",
+              "params": {
+                "method": "square_normalize"
+              }
+            },
+            "geometry": {
+              "width": 32
+            },
+            "lanes": 3,
+            "samples": 1,
+            "schema": "pllm.operator_benchmark.v2"
+          },
+          "configuration_digest": "0139997a0edc89e98abaa680f6352c86fd18b7c1387cd9cb6ca244cb7bd2f5a2",
+          "environment": {
+            "native": "0.1.0-alpha.2",
+            "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+            "pllm": "0.1.0a2",
+            "python": "3.13.15"
+          },
+          "full_wire_bytes": null,
+          "independent_role_transport": false,
+          "input_source": "public-fixture",
+          "limitations": [
+            "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+            "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+            "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+            "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+            "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+            "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+            "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+            "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+            "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+            "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+            "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+          ],
+          "median_issuance_seconds": 4.462884083390236,
+          "median_online_seconds": 8.383206208236516,
+          "method": "packed-ckks-softmax",
+          "native_implementation_digest": "9eca1791dbbb5af135e7cd89ff7b88b2e40b60c19378e0a49869499a5600f581",
+          "numeric_contract_digest": "sha256:8877381adbbae0554f6a007af57e68201da8aa58e4c50fb872ce0c6faad9acae",
+          "paper_coverage": "component-reference",
+          "peak_memory_bytes": null,
+          "privacy_reviewed": false,
+          "quality": {
+            "absolute_tolerance": 0.0002,
+            "base_profile_exact_outputs": null,
+            "checked_outputs": 96,
+            "exact_integer_outputs": 0,
+            "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+            "maximum_absolute_error": 1.6040250169054027e-05,
+            "maximum_encoded_profile_error": null,
+            "maximum_normalization_error": 3.781255846413423e-05,
+            "maximum_profile_absolute_error": 1.604106038026465e-05,
+            "mean_absolute_error": 1.2203956681688568e-06,
+            "mean_profile_absolute_error": 1.220376658757118e-06,
+            "outputs_within_tolerance": 96
+          },
+          "resources": {
+            "client_entry_exit_payload_estimate_bytes": 0,
+            "client_mask_payload_estimate_bytes": 0,
+            "evaluator_ciphertext_bytes": null,
+            "evaluator_constant_label_bytes": null,
+            "expanded_correlation_bytes_per_party": null,
+            "homomorphic_coefficient_bits": [
+              50,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              40,
+              50
+            ],
+            "homomorphic_polynomial_degree": 32768,
+            "homomorphic_scale_bits": 40,
+            "key_payload_bytes_by_operation": [
+              [
+                "secret-polynomial-and-public-key",
+                12587008,
+                0
+              ],
+              [
+                "provider-evaluation-keys",
+                0,
+                260190208
+              ]
+            ],
+            "peer_frame_bytes_by_direction": [
+              23605491,
+              1585395
+            ],
+            "peer_payload_bits": 201527088,
+            "peer_rounds": 3,
+            "prf_field_evaluations_per_party": null,
+            "protocol_allocation_estimate_bytes": 1334325248,
+            "public_metadata_bytes_estimate": null,
+            "public_profile_bytes_estimate": null,
+            "public_table_bytes_by_party": [
+              0,
+              128
+            ],
+            "public_table_bytes_per_party": 0,
+            "raw_key_payload_bits_per_party": [
+              100696064,
+              2081521664
+            ],
+            "raw_key_payload_bytes_per_party": [
+              12587008,
+              260190208
+            ],
+            "role_names": [
+              "client-key-owner",
+              "encrypted-evaluator"
+            ],
+            "setup_frame_bytes_by_operation": [
+              [
+                "galois-keys",
+                125898752,
+                0
+              ],
+              [
+                "parameters",
+                512,
+                0
+              ],
+              [
+                "public-key",
+                8392704,
+                0
+              ],
+              [
+                "relinearization-keys",
+                125898752,
+                0
+              ]
+            ]
+          },
+          "resources_scope": "per-sample",
+          "samples": [
+            {
+              "clear_seconds": 0.002395167015492916,
+              "correlation_expansion_seconds": 0.0,
+              "evaluation_seconds": 8.033104210160673,
+              "homomorphic_operations": [
+                [
+                  "ciphertext_additions",
+                  243
+                ],
+                [
+                  "ciphertext_multiplications",
+                  63
+                ],
+                [
+                  "ciphertext_negations",
+                  6
+                ],
+                [
+                  "modulus_switches",
+                  33
+                ],
+                [
+                  "plaintext_additions",
+                  21
+                ],
+                [
+                  "plaintext_multiplications",
+                  51
+                ],
+                [
+                  "relinearizations",
+                  63
+                ],
+                [
+                  "rescales",
+                  114
+                ],
+                [
+                  "rotations",
+                  186
+                ],
+                [
+                  "scale_normalizations",
+                  114
+                ]
+              ],
+              "input_sharing_seconds": 0.0,
+              "issuance_seconds": 4.462884083390236,
+              "minimum_remaining_depth": 0,
+              "native_call_process_cpu_seconds": 12.837999,
+              "online_seconds": 8.383206208236516,
+              "peer_frame_bytes_by_phase": [
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ],
+                [
+                  7868497,
+                  528465
+                ]
+              ],
+              "public_setup_seconds": 0.0,
+              "verification_seconds": null
+            }
+          ],
+          "schema": "pllm.operator_benchmark_report.v1",
+          "scope": "bounded in-process operator; fresh one-use material per sample",
+          "sdk_availability": "operator-benchmark",
+          "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+          "whole_model_executable": false
+        }
+      ],
+      "width": 32
+    }
+  ],
+  "checked_outputs": 738,
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "fresh_processes": 18,
+  "samples_per_case": 3,
+  "schema": "pllm.encrypted_softmax_cost.v1",
+  "scope": {
+    "approximate_ckks": true,
+    "bootstrapping": false,
+    "checkpoint_quality": null,
+    "client_key_ownership": true,
+    "decoded_intermediate": false,
+    "decoder_execution": false,
+    "full_wire": null,
+    "independent_decimal_profile_oracle": true,
+    "independent_decimal_softmax_oracle": true,
+    "inputs": "public synthetic scores in fixed [-1/8,1/8]",
+    "measured_peak_memory": null,
+    "paper_system_reproduction": false,
+    "provider_public_context_only": true,
+    "provider_transport": false,
+    "setup_frames_separate": true
+  },
+  "source_sha256": {
+    "Cargo.lock": "82bf0fd931f4b479417fe37e37c49bff02ada53ed6e384f4a4d04f8fc19bf9c8",
+    "benchmarks/research/encrypted_softmax.py": "27b1f08c7dbf9ad2c0c306ab14d0b491726c5f208191e6f84e385f4e75913c7f",
+    "crates/pllm-core/src/ckks_layout.rs": "23a8aa356780e4ab99fb1a880f16b868346f54e49145fff36586c0b2736e43c4",
+    "crates/pllm-python/src/ckks.rs": "2cef768ac9ccafdf91efb4c6d8b2e114b15431fa7faa34f64392ce4128e58379",
+    "python/pllm/metrics/encrypted_softmax.py": "4dd0b8636559c0cd169ac212a9a98b709bf01b00c2c7d4e67979d560f7e49dc1",
+    "python/pllm/metrics/operator_benchmarks.py": "c80bfddea043e4a7b97a16e814ceef5b06cab53a3ef7c9404590214781c99b1b",
+    "python/pllm/nonlinear/__init__.py": "113ff2fbecf499b80b6ee22d9522da86ba539e84ee5982a5fa21565ca08356b0",
+    "python/pllm/runtime/ckks_reference.py": "eb164fd53873c8163c1ef7dbaa52632fd0d6337a349eb2703c80c29e1fd701be",
+    "python/pllm/runtime/ckks_softmax.py": "2b1d9cbe8a16363d3d893cf4b639d6bf62a00fffcf0fa9805b0ff10f12bfc457",
+    "python/pllm/runtime/seal_frames.py": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+  }
+}

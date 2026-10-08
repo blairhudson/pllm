@@ -90,6 +90,12 @@ class Arithmetic:
         self.counts["plaintext_additions"] += 1
         return result
 
+    def negate(self, x):
+        result = self.seal.Ciphertext()
+        self.evaluator.negate(x, result)
+        self.counts["ciphertext_negations"] += 1
+        return result
+
     def multiply_plain(self, x, value):
         if self.level(x) < 1:
             raise ValueError("CKKS multiplication requires an unused rescale level")
@@ -230,12 +236,18 @@ class Client:
 
 
 def setup(seal, native, directory: Path, *, depth, rotation_steps, relinearization,
-          live_ciphertexts, queries, binding):
+          live_ciphertexts, queries, binding, softmax_width=None):
     if (type(queries) is not int or not 1 <= queries <= 64 or len(binding) != 32
             or len(set(rotation_steps)) != len(rotation_steps)
             or any(type(step) is not int or not 1 <= step <= 31 for step in rotation_steps)):
         raise ValueError("invalid CKKS reference session geometry")
-    metadata = json.loads(native.ckks_parameters(depth, len(rotation_steps), relinearization, live_ciphertexts))
+    if softmax_width is None:
+        metadata = json.loads(native.ckks_parameters(depth, len(rotation_steps), relinearization, live_ciphertexts))
+    else:
+        metadata = json.loads(native.ckks_softmax_parameters(softmax_width))
+        if (depth != 14 or relinearization is not True or live_ciphertexts != 32
+                or rotation_steps != ((1,) if softmax_width > 1 else ())):
+            raise ValueError("CKKS softmax requires its fixed admitted schedule")
     p = metadata["parameters"]
     started = time.perf_counter()
     params = seal.EncryptionParameters(seal.SCHEME_TYPE.CKKS)

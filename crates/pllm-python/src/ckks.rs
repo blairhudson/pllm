@@ -39,6 +39,16 @@ fn ckks_parameters(
 }
 
 #[pyfunction]
+fn ckks_softmax_parameters(width: usize) -> PyResult<String> {
+    let parameters = ckks_layout::softmax_parameters(width).map_err(invalid)?;
+    Ok(
+        json!({"parameters": parameters, "native_implementation_digest": digest(),
+        "native_version": env!("CARGO_PKG_VERSION")})
+        .to_string(),
+    )
+}
+
+#[pyfunction]
 fn ckks_diagonals(
     py: Python<'_>,
     weights: &[u8],
@@ -61,6 +71,7 @@ fn ckks_diagonals(
 
 pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(ckks_parameters, module)?)?;
+    module.add_function(wrap_pyfunction!(ckks_softmax_parameters, module)?)?;
     module.add_function(wrap_pyfunction!(ckks_diagonals, module)?)?;
     Ok(())
 }

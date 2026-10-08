@@ -22,6 +22,33 @@ class NonlinearProtocol(ComponentRef, ABC):
     def describe(cls) -> ComponentDescriptor: ...
 
 
+class PackedEncryptedSoftmax(NonlinearProtocol):
+    """Narrow public-range CKKS normalization, available as operator benchmarks."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/packed-encrypted-softmax/v1", provider="pllm", distribution="pllm.run",
+        version="1", category="pllm/nonlinear-protocol", category_version="1", lifecycle_phase="runtime",
+        parameter_schema={"type": "object", "additionalProperties": False,
+            "properties": {"method": {"enum": ["repeated_squaring", "square_normalize"]}},
+            "required": ["method"]},
+        capabilities=("packed-ckks-softmax-reference", "bounded-operator-benchmark"),
+        required_host_features=("native-core", "seal"), role_eligibility=("client", "inference"),
+    )
+
+    def __init__(self, *, method: str = "repeated_squaring") -> None:
+        if method not in ("repeated_squaring", "square_normalize"):
+            raise ConfigurationError("method must be repeated_squaring or square_normalize")
+        super().__init__(self.descriptor.component, {"method": method})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return self.to_spec()["params"]
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class ArithmeticGarblingSiluQ7(NonlinearProtocol):
     __slots__ = ()
     descriptor = ComponentDescriptor(
@@ -468,6 +495,7 @@ class WaveletHomomorphicLookup(PendingMethod):
 
 
 __all__ += [
+    "PackedEncryptedSoftmax",
     "ShaftFixedPointTransformerOps", "CompactPiecewiseActivation", "CurlWaveletEncodedTable", "CurlWaveletGatedMultiplyQ9",
     "LogRowGatedMultiplyQ9",
     "CompactGatedMultiplyQ12",

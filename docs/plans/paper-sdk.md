@@ -82,9 +82,16 @@ lists those symbols and their next gates.
    `docs/research/encrypted-linear-reference.md`. MOAI attribution
    requires acquiring and reviewing its full source; the OpenReview browser
    challenge remains unresolved.
-5. **NEXUS, then THOR.** Compose encrypted nonlinear/attention operations on that
-   foundation; public ranges, persistent decode state and private token feedback
-   need explicit executable contracts and costs.
+5. **NEXUS / THOR — implemented bounded encrypted softmax slice.** Source
+   exponentials, encrypted reciprocals and final normalization execute without
+   intermediate decryption. Eighteen fresh processes check 738 outputs; worst
+   softmax error is below `3.21e-5`. Both profiles consume fourteen levels and
+   charge 260.19 MB setup plus 25.19 MB for three width-32 rows. The fixed
+   [-1/8,1/8] range rejects all 48 prefill/decode positions in a separate fresh
+   twelve-prompt pinned W8A8 audit. No encrypted candidate is executed there.
+   Secure maximum, QK/value products, masks, bootstrap, persistent decode state
+   and private token feedback remain separate gates. See
+   `docs/research/encrypted-softmax-reference.md`.
 
 Each slice uses installed SDK replay, complete ownership/cost records, independent
 numeric validation and a validated commit. Whole-response measurements require

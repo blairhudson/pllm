@@ -1,0 +1,78 @@
+---
+title: "Packed encrypted softmax"
+description: "Benchmark complete bounded CKKS normalization with separate approximation, depth and key costs."
+---
+
+`pllm.nonlinear.PackedEncryptedSoftmax` evaluates an encrypted exponential,
+reciprocal and final normalization in a public-only provider context. Only the
+client owns the decryption key. Component: `pllm/packed-encrypted-softmax/v1`.
+
+## Python SDK example
+
+Install `pllm.run[he]` first.
+
+```python
+from pllm.metrics import benchmark_operator, replay_operator_benchmark
+from pllm.nonlinear import PackedEncryptedSoftmax
+
+method = PackedEncryptedSoftmax(method="repeated_squaring")
+report = benchmark_operator(method, lanes=1, samples=1, geometry={"width": 4})
+assert report.quality.outputs_within_tolerance == 4
+assert report.quality.exact_integer_outputs == 0
+assert report.samples[0].minimum_remaining_depth == 0
+assert replay_operator_benchmark(report.configuration).resources == report.resources
+```
+
+## Options and inputs
+
+| Option | Values | Contract |
+| --- | --- | --- |
+| `method` | `"repeated_squaring"` (default) | NEXUS Equation (4) exponential, fixed public shift and three unrelaxed reciprocal iterations |
+| `method` | `"square_normalize"` | THOR Appendix C exponential, square/normalize and two unrelaxed iterations per reciprocal |
+
+The methods adapt source primitives to a fixed public **[-1/8,1/8]** range;
+private range fitting and clipping are unavailable. They have different numeric
+digests. `geometry={"width": n}` admits powers of two from 1 to 32. `lanes`
+counts 1–64 serial rows; `samples` counts 1–16 independently keyed runs. Supply
+finite row-major scores with `inputs={"scores": values}`, of length `lanes*n`.
+Omitted inputs select public fixtures. Reports retain aggregate errors, not values
+or value hashes. Caller-owned replay requires resupplying input.
+
+## Numeric checks and costs
+
+Both complete schedules consume 14 levels at degree 32,768, coefficient primes
+`[50]+[40]*14+[50]`, scale `2^40`, with SEAL TC128 validation. Native admission
+prices contexts, keys, delivery overlap, scratch and 32 live ciphertexts against a
+2 GiB allocation ceiling. It does not measure peak memory.
+
+A 60-digit Decimal profile oracle uses Horner/direct powers independently of
+the ciphertext schedule. Separate Decimal `exp/sum` gives true softmax error.
+`maximum_profile_absolute_error`, `maximum_absolute_error` and
+`maximum_normalization_error` distinguish CKKS arithmetic, complete approximation
+and probability-mass error. The observed-result tolerance is `0.0002`, not a proved
+universal error bound. Exact-integer parity remains zero.
+
+Reports charge parameter/public/Galois/relinearization setup frames, every padded
+encrypted query/reply, public coefficients and separate key payload owners.
+Operation counters include rotations, products, rescaling and relinearization.
+Setup, local online execution and provider evaluation are separate timings.
+Fresh samples release previous key owners before issuance. Foreign, malformed,
+replayed or cancelled sessions retire. Physical wire and peak RSS are unmeasured.
+
+## Research scope
+
+[NEXUS](/research/papers/nexus/) supplies repeated-squaring;
+[THOR](/research/papers/thor/) supplies the polynomial and square/normalize.
+The narrow domain and unrelaxed reciprocals are PLLM adaptations. Neither method
+implements a paper system, bootstrap, secure maximum, attention QK/value products,
+masking, decoder state or private token feedback. Local framing is not authenticated
+transport, circuit privacy or malicious-result verification. Decoder Experiments
+reject this component. No checkpoint-quality or client-memory improvement follows.
+A separate twelve-prompt pinned W8A8 Qwen range audit rejects all 48 prefill/decode
+positions under this fixed score bound; only the unchanged clear decoder executes.
+
+See the [installed example](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/encrypted_softmax.py)
+and [research contract](https://github.com/blairhudson/pllm/blob/main/docs/research/encrypted-softmax-reference.md).
+
+API: [Nonlinear](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures),
+[operator benchmarks](/sdk/evaluate/paper-operators/).

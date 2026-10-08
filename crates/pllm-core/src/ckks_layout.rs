@@ -26,16 +26,49 @@ pub fn parameters(
     relinearization: bool,
     live_ciphertexts: usize,
 ) -> Result<Parameters, String> {
-    if !(1..=8).contains(&depth)
+    bounded_parameters(
+        depth,
+        rotation_keys,
+        relinearization,
+        live_ciphertexts,
+        8,
+        MAX_ALLOCATION,
+    )
+}
+
+/// A distinct, fixed fourteen-level research schedule. This does not enlarge
+/// ordinary matrix admission, authorize bootstrapping or admit a decoder.
+pub fn softmax_parameters(width: usize) -> Result<Parameters, String> {
+    if !(1..=32).contains(&width) || !width.is_power_of_two() {
+        return Err("CKKS softmax width must be a power of two between 1 and 32".into());
+    }
+    bounded_parameters(14, usize::from(width > 1), true, 32, 14, 2 << 30)
+}
+
+fn bounded_parameters(
+    depth: usize,
+    rotation_keys: usize,
+    relinearization: bool,
+    live_ciphertexts: usize,
+    max_depth: usize,
+    max_allocation: usize,
+) -> Result<Parameters, String> {
+    if !(1..=max_depth).contains(&depth)
         || rotation_keys > MAX_WIDTH - 1
         || !(1..=64).contains(&live_ciphertexts)
     {
         return Err("CKKS reference parameter geometry exceeds bounds".into());
     }
-    // TC128 ceilings: 218 bits at N=8192, 438 at N=16384. The final
+    // TC128 ceilings: 218/438/881 bits at N=8192/16384/32768. The final
     // 50-bit prime is for key switching, not an extra multiplication level.
     let total_bits = 100 + 40 * depth;
-    let degree = if total_bits <= 218 { 8192 } else { 16384 };
+    let degree = if total_bits <= 218 {
+        8192
+    } else if total_bits <= 438 {
+        16384
+    } else {
+        32768
+    };
     let mut coefficient_bits = vec![50];
     coefficient_bits.extend(std::iter::repeat_n(40, depth));
     coefficient_bits.push(50);
@@ -50,8 +83,11 @@ pub fn parameters(
         + 3 * (key_count * switching_key_frame_bytes + public_key_frame_bytes)
         + live_ciphertexts * ciphertext_frame_bytes
         + 64 * degree * limbs * 8;
-    if allocation_bytes_estimate > MAX_ALLOCATION {
-        return Err("CKKS reference allocation estimate exceeds 512 MiB".into());
+    if allocation_bytes_estimate > max_allocation {
+        return Err(format!(
+            "CKKS reference allocation estimate exceeds {} MiB",
+            max_allocation >> 20
+        ));
     }
     Ok(Parameters {
         degree,
@@ -151,5 +187,21 @@ mod tests {
         assert!(diagonals(&[1.01], 1, 1).is_err());
         assert!(diagonals(&[], usize::MAX, 2).is_err());
         assert!(diagonals(&[0.0], 1, 2).is_err());
+    }
+
+    #[test]
+    fn deep_softmax_is_separate_bounded_admission() {
+        for width in [1, 2, 8, 32] {
+            let p = softmax_parameters(width).unwrap();
+            assert_eq!(p.degree, 32768);
+            assert_eq!(p.depth, 14);
+            assert_eq!(p.coefficient_bits.iter().sum::<u32>(), 660);
+            assert!(p.allocation_bytes_estimate < 2 << 30);
+            assert_eq!(p.rotation_keys, usize::from(width > 1));
+        }
+        for width in [0, 3, 64, usize::MAX] {
+            assert!(softmax_parameters(width).is_err());
+        }
+        assert!(parameters(14, 1, true, 32).is_err());
     }
 }

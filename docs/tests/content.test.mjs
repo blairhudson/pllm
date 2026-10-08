@@ -380,6 +380,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/protocols/private-embedding-lookup/', 'pllm/private-embedding-lookup/v1', '/research/papers/fastquery/'],
     ['/sdk/components/protocols/maverick-delegated-linear/', 'pllm/maverick-delegated-linear/v1', '/research/papers/maverick/'],
     ['/sdk/components/protocols/packed-encrypted-linear/', 'pllm/packed-encrypted-linear/v1', '/research/papers/nexus/'],
+    ['/sdk/components/nonlinear/packed-encrypted-softmax/', 'pllm/packed-encrypted-softmax/v1', '/research/papers/thor/'],
     ['/sdk/components/preparation/model-aware-corrections/', 'pllm/model-aware-corrections', null],
     ['/sdk/components/preparation/inventory-policy/', 'pllm/prepared-inventory-policy/v1', null],
     ['/sdk/components/preparation/bfv-correlations/', 'pllm/bfv-correlations/v1', null],

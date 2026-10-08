@@ -52,6 +52,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         MaskedWireGatedMultiplyQ12,
         R03CrtGatedMultiplyQ7,
         SharedRescale,
+        PackedEncryptedSoftmax,
     )
     from pllm.passes import CipherPruneTokenPruning, KvCacheEviction
     from pllm.preparation import (
@@ -134,6 +135,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         PackedEncryptedLinear,
         MaskedLinear,
         Memory,
+        PackedEncryptedSoftmax,
         MaskedWireGatedMultiplyQ12,
         ModelAwareCorrections,
         OutputHeadAtInference,

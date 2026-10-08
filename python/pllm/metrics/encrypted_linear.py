@@ -111,6 +111,7 @@ class _EncryptedLinearBenchmark(_OperatorBenchmark):
                 setup = tuple((key, value, 0) for key, value in sorted(measured["setup_frame_bytes"].items()))
                 resource_records.append((measured["parameters"], measured["secret_polynomial_bytes"], setup,
                                          (provider.request_bytes, provider.reply_bytes), counts))
+                del client, provider, request, reply
         if any(record != resource_records[0] for record in resource_records[1:]):
             raise RuntimeError("CKKS public-shape resource counts changed across samples")
         parameters, secret, setup, directions, _ = resource_records[0]

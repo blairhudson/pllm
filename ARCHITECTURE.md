@@ -1711,6 +1711,25 @@ is unimplemented in SEAL. The diagonal reference cites only its background
 primitives. MOAI's inaccessible full source prevents a paper-specific
 implementation claim. Details: `docs/research/encrypted-linear-reference.md`.
 
+The installed `pllm.nonlinear.PackedEncryptedSoftmax` independently composes
+NEXUS repeated-squaring or THOR polynomial/square-normalize primitives with
+encrypted reciprocal and final normalization. Fixed public scores in [-1/8,1/8]
+and power-of-two widths 1..32 bind separate numeric profiles; unrelaxed reciprocal
+iterations are PLLM adaptations. Both schedules consume fourteen levels at
+degree 32,768 under SEAL TC128 and a separate 2 GiB allocation estimate. Only the
+client decrypts final outputs; independent Decimal profile and softmax oracles
+separate CKKS error, approximation error and probability-mass error. Eighteen
+fresh processes check 738 outputs with worst softmax error below `3.21e-5`.
+At width 32, both methods charge 260.19 MB setup and 25.19 MB online for three
+rows; local online medians are 3.63/8.56 seconds. Completed sample key owners
+retire before the next issuance. Physical wire, measured peak memory, attention
+QK/value products, masking, bootstrap, decoder state and private token feedback
+remain absent. A separate fresh twelve-prompt pinned W8A8 Qwen audit rejects all
+48 prefill/decode positions under the fixed score range; the unchanged clear
+decoder executes without an encrypted candidate, clipping or private range fitting.
+This narrow-domain operator establishes no checkpoint quality or paper-system
+reproduction. Details: `docs/research/encrypted-softmax-reference.md`.
+
 ## Application boundary
 
 The client owns plaintext input, inventory root seeds and masks, private

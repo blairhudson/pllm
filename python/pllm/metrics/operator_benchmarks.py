@@ -68,10 +68,12 @@ def _sdk_digest(runner: str) -> str:
         sources += (("pllm.passes", "__init__.py"),)
     if runner == "shared_selection.py":
         sources += (("pllm.passes", "__init__.py"), ("pllm.metrics", "token_pruning.py"))
-    if runner in ("packed_embedding.py", "repacked_embedding.py", "encrypted_linear.py"):
+    if runner in ("packed_embedding.py", "repacked_embedding.py", "encrypted_linear.py", "encrypted_softmax.py"):
         sources += (("pllm.runtime", "seal_frames.py"),)
     if runner == "encrypted_linear.py":
         sources += (("pllm.protocols", "packed_encrypted.py"), ("pllm.runtime", "ckks_reference.py"))
+    if runner == "encrypted_softmax.py":
+        sources += (("pllm.runtime", "ckks_reference.py"), ("pllm.runtime", "ckks_softmax.py"))
     for package, name in sources:
         contents = files(package).joinpath(name).read_bytes()
         digest.update(f"{package}/{name}".encode() + b"\0")
@@ -110,7 +112,7 @@ def benchmark_operator(
     from pllm.correlation import SecretReplicationPcf
     from pllm.nonlinear import (
         CompactPiecewiseActivation, CompactGatedMultiplyQ12, CurlWaveletEncodedTable, CurlWaveletGatedMultiplyQ9,
-        LogRowGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, SharedRescale,
+        LogRowGatedMultiplyQ9, MaskedWireGatedMultiplyQ12, SharedRescale, PackedEncryptedSoftmax,
     )
     from pllm.protocols import LogRowGarbledLookup, PrivateEmbeddingLookup, MaverickDelegatedLinear, PackedEncryptedLinear
     from pllm.passes import CipherPruneTokenPruning
@@ -126,13 +128,21 @@ def benchmark_operator(
     from .coded_delegation import _CodedDelegationBenchmark
     from .mixed_gated import _MixedGatedBenchmark
     from .encrypted_linear import _EncryptedLinearBenchmark
+    from .encrypted_softmax import _EncryptedSoftmaxBenchmark
 
     if not isinstance(component, ComponentRef):
         raise TypeError("component must be a ComponentRef")
     component = create_component(component.component, component.params)
-    if geometry is not None and not isinstance(component, (CipherPruneTokenPruning, MaverickDelegatedLinear, PackedEncryptedLinear)):
+    if geometry is not None and not isinstance(component, (CipherPruneTokenPruning, MaverickDelegatedLinear, PackedEncryptedLinear, PackedEncryptedSoftmax)):
         raise ConfigurationError("this operator does not accept additional benchmark geometry")
-    if isinstance(component, PackedEncryptedLinear):
+    if isinstance(component, PackedEncryptedSoftmax):
+        if geometry is None:
+            geometry = {"width": 4}
+        if not isinstance(geometry, Mapping) or set(geometry) != {"width"}:
+            raise ConfigurationError("encrypted softmax geometry requires exactly width")
+        benchmark = _EncryptedSoftmaxBenchmark(component, lanes, samples, **geometry)
+        fields = {"scores"}
+    elif isinstance(component, PackedEncryptedLinear):
         if geometry is None:
             geometry = {"rows": 8, "columns": 8}
         if not isinstance(geometry, Mapping) or set(geometry) != {"rows", "columns"}:
@@ -323,6 +333,9 @@ class OperatorBenchmarkQuality:
     maximum_encoded_profile_error: int | None = None
     absolute_tolerance: float | None = None
     outputs_within_tolerance: int | None = None
+    maximum_profile_absolute_error: float | None = None
+    mean_profile_absolute_error: float | None = None
+    maximum_normalization_error: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

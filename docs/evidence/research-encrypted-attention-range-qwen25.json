@@ -1,0 +1,527 @@
+{
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "maximum_absolute_score": 1701.75439453125,
+  "maximum_swap_growth_bytes": 0,
+  "model": {
+    "binding_digest": "8f31b6ef604dfd76821f8ee2209b0d2f70ffadcb2a52d595c2c732a7674c16e8",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "7e97ba98d5402345473d9da9fcdd64a94ea73fc60082627de523b1f9c150eba2",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "schedule_digest": "958ee8128dba9d1a594118b9f0145f09381c64fcd0f8db0650bc376722b2aa1a",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "observations": [
+    {
+      "input_tokens": 41,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 286283,
+          "phase": "prefill",
+          "valid_scores": 289296
+        },
+        {
+          "maximum_absolute_score": 1129.5340576171875,
+          "maximum_key_extent": 42,
+          "operators": 24,
+          "outside_range": 13985,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 14112
+        },
+        {
+          "maximum_absolute_score": 737.7992553710938,
+          "maximum_key_extent": 43,
+          "operators": 24,
+          "outside_range": 14347,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 14448
+        },
+        {
+          "maximum_absolute_score": 516.4053955078125,
+          "maximum_key_extent": 44,
+          "operators": 24,
+          "outside_range": 14677,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 14784
+        }
+      ]
+    },
+    {
+      "input_tokens": 37,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 37,
+          "operators": 24,
+          "outside_range": 233483,
+          "phase": "prefill",
+          "valid_scores": 236208
+        },
+        {
+          "maximum_absolute_score": 629.166259765625,
+          "maximum_key_extent": 38,
+          "operators": 24,
+          "outside_range": 12660,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 12768
+        },
+        {
+          "maximum_absolute_score": 525.8607177734375,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 12998,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13104
+        },
+        {
+          "maximum_absolute_score": 964.484619140625,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13314,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 13440
+        }
+      ]
+    },
+    {
+      "input_tokens": 37,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 37,
+          "operators": 24,
+          "outside_range": 233582,
+          "phase": "prefill",
+          "valid_scores": 236208
+        },
+        {
+          "maximum_absolute_score": 1129.5340576171875,
+          "maximum_key_extent": 38,
+          "operators": 24,
+          "outside_range": 12637,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 12768
+        },
+        {
+          "maximum_absolute_score": 683.392333984375,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 13020,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13104
+        },
+        {
+          "maximum_absolute_score": 552.06201171875,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13326,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 13440
+        }
+      ]
+    },
+    {
+      "input_tokens": 41,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 286170,
+          "phase": "prefill",
+          "valid_scores": 289296
+        },
+        {
+          "maximum_absolute_score": 683.0320434570312,
+          "maximum_key_extent": 42,
+          "operators": 24,
+          "outside_range": 14005,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 14112
+        },
+        {
+          "maximum_absolute_score": 526.0836181640625,
+          "maximum_key_extent": 43,
+          "operators": 24,
+          "outside_range": 14333,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 14448
+        },
+        {
+          "maximum_absolute_score": 1413.5135498046875,
+          "maximum_key_extent": 44,
+          "operators": 24,
+          "outside_range": 14652,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 14784
+        }
+      ]
+    },
+    {
+      "input_tokens": 39,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 259148,
+          "phase": "prefill",
+          "valid_scores": 262080
+        },
+        {
+          "maximum_absolute_score": 512.9462890625,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13298,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 13440
+        },
+        {
+          "maximum_absolute_score": 1286.7059326171875,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 13634,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13776
+        },
+        {
+          "maximum_absolute_score": 814.63818359375,
+          "maximum_key_extent": 42,
+          "operators": 24,
+          "outside_range": 13997,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 14112
+        }
+      ]
+    },
+    {
+      "input_tokens": 38,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 38,
+          "operators": 24,
+          "outside_range": 246283,
+          "phase": "prefill",
+          "valid_scores": 248976
+        },
+        {
+          "maximum_absolute_score": 1129.5340576171875,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 12965,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 13104
+        },
+        {
+          "maximum_absolute_score": 570.2557373046875,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13336,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13440
+        },
+        {
+          "maximum_absolute_score": 507.6441955566406,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 13677,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 13776
+        }
+      ]
+    },
+    {
+      "input_tokens": 38,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 38,
+          "operators": 24,
+          "outside_range": 246169,
+          "phase": "prefill",
+          "valid_scores": 248976
+        },
+        {
+          "maximum_absolute_score": 606.0318603515625,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 12972,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 13104
+        },
+        {
+          "maximum_absolute_score": 511.22613525390625,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13312,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13440
+        },
+        {
+          "maximum_absolute_score": 521.3843994140625,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 13663,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 13776
+        }
+      ]
+    },
+    {
+      "input_tokens": 39,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 259234,
+          "phase": "prefill",
+          "valid_scores": 262080
+        },
+        {
+          "maximum_absolute_score": 495.2042236328125,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13343,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 13440
+        },
+        {
+          "maximum_absolute_score": 780.0609741210938,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 13675,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13776
+        },
+        {
+          "maximum_absolute_score": 1413.513427734375,
+          "maximum_key_extent": 42,
+          "operators": 24,
+          "outside_range": 13975,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 14112
+        }
+      ]
+    },
+    {
+      "input_tokens": 38,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 38,
+          "operators": 24,
+          "outside_range": 246224,
+          "phase": "prefill",
+          "valid_scores": 248976
+        },
+        {
+          "maximum_absolute_score": 1129.5340576171875,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 12968,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 13104
+        },
+        {
+          "maximum_absolute_score": 798.1603393554688,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13336,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13440
+        },
+        {
+          "maximum_absolute_score": 578.936279296875,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 13662,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 13776
+        }
+      ]
+    },
+    {
+      "input_tokens": 37,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 37,
+          "operators": 24,
+          "outside_range": 233599,
+          "phase": "prefill",
+          "valid_scores": 236208
+        },
+        {
+          "maximum_absolute_score": 590.5596923828125,
+          "maximum_key_extent": 38,
+          "operators": 24,
+          "outside_range": 12684,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 12768
+        },
+        {
+          "maximum_absolute_score": 513.4940795898438,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 12994,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13104
+        },
+        {
+          "maximum_absolute_score": 1277.78955078125,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13324,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 13440
+        }
+      ]
+    },
+    {
+      "input_tokens": 39,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 259199,
+          "phase": "prefill",
+          "valid_scores": 262080
+        },
+        {
+          "maximum_absolute_score": 1129.533935546875,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13306,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 13440
+        },
+        {
+          "maximum_absolute_score": 539.6300659179688,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 13672,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13776
+        },
+        {
+          "maximum_absolute_score": 1413.513427734375,
+          "maximum_key_extent": 42,
+          "operators": 24,
+          "outside_range": 13981,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 14112
+        }
+      ]
+    },
+    {
+      "input_tokens": 38,
+      "phases": [
+        {
+          "maximum_absolute_score": 1701.75439453125,
+          "maximum_key_extent": 38,
+          "operators": 24,
+          "outside_range": 246273,
+          "phase": "prefill",
+          "valid_scores": 248976
+        },
+        {
+          "maximum_absolute_score": 490.4107971191406,
+          "maximum_key_extent": 39,
+          "operators": 24,
+          "outside_range": 13018,
+          "phase": "decode",
+          "step": 0,
+          "valid_scores": 13104
+        },
+        {
+          "maximum_absolute_score": 680.8439331054688,
+          "maximum_key_extent": 40,
+          "operators": 24,
+          "outside_range": 13345,
+          "phase": "decode",
+          "step": 1,
+          "valid_scores": 13440
+        },
+        {
+          "maximum_absolute_score": 511.50372314453125,
+          "maximum_key_extent": 41,
+          "operators": 24,
+          "outside_range": 13667,
+          "phase": "decode",
+          "step": 2,
+          "valid_scores": 13776
+        }
+      ]
+    }
+  ],
+  "outside_range": 3521405,
+  "positions": 48,
+  "positions_outside_range": 48,
+  "prompt_count": 12,
+  "public_prompt_digest": "8bb90779071fd6dcb0857cbae7db66cf70da7da2306fe33e901934766c626d21",
+  "public_score_bound": 0.125,
+  "schema": "pllm.encrypted_attention_range.v1",
+  "scope": {
+    "candidate_executed": false,
+    "candidate_quality": null,
+    "clipping": false,
+    "encrypted_outputs": 0,
+    "execution": "unchanged pinned W8A8 local-clear control",
+    "latency_comparison": false,
+    "measured_peak_memory": null,
+    "private_range_fitting": false,
+    "public_inputs": true,
+    "wire_measurement": null
+  },
+  "source_sha256": {
+    "benchmarks/research/encrypted_attention_range.py": "49af325b3bf8fa4d1afe7e034d6a66588bad592092cf9e41097017d5be833c13",
+    "python/pllm/metrics/encrypted_softmax.py": "4dd0b8636559c0cd169ac212a9a98b709bf01b00c2c7d4e67979d560f7e49dc1",
+    "python/pllm/runtime/ckks_softmax.py": "2b1d9cbe8a16363d3d893cf4b639d6bf62a00fffcf0fa9805b0ff10f12bfc457",
+    "scripts/decoder_probe_support.py": "6b102bd674403a431e898ef1d6d411e74a663f063555e021ac56a1159a8a0d3e"
+  },
+  "valid_scores": 3559248
+}

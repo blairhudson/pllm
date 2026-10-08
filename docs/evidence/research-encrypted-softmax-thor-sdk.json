@@ -1,0 +1,372 @@
+{
+  "benchmark_status": "completed",
+  "checkpoint_quality": null,
+  "citations": [
+    {
+      "paper_id": "thor",
+      "scope": "Appendix C degree-15 exponential and Algorithm 3 square/normalize with delta1=1, delta2=2; narrow domain and two unrelaxed reciprocal iterations replace the paper's relaxation schedule",
+      "source_sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+      "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+      "url": "https://eprint.iacr.org/2024/1881"
+    }
+  ],
+  "configuration": {
+    "component": {
+      "component": "pllm/packed-encrypted-softmax/v1",
+      "params": {
+        "method": "square_normalize"
+      }
+    },
+    "geometry": {
+      "width": 8
+    },
+    "lanes": 3,
+    "samples": 3,
+    "schema": "pllm.operator_benchmark.v2"
+  },
+  "configuration_digest": "65e9f49994fd8dd989ce02290894a0c0becc763911cb8b3fa5d44d5a7dd5c122",
+  "environment": {
+    "native": "0.1.0-alpha.2",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "full_wire_bytes": null,
+  "independent_role_transport": false,
+  "input_source": "public-fixture",
+  "limitations": [
+    "Fixed public score range [-1/8,1/8], power-of-two widths 1..32, and 1..64 serial rows; no private range fitting or clipping",
+    "SEAL TC128, degree 32768, [50]+[40]*14+[50] primes and scale 2^40; both complete schedules consume fourteen levels",
+    "Source exponential and square/normalize primitives use narrow-domain unrelaxed reciprocals, not paper relaxation schedules or complete systems",
+    "Every sample issues fresh keys; provider imports a separate public-only context and client alone decrypts final normalized outputs",
+    "One Galois key executes width-1 rotations per reduction; input rows repeat across slots and all ciphertext products/relinearizations are charged",
+    "Setup includes parameters, public, rotation and relinearization frames; full context/sequence padded request/reply frames remain separate",
+    "Raw-key fields are payload accounting, not native pool residency; preflight includes serialized copies, context scratch and 32 live ciphertexts under 2 GiB",
+    "Profile error isolates CKKS arithmetic from analytic softmax approximation and probability-mass error; reported outputs are aggregate only",
+    "Local lifecycle framing is not authenticated transport, malicious-result verification, circuit privacy or independent cryptographic review",
+    "No secure maximum, bootstrap, attention QK/value products, masking, model quality, autoregressive state or compiler-bound decoder",
+    "Physical wire and measured peak memory are unknown; large evaluation keys are not a client-memory improvement"
+  ],
+  "median_issuance_seconds": 4.228353541344404,
+  "median_online_seconds": 5.314311916008592,
+  "method": "packed-ckks-softmax",
+  "native_implementation_digest": "2abc45fabca231c4a298801842b99887ac742316a9bd211a7cdacb1f5f017134",
+  "numeric_contract_digest": "sha256:92a60be4912b8d19bc0f222a0ea555ed0e0a858f486b5d55ce7d0897f029c1d7",
+  "paper_coverage": "component-reference",
+  "peak_memory_bytes": null,
+  "privacy_reviewed": false,
+  "quality": {
+    "absolute_tolerance": 0.0002,
+    "base_profile_exact_outputs": null,
+    "checked_outputs": 72,
+    "exact_integer_outputs": 0,
+    "float_reference": "60-digit Decimal exp/sum softmax; separate Decimal Horner/direct-power profile error; no exact integer claim",
+    "maximum_absolute_error": 1.2841295731563784e-05,
+    "maximum_encoded_profile_error": null,
+    "maximum_normalization_error": 3.094754558352619e-05,
+    "maximum_profile_absolute_error": 1.2855362753860788e-05,
+    "mean_absolute_error": 3.21946104904954e-06,
+    "mean_profile_absolute_error": 3.219852563077913e-06,
+    "outputs_within_tolerance": 72
+  },
+  "resources": {
+    "client_entry_exit_payload_estimate_bytes": 0,
+    "client_mask_payload_estimate_bytes": 0,
+    "evaluator_ciphertext_bytes": null,
+    "evaluator_constant_label_bytes": null,
+    "expanded_correlation_bytes_per_party": null,
+    "homomorphic_coefficient_bits": [
+      50,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      50
+    ],
+    "homomorphic_polynomial_degree": 32768,
+    "homomorphic_scale_bits": 40,
+    "key_payload_bytes_by_operation": [
+      [
+        "secret-polynomial-and-public-key",
+        12587008,
+        0
+      ],
+      [
+        "provider-evaluation-keys",
+        0,
+        260190208
+      ]
+    ],
+    "peer_frame_bytes_by_direction": [
+      23605491,
+      1585395
+    ],
+    "peer_payload_bits": 201527088,
+    "peer_rounds": 3,
+    "prf_field_evaluations_per_party": null,
+    "protocol_allocation_estimate_bytes": 1334325248,
+    "public_metadata_bytes_estimate": null,
+    "public_profile_bytes_estimate": null,
+    "public_table_bytes_by_party": [
+      0,
+      128
+    ],
+    "public_table_bytes_per_party": 0,
+    "raw_key_payload_bits_per_party": [
+      100696064,
+      2081521664
+    ],
+    "raw_key_payload_bytes_per_party": [
+      12587008,
+      260190208
+    ],
+    "role_names": [
+      "client-key-owner",
+      "encrypted-evaluator"
+    ],
+    "setup_frame_bytes_by_operation": [
+      [
+        "galois-keys",
+        125898752,
+        0
+      ],
+      [
+        "parameters",
+        512,
+        0
+      ],
+      [
+        "public-key",
+        8392704,
+        0
+      ],
+      [
+        "relinearization-keys",
+        125898752,
+        0
+      ]
+    ]
+  },
+  "resources_scope": "per-sample",
+  "samples": [
+    {
+      "clear_seconds": 0.0007345005869865417,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 4.986256626434624,
+      "homomorphic_operations": [
+        [
+          "ciphertext_additions",
+          93
+        ],
+        [
+          "ciphertext_multiplications",
+          63
+        ],
+        [
+          "ciphertext_negations",
+          6
+        ],
+        [
+          "modulus_switches",
+          33
+        ],
+        [
+          "plaintext_additions",
+          21
+        ],
+        [
+          "plaintext_multiplications",
+          51
+        ],
+        [
+          "relinearizations",
+          63
+        ],
+        [
+          "rescales",
+          114
+        ],
+        [
+          "rotations",
+          42
+        ],
+        [
+          "scale_normalizations",
+          114
+        ]
+      ],
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 4.404397166334093,
+      "minimum_remaining_depth": 0,
+      "native_call_process_cpu_seconds": 9.736504,
+      "online_seconds": 5.336839457973838,
+      "peer_frame_bytes_by_phase": [
+        [
+          7868497,
+          528465
+        ],
+        [
+          7868497,
+          528465
+        ],
+        [
+          7868497,
+          528465
+        ]
+      ],
+      "public_setup_seconds": 0.0,
+      "verification_seconds": null
+    },
+    {
+      "clear_seconds": 0.0007345005869865417,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 4.967986584641039,
+      "homomorphic_operations": [
+        [
+          "ciphertext_additions",
+          93
+        ],
+        [
+          "ciphertext_multiplications",
+          63
+        ],
+        [
+          "ciphertext_negations",
+          6
+        ],
+        [
+          "modulus_switches",
+          33
+        ],
+        [
+          "plaintext_additions",
+          21
+        ],
+        [
+          "plaintext_multiplications",
+          51
+        ],
+        [
+          "relinearizations",
+          63
+        ],
+        [
+          "rescales",
+          114
+        ],
+        [
+          "rotations",
+          42
+        ],
+        [
+          "scale_normalizations",
+          114
+        ]
+      ],
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 4.228353541344404,
+      "minimum_remaining_depth": 0,
+      "native_call_process_cpu_seconds": 9.537911999999999,
+      "online_seconds": 5.314311916008592,
+      "peer_frame_bytes_by_phase": [
+        [
+          7868497,
+          528465
+        ],
+        [
+          7868497,
+          528465
+        ],
+        [
+          7868497,
+          528465
+        ]
+      ],
+      "public_setup_seconds": 0.0,
+      "verification_seconds": null
+    },
+    {
+      "clear_seconds": 0.0007345005869865417,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": 4.947939042001963,
+      "homomorphic_operations": [
+        [
+          "ciphertext_additions",
+          93
+        ],
+        [
+          "ciphertext_multiplications",
+          63
+        ],
+        [
+          "ciphertext_negations",
+          6
+        ],
+        [
+          "modulus_switches",
+          33
+        ],
+        [
+          "plaintext_additions",
+          21
+        ],
+        [
+          "plaintext_multiplications",
+          51
+        ],
+        [
+          "relinearizations",
+          63
+        ],
+        [
+          "rescales",
+          114
+        ],
+        [
+          "rotations",
+          42
+        ],
+        [
+          "scale_normalizations",
+          114
+        ]
+      ],
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 4.22170262504369,
+      "minimum_remaining_depth": 0,
+      "native_call_process_cpu_seconds": 9.50637,
+      "online_seconds": 5.292788417078555,
+      "peer_frame_bytes_by_phase": [
+        [
+          7868497,
+          528465
+        ],
+        [
+          7868497,
+          528465
+        ],
+        [
+          7868497,
+          528465
+        ]
+      ],
+      "public_setup_seconds": 0.0,
+      "verification_seconds": null
+    }
+  ],
+  "schema": "pllm.operator_benchmark_report.v1",
+  "scope": "bounded in-process operator; fresh one-use material per sample",
+  "sdk_availability": "operator-benchmark",
+  "sdk_implementation_digest": "01d6f8e2be4765a294340fe8f33e6d9b37e56a3dbef0c0d24804a4f42941b89b",
+  "whole_model_executable": false
+}

@@ -162,19 +162,21 @@
     },
     "nexus": {
       "status": "Component reference",
-      "scope": "Bounded plaintext repeated-squaring exponential with fixed public shift and exact reference normalization. No encrypted reciprocal, CKKS tensor execution or NEXUS system reproduction.",
-      "code": ["crates/pllm-core/src/polynomial_softmax_reference.rs"],
-      "configuration": "benchmarks/research/he_softmax_reference.py",
-      "evidence": "docs/evidence/research-he-softmax-reference-qwen25.json",
-      "result": "Independent equation/probability checks pass in the fixed [-16,16] score domain. All eight pinned Qwen prompts reject that domain before a complete candidate position; quality and ciphertext costs remain unmeasured. This rejects the chosen parameters, not every NEXUS adaptation. Notes: docs/research/he-pruning-gates.md."
+      "sdk_benchmark": {"api": "pllm.nonlinear.PackedEncryptedSoftmax", "coverage": "operator", "guide": "/sdk/components/nonlinear/packed-encrypted-softmax/", "configuration": "examples/benchmarks/encrypted_softmax.py", "evidence": "docs/evidence/research-encrypted-softmax-sdk.json"},
+      "scope": "Independent Equation (4) CKKS exponential, encrypted reciprocal and complete normalization within fixed [-1/8,1/8] scores. Public shift and unrelaxed reciprocal iterations are PLLM adaptations. No secure maximum, attention QK/value products, masking, bootstrap or NEXUS system reproduction.",
+      "code": ["crates/pllm-core/src/ckks_layout.rs", "crates/pllm-python/src/ckks.rs", "python/pllm/runtime/ckks_reference.py", "python/pllm/runtime/ckks_softmax.py", "python/pllm/metrics/encrypted_softmax.py"],
+      "configuration": "benchmarks/research/encrypted_softmax.py",
+      "evidence": "docs/evidence/research-encrypted-softmax-cost.json",
+      "result": "The two-profile cohort checks 738 outputs across 18 fresh processes, with worst softmax error below 3.21e-5. Only the client decrypts final outputs. Both methods consume fourteen levels; width-32 setup is 260.19 MB and three-row online frames 25.19 MB. Repeated-squaring local online median is 3.56 seconds. Independent Decimal profile and exp/sum errors remain separate. A fresh twelve-prompt pinned W8A8 audit rejects all 48 prefill/decode positions under this range, without executing an encrypted candidate (docs/evidence/research-encrypted-attention-range-qwen25.json). Historical [-16,16] rejection is preserved; no candidate-quality or whole-decoder claim. Notes: docs/research/encrypted-softmax-reference.md."
     },
     "thor": {
       "status": "Component reference",
-      "scope": "Bounded plaintext Appendix C exponential and Algorithm 3 square/normalize reference with fixed public parameters. Exact normalization omits encrypted reciprocal, CKKS error and bootstrapping.",
-      "code": ["crates/pllm-core/src/polynomial_softmax_reference.rs"],
-      "configuration": "benchmarks/research/he_softmax_reference.py",
-      "evidence": "docs/evidence/research-he-softmax-reference-qwen25.json",
-      "result": "Independent equation/probability checks pass in the fixed [-16,16] score domain. All eight pinned Qwen prompts reject that domain before a complete candidate position. No THOR system reproduction, quality score, ciphertext cost or admitted decoder. Notes: docs/research/he-pruning-gates.md."
+      "sdk_benchmark": {"api": "pllm.nonlinear.PackedEncryptedSoftmax", "coverage": "operator", "guide": "/sdk/components/nonlinear/packed-encrypted-softmax/", "configuration": "examples/benchmarks/encrypted_softmax.py", "evidence": "docs/evidence/research-encrypted-softmax-thor-sdk.json"},
+      "scope": "Independent Appendix C CKKS exponential and Algorithm 3 square/normalize with encrypted reciprocals and final normalization. Fixed [-1/8,1/8] range, delta1=1, delta2=2 and unrelaxed reciprocals are PLLM adaptations. No bootstrap, attention QK/value products, masks or THOR system reproduction.",
+      "code": ["crates/pllm-core/src/ckks_layout.rs", "crates/pllm-python/src/ckks.rs", "python/pllm/runtime/ckks_reference.py", "python/pllm/runtime/ckks_softmax.py", "python/pllm/metrics/encrypted_softmax.py"],
+      "configuration": "benchmarks/research/encrypted_softmax.py",
+      "evidence": "docs/evidence/research-encrypted-softmax-cost.json",
+      "result": "The two-profile cohort checks 738 outputs across 18 fresh processes, with independent Decimal profile and exp/sum oracles. Only the client decrypts final probabilities. Fourteen levels, 260.19 MB setup and 25.19 MB three-row online frames apply at width 32; square/normalize local online median is 8.38 seconds. Numeric profiles differ and cannot imply a general winner. A separate fresh twelve-prompt pinned W8A8 audit rejects all 48 prefill/decode positions under the fixed range, without executing an encrypted candidate (docs/evidence/research-encrypted-attention-range-qwen25.json). Historical range rejection is preserved; candidate quality and decoder execution remain unvalidated. Notes: docs/research/encrypted-softmax-reference.md."
     },
     "mpcache": {
       "status": "Component reference",

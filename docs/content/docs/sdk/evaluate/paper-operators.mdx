@@ -96,6 +96,13 @@ It checks approximate outputs against an independent float64 oracle:
 remains zero. Setup keys, ciphertext frames, encrypted operation counts and
 remaining depth are explicit; full decoder execution remains unavailable.
 
+[`PackedEncryptedSoftmax`](/sdk/components/nonlinear/packed-encrypted-softmax/)
+adds complete encrypted exponential, reciprocal and normalization within fixed
+public score bounds. Its two source-adapted profiles consume fourteen levels;
+Decimal profile/softmax errors and probability-mass error are reported separately.
+Large setup keys, a separate 2 GiB allocation estimate and absent decoder coverage
+remain explicit.
+
 It also supports
 [`PrivateEmbeddingLookup`](/sdk/components/protocols/private-embedding-lookup/):
 `lanes` sets embedding width, while the component chooses vocabulary size and
