@@ -20,8 +20,8 @@ export const priorities = [
     why: 'Less local computation leaves more device capacity for the application using the model.' },
   { label: 'Preparation cost', metrics: ['preparationCpu', 'preparationPeak'],
     why: 'Low offline CPU and RAM make Preparation easier to run under your control, separate from online Inference.' },
-  { label: 'WAN throughput', metrics: ['requestTps', 'decodeTps'],
-    why: 'Request speed includes request-bound setup and first-output wait; decode speed measures later tokens. Capped cohorts show how both behave on constrained links.' },
+  { label: 'WAN responsiveness', metrics: ['ttft', 'decodeTps'],
+    why: 'Short TTFT and fast decode make inference responsive on constrained links. TTFT measures online start to first token; decode speed covers later tokens.' },
   { label: 'All-link traffic', metrics: ['totalNetwork'],
     why: 'Every link consumes bandwidth. Including correction delivery and setup keeps work shifted away from the client visible.' },
 ];

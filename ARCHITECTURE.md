@@ -1485,7 +1485,7 @@ price uncharged GPU allocations or OS cache. The idle launcher is outside the
 measured role graph. Research's parallel-coordinates chart normalizes each
 selected metric with best-at-top, preserves unknown gaps and raw units, identifies
 client-only/naive-offset controls, and links paper attribution to chronology cards.
-Its priority axes are client RSS/CPU, Preparation CPU/RSS, complete-request and
+Its priority axes are client RSS/CPU, Preparation CPU/RSS, time to first token,
 N−1 decode throughput, and all-link traffic, with their device, trust-control
 and access-link rationale visible beside the chart. Missing Preparation roles
 remain unknown rather than scoring as free work.

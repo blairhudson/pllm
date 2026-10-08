@@ -14,7 +14,7 @@ export const metrics = [
   { id: 'online', label: 'Online bodies / output token', unit: 'MB/token', direction: 'min' },
   { id: 'decodeBytes', label: 'Decode bodies / later output', unit: 'MB/token', direction: 'min' },
   { id: 'full', label: 'Full request latency', unit: 's', direction: 'min' },
-  { id: 'ttft', label: 'Time to first token', unit: 's', direction: 'min' },
+  { id: 'ttft', label: 'Time to first token (TTFT)', unit: 's', direction: 'min' },
   { id: 'requestTps', label: 'Full request throughput', unit: 'tokens/s', direction: 'max' },
   { id: 'decodeTps', label: 'Decode throughput (N−1)', unit: 'tokens/s', direction: 'max' },
   { id: 'aggregateCpu', label: 'Cold aggregate process CPU', unit: 'CPU s', direction: 'min' },
@@ -38,7 +38,7 @@ export const metrics = [
 const shortLabels = {
   requestTps: 'Request speed', decodeTps: 'Decode speed', covered: 'Covered traffic',
   aggregateCpu: 'Agg CPU', providerPeak: 'Provider RAM', online: 'Online traffic',
-  decodeBytes: 'Decode traffic', full: 'Request latency', ttft: 'First token',
+  decodeBytes: 'Decode traffic', full: 'Request latency', ttft: 'TTFT',
   clientCpu: 'Client CPU', preparationCpu: 'Prep CPU', bodyOffload: 'Body offload', preparationPeak: 'Prep RAM', inferencePeak: 'Inference RAM',
   artifactBytes: 'Public artifacts', clientPeak: 'Client RAM', wire: 'Physical wire',
   quality: 'Quality', energy: 'Energy',

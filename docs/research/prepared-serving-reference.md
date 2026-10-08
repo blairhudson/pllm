@@ -1,8 +1,8 @@
 # Prepared serving: client allocations, pacing and artifact reuse
 
 These follow-ups retain controlled offline Preparation and one online Inference
-provider. Client memory/CPU, Preparation resources, capped throughput and all-link
-traffic must be assessed together. The Research chart now makes those priorities
+provider. Client memory/CPU, Preparation resources, TTFT, capped decode throughput
+and all-link traffic must be assessed together. The Research chart now makes those priorities
 its default axes and explains their rationale. Quality and privacy contracts
 remain independent requirements; resource measurements are not prices or energy.
 

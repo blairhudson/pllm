@@ -91,7 +91,7 @@ export function ResearchScorecard() {
         {data.papers.map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
       </select></label>
     </div>
-    <details className={styles.metricPicker}><summary>Choose metrics <span>{metrics.length} selected · client, Preparation, throughput and all-link traffic</span></summary>
+    <details className={styles.metricPicker}><summary>Choose metrics <span>{metrics.length} selected · client, Preparation, responsiveness and all-link traffic</span></summary>
       <div>{groupedMetrics(data.metrics).map((group) => <fieldset key={group.label}><legend title={group.title}>{group.label}</legend>
         {group.metrics.map((metric) => <label key={metric.id}><input type="checkbox"
         checked={metricIds.includes(metric.id)} disabled={metricIds.length === 1 && metricIds.includes(metric.id)}
@@ -160,7 +160,7 @@ export function ResearchScorecard() {
           <text x={48} y={487} className={styles.chartNote}>↑ Higher is better · lower costs score higher · missing measurements leave gaps</text>
         </svg>
       </div>
-      <figcaption>Every axis runs 0–100, higher is better. Speed and costs normalize within the selected cohort; lower CPU, memory and traffic earn higher scores.
+      <figcaption>Every axis runs 0–100, higher is better. Latency, speed and costs normalize within the selected cohort; lower latency, CPU, memory and traffic earn higher scores.
         Hover or select for actual values. Missing Preparation measurements and topologies without that role leave gaps.
         {metricIds.includes('bodyOffload') && " Body offload uses the plan's absolute percentage of body-linear work assigned to providers; it excludes client attention, nonlinear and token-boundary work."}
         {' '}Axes do not form a composite ranking.</figcaption>
@@ -205,7 +205,7 @@ export function ResearchScorecard() {
         it may double-count shared pages and miss short spikes. CPU includes startup and native relay overhead; GPU compute and uncharged GPU memory remain unmeasured.
         Historical shared-client runs leave incomparable memory fields empty. Client-only holds the full decoder; remote placements still keep attention and nonlinear work at the client.</p>
       <p>Client CPU includes the benchmark/dashboard and native relay. Preparation CPU runs from that role's process birth through the first cold response;
-        its RAM is a process-lifetime peak. Request throughput uses all generated outputs over complete request time;
+        its RAM is a process-lifetime peak. TTFT measures online start to first output;
         decode throughput uses the later N−1 outputs. All-link traffic covers the recorded cold lifecycle across every directed role link.</p>
       <p><a href={repository + cohort.report}>Canonical report ↗</a> · <a href={withBasePath('/research/scorecard/')}>Commands and methodology</a></p>
       <p>Report SHA-256: <code>{cohort.reportSha256}</code></p>

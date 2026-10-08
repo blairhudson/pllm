@@ -173,7 +173,7 @@ test('parallel coordinates invert cost, preserve ties and break lines at unknown
   assert.deepEqual(axes[2].scores, { a: 100, b: 100, c: 100 });
   assert.deepEqual(axes[3].scores, { a: null, b: null, c: null });
   assert.deepEqual(measuredSegments([20, 0, null, 100]), [[{ index: 0, value: 20 }, { index: 1, value: 0 }], [{ index: 3, value: 100 }]]);
-  assert.deepEqual(defaultMetrics, ['clientPeak', 'clientCpu', 'preparationCpu', 'preparationPeak', 'requestTps', 'decodeTps', 'totalNetwork']);
+  assert.deepEqual(defaultMetrics, ['clientPeak', 'clientCpu', 'preparationCpu', 'preparationPeak', 'ttft', 'decodeTps', 'totalNetwork']);
 });
 
 test('declared subcohorts preserve their original salted observations exactly', () => {

@@ -16,8 +16,8 @@ canonical reports and rerunnable Python files. Separate cohorts remain separate.
 ## Reading the frontier
 
 One line follows each experiment across seven priority axes: **client peak RSS,
-client CPU, Preparation CPU, Preparation peak RSS, request tokens/s,
-decode tokens/s and all-link TCP-stream bytes**. Speed and cost axes map their
+client CPU, Preparation CPU, Preparation peak RSS, TTFT (time to first token),
+decode tokens/s and all-link TCP-stream bytes**. Latency, speed and cost axes map their
 observed range to 0–100, with the best at 100; lower-cost axes are inverted.
 The optional body-offload axis uses its absolute 0–100% scale. Equal values stay tied, including a
 genuine zero, and unmeasured values leave gaps. Every axis is higher-is-better;
@@ -42,8 +42,8 @@ deployment and the goal of keeping private inference usable on ordinary devices:
   Preparation or choose a separate trusted operator. Its CPU covers process birth
   through the first cold response; its RSS is a lifetime peak. Moving work offline
   does not make that work free or establish non-collusion.
-- **WAN throughput:** complete-request tokens/s includes request-bound setup and first-output
-  wait; N−1 decode tokens/s exposes later-token responsiveness. Use matched capped
+- **WAN responsiveness:** TTFT measures online start to first output;
+  N−1 decode tokens/s exposes later-token responsiveness. Use matched capped
   cohorts to evaluate constrained links. Local bandwidth caps do not imply Internet RTT.
 - **All-link traffic:** counting client and provider-peer streams includes correction
   delivery and prevents a client-only byte saving from hiding traffic elsewhere.
