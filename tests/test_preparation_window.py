@@ -17,12 +17,13 @@ def run(items, **kwargs):
 
 def test_window_rejects_aggregate_work_before_issuing_any_stage():
     called = []
-    with pytest.raises(ValueError, match="16-MiB"):
+    with pytest.raises(ValueError, match="declared work window"):
         run([1, 2], cost=lambda x: WINDOW_BYTES * x, prepare=called.append)
     assert not called
 
 
-def test_window_overlaps_with_fixed_declared_memory_bound():
+@pytest.mark.parametrize("budget", [WINDOW_BYTES, 64 << 20])
+def test_window_overlaps_with_fixed_declared_memory_bound(budget):
     barrier = threading.Barrier(2)
     lock = threading.Lock()
     active, peak, results = 0, 0, []
@@ -36,7 +37,7 @@ def test_window_overlaps_with_fixed_declared_memory_bound():
         with lock:
             active -= 1
         return value
-    run(range(8), cost=lambda _: WINDOW_BYTES // 2, prepare=prepare, accept=results.append)
+    run(range(8), max_bytes=budget, cost=lambda _: budget // 2, prepare=prepare, accept=results.append)
     assert sorted(results) == list(range(8)) and peak == 2
 
 
@@ -61,3 +62,25 @@ def test_cancelled_client_cannot_start_or_admit_material():
     with pytest.raises(RuntimeError, match="cancelled"):
         run([1], cancelled=lambda: True, prepare=calls.append)
     assert calls == []
+
+
+def test_explicit_window_is_bound_by_component_and_native_schedule():
+    from pllm import Model, lower_model
+    from pllm.configuration import ComponentRef, ConfigurationError
+    from pllm.preparation import PreparedInventory
+    from pllm.profiles import MaskedLinearCpu
+    from pllm.sources import _tiny_model_config
+
+    base = PreparedInventory(refill="on-demand", allocation="demand")
+    assert "stage_window_bytes" not in base.params
+    candidate = base.with_params(stage_window=4, stage_window_bytes=64 << 20)
+    plan = lower_model(_tiny_model_config(), batch=1, max_input_tokens=16, max_new_tokens=2)
+    plan.runtime_schedule(MaskedLinearCpu(Model.tiny(), inventory=candidate))
+    for value in (True, 0, (64 << 20) + 1):
+        with pytest.raises(ConfigurationError):
+            base.with_params(stage_window=4, stage_window_bytes=value)
+        forged = ComponentRef(base.component, {**candidate.params, "stage_window_bytes": value})
+        with pytest.raises(ValueError):
+            plan.runtime_schedule(MaskedLinearCpu(Model.tiny(), inventory=forged))
+    with pytest.raises(ConfigurationError):
+        base.with_params(stage_window_bytes=64 << 20)

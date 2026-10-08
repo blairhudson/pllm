@@ -150,17 +150,19 @@ def test_demand_paged_preparation_through_sdk(tmp_path, monkeypatch):
         return result
     monkeypatch.setattr(SemanticDecoderRuntime, "_forward_phase", capture)
     results = []
-    for allocation, storage in (("uniform", "resident"), ("demand", "resident"), ("demand", "paged")):
+    for allocation, storage, window in (("uniform", "resident", 1), ("demand", "resident", 1),
+                                       ("demand", "paged", 1), ("demand", "paged", 4)):
         pipeline = MaskedLinearCpu(source, linear=MaskedLinear(prefill_pruning="terminal",
             request_encoding="stage_packed", output_encoding="row_residues"),
             quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
             preparation=ModelAwareCorrections(storage=storage),
-            inventory=PreparedInventory(refill="on-demand", allocation=allocation),
+            inventory=PreparedInventory(refill="on-demand", allocation=allocation, stage_window=window,
+                                        stage_window_bytes=(64 if window > 1 else 16) << 20),
             delivery=ClientBundleTransport("artifacts", compression="zlib", storage="paged"))
-        experiment = pllm.Experiment("incremental", pipeline, pllm.Deployment.local(root=str(tmp_path / f"{allocation}-{storage}")),
+        experiment = pllm.Experiment("incremental", pipeline, pllm.Deployment.local(root=str(tmp_path / f"{allocation}-{storage}-{window}")),
                                     pllm.ExecutionBudget(max_input_tokens=64, max_new_tokens=3, requests=2))
         assert pllm.Experiment.from_spec(experiment.to_spec()).configuration_digest() == experiment.configuration_digest()
-        with build_roles(experiment, engine_threads=1) as roles, roles.client(bundle_cache_dir=tmp_path / f"cache-{allocation}-{storage}") as client:
+        with build_roles(experiment, engine_threads=1) as roles, roles.client(bundle_cache_dir=tmp_path / f"cache-{allocation}-{storage}-{window}") as client:
             client.prepare_response("A", 3)
             response = client.responses.create(input="A", max_output_tokens=3, temperature=0)
             audit = client.privacy_audit.to_dict()

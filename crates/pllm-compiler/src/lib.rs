@@ -2015,11 +2015,16 @@ fn validate_masked_linear_composition(
     let inventory = pipeline.components.get("inventory");
     if let Some(inventory) = inventory {
         if inventory.component != "pllm/prepared-inventory-policy/v1"
-            || !matches!(inventory.params.len(), 2..=5)
+            || !matches!(inventory.params.len(), 2..=6)
             || inventory.params.keys().any(|key| {
                 !matches!(
                     key.as_str(),
-                    "policy" | "rows" | "refill" | "stage_window" | "allocation"
+                    "policy"
+                        | "rows"
+                        | "refill"
+                        | "stage_window"
+                        | "stage_window_bytes"
+                        | "allocation"
                 )
             })
             || inventory.params.get("allocation").is_some_and(|value| {
@@ -2044,6 +2049,19 @@ fn validate_masked_linear_composition(
                 .params
                 .get("stage_window")
                 .is_some_and(|value| !value.as_u64().is_some_and(|width| (1..=4).contains(&width)))
+            || inventory
+                .params
+                .get("stage_window_bytes")
+                .is_some_and(|value| {
+                    !value
+                        .as_u64()
+                        .is_some_and(|bytes| ((1 << 20)..=(64 << 20)).contains(&bytes))
+                        || !inventory
+                            .params
+                            .get("stage_window")
+                            .and_then(serde_json::Value::as_u64)
+                            .is_some_and(|width| (2..=4).contains(&width))
+                })
             || inventory
                 .params
                 .get("refill")

@@ -43,7 +43,8 @@ def test_wan_choices_compose_through_normal_sdk_and_preserve_outputs(tmp_path, m
             pipeline = profile(source, **common, linear=MaskedLinear(
                 output_encoding="raw" if topology == "raw-duplex" else "row_residues",
                 prefill_chunk_rows=4 if "duplex" in topology and enabled else 0),
-                inventory=PreparedInventory("request-sized", rows=1, refill="on-demand", stage_window=4 if enabled else 1))
+                inventory=PreparedInventory("request-sized", rows=1, refill="on-demand", stage_window=4 if enabled else 1,
+                                            stage_window_bytes=(64 if enabled else 16) << 20))
         experiment = pllm.Experiment("wan-tps", pipeline, pllm.Deployment.local(root=str(tmp_path)),
             pllm.ExecutionBudget(max_input_tokens=64, max_new_tokens=2, requests=1))
         with build_roles(experiment, engine_threads=1) as roles:

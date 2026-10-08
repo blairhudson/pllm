@@ -1,0 +1,14 @@
+{
+  "schema": "pllm.benchmark_configuration_sources.v1",
+  "reports": {
+    "docs/evidence/research-prepared-frontier-sequence-qwen25.json": "6f45cdb610423805943d6d618ddc196a5d36aee1a241749b004e09eb3e700f25",
+    "docs/evidence/research-prepared-frontier-publisher.json": "c41974850fc61c5d2a8172e36b9de7e83539452ff7cddf45d2fe5fb5e134e627"
+  },
+  "configuration_sources": {
+    "benchmarks/research/prepared_frontier_sequence.py": "bf1356216d88f236f1f70e3ee189b3c794ac6d05f6430b130d420528fdd1c22f",
+    "benchmarks/research/prepared_frontier.py": "0d7436e1e8531961fdbb44bd0a1f23e2fe038123f6cf944c3f8ea64d9ded74c0",
+    "benchmarks/research/sota.py": "a254c38247d5737e3794f675ae86365039d9909eed8b93a701935850162c9bc1",
+    "benchmarks/research/common.py": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+    "scripts/build_incremental_sdk_experiments.py": "0eeb9cfb43bf095e3cb015c2e8fcb0bed327836dfd54a7c54ea03ef4cb8893d2"
+  }
+}

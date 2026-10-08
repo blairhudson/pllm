@@ -49,6 +49,36 @@ lists those symbols and their next gates.
 
 ## Current round: shared prerequisites and complete consumers
 
+The current priority is the working prepared memory/latency frontier and complete
+SDK compositions, followed by shared research bottlenecks. Prepared comparisons
+separate cold bundle import, preparation, online execution and second-request
+reuse. The earlier 150+8 public-prefix variants spent almost the same time online;
+their request-time difference alone does not isolate paging-kernel overhead.
+`benchmarks/research/prepared_frontier.py` holds matched serial/windowed, explicit
+reuse and resident-client controls. `PreparedInventory(stage_window_bytes=...)`
+binds an optional larger work window while existing whole-topology admission still
+prices every concurrent owner.
+The matched ordered two-request cohort passes all checks with identical outputs
+and zero observed new swap. Windowed paged preparation lowers cold preparation
+42.04 to 38.18 seconds and complete cold/repeat requests 2.67%/3.67%, with equal
+covered bodies and 2.02% more cold-first aggregate CPU. Against resident client
+weights it halves client peak RSS, 564.77 to 281.85 MB. Explicit prefix reuse
+reduces the exact-repeat request 103.45 to 11.67 seconds and two-request TCP-stream
+bytes 830.67 to 495.07 MB; the first response remains costly. The ordered-sequence
+factory, publisher costs, source hashes and retained rejected initial screen are
+documented in `docs/research/prepared-frontier.md`. These single pairs do not
+establish a general fresh-prompt or 10× memory improvement.
+
+Protected selection now exposes bounded independent phase batches, with complete
+frame/header accounting and fresh material per operation. Its fresh-process
+comparison lives in `benchmarks/research/batched_selection.py`; provider-state
+integration still requires a complete cost justification. Thirty-six fresh
+processes check 468,585 outputs. Full-width top-k reduces exchanges 19,200 to
+1,200, but keeps 295.26 MB keys and nearly unchanged local CPU; its live-allocation
+estimate rises 15.45 to 58.29 MB. Evidence:
+`docs/evidence/research-batched-selection-cost.json`. Encrypted attention
+range/bootstrap work remains a separate longer-horizon track.
+
 1. **Mixed arithmetic — implemented bounded operator slice.** Curl, LogRow and
    Compact accept an explicit mixed backend without changing numeric profiles or
    default identities. Thirty-six fresh processes check 2,916 exact outputs.

@@ -744,12 +744,15 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         if (
             inventory.component != PreparedInventory.descriptor.component
             or not {"policy", "rows"} <= set(inventory.params)
-            or set(inventory.params) - {"policy", "rows", "refill", "stage_window", "allocation"}
+            or set(inventory.params) - {"policy", "rows", "refill", "stage_window", "stage_window_bytes", "allocation"}
             or ("allocation" in inventory.params and (
                 inventory.params["allocation"] != "demand" or inventory.params.get("policy") != "request-sized"
                 or inventory.params.get("rows") != 1 or inventory.params.get("refill") != "on-demand"))
             or type(inventory.params.get("stage_window", 1)) is not int
             or not 1 <= inventory.params.get("stage_window", 1) <= 4
+            or type(inventory.params.get("stage_window_bytes", 16 << 20)) is not int
+            or not 1 << 20 <= inventory.params.get("stage_window_bytes", 16 << 20) <= 64 << 20
+            or (inventory.params.get("stage_window", 1) == 1 and "stage_window_bytes" in inventory.params)
             or inventory.params.get("refill", "idle") not in {"idle", "on-demand"}
             or inventory.params["policy"] not in {"prewarm", "request-sized"}
             or type(inventory.params["rows"]) is not int

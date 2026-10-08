@@ -1156,6 +1156,9 @@ class RuntimeClient:
         self.preparation_stage_window = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("inventory", {}).get("params", {}).get("stage_window", 1)
             if self.experiment is not None else 1)
+        self.preparation_stage_window_bytes = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("inventory", {}).get("params", {}).get("stage_window_bytes", 16 << 20)
+            if self.experiment is not None else 16 << 20)
         self.preparation_allocation = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("inventory", {}).get("params", {}).get("allocation", "uniform")
             if self.experiment is not None else "uniform")
@@ -2461,6 +2464,7 @@ class RuntimeClient:
             def accept(item):
                 prepared_stages[item[0]] = item[1]
             run_preparation_window(remote_stages, width=self.preparation_stage_window,
+                max_bytes=self.preparation_stage_window_bytes,
                 cost=work_bytes, prepare=prepare_stage, accept=accept, abort=cancel_remote,
                 discard=lambda item: item[1].cancel(), cancelled=lambda: self._closing)
             sealed = self.http.post(

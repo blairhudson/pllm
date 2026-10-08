@@ -1609,9 +1609,22 @@ the independent worker request with client share construction and the other
 worker exchange. `ClientBundleTransport(batch_objects=64)` coalesces missing
 public artifacts under a 1 MiB raw-group bound while checking every original
 object digest. `PreparedInventory(stage_window=4)` overlaps independent stage
-issuance under a conservative 16 MiB active-work bound, admits results in order,
-and seals only after all pushes are acknowledged. Failure and cancellation burn
+issuance under a default 16 MiB active-work bound. The explicit
+`stage_window_bytes` option binds a 1–64 MiB window when concurrent stages are
+selected; native compilation checks it and whole-topology admission still prices
+every concurrent owner. It seals only after all pushes are acknowledged. Failure and cancellation burn
 the attempt before workers are joined. These choices add no client body weights.
+A matched fresh-client Qwen2.5 150+8-token cold/repeat sequence measures the explicit
+four-stage/64 MiB window with paged client and Preparation weights. Cold preparation
+falls 42.04 to 38.18 seconds; complete cold/repeat requests improve 2.67%/3.67%,
+with unchanged covered bodies and 2.02% more cold-first aggregate CPU. Windowed
+paging uses 281.85 MB client peak RSS versus 564.77 MB with resident client weights.
+Explicit prefix reuse lowers the exact-repeat request 103.45 to 11.67 seconds and
+the two-request TCP-stream total 830.67 to 495.07 MB, while its first response
+still takes 139.11 seconds. All eight outputs match with zero observed swap growth.
+These are one cold/repeat pair per configuration, with pre-positioned tokenizer
+artifacts and no checkpoint-distribution, physical-wire or independent-operator
+measurement. Details and replay: `docs/research/prepared-frontier.md`.
 The explicit `MaskedLinear(prefill_chunk_rows=4)` splits prefill into disjoint
 one-use row chunks on one duplex WebSocket. It bounds frame groups, does not
 retry accepted work through HTTP, validates ordered session replies, and verifies

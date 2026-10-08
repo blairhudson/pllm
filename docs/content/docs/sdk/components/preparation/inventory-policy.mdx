@@ -25,6 +25,14 @@ is configuration, not a live mask or ticket handle. Select it in
   Continuations retain their admitted full-row schedule; stages with zero demand
   keep one burn-only row. Low-level `preprocess()` remains conservative without
   request demand. Omitting the option preserves uniform allocation.
+- `stage_window=2..4` overlaps independent stage preparation. The default active
+  work budget is 16 MiB. Explicit `stage_window_bytes` admits 1–64 MiB when
+  concurrency is selected; compiler identity binds the budget and whole-topology
+  admission prices all concurrent owners conservatively. Larger stages or a sum
+  above the budget cannot enter the window.
+  Failure cancels the inventory before joining outstanding jobs and burns unused
+  results. This can trade provider transient memory for setup overlap; measure
+  startup plus complete response costs when comparing policies.
 
 Reservations remain one-use. Rejected, cancelled and unused reserved rows burn;
 refill remains idle-only. The policy does not reduce the bodies of ordinary
@@ -69,3 +77,15 @@ correction distribution trades away ready spare inventory. See
 `docs/evidence/prepared-horizons-2026-10-02.md` for scope and reproduction.
 The [incremental SDK cohort](/sdk/evaluate/incremental-sdk/) separately measures
 demand-aware allocation and its composition with public-prefix state.
+
+A separate fresh-client, shared-100/40 Mbps Qwen2.5 ordered-sequence cohort measures
+`stage_window=4, stage_window_bytes=64 << 20` with paged client and Preparation
+weights. Cold preparation falls 42.04 to 38.18 seconds; complete cold/repeat
+requests improve 2.67%/3.67%, with unchanged covered bodies and 2.02% more
+cold-first aggregate CPU. Explicit prefix reuse reduces the exact-repeat request
+from 103.45 to 11.67 seconds, while its first response still takes 139.11 seconds.
+Windowed paging uses 281.85 MB client peak RSS versus 564.77 MB with resident
+client weights. All eight requests match output digests with zero observed new
+swap. These are one cold/repeat pair per configuration. Full scopes, raw reports
+and replay are in the
+[prepared-frontier study](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-frontier.md).

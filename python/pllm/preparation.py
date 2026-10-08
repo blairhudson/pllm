@@ -69,6 +69,7 @@ class PreparedInventory(ComponentRef):
                 "rows": {"type": "integer", "minimum": 1, "maximum": 4096},
                 "refill": {"type": "string", "enum": ["idle", "on-demand"]},
                 "stage_window": {"type": "integer", "minimum": 1, "maximum": 4},
+                "stage_window_bytes": {"type": "integer", "minimum": 1048576, "maximum": 67108864},
                 "allocation": {"type": "string", "enum": ["demand"]},
             },
         },
@@ -77,7 +78,8 @@ class PreparedInventory(ComponentRef):
     )
 
     def __init__(self, policy: str = "request-sized", *, rows: int | None = None, refill: str | None = None,
-                 stage_window: int = 1, allocation: str = "uniform") -> None:
+                 stage_window: int = 1, allocation: str = "uniform",
+                 stage_window_bytes: int = 16 << 20) -> None:
         if policy not in {"prewarm", "request-sized"}:
             raise ConfigurationError("inventory policy must be prewarm or request-sized")
         if rows is None:
@@ -86,6 +88,9 @@ class PreparedInventory(ComponentRef):
             raise ConfigurationError("inventory row floor must be in [1, 4096]")
         if type(stage_window) is not int or not 1 <= stage_window <= 4:
             raise ConfigurationError("preparation stage window must be in [1, 4]")
+        if (type(stage_window_bytes) is not int or not 1 << 20 <= stage_window_bytes <= 64 << 20
+                or (stage_window == 1 and stage_window_bytes != 16 << 20)):
+            raise ConfigurationError("preparation work window requires 1–64 MiB and concurrent stages")
         if allocation not in {"uniform", "demand"} or (allocation == "demand" and
             (policy != "request-sized" or rows != 1 or refill != "on-demand")):
             raise ConfigurationError("demand allocation requires request-sized rows=1 and on-demand refill")
@@ -96,12 +101,14 @@ class PreparedInventory(ComponentRef):
             params["refill"] = refill
         if stage_window != 1:
             params["stage_window"] = stage_window
+        if stage_window_bytes != 16 << 20:
+            params["stage_window_bytes"] = stage_window_bytes
         if allocation != "uniform":
             params["allocation"] = allocation
         super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return dict(self.params)
+        return {"stage_window": 1, "stage_window_bytes": 16 << 20, "allocation": "uniform", **self.params}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:
