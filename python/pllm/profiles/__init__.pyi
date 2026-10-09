@@ -47,6 +47,7 @@ class RuntimeComposition:
     background_inventory_refill: bool
     inventory_refill: str | None
     bundle_compression: str
+    provider_artifact_cache_bytes: int
     def __init__(
         self,
         privacy_mode: str,

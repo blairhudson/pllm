@@ -59,6 +59,13 @@ fn admit_network_placement(
     super::validate_experiment_model(&pipeline.model)?;
     // Exact component and privacy-option admission. Pending slots cannot inject roles.
     let kind = validate_decoder_linear_composition(&pipeline)?;
+    if pipeline
+        .components
+        .get("delivery")
+        .is_some_and(|delivery| delivery.params.contains_key("provider_cache_bytes"))
+    {
+        return Err("network offers do not yet price provider artifact-cache disk capacity".into());
+    }
     if pipeline.components.contains_key("nonlinear") {
         return Err(
             "network offers do not yet price masked-wire issuance and worker material".into(),
@@ -842,6 +849,19 @@ mod tests {
                     .contains("record bound")
             );
         }
+    }
+
+    #[test]
+    fn unpriced_provider_cache_storage_rejects_before_reservation() {
+        let (plan, composition, _) = inputs("prepared");
+        let mut changed: Value = serde_json::from_slice(&composition).unwrap();
+        changed["components"]["delivery"] = json!({"component":"pllm/client-bundle-transport/v1",
+            "params":{"encoding":"artifacts", "compression":"zlib", "provider_cache_bytes":1048576}});
+        assert!(
+            network_placement_requirements(&plan, &canonical_bytes(&changed))
+                .unwrap_err()
+                .contains("disk capacity")
+        );
     }
 
     #[test]

@@ -7,6 +7,10 @@ The prepared protocol separates client, trusted preparation, and untrusted infer
 
 Inventory identity binds model, body, stage, weight, shape, quantization, ring, modulus, wire width, and attempt budget. Rows are one-use and burned on reservation failure, cancellation, replay, or early completion. Preparation is idle during online chat.
 
+For a combined runnable configuration, see [Optimized prepared SDK](/sdk/inference/prepared-sdk/):
+paging, demand/windowed issuance, compact exact frames, sixteen-row prefill,
+indexed tokenization and provider-side public artifact reuse.
+
 ## Cold bundle transfer
 
 `pllm benchmark run --bundle-compression zlib` opts into 1 MiB independently

@@ -198,6 +198,7 @@ class ExperimentProfile:
     background_inventory_refill: bool
     inventory_refill: str | None
     bundle_compression: str
+    provider_artifact_cache_bytes: int
     role_graph: RoleGraph | None
     def __init__(self, experiment: Experiment) -> None: ...
 

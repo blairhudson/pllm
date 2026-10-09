@@ -33,7 +33,8 @@ def test_wan_choices_compose_through_normal_sdk_and_preserve_outputs(tmp_path, m
     monkeypatch.setattr(SemanticDecoderRuntime, "decode_step", decode)
     for enabled in (False, True):
         common = dict(quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
-            delivery=ClientBundleTransport("artifacts", compression="zlib", batch_objects=64 if enabled else 1))
+            delivery=ClientBundleTransport("artifacts", compression="zlib", batch_objects=64 if enabled else 1,
+                                           provider_cache_bytes=4 << 20 if enabled else 0))
         if topology == "offset":
             pipeline = TwoOnlineOffsetCpu(source, **common, linear=TwoOnlineOffsetLinear(
                 input_encoding="seeded", output_encoding="row_residues",

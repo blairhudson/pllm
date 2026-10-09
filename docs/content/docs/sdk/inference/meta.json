@@ -1,5 +1,5 @@
 {
   "title": "Inference options",
   "root": true,
-  "pages": ["index", "compare", "masked-linear", "verified-masked-linear", "proprietary-guarded", "proprietary-blinded", "direct-fhe", "prepared-protocol"]
+  "pages": ["index", "compare", "masked-linear", "prepared-sdk", "verified-masked-linear", "proprietary-guarded", "proprietary-blinded", "direct-fhe", "prepared-protocol"]
 }

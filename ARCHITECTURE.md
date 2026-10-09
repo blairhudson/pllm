@@ -1491,6 +1491,18 @@ The separate fresh-client public-artifact HTTP screen amortizes pre-encoding by
 the second client; four clients reduce publication-inclusive provider CPU from
 1.28 to 0.39 seconds while adding 10.15 MB of disk and barely changing client
 CPU. It covers two public objects, not an SDK provider cache or complete bundle.
+The separately selectable `ClientBundleTransport("artifacts", compression="zlib",
+provider_cache_bytes=...)` now admits a 1 MiB–2 GiB app-owned encoded-file cache
+on Inference and offset workers. Publication, staging and pinned readers share
+the byte ceiling; source/object/codec commitments, verified reads, bounded LRU,
+corruption repair and cancellation/shutdown retirement preserve original frames.
+Local memory admission adds 48 MiB workspace per serving role and prices its
+disk separately; network offers without disk pricing reject. First-use publication
+remains provider work, exposed with hit/miss and storage metrics. Generated
+SDK/gateway checks do not turn the historical two-object screen into a full-bundle
+performance result. `examples/prepared_sdk.py` composes paging, demand/windowed
+issuance, sixteen-row duplex prefill, exact packed/residue frames, prefix reuse and
+offline indexed-tokenizer construction through public APIs.
 The combined-stack allocation profile localizes Qwen2.5 growth to loading and
 prefill, while the corresponding Qwen3 profile remains admission-blocked.
 Evidence and replay: `docs/research/prepared-serving-reference.md`.

@@ -1873,7 +1873,7 @@ fn valid_bundle_transport(component: &ExperimentComponent) -> bool {
         && component.params.keys().all(|key| {
             matches!(
                 key.as_str(),
-                "encoding" | "compression" | "batch_objects" | "storage"
+                "encoding" | "compression" | "batch_objects" | "storage" | "provider_cache_bytes"
             )
         })
         && component.params.get("storage").is_none_or(|value| {
@@ -1901,6 +1901,24 @@ fn valid_bundle_transport(component: &ExperimentComponent) -> bool {
                     .and_then(serde_json::Value::as_str)
                     == Some("artifacts")
         })
+        && component
+            .params
+            .get("provider_cache_bytes")
+            .is_none_or(|value| {
+                component
+                    .params
+                    .get("encoding")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("artifacts")
+                    && component
+                        .params
+                        .get("compression")
+                        .and_then(serde_json::Value::as_str)
+                        == Some("zlib")
+                    && value
+                        .as_u64()
+                        .is_some_and(|bytes| (1_048_576..=2_147_483_648).contains(&bytes))
+            })
         && component
             .params
             .get("compression")

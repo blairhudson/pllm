@@ -226,8 +226,14 @@ def test_capsule_rechecks_changed_compiled_binding(artifacts, tmp_path):
 
 @pytest.mark.integration
 @pytest.mark.parametrize("asynchronous", [False, True])
-def test_all_four_artifacts_through_prepared_sdk(artifacts, tmp_path, monkeypatch, asynchronous):
+@pytest.mark.parametrize("recent_stack", [False, True])
+def test_all_four_artifacts_through_prepared_sdk(artifacts, tmp_path, monkeypatch, asynchronous, recent_stack):
     baseline, _, index, capsule, prompt = artifacts
+    if recent_stack:
+        # Hold transport framing fixed when comparing prefix-reuse bytes.
+        baseline = baseline.with_params(
+            linear=baseline.linear.with_params(prefill_chunk_rows=16),
+            delivery=baseline.delivery.with_params(batch_objects=64, provider_cache_bytes=4 << 20))
     from pllm.runtime.semantic_executor import SemanticDecoderRuntime
     snapshots = []
     original = SemanticDecoderRuntime._forward_phase
@@ -255,7 +261,9 @@ def test_all_four_artifacts_through_prepared_sdk(artifacts, tmp_path, monkeypatc
     monkeypatch.setattr(IndexedClientTokenizer, "__init__", capture_index)
     actual = []
     candidate = baseline.with_params(tokenizer=index, public_prefix=capsule,
-        preparation=ModelAwareCorrections(storage="paged"), inventory=PreparedInventory(refill="on-demand", allocation="demand"))
+        preparation=ModelAwareCorrections(storage="paged"),
+        inventory=PreparedInventory(refill="on-demand", allocation="demand",
+                                    stage_window=4 if recent_stack else 1))
     for name, pipeline in (("control", baseline), ("candidate", candidate)):
         experiment = pllm.Experiment(name, pipeline, pllm.Deployment.local(root=str(tmp_path / name)),
                                      pllm.ExecutionBudget(max_input_tokens=248, max_new_tokens=2, requests=2))

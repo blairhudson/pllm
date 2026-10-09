@@ -658,6 +658,7 @@ class RuntimeComposition:
     background_inventory_refill: bool = True
     inventory_refill: str | None = None
     bundle_compression: str = "none"
+    provider_artifact_cache_bytes: int = 0
     causal_reduction: str | None = None
     prepared_output_encoding: str = "raw"
     preparation_storage: str = "resident"
@@ -771,7 +772,11 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         if (
             delivery.component != ClientBundleTransport.descriptor.component
             or "encoding" not in delivery.params
-            or set(delivery.params) - {"encoding", "compression", "batch_objects", "storage"}
+            or set(delivery.params) - {"encoding", "compression", "batch_objects", "storage", "provider_cache_bytes"}
+            or ("provider_cache_bytes" in delivery.params and (
+                delivery.params["encoding"] != "artifacts" or delivery.params.get("compression") != "zlib"
+                or type(delivery.params["provider_cache_bytes"]) is not int
+                or not 1 << 20 <= delivery.params["provider_cache_bytes"] <= 2 << 30))
             or ("storage" in delivery.params and (
                 delivery.params["storage"] != "paged" or delivery.params["encoding"] != "artifacts"
                 or "placement" in identities and identities.get("kernels") == "pllm/apple-metal-int8/v1"))
@@ -788,6 +793,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         transport_options["bundle_compression"] = (
             "artifacts-zlib" if "compression" in delivery.params else delivery.params["encoding"]
         )
+        transport_options["provider_artifact_cache_bytes"] = delivery.params.get("provider_cache_bytes", 0)
         del identities["delivery"]
     cache = pipeline.components.get("cache")
     cache_options: dict[str, int | None] = {}

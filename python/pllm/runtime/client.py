@@ -1156,6 +1156,9 @@ class RuntimeClient:
         self.bundle_weight_storage = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("delivery", {}).get("params", {}).get("storage", "memory")
             if self.experiment is not None else "memory")
+        self.provider_artifact_cache_bytes = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("delivery", {}).get("params", {}).get("provider_cache_bytes", 0)
+            if self.experiment is not None else 0)
         self.preparation_stage_window = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("inventory", {}).get("params", {}).get("stage_window", 1)
             if self.experiment is not None else 1)
@@ -1566,6 +1569,10 @@ class RuntimeClient:
                 if object_key is None:
                     if response.headers.get("X-PLLM-Bundle-Encoding") != ARTIFACT_ENCODING:
                         raise ArtifactError("provider does not support explicit artifacts encoding")
+                    from .encoded_artifacts import HEADER
+                    cache_bytes = getattr(self, "provider_artifact_cache_bytes", 0)
+                    if cache_bytes and response.headers.get(HEADER) != str(cache_bytes):
+                        raise ArtifactError("provider artifact cache acknowledgement differs from Experiment")
                     stats.manifest_requests += 1
                 else:
                     if response.headers.get("X-PLLM-Object-SHA256") != object_key:

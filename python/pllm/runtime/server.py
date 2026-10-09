@@ -257,8 +257,15 @@ def create_app(
                 "proprietary owner identity is already bound to this API principal and model"
             )
 
+    from .encoded_artifacts import EncodedArtifactCache, HEADER as ARTIFACT_CACHE_HEADER
+
+    if type(config.public_artifact_cache_bytes) is not int:
+        raise ValueError("public artifact cache requires an integer byte bound")
+    artifact_cache = (EncodedArtifactCache(config.public_artifact_cache_bytes)
+                      if config.public_artifact_cache_bytes else None)
+
     @asynccontextmanager
-    async def lifespan(_: FastAPI):
+    async def role_lifespan(_: FastAPI):
         nonlocal backend_models
         for source in config.engine_models:
             body = dict(source)
@@ -296,7 +303,17 @@ def create_app(
                     if asyncio.iscoroutine(value):
                         await value
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        try:
+            async with role_lifespan(app):
+                yield
+        finally:
+            if artifact_cache is not None:
+                artifact_cache.close()
+
     app = FastAPI(title="Private LLM Inference Gateway", version="0.14.0", lifespan=lifespan)
+    app.state.artifact_cache = artifact_cache
     app.state.config = config
     app.state.private_models = private_models
     app.state.schedulers = schedulers
@@ -697,13 +714,12 @@ def create_app(
         if raw_digest != descriptor["sha256"] or object_digest not in exported.objects:
             raise HTTPException(status_code=404, detail="Unknown artifact binding/object")
         payload = exported.objects[object_digest]
-        from .bundle_artifacts import object_stream
+        from .bundle_artifacts import object_response
         try:
-            chunks, headers, media = object_stream(payload, bundle_digest=str(descriptor["sha256"]),
-                object_digest=object_digest, encoding=accept_object_encoding)
+            return await object_response(payload, bundle_digest=str(descriptor["sha256"]),
+                object_digest=object_digest, encoding=accept_object_encoding, encoded_cache=artifact_cache)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return StreamingResponse(chunks, media_type=media, headers=headers)
 
     @app.get("/v1/runtime/models/{model_id:path}/client-bundle-object-batch/{raw_digest}")
     async def model_client_bundle_batch(
@@ -718,14 +734,18 @@ def create_app(
         exported, descriptor = artifact_bundle_record(engine_name, model_id)
         if raw_digest != descriptor["sha256"]:
             raise HTTPException(status_code=404, detail="Unknown artifact binding")
-        from .bundle_artifacts import object_batch, object_stream
+        from .bundle_artifacts import object_batch, object_response
         try:
             payload, digest = object_batch(exported, objects)
-            chunks, headers, media = object_stream(payload, bundle_digest=raw_digest,
-                object_digest=digest, encoding=accept_object_encoding)
+            return await object_response(payload, bundle_digest=raw_digest,
+                object_digest=digest, encoding=accept_object_encoding, encoded_cache=artifact_cache)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return StreamingResponse(chunks, media_type=media, headers=headers)
+
+    @app.get("/v1/runtime/artifact-cache/metrics")
+    async def artifact_cache_metrics(authorization: str | None = Header(default=None)):
+        auth_token(authorization)
+        return await asyncio.to_thread(artifact_cache.snapshot) if artifact_cache is not None else {"capacity_bytes": 0}
 
     @app.get("/v1/runtime/models/{model_id:path}/client-bundle-artifacts")
     async def model_client_bundle_artifacts(
@@ -738,7 +758,8 @@ def create_app(
         exported, descriptor = artifact_bundle_record(engine_name, model_id)
         return FastAPIResponse(exported.manifest, media_type="application/vnd.pllm.bundle-artifacts",
                                headers={"X-PLLM-Bundle-Encoding": ARTIFACT_ENCODING,
-                                        "X-PLLM-Bundle-SHA256": str(descriptor["sha256"])})
+                                        ARTIFACT_CACHE_HEADER: str(config.public_artifact_cache_bytes),
+                                         "X-PLLM-Bundle-SHA256": str(descriptor["sha256"])})
 
     @app.get("/v1/runtime/models/{model_id:path}/client-bundle")
     async def model_client_bundle(
@@ -765,6 +786,7 @@ def create_app(
         if accept_bundle_encoding == ARTIFACT_ENCODING:
             exported, _ = artifact_bundle_record(engine_name, model_id)
             headers["X-PLLM-Bundle-Encoding"] = ARTIFACT_ENCODING
+            headers[ARTIFACT_CACHE_HEADER] = str(config.public_artifact_cache_bytes)
             return FastAPIResponse(exported.manifest,
                                    media_type="application/vnd.pllm.bundle-artifacts", headers=headers)
         if if_none_match == descriptor["etag"]:

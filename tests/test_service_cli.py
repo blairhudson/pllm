@@ -752,21 +752,28 @@ def test_local_gateway_uses_shared_topology_and_closes_it(
     assert captured["gateway"]["local_api_key"] == "local"
 
 
+@pytest.mark.parametrize("inventory_rows", [None, 1, 128])
 def test_local_gateway_passes_resolved_experiment_to_shared_topology(
     monkeypatch: pytest.MonkeyPatch,
+    inventory_rows: int | None,
 ) -> None:
     from pllm import Experiment, MaskedLinearCpu, Model
     from pllm.deployment import Deployment
+    from pllm.preparation import PreparedInventory
     from pllm.runtime import ExecutionBudget
     from pllm.runtime import cli
 
     experiment = Experiment(
         name="gateway-profile",
-        pipeline=MaskedLinearCpu(Model("org/model")),
+        pipeline=MaskedLinearCpu(
+            Model("org/model"),
+            inventory=PreparedInventory(rows=1, refill="on-demand", allocation="demand"),
+        ),
         deployment=Deployment.local(root=".pllm/gateway-profile"),
         budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
     )
     args = build_parser().parse_args(["gateway", "--local", "--experiment", "ignored.json"])
+    args.prepared_inventory_rows = inventory_rows
     args.resolved_experiment = experiment
     captured: dict[str, Any] = {}
 
@@ -778,7 +785,8 @@ def test_local_gateway_passes_resolved_experiment_to_shared_topology(
             return None
 
         @staticmethod
-        def gateway_app(**_kwargs):
+        def gateway_app(**kwargs):
+            captured["gateway"] = kwargs
             return object()
 
     def roles(model, **kwargs):
@@ -792,6 +800,8 @@ def test_local_gateway_passes_resolved_experiment_to_shared_topology(
 
     assert captured["model"] is experiment
     assert captured["model_id"] is None
+    # Omitted options stay unspecified; explicit overrides reach immutable admission.
+    assert captured["gateway"]["prepared_inventory_rows"] == inventory_rows
 
 
 def test_local_gateway_tiny_flag_selects_typed_tiny_model(

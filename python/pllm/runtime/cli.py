@@ -292,21 +292,26 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
     }
     if engine_type is MaskedTransformerEngine:
         engine_kwargs["weight_residency"] = "provider" if preparation else "provider_and_bundle"
-        if preparation:
-            from pllm.configuration import Experiment
-            from pllm.profiles import resolve_runtime_composition
-            import json
+        from dataclasses import replace
+        from pllm.configuration import Experiment
+        from pllm.profiles import resolve_runtime_composition
+        import json
 
-            experiment = getattr(args, "resolved_experiment", None)
-            raw = os.environ.get("PLLM_ROLE_EXPERIMENT_JSON")
-            if experiment is None and raw is not None:
-                experiment = Experiment.from_spec(json.loads(raw))
-                experiment.resolve()
-            if experiment is not None:
-                selected = resolve_runtime_composition(experiment.pipeline)
-                if selected is None:
-                    raise RuntimeCLIError("unsupported preparation Experiment")
+        experiment = getattr(args, "resolved_experiment", None)
+        raw = os.environ.get("PLLM_ROLE_EXPERIMENT_JSON")
+        if experiment is None and raw is not None:
+            experiment = Experiment.from_spec(json.loads(raw))
+            experiment.resolve()
+        if experiment is not None:
+            selected = resolve_runtime_composition(experiment.pipeline)
+            if selected is None:
+                raise RuntimeCLIError("unsupported provider Experiment")
+            if preparation:
                 engine_kwargs["weight_storage"] = selected.preparation_storage
+            else:
+                if config.public_artifact_cache_bytes not in (0, selected.provider_artifact_cache_bytes):
+                    raise RuntimeCLIError("provider artifact cache differs from its Experiment")
+                config = replace(config, public_artifact_cache_bytes=selected.provider_artifact_cache_bytes)
     if args.public_equalization_digest is not None:
         if engine_type is not MaskedTransformerEngine:
             raise RuntimeCLIError("public equalization requires a public masked-linear engine")
@@ -458,7 +463,7 @@ def run_local_gateway(args: argparse.Namespace) -> None:
             tenseal_path=getattr(args, "tenseal_path", None) or _env("PLLM_PYDEPS"),
             session_transport=argument_or_default("transport", "websocket"),
             correlation_prefetch=argument_or_default("correlation_prefetch", 4),
-            prepared_inventory_rows=argument_or_default("prepared_inventory_rows", 64),
+            prepared_inventory_rows=getattr(args, "prepared_inventory_rows", None),
             token_cache_size=argument_or_default("token_cache_size", 512),
             bundle_cache_mode=argument_or_default("bundle_cache_mode", "read-write"),
             bundle_cache_dir=getattr(args, "bundle_cache_dir", None),

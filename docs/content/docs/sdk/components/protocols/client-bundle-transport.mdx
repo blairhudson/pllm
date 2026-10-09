@@ -23,6 +23,35 @@ preserves existing identities. See [client memory](/sdk/evaluate/client-memory/)
 for bounds, composition coverage and the process-RSS versus filesystem-cache scope.
 Proprietary bundles remain unsupported.
 
+## Provider-side framed-file reuse
+
+`ClientBundleTransport("artifacts", compression="zlib", provider_cache_bytes=512 << 20)`
+selects an app-owned **1 MiB–2 GiB** disk cache for pre-encoded public objects and
+bounded object batches. The default `0` omits the parameter and preserves prior
+composition identities. `with_params(provider_cache_bytes=...)` edits the option;
+setting it back to zero restores the original serialized selection.
+
+First use publishes bounded frames; subsequent fresh clients reuse verified files
+under the original bundle, object, content and codec identities. Source changes
+under one identity reject; corrupt unpinned files are rebuilt. Active readers pin
+entries, LRU eviction respects the byte/count limits, staging fits within the
+same disk ceiling, and oversized objects bypass storage. Cancellation, disconnect
+and shutdown retire readers; role shutdown removes the cache.
+
+Ordinary local and standalone provider startup inherit the Experiment setting.
+The client requires an authenticated matching capacity acknowledgement even when
+its own raw object cache is warm. Prepared and verified Inference and both offset
+workers support publication; Preparation has no delivery cache. Native memory
+admission adds 48 MiB per serving role and prices encoded disk separately.
+Network offer planning currently rejects unpriced provider cache disk.
+
+Authenticated `GET /v1/runtime/artifact-cache/metrics` exposes publication CPU/wall
+intervals, published bytes, hits, bypasses, repairs and current/peak disk. First
+publication remains part of role CPU. Frames and client verification are unchanged;
+a repeat on one warm client already reuses its local raw cache. The historical
+two-object HTTP prototype's payback is not a full-SDK performance result. See the
+[combined SDK workflow](/sdk/inference/prepared-sdk/) for construction and execution.
+
 ## Python SDK example
 
 ```python
@@ -38,7 +67,7 @@ experiment = Experiment(
 )
 assert experiment.resolve().bundle_compression == "artifacts-zlib"
 assert experiment.pipeline.delivery.component == "pllm/client-bundle-transport/v1"
-assert experiment.pipeline.delivery.get_params() == {"encoding": "artifacts", "compression": "zlib"}
+assert dict(experiment.pipeline.delivery.params) == {"encoding": "artifacts", "compression": "zlib"}
 ```
 
 Compression reduces cold delivery, not warm stage traffic or persistent raw-cache

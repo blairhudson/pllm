@@ -24,6 +24,7 @@ class ClientBundleTransport(ComponentRef):
                 "compression": {"type": "string", "enum": ["zlib"]},
                 "batch_objects": {"type": "integer", "minimum": 1, "maximum": 64},
                 "storage": {"type": "string", "enum": ["paged"]},
+                "provider_cache_bytes": {"type": "integer", "minimum": 1048576, "maximum": 2147483648},
             },
         },
         capabilities=("bounded-bundle-frames", "raw-bundle-digest-verification"),
@@ -31,7 +32,7 @@ class ClientBundleTransport(ComponentRef):
     )
 
     def __init__(self, encoding: str = "zlib", *, compression: str = "none", batch_objects: int = 1,
-                 storage: str = "memory") -> None:
+                 storage: str = "memory", provider_cache_bytes: int = 0) -> None:
         if encoding not in {"none", "zlib", "artifacts"}:
             raise ConfigurationError("bundle encoding must be none, zlib, or artifacts")
         if compression not in {"none", "zlib"} or (compression != "none" and encoding != "artifacts"):
@@ -41,6 +42,10 @@ class ClientBundleTransport(ComponentRef):
             raise ConfigurationError("object batching requires artifacts encoding and a count in [1, 64]")
         if storage not in {"memory", "paged"} or storage == "paged" and encoding != "artifacts":
             raise ConfigurationError("paged client weight storage requires artifacts encoding")
+        if (type(provider_cache_bytes) is not int or provider_cache_bytes != 0 and (
+                not 1 << 20 <= provider_cache_bytes <= 2 << 30
+                or encoding != "artifacts" or compression != "zlib")):
+            raise ConfigurationError("provider cache requires zlib artifacts and a 1 MiB–2 GiB byte bound")
         params: dict[str, object] = {"encoding": encoding}
         if compression != "none":
             params["compression"] = compression
@@ -48,10 +53,16 @@ class ClientBundleTransport(ComponentRef):
             params["batch_objects"] = batch_objects
         if storage != "memory":
             params["storage"] = storage
+        if provider_cache_bytes:
+            params["provider_cache_bytes"] = provider_cache_bytes
         super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return dict(self.params)
+        return {"encoding": self.params["encoding"],
+                "compression": self.params.get("compression", "none"),
+                "batch_objects": self.params.get("batch_objects", 1),
+                "storage": self.params.get("storage", "memory"),
+                "provider_cache_bytes": self.params.get("provider_cache_bytes", 0)}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

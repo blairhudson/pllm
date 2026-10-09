@@ -142,10 +142,13 @@ the table. Client process-birth CPU and process peaks are retained separately in
 the raw report.
 
 This is a bounded local HTTP prototype over two objects, not a full SDK bundle,
-provider cache, WAN latency or complete-client memory result. A production
-pre-encoded cache still needs bounded storage, admission, identity validation,
-eviction and lifecycle integration. A cold/repeat client that downloads once
-and then reuses local artifacts cannot claim the multiple-client payoff.
+WAN latency or complete-client memory result. The subsequent explicit
+`ClientBundleTransport("artifacts", compression="zlib", provider_cache_bytes=...)`
+implements bounded app-owned disk storage, native admission, source/codec binding,
+eviction, corruption repair and reader/shutdown lifecycle in the ordinary SDK.
+Installed workflow validation is separate from this historical measurement.
+A cold/repeat client that downloads once and then reuses local artifacts cannot
+claim the multiple-client payoff. Usage: `docs/content/docs/sdk/inference/prepared-sdk.mdx`.
 
 ## Replay
 

@@ -7,6 +7,7 @@ one-use additive input shares over an authenticated HTTP session.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import hashlib
 import os
@@ -116,6 +117,7 @@ def create_offset_worker_app(
     output_encoding = "raw"
     require_continuation = False
     nonlinear_layout = None
+    artifact_cache_bytes = 0
     if composition is not None:
         from pllm.profiles import resolve_runtime_composition
 
@@ -137,6 +139,7 @@ def create_offset_worker_app(
         output_encoding = composition.components["linear"].params.get("output_encoding", "raw")
         require_continuation = options.prefix_cache_bound_tokens is not None
         nonlinear_layout = options.nonlinear_layout
+        artifact_cache_bytes = options.provider_artifact_cache_bytes
     row_layout = None
     if output_encoding == "row_residues":
         from .offset_codec import row_layout_digest
@@ -170,8 +173,25 @@ def create_offset_worker_app(
 
     sessions: dict[str, _WorkerSession] = {}
     lock = threading.Lock()
+    from contextlib import asynccontextmanager
+    from .encoded_artifacts import EncodedArtifactCache, HEADER as ARTIFACT_CACHE_HEADER
+
+    artifact_cache = EncodedArtifactCache(artifact_cache_bytes) if artifact_cache_bytes else None
+
+    @asynccontextmanager
+    async def lifespan(_):
+        try:
+            yield
+        finally:
+            if artifact_cache is not None:
+                artifact_cache.close()
+            with lock:
+                for session in sessions.values():
+                    session.burn()
+
     app = FastAPI(title="PLLM bounded offset worker", docs_url=None, redoc_url=None,
-                  openapi_url=None)
+                  openapi_url=None, lifespan=lifespan)
+    app.state.artifact_cache = artifact_cache
 
     def authenticate(authorization: str | None) -> None:
         if (
@@ -211,6 +231,11 @@ def create_offset_worker_app(
             "peak_rss_bytes": _peak_rss_bytes(),
         }
 
+    @app.get("/v1/runtime/artifact-cache/metrics")
+    async def artifact_cache_metrics(authorization: str | None = Header(default=None)):
+        authenticate(authorization)
+        return await asyncio.to_thread(artifact_cache.snapshot) if artifact_cache is not None else {"capacity_bytes": 0}
+
     @app.get("/v1/runtime/models/{requested_id:path}/client-bundle")
     async def model_client_bundle(
         requested_id: str, authorization: str | None = Header(default=None),
@@ -231,7 +256,8 @@ def create_offset_worker_app(
         if accept_bundle_encoding == ARTIFACT_ENCODING:
             exported, _ = artifact_export()
             return Response(exported.manifest, media_type="application/vnd.pllm.bundle-artifacts",
-                            headers={**headers, "X-PLLM-Bundle-Encoding": ARTIFACT_ENCODING})
+                            headers={**headers, "X-PLLM-Bundle-Encoding": ARTIFACT_ENCODING,
+                                     ARTIFACT_CACHE_HEADER: str(artifact_cache_bytes)})
         if if_none_match == descriptor["etag"]:
             return Response(status_code=304, headers=headers)
         from .bundle_compression import ENCODING as FRAME_ENCODING, encode_bundle_frames
@@ -255,6 +281,7 @@ def create_offset_worker_app(
         exported, descriptor = artifact_export()
         return Response(exported.manifest, media_type="application/vnd.pllm.bundle-artifacts",
             headers={"X-PLLM-Bundle-Encoding": ARTIFACT_ENCODING,
+                     ARTIFACT_CACHE_HEADER: str(artifact_cache_bytes),
                      "X-PLLM-Bundle-SHA256": str(descriptor["sha256"])})
 
     @app.get("/v1/runtime/models/{requested_id:path}/client-bundle-objects/{raw_digest}/{object_digest}")
@@ -269,13 +296,13 @@ def create_offset_worker_app(
         exported, descriptor = artifact_export()
         if raw_digest != descriptor["sha256"] or object_digest not in exported.objects:
             raise _reject("offset bundle object is not committed", status=404)
-        from .bundle_artifacts import object_stream
+        from .bundle_artifacts import object_response
         try:
-            chunks, headers, media = object_stream(exported.objects[object_digest],
-                bundle_digest=raw_digest, object_digest=object_digest, encoding=accept_object_encoding)
+            return await object_response(exported.objects[object_digest],
+                bundle_digest=raw_digest, object_digest=object_digest, encoding=accept_object_encoding,
+                encoded_cache=artifact_cache)
         except ValueError as exc:
             raise _reject(str(exc), status=400) from exc
-        return StreamingResponse(chunks, media_type=media, headers=headers)
 
     @app.get("/v1/runtime/models/{requested_id:path}/client-bundle-object-batch/{raw_digest}")
     async def model_bundle_batch(
@@ -289,14 +316,13 @@ def create_offset_worker_app(
         exported, descriptor = artifact_export()
         if raw_digest != descriptor["sha256"]:
             raise _reject("offset bundle is not committed", status=404)
-        from .bundle_artifacts import object_batch, object_stream
+        from .bundle_artifacts import object_batch, object_response
         try:
             payload, digest = object_batch(exported, objects)
-            chunks, headers, media = object_stream(payload, bundle_digest=raw_digest,
-                object_digest=digest, encoding=accept_object_encoding)
+            return await object_response(payload, bundle_digest=raw_digest,
+                object_digest=digest, encoding=accept_object_encoding, encoded_cache=artifact_cache)
         except ValueError as exc:
             raise _reject(str(exc), status=400) from exc
-        return StreamingResponse(chunks, media_type=media, headers=headers)
 
     @app.get("/v1/runtime/models/{requested_id:path}")
     async def model_descriptor(

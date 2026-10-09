@@ -732,6 +732,7 @@ class ExperimentProfile:
     background_inventory_refill: bool
     inventory_refill: str | None
     bundle_compression: str
+    provider_artifact_cache_bytes: int
     role_graph: RoleGraph | None
 
     def __init__(self, experiment: Experiment) -> None:
@@ -780,6 +781,7 @@ class ExperimentProfile:
             object.__setattr__(self, "background_inventory_refill", runtime_options.background_inventory_refill)
             object.__setattr__(self, "inventory_refill", runtime_options.inventory_refill)
             object.__setattr__(self, "bundle_compression", runtime_options.bundle_compression)
+            object.__setattr__(self, "provider_artifact_cache_bytes", runtime_options.provider_artifact_cache_bytes)
             return
         from pllm import _native
 
@@ -820,6 +822,7 @@ class ExperimentProfile:
         object.__setattr__(self, "background_inventory_refill", runtime_options.background_inventory_refill)
         object.__setattr__(self, "inventory_refill", runtime_options.inventory_refill)
         object.__setattr__(self, "bundle_compression", runtime_options.bundle_compression)
+        object.__setattr__(self, "provider_artifact_cache_bytes", runtime_options.provider_artifact_cache_bytes)
 
 
 def _replace_path(target: Any, path: list[str], value: object) -> Any:

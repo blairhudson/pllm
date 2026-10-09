@@ -320,6 +320,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     engine = cpu_weights + metadata + _PROCESS_BYTES
     role_peaks, docker_role_peaks = {}, {}
     role_weights, role_loading = {}, {}
+    from .encoded_artifacts import WORK_BYTES as ARTIFACT_CACHE_WORK_BYTES
+    artifact_cache_roles = {role: options.provider_artifact_cache_bytes for role in roles
+                            if role != "preparation" and options.provider_artifact_cache_bytes}
     for role in roles:
         # Preparation never exports a client bundle; inference and either offset
         # worker may. Include retained corrections while preparing new material.
@@ -327,6 +330,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         # metadata plus bounded compression/batch frames. Existing images may
         # still pack/unpack full bundles and cache copied artifact objects.
         delivery = 2 * metadata + 8 * MiB if role != "preparation" else 0
+        cache_work = ARTIFACT_CACHE_WORK_BYTES if role in artifact_cache_roles else 0
         legacy_delivery = 5 * bundle if role != "preparation" else 0
         retained = {s.id for s in remote} if role == "preparation" else {
             s.id for s in stages if not (
@@ -338,7 +342,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         role_loading[role] = max(
             max(quantization, validation, 2 * s.in_features * s.out_features) if s.id in retained
             else s.in_features * s.out_features + max(quantization, validation) for s in stages)
-        role_engine = role_weights[role] + metadata + _PROCESS_BYTES + nonlinear_worker
+        role_engine = role_weights[role] + metadata + _PROCESS_BYTES + nonlinear_worker + cache_work
         if role == "preparation" and paged_preparation:
             page_indices = sum(256 + 128 * math.ceil(s.in_features * s.out_features / MiB)
                                + 8 * max(s.in_features, s.out_features) for s in remote)
@@ -349,7 +353,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                              if verification_allocation and role == "preparation" else 0)
         role_peaks[role] = _slack(role_engine + gpu_provider + max(
             role_loading[role], delivery + corrections, work + corrections + role_verification))
-        docker_role_peaks[role] = _slack(engine + weights + gpu_provider + nonlinear_worker + max(
+        docker_role_peaks[role] = _slack(engine + weights + gpu_provider + nonlinear_worker + cache_work + max(
             legacy_loading, legacy_delivery + corrections, work + corrections + legacy_verification))
     tokenizer = pipeline.components.get("tokenizer")
     capsule = pipeline.components.get("public_prefix")
@@ -392,6 +396,8 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
              "client_mask_bytes": masks, "provider_correction_bytes": corrections,
              "client_nonlinear_work_bytes": nonlinear_client,
              "per_provider_nonlinear_work_bytes": nonlinear_worker,
+             "provider_artifact_cache_disk_bytes": artifact_cache_roles,
+             "provider_artifact_cache_work_bytes": {role: ARTIFACT_CACHE_WORK_BYTES for role in artifact_cache_roles},
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "legacy_verifier_bytes": legacy_verification,
             "client_tensor_work_bytes": tensors,
@@ -454,6 +460,7 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
                          + estimate["components"].get("client_additional_paged_disk_bytes", 0))
         disk_required += estimate["components"].get("preparation_additional_paged_disk_bytes", 0)
         disk_required += estimate["components"].get("client_tokenizer_snapshot_disk_bytes", 0)
+        disk_required += sum(estimate["components"].get("provider_artifact_cache_disk_bytes", {}).values())
         if host.disk_free < disk_required:
             reasons.append("insufficient disk headroom for compiled caches, bundles and 2 GiB reserve")
         candidates[kind] = {"admitted": not reasons, "reasons": reasons,

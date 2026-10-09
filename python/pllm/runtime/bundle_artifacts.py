@@ -44,8 +44,52 @@ class ArtifactError(ValueError):
     """Malformed, private, unsupported, or uncommitted artifact data."""
 
 
+async def object_response(payload, **options):
+    """Bounded publication runs off-loop; every ASGI exit retires its reader."""
+    import asyncio
+    from starlette.responses import StreamingResponse
+
+    if options.get("encoded_cache") is None:
+        chunks, headers, media = object_stream(payload, **options)
+    else:
+        cache = options["encoded_cache"]
+        cache.reserve_publication()
+
+        def publish():
+            try:
+                return object_stream(payload, **options)
+            finally:
+                cache.release_publication()
+
+        publication = asyncio.create_task(asyncio.to_thread(publish))
+
+        def retire(task):
+            try:
+                chunks, _, _ = task.result()
+            except BaseException:
+                return
+            chunks.close()
+
+        try:
+            chunks, headers, media = await asyncio.shield(publication)
+        except BaseException:
+            # Cancelling an await does not stop the publishing thread. Retire
+            # its result explicitly, including a reader not yet iterated.
+            publication.add_done_callback(retire)
+            raise
+
+    class ObjectResponse(StreamingResponse):
+        async def __call__(self, scope, receive, send):
+            try:
+                await super().__call__(scope, receive, send)
+            finally:
+                chunks.close()
+
+    return ObjectResponse(chunks, headers=headers, media_type=media)
+
+
 def object_stream(payload: bytes | memoryview, *, bundle_digest: str, object_digest: str,
-                  encoding: str | None = None) -> tuple[Iterator[bytes], dict[str, str], str]:
+                  encoding: str | None = None, encoded_cache=None) -> tuple[Iterator[bytes], dict[str, str], str]:
     """Shared public-object framing; raw cache identity remains stable."""
     from .bundle_compression import ENCODING as FRAME_ENCODING, encode_bundle_frames
 
@@ -54,7 +98,9 @@ def object_stream(payload: bytes | memoryview, *, bundle_digest: str, object_dig
     if encoding == FRAME_ENCODING:
         headers.update({"X-PLLM-Object-Encoding": FRAME_ENCODING,
                         "X-PLLM-Object-Raw-Size": str(len(payload))})
-        return encode_bundle_frames(payload), headers, "application/vnd.pllm.bundle-frames"
+        chunks = (encode_bundle_frames(payload) if encoded_cache is None else
+                  encoded_cache.stream(payload, bundle_digest=bundle_digest, object_digest=object_digest))
+        return chunks, headers, "application/vnd.pllm.bundle-frames"
     if encoding is not None:
         raise ArtifactError("unsupported artifact object encoding")
     headers["Content-Length"] = str(len(payload))

@@ -96,6 +96,28 @@ def test_paged_client_prices_bounded_ram_and_distinct_disk_owners():
     assert b["required_disk_bytes"] - a["required_disk_bytes"] == paged["components"]["client_additional_paged_disk_bytes"] > 0
 
 
+@pytest.mark.parametrize("profile", [MaskedLinearCpu, TwoOnlineOffsetCpu])
+def test_provider_artifact_cache_prices_publish_readers_and_disk(profile):
+    from pllm.protocols import ClientBundleTransport
+    from pllm.runtime.encoded_artifacts import WORK_BYTES
+
+    pipeline = profile(Model.tiny(), delivery=ClientBundleTransport("artifacts", compression="zlib"))
+    before = _estimate(pipeline)
+    after = _estimate(pipeline.with_params(delivery__provider_cache_bytes=64 << 20))
+    owners = set(after["provider_peak_bytes"]) - {"preparation"}
+    assert after["components"]["provider_artifact_cache_disk_bytes"] == {role: 64 << 20 for role in owners}
+    assert after["components"]["provider_artifact_cache_work_bytes"] == {role: WORK_BYTES for role in owners}
+    assert before["client_peak_bytes"] == after["client_peak_bytes"]
+    if "preparation" in before["provider_peak_bytes"]:
+        assert before["provider_peak_bytes"]["preparation"] == after["provider_peak_bytes"]["preparation"]
+    assert all(after["provider_peak_bytes"][role] > before["provider_peak_bytes"][role] for role in owners)
+    a = memory.admit_memory(before, _host())["candidates"]["native"]
+    b = memory.admit_memory(after, _host())["candidates"]["native"]
+    assert b["required_disk_bytes"] - a["required_disk_bytes"] == len(owners) * (64 << 20)
+    rejected = memory.admit_memory(after, _host(disk_free=b["required_disk_bytes"] - 1))
+    assert not rejected["admitted"]
+
+
 def test_verified_memory_prices_native_payloads_and_actual_owners():
     from types import SimpleNamespace
     from pllm import _native

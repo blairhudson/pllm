@@ -77,7 +77,8 @@ async def load_role_adapter(
     push_key = push_key or secrets.token_urlsafe(32)
     if role_id == "inference":
         manifest = engine._model(profile.model).manifest
-        return create_app(GatewayConfig(api_keys=(api_key,), provider_push_api_key=push_key),
+        return create_app(GatewayConfig(api_keys=(api_key,), provider_push_api_key=push_key,
+                                       public_artifact_cache_bytes=options.provider_artifact_cache_bytes),
                           private_models={}, engines={"masked-transformer": engine},
                           preloaded_models=(("masked-transformer", manifest),),
                           owns_engines=False), engine

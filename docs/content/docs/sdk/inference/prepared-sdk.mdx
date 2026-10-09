@@ -1,0 +1,134 @@
+---
+title: "Optimized prepared SDK"
+description: "Compose the recent prepared-path improvements through public SDK APIs, provider roles and the gateway."
+---
+
+Recent prepared-path work uses the ordinary `MaskedLinearCpu` Experiment and
+offline Preparation plus one online Inference provider. The same Experiment
+selects SDK, gateway and benchmark execution.
+
+## Which changes need configuration?
+
+| Advance | Public SDK selection |
+| --- | --- |
+| Fused quantize/mask/pack and unpack/unmask/dequantize, exact native ring kernels | Automatic on the supported prepared path |
+| Bounded KV capacity, shared immutable weight views, scoped tensor and HTTP lifetimes | Automatic on the supported compiled path |
+| Paged client weights and tokenizer source, compressed/batched public objects | `ClientBundleTransport("artifacts", compression="zlib", storage="paged", batch_objects=64)` |
+| Provider reuse of pre-encoded public objects across fresh clients | `provider_cache_bytes=512 << 20` on that delivery component |
+| Paged Preparation weights | `ModelAwareCorrections(storage="paged")` |
+| Demand-sized, on-demand corrections; concurrent stage issuance | `PreparedInventory(refill="on-demand", allocation="demand", stage_window=4)` |
+| Smaller exact requests/outputs and sixteen-row duplex prefill | `MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues", prefill_pruning="terminal", prefill_chunk_rows=16)` |
+| Public offline BPE compilation | `IndexedTokenizer.compile(tokenizer_json, directory)` |
+| One tokenizer owner across sizing and execution | `with client.tokenizer_scope():` |
+| Exact completed-prefix reuse | `ClientPrefixReuse(...)`; `prefix_f32` admits the matching canonical continuation contract |
+| Trusted, explicitly public prefix artifacts | `PublicPrefixCapsule.publish(...)`; see [artifact construction](/sdk/evaluate/incremental-sdk/) |
+
+The calibrated native WAN relay belongs to the benchmark's `--backend native
+--wan` measurement path. It preserves the configured access caps; applications
+do not need a relay to use the SDK improvements.
+
+## Python SDK example
+
+The runnable source is
+[`examples/prepared_sdk.py`](https://github.com/blairhudson/pllm/blob/main/examples/prepared_sdk.py).
+It imports public APIs only, starts the two local provider children, makes two
+responses on one client and closes its owned resources. With `--model-dir`, it
+first compiles that checkpoint's public `tokenizer.json` and pins the resulting
+index in the Experiment. Unsupported tokenizer contracts reject during compilation.
+
+```sh
+# Generated tiny weights: transport/functionality check.
+python examples/prepared_sdk.py --root .pllm/prepared-example
+
+# Supported local checkpoint with byte-level BPE; public compilation happens once.
+python examples/prepared_sdk.py --model-dir /path/to/checkpoint \
+  --root .pllm/prepared-checkpoint
+```
+
+The core request API is:
+
+```python
+import pllm
+from pllm.preparation import ModelAwareCorrections, PreparedInventory
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import ClientBundleTransport, MaskedLinear
+
+experiment = pllm.Experiment(
+    "prepared-sdk",
+    MaskedLinearCpu(
+        pllm.Model.tiny(),
+        linear=MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues",
+                            prefill_pruning="terminal", prefill_chunk_rows=16),
+        preparation=ModelAwareCorrections(storage="paged"),
+        inventory=PreparedInventory(refill="on-demand", allocation="demand", stage_window=4),
+        delivery=ClientBundleTransport("artifacts", compression="zlib", storage="paged",
+                                       batch_objects=64, provider_cache_bytes=512 << 20),
+    ),
+    pllm.Deployment.local(root=".pllm/prepared-sdk"),
+    pllm.ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=2),
+)
+assert experiment.resolve().provider_artifact_cache_bytes == 512 << 20
+```
+
+API: [`Experiment` and `serve_local`](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Execute it with `with pllm.serve_local(experiment) as roles:` and
+`with roles.client() as client:`. Inside `client.tokenizer_scope()`, call
+`client.prepare_response(prompt, max_output_tokens=2)` before
+`client.responses.create(input=prompt, max_output_tokens=2, temperature=0)`.
+Ordinary requests also size preparation when needed. The explicit call moves
+that work before the online response; it does not make its CPU or traffic free.
+
+Remote clients use `pllm.OpenAI` or `pllm.AsyncOpenAI` with the same Experiment,
+authenticated `base_url`/`api_key` and
+`preparation_base_url`/`preparation_api_key`. Async clients use the same synchronous
+`tokenizer_scope()` around awaited sizing and response calls; worker execution
+inherits the request context. Only the trusted client handles prompts, tokenization,
+activation reconstruction and KV state.
+
+## Use the same configuration with the gateway
+
+Export a canonical Experiment without starting providers:
+
+```sh
+python examples/prepared_sdk.py --root .pllm/prepared-example \
+  --write-experiment .pllm/prepared-example/experiment.json
+pllm gateway --local --experiment .pllm/prepared-example/experiment.json
+```
+
+Add `--model-dir /path/to/checkpoint` to the export command for a real checkpoint.
+The exported paths and tokenizer digest must remain available. Separately hosted
+Inference and Preparation can consume that Experiment with the existing
+`pllm serve inference --experiment ...` and
+`pllm serve preparation --experiment ...` commands and their role credentials.
+The local supervisor is a functional deployment, not evidence of operator independence.
+
+## Publication, storage and evidence
+
+Provider caching is explicit and defaults to zero. Its **1 MiB–2 GiB per-role**
+bound includes resident encoded files and publication staging. First requests
+publish; later fresh clients reuse checked files. Eviction, active-reader pins,
+corruption repair and shutdown are bounded. Objects larger than available cache
+capacity use the same streaming encoder without storage. Preparation receives
+no cache and never stores client-public delivery files.
+
+Native admission charges **48 MiB of workspace per serving role**, the selected
+disk capacity and existing source/client snapshots separately. Authenticated
+`GET /v1/runtime/artifact-cache/metrics` reports publication time/bytes, hits,
+bypasses, repairs, active readers and current/peak cache disk. Publication is
+already part of provider process CPU; its process-CPU intervals can overlap other
+work and must not be added again. Restart discards these app-owned files.
+Network offer planning rejects this option until offers price its disk capacity.
+
+SDK and generated-checkpoint regressions check exact prefill/decode logits and
+KV, sync/async artifact composition, authenticated reuse across fresh clients,
+gateway execution and resource retirement. Historical
+[two-object reuse measurements](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-serving-reference.md)
+remain prototype evidence; they do not establish full-bundle SDK speedups.
+
+Measure **client peak RAM/CPU, Preparation CPU/sampled RAM, online TTFT, decode
+tokens/s and all-link traffic** together. Preparation and cold distribution remain
+separate from online TTFT. Sixteen-row prefill, extra issuance concurrency, prefix
+cache memory and provider publication each have costs. The historical
+[prepared-prefill cohort](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-prefill-reference.md)
+does not measure this newly combined example or establish a general 10× gain.
