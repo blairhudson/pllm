@@ -103,6 +103,15 @@ at 150+8 and 288+8 tokens lowers client peak RSS 15.33%/11.51% with 64-row tiles
 while median online TTFT rises 3.41%/4.38%. Outputs match with zero observed swap
 growth. Independent confirmation remains required; this is an evidence-gated
 research executor. Contract and replay: `docs/research/mlp-working-set-reference.md`.
+A separate twelve-client confirmation at 150/288 input tokens plus eight outputs
+reduces median client peak RSS 17.13%/17.63%, with matching outputs and zero
+observed swap growth. Median online TTFT rises 3.65%/4.70%; complete cold requests
+rise 1.78%/2.14%, and the longer workload's decode median falls 8.49%. This confirms
+a bounded memory/latency tradeoff, not a tenfold gain or automatic SDK selection.
+A second twelve-client confirmation lowers client peak RSS 15.28%/9.63% with
+matching outputs, application bodies and zero observed swap growth. The two
+confirmation runs overlapped on one host and retain separate private cohorts;
+timings do not establish an exclusive-host latency effect.
 The separate response-target metadata selector attributes Python-traced compiler,
 preparation-demand and runtime-binding construction allocations. Unique public
 metadata counts exclude tensors; phase peaks include their own temporaries.

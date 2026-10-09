@@ -105,3 +105,62 @@ These single-process cells nominate 64-row tiles for a separate three-client-per
 confirmation. They do not establish repeatable savings or a tenfold improvement.
 Evidence: `docs/evidence/research-mlp-tiling-qwen25-screen.json`, with its
 `.plan.json` and `.frontier.json` companions.
+
+## Independent confirmation
+
+Twelve new clients use the same installed build, three per workload/arm, with an
+independent private cohort salt and interleaved control/candidate order. All
+24 cold/repeat requests pass runtime checks and preserve within-workload output
+commitments, with zero observed swap growth. These confirmation medians do not
+replace or pool the initial screen. Units and measurement windows remain as above.
+
+| Workload / rows | Client RSS | Client CPU | Prep CPU | Prep RSS | TTFT | Decode TPS | Stream MB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 150+8 / full | 242.40 | 21.231 | 16.153 | 191.91 | 21.929 | 3.615 | 496.046 |
+| 150+8 / 64 | 200.88 | 21.784 | 15.737 | 193.64 | 22.729 | 3.633 | 496.046 |
+| 288+8 / full | 292.91 | 28.754 | 21.569 | 264.57 | 39.805 | 3.636 | 805.269 |
+| 288+8 / 64 | 241.27 | 29.672 | 22.899 | 264.49 | 41.676 | 3.327 | 805.269 |
+
+Median client peak RSS falls **17.13% / 17.63%**. Every matched replicate has
+lower candidate RSS, despite visible process-to-process variation. Median online
+TTFT rises **3.65% / 4.70%** and complete cold request latency rises
+**113.502 → 115.520 seconds** and **180.371 → 184.235 seconds**. Repeat-request
+medians are **11.037 → 11.037** and **11.798 → 12.296 seconds**. The longer
+workload's decode median regresses **8.49%**; tiling itself runs only during the
+initial prefill, so that observation does not establish a changed decode kernel.
+Both topology CPU owners and tiny framing differences remain charged.
+
+This confirms a bounded client-memory/latency tradeoff for these two Qwen2.5
+workloads. It does not establish tenfold savings, broad quality, longer-context
+admission or a Qwen3 result. The selector stays explicit research configuration;
+there is no automatic device/scheduler choice. Evidence:
+`docs/evidence/research-mlp-tiling-qwen25-confirmation.json`, with its `.plan.json`
+and `.frontier.json` companions. The frontier export retains missing 16-row
+confirmation cells instead of transferring their exploratory results.
+
+### Separate confirmation B and host overlap
+
+A second twelve-client confirmation has its own private cohort salt and the same
+installed build. It also passes all 24 requests, preserves outputs and covered
+application bodies, and observes zero swap growth. Its medians remain separate:
+
+| Workload / rows | Client RSS | Client CPU | Prep CPU | Prep RSS | TTFT | Decode TPS | Stream MB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 150+8 / full | 234.11 | 21.902 | 16.936 | 193.17 | 22.075 | 3.459 | 496.046 |
+| 150+8 / 64 | 198.34 | 21.941 | 16.443 | 193.07 | 22.735 | 3.204 | 496.046 |
+| 288+8 / full | 268.35 | 28.846 | 22.433 | 263.11 | 39.750 | 3.576 | 805.269 |
+| 288+8 / 64 | 242.50 | 29.036 | 21.836 | 264.08 | 41.520 | 3.577 | 805.269 |
+
+Client RSS falls **15.28% / 9.63%**, while online TTFT rises **2.99% / 4.45%**.
+Cold request medians are **114.304 → 116.103** and **180.658 → 184.223 seconds**;
+repeat medians are **11.755 → 11.714** and **11.503 → 11.466 seconds**.
+
+The two confirmation runs overlapped on the same host: A's response window was
+20:50:11–21:26:53 UTC and B's was 20:57:36–21:34:26 UTC on 2026-10-09.
+Each graph enforced its own shared party caps. These are separate process/cohort
+observations, not exclusive-host performance measurements. Their memory direction
+agrees, but process variation is substantial and timings cannot establish an
+uncontended latency effect. Neither cohort is discarded or pooled. Evidence:
+`docs/evidence/research-mlp-tiling-qwen25-confirmation-b.json`, with its `.plan.json`
+and `.frontier.json` companions. Reproduce B with the same confirmation arguments;
+the CLI always requires at least three clients per nominated arm.

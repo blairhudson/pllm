@@ -20,3 +20,14 @@ restart-heavy workloads. No independent ratios are multiplied into a tenfold cla
 
 Research selectors are fixed installed executors, not arbitrary callbacks or
 automatically enabled Pipeline components. Unsupported cells remain visible.
+
+## Completed MLP gate
+
+The native eligibility, exact generated prefill/decode, one-use retirement and
+separate-role SDK checks pass. A six-client Qwen2.5 screen nominated 64-row tiles;
+two separate twelve-client confirmations retain all seven serving metrics. Client
+peak-RSS medians improve 9.63–17.63% across their workload cells, with matching
+outputs and zero observed swap growth. The confirmation runs overlapped on the
+host, and TTFT/latency regressions remain explicit. This is a bounded research
+tradeoff, not tenfold savings or an automatic Pipeline choice. Contracts and full
+cohort separation: [MLP working sets](../research/mlp-working-set-reference.md).
