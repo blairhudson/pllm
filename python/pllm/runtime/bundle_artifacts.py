@@ -166,7 +166,8 @@ def batched_reader(manifest, cache, download_one, download_many, *, maximum: int
         # The whole coalesced group is capped at 1 MiB. Small matrices can keep
         # batching without becoming retained in-memory weight storage.
         payload = pending.pop(row["sha256"])
-        return (FilePayload([payload], size=row["size"], digest=row["content_sha256"])
+        return (FilePayload([payload], size=row["size"], digest=row["content_sha256"],
+                            native=row["metadata"]["dtype"] == "i1")
                 if file_backed(row) else payload)
 
     def read(row):
@@ -748,7 +749,8 @@ class ArtifactObjectCache:
                         if file_backed:
                             try:
                                 payload = FilePayload(iter(lambda: stream.read(1 << 20), b""),
-                                                      size=row["size"], digest=row["content_sha256"])
+                                                      size=row["size"], digest=row["content_sha256"],
+                                                      native=row["metadata"]["dtype"] == "i1")
                             except ValueError as exc:
                                 raise ArtifactError(str(exc)) from exc
                         else:

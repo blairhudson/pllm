@@ -191,8 +191,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         raise BenchmarkMemoryError("memory estimation requires an implemented public compiled topology")
     delivery = pipeline.components.get("delivery")
     paged = delivery is not None and delivery.params.get("storage") == "paged"
-    if paged and not hasattr(getattr(native, "PagedMatrix", None), "from_raw"):
-        raise BenchmarkMemoryError("paged memory admission requires native authenticated raw snapshots")
+    if paged and (not hasattr(getattr(native, "PagedMatrix", None), "from_public_file")
+                  or not hasattr(native, "PublicFileWriter")):
+        raise BenchmarkMemoryError("paged memory admission requires native shared authenticated snapshots")
     compiled_input_bound = max(max_input_tokens, cache_bound_tokens or 0,
                                options.prefix_cache_bound_tokens or 0)
     plan = lower_model(config, batch=1, max_input_tokens=compiled_input_bound,
@@ -239,7 +240,8 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     paged_indices = sum(256 + 128 * math.ceil(s.in_features * s.out_features / MiB)
                         + 8 * max(s.in_features, s.out_features) for s in client_stages) if paged else 0
     bundle_work = 2 * metadata + paged_indices + 16 * MiB if paged else 6 * bundle
-    paged_disk = 2 * (boundary + local_weights) if paged else 0
+    weight_snapshot_disk = boundary + local_weights if paged else 0
+    paged_disk = weight_snapshot_disk  # delivery and kernels retain the same immutable file
     if paged:
         from .bundle_storage import MAX_TOKENIZER_BYTES
         paged_disk += 2 * MAX_TOKENIZER_BYTES  # transient source and private tokenizer snapshot
@@ -375,7 +377,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "docker_provider_peak_bytes": docker_role_peaks,
         "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
         "preparation_storage": options.preparation_storage,
-        "bundle_storage": ("streamed_paged_v1; raw cache and private files are separate disk owners" if paged else
+        "bundle_storage": ("streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner" if paged else
                            "immutable_segments_v1; client import retains conservative copy bounds"),
         "mask_storage": "one_active_stage_v1; one benchmark response at a time",
         "verification_allocation": verification_allocation,
@@ -390,6 +392,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             "largest_loading_temporary_bytes": loading, "raw_client_bundle_bytes": bundle,
             "client_bundle_work_bytes": bundle_work, "client_paged_metadata_bytes": paged_indices,
             "client_additional_paged_disk_bytes": paged_disk,
+            "client_weight_snapshot_disk_bytes": weight_snapshot_disk,
             "client_public_artifact_work_bytes": public_artifact_work,
             "client_tokenizer_snapshot_disk_bytes": 64 * MiB if tokenizer else 0,
             "preparation_additional_paged_disk_bytes": preparation_disk + (largest if paged_preparation else 0),

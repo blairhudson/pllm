@@ -30,6 +30,7 @@ pub mod piecewise_gated_reference;
 pub mod polynomial_softmax_reference;
 pub mod progressive_head;
 pub mod public_entropy;
+pub mod public_file;
 pub mod public_transforms;
 pub mod residual_silu_reference;
 pub mod retained_kv;

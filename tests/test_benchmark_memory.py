@@ -94,6 +94,10 @@ def test_paged_client_prices_bounded_ram_and_distinct_disk_owners():
     a = memory.admit_memory(resident, _host())["candidates"]["native"]
     b = memory.admit_memory(paged, _host())["candidates"]["native"]
     assert b["required_disk_bytes"] - a["required_disk_bytes"] == paged["components"]["client_additional_paged_disk_bytes"] > 0
+    assert paged["components"]["client_additional_paged_disk_bytes"] == (
+        paged["components"]["client_weight_snapshot_disk_bytes"] + 2 * (64 << 20))
+    constrained = _host(disk_free=b["required_disk_bytes"] - 1)
+    assert not memory.admit_memory(paged, constrained)["admitted"]
 
 
 @pytest.mark.parametrize("profile", [MaskedLinearCpu, TwoOnlineOffsetCpu])

@@ -1,7 +1,7 @@
 """Bounded, private temporary storage for authenticated public binary fields.
 
 These files hold complete public objects, never private token-selected downloads.
-The native paged kernel takes its own immutable snapshot before execution.
+Native-backed weight payloads share their immutable snapshot with paged kernels.
 """
 from __future__ import annotations
 
@@ -28,16 +28,34 @@ def binary_digest(value):
 class FilePayload:
     """Verified owned file; no complete in-memory byte representation."""
 
-    __slots__ = ("_file", "_size", "_digest", "_lock")
+    __slots__ = ("_file", "_snapshot", "_size", "_digest", "_lock")
 
-    def __init__(self, chunks, *, size: int, digest: str):
+    def __init__(self, chunks, *, size: int, digest: str, native: bool = False):
         if (type(size) is not int or not 0 < size <= 4 << 30
                 or type(digest) is not str or len(digest) != 64
-                or any(c not in "0123456789abcdef" for c in digest)):
+                or any(c not in "0123456789abcdef" for c in digest)
+                or type(native) is not bool):
             raise ValueError("file payload has invalid size or digest")
-        self._file = tempfile.NamedTemporaryFile(prefix="pllm-public-object-", mode="w+b")
+        self._file = self._snapshot = None
         self._lock = threading.Lock()
         self._size, self._digest = size, digest
+        if native:
+            from ._native_support import extension
+
+            backend = extension()
+            if backend is None:
+                raise RuntimeError("native public snapshots require the Rust extension")
+            writer = backend.PublicFileWriter(size, digest)
+            try:
+                for chunk in chunks:
+                    if not 0 < len(chunk) <= CHUNK_BYTES:
+                        raise ValueError("file payload chunk exceeds its bounds")
+                    writer.write(bytes(chunk))
+                self._snapshot = writer.finish()
+            finally:
+                writer.close()
+            return
+        self._file = tempfile.NamedTemporaryFile(prefix="pllm-public-object-", mode="w+b")
         actual, count = hashlib.sha256(), 0
         try:
             for chunk in chunks:
@@ -67,10 +85,16 @@ class FilePayload:
 
     @property
     def path(self):
+        if self._file is None:
+            raise ValueError("native public snapshot has no mutable filesystem path")
         return self._file.name
 
     def chunks(self):
         with self._lock:
+            if self._snapshot is not None:
+                for offset in range(0, self._size, CHUNK_BYTES):
+                    yield self._snapshot.read(offset, min(CHUNK_BYTES, self._size - offset))
+                return
             self._file.seek(0)
             count = 0
             while count < self._size:
@@ -84,4 +108,7 @@ class FilePayload:
 
     def close(self):
         with self._lock:
-            self._file.close()
+            if self._snapshot is not None:
+                self._snapshot.close()
+            if self._file is not None:
+                self._file.close()

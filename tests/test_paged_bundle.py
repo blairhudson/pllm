@@ -77,7 +77,8 @@ def test_client_storage_probe_fixture(tmp_path):
         assert samples[0][field] == samples[1][field]
 
 
-def test_failed_bundle_admission_closes_native_snapshots(tmp_path, monkeypatch):
+@pytest.mark.parametrize("native", [False, True])
+def test_failed_bundle_admission_closes_native_snapshots(tmp_path, monkeypatch, native):
     from pllm.runtime.bundle_artifacts import parse_manifest, reconstruct_document
     from pllm.runtime.transformer_client import ClientBundle, TransformerClientError
 
@@ -95,18 +96,18 @@ def test_failed_bundle_admission_closes_native_snapshots(tmp_path, monkeypatch):
         data = (directory / row["sha256"]).read_bytes()
         if row["metadata"]["dtype"] != "i1":
             return data
-        value = FilePayload([data], size=row["size"], digest=row["content_sha256"])
+        value = FilePayload([data], size=row["size"], digest=row["content_sha256"], native=native)
         payloads.append(value)
         return value
 
-    original = PagedGEMM._from_raw_executor.__func__
+    original = PagedGEMM._from_payload_executor.__func__
 
     def record(cls, *args):
         matrix = original(cls, *args)
         snapshots.append(matrix)
         return matrix
 
-    monkeypatch.setattr(PagedGEMM, "_from_raw_executor", classmethod(record))
+    monkeypatch.setattr(PagedGEMM, "_from_payload_executor", classmethod(record))
     try:
         value = reconstruct_document(manifest, read)
         value["stages"]["lm_head"]["client_weight"]["ref"] = "missing"
@@ -140,11 +141,68 @@ def test_raw_paged_import_preserves_integer_output_and_private_column_gathers(tm
     matrix.close()
 
 
-def test_file_payload_rejects_incomplete_oversized_and_bad_digest():
+@pytest.mark.parametrize("native", [False, True])
+def test_file_payload_rejects_incomplete_oversized_and_bad_digest(native):
     digest = hashlib.sha256(b"abcd").hexdigest()
     for blocks in ([b"abc"], [b"abcde"], [b"abce"], [b""]):
         with pytest.raises(ValueError):
-            FilePayload(blocks, size=4, digest=digest)
+            FilePayload(blocks, size=4, digest=digest, native=native)
+
+
+def test_native_public_file_has_no_mutable_alias_and_shares_paged_lifetime():
+    from pllm import _native
+    from pllm.runtime.bundle_storage import binary_digest
+
+    weights = np.arange(517 * 41, dtype=np.int64).astype(np.int8).reshape(517, 41)
+    data = bytearray(weights.tobytes())
+    digest = hashlib.sha256(data).hexdigest()
+    payload = FilePayload([data], size=len(data), digest=digest, native=True)
+    data[:] = b"\0" * len(data)
+    assert binary_digest(payload) == digest
+    with pytest.raises(ValueError, match="filesystem path"):
+        _ = payload.path
+    executor = _native.Executor(1, True)
+    with pytest.raises(ValueError, match="digest or shape"):
+        _native.PagedMatrix.from_public_file(payload._snapshot, "0" * 64, *weights.shape, executor)
+    with pytest.raises(ValueError, match="digest or shape"):
+        PagedGEMM._from_payload_executor(payload, (516, 41), executor)
+    first = PagedGEMM._from_payload_executor(payload, weights.shape, executor)
+    second = PagedGEMM._from_payload_executor(payload, weights.shape, executor)
+    payload.close()
+    with pytest.raises(ValueError, match="closed"):
+        list(payload.chunks())
+    with pytest.raises(ValueError, match="closed"):
+        PagedGEMM._from_payload_executor(payload, weights.shape, executor)
+    x = np.arange(3 * 41, dtype=np.int8).reshape(3, 41)
+    np.testing.assert_array_equal(first.clear(x), x.astype(np.int64) @ weights.astype(np.int64).T)
+    first.close()
+    np.testing.assert_array_equal(second.gather_rows([516, 0]), weights[[516, 0]])
+    np.testing.assert_array_equal(second.gather_columns([40, 0]), weights[:, [40, 0]].T)
+    second.close()
+    payload.close()
+
+
+def test_native_public_writer_burns_failed_or_completed_streams():
+    from pllm import _native
+    digest = hashlib.sha256(b"abcd").hexdigest()
+    for chunk in (b"", b"abcde", b"x" * ((1 << 20) + 1)):
+        writer = _native.PublicFileWriter(4, digest)
+        with pytest.raises(ValueError, match="bounds"):
+            writer.write(chunk)
+        with pytest.raises(ValueError, match="closed"):
+            writer.write(b"abcd")
+        with pytest.raises(ValueError, match="closed"):
+            writer.finish()
+    writer = _native.PublicFileWriter(4, digest)
+    writer.write(b"abcd")
+    snapshot = writer.finish()
+    with pytest.raises(ValueError, match="closed"):
+        writer.finish()
+    assert snapshot.read(1, 2) == b"bc"
+    for offset, length in ((0, 0), (0, (1 << 20) + 1), (3, 2), ((1 << 64) - 1, 1)):
+        with pytest.raises(ValueError, match="bounds"):
+            snapshot.read(offset, length)
+    snapshot.close()
 
 
 def test_paged_configuration_is_explicit_and_rejects_unimplemented_residency():

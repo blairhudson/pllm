@@ -1,6 +1,7 @@
 //! Immutable, file-backed signed-i8 matrices with bounded exact page execution.
 //! A verified private anonymous snapshot severs subsequent source-file mutation.
 use crate::kernels::{Executor, Matrix};
+use crate::public_file::{read_at, PublicFile};
 use flate2::{write::ZlibEncoder, Compression, Decompress, FlushDecompress, Status};
 use sha2::{Digest, Sha256};
 use std::{
@@ -177,28 +178,6 @@ fn metadata(file: &mut File, length: u64) -> Result<PageIndex, String> {
     })
 }
 
-fn read_at(file: &File, data: &mut [u8], offset: u64) -> Result<(), String> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::FileExt;
-        file.read_exact_at(data, offset).map_err(error)
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::FileExt;
-        let mut done = 0;
-        while done < data.len() {
-            let n = file
-                .seek_read(&mut data[done..], offset + done as u64)
-                .map_err(error)?;
-            if n == 0 {
-                return Err("private paged snapshot is truncated".into());
-            }
-            done += n;
-        }
-        Ok(())
-    }
-}
 fn decode(file: &File, page: Page) -> Result<Vec<u8>, String> {
     let mut payload = vec![0; page.stored];
     read_at(file, &mut payload, page.offset)?;
@@ -221,7 +200,7 @@ fn decode(file: &File, page: Page) -> Result<Vec<u8>, String> {
 }
 
 pub struct PagedMatrix {
-    file: File,
+    file: Arc<File>,
     pages: Vec<Page>,
     executor: Arc<Executor>,
     rows: usize,
@@ -240,6 +219,44 @@ impl PagedMatrix {
     }
     pub fn weight_digest(&self) -> [u8; 32] {
         self.weight_digest
+    }
+    /// Share an already authenticated immutable raw snapshot. Geometry and its
+    /// original content digest must agree; no writable descriptor escapes.
+    pub fn from_public_file(
+        snapshot: &PublicFile,
+        expected: [u8; 32],
+        rows: usize,
+        cols: usize,
+        executor: Arc<Executor>,
+    ) -> Result<Self, String> {
+        let page_rows = ((1 << 20) / cols.max(1)).clamp(1, 512);
+        let (size, count) = shape(rows, cols, page_rows)?;
+        if snapshot.size() != size as u64 || snapshot.digest() != expected {
+            return Err("raw paged snapshot digest or shape differs".into());
+        }
+        let pages = (0..count)
+            .map(|i| {
+                let offset = i * page_rows * cols;
+                let decoded = (size - offset).min(page_rows * cols);
+                Page {
+                    offset: offset as u64,
+                    stored: decoded,
+                    decoded,
+                    compressed: false,
+                }
+            })
+            .collect();
+        Ok(Self {
+            file: snapshot.file(),
+            pages,
+            executor,
+            rows,
+            cols,
+            page_rows,
+            artifact_bytes: size as u64,
+            weight_digest: expected,
+            max_weight: snapshot.max_i8(),
+        })
     }
     /// Import canonical raw i8 bytes without constructing a resident matrix or
     /// changing its weight identity. The source is copied into a private file;
@@ -315,7 +332,7 @@ impl PagedMatrix {
             })
             .collect();
         Ok(Self {
-            file,
+            file: Arc::new(file),
             pages,
             executor,
             rows,
@@ -390,7 +407,7 @@ impl PagedMatrix {
             return Err("paged decoded weight digest differs".into());
         }
         Ok(Self {
-            file,
+            file: Arc::new(file),
             pages,
             executor,
             rows,
@@ -528,6 +545,51 @@ impl PagedMatrix {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn verified_public_file_is_shared_until_the_last_reader_retires() {
+        use crate::public_file::PublicFileWriter;
+        let weights: Vec<u8> = (0..517 * 17).map(|i| (i * 37) as u8).collect();
+        let hash = Sha256::digest(&weights).into();
+        let mut writer = PublicFileWriter::new(weights.len() as u64, hash).unwrap();
+        for chunk in weights.chunks(71) {
+            writer.write(chunk).unwrap();
+        }
+        let snapshot = writer.finish().unwrap();
+        let executor = Arc::new(Executor::new(1, false).unwrap());
+        assert!(
+            PagedMatrix::from_public_file(&snapshot, [0; 32], 517, 17, executor.clone()).is_err()
+        );
+        assert!(PagedMatrix::from_public_file(&snapshot, hash, 517, 18, executor.clone()).is_err());
+        assert!(PagedMatrix::from_public_file(&snapshot, hash, 0, 17, executor.clone()).is_err());
+        let matrix =
+            PagedMatrix::from_public_file(&snapshot, hash, 517, 17, executor.clone()).unwrap();
+        let other =
+            PagedMatrix::from_public_file(&snapshot, hash, 517, 17, executor.clone()).unwrap();
+        assert!(Arc::ptr_eq(&matrix.file, &other.file));
+        assert!(Arc::ptr_eq(&matrix.file, &snapshot.file()));
+        let weak = Arc::downgrade(&matrix.file);
+        drop(snapshot);
+        let reference = Matrix::new(&weights, 517, 17).unwrap();
+        let x: Vec<i8> = (0..3 * 17).map(|i| (i * 7) as i8).collect();
+        let u: Vec<u32> = (0..3 * 17).map(|i| u32::MAX - i as u32).collect();
+        assert_eq!(
+            matrix.clear(&x, 3).unwrap(),
+            reference.clear(&executor, &x, 3).unwrap()
+        );
+        assert_eq!(
+            matrix.wrap32(&u, 3).unwrap(),
+            reference.wrap32(&executor, &u, 3).unwrap()
+        );
+        assert_eq!(matrix.weight_digest(), hash);
+        assert_eq!(
+            matrix.gather(&[516, 0]).unwrap(),
+            [&weights[516 * 17..], &weights[..17]].concat()
+        );
+        drop(matrix);
+        assert_eq!(other.gather(&[0]).unwrap(), weights[..17]);
+        drop(other);
+        assert!(weak.upgrade().is_none());
+    }
     #[test]
     fn raw_snapshot_preserves_digest_columns_and_source_isolation() {
         let dir = tempfile::tempdir().unwrap();

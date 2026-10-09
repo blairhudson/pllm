@@ -152,6 +152,20 @@ artifact delivery and batching compose; client-owned paged body weights reject
 Metal snapshot allocation. Admission prices bounded client page buffers and
 separate cache/transient/snapshot disk owners. Whole-client real-checkpoint RSS
 and matched full-response paging costs remain measurement gates.
+Paged weight artifacts now stream into a bounded, authenticated immutable Rust
+file shared by delivery and paged kernels. Actual-byte validation and original
+source/object/bundle identities remain; no mutable path escapes. Independent
+owners keep execution valid after delivery retirement, and the final owner closes
+the snapshot. Admission charges one private weight payload separately from cache
+and tokenizer disk. Twelve fresh synthetic import processes preserve 1,823,232
+integer outputs and reduce import CPU 17–18%, while halving peak private-file
+payload. A separate fresh-client Qwen2.5 150+8-token pair under native shared
+100/40 caps preserves outputs and covered application bodies with zero observed
+swap growth, but client peak RSS rises 222.54 to 237.13 MB and request time
+115.041 to 116.738 seconds. Aggregate cold-first CPU rises 3.67%. The Qwen3
+response pair rejects memory admission. These results establish no whole-client
+memory or response-time improvement; import and logical disk savings retain
+their isolated scope. Details: `docs/research/native-snapshot-reference.md`.
 A separate Qwen3-4B Preparation-only raw-page probe matches all 144 stages'
 71-row correction frames while reducing median process peak RSS from 4.61 GB to
 739.09 MB (6.24x). Issuance CPU is nearly unchanged; loading plus issuance costs

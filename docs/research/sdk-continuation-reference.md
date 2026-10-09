@@ -60,7 +60,9 @@ source, implementation and environment commitments. Tests:
 
 This lands bounded conversation ownership and a small native-client foundation.
 The complete Python-free numeric executor and load-ready client capsule remain
-larger work items. Existing paging, indexed tokenization and provider artifact
+larger work items. The subsequent [shared native snapshot slice](native-snapshot-reference.md)
+removes the second paged weight-file copy while retaining actual-byte validation.
+Existing paging, indexed tokenization and provider artifact
 caching retain their own measured costs; they do not become a new capsule result.
 The separate [batched greedy screen](batched-greedy-reference.md) checks exact
 rollback and charges failed drafts. Larger protected regions retain the numeric,

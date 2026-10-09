@@ -1,0 +1,38 @@
+{
+  "log_sha256": "83d9bf0df75d799201dd1d02621a99dcbc39ca58b292d54f798145b1e8eed019",
+  "progress": {
+    "provenance": {
+      "allocation_control": "public-snapshot",
+      "baseline_commit": "543e16b1a5c7efa52e0ea0d5316d60dc47a0f2f4",
+      "baseline_source_sha256": {
+        "bundle_storage.py": "dce9695882f38b39c48d168fe5a0a06738055cf24afc2f1ed93c22a5bc6e7a67",
+        "paged.py": "8c47c4bc6c68dbd482e99c7856dd63415664e8a326cafbacf7f228f43cb29951"
+      },
+      "scope": "Matched fresh-client allocation ablations under native WAN caps.\n\nBoth children run the same ordinary Experiment. The historical control restores\nonly the two artifact walkers from a pinned PLLM commit and leaves HTTPX's closed\nresponse streams attached, as before the lifetime fix. The optional kv-capacity\ncontrol instead restores geometric full-KV growth and its original admission\nestimate. The tokenizer-source control restores resident tokenizer object\ndelivery from before paged source storage. The public-snapshot control selects the\nprevious Python file owner and second native weight copy, with both disk owners\npriced before execution. No tracing or forced GC runs inside either response. One private\nparent-owned salt binds both reports; parent and child use matching admission.\n",
+      "source_sha256": {
+        "crates/pllm-core/src/paged.rs": "3945962d7be49ad7f936df3ab4da1fe0bae921d8091ec851d064044d46c8ab72",
+        "crates/pllm-core/src/public_file.rs": "743e0f3f814faed3b481d7bfd1e5478237493e1840f1ca775139f015dcda938a",
+        "crates/pllm-python/src/paged.rs": "98c5e7c586524267aec63fa118667bd9fdcec41e12b10749f47b615cc73a14d2",
+        "python/pllm/runtime/benchmark_memory.py": "083a5edc75670a9d6a3d7042c4827eb004e30ec06998e0fac051a6d0e9ca6914",
+        "python/pllm/runtime/bundle_artifacts.py": "9b563142aa9184932f88de312ba6b89470622139d1250dbe166b7530f2b9191f",
+        "python/pllm/runtime/bundle_storage.py": "ce241fb9e3fd22b6afeed9bc4f3087218e9b262742ca3e15f33486f6b818e9ea",
+        "python/pllm/runtime/client.py": "754d0f77273da97ed4a42fb95d0e180b742b3673f7b41adbd0e33eea454d7b7e",
+        "python/pllm/runtime/decoder_memory.py": "ab917581054766639950cd16d2dc1a5953f9777d045b5aeaa5924df5507690d6",
+        "python/pllm/runtime/http_response.py": "105a0a94bb81385b6ffe3d2c154a200587e3da4d6d74b213bc1982eed3530049",
+        "python/pllm/runtime/indexed_tokenizer.py": "f352c998bb3479e427996db54156040e37336a176919b9c540f955f4eed509df",
+        "python/pllm/runtime/model_binding.py": "da79abe3d78f8c517fc85e4f2fd1a63379a13da96939d4f16f2a743ccd60335e",
+        "python/pllm/runtime/paged.py": "ea8da73febde89854fbc8cba4eb15f451a4d1bfd7f78478f038476c35ac7f2f6",
+        "python/pllm/runtime/semantic_executor.py": "68dcbdac63bc53e60719bcf80daa378d1e3ec2a6f50d00c7a7eeb77e1927fb36",
+        "python/pllm/runtime/transformer_client.py": "2a26c55e1178a8c67fe94a8ed11912656470ebaabd6435dbcd1051ac96b7f27d",
+        "scripts/probe_client_response_memory.py": "319dc075a86fc08e1030bee85133f5607ac49c27f0ab888fdda5cd3adc16c817"
+      }
+    },
+    "records": [],
+    "schema": "pllm.client_response_memory_progress.v1",
+    "status": "incomplete"
+  },
+  "reason": "pllm.runtime.benchmark_memory.BenchmarkMemoryError: benchmark memory preflight rejected: native: estimated host peak 7.61 GiB exceeds safe headroom 6.12 GiB",
+  "schema": "pllm.research_admission_observation.v1",
+  "scope": "Preflight-only public-snapshot allocation pair; no child providers or responses.",
+  "status": "blocked"
+}

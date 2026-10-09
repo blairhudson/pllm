@@ -490,8 +490,7 @@ class ClientBundle:
                 if type(payload) is not FilePayload:
                     raise TransformerClientError("paged weights require verified streamed objects")
                 assert paged_executor is not None
-                matrix = PagedGEMM._from_raw_executor(payload.path, payload.digest, shape,
-                                                      paged_executor._executor)
+                matrix = PagedGEMM._from_payload_executor(payload, shape, paged_executor._executor)
                 snapshots.append(matrix)
             else:
                 if type(payload) is FilePayload:

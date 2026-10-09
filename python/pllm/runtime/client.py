@@ -1606,7 +1606,8 @@ class RuntimeClient:
                             yield chunk
                     blocks = (iter_bundle_frames(chunks, expected_size=maximum, on_wire_bytes=account)
                               if compressed else raw_chunks())
-                    result = FilePayload(blocks, size=maximum, digest=file_row["content_sha256"])
+                    result = FilePayload(blocks, size=maximum, digest=file_row["content_sha256"],
+                                         native=file_row["metadata"]["dtype"] == "i1")
                     public_files.append(result)
                     return result
                 if compressed:

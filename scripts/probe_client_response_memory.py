@@ -5,7 +5,9 @@ only the two artifact walkers from a pinned PLLM commit and leaves HTTPX's close
 response streams attached, as before the lifetime fix. The optional kv-capacity
 control instead restores geometric full-KV growth and its original admission
 estimate. The tokenizer-source control restores resident tokenizer object
-delivery from before paged source storage. No tracing or forced GC runs inside either response. One private
+delivery from before paged source storage. The public-snapshot control selects the
+previous Python file owner and second native weight copy, with both disk owners
+priced before execution. No tracing or forced GC runs inside either response. One private
 parent-owned salt binds both reports; parent and child use matching admission.
 """
 from __future__ import annotations
@@ -28,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "48ad67d"
 KV_BASELINE = "6ba400fe0ed17b2bb8675506d77ad5b0638646f3"
 TOKENIZER_BASELINE = "52ecda9"
+SNAPSHOT_BASELINE = "543e16b"
 MODES = ("legacy", "scoped")
 
 
@@ -65,7 +68,7 @@ def restore_legacy_lifetimes():
 
 @contextmanager
 def allocation_control(control, mode):
-    from pllm.runtime import bundle_artifacts, client, decoder_memory, transformer_client
+    from pllm.runtime import benchmark_memory, bundle_artifacts, bundle_storage, client, decoder_memory, transformer_client
 
     originals = [(bundle_artifacts, "batched_reader", bundle_artifacts.batched_reader),
         (bundle_artifacts, "reconstruct_document", bundle_artifacts.reconstruct_document),
@@ -73,10 +76,28 @@ def allocation_control(control, mode):
         (client, "owned_response", client.owned_response),
         (client.RuntimeClient, "_load_artifact_bundle", client.RuntimeClient._load_artifact_bundle),
         (transformer_client.LayerCache, "append", transformer_client.LayerCache.append),
-        (decoder_memory, "decoder_memory", decoder_memory.decoder_memory)]
+        (decoder_memory, "decoder_memory", decoder_memory.decoder_memory),
+        (bundle_storage.FilePayload, "__init__", bundle_storage.FilePayload.__init__),
+        (benchmark_memory, "estimate_memory", benchmark_memory.estimate_memory)]
     try:
         if mode == "legacy" and control == "response-lifetimes":
             restore_legacy_lifetimes()
+        elif control == "public-snapshot":
+            construct = bundle_storage.FilePayload.__init__
+            estimate = benchmark_memory.estimate_memory
+
+            def copied_payload(self, chunks, *, size, digest, native=False):
+                construct(self, chunks, size=size, digest=digest, native=False)
+
+            def copied_estimate(*args, **kwargs):
+                value = estimate(*args, **kwargs)
+                components = value["components"]
+                components["client_additional_paged_disk_bytes"] += components["client_weight_snapshot_disk_bytes"]
+                return value
+
+            if mode == "legacy":
+                bundle_storage.FilePayload.__init__ = copied_payload
+                benchmark_memory.estimate_memory = copied_estimate
         elif control == "tokenizer-source":
             # Both children compile the same controls before measurement. Only
             # legacy installs them; neither retains parsing owners during chat.
@@ -136,7 +157,7 @@ def main():
     parser.add_argument("--prompt-file", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--max-output-tokens", type=int, default=8)
-    parser.add_argument("--allocation-control", choices=("response-lifetimes", "kv-capacity", "tokenizer-source"),
+    parser.add_argument("--allocation-control", choices=("response-lifetimes", "kv-capacity", "tokenizer-source", "public-snapshot"),
                         default="response-lifetimes")
     parser.add_argument("--child", choices=MODES, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -159,9 +180,11 @@ def main():
 
     salt = os.urandom(32).hex()
     baseline = {"response-lifetimes": BASELINE, "kv-capacity": KV_BASELINE,
-                "tokenizer-source": TOKENIZER_BASELINE}[args.allocation_control]
+                 "tokenizer-source": TOKENIZER_BASELINE,
+                 "public-snapshot": SNAPSHOT_BASELINE}[args.allocation_control]
     baseline_files = (("bundle_artifacts.py",) if args.allocation_control == "response-lifetimes"
                       else ("client.py", "bundle_artifacts.py") if args.allocation_control == "tokenizer-source"
+                      else ("bundle_storage.py", "paged.py") if args.allocation_control == "public-snapshot"
                       else ("transformer_client.py", "decoder_memory.py"))
     baseline_hashes = {name: hashlib.sha256(subprocess.check_output(
         ["git", "show", f"{baseline}:python/pllm/runtime/{name}"], cwd=ROOT)).hexdigest()
@@ -169,7 +192,11 @@ def main():
     sources = [Path(__file__).resolve(), *(ROOT / "python/pllm/runtime" / name
                 for name in ("client.py", "bundle_artifacts.py", "http_response.py", "transformer_client.py",
                               "semantic_executor.py", "decoder_memory.py", "model_binding.py",
-                              "bundle_storage.py", "indexed_tokenizer.py", "benchmark_memory.py"))]
+                               "bundle_storage.py", "indexed_tokenizer.py", "benchmark_memory.py"))]
+    if args.allocation_control == "public-snapshot":
+        sources.extend(ROOT / path for path in ("python/pllm/runtime/paged.py",
+            "crates/pllm-core/src/public_file.rs", "crates/pllm-core/src/paged.rs",
+            "crates/pllm-python/src/paged.rs"))
     provenance = {
         "baseline_commit": subprocess.check_output(["git", "rev-parse", baseline], cwd=ROOT, text=True).strip(),
         "allocation_control": args.allocation_control,

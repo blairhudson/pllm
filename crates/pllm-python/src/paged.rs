@@ -1,5 +1,6 @@
 use crate::invalid;
 use pllm_core::paged;
+use pllm_core::public_file;
 use pyo3::{prelude::*, types::PyBytes};
 use std::path::Path;
 
@@ -16,6 +17,76 @@ fn digest(value: &str) -> PyResult<[u8; 32]> {
     Ok(std::array::from_fn(|i| {
         u8::from_str_radix(&value[i * 2..i * 2 + 2], 16).expect("validated hexadecimal digest")
     }))
+}
+
+#[pyclass(name = "PublicFile", module = "pllm._native")]
+struct PublicFile {
+    inner: Option<public_file::PublicFile>,
+}
+impl PublicFile {
+    fn get(&self) -> PyResult<&public_file::PublicFile> {
+        self.inner
+            .as_ref()
+            .ok_or_else(|| invalid("public snapshot is closed".into()))
+    }
+}
+#[pymethods]
+impl PublicFile {
+    fn read<'py>(
+        &self,
+        py: Python<'py>,
+        offset: u64,
+        length: usize,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let snapshot = self.get()?;
+        if length == 0 || length > public_file::MAX_CHUNK_BYTES {
+            return Err(invalid("public snapshot read exceeds bounds".into()));
+        }
+        // Fill unpublished Python bytes directly, without a second full chunk.
+        PyBytes::new_with(py, length, |data| {
+            py.detach(|| snapshot.read(offset, data)).map_err(invalid)
+        })
+    }
+    fn close(&mut self) {
+        self.inner = None;
+    }
+}
+
+#[pyclass(name = "PublicFileWriter", module = "pllm._native")]
+struct PublicFileWriter {
+    inner: Option<public_file::PublicFileWriter>,
+}
+#[pymethods]
+impl PublicFileWriter {
+    #[new]
+    fn new(py: Python<'_>, size: u64, content_digest: &str) -> PyResult<Self> {
+        let expected = digest(content_digest)?;
+        Ok(Self {
+            inner: Some(
+                py.detach(|| public_file::PublicFileWriter::new(size, expected))
+                    .map_err(invalid)?,
+            ),
+        })
+    }
+    fn write(&mut self, py: Python<'_>, bytes: &[u8]) -> PyResult<()> {
+        let writer = self
+            .inner
+            .as_mut()
+            .ok_or_else(|| invalid("public snapshot writer is closed".into()))?;
+        py.detach(|| writer.write(bytes)).map_err(invalid)
+    }
+    fn finish(&mut self, py: Python<'_>) -> PyResult<PublicFile> {
+        let writer = self
+            .inner
+            .take()
+            .ok_or_else(|| invalid("public snapshot writer is closed".into()))?;
+        Ok(PublicFile {
+            inner: Some(py.detach(|| writer.finish()).map_err(invalid)?),
+        })
+    }
+    fn close(&mut self) {
+        self.inner = None;
+    }
 }
 #[pyfunction]
 fn export_paged_weights(
@@ -82,6 +153,27 @@ impl Matrix {
                         cols,
                         executor,
                     )
+                })
+                .map_err(invalid)?,
+            ),
+        })
+    }
+    #[staticmethod]
+    fn from_public_file(
+        py: Python<'_>,
+        snapshot: PyRef<'_, PublicFile>,
+        content_digest: &str,
+        rows: usize,
+        cols: usize,
+        executor: PyRef<'_, crate::Executor>,
+    ) -> PyResult<Self> {
+        let expected = digest(content_digest)?;
+        let executor = std::sync::Arc::clone(&executor.inner);
+        let snapshot = snapshot.get()?;
+        Ok(Self {
+            inner: Some(
+                py.detach(|| {
+                    paged::PagedMatrix::from_public_file(snapshot, expected, rows, cols, executor)
                 })
                 .map_err(invalid)?,
             ),
@@ -188,6 +280,8 @@ impl Matrix {
     }
 }
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<PublicFile>()?;
+    module.add_class::<PublicFileWriter>()?;
     module.add_class::<Matrix>()?;
     module.add_function(wrap_pyfunction!(export_paged_weights, module)?)
 }

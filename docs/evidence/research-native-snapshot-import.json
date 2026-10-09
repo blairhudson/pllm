@@ -1,0 +1,331 @@
+{
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]"
+  },
+  "host": {
+    "available": 11890458624,
+    "disk_free": 48792674304,
+    "swap_used": 932708352,
+    "total": 34359738368
+  },
+  "implementation_sha256": {
+    "crates/pllm-core/src/paged.rs": "3945962d7be49ad7f936df3ab4da1fe0bae921d8091ec851d064044d46c8ab72",
+    "crates/pllm-core/src/public_file.rs": "743e0f3f814faed3b481d7bfd1e5478237493e1840f1ca775139f015dcda938a",
+    "crates/pllm-python/src/paged.rs": "98c5e7c586524267aec63fa118667bd9fdcec41e12b10749f47b615cc73a14d2",
+    "python/pllm/runtime/bundle_storage.py": "ce241fb9e3fd22b6afeed9bc4f3087218e9b262742ca3e15f33486f6b818e9ea",
+    "python/pllm/runtime/paged.py": "ea8da73febde89854fbc8cba4eb15f451a4d1bfd7f78478f038476c35ac7f2f6",
+    "scripts/probe_public_snapshot.py": "aef05a38aade19986e1d1d182017569c010cfacc65e6facb0ce569c3d92d0fdc"
+  },
+  "maximum_swap_growth_bytes": 0,
+  "medians": {
+    "qwen25-shaped": {
+      "copied": {
+        "execution_cpu_seconds": 0.03159499999999993,
+        "import_cpu_seconds": 0.782006,
+        "import_elapsed_seconds": 0.7878598757088184,
+        "peak_rss_bytes": 45072384
+      },
+      "shared": {
+        "execution_cpu_seconds": 0.030459000000000014,
+        "import_cpu_seconds": 0.6382300000000001,
+        "import_elapsed_seconds": 0.639386042021215,
+        "peak_rss_bytes": 43696128
+      }
+    },
+    "qwen3-4b-shaped": {
+      "copied": {
+        "execution_cpu_seconds": 0.09442800000000018,
+        "import_cpu_seconds": 2.195098,
+        "import_elapsed_seconds": 2.2054136246442795,
+        "peak_rss_bytes": 44761088
+      },
+      "shared": {
+        "execution_cpu_seconds": 0.09576000000000007,
+        "import_cpu_seconds": 1.821806,
+        "import_elapsed_seconds": 1.8251667497679591,
+        "peak_rss_bytes": 44711936
+      }
+    }
+  },
+  "samples": [
+    {
+      "binding_cpu_seconds": 0.728751,
+      "checked_outputs": 151936,
+      "choice": "copied",
+      "execution_cpu_seconds": 0.04157499999999992,
+      "import_cpu_seconds": 1.0486550000000001,
+      "import_elapsed_seconds": 1.055676625110209,
+      "output_sha256": "dd8955bb7e15e058d6805af213bbc5b6b268e8a9d103322a9a58f2455f0ae1b7",
+      "payload_cpu_seconds": 0.195965,
+      "peak_private_snapshot_logical_bytes": 272269312,
+      "peak_rss_bytes": 45072384,
+      "public_source_bytes": 136134656,
+      "repeat": 0,
+      "retained_private_snapshot_logical_bytes": 136134656,
+      "shape": [
+        151936,
+        896
+      ],
+      "shape_name": "qwen25-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.123919,
+      "weight_sha256": "16dca09e1fee6054d8b299aca51d8729162c6abd06d49eae01016efd8446b0a1"
+    },
+    {
+      "binding_cpu_seconds": 0.00016199999999999548,
+      "checked_outputs": 151936,
+      "choice": "shared",
+      "execution_cpu_seconds": 0.030590000000000006,
+      "import_cpu_seconds": 0.6529189999999999,
+      "import_elapsed_seconds": 0.658562334254384,
+      "output_sha256": "dd8955bb7e15e058d6805af213bbc5b6b268e8a9d103322a9a58f2455f0ae1b7",
+      "payload_cpu_seconds": 0.5449149999999999,
+      "peak_private_snapshot_logical_bytes": 136134656,
+      "peak_rss_bytes": 43696128,
+      "public_source_bytes": 136134656,
+      "repeat": 0,
+      "retained_private_snapshot_logical_bytes": 136134656,
+      "shape": [
+        151936,
+        896
+      ],
+      "shape_name": "qwen25-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.107827,
+      "weight_sha256": "16dca09e1fee6054d8b299aca51d8729162c6abd06d49eae01016efd8446b0a1"
+    },
+    {
+      "binding_cpu_seconds": 0.00010100000000001774,
+      "checked_outputs": 151936,
+      "choice": "shared",
+      "execution_cpu_seconds": 0.030332999999999943,
+      "import_cpu_seconds": 0.6382300000000001,
+      "import_elapsed_seconds": 0.639386042021215,
+      "output_sha256": "dd8955bb7e15e058d6805af213bbc5b6b268e8a9d103322a9a58f2455f0ae1b7",
+      "payload_cpu_seconds": 0.531687,
+      "peak_private_snapshot_logical_bytes": 136134656,
+      "peak_rss_bytes": 43925504,
+      "public_source_bytes": 136134656,
+      "repeat": 1,
+      "retained_private_snapshot_logical_bytes": 136134656,
+      "shape": [
+        151936,
+        896
+      ],
+      "shape_name": "qwen25-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.10641500000000004,
+      "weight_sha256": "16dca09e1fee6054d8b299aca51d8729162c6abd06d49eae01016efd8446b0a1"
+    },
+    {
+      "binding_cpu_seconds": 0.535066,
+      "checked_outputs": 151936,
+      "choice": "copied",
+      "execution_cpu_seconds": 0.03159499999999993,
+      "import_cpu_seconds": 0.782006,
+      "import_elapsed_seconds": 0.7878598757088184,
+      "output_sha256": "dd8955bb7e15e058d6805af213bbc5b6b268e8a9d103322a9a58f2455f0ae1b7",
+      "payload_cpu_seconds": 0.14284800000000003,
+      "peak_private_snapshot_logical_bytes": 272269312,
+      "peak_rss_bytes": 44711936,
+      "public_source_bytes": 136134656,
+      "repeat": 1,
+      "retained_private_snapshot_logical_bytes": 136134656,
+      "shape": [
+        151936,
+        896
+      ],
+      "shape_name": "qwen25-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.10407600000000003,
+      "weight_sha256": "16dca09e1fee6054d8b299aca51d8729162c6abd06d49eae01016efd8446b0a1"
+    },
+    {
+      "binding_cpu_seconds": 0.535209,
+      "checked_outputs": 151936,
+      "choice": "copied",
+      "execution_cpu_seconds": 0.031111999999999917,
+      "import_cpu_seconds": 0.770424,
+      "import_elapsed_seconds": 0.7733610831201077,
+      "output_sha256": "dd8955bb7e15e058d6805af213bbc5b6b268e8a9d103322a9a58f2455f0ae1b7",
+      "payload_cpu_seconds": 0.128522,
+      "peak_private_snapshot_logical_bytes": 272269312,
+      "peak_rss_bytes": 45760512,
+      "public_source_bytes": 136134656,
+      "repeat": 2,
+      "retained_private_snapshot_logical_bytes": 136134656,
+      "shape": [
+        151936,
+        896
+      ],
+      "shape_name": "qwen25-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.10667100000000002,
+      "weight_sha256": "16dca09e1fee6054d8b299aca51d8729162c6abd06d49eae01016efd8446b0a1"
+    },
+    {
+      "binding_cpu_seconds": 0.00011600000000000499,
+      "checked_outputs": 151936,
+      "choice": "shared",
+      "execution_cpu_seconds": 0.030459000000000014,
+      "import_cpu_seconds": 0.634046,
+      "import_elapsed_seconds": 0.6353305419906974,
+      "output_sha256": "dd8955bb7e15e058d6805af213bbc5b6b268e8a9d103322a9a58f2455f0ae1b7",
+      "payload_cpu_seconds": 0.529577,
+      "peak_private_snapshot_logical_bytes": 136134656,
+      "peak_rss_bytes": 43466752,
+      "public_source_bytes": 136134656,
+      "repeat": 2,
+      "retained_private_snapshot_logical_bytes": 136134656,
+      "shape": [
+        151936,
+        896
+      ],
+      "shape_name": "qwen25-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.10433200000000009,
+      "weight_sha256": "16dca09e1fee6054d8b299aca51d8729162c6abd06d49eae01016efd8446b0a1"
+    },
+    {
+      "binding_cpu_seconds": 1.518664,
+      "checked_outputs": 151936,
+      "choice": "copied",
+      "execution_cpu_seconds": 0.10033899999999996,
+      "import_cpu_seconds": 2.200277,
+      "import_elapsed_seconds": 2.2124469578266144,
+      "output_sha256": "33dd4e74d0c397b4a8f369ff4285624c661772b57ec796880332ecfe035c5f79",
+      "payload_cpu_seconds": 0.385879,
+      "peak_private_snapshot_logical_bytes": 777912320,
+      "peak_rss_bytes": 45744128,
+      "public_source_bytes": 388956160,
+      "repeat": 0,
+      "retained_private_snapshot_logical_bytes": 388956160,
+      "shape": [
+        151936,
+        2560
+      ],
+      "shape_name": "qwen3-4b-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.295715,
+      "weight_sha256": "f05382bf9f055ad1484dc296d534be11a65c58b534d861da773906cf9878948e"
+    },
+    {
+      "binding_cpu_seconds": 6.700000000003925e-05,
+      "checked_outputs": 151936,
+      "choice": "shared",
+      "execution_cpu_seconds": 0.09576000000000007,
+      "import_cpu_seconds": 1.816805,
+      "import_elapsed_seconds": 1.820068458095193,
+      "output_sha256": "33dd4e74d0c397b4a8f369ff4285624c661772b57ec796880332ecfe035c5f79",
+      "payload_cpu_seconds": 1.518717,
+      "peak_private_snapshot_logical_bytes": 388956160,
+      "peak_rss_bytes": 43597824,
+      "public_source_bytes": 388956160,
+      "repeat": 0,
+      "retained_private_snapshot_logical_bytes": 388956160,
+      "shape": [
+        151936,
+        2560
+      ],
+      "shape_name": "qwen3-4b-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.29800800000000005,
+      "weight_sha256": "f05382bf9f055ad1484dc296d534be11a65c58b534d861da773906cf9878948e"
+    },
+    {
+      "binding_cpu_seconds": 0.00012100000000003774,
+      "checked_outputs": 151936,
+      "choice": "shared",
+      "execution_cpu_seconds": 0.09352699999999992,
+      "import_cpu_seconds": 1.821806,
+      "import_elapsed_seconds": 1.8251667497679591,
+      "output_sha256": "33dd4e74d0c397b4a8f369ff4285624c661772b57ec796880332ecfe035c5f79",
+      "payload_cpu_seconds": 1.517491,
+      "peak_private_snapshot_logical_bytes": 388956160,
+      "peak_rss_bytes": 44711936,
+      "public_source_bytes": 388956160,
+      "repeat": 1,
+      "retained_private_snapshot_logical_bytes": 388956160,
+      "shape": [
+        151936,
+        2560
+      ],
+      "shape_name": "qwen3-4b-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.30415800000000015,
+      "weight_sha256": "f05382bf9f055ad1484dc296d534be11a65c58b534d861da773906cf9878948e"
+    },
+    {
+      "binding_cpu_seconds": 1.5194330000000003,
+      "checked_outputs": 151936,
+      "choice": "copied",
+      "execution_cpu_seconds": 0.09442800000000018,
+      "import_cpu_seconds": 2.195098,
+      "import_elapsed_seconds": 2.2054136246442795,
+      "output_sha256": "33dd4e74d0c397b4a8f369ff4285624c661772b57ec796880332ecfe035c5f79",
+      "payload_cpu_seconds": 0.37986200000000003,
+      "peak_private_snapshot_logical_bytes": 777912320,
+      "peak_rss_bytes": 44761088,
+      "public_source_bytes": 388956160,
+      "repeat": 1,
+      "retained_private_snapshot_logical_bytes": 388956160,
+      "shape": [
+        151936,
+        2560
+      ],
+      "shape_name": "qwen3-4b-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.29579,
+      "weight_sha256": "f05382bf9f055ad1484dc296d534be11a65c58b534d861da773906cf9878948e"
+    },
+    {
+      "binding_cpu_seconds": 1.497194,
+      "checked_outputs": 151936,
+      "choice": "copied",
+      "execution_cpu_seconds": 0.09438100000000027,
+      "import_cpu_seconds": 2.139178,
+      "import_elapsed_seconds": 2.1514092506840825,
+      "output_sha256": "33dd4e74d0c397b4a8f369ff4285624c661772b57ec796880332ecfe035c5f79",
+      "payload_cpu_seconds": 0.36168300000000003,
+      "peak_private_snapshot_logical_bytes": 777912320,
+      "peak_rss_bytes": 44711936,
+      "public_source_bytes": 388956160,
+      "repeat": 2,
+      "retained_private_snapshot_logical_bytes": 388956160,
+      "shape": [
+        151936,
+        2560
+      ],
+      "shape_name": "qwen3-4b-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.28029099999999996,
+      "weight_sha256": "f05382bf9f055ad1484dc296d534be11a65c58b534d861da773906cf9878948e"
+    },
+    {
+      "binding_cpu_seconds": 0.00011699999999992272,
+      "checked_outputs": 151936,
+      "choice": "shared",
+      "execution_cpu_seconds": 0.09916800000000014,
+      "import_cpu_seconds": 2.058877,
+      "import_elapsed_seconds": 2.235910000279546,
+      "output_sha256": "33dd4e74d0c397b4a8f369ff4285624c661772b57ec796880332ecfe035c5f79",
+      "payload_cpu_seconds": 1.758811,
+      "peak_private_snapshot_logical_bytes": 388956160,
+      "peak_rss_bytes": 45645824,
+      "public_source_bytes": 388956160,
+      "repeat": 2,
+      "retained_private_snapshot_logical_bytes": 388956160,
+      "shape": [
+        151936,
+        2560
+      ],
+      "shape_name": "qwen3-4b-shaped",
+      "swap_growth_bytes": 0,
+      "validation_cpu_seconds": 0.29993800000000004,
+      "weight_sha256": "f05382bf9f055ad1484dc296d534be11a65c58b534d861da773906cf9878948e"
+    }
+  ],
+  "schema": "pllm.public_snapshot_probe.v1",
+  "scope": "Fresh-process synthetic public-weight import and shared-snapshot ablation.\n\nBoth choices stream and authenticate identical raw i8 weights and re-hash actual\nsnapshot bytes for bundle validation. The control then makes the previous second\nprivate native copy; the candidate binds the same immutable native file. Public\nsource files are pre-positioned and OS cache is uncontrolled. Integer outputs use\nan independent bounded NumPy int64 oracle. This excludes checkpoint values, full\nSDK responses, provider traffic, filesystem-cache and whole-device memory costs.\n"
+}

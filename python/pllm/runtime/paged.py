@@ -63,6 +63,17 @@ class PagedGEMM:
             os.fspath(path), content_digest, *shape, executor)
         return result
 
+    @classmethod
+    def _from_payload_executor(cls, payload, shape, executor):
+        """Retain the verified native file owner, or snapshot a legacy file."""
+        with payload._lock:
+            if payload._snapshot is None:
+                return cls._from_raw_executor(payload.path, payload.digest, shape, executor)
+            result = cls.__new__(cls)
+            result._matrix = extension().PagedMatrix.from_public_file(
+                payload._snapshot, payload.digest, *shape, executor)
+            return result
+
     @staticmethod
     def export(
         weights: np.ndarray, path: str | Path, *, page_rows: int = 512, compression: str = "raw"

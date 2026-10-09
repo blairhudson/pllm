@@ -149,6 +149,16 @@ The local supervisor is a functional deployment, not evidence of operator indepe
 
 ## Publication, storage and evidence
 
+Paged integer-weight artifacts now share one authenticated immutable Rust file
+between delivery and execution. Source/object/bundle validation still reads
+bounded actual contents; paged binding no longer copies the complete weight file
+again. Closing delivery retires its reference while live kernels retain theirs.
+Admission charges the shared private weight payload once, separately from public
+artifact caches and tokenizer files. This uses the existing `storage="paged"`
+selection. The isolated import screen lowers CPU and logical file payload; a
+separate Qwen2.5 response pair raises client RSS and latency. See the
+[import and whole-response evidence](https://github.com/blairhudson/pllm/blob/main/docs/research/native-snapshot-reference.md).
+
 Provider caching is explicit and defaults to zero. Its **1 MiB–2 GiB per-role**
 bound includes resident encoded files and publication staging. First requests
 publish; later fresh clients reuse checked files. Eviction, active-reader pins,
