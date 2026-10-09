@@ -176,7 +176,7 @@ def test_topology_builds_secret_free_commands_and_closes_processes(monkeypatch, 
             self.returncode = -9
 
         def wait(self, timeout):
-            assert timeout in {5, 10}
+            assert 0 <= timeout <= 5
             if self.returncode is None:
                 self.returncode = 0
             return self.returncode

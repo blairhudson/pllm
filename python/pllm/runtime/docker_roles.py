@@ -293,8 +293,15 @@ class DockerTopology(LocalTopology):
                      "/opt/pllm/.venv/bin/python", "-m", "pllm.runtime.docker_network", "--peer", address])
 
     @staticmethod
-    def _stop(process):
-        process.close()
+    def _stop_all(processes):
+        error = None
+        for process in processes:
+            try:
+                process.close()
+            except Exception as exc:
+                error = error or exc
+        if error is not None:
+            raise error
 
     def _redacted_tail(self, role):
         try:

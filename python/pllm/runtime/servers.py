@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from pllm.configuration import Experiment, Model, Pipeline
+from pllm.runtime.shutdown import defer_termination_signals
 
 
 class TopologyError(RuntimeError):
@@ -130,30 +131,36 @@ def _spawn_role_process(
     )
 
 
-def _stop_role_process(process: subprocess.Popen[Any]) -> None:
-    if process.poll() is not None:
-        return
-    try:
-        if os.name == "posix":
-            os.killpg(process.pid, signal.SIGTERM)
-        else:
-            process.terminate()
-        process.wait(timeout=10)
-        return
-    except (ProcessLookupError, subprocess.TimeoutExpired):
-        pass
-    if process.poll() is None:
-        if os.name == "posix":
+def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]]) -> None:
+    """Signal every role before waiting, with one grace/kill budget for the graph."""
+    processes = tuple(processes)
+    error: Exception | None = None
+    for sig, seconds in ((signal.SIGTERM, 5.0), (signal.SIGKILL, 2.0)):
+        deadline = time.monotonic() + seconds
+        for process in processes:
+            if process.poll() is not None:
+                continue
             try:
-                os.killpg(process.pid, signal.SIGKILL)
+                if os.name == "posix":
+                    os.killpg(process.pid, sig)
+                elif sig == signal.SIGTERM:
+                    process.terminate()
+                else:
+                    process.kill()
             except ProcessLookupError:
                 pass
-        else:
-            process.kill()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired as exc:
-            raise TopologyError("local role process did not stop") from exc
+            except Exception as exc:
+                error = error or exc
+        for process in processes:
+            try:
+                process.wait(timeout=max(0.0, deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                if sig == signal.SIGKILL:
+                    error = error or TopologyError("local role process did not stop")
+            except Exception as exc:
+                error = error or exc
+    if error is not None:
+        raise error
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +175,7 @@ class LocalTopology:
     __slots__ = (
         "_activation_bits",
         "_closed",
+        "_close_lock",
         "_correlation_mode",
         "_credential_prefix",
         "_engine_threads",
@@ -288,6 +296,7 @@ class LocalTopology:
         self._progress = progress
         self._processes: dict[str, subprocess.Popen[Any]] = {}
         self._process_lock = threading.Lock()
+        self._close_lock = threading.Lock()
         self._logs: dict[str, Any] = {}
         self._inference_url = ""
         self._preparation_url = ""
@@ -926,36 +935,31 @@ class LocalTopology:
         return create_sidecar_app(**options, **overrides)
 
     @staticmethod
-    def _stop(process: subprocess.Popen[Any]) -> None:
-        _stop_role_process(process)
+    def _stop_all(processes: Iterable[subprocess.Popen[Any]]) -> None:
+        _stop_role_processes(processes)
 
     def close(self) -> None:
         self._stopping.set()
-        with self._process_lock:
-            processes = dict(self._processes)
-        if self._closed and all(process.poll() is not None for process in processes.values()):
-            return
-        self._closed = True
-        error: Exception | None = None
-        for role in reversed(self._role_ids):
-            process = processes.get(role)
-            if process is None:
-                continue
+        # The pressure guard, startup rollback and foreground caller can all
+        # arrive here. One owner signals/reaps; other callers wait for retirement.
+        with defer_termination_signals(), self._close_lock:
+            with self._process_lock:
+                processes = dict(self._processes)
+            if self._closed and all(process.poll() is not None for process in processes.values()):
+                return
+            self._closed = True
             try:
-                self._stop(process)
-            except Exception as exc:
-                error = error or exc
-        for log in self._logs.values():
-            if not log.closed:
-                log.close()
-        if error is not None:
-            raise error
-        if self._local_engine is not None:
-            self._local_engine.models.clear()
-            self._local_engine = None
-        self._inference_key = ""
-        self._preparation_key = ""
-        self._push_key = ""
+                self._stop_all(processes[role] for role in reversed(self._role_ids) if role in processes)
+            finally:
+                for log in self._logs.values():
+                    if not log.closed:
+                        log.close()
+                if self._local_engine is not None:
+                    self._local_engine.models.clear()
+                    self._local_engine = None
+                self._inference_key = ""
+                self._preparation_key = ""
+                self._push_key = ""
 
     def __enter__(self) -> LocalTopology:
         if self._started and not self._closed:

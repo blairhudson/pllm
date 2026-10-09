@@ -1169,6 +1169,13 @@ prepared graph starts Inference and Preparation as separate
 child processes, keeps generated credentials
 in environment variables rather than argv or status records, binds health-checked
 URLs to client/gateway factories, and owns process-group shutdown. The benchmark
+native supervisor signals all provider groups before waiting, with one five-second
+grace period and one two-second forced-retirement budget for the graph. Concurrent
+pressure, startup-rollback and foreground cleanup share one owner. Repeated
+SIGINT/SIGTERM during main-thread cleanup are deferred until retirement, then
+delivered through the original handler; benchmark sampling errors still retire
+the dashboard and provider roles.
+The benchmark
 dashboard driver now runs in-process, so a diagnostic run has two role children
 rather than a dashboard child that creates another process tree. This topology is
 for local development and measurement; it does not establish non-colluding

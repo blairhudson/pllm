@@ -236,6 +236,37 @@ def test_benchmark_dashboard_display_is_explicit() -> None:
 
 
 @pytest.mark.integration
+def test_sampling_failure_still_retires_real_benchmark_roles(monkeypatch):
+    from pllm.runtime import benchmark_cli, benchmark_resources, servers
+
+    processes = []
+    spawn = servers._spawn_role_process
+    stop = benchmark_resources.ProcessMemorySampler.stop
+
+    def track(*args, **kwargs):
+        process = spawn(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    def fail_sample(sampler):
+        stop(sampler)
+        raise RuntimeError("sample failed")
+
+    def abort_request(*_args, **_kwargs):
+        assert len(processes) == 2 and all(p.poll() is None for p in processes)
+        raise benchmark_cli.LoopbackBenchmarkError("request interrupted")
+
+    monkeypatch.setattr(servers, "_spawn_role_process", track)
+    monkeypatch.setattr(benchmark_resources.ProcessMemorySampler, "stop", fail_sample)
+    monkeypatch.setattr(benchmark_cli, "_run_once", abort_request)
+    with pytest.raises(RuntimeError, match="sample failed"):
+        run_loopback_benchmark(model="unused", model_id=None, tiny=True, prompt="private",
+            max_output_tokens=1, warmups=0, repetitions=1, timeout_seconds=60, backend="native")
+    assert len(processes) == 2 and all(p.poll() is not None for p in processes)
+    assert benchmark_cli._DASHBOARD_PORT is None
+
+
+@pytest.mark.integration
 def test_tiny_benchmark_runs_in_process_over_shared_role_topology() -> None:
     report = run_loopback_benchmark(
         model="unused",

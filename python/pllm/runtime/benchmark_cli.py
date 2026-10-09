@@ -130,6 +130,8 @@ class _DashboardHandle:
 
     def close(self) -> None:
         self.server.should_exit = True
+        if self.thread.ident is None:
+            return
         self.thread.join(timeout=20)
         if self.thread.is_alive():
             self.server.force_exit = True
@@ -1028,6 +1030,7 @@ def _run_loopback_benchmark(
     origin = f"http://127.0.0.1:{port}"
     dashboard_app = create_dashboard_app(config)
     from .benchmark_resources import ProcessMemorySampler
+    from .shutdown import defer_termination_signals
     memory_sampler = ProcessMemorySampler(dashboard_app.state.dashboard_runtime) if not docker else None
     if memory_sampler is not None:
         memory_sampler.start()
@@ -1038,15 +1041,6 @@ def _run_loopback_benchmark(
         )
 
     handle = _DashboardHandle(dashboard_app, port)
-    try:
-        handle.start()
-        _wait_for_dashboard_listener(handle, origin, timeout_seconds)
-    except BaseException:
-        if memory_sampler is not None:
-            memory_sampler.stop()
-        handle.close()
-        _DASHBOARD_PORT = None
-        raise
     previous_sigterm: Any = None
 
     def terminate(_signum: int, _frame: Any) -> None:
@@ -1056,6 +1050,8 @@ def _run_loopback_benchmark(
         previous_sigterm = signal.getsignal(signal.SIGTERM)
         signal.signal(signal.SIGTERM, terminate)
     try:
+        handle.start()
+        _wait_for_dashboard_listener(handle, origin, timeout_seconds)
         if show_dashboard:
             webbrowser.open(origin)
         with httpx.Client(base_url=origin, timeout=5.0) as client:
@@ -1153,12 +1149,20 @@ def _run_loopback_benchmark(
         suffix = f"\n{diagnostic}" if diagnostic else ""
         raise LoopbackBenchmarkError(f"{exc}{suffix}") from exc
     finally:
-        native_memory = memory_sampler.stop() if memory_sampler is not None else None
-        if previous_sigterm is not None:
-            signal.signal(signal.SIGTERM, previous_sigterm)
-        if progress is not None:
-            progress("Stopping benchmark roles")
-        handle.close()
+        try:
+            with defer_termination_signals():
+                try:
+                    native_memory = memory_sampler.stop() if memory_sampler is not None else None
+                    if progress is not None:
+                        progress("Stopping benchmark roles")
+                finally:
+                    try:
+                        handle.close()
+                    finally:
+                        _DASHBOARD_PORT = None
+        finally:
+            if previous_sigterm is not None:
+                signal.signal(signal.SIGTERM, previous_sigterm)
 
     report = build_loopback_report(
         model_id=resolved_model_id,
