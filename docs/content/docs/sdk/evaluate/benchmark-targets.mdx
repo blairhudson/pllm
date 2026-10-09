@@ -214,6 +214,21 @@ as `sealed_local`; publication, restore-child CPU/RSS and private disk stay visi
 layouts at multiple context lengths. This is a storage/attention gate, not yet
 a compiler-bound layer-swapped decoder or durable conversation credential.
 
+### Correction output stripes
+
+`BenchmarkTarget.preparation(..., output_columns=256)` measures a compiler-selected
+stage through separate, fresh local pipe peers. `output_columns=0` uses one full
+output stripe as its matched control. Each stripe needs an authenticated, ordered
+acknowledgement; only the final complete seal reaches READY. Malformed frames,
+replay, acknowledgement substitution and cancellation retire incomplete owners.
+
+The target keeps full input batches for native integer or `digit8_native` kernels.
+Full input/output masks remain charged. Reports include both process CPU owners,
+separate endpoint peaks, stripe/ack/control bytes, initial weight binding and
+private correction files. `benchmarks/research/correction_stripes.py` compares
+full, 256- and 1,024-column layouts. This local fixture has no HTTP role inventory,
+paged-weight stripe kernel, WAN result or complete-response performance claim.
+
 ## Propagate required measurements
 
 ```python

@@ -41,6 +41,7 @@ def test_digit_gemm_extremes_carries_and_partial_sum_bound(bits, digits):
 
 @pytest.mark.parametrize("kind,options", [
     ("geometry", {}), ("preparation", {}), ("preparation", {"chunk_rows": 3}),
+    ("preparation", {"output_columns": 0}), ("preparation", {"output_columns": 3}),
     ("preparation", {"kernel": "digit4"}), ("preparation", {"kernel": "digit8", "chunk_rows": 3}),
     ("preparation", {"storage": "paged"}), ("stage", {}),
     ("artifacts", {"storage": "shared"}), ("artifacts", {"storage": "copied", "operation": "bind"}),

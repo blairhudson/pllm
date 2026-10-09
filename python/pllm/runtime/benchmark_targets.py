@@ -297,6 +297,9 @@ def execute_target(target, m):
     if m.inputs and target.kind not in {"response", "operator"}:
         raise TargetUnavailable("private_inputs_not_supported_for_target")
     if target.kind in {"stage", "preparation"}:
+        if target.kind == "preparation" and "output_columns" in p:
+            from .benchmark_correction_stripes import execute_stripes
+            return execute_stripes(p, m)
         return _stage(target, p, m)
     if target.kind == "artifacts":
         return _artifacts(p, m)

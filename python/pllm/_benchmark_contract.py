@@ -282,10 +282,13 @@ class BenchmarkTarget:
     @classmethod
     def preparation(cls, experiment, *, role="mlp_gate_up", layer=0, rows=16,
                     weights="synthetic", seed=7, kernel="native", storage="resident",
-                    chunk_rows=0, config=None):
-        return cls("preparation", dict(model=_model(experiment, config), role=role,
+                    chunk_rows=0, output_columns=None, config=None):
+        parameters = dict(model=_model(experiment, config), role=role,
             layer=layer, rows=rows, weights=weights, seed=seed, kernel=kernel,
-            storage=storage, chunk_rows=chunk_rows))
+            storage=storage, chunk_rows=chunk_rows)
+        if output_columns is not None:
+            parameters["output_columns"] = output_columns
+        return cls("preparation", parameters)
 
     @classmethod
     def artifacts(cls, experiment, *, role="lm_head", layer=None, weights="synthetic",
@@ -352,6 +355,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"client_mlp"}
     if kind == "response" and "client_metadata" in p:
         fields[kind] = fields[kind] | {"client_metadata"}
+    if kind == "preparation" and "output_columns" in p:
+        fields[kind] = fields[kind] | {"output_columns"}
     if set(p) != fields[kind]:
         raise ValueError("benchmark target fields differ from its contract")
     if "model" in p:
@@ -380,6 +385,10 @@ def _validate_target(document):
             raise ValueError("decode stage targets require one row")
     elif kind == "preparation":
         bounded_int(p["chunk_rows"], 0, 4096, "mask row chunk")
+        if "output_columns" in p:
+            bounded_int(p["output_columns"], 0, 65536, "output stripe columns")
+            if p["chunk_rows"] or p["storage"] != "resident" or p["kernel"] not in {"native", "digit8_native"}:
+                raise ValueError("output stripes require resident native kernels and full input batches")
     elif kind == "artifacts":
         choice(p["storage"], {"shared", "copied"}, "snapshot ownership")
         choice(p["operation"], {"import", "bind"}, "artifact operation")

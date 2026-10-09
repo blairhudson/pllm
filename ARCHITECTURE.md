@@ -116,6 +116,12 @@ generation. Cross-codec integer-bit/attention and separate-process restoration
 checks pass. These remain storage mechanics, with no compiler-bound layer-swapped
 decoder or persistent conversation credential. Replay:
 `docs/research/streaming-state-reference.md`.
+Preparation targets separately benchmark exact full-batch output stripes through
+fresh ordered local push/ack peers. Completion, malformed frames, replay and
+cancellation enforce bounded ownership; both endpoint peaks, CPU and framed bodies
+remain visible. Full masks are still resident. This fixture does not select an
+HTTP inventory protocol or establish whole-response gains. Replay:
+`docs/research/correction-stripes-reference.md`.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%
