@@ -181,6 +181,9 @@ def execute_state(target, p, m):
     from .benchmark_targets import model_context, state_layout
     if target.kind == "projection":
         return _projection(p, m)
+    if p["operation"] == "decoder_restart":
+        from .benchmark_decoder_restart import execute_restart
+        return execute_restart(p, m)
     context = model_context(p, m)
     layout = sorted(state_layout(context[2], p["tokens"]), key=lambda row: (row["layer"], row["kind"]))
     size = sum(math.prod(row["shape"]) * 4 for row in layout)

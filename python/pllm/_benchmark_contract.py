@@ -402,7 +402,7 @@ def _validate_target(document):
         if p["geometry"] is not None and not isinstance(p["geometry"], dict):
             raise ValueError("operator geometry must be a mapping")
     elif kind == "state":
-        choice(p["operation"], {"roundtrip", "attention", "restart"}, "state operation")
+        choice(p["operation"], {"roundtrip", "attention", "restart", "decoder_restart"}, "state operation")
         choice(p["storage"], {"memory", "sealed_local", "sealed_stream"}, "state storage")
         bounded_int(p["tokens"], 1, 1 << 20, "state tokens")
     elif kind == "response":

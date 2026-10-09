@@ -122,6 +122,14 @@ cancellation enforce bounded ownership; both endpoint peaks, CPU and framed bodi
 remain visible. Full masks are still resident. This fixture does not select an
 HTTP inventory protocol or establish whole-response gains. Replay:
 `docs/research/correction-stripes-reference.md`.
+The separate bounded decoder-restart target now seals actual compiled full-KV,
+logits, executed history and a pending greedy token, then restores in a fresh
+interpreter. Generated Qwen2/Qwen3/Llama checks preserve exact continuation logits
+and KV with fresh local prepared material. Native source/state admission,
+authenticated revisions and pending-token provenance precede restoration. The
+issuer still retains key/head custody; no persistent SDK conversation, independent
+roles or full-response saving is established. Replay:
+`docs/research/decoder-restart-reference.md`.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%

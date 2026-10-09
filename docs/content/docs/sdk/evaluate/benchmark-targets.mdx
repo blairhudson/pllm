@@ -229,6 +229,24 @@ private correction files. `benchmarks/research/correction_stripes.py` compares
 full, 256- and 1,024-column layouts. This local fixture has no HTTP role inventory,
 paged-weight stripe kernel, WAN result or complete-response performance claim.
 
+### Checkpoint-backed decoder restart reference
+
+`BenchmarkTarget.state(..., operation="decoder_restart", storage="sealed_local")`
+adds an actual bounded decoder consumer to the synthetic restart mechanics. It
+requires the explicit W8A8 `prefix_f32` baseline composition, at most 128 public
+fixture tokens, 16 MiB source weights at float32 and an 8 MiB sealed-frame bound.
+A trusted fixture issuer authenticates full KV, logits, executed history and the
+pending greedy token against the compiled binding and continuation contract.
+
+A fresh interpreter reloads/revalidates the source, authenticates the checkpoint,
+checks full-state geometry and pending-token provenance, then runs two exact
+continuation steps. Each linear call issues fresh local prepared material. Old
+snapshot seals, credentials, inventories and masks never enter persistent state.
+Reports charge original bootstrap/publication and new-client import/restore,
+separate peaks and fresh arithmetic bodies. Keys and trusted heads stay with the
+issuer; this is not persistent key management, an SDK conversation importer or
+independent provider transport. Replay with `benchmarks/research/decoder_restart.py`.
+
 ## Propagate required measurements
 
 ```python
