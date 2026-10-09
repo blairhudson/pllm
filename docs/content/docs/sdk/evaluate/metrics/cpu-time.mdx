@@ -1,0 +1,27 @@
+---
+title: "CPU time"
+description: "Declare process CPU seconds with explicit role and lifecycle accounting."
+---
+
+[`CpuTime`](/sdk/reference/python/pllm/metrics/#cputime)
+(`pllm/cpu-time/v1`) declares process CPU seconds, lower-is-better. Benchmark
+records bind the owner, phase, measurement window and sample count separately.
+Compare only matching contracts: target-call CPU, process-birth CPU and aggregate
+cold-first role CPU are different quantities. Child-process CPU needs its own
+measurement; parent CPU and elapsed latency cannot substitute for it.
+
+## Python SDK example
+
+```python
+from pllm.metrics import CpuTime
+
+metric = CpuTime()
+assert metric.component == "pllm/cpu-time/v1"
+assert metric.get_params() == {}
+```
+
+This declaration collects no sample. Use
+[benchmark targets](/sdk/evaluate/benchmark-targets/) for measured observations;
+unavailable role counters remain unknown.
+
+API: [`CpuTime`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

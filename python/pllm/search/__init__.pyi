@@ -135,3 +135,4 @@ def optimization_space(
     prefix_cache_bytes: int = 0, metal_min_rows: int | None = None,
     max_candidates: int = 64,
 ) -> SearchSpace: ...
+from pllm.search.frontier import FrontierStudy as FrontierStudy, FrontierWork as FrontierWork, Variant as Variant

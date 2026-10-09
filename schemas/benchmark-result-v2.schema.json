@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.run/schemas/benchmark-result-v2.schema.json",
+  "title": "PLLM scoped benchmark result v2",
+  "type": "object",
+  "required": ["schema_version", "id", "created_at", "status", "scope", "profile", "component_ids", "model", "plan_lock_digest", "configuration_digest", "workload_digest", "privacy_cohort", "numeric_cohort", "environment", "warmups", "repetitions", "samples", "metrics", "limitations", "execution"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "pllm.benchmark_result.v2"},
+    "id": {"$ref": "#/$defs/identity"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["completed", "failed", "not_available", "blocked", "unsupported", "timeout", "cancelled"]},
+    "scope": {"enum": ["kernel", "operator", "region", "full_model", "deployment", "runtime", "geometry", "artifact", "stage", "preparation", "state", "projection"]},
+    "profile": {"$ref": "#/$defs/identity"},
+    "component_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}},
+    "model": {"type": "object", "required": ["id", "checkpoint_digest", "source_lock_digest"], "additionalProperties": false, "properties": {
+      "id": {"type": "string", "minLength": 1, "maxLength": 512}, "checkpoint_digest": {"$ref": "#/$defs/nullableDigest"}, "source_lock_digest": {"$ref": "#/$defs/nullableDigest"}
+    }},
+    "plan_lock_digest": {"$ref": "#/$defs/nullableDigest"}, "configuration_digest": {"$ref": "#/$defs/digest"}, "workload_digest": {"$ref": "#/$defs/digest"},
+    "privacy_cohort": {"$ref": "#/$defs/identity"}, "numeric_cohort": {"$ref": "#/$defs/identity"},
+    "environment": {"type": "object", "required": ["digest", "attributes"], "additionalProperties": false, "properties": {"digest": {"$ref": "#/$defs/digest"}, "attributes": {"type": "object"}}},
+    "warmups": {"type": "integer", "minimum": 0}, "repetitions": {"type": "integer", "minimum": 0},
+    "samples": {"type": "array", "items": {"type": "object", "required": ["index", "kind", "status", "duration_seconds", "artifact_digest"], "additionalProperties": false, "properties": {
+      "index": {"type": "integer", "minimum": 0}, "kind": {"enum": ["warmup", "measurement"]}, "status": {"enum": ["completed", "failed"]}, "duration_seconds": {"type": ["number", "null"], "minimum": 0}, "artifact_digest": {"$ref": "#/$defs/nullableDigest"}
+    }}},
+    "metrics": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/metric"}},
+    "limitations": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 1024}},
+    "execution": {"type": "object", "required": ["case", "case_digest", "suite_digest", "cohort", "replicate", "build", "sampling", "isolation", "fixture", "oracle", "admission", "comparison", "details", "failure_code", "budgets"], "additionalProperties": false, "properties": {
+      "case": {"$ref": "#/$defs/case"}, "case_digest": {"$ref": "#/$defs/digest"}, "suite_digest": {"$ref": "#/$defs/digest"}, "cohort": {"$ref": "#/$defs/digest"}, "replicate": {"type": "integer", "minimum": 0, "maximum": 31},
+      "build": {"type": "object", "required": ["digest", "attributes"], "additionalProperties": false, "properties": {"digest": {"$ref": "#/$defs/digest"}, "attributes": {"type": "object"}}},
+      "sampling": {"$ref": "#/$defs/sampling"}, "isolation": {"$ref": "#/$defs/isolation"}, "fixture": {"$ref": "#/$defs/fixture"}, "oracle": {"$ref": "#/$defs/oracle"}, "admission": {"$ref": "#/$defs/admission"}, "comparison": {"$ref": "#/$defs/comparison"}, "details": {"type": "object"},
+      "failure_code": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9._/:+-]{0,191}$"}, "budgets": {"type": "array", "items": {"$ref": "#/$defs/assessment"}}
+    }}
+  },
+  "$defs": {
+    "identity": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/:+-]{0,255}$"},
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "nullableDigest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "case": {
+      "type": "object", "required": ["name", "target", "build", "budgets"], "additionalProperties": false,
+      "properties": {
+        "name": {"$ref": "#/$defs/identity"},
+        "target": {"type": "object", "required": ["schema", "kind", "parameters"], "additionalProperties": false, "properties": {
+          "schema": {"const": "pllm.benchmark_target.v1"},
+          "kind": {"enum": ["runtime", "geometry", "artifacts", "stage", "preparation", "operator", "state", "response", "projection"]},
+          "parameters": {"type": "object", "description": "Kind-specific public parameters, validated by BenchmarkTarget.from_spec before execution."}
+        }},
+        "build": {"type": "object", "required": ["python", "expected_digest"], "additionalProperties": false, "properties": {
+          "python": {"type": "string", "minLength": 1}, "expected_digest": {"$ref": "#/$defs/nullableDigest"}
+        }},
+        "budgets": {"type": "array", "items": {"$ref": "#/$defs/budget"}}
+      }
+    },
+    "budget": {
+      "type": "object", "required": ["metric", "maximum", "minimum"], "additionalProperties": false,
+      "properties": {"metric": {"$ref": "#/$defs/identity"}, "maximum": {"type": ["number", "null"], "minimum": 0}, "minimum": {"type": ["number", "null"], "minimum": 0}},
+      "oneOf": [{"properties": {"maximum": {"type": "number"}, "minimum": {"type": "null"}}}, {"properties": {"maximum": {"type": "null"}, "minimum": {"type": "number"}}}]
+    },
+    "assessment": {
+      "type": "object", "required": ["metric", "maximum", "minimum", "outcome", "observed"], "additionalProperties": false,
+      "properties": {"metric": {"$ref": "#/$defs/identity"}, "maximum": {"type": ["number", "null"], "minimum": 0}, "minimum": {"type": ["number", "null"], "minimum": 0},
+        "outcome": {"enum": ["unknown", "target_blocked", "estimated_pass", "estimated_miss", "met_in_scope", "missed_in_scope"]}, "observed": {"type": ["number", "null"], "minimum": 0}}
+    },
+    "sampling": {
+      "type": "object", "required": ["processes", "repetitions", "warmups", "timeout_seconds", "order", "threads", "memory_bytes"], "additionalProperties": false,
+      "properties": {
+        "processes": {"type": "integer", "minimum": 1, "maximum": 32}, "repetitions": {"type": "integer", "minimum": 1, "maximum": 64},
+        "warmups": {"type": "integer", "minimum": 0, "maximum": 16}, "timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 86400},
+        "order": {"enum": ["balanced", "ordered"]}, "threads": {"type": "integer", "minimum": 1, "maximum": 64}, "memory_bytes": {"type": "integer", "minimum": 16777216, "maximum": 17179869184}
+      }
+    },
+    "isolation": {
+      "type": "object", "required": ["fresh_process", "sample_owners", "controller_included"], "additionalProperties": false,
+      "properties": {"fresh_process": {"type": "boolean"}, "controller_included": {"type": "boolean"}, "sample_owners": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/identity"}}}
+    },
+    "fixture": {
+      "type": "object", "required": ["kind", "digest", "metadata"], "additionalProperties": false,
+      "properties": {"kind": {"enum": ["none", "synthetic", "checkpoint", "caller_owned", "generated_checkpoint", "projection"]}, "digest": {"$ref": "#/$defs/nullableDigest"}, "metadata": {"type": "object"}}
+    },
+    "oracle": {
+      "type": "object", "required": ["kind", "outcome", "checked_values"], "additionalProperties": false,
+      "properties": {"kind": {"$ref": "#/$defs/identity"}, "outcome": {"enum": ["passed", "failed", "not_run"]}, "checked_values": {"type": "integer", "minimum": 0}}
+    },
+    "admission": {
+      "type": "object", "required": ["admitted", "required_bytes", "limit_bytes", "host_headroom_bytes", "scope", "reason"], "additionalProperties": false,
+      "properties": {"admitted": {"type": ["boolean", "null"]}, "required_bytes": {"type": ["integer", "null"], "minimum": 0}, "limit_bytes": {"type": ["integer", "null"], "minimum": 0}, "host_headroom_bytes": {"type": ["integer", "null"], "minimum": 0}, "scope": {"$ref": "#/$defs/identity"}, "reason": {"type": ["string", "null"]}}
+    },
+    "comparison": {
+      "type": "object", "required": ["source_digest", "numeric_digest", "privacy_digest", "state_digest", "workload_digest", "output_digest", "measurement_digest"], "additionalProperties": false,
+      "properties": {"source_digest": {"$ref": "#/$defs/nullableDigest"}, "numeric_digest": {"$ref": "#/$defs/nullableDigest"}, "privacy_digest": {"$ref": "#/$defs/nullableDigest"}, "state_digest": {"$ref": "#/$defs/nullableDigest"}, "workload_digest": {"$ref": "#/$defs/digest"}, "output_digest": {"$ref": "#/$defs/nullableDigest"}, "measurement_digest": {"$ref": "#/$defs/nullableDigest"}}
+    },
+    "metric": {
+      "type": "object", "required": ["id", "component", "parameters", "value", "unit", "unit_detail", "statistic", "phase", "role", "origin", "unavailable_reason", "sample_count", "window", "measurement_scope", "denominator", "owners"], "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identity"}, "component": {"$ref": "#/$defs/identity"}, "parameters": {"type": "object"}, "value": {"type": ["number", "null"], "minimum": 0},
+        "unit": {"enum": ["seconds", "per_second", "bytes", "joules", "ratio", "currency"]}, "unit_detail": {"type": ["string", "null"], "maxLength": 128},
+        "statistic": {"enum": ["measurement", "mean", "median", "p50", "p95", "p99", "sum"]}, "phase": {"enum": ["offline", "online", "full"]}, "role": {"type": ["string", "null"]},
+        "origin": {"enum": ["measured", "deterministic", "estimate", "lower_bound", "not_available"]}, "unavailable_reason": {"type": ["string", "null"]}, "sample_count": {"type": "integer", "minimum": 0},
+        "window": {"$ref": "#/$defs/identity"}, "measurement_scope": {"$ref": "#/$defs/identity"},
+        "denominator": {"oneOf": [{"type": "null"}, {"type": "object", "required": ["value", "unit"], "additionalProperties": false, "properties": {"value": {"type": "integer", "minimum": 0}, "unit": {"$ref": "#/$defs/identity"}}}]},
+        "owners": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identity"}}
+      },
+      "allOf": [{"if": {"properties": {"origin": {"const": "not_available"}}}, "then": {"properties": {"value": {"type": "null"}, "sample_count": {"const": 0}, "unavailable_reason": {"type": "string", "minLength": 1}}}, "else": {"properties": {"value": {"type": "number"}, "sample_count": {"minimum": 1}, "unavailable_reason": {"type": "null"}}}}]
+    }
+  }
+}

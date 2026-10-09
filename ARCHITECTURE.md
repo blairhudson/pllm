@@ -794,6 +794,30 @@ An isolated six-pair, 32-admission Qwen metadata probe lowers median CPU from
 1.170 to 0.034 seconds, without measuring whole-client RSS or response latency.
 Evidence and replay: `docs/research/sdk-continuation-reference.md`.
 
+The installed `pllm.metrics.BenchmarkTarget` and `benchmark_suite` share bounded
+fresh-process execution across runtime imports, native geometry, selected artifact
+imports, prepared stages, operators, synthetic state, cost projections and ordinary
+role responses. Immutable cases, sampling, build locks and metric budgets produce
+`BenchmarkResult` v2 records in the existing evidence registry; v1 retains its
+original semantics. Private inputs and a common private cohort salt pass over
+stdin. Source/numeric/state, fixture, oracle, owner and measurement-window
+commitments gate comparison; timeouts and cancellation retire owned processes.
+`pllm.search.FrontierStudy` expands explicit variants, interactions and ablations,
+prioritizes affected cases and reruns controls alongside missing candidates.
+Exact-build coverage and separate confirmation preserve missing, unsupported and
+blocked cells rather than propagating old timings. Response targets retain all
+seven serving metrics through the ordinary benchmark driver. Selected-stage
+synthetic fixtures, local sealed-state references and digit-lifted CPU GEMM are
+separately scoped research targets, not serving components. The five tenfold
+challenge screen completes 123 fresh processes with 30,832,128 independent
+correction checks and 2,377,728 synthetic state/attention checks. Runtime floors
+miss both tenfold RAM budgets. Eight-bit digit GEMM reduces one large-stage CPU
+62.58% but increases memory, and four-row chunking reverses its CPU benefit.
+Sealed state lowers scoped peak RSS 33.03% while multiplying attention CPU 7.07×.
+Restart-state mechanics and explicit horizon estimates establish no resumed
+decoder or tenfold serving result. Full evidence and API feedback live in
+`docs/research/benchmark-targets-reference.md`.
+
 `pllm.search.BeamSearch` complements grid and random search with bounded,
 feedback-guided exploration of immutable `SearchSpace` component combinations.
 The shared `pllm.benchmark_search` facade runs all three through ordinary SDK

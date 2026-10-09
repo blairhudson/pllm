@@ -327,6 +327,7 @@ test('experiment guides construct and round-trip supported configuration', () =>
 test('relocated evaluation guides execute their real SDK examples', () => {
   for (const route of [
     '/sdk/evaluate/benchmark/', '/sdk/evaluate/search/',
+    '/sdk/evaluate/benchmark-targets/',
     '/sdk/evaluate/evidence/', '/sdk/evaluate/assurance/',
   ]) {
     const content = byRoute.get(route)?.content;
@@ -444,7 +445,7 @@ test('component option guides execute supported examples and cite bounded resear
   });
   assert.equal(inventory.status, 0, inventory.stderr);
   const metricIds = [
-    'pllm/accuracy', 'pllm/communication', 'pllm/cost', 'pllm/energy',
+    'pllm/accuracy', 'pllm/communication', 'pllm/cost', 'pllm/cpu-time/v1', 'pllm/energy',
     'pllm/latency', 'pllm/memory', 'pllm/perplexity', 'pllm/reference-agreement/v1', 'pllm/throughput',
   ];
   assert.deepEqual([...options.map(([, identity]) => identity), ...metricIds].sort(),
@@ -453,7 +454,7 @@ test('component option guides execute supported examples and cite bounded resear
 
 test('all metric option guides execute declarations without invented measurements', () => {
   for (const slug of [
-    'latency', 'throughput', 'communication', 'memory',
+    'latency', 'cpu-time', 'throughput', 'communication', 'memory',
     'energy', 'reference-agreement', 'accuracy', 'perplexity', 'cost',
   ]) {
     const route = `/sdk/evaluate/metrics/${slug}/`;

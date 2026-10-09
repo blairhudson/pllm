@@ -324,7 +324,14 @@ class ParetoFrontier:
         excluded = []
         for evaluation in values:
             document = evaluation.result.to_dict()
+            scoped = document["schema_version"] == "pllm.benchmark_result.v2"
+            if scoped:
+                from pllm._benchmark_evidence import comparable_key, metric_contract
+                if comparable_key(evaluation.result) is None:
+                    excluded.append(evaluation)
+                    continue
             current_cohort = (
+                document["schema_version"],
                 document["scope"],
                 document["profile"],
                 json.dumps(document["model"], sort_keys=True, separators=(",", ":")),
@@ -335,6 +342,8 @@ class ParetoFrontier:
                 document["warmups"],
                 document["repetitions"],
             )
+            if scoped:
+                current_cohort += comparable_key(evaluation.result)
             if cohort is None:
                 cohort = current_cohort
             elif current_cohort != cohort:
@@ -356,6 +365,8 @@ class ParetoFrontier:
                     })
                     for identity in normalized
                 )
+                if scoped:
+                    current_contract = tuple(metric_contract(by_id[identity]) for identity in normalized)
                 if objective_contract is None:
                     objective_contract = current_contract
                 elif current_contract != objective_contract:
@@ -364,6 +375,7 @@ class ParetoFrontier:
                 identity not in by_id
                 or by_id[identity]["value"] is None
                 or by_id[identity]["origin"] == "not_available"
+                or scoped and by_id[identity]["origin"] not in {"measured", "deterministic"}
                 for identity in normalized
             ):
                 excluded.append(evaluation)
@@ -592,8 +604,10 @@ class QualityLockedNetworkSearch:
 from pllm.search.placement import ArtifactCostEvidence, CandidateCostEvidence, ClientStateCostEvidence, PlanningPolicy, PlanningRequest
 from pllm.search.optimizations import optimization_space
 from pllm.search.beam import BeamSearch, CandidateRejected, SearchOutcome, SearchRejection
+from pllm.search.frontier import FrontierStudy, FrontierWork, Variant
 
 __all__ = [
+    "FrontierStudy", "FrontierWork", "Variant",
     "BeamSearch",
     "CandidateRejected",
     "CandidateCostEvidence",

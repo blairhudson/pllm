@@ -5,6 +5,9 @@ description: "Run scoped Python benchmarks and understand what the development d
 
 `pllm.benchmark(...)` measures supported native compiled regions and returns immutable `EvidenceReport`. It requires explicit plan, immutable weights/input bytes, IDs, privacy/numeric cohorts, and environment. Warmups, repetitions, threads, SIMD, failures, and oracle comparison remain report data.
 
+For fresh-process stage, artifact, state or response measurements and exact-build
+retesting, use [benchmark targets and frontier studies](/sdk/evaluate/benchmark-targets/).
+
 `pllm.deployment_benchmark(request)` validates supplied observations; it does not
 prove their origin. The separate
 [`pllm benchmark run`](/cli/reference/benchmark/run/) command exercises the real

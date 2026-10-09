@@ -1,7 +1,9 @@
 # Five tenfold challenges for the frontier/probe design
 
-Status: **research proposals and a design exercise**, 6 October 2026. None of
-these constructions has a measured tenfold result or an installed SDK option.
+Status: **research proposals with bounded SDK target screens**, 6 October 2026.
+None of these constructions has a measured tenfold serving result or a selectable
+serving component. [Target evidence and design feedback](../research/benchmark-targets-reference.md)
+record the executable first screen.
 Novelty means new concrete PLLM experiments, not literature-first algorithms.
 The [frontier/probe proposal](benchmark-frontier-and-probes.md) supplies the
 measurement and propagation machinery; these cases test its requirements.
@@ -258,5 +260,7 @@ cells visible. Test that a faster C kernel with unchanged cold CPU, a smaller D
 KV owner with unchanged process RSS, and an E restore excluding its initial write
 all fail whole-frontier promotion.
 
-This is a requirements test of the SDK design. Executable probe adapters,
-candidate implementations and measured confirmation remain future work.
+This remains a requirements test of the SDK design. The first implementation
+provides executable runtime-floor, selected-stage, state-mechanics and projection
+targets. The complete arena, acknowledged output stripes, persistent continuation
+and whole-response confirmation remain distinct promotion gates.

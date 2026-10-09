@@ -1,0 +1,498 @@
+{
+  "cohort": "7d85e38d9f5f9842780362357b11c0849e8e10e015afc49e7471ea0194a89e61",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "A-client-floor",
+      "excluded": [],
+      "nondominated": [
+        "A-client-floor"
+      ],
+      "observations": [
+        {
+          "case": "A-client-floor",
+          "metrics": {
+            "process.peak_rss": 56508416.0,
+            "target.cpu": 0.319517
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "B-preparation-floor",
+      "excluded": [],
+      "nondominated": [
+        "B-preparation-floor"
+      ],
+      "observations": [
+        {
+          "case": "B-preparation-floor",
+          "metrics": {
+            "process.peak_rss": 72859648.0,
+            "target.cpu": 0.454627
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-qkv_projection-1",
+      "excluded": [],
+      "nondominated": [
+        "C-qkv_projection-1"
+      ],
+      "observations": [
+        {
+          "case": "C-qkv_projection-1",
+          "metrics": {
+            "process.peak_rss": 61341696.0,
+            "target.cpu": 0.0023900000000000032
+          }
+        },
+        {
+          "case": "C-qkv_projection-1/digit4",
+          "metrics": {
+            "process.peak_rss": 67158016.0,
+            "target.cpu": 0.004070000000000018
+          }
+        },
+        {
+          "case": "C-qkv_projection-1/digit8",
+          "metrics": {
+            "process.peak_rss": 67010560.0,
+            "target.cpu": 0.003493000000000024
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-qkv_projection-16",
+      "excluded": [],
+      "nondominated": [
+        "C-qkv_projection-16"
+      ],
+      "observations": [
+        {
+          "case": "C-qkv_projection-16",
+          "metrics": {
+            "process.peak_rss": 62914560.0,
+            "target.cpu": 0.004186999999999996
+          }
+        },
+        {
+          "case": "C-qkv_projection-16/digit4",
+          "metrics": {
+            "process.peak_rss": 69451776.0,
+            "target.cpu": 0.005390999999999979
+          }
+        },
+        {
+          "case": "C-qkv_projection-16/digit8",
+          "metrics": {
+            "process.peak_rss": 70909952.0,
+            "target.cpu": 0.005918000000000034
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-qkv_projection-150",
+      "excluded": [],
+      "nondominated": [
+        "C-qkv_projection-150",
+        "C-qkv_projection-150/digit8"
+      ],
+      "observations": [
+        {
+          "case": "C-qkv_projection-150",
+          "metrics": {
+            "process.peak_rss": 64733184.0,
+            "target.cpu": 0.021843
+          }
+        },
+        {
+          "case": "C-qkv_projection-150/digit4",
+          "metrics": {
+            "process.peak_rss": 75153408.0,
+            "target.cpu": 0.016447999999999963
+          }
+        },
+        {
+          "case": "C-qkv_projection-150/digit8",
+          "metrics": {
+            "process.peak_rss": 73433088.0,
+            "target.cpu": 0.014628999999999948
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-mlp_gate_up-1",
+      "excluded": [],
+      "nondominated": [
+        "C-mlp_gate_up-1"
+      ],
+      "observations": [
+        {
+          "case": "C-mlp_gate_up-1",
+          "metrics": {
+            "process.peak_rss": 90144768.0,
+            "target.cpu": 0.004452999999999985
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-1/digit4",
+          "metrics": {
+            "process.peak_rss": 115097600.0,
+            "target.cpu": 0.021152999999999977
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-1/digit8",
+          "metrics": {
+            "process.peak_rss": 116211712.0,
+            "target.cpu": 0.016915000000000013
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-mlp_gate_up-16",
+      "excluded": [],
+      "nondominated": [
+        "C-mlp_gate_up-16"
+      ],
+      "observations": [
+        {
+          "case": "C-mlp_gate_up-16",
+          "metrics": {
+            "process.peak_rss": 88326144.0,
+            "target.cpu": 0.018233999999999972
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-16/digit4",
+          "metrics": {
+            "process.peak_rss": 115441664.0,
+            "target.cpu": 0.031835
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-16/digit8",
+          "metrics": {
+            "process.peak_rss": 114622464.0,
+            "target.cpu": 0.022207000000000032
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-mlp_gate_up-150",
+      "excluded": [],
+      "nondominated": [
+        "C-mlp_gate_up-150",
+        "C-mlp_gate_up-150/digit4",
+        "C-mlp_gate_up-150/digit8",
+        "C-mlp_gate_up-150/rows4"
+      ],
+      "observations": [
+        {
+          "case": "C-mlp_gate_up-150",
+          "metrics": {
+            "process.peak_rss": 116342784.0,
+            "target.cpu": 0.18308800000000003
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-150/digit4",
+          "metrics": {
+            "process.peak_rss": 165806080.0,
+            "target.cpu": 0.10112900000000002
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-150/digit8",
+          "metrics": {
+            "process.peak_rss": 165888000.0,
+            "target.cpu": 0.06851199999999996
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-150/rows4",
+          "metrics": {
+            "process.peak_rss": 91865088.0,
+            "target.cpu": 0.191203
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-150/digit4+rows4",
+          "metrics": {
+            "process.peak_rss": 117784576.0,
+            "target.cpu": 1.082085
+          }
+        },
+        {
+          "case": "C-mlp_gate_up-150/digit8+rows4",
+          "metrics": {
+            "process.peak_rss": 117964800.0,
+            "target.cpu": 0.613046
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-mlp_down-1",
+      "excluded": [],
+      "nondominated": [
+        "C-mlp_down-1"
+      ],
+      "observations": [
+        {
+          "case": "C-mlp_down-1",
+          "metrics": {
+            "process.peak_rss": 81526784.0,
+            "target.cpu": 0.0025650000000000395
+          }
+        },
+        {
+          "case": "C-mlp_down-1/digit4",
+          "metrics": {
+            "process.peak_rss": 99057664.0,
+            "target.cpu": 0.012734999999999996
+          }
+        },
+        {
+          "case": "C-mlp_down-1/digit8",
+          "metrics": {
+            "process.peak_rss": 89063424.0,
+            "target.cpu": 0.008599000000000023
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-mlp_down-16",
+      "excluded": [],
+      "nondominated": [
+        "C-mlp_down-16"
+      ],
+      "observations": [
+        {
+          "case": "C-mlp_down-16",
+          "metrics": {
+            "process.peak_rss": 83378176.0,
+            "target.cpu": 0.010772000000000004
+          }
+        },
+        {
+          "case": "C-mlp_down-16/digit4",
+          "metrics": {
+            "process.peak_rss": 99729408.0,
+            "target.cpu": 0.02054100000000003
+          }
+        },
+        {
+          "case": "C-mlp_down-16/digit8",
+          "metrics": {
+            "process.peak_rss": 94683136.0,
+            "target.cpu": 0.01516099999999998
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "C-mlp_down-150",
+      "excluded": [],
+      "nondominated": [
+        "C-mlp_down-150",
+        "C-mlp_down-150/digit8"
+      ],
+      "observations": [
+        {
+          "case": "C-mlp_down-150",
+          "metrics": {
+            "process.peak_rss": 95551488.0,
+            "target.cpu": 0.12108399999999997
+          }
+        },
+        {
+          "case": "C-mlp_down-150/digit4",
+          "metrics": {
+            "process.peak_rss": 127352832.0,
+            "target.cpu": 0.07617399999999996
+          }
+        },
+        {
+          "case": "C-mlp_down-150/digit8",
+          "metrics": {
+            "process.peak_rss": 108937216.0,
+            "target.cpu": 0.052310999999999996
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "D-state",
+      "excluded": [],
+      "nondominated": [
+        "D-state",
+        "D-state/sealed"
+      ],
+      "observations": [
+        {
+          "case": "D-state",
+          "metrics": {
+            "process.peak_rss": 108150784.0,
+            "target.cpu": 0.013278999999999985
+          }
+        },
+        {
+          "case": "D-state/sealed",
+          "metrics": {
+            "process.peak_rss": 72433664.0,
+            "target.cpu": 0.09385899999999997
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "E-restart",
+      "excluded": [],
+      "nondominated": [
+        "E-restart"
+      ],
+      "observations": [
+        {
+          "case": "E-restart",
+          "metrics": {
+            "process.peak_rss": 60735488.0,
+            "target.cpu": 0.141376
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "D-geometry-62000000-1",
+      "excluded": [],
+      "nondominated": [
+        "D-geometry-62000000-1"
+      ],
+      "observations": [
+        {
+          "case": "D-geometry-62000000-1",
+          "metrics": {
+            "process.peak_rss": 55164928.0,
+            "target.cpu": 0.13664099999999998
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "D-geometry-62000000-2",
+      "excluded": [],
+      "nondominated": [
+        "D-geometry-62000000-2"
+      ],
+      "observations": [
+        {
+          "case": "D-geometry-62000000-2",
+          "metrics": {
+            "process.peak_rss": 56786944.0,
+            "target.cpu": 0.112482
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "D-geometry-8000000-1",
+      "excluded": [],
+      "nondominated": [
+        "D-geometry-8000000-1"
+      ],
+      "observations": [
+        {
+          "case": "D-geometry-8000000-1",
+          "metrics": {
+            "process.peak_rss": 56836096.0,
+            "target.cpu": 0.135454
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "D-geometry-8000000-2",
+      "excluded": [],
+      "nondominated": [
+        "D-geometry-8000000-2"
+      ],
+      "observations": [
+        {
+          "case": "D-geometry-8000000-2",
+          "metrics": {
+            "process.peak_rss": 55115776.0,
+            "target.cpu": 0.11034400000000003
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "E-horizon-8000000",
+      "excluded": [],
+      "nondominated": [
+        "E-horizon-8000000"
+      ],
+      "observations": [
+        {
+          "case": "E-horizon-8000000",
+          "metrics": {
+            "process.peak_rss": 54444032.0,
+            "target.cpu": 0.109987
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "E-horizon-20000000",
+      "excluded": [],
+      "nondominated": [
+        "E-horizon-20000000"
+      ],
+      "observations": [
+        {
+          "case": "E-horizon-20000000",
+          "metrics": {
+            "process.peak_rss": 56295424.0,
+            "target.cpu": 0.10649800000000001
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "process.peak_rss": "min",
+    "target.cpu": "min"
+  },
+  "run_digest": "f99ec211d56264d73a4650557114f80e13b27d47f9b5685443d0b18776da83e6",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "8ffd6b8fe1e358888b8074daf146ff5fdcbaae6b3532ae372d5596a55c267ff1"
+}

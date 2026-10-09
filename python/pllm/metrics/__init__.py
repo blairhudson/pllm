@@ -104,6 +104,26 @@ class Throughput(Metric):
         return cls.descriptor
 
 
+class CpuTime(Metric):
+    """Process CPU seconds; benchmark records bind the role and timing window."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/cpu-time/v1", provider="pllm", distribution="pllm.run",
+        version="1", category="pllm/benchmark-metric", category_version="1",
+        lifecycle_phase="benchmark",
+        parameter_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        capabilities=("seconds", "lower-is-better", "process-cpu"),
+    )
+
+    def __init__(self):
+        super().__init__(self.descriptor.component, {})
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class Communication(Metric):
     __slots__ = ()
     descriptor = ComponentDescriptor(
@@ -415,39 +435,49 @@ def measure_reference_agreement(
     }
 
 
-from .network_probes import (
-    EncryptedLinearCostProbe,
-    EncryptedQuadraticShareCostProbe,
-    LatentResponseCostProbe,
-    ResidentFusedGateCostProbe,
-    ResidentMlpCostProbe,
-    ResidentQuadraticGateCostProbe,
-)
-from .projected_polynomial import ProjectedPolynomialCostProbe
-from .operator_benchmarks import (
-    benchmark_operator,
-    replay_operator_benchmark,
-    OperatorBenchmarkReport,
-    OperatorBenchmarkResources,
-    OperatorBenchmarkSample,
-    OperatorBenchmarkQuality,
-    OperatorCitation,
-)
-from .private_pages import PrivatePageLookupProbe
-from .head_retrieval import PrivateHeadRetrievalProbe
-from .token_budget import TokenNetworkBudgetProbe
-from .communication import communication_per_token
-from .wan import wan_readiness
-from .projected_resharing import ProjectedResharingProbe
-from .prepared_residues import PreparedResidueProbe
-from .prepared_duplex import PreparedDuplexProbe
-from .artifact_planes import ArtifactEntropyProbe, ArtifactPlaneProbe
-from .batched_lookup import BatchedPrivateLookupProbe
-from .orthogonal_activation import OrthogonalActivationProbe
-from .state_reuse import GeneratedStateReuseProbe, StateCompatibilityProbe
-from .aggregation import MaskedAggregationProbe
-from .token_local import TokenLocalProjectionProbe
-from .progressive_head import ProgressiveHeadProbe
+_LAZY_MODULES = {
+    "network_probes": ("EncryptedLinearCostProbe", "EncryptedQuadraticShareCostProbe",
+        "LatentResponseCostProbe", "ResidentFusedGateCostProbe", "ResidentMlpCostProbe",
+        "ResidentQuadraticGateCostProbe"),
+    "projected_polynomial": ("ProjectedPolynomialCostProbe",),
+    "operator_benchmarks": ("benchmark_operator", "replay_operator_benchmark",
+        "OperatorBenchmarkReport", "OperatorBenchmarkResources", "OperatorBenchmarkSample",
+        "OperatorBenchmarkQuality", "OperatorCitation"),
+    "private_pages": ("PrivatePageLookupProbe",),
+    "head_retrieval": ("PrivateHeadRetrievalProbe",),
+    "token_budget": ("TokenNetworkBudgetProbe",),
+    "communication": ("communication_per_token",),
+    "wan": ("wan_readiness",),
+    "projected_resharing": ("ProjectedResharingProbe",),
+    "prepared_residues": ("PreparedResidueProbe",),
+    "prepared_duplex": ("PreparedDuplexProbe",),
+    "artifact_planes": ("ArtifactEntropyProbe", "ArtifactPlaneProbe"),
+    "batched_lookup": ("BatchedPrivateLookupProbe",),
+    "orthogonal_activation": ("OrthogonalActivationProbe",),
+    "state_reuse": ("GeneratedStateReuseProbe", "StateCompatibilityProbe"),
+    "aggregation": ("MaskedAggregationProbe",),
+    "token_local": ("TokenLocalProjectionProbe",),
+    "progressive_head": ("ProgressiveHeadProbe",),
+    "benchmark_runner": ("benchmark_target", "benchmark_suite", "BenchmarkRun"),
+}
+_LAZY_EXPORTS = {name: f"pllm.metrics.{module}" for module, names in _LAZY_MODULES.items()
+                 for name in names}
+_LAZY_EXPORTS.update({name: "pllm._benchmark_contract" for name in (
+    "BenchmarkTarget", "BenchmarkCase", "BenchmarkSuite", "BuildRef", "Sampling",
+    "Scenario", "TargetBudget")})
+
+
+def __getattr__(name):
+    from importlib import import_module
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(_LAZY_EXPORTS[name]), name)
+    globals()[name] = value
+    return value
+
+
+def __dir__():
+    return sorted(set(globals()) | set(__all__))
 
 
 def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
@@ -462,6 +492,9 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
 
 
 __all__ = [
+    "BenchmarkTarget", "BenchmarkCase", "BenchmarkSuite", "BuildRef", "Sampling",
+    "Scenario", "TargetBudget", "benchmark_target", "benchmark_suite", "BenchmarkRun",
+    "CpuTime",
     "benchmark_operator",
     "replay_operator_benchmark",
     "OperatorBenchmarkReport",

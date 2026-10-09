@@ -105,7 +105,7 @@ def _keys(value: object, expected: set[str], path: str) -> Mapping[str, Any]:
     return value
 
 
-def _metric(record: object, index: int) -> dict[str, Any]:
+def _metric(record: object, index: int, *, version: int = 1) -> dict[str, Any]:
     from pllm.components import create_component
     from pllm.metrics import Metric
 
@@ -124,6 +124,8 @@ def _metric(record: object, index: int) -> dict[str, Any]:
         "unavailable_reason",
         "sample_count",
     }
+    if version == 2:
+        fields |= {"window", "measurement_scope", "denominator", "owners"}
     value = dict(_keys(record, fields, path))
     _identity(value["id"], f"{path}.id")
     component_id = _identity(value["component"], f"{path}.component")
@@ -134,14 +136,17 @@ def _metric(record: object, index: int) -> dict[str, Any]:
     if not isinstance(component, Metric):
         raise ValueError(f"{path}.component is not a built-in metric")
     origin = value["origin"]
-    if origin not in {
+    origins = {
         "native_executed",
         "reference_executed",
         "imported_archive",
         "source_reported",
         "external_measured",
         "not_available",
-    }:
+    }
+    if version == 2:
+        origins = {"measured", "deterministic", "estimate", "lower_bound", "not_available"}
+    if origin not in origins:
         raise ValueError(f"{path}.origin is unsupported")
     sample_count = value["sample_count"]
     if type(sample_count) is not int or sample_count < 0:
@@ -191,8 +196,10 @@ def _metric(record: object, index: int) -> dict[str, Any]:
         "pllm/perplexity": "ratio",
         "pllm/cost": "currency",
     }
+    if version == 2:
+        expected_units["pllm/cpu-time/v1"] = "seconds"
     if component_id not in expected_units:
-        raise ValueError(f"{path}.component is unsupported by benchmark_result.v1")
+        raise ValueError(f"{path}.component is unsupported by benchmark_result.v{version}")
     if value["unit"] != expected_units[component_id]:
         raise ValueError(f"{path}.unit does not match its metric")
     if component_id == "pllm/latency" and (
@@ -221,11 +228,28 @@ def _metric(record: object, index: int) -> dict[str, Any]:
         raise ValueError(f"{path}.value must be a ratio in [0, 1]")
     if component_id == "pllm/perplexity" and measurement is not None and measurement <= 0:
         raise ValueError(f"{path}.value must be positive")
+    if version == 2:
+        for key in ("window", "measurement_scope"):
+            _identity(value[key], f"{path}.{key}")
+        owners = value["owners"]
+        if (not isinstance(owners, list) or not owners or len(owners) != len(set(owners))):
+            raise ValueError(f"{path}.owners must be a nonempty unique list")
+        value["owners"] = sorted(_identity(owner, f"{path}.owners") for owner in owners)
+        denominator = value["denominator"]
+        if denominator is not None:
+            denominator = dict(_keys(denominator, {"value", "unit"}, f"{path}.denominator"))
+            _identity(denominator["unit"], f"{path}.denominator.unit")
+            if type(denominator["value"]) is not int or denominator["value"] < 0:
+                raise ValueError(f"{path}.denominator must be nonnegative")
+            if measurement is not None and denominator["value"] == 0:
+                raise ValueError(f"{path} cannot measure a rate with a zero denominator")
+            value["denominator"] = denominator
     value["parameters"] = component.get_params()
     return value
 
 
 def _benchmark_document(document: object) -> dict[str, Any]:
+    version = 2 if isinstance(document, Mapping) and document.get("schema_version") == "pllm.benchmark_result.v2" else 1
     fields = {
         "schema_version",
         "id",
@@ -247,8 +271,10 @@ def _benchmark_document(document: object) -> dict[str, Any]:
         "metrics",
         "limitations",
     }
+    if version == 2:
+        fields.add("execution")
     value = dict(_keys(document, fields, "benchmark result"))
-    if value["schema_version"] != _BENCHMARK_RESULT_SCHEMA:
+    if value["schema_version"] != f"pllm.benchmark_result.v{version}":
         raise ValueError("unsupported benchmark result schema")
     _identity(value["id"], "id")
     _identity(value["profile"], "profile")
@@ -260,9 +286,15 @@ def _benchmark_document(document: object) -> dict[str, Any]:
         raise ValueError("created_at must be an ISO 8601 timestamp") from exc
     if timestamp.tzinfo is None:
         raise ValueError("created_at must include a timezone")
-    if value["status"] not in {"completed", "failed", "not_available"}:
+    statuses = {"completed", "failed", "not_available"}
+    if version == 2:
+        statuses |= {"blocked", "unsupported", "timeout", "cancelled"}
+    if value["status"] not in statuses:
         raise ValueError("status is unsupported")
-    if value["scope"] not in {"kernel", "operator", "region", "full_model", "deployment"}:
+    scopes = {"kernel", "operator", "region", "full_model", "deployment"}
+    if version == 2:
+        scopes |= {"runtime", "geometry", "artifact", "stage", "preparation", "state", "projection"}
+    if value["scope"] not in scopes:
         raise ValueError("scope is unsupported")
     components = value["component_ids"]
     if not isinstance(components, list) or len(components) != len(set(components)):
@@ -344,7 +376,7 @@ def _benchmark_document(document: object) -> dict[str, Any]:
     if not isinstance(metrics, list) or not metrics:
         raise ValueError("metrics must be a nonempty array")
     value["metrics"] = sorted(
-        (_metric(metric, index) for index, metric in enumerate(metrics)),
+        (_metric(metric, index, version=version) for index, metric in enumerate(metrics)),
         key=lambda metric: metric["id"],
     )
     if len({metric["id"] for metric in value["metrics"]}) != len(value["metrics"]):
@@ -368,6 +400,9 @@ def _benchmark_document(document: object) -> dict[str, Any]:
         or any(metric["origin"] != "not_available" for metric in value["metrics"])
     ):
         raise ValueError("not_available results cannot contain measured evidence")
+    if version == 2:
+        from pllm._benchmark_evidence import validate_execution
+        value["execution"] = validate_execution(value["execution"], value)
     return value
 
 
@@ -399,7 +434,12 @@ class BenchmarkResult:
 
     @property
     def digest(self) -> str:
-        return hashlib.sha256(_BENCHMARK_RESULT_DOMAIN + self._canonical_bytes).hexdigest()
+        domain = (str(json.loads(self._canonical_bytes)["schema_version"]) + "\0").encode()
+        return hashlib.sha256(domain + self._canonical_bytes).hexdigest()
+
+    @property
+    def schema_version(self) -> str:
+        return str(json.loads(self._canonical_bytes)["schema_version"])
 
     @property
     def data(self) -> Mapping[str, Any]:
@@ -436,6 +476,10 @@ class EvidenceRegistry:
                 raise ValueError(f"conflicting benchmark result id {result.id!r}")
             return self
         return EvidenceRegistry((*self._records.values(), result))
+
+    def register_all(self, results: Iterable[BenchmarkResult]) -> EvidenceRegistry:
+        """Register a complete batch atomically, preserving conflict detection."""
+        return EvidenceRegistry((*self._records.values(), *tuple(results)))
 
     def get(self, identity: str) -> BenchmarkResult:
         try:

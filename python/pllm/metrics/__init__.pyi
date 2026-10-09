@@ -5,8 +5,20 @@ import numpy as np
 from pllm.configuration import ComponentDescriptor, ComponentRef, Experiment, Model, Pipeline
 from pllm.modeling import ModelPlan
 from pllm.deployment.wan import WanConditions
+from pllm._benchmark_contract import (
+    BenchmarkTarget as BenchmarkTarget, BenchmarkCase as BenchmarkCase,
+    BenchmarkSuite as BenchmarkSuite, BuildRef as BuildRef, Sampling as Sampling,
+    Scenario as Scenario, TargetBudget as TargetBudget,
+)
+from pllm.metrics.benchmark_runner import (
+    BenchmarkRun as BenchmarkRun, benchmark_target as benchmark_target,
+    benchmark_suite as benchmark_suite,
+)
 
 class Metric(ComponentRef): ...
+
+class CpuTime(Metric):
+    def __init__(self) -> None: ...
 
 @dataclass(frozen=True)
 class OperatorCitation:

@@ -1,0 +1,666 @@
+{
+  "cases": [
+    {
+      "action": "retain_historical",
+      "base": "A-client-floor",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "A-client-floor",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "cac86531926f19e08f69d4935e1aeec21a6bfe0225dc095a783032fa2bcffcdf"
+    },
+    {
+      "action": "retain_historical",
+      "base": "B-preparation-floor",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "B-preparation-floor",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "cab18533b5d6482cd26af4cb9b06fe50a6b6777b4d24aebbfa14629981ed97d3"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-1",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "ca228ee76502ed306d15e62a96dda8a2b50d7421bd39f652d6f8932567338211"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-1/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "b7d1d6d243b1a307a845cd2f87bd76dcd418f91c3655ffc512dda760f0265dba"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-1/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "51116d6aa566d7314204f386b8220db4f9a3c4e054280dc240fabd750e2ccc59"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-16",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "842ce8d9498ea0206dc891b1688ddedb6528b59888126beecf6a65c9127713c9"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-16/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "cc4c2884c3d75a4bd74f67dcaa9400dcddddc880ffe51c2f26ad80255512563c"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-16/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "2135a7a2d08b5519ca55183a77b82345f1243e81e2af7f23bed486b181d25af6"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-150",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "18b4755ce5ce57420408e192a706e5e2b55d13e4701e919f742bf65cf57bf99e"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-150/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "b65438952da2166cb42e983cde9eee82e122f8e800c3e6ffd6d655dde38667c5"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-qkv_projection-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-qkv_projection-150/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "0c864b1af06fe674cbb0936f2413b07c2ac81ba81d528135cdd0705efdef7016"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-1",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "e480d708dd17ff972e766cfa0b867cdd9e92ff74aaf2d8ff0315ffc761882ede"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-1/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "a9825e15ce0ef4ff2b535b1d25054528fea33643512e30d8c88e193f3bc6d47e"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-1/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "1ad8fd64481c089b29f3b3e94a59ac07b8f7921d7c143acf0176af87570e3bb8"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-16",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "d948f8f4dda685d84374819c2fbdfd4cb3225642f1811a095c1dfcaf682a2075"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-16/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "e0aa844009737100886a20f340d2b5011af00e1e5bb7b4299f82d0c5e89d3111"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-16/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "7895e3d048e60e702727a4dcf0d60599d8175f8ab605442398fac3b315dcb411"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-150",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "cc231c3b80946b2ad37072ad5969ca618cd996d5fba5469c51a7e77dd5933dd2"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-150/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "d557c80373cbb4e6c9f7d87f0e74cd8648904597b6f5fcdf006e3286af4f8e09"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-150/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "6e20964367f2f2b358f3aafdcb4d80f1de793be73b90334d66078b144b783a5e"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-150/rows4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "4732be1dbf65e3a97bff221defed4fbda9a0941b71c09633361e6554db135361"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-150/digit4+rows4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "5c3764934615576e816f0aeb82c0d0aad4b493e945f868e1ebcde76e0794a767"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_gate_up-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_gate_up-150/digit8+rows4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "12ac8352f8a533f198e36a16fff327c39cce5895d3fa548ab65a017fd06397ea"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-1",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "19d629f14bac2ea24017ce3c87a8a8722e7f04568ca6847be89024a3147ead20"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-1/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "71d69edc1e9fb745807a6831f99674fdd965f321637fc9286006f5c1f56dd5fe"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-1/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "d56dec637a88ab1918eeef95dd67069115f651d4b6dfee5395f5fa74e2d53095"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-16",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "17985cf1a10a3c9342a1d0ac8cb2d44f4f4867471530d93ad7e5d9756a40247c"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-16/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "f2f31a453da1bab2b29199fb36cfb73a2dc68a35149ed7a7a930593916e356ea"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-16",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-16/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "8caa1e00cfa119f518a6e6752e0de56fb4c4b39e2d5b341b1fa553e18b5464a5"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-150",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "61c13d49cbc5cc935274da37099691c7632ed8a012436b98732a6587cb0485e5"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-150/digit4",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "66bf7fa3db333de1645d905a5efbc51d4b629eed6823a53002969675f89d272a"
+    },
+    {
+      "action": "retain_historical",
+      "base": "C-mlp_down-150",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "C-mlp_down-150/digit8",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "96e82b65d7ad1ad5af969e7d6f072955283496fb17eedc058fbc2d697b833ca4"
+    },
+    {
+      "action": "retain_historical",
+      "base": "D-state",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "D-state",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "0a3be6c17648a1cc475f5bdb72824a7880a56625a125cc76ba61343cf477646a"
+    },
+    {
+      "action": "retain_historical",
+      "base": "D-state",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "D-state/sealed",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "c69a9a14b3b2c610b650557cda1360723ff57ec14710cdfbb8c525b8b27c159d"
+    },
+    {
+      "action": "retain_historical",
+      "base": "E-restart",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "E-restart",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "438cef92e3d4da2c9a759024fd8a787d9154f8c473a66825827cfee72721ae68"
+    },
+    {
+      "action": "retain_historical",
+      "base": "D-geometry-62000000-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "D-geometry-62000000-1",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "2e604400fdfadf6e0f7b8856e307fb36dbfa4c68a76ceb7d30ab46f5c84f9be8"
+    },
+    {
+      "action": "retain_historical",
+      "base": "D-geometry-62000000-2",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "D-geometry-62000000-2",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "3413fd84050088e24c8828066a249f854b30515753a7bc733bbbf84c4919c16b"
+    },
+    {
+      "action": "retain_historical",
+      "base": "D-geometry-8000000-1",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "D-geometry-8000000-1",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "0a221503ac9852d1f3a21f9e91beaa76d8939743737a24fa8d7a7ede109ebbcc"
+    },
+    {
+      "action": "retain_historical",
+      "base": "D-geometry-8000000-2",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "D-geometry-8000000-2",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "c20ec287a77c40349e2ad038d6c36464db0bc59ec803c8e13aedfc997f2d6b11"
+    },
+    {
+      "action": "retain_historical",
+      "base": "E-horizon-8000000",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "E-horizon-8000000",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "a70c8db3601e42f3441a32e7b98961fadab3bb94f58198cbbf67609fdae8553e"
+    },
+    {
+      "action": "retain_historical",
+      "base": "E-horizon-20000000",
+      "build_digest": "21c6d6c9025bd80e748c8ae233e8ea09f3935ce3ad9b7714779ec6fd3598fecc",
+      "case": "E-horizon-20000000",
+      "coverage_constraint": null,
+      "priority": "ordinary",
+      "recorded_outcomes": [
+        {
+          "reason": null,
+          "status": "completed"
+        }
+      ],
+      "status": "covered",
+      "target_digest": "cfa7374fab484d481e96a285f4846aa9c639bd68226b811c2378c409c8699475"
+    }
+  ],
+  "changed_paths": [],
+  "max_trials": 64,
+  "schema_version": "pllm.frontier_coverage.v1",
+  "selected_trials": 0,
+  "study_digest": "8ffd6b8fe1e358888b8074daf146ff5fdcbaae6b3532ae372d5596a55c267ff1",
+  "timings_propagated": false
+}

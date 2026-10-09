@@ -1,0 +1,187 @@
+---
+title: "Benchmark targets and frontier studies"
+description: "Measure one operation or a complete request with shared isolation, evidence and retest contracts."
+---
+
+`BenchmarkTarget` selects the work. `Sampling` selects independent processes and
+repetitions. `benchmark_suite` owns admission, deadlines, cleanup and checkpointed
+evidence. Small targets execute their selected primitives without starting a decoder.
+
+## Python SDK example
+
+Measure a selected stage in three fresh processes:
+
+```python
+from tempfile import TemporaryDirectory
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.metrics import BenchmarkTarget, Sampling, benchmark_target
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    "stage-example", MaskedLinearCpu(Model.tiny()),
+    Deployment.local(root="local://stage-example"),
+    ExecutionBudget(requests=1, max_input_tokens=16, max_new_tokens=2),
+)
+with TemporaryDirectory() as directory:
+    result = benchmark_target(
+        BenchmarkTarget.preparation(experiment, role="mlp_gate_up", layer=0, rows=16),
+        sampling=Sampling(processes=3),
+        output=f"{directory}/stage-results.json",
+    )
+    assert result.to_dict()["complete"]
+    assert all(row.to_dict()["status"] == "completed" for row in result.results)
+```
+
+The native semantic schedule selects the stage and checks its shape. The default
+fixture uses public synthetic integer weights; `weights="checkpoint"` resolves
+the source lock and quantizes only the selected artifacts through the ordinary
+stage loader. Configuration-only geometry and checkpoint values have different
+evidence identities. The integer oracle runs after the timed sample and captured
+process high-water mark. Each issuance gets fresh OS randomness.
+
+## Available targets
+
+| Constructor | Executed scope |
+| --- | --- |
+| `runtime(role)` | Fresh SDK/native/client/Preparation import process, including import CPU and peak RSS. |
+| `geometry(experiment)` | Native lowering and schedule, without tensor values. |
+| `artifacts(experiment)` | Selected immutable weight-file import or bind through the real shared/copied snapshot paths. |
+| `preparation(experiment)` | Local fresh mask expansion, exact selected-stage products and correction-file output. |
+| `stage(experiment)` | Local masked integer arithmetic and existing residue codecs, with an independent signed-integer oracle. |
+| `operator(component)` | Existing `benchmark_operator` implementation, oracles, citations and one-use material. |
+| `state(experiment)` | Bounded synthetic full-KV roundtrip, ordinary local attention, or sealed-file import in a fresh child process. |
+| `projection(experiment)` | Native state geometry or explicitly assumed restart costs; results remain estimates. |
+| `response(experiment)` | Ordinary role supervisor and benchmark driver, including cold/repeat/ordered-sequence requests. |
+
+Preparation `chunk_rows` bounds mask rows in a local calculation. It does not
+implement output-stripe push/ack assembly. The experimental `kernel="digit4"`
+and `"digit8"` choices run exact digit-lifted CPU float32 GEMM with conversion and
+reconstruction charged. They are benchmark targets, not serving kernel components.
+
+Stage transport and verified-stage targets return explicit unsupported results.
+Synthetic sealed state is not a continuation credential: private KV, logits,
+pending-token provenance and reusable protocol material cannot be imported through
+this target. Its trusted revision/key owner remains separate from a fresh reader.
+
+## One runner for whole responses
+
+```python
+from tempfile import TemporaryDirectory
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.metrics import BenchmarkTarget, Sampling, Scenario, benchmark_target
+from pllm.profiles import MaskedLinearCpu
+
+prepared = Experiment(
+    "response-example", MaskedLinearCpu(Model.tiny()),
+    Deployment.local(root="local://response-example"),
+    ExecutionBudget(requests=2, max_input_tokens=64, max_new_tokens=2),
+)
+with TemporaryDirectory() as directory:
+    result = benchmark_target(
+        BenchmarkTarget.response(
+            prepared, scenario=Scenario.repeat(count=2, max_output_tokens=2),
+        ),
+        sampling=Sampling(processes=1, timeout_seconds=90, memory_bytes=2 << 30),
+        inputs={"prompt": "a"},
+        output=f"{directory}/response-results.json",
+    )
+    assert result.to_dict()["complete"]
+    assert result.results[0].to_dict()["status"] == "completed"
+```
+
+Response sampling uses one scenario per process. A repeat contains its cold first
+request and later requests on the same client. `Scenario.sequence(count=...)`
+accepts `inputs={"prompts": [...]}` for ordered request contexts. Checkpoints stay
+cached; runner-owned client caches start fresh. Whole-topology admission precedes
+provider launch. `wan=WanConditions(...)` uses the existing enforced backend.
+
+Seven serving metrics have separate contracts: client peak RSS and cold CPU,
+Preparation cold CPU and sampled request-window RSS, online TTFT, N−1 decode
+throughput, and all-link TCP-stream bytes. Covered application bodies are another
+metric. Missing roles, unmetered streams and zero decode denominators remain null.
+Import-process memory, parent-only memory and full-client memory never share an
+implicit measurement scope.
+
+## Propagate required measurements
+
+```python
+from tempfile import TemporaryDirectory
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.evidence import EvidenceRegistry
+from pllm.metrics import (
+    BenchmarkCase, BenchmarkSuite, BenchmarkTarget, BuildRef, Sampling, benchmark_suite,
+)
+from pllm.profiles import MaskedLinearCpu
+from pllm.search import FrontierStudy, Variant
+
+experiment = Experiment(
+    "study-example", MaskedLinearCpu(Model.tiny()),
+    Deployment.local(root="local://study-example"), ExecutionBudget(1, 16, 2),
+)
+suite = BenchmarkSuite(
+    (BenchmarkCase("prepare", BenchmarkTarget.preparation(experiment),
+                   BuildRef.capture()),),
+    Sampling(processes=3),
+)
+study = FrontierStudy(
+    suite,
+    variants=(Variant("digit4", {"kernel": "digit4"}),
+              Variant("chunks", {"chunk_rows": 4})),
+    interactions=(("digit4", "chunks"),),
+)
+work = study.plan(max_trials=12)
+assert work.suite is not None
+with TemporaryDirectory() as directory:
+    run = benchmark_suite(work.suite, output=f"{directory}/study-results.json")
+registry = EvidenceRegistry().register_all(run.results)
+coverage = study.plan(registry).coverage
+frontier = study.snapshot(run, metrics={"target.cpu": "min"})
+assert coverage.to_dict()["selected_trials"] == 0
+assert frontier.to_dict()["groups"][0]["status"] == "exploratory"
+```
+
+Variants use immutable `with_params` patches. `pipeline__...` patches modify the
+target's Experiment. Explicit interactions and leave-one-change-out cases remain
+visible. Trial budgets count process executions. Selected neighbors always rerun
+their control in the same cohort; partial old cohorts cannot supply the control.
+
+`BuildRef.capture()` inspects installed Python/native files, dependency records,
+numeric backend metadata, OS and public CPU/memory identity in a separate process.
+A different build creates retest gaps. Changed-path dependency hints prioritize cases; they never
+transfer measurements to another build. Unpinned builds cannot satisfy current-build
+coverage. Response/operator inputs and external source files require fresh
+revalidation; identical public case specs cannot certify unchanged private prompts,
+caller-owned values or checkpoint contents. Their historical results stay visible,
+but the planner schedules them again. Self-contained synthetic fixtures can close
+coverage for an exact build and sampling policy.
+
+`study.snapshot(run)` ranks only comparable, complete cells. Unknown metrics and
+failed/blocked/unsupported cases stay explicit. A separately measured confirmation
+run can be attached with `confirmation=...`; it needs another cohort and at least
+three independent processes. Exploratory medians are not statistical confidence
+intervals or an automatic recommendation to change an application.
+
+## Evidence and privacy
+
+`BenchmarkResult` v2 extends the existing registry with source/numeric/state,
+build, fixture, oracle, lifecycle, metric-window and owner commitments. V1 records
+keep their existing interpretation. Private inputs and the per-suite cohort salt
+travel over stdin, never argv, reports or failure strings. Immutable JSON specs
+contain public configuration only.
+
+Each completed case checkpoints atomically. Existing output paths reject. A
+timeout or cancellation retires the owned process tree and temporary files.
+Interrupted files remain incomplete evidence; reruns create a new cohort and fresh
+one-use material. They do not resume a private session.
+
+Run the complete public example with:
+
+```bash
+python examples/benchmark_targets.py --output target/stage-study.json
+```
+
+The five-challenge screen and design feedback are recorded in
+[the target reference](https://github.com/blairhudson/pllm/blob/main/docs/research/benchmark-targets-reference.md).
+
+API: [Benchmark targets and runner](/sdk/reference/python/pllm/metrics/#objects-and-signatures),
+[frontier studies](/sdk/reference/python/pllm/search/#objects-and-signatures).

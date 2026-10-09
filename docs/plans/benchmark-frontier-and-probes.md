@@ -1,13 +1,17 @@
 # Incremental benchmark frontiers and scoped SDK probes
 
-Status: **design proposal**, reviewed against `2c1699d` on 6 October 2026.
-The new interfaces below are proposed, not installed APIs. Existing measurements
-retain their original scope and implementation identities.
+Status: **design proposal with an implemented bounded first slice**, 6 October 2026.
+The original sketches below record the broader proposal. The installed API uses
+`BenchmarkTarget`, `BenchmarkCase`, `BenchmarkSuite`, `Sampling`, `BuildRef`,
+`FrontierStudy` and `Variant`; see [SDK usage](../content/docs/sdk/evaluate/benchmark-targets.mdx)
+and [the implementation screen](../research/benchmark-targets-reference.md).
+Existing measurements retain their original scope and implementation identities.
 
 The [five tenfold challenges](frontier-tenfold-challenges.md) exercise this design
 with concrete allocation, Preparation-kernel and persistent-state hypotheses.
 They add explicit acceptance obligations for target vetoes, native backend identity,
-restart ownership and composition interactions; they are not measured advances.
+restart ownership and composition interactions. Their bounded screens are separate
+from complete serving implementations or tenfold results.
 
 ## Outcome
 

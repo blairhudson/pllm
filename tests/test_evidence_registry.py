@@ -12,6 +12,7 @@ from pllm.metrics import (
     Accuracy,
     Communication,
     Cost,
+    CpuTime,
     Energy,
     Latency,
     Memory,
@@ -118,8 +119,10 @@ def test_metric_components_are_typed_registered_and_immutable() -> None:
         Accuracy(dataset="fixture"),
         Perplexity(dataset="fixture"),
         Cost(),
+        CpuTime(),
     )
-    assert len(list_component_classes()) == 44
+    registered = list_component_classes()
+    assert len(registered) == len({cls.descriptor.component for cls in registered})
     for metric in metrics:
         assert get(metric.component) is type(metric)
         assert metric.describe().category == "pllm/benchmark-metric"
