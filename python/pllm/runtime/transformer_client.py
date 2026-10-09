@@ -138,20 +138,8 @@ class PreparedInventoryLease:
             raise
 
     def _take(self, stage_id: str, count: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
-        stage = self.stages.get(stage_id)
-        if stage is None or type(count) is not int or count <= 0:
-            raise TransformerClientError("prepared inventory stage request is invalid")
         with self._lock:
-            if self._closed:
-                raise TransformerClientError("prepared inventory lease is closed")
-            offset = self._offsets.get(stage_id, 0)
-            if offset + count > (stage.request.rows if self._owner.demand else self.rows):
-                raise TransformerClientError(f"prepared inventory exhausted for {stage_id}")
-            begin = self.start + offset
-            end = begin + count
-            self._owner._claim_stage(count)
-            self._offsets[stage_id] = offset + count
-            attempts = [derive_online_attempt_id(stage.request, row) for row in range(begin, end)]
+            stage, begin, attempts = self._claim_locked(stage_id, count)
             if stage.verification is not None:
                 verifier = stage.verification.claim(
                     stage.request.seed, stage.verification_binding, begin, count,
@@ -162,6 +150,48 @@ class PreparedInventoryLease:
                 self._verifiers[stage_id] = verifier
             r, s = stage.take_masks(begin, count)
         return r, s, attempts
+
+    def _claim_locked(self, stage_id: str, count: int):
+        stage = self.stages.get(stage_id)
+        if stage is None or type(count) is not int or count <= 0:
+            raise TransformerClientError("prepared inventory stage request is invalid")
+        if self._closed:
+            raise TransformerClientError("prepared inventory lease is closed")
+        offset = self._offsets.get(stage_id, 0)
+        if offset + count > (stage.request.rows if self._owner.demand else self.rows):
+            raise TransformerClientError(f"prepared inventory exhausted for {stage_id}")
+        begin = self.start + offset
+        self._owner._claim_stage(count)
+        self._offsets[stage_id] = offset + count
+        attempts = [derive_online_attempt_id(stage.request, row) for row in range(begin, begin + count)]
+        return stage, begin, attempts
+
+    def _prepare_native(self, stage_id, value, layout, chunk_rows, input_bits):
+        """Same claim ledger; private masks/scales stay inside the native owner."""
+        query = None
+        try:
+            rows, columns = value.shape
+            chunk_rows = min(rows, chunk_rows or rows)
+            batches = [secrets.token_hex(16) for _ in range(0, rows, chunk_rows)]
+            with self._lock:
+                stage, begin, attempts = self._claim_locked(stage_id, rows)
+                if stage.verification is not None or stage._mask_rows is None:
+                    raise TransformerClientError("native stage requires lazy unverified masks")
+                query, packed = layout.prepare(stage._mask_rows, begin, rows, chunk_rows,
+                                                batches, value.astype("<f4", copy=False).tobytes())
+            requests = []
+            for index, start in enumerate(range(0, rows, chunk_rows)):
+                end = min(rows, start + chunk_rows)
+                requests.append(PreparedStageBatchRequest.pack_encoded(batches[index],
+                    tuple(attempts[start:end]), packed[index], end - start, columns,
+                    stage.request.wire_bits, input_bits))
+                packed[index] = b""
+            return query, requests
+        except BaseException:
+            if query is not None:
+                query.cancel()
+            self.close()
+            raise
 
     def take_verifier(self, stage_id: str) -> Any | None:
         with self._lock:

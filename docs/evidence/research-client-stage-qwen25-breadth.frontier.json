@@ -1,0 +1,91 @@
+{
+  "cohort": "ebf57689b021c2219b635a6f8c0c868f303e30425f1242633a8300cb4f779384",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "long",
+      "excluded": [
+        {
+          "case": "long",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        },
+        {
+          "case": "long/native",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        }
+      ],
+      "nondominated": [],
+      "observations": [],
+      "status": "exploratory"
+    },
+    {
+      "base": "fresh",
+      "excluded": [],
+      "nondominated": [
+        "fresh",
+        "fresh/native"
+      ],
+      "observations": [
+        {
+          "case": "fresh",
+          "metrics": {
+            "client.cold_cpu": 16.640264,
+            "client.peak_rss": 164691968.0,
+            "network.all_link_stream_bytes": 302600752.0,
+            "preparation.cold_cpu": 11.489121152,
+            "preparation.peak_rss": 149848064.0,
+            "response.decode_tps": 3.8024769974244563,
+            "response.ttft": 12.2493705205
+          }
+        },
+        {
+          "case": "fresh/native",
+          "metrics": {
+            "client.cold_cpu": 16.646832,
+            "client.peak_rss": 163315712.0,
+            "network.all_link_stream_bytes": 302600751.0,
+            "preparation.cold_cpu": 12.49111424,
+            "preparation.peak_rss": 152813568.0,
+            "response.decode_tps": 3.8020217177095397,
+            "response.ttft": 12.257888874999999
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "growing",
+      "excluded": [
+        {
+          "case": "growing",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        },
+        {
+          "case": "growing/native",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        }
+      ],
+      "nondominated": [],
+      "observations": [],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "bc152bdcd352116f3d5fd80c082c1fe1b5c0057791f1d133e7b9ed788c6bd807",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "4f45b43c50a55e259711e55f669f6fac4fddd2e0db7ad0433daab6006d053037"
+}

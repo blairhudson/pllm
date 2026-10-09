@@ -165,6 +165,12 @@ impl MaskRows {
     pub fn retained_bytes(&self) -> usize {
         std::mem::size_of::<Self>() + self.used.capacity() * std::mem::size_of::<bool>()
     }
+
+    pub fn matches_layout(&self, input: usize, output: usize, bits: u8) -> bool {
+        self.input_width == input
+            && self.output_width == output
+            && self.word_bytes * 8 == usize::from(bits)
+    }
 }
 
 #[cfg(test)]

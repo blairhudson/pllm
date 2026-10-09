@@ -4,7 +4,7 @@ use pyo3::{prelude::*, types::PyBytes};
 use std::sync::Mutex;
 
 #[pyclass(frozen, name = "PreparedMaskRows", module = "pllm._native")]
-struct Rows(Mutex<MaskRows>);
+pub(crate) struct Rows(pub(crate) Mutex<MaskRows>);
 
 #[pymethods]
 impl Rows {

@@ -1,0 +1,73 @@
+{
+  "cohort": "ae3c9b382f5a6bf66221f9d3e499c4374eb3dec2fbd3ce3289affe6fdfa05c78",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "fresh",
+      "excluded": [],
+      "nondominated": [
+        "fresh",
+        "fresh/native"
+      ],
+      "observations": [
+        {
+          "case": "fresh",
+          "metrics": {
+            "client.cold_cpu": 0.569453,
+            "client.peak_rss": 107397120.0,
+            "network.all_link_stream_bytes": 310295.0,
+            "preparation.cold_cpu": 0.6517898719999999,
+            "preparation.peak_rss": 106414080.0,
+            "response.decode_tps": 240.20638147355817,
+            "response.ttft": 0.14024968799999998
+          }
+        },
+        {
+          "case": "fresh/native",
+          "metrics": {
+            "client.cold_cpu": 0.573109,
+            "client.peak_rss": 107626496.0,
+            "network.all_link_stream_bytes": 310294.0,
+            "preparation.cold_cpu": 0.6505004640000001,
+            "preparation.peak_rss": 106184704.0,
+            "response.decode_tps": 246.06066086377152,
+            "response.ttft": 0.138933375
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "growing",
+      "excluded": [
+        {
+          "case": "growing",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        },
+        {
+          "case": "growing/native",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        }
+      ],
+      "nondominated": [],
+      "observations": [],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "b8273cef02c3e0229210514d6a68be4741ae99a75e770f4d4c8b8938c0031db1",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "f3dbf3ea4342f1c7952ef8781360df9a542fcf0f6bb7b50a887f8f2f48636a6d"
+}

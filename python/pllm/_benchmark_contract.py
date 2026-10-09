@@ -308,14 +308,17 @@ class BenchmarkTarget:
                                  storage=storage, tokens=tokens, seed=seed))
 
     @classmethod
-    def response(cls, experiment, *, scenario=None, backend="native", wan=None):
+    def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None):
         if scenario is None:
             scenario = Scenario.cold()
         if not isinstance(scenario, Scenario):
             raise TypeError("scenario must be a Scenario")
-        return cls("response", {"model": _model(experiment, None),
+        parameters = {"model": _model(experiment, None),
             "scenario": scenario.to_spec(), "backend": backend,
-            "wan": None if wan is None else wan.to_spec()})
+            "wan": None if wan is None else wan.to_spec()}
+        if client_stage is not None:
+            parameters["client_stage"] = dict(client_stage)
+        return cls("response", parameters)
 
     @classmethod
     def projection(cls, experiment, *, construction, parameters, config=None):
@@ -336,6 +339,8 @@ def _validate_target(document):
         "response": {"model", "scenario", "backend", "wan"},
         "projection": {"model", "construction", "assumptions"},
     }
+    if kind == "response" and "client_stage" in p:
+        fields[kind] = fields[kind] | {"client_stage"}
     if set(p) != fields[kind]:
         raise ValueError("benchmark target fields differ from its contract")
     if "model" in p:
@@ -386,6 +391,15 @@ def _validate_target(document):
         if p["wan"] is not None:
             from pllm.deployment import WanConditions
             WanConditions.from_spec(p["wan"])
+        if "client_stage" in p:
+            selected = p["client_stage"]
+            if not isinstance(selected, dict) or set(selected) != {"owner", "role", "layer"}:
+                raise ValueError("invalid research client-stage selection")
+            choice(selected["owner"], {"python", "native"}, "client-stage owner")
+            identity(selected["role"], "semantic role")
+            bounded_int(selected["layer"], 0, 1023, "layer")
+            if p["backend"] != "native":
+                raise ValueError("research client-stage responses require native roles")
     elif kind == "projection":
         choice(p["construction"], {"layer_kv", "restart"}, "projection construction")
         if not isinstance(p["assumptions"], dict):

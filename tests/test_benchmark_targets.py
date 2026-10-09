@@ -145,3 +145,63 @@ def test_response_target_uses_existing_roles_and_seven_scoped_metrics(experiment
     assert metrics["network.all_link_stream_bytes"]["value"] is None
     assert metrics["network.covered_body_bytes"]["value"] > 0
     assert len(m.details["report"]["runs"]) == 2
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("owner", ["python", "native"])
+@pytest.mark.parametrize("history", [False, True])
+def test_response_target_research_stage_uses_real_roles_and_restores_adapter(experiment, tmp_path, owner, history):
+    from pllm.metrics import Scenario
+    from pllm.protocols import MaskedLinear
+    from pllm.runtime.model_binding import CompiledRuntimeModel
+    original = CompiledRuntimeModel.runtime
+    experiment = experiment.with_params(pipeline__linear=MaskedLinear(
+        request_encoding="stage_packed", output_encoding="row_residues", prefill_chunk_rows=4))
+    first = [{"role": "user", "content": "Hi"}]
+    second = first + [{"role": "assistant", "content": "Hello"}, {"role": "user", "content": "Bye"}]
+    scenario = Scenario.sequence(count=2, max_output_tokens=2) if history else Scenario.cold(max_output_tokens=2)
+    target = BenchmarkTarget.response(experiment, scenario=scenario,
+        client_stage={"owner": owner, "role": "mlp_gate_up", "layer": 0})
+    assert BenchmarkTarget.from_spec(target.to_spec()).digest == target.digest
+    m = measurement(tmp_path, inputs={"prompts": [first, second]} if history else {"prompt": first})
+    m.sampling = Sampling(processes=1, memory_bytes=2 << 30)
+    execute_target(target, m)
+    assert m.oracle["outcome"] == "passed"
+    records = m.details["client_stage_research"]["bindings"]
+    assert records and sum(row["calls"] for row in records) == 2 * scenario.count
+    assert sum(row["rows"] for row in records) > 2
+    assert len(m.details["report"]["runs"]) == scenario.count
+    assert CompiledRuntimeModel.runtime is original
+
+
+@pytest.mark.parametrize("inputs", [
+    {"prompt": [{"role": "user", "content": "private", "extra": "secret"}]},
+    {"prompt": "x" * 16385},
+    {"prompts": [[{"role": "user", "content": "private"}]]},
+])
+def test_response_contexts_reject_before_admission_without_disclosing_input(experiment, tmp_path, inputs):
+    from pllm._benchmark_contract import TargetUnavailable
+    from pllm.metrics import Scenario
+    scenario = Scenario.sequence(count=2) if "prompts" in inputs else Scenario.cold()
+    m = measurement(tmp_path, inputs=inputs)
+    with pytest.raises(TargetUnavailable, match="^response_input_contract$"):
+        execute_target(BenchmarkTarget.response(experiment, scenario=scenario), m)
+    assert m.admission["admitted"] is None
+    assert m.admission["required_bytes"] is None
+    assert "topology_admission" not in m.details
+
+
+def test_research_stage_selection_is_explicit_bounded_and_retires_on_error(experiment):
+    from pllm.runtime.benchmark_client_stage import client_stage_execution
+    from pllm.runtime.model_binding import CompiledRuntimeModel
+    base = BenchmarkTarget.response(experiment)
+    assert "client_stage" not in base.to_spec()["parameters"]
+    selection = {"owner": "native", "role": "mlp_gate_up", "layer": 0}
+    for change in ({"owner": "automatic"}, {"layer": -1}, {"layer": True}, {"callback": "anything"}):
+        with pytest.raises(ValueError):
+            BenchmarkTarget.response(experiment, client_stage={**selection, **change})
+    original = CompiledRuntimeModel.runtime
+    with pytest.raises(RuntimeError, match="injected"):
+        with client_stage_execution(selection):
+            raise RuntimeError("injected")
+    assert CompiledRuntimeModel.runtime is original

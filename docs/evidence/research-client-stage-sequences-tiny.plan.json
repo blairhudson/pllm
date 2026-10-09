@@ -1,0 +1,326 @@
+{
+  "study": {
+    "schema": "pllm.frontier_study.v1",
+    "suite": {
+      "schema": "pllm.benchmark_suite.v1",
+      "name": "client-stage-ownership-v1",
+      "cases": [
+        {
+          "name": "fresh",
+          "target": {
+            "kind": "response",
+            "parameters": {
+              "backend": "native",
+              "client_stage": {
+                "layer": 0,
+                "owner": "python",
+                "role": "mlp_gate_up"
+              },
+              "model": {
+                "config": null,
+                "experiment": {
+                  "budget": {
+                    "max_input_tokens": 256,
+                    "max_new_tokens": 8,
+                    "requests": 2
+                  },
+                  "deployment": {
+                    "kind": "local",
+                    "root": ".pllm/prepared-sdk"
+                  },
+                  "name": "prepared-sdk",
+                  "pipeline": {
+                    "components": {
+                      "cache": {
+                        "component": "pllm/client-prefix-reuse/v1",
+                        "params": {
+                          "fixed_input_tokens": 256,
+                          "max_bytes": 33554432
+                        }
+                      },
+                      "delivery": {
+                        "component": "pllm/client-bundle-transport/v1",
+                        "params": {
+                          "batch_objects": 64,
+                          "compression": "zlib",
+                          "encoding": "artifacts",
+                          "provider_cache_bytes": 536870912,
+                          "storage": "paged"
+                        }
+                      },
+                      "inference": {
+                        "component": "pllm/inference",
+                        "params": {}
+                      },
+                      "inventory": {
+                        "component": "pllm/prepared-inventory-policy/v1",
+                        "params": {
+                          "allocation": "demand",
+                          "policy": "request-sized",
+                          "refill": "on-demand",
+                          "rows": 1,
+                          "stage_window": 4,
+                          "stage_window_bytes": 67108864
+                        }
+                      },
+                      "kernels": {
+                        "component": "pllm/cpu",
+                        "params": {
+                          "threads": 1
+                        }
+                      },
+                      "linear": {
+                        "component": "pllm/masked-linear",
+                        "params": {
+                          "output_encoding": "row_residues",
+                          "prefill_chunk_rows": 16,
+                          "prefill_pruning": "terminal",
+                          "request_encoding": "stage_packed"
+                        }
+                      },
+                      "preparation": {
+                        "component": "pllm/model-aware-corrections",
+                        "params": {
+                          "storage": "paged"
+                        }
+                      },
+                      "quantization": {
+                        "component": "pllm/symmetric-per-row-quantization/v1",
+                        "params": {
+                          "activation_bits": 8,
+                          "causal_reduction": "prefix_f32",
+                          "weight_bits": 8
+                        }
+                      }
+                    },
+                    "model": {
+                      "kind": "tiny",
+                      "source": "qwen2"
+                    }
+                  },
+                  "schema": "pllm.experiment.v2"
+                },
+                "profile": "baseline.masked_linear_cpu"
+              },
+              "scenario": {
+                "count": 2,
+                "kind": "sequence",
+                "max_output_tokens": 8,
+                "name": "fresh"
+              },
+              "wan": {
+                "download_mbps": 100.0,
+                "parties": [],
+                "role_parties": [],
+                "schema": "pllm.wan_conditions.v1",
+                "upload_mbps": 40.0
+              }
+            },
+            "schema": "pllm.benchmark_target.v1"
+          },
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/client-stage-venv/bin/python",
+            "expected_digest": "fc9c0e009ff459e74c662486503839895d7582f94d79da22a2da6ccff432842d"
+          },
+          "budgets": []
+        },
+        {
+          "name": "growing",
+          "target": {
+            "kind": "response",
+            "parameters": {
+              "backend": "native",
+              "client_stage": {
+                "layer": 0,
+                "owner": "python",
+                "role": "mlp_gate_up"
+              },
+              "model": {
+                "config": null,
+                "experiment": {
+                  "budget": {
+                    "max_input_tokens": 512,
+                    "max_new_tokens": 8,
+                    "requests": 3
+                  },
+                  "deployment": {
+                    "kind": "local",
+                    "root": ".pllm/prepared-sdk"
+                  },
+                  "name": "prepared-sdk",
+                  "pipeline": {
+                    "components": {
+                      "cache": {
+                        "component": "pllm/client-prefix-reuse/v1",
+                        "params": {
+                          "fixed_input_tokens": 512,
+                          "max_bytes": 33554432
+                        }
+                      },
+                      "delivery": {
+                        "component": "pllm/client-bundle-transport/v1",
+                        "params": {
+                          "batch_objects": 64,
+                          "compression": "zlib",
+                          "encoding": "artifacts",
+                          "provider_cache_bytes": 536870912,
+                          "storage": "paged"
+                        }
+                      },
+                      "inference": {
+                        "component": "pllm/inference",
+                        "params": {}
+                      },
+                      "inventory": {
+                        "component": "pllm/prepared-inventory-policy/v1",
+                        "params": {
+                          "allocation": "demand",
+                          "policy": "request-sized",
+                          "refill": "on-demand",
+                          "rows": 1,
+                          "stage_window": 4,
+                          "stage_window_bytes": 67108864
+                        }
+                      },
+                      "kernels": {
+                        "component": "pllm/cpu",
+                        "params": {
+                          "threads": 1
+                        }
+                      },
+                      "linear": {
+                        "component": "pllm/masked-linear",
+                        "params": {
+                          "output_encoding": "row_residues",
+                          "prefill_chunk_rows": 16,
+                          "prefill_pruning": "terminal",
+                          "request_encoding": "stage_packed"
+                        }
+                      },
+                      "preparation": {
+                        "component": "pllm/model-aware-corrections",
+                        "params": {
+                          "storage": "paged"
+                        }
+                      },
+                      "quantization": {
+                        "component": "pllm/symmetric-per-row-quantization/v1",
+                        "params": {
+                          "activation_bits": 8,
+                          "causal_reduction": "prefix_f32",
+                          "weight_bits": 8
+                        }
+                      }
+                    },
+                    "model": {
+                      "kind": "tiny",
+                      "source": "qwen2"
+                    }
+                  },
+                  "schema": "pllm.experiment.v2"
+                },
+                "profile": "baseline.masked_linear_cpu"
+              },
+              "scenario": {
+                "count": 3,
+                "kind": "sequence",
+                "max_output_tokens": 8,
+                "name": "growing"
+              },
+              "wan": {
+                "download_mbps": 100.0,
+                "parties": [],
+                "role_parties": [],
+                "schema": "pllm.wan_conditions.v1",
+                "upload_mbps": 40.0
+              }
+            },
+            "schema": "pllm.benchmark_target.v1"
+          },
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/client-stage-venv/bin/python",
+            "expected_digest": "fc9c0e009ff459e74c662486503839895d7582f94d79da22a2da6ccff432842d"
+          },
+          "budgets": []
+        }
+      ],
+      "sampling": {
+        "processes": 1,
+        "repetitions": 1,
+        "warmups": 0,
+        "timeout_seconds": 1200,
+        "order": "balanced",
+        "threads": 1,
+        "memory_bytes": 8589934592
+      }
+    },
+    "variants": [
+      {
+        "name": "native",
+        "parameters": {
+          "client_stage": {
+            "layer": 0,
+            "owner": "native",
+            "role": "mlp_gate_up"
+          }
+        },
+        "targets": []
+      }
+    ],
+    "interactions": []
+  },
+  "coverage": {
+    "cases": [
+      {
+        "action": "run",
+        "base": "fresh",
+        "build_digest": "fc9c0e009ff459e74c662486503839895d7582f94d79da22a2da6ccff432842d",
+        "case": "fresh",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "2fb90a931cfffde7a23090fae196105edf1e2538c759a79d1342ec8c13f7d8f1"
+      },
+      {
+        "action": "run",
+        "base": "fresh",
+        "build_digest": "fc9c0e009ff459e74c662486503839895d7582f94d79da22a2da6ccff432842d",
+        "case": "fresh/native",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "babd87da1d94c263a6c4e037660ede9c5c350f2db8b8cedabb72c4b50513169f"
+      },
+      {
+        "action": "run",
+        "base": "growing",
+        "build_digest": "fc9c0e009ff459e74c662486503839895d7582f94d79da22a2da6ccff432842d",
+        "case": "growing",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "b62c4607e518025ead1c251cb97638db3c52f4d7a762ba6d3b4e4d488c4bafd0"
+      },
+      {
+        "action": "run",
+        "base": "growing",
+        "build_digest": "fc9c0e009ff459e74c662486503839895d7582f94d79da22a2da6ccff432842d",
+        "case": "growing/native",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "d693a27b1629d1995c290252ab0df173179ba8eb467c8dfc5577339f49f9609f"
+      }
+    ],
+    "changed_paths": [],
+    "max_trials": 256,
+    "schema_version": "pllm.frontier_coverage.v1",
+    "selected_trials": 4,
+    "study_digest": "f3dbf3ea4342f1c7952ef8781360df9a542fcf0f6bb7b50a887f8f2f48636a6d",
+    "timings_propagated": false
+  }
+}

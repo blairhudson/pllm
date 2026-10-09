@@ -1,8 +1,11 @@
 # Five tenfold challenges for the frontier/probe design
 
 Status: **research proposals with bounded SDK target screens**, 6 October 2026.
-None of these constructions has a measured tenfold serving result or a selectable
-serving component. [Target evidence and design feedback](../research/benchmark-targets-reference.md)
+None of these constructions has a measured tenfold serving result. The later
+opt-in native digit8 implementation is selectable for Preparation; its confirmed
+incremental costs are recorded in the
+[maintained serving study](../research/prepared-maintained-reference.md).
+[Target evidence and design feedback](../research/benchmark-targets-reference.md)
 record the executable first screen.
 Novelty means new concrete PLLM experiments, not literature-first algorithms.
 The [frontier/probe proposal](benchmark-frontier-and-probes.md) supplies the
@@ -65,6 +68,19 @@ unchecked serialized program cannot bypass ordinary model admission.
 This specializes the earlier thin-client direction into an allocation algorithm
 and an executable admission contract. It is not a claim that rewriting code in
 Rust alone produces tenfold savings.
+
+The subsequent bounded first slice owns one compiled gate/up stage's masks,
+scales, frame parsing and output in Rust, retaining the original Python decoder
+and authenticated transport. A response-target ownership ablation measures that
+slice inside the entire SDK client. Exact generated-model logits/KV and
+malformed-frame/cancellation checks precede checkpoint measurements. This is a
+stage owner, not the proposed instruction tape or reusable whole-decoder arena;
+extension remains conditional on matched client-memory evidence.
+The first Qwen2.5 short-workload screen's 6.28% client-RSS reduction disappears
+in a separate three-client-per-owner confirmation: 163.43 to 165.59 MB (+1.32%).
+Outputs match, but this slice fails the memory-extension gate. Exact ownership
+and numeric tests alone do not justify a wider rewrite; see the
+[stage-ownership evidence](../research/client-stage-ownership.md).
 
 ## B. Seed-to-correction stripe engine
 

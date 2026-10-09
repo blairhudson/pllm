@@ -1,6 +1,7 @@
 """Adapters over the existing role and operator benchmark executors."""
 from __future__ import annotations
 
+from contextlib import nullcontext
 import statistics
 
 from pllm._benchmark_contract import Scenario, TargetUnavailable, digest
@@ -56,6 +57,7 @@ def execute_response(p, m):
     from pllm.metrics import benchmark_memory
     from pllm.model_loader import expected_model_id
     from .benchmark_cli import run_loopback_benchmark
+    from .benchmark_context import validate_context
     scenario = Scenario(**p["scenario"])
     if m.sampling.repetitions != 1 or m.sampling.warmups:
         raise TargetUnavailable("response_requires_one_scenario_per_process")
@@ -63,11 +65,15 @@ def execute_response(p, m):
     if set(m.inputs) != {field}:
         raise TargetUnavailable("response_input_contract")
     prompt = m.inputs[field]
-    if scenario.kind == "sequence":
-        if not isinstance(prompt, list) or len(prompt) != scenario.count or any(type(v) is not str or not v.strip() for v in prompt):
-            raise TargetUnavailable("response_input_contract")
-    elif type(prompt) is not str or not prompt.strip():
-        raise TargetUnavailable("response_input_contract")
+    try:
+        if scenario.kind == "sequence":
+            if not isinstance(prompt, list) or len(prompt) != scenario.count:
+                raise ValueError("sequence length differs from scenario")
+            prompt = [validate_context(context) for context in prompt]
+        else:
+            prompt = validate_context(prompt)
+    except ValueError:
+        raise TargetUnavailable("response_input_contract") from None
     declared = p["model"]
     experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
     if experiment.budget.requests < scenario.count or experiment.budget.max_new_tokens < scenario.max_output_tokens:
@@ -91,7 +97,18 @@ def execute_response(p, m):
             temperature=0, capture_output_digest=True, _cohort_salt=m.salt,
             backend=p["backend"], wan=wan, emulate_wan=wan is not None,
             memory_budget_bytes=m.sampling.memory_bytes)
-    report, = m.run(execute)
+    selected = p.get("client_stage")
+    stage_scope = nullcontext([])
+    if selected is not None:
+        from .benchmark_client_stage import client_stage_execution
+        stage_scope = client_stage_execution(selected)
+    with stage_scope as stage_records:
+        report, = m.run(execute)
+    if selected is not None:
+        if not stage_records or sum(record["calls"] for record in stage_records) == 0:
+            raise TargetUnavailable("research_client_stage_not_executed", status="failed")
+        m.details["client_stage_research"] = {"selection": selected, "bindings": stage_records,
+            "scope": "one_selected_stage_in_complete_sdk_responses", "pipeline_component": False}
     if (report.get("checks", {}).get("passed") is not True or len(report["runs"]) != scenario.count
             or any(r["status"] != "completed" or r["tokens"].get("authoritative") is not True for r in report["runs"])):
         raise TargetUnavailable("response_checks_failed", status="failed")
@@ -106,6 +123,11 @@ def execute_response(p, m):
             "backend": config["provider_backend"], "wan": config.get("wan_emulation_digest"), "sampling": config["sampling"]}),
         output_digest=digest([r["generation"]["output_text_digest"] for r in runs]),
         measurement_digest=digest({"schema": report["schema_version"], "scenario": scenario.to_spec(), "cached_checkpoint": True}))
+    if selected is not None:
+        m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
+            "research_client_stage": {key: selected[key] for key in ("role", "layer")}})
+        m.limitations += ["Explicit research stage-ownership adapter; not a selectable Pipeline component or native decoder.",
+                         "Python, tokenizer, transport, model binding and response state remain in the measured client."]
     m.fixture = {"kind": "generated_checkpoint" if experiment.pipeline.model.kind == "tiny" else "checkpoint",
         "digest": config["source_lock_digest"], "metadata": {"cached_checkpoint": True, "owned_client_cache": "fresh"}}
     m.oracle = {"kind": "ordinary_role_runtime_checks", "outcome": "passed", "checked_values": sum(r["tokens"]["output_tokens"] for r in runs)}

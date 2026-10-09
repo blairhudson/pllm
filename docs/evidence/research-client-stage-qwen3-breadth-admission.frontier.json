@@ -1,0 +1,56 @@
+{
+  "cohort": "1282cc7abb4022374e3d9faba12ed9c4d944a046e081ae0a8305bd5fb15f0809",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "long",
+      "excluded": [
+        {
+          "case": "long",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        },
+        {
+          "case": "long/native",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        }
+      ],
+      "nondominated": [],
+      "observations": [],
+      "status": "exploratory"
+    },
+    {
+      "base": "growing",
+      "excluded": [
+        {
+          "case": "growing",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        },
+        {
+          "case": "growing/native",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        }
+      ],
+      "nondominated": [],
+      "observations": [],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "a01579b2d412d5ee5388a5639ea84a930f7d9dc05e3aa58be1b0b79f8de26aa8",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "0a347014e39d88869cd4af3daedfdbbf61019c8493ca09289dffebfe37ffd816"
+}

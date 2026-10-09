@@ -70,6 +70,25 @@ identical outputs and application bodies and zero observed swap growth. Cold
 latency rises 0.56%, repeat latency falls 0.39%, and cold-first aggregate CPU
 rises 1.12%; complete-request speed benefit remains inconclusive. Details:
 `docs/research/prepared-boundary-reference.md`.
+An internal compiler-bound native client-stage owner additionally retains one
+selected remote stage's masks, scales and output allocation in Rust. Bounded
+borrowed-frame parsing validates ordered tickets, stage, ring and residue layout;
+malformed replies, replay and cancellation burn the one-use owner. Read-only
+NumPy outputs retain zeroizing native storage until the final view retires.
+Generated Qwen2/Qwen3/Llama prefill/decode preserves exact logits and active KV.
+An explicit response benchmark selector measures this stage inside the complete
+SDK client across separate workload cells. Python scheduling, transport,
+tokenization and decoder state remain charged. This is a bounded research stage,
+not a Pipeline component or whole-decoder arena; extension remains evidence-gated.
+A separate three-client-per-owner Qwen2.5 46+8 cold/repeat confirmation preserves
+outputs and application bodies with zero observed swap growth, but client peak
+RSS rises 163.43 to 165.59 MB (1.32%). It rejects the initial single-pair memory
+win and does not justify extending native ownership. Contracts and replay:
+`docs/research/client-stage-ownership.md`.
+A separate 288+8 cold/repeat pair increases client RSS 6.40%, while a three-turn
+46/81/120+8 history pair lowers it 1.43%; outputs and bodies match with zero
+observed swap growth. The admitted 384-token-bound workloads retain separate
+evidence from 512-bound codec rejections. Qwen3 remains memory-admission blocked.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%

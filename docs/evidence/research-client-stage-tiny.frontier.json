@@ -1,0 +1,55 @@
+{
+  "cohort": "1f547c32364642c2a9643bff8e34ba18aff8544762b914e2cdd992c873c58915",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "tiny",
+      "excluded": [],
+      "nondominated": [
+        "tiny",
+        "tiny/native"
+      ],
+      "observations": [
+        {
+          "case": "tiny",
+          "metrics": {
+            "client.cold_cpu": 0.801137,
+            "client.peak_rss": 121700352.0,
+            "network.all_link_stream_bytes": 209632.0,
+            "preparation.cold_cpu": 0.655679272,
+            "preparation.peak_rss": 106250240.0,
+            "response.decode_tps": 203.12571524649235,
+            "response.ttft": 0.13229000000000002
+          }
+        },
+        {
+          "case": "tiny/native",
+          "metrics": {
+            "client.cold_cpu": 0.586645,
+            "client.peak_rss": 107413504.0,
+            "network.all_link_stream_bytes": 209632.0,
+            "preparation.cold_cpu": 0.659351104,
+            "preparation.peak_rss": 106250240.0,
+            "response.decode_tps": 154.49975592283818,
+            "response.ttft": 0.138061625
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "554190d292a3e8df547cc94ad7e860c0ab8e3c76a8ddfd193796e4b0c90cb784",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "4871d153aeee2ca7d083c360f6f47ef937f669181cf2068fd0c5f84ddd63111c"
+}

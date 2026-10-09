@@ -1,0 +1,89 @@
+{
+  "cohort": "9a1bdf3b962e3f8ac08529e8cca1c3f3003261bf97f45cddbe7df0af2e910cad",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "long",
+      "excluded": [],
+      "nondominated": [
+        "long",
+        "long/native"
+      ],
+      "observations": [
+        {
+          "case": "long",
+          "metrics": {
+            "client.cold_cpu": 28.563157,
+            "client.peak_rss": 259735552.0,
+            "network.all_link_stream_bytes": 805268892.0,
+            "preparation.cold_cpu": 21.638418176000002,
+            "preparation.peak_rss": 261881856.0,
+            "response.decode_tps": 3.618108456782914,
+            "response.ttft": 40.3646398125
+          }
+        },
+        {
+          "case": "long/native",
+          "metrics": {
+            "client.cold_cpu": 28.488861,
+            "client.peak_rss": 276348928.0,
+            "network.all_link_stream_bytes": 805268892.0,
+            "preparation.cold_cpu": 21.524862208000002,
+            "preparation.peak_rss": 240091136.0,
+            "response.decode_tps": 3.7092765103216303,
+            "response.ttft": 40.3359460415
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "growing",
+      "excluded": [],
+      "nondominated": [
+        "growing/native"
+      ],
+      "observations": [
+        {
+          "case": "growing",
+          "metrics": {
+            "client.cold_cpu": 16.544123,
+            "client.peak_rss": 175898624.0,
+            "network.all_link_stream_bytes": 452787541.0,
+            "preparation.cold_cpu": 11.74511488,
+            "preparation.peak_rss": 156893184.0,
+            "response.decode_tps": 3.850906734692296,
+            "response.ttft": 14.435256416
+          }
+        },
+        {
+          "case": "growing/native",
+          "metrics": {
+            "client.cold_cpu": 16.525256,
+            "client.peak_rss": 173375488.0,
+            "network.all_link_stream_bytes": 452787541.0,
+            "preparation.cold_cpu": 11.659780864,
+            "preparation.peak_rss": 149733376.0,
+            "response.decode_tps": 3.8946314883995874,
+            "response.ttft": 14.414766417
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "b768aa874a9c88e460998a82b27aa83ae8be283542586ef94d0ea75ab9fe379e",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "c483449808f33c41756a51757ceab20a4802f94be7c93fb57425e34726377e48"
+}

@@ -20,6 +20,7 @@ mod offset_transport;
 mod packed_embedding;
 mod paged;
 mod polynomial_shift;
+mod prepared_stage;
 mod private_pages;
 mod progressive_head;
 mod projected_polynomial;
@@ -1730,6 +1731,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     head_index::register(module)?;
     paged::register(module)?;
     offset_transport::register(module)?;
+    prepared_stage::register(module)?;
     masked_aggregate::register(module)?;
     masked_wire::register(module)?;
     activation_benchmarks::register(module)?;

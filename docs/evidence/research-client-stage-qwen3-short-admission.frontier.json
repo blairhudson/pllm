@@ -1,0 +1,38 @@
+{
+  "cohort": "5b9dfe69788a14f131e8b8919da494af543b96e371508de0da4530cf8bda3ea8",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "short",
+      "excluded": [
+        {
+          "case": "short",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        },
+        {
+          "case": "short/native",
+          "metric": "client.peak_rss",
+          "reason": "cohort_contract_differs"
+        }
+      ],
+      "nondominated": [],
+      "observations": [],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "e7036606e22e90b240e7db7f13b834868c391770256c05ea2f0dacacc5a21c75",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "9ee4a02f7801c48b4937b5bdf03db0dd01632a0b7bd67f2483235a0b3e897564"
+}

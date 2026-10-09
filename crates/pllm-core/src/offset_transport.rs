@@ -328,9 +328,37 @@ pub fn unmask_dequantize(
     weight_scales: &[u8],
     bias: Option<&[u8]>,
 ) -> Result<Vec<u8>, String> {
+    packed_size(widths, rows)?;
+    let mut output = vec![0; rows * widths.len() * 4];
+    unmask_dequantize_into(
+        packed,
+        mask,
+        widths,
+        rows,
+        activation_scales,
+        weight_scales,
+        bias,
+        &mut output,
+    )?;
+    Ok(output)
+}
+
+/// The caller owns the exact-sized output slot for the complete stage.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn unmask_dequantize_into(
+    packed: &[u8],
+    mask: &[u8],
+    widths: &[u8],
+    rows: usize,
+    activation_scales: &[u8],
+    weight_scales: &[u8],
+    bias: Option<&[u8]>,
+    output: &mut [u8],
+) -> Result<(), String> {
     let (size, bits) = packed_size(widths, rows)?;
     validate_packed(packed, size, bits)?;
     if mask.len() != rows * widths.len() * 4
+        || output.len() != mask.len()
         || activation_scales.len() != rows * 4
         || weight_scales.len() != widths.len() * 4
         || bias.is_some_and(|b| b.len() != widths.len() * 4)
@@ -355,7 +383,6 @@ pub fn unmask_dequantize(
         return Err("nonfinite prepared bias".into());
     }
     let mut reader = BitReader::new(packed);
-    let mut output = Vec::with_capacity(rows * widths.len() * 4);
     for (index, (mask, &width)) in mask.chunks_exact(4).zip(widths.iter().cycle()).enumerate() {
         let modulus = 1_u64 << width;
         let value = (reader.read(width) + u64::from(u32::from_le_bytes(mask.try_into().unwrap())))
@@ -369,9 +396,9 @@ pub fn unmask_dequantize(
         let scaled = (centered as f32 * float(activation_scales, index / widths.len()))
             * float(weight_scales, column);
         let result = bias.map_or(scaled, |b| scaled + float(b, column));
-        output.extend_from_slice(&result.to_le_bytes());
+        output[index * 4..index * 4 + 4].copy_from_slice(&result.to_le_bytes());
     }
-    Ok(output)
+    Ok(())
 }
 
 #[cfg(test)]

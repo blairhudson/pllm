@@ -29,6 +29,7 @@ pub mod packed_embedding;
 pub mod paged;
 pub mod piecewise_gated_reference;
 pub mod polynomial_softmax_reference;
+pub mod prepared_stage;
 pub mod progressive_head;
 pub mod public_entropy;
 pub mod public_file;

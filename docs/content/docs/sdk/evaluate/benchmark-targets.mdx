@@ -104,7 +104,9 @@ with TemporaryDirectory() as directory:
 
 Response sampling uses one scenario per process. A repeat contains its cold first
 request and later requests on the same client. `Scenario.sequence(count=...)`
-accepts `inputs={"prompts": [...]}` for ordered request contexts. Checkpoints stay
+accepts `inputs={"prompts": [...]}` for ordered request contexts. Each context may
+be plain text or a bounded list of text-only `{"role": ..., "content": ...}` messages,
+using the ordinary benchmark driver's validation. Checkpoints stay
 cached; runner-owned client caches start fresh. Whole-topology admission precedes
 provider launch. `wan=WanConditions(...)` uses the existing enforced backend.
 
@@ -114,6 +116,53 @@ throughput, and all-link TCP-stream bytes. Covered application bodies are anothe
 metric. Missing roles, unmetered streams and zero decode denominators remain null.
 Import-process memory, parent-only memory and full-client memory never share an
 implicit measurement scope.
+
+### Research client-stage ownership
+
+An explicit response-only selection can compare Python ownership with a bounded
+native owner for one compiled remote stage:
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.metrics import BenchmarkTarget, Scenario
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import MaskedLinear
+
+prepared = Experiment(
+    "native-stage-example", MaskedLinearCpu(Model.tiny()),
+    Deployment.local(root="local://native-stage-example"),
+    ExecutionBudget(requests=2, max_input_tokens=64, max_new_tokens=8),
+)
+research_prepared = prepared.with_params(
+    pipeline__linear=MaskedLinear(
+        request_encoding="stage_packed", output_encoding="row_residues",
+        prefill_chunk_rows=4,
+    ),
+)
+target = BenchmarkTarget.response(
+    research_prepared,
+    scenario=Scenario.repeat(max_output_tokens=8),
+    client_stage={"owner": "native", "role": "mlp_gate_up", "layer": 0},
+)
+assert target.to_spec()["parameters"]["client_stage"]["owner"] == "native"
+```
+
+The Experiment must select unverified prepared execution on the native backend,
+lazy inventory, packed requests and row-residue outputs. Unsupported compositions reject. Use
+`owner="python"` for the matched control in the same suite. Both selections run
+the complete SDK response through separate provider children; Python imports,
+tokenization, transport and decoder state remain charged to the client.
+
+`execution.details.client_stage_research` records the checked binding, selected
+semantic stage, executed rows and stage-local CPU/wall time. The seven serving
+metrics still measure their ordinary whole-response windows. This fixed research
+adapter is not a Pipeline component or a native decoder. Exact generated
+Qwen2/Qwen3/Llama logits and KV are covered separately from checkpoint serving
+measurements. The reusable workload study is
+`benchmarks/research/client_stage_ownership.py`. Its independent Qwen2.5
+short-workload confirmation increases client peak RSS by 1.32%; exact arithmetic
+compatibility has not established a memory benefit or justified wider native
+ownership. Full evidence and replay: `docs/research/client-stage-ownership.md`.
 
 ## Propagate required measurements
 
