@@ -40,8 +40,10 @@ deployment and the goal of keeping private inference usable on ordinary devices:
   CPU seconds are a resource measurement, not measured battery use or energy.
 - **Preparation cost:** CPU and RAM determine how practical it is to self-host
   Preparation or choose a separate trusted operator. Its CPU covers process birth
-  through the first cold response; its RSS is a lifetime peak. Moving work offline
-  does not make that work free or establish non-collusion.
+  through the first cold response; its RSS is the largest telemetry sample in the
+  request window, including the opening sample. It can miss short or earlier
+  startup peaks. Moving work offline does not make that work free or establish
+  non-collusion.
 - **WAN responsiveness:** TTFT measures online start to first output;
   N−1 decode tokens/s exposes later-token responsiveness. Use matched capped
   cohorts to evaluate constrained links. Local bandwidth caps do not imply Internet RTT.
@@ -55,10 +57,17 @@ useful improvements. Comparisons retain source, numeric, workload and output
 identity; a faster changed numeric profile needs its own quality evidence.
 The axes expose trade-offs rather than collapsing them into a universal winner.
 
-The latest [prepared-serving investigation](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-serving-reference.md)
+The [prepared-serving investigation](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-serving-reference.md)
 profiles combined-stack client allocations, calibrates shared native TCP pacing,
 and measures public-artifact publication across fresh HTTP clients. It retains
 the blocked Qwen3 memory admission and the prototype's full measured cost scope.
+The subsequent [TTFT and tensor-lifetime investigation](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-prefill-reference.md)
+reports all seven metrics for separate cold/repeat sequences. Its repeated
+ownership-only ablation finds no client peak-RSS improvement. Combining scoped
+owners with sixteen-row prefill lowers online TTFT about 18% and client peak RSS
+5.29%, while decode slows and traffic rises slightly. These multi-request
+measurements retain their own tables rather than entering the chart's
+single-response cohorts.
 
 ### Optional offload metric
 

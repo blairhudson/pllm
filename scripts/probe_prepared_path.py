@@ -5,6 +5,9 @@ oracles. The response pair runs two ordinary prepared requests per child under
 shared native 100/40 caps, with isolated artifact caches and a cached checkpoint.
 No allocation tracing, monkeypatching or forced collection runs in the response.
 Cold/warm request samples do not establish representative quality or physical wire.
+Response repetitions use fresh clients in alternating build order. An explicit
+candidate composition can additionally measure the combined stack; canonical
+numeric, verifier and ordered-workload matching still precedes comparison.
 """
 from __future__ import annotations
 
@@ -100,10 +103,11 @@ def kernel_screen():
             "python_traced_peak_bytes": traced, "scope": "decoder allocations; not process RSS"}}
 
 
-def experiment(target, mode):
+def experiment(target, mode, repetition=None):
     module, factory = target.split(":", 1)
     value = getattr(importlib.import_module(module), factory)()
-    return value.with_params(name=f"{value.name}-{mode}-prepared-path", budget__requests=2)
+    sample = "" if repetition is None else f"-sample{repetition + 1}"
+    return value.with_params(name=f"{value.name}-{mode}{sample}-prepared-path", budget__requests=2)
 
 
 def worker(args):
@@ -115,7 +119,7 @@ def worker(args):
 
         prompt = args.prompt_file.read_text().strip()
         report = run_loopback_benchmark(model="unused", model_id=None, tiny=False,
-            experiment=experiment(args.experiment, args.child), prompt=prompt,
+            experiment=experiment(args.experiment, args.child, args.sample), prompt=prompt,
             prompt_sequence=(prompt, prompt), max_output_tokens=args.max_output_tokens,
             warmups=0, repetitions=1, timeout_seconds=1800, temperature=0,
             capture_output_digest=True, backend="native", wan=WanConditions(), emulate_wan=True,
@@ -130,14 +134,17 @@ def worker(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe", choices=("kernels", "responses"), required=True)
-    parser.add_argument("--change-scope", choices=("kernels", "client-fusion", "prepared-refinements", "native-pacing"), default="kernels")
+    parser.add_argument("--change-scope", choices=("kernels", "client-fusion", "prepared-refinements", "native-pacing", "client-owners"), default="kernels")
     parser.add_argument("--baseline-python", type=Path)
     parser.add_argument("--candidate-python", type=Path)
     parser.add_argument("--experiment")
+    parser.add_argument("--candidate-experiment", help="optional matched candidate composition")
+    parser.add_argument("--response-repetitions", type=int, choices=(1, 2, 3), default=1)
     parser.add_argument("--prompt-file", type=Path)
     parser.add_argument("--max-output-tokens", type=int, default=8)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--child", choices=MODES, help=argparse.SUPPRESS)
+    parser.add_argument("--sample", type=int, choices=(0, 1, 2), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.output.exists():
         parser.error("output already exists")
@@ -145,6 +152,8 @@ def main():
         parser.error("output bound must be 1..32")
     if args.probe == "responses" and (not args.experiment or not args.prompt_file):
         parser.error("responses require an experiment and prompt file")
+    if args.candidate_experiment and args.probe != "responses":
+        parser.error("candidate composition requires the responses probe")
 
     def interrupted(*_):
         raise KeyboardInterrupt()
@@ -165,6 +174,9 @@ def main():
                   "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()}
     records = []
+    targets = {"baseline": args.experiment, "candidate": args.candidate_experiment or args.experiment}
+    provenance["experiment_targets"] = targets
+    provenance["response_repetitions"] = args.response_repetitions
     salt = os.urandom(32).hex()
     with args.output.open("x") as archive, tempfile.TemporaryDirectory(prefix="prepared-path-", dir=ROOT / "target") as directory:
         def checkpoint(status, **extra):
@@ -177,10 +189,11 @@ def main():
 
         checkpoint("running")
         try:
-            for repetition in range(3 if args.probe == "kernels" else 1):
+            for repetition in range(3 if args.probe == "kernels" else args.response_repetitions):
                 for mode in MODES if repetition % 2 == 0 else reversed(MODES):
                     if args.probe == "responses":
-                        preflight = benchmark_memory(experiment(args.experiment, mode), backend="native",
+                        sample = repetition if args.response_repetitions > 1 else None
+                        preflight = benchmark_memory(experiment(targets[mode], mode, sample), backend="native",
                             enforced_wan=True, max_output_tokens=args.max_output_tokens)
                         provenance["memory_preflight"] = preflight
                         require_admission(preflight)
@@ -196,7 +209,9 @@ def main():
                     command = [str(interpreters[mode]), "-m", "scripts.probe_prepared_path", "--probe", args.probe,
                         "--child", mode, "--output", str(output), "--max-output-tokens", str(args.max_output_tokens)]
                     if args.probe == "responses":
-                        command += ["--experiment", args.experiment, "--prompt-file", str(args.prompt_file.resolve())]
+                        command += ["--experiment", targets[mode], "--prompt-file", str(args.prompt_file.resolve())]
+                        if sample is not None:
+                            command += ["--sample", str(sample)]
                     print(f"running {mode} {args.probe} {repetition + 1}", flush=True)
                     child = subprocess.Popen(command, cwd=ROOT, env=env)
                     try:
@@ -226,7 +241,7 @@ def main():
             for key in ("python", "platform", "dependencies"):
                 if any(item[key] != identities[0][key] for item in identities):
                     raise ValueError(f"installed builds have different {key}")
-            if args.change_scope in {"prepared-refinements", "native-pacing"} and any(
+            if args.change_scope in {"prepared-refinements", "native-pacing", "client-owners"} and any(
                 item["native_sha256"] != identities[0]["native_sha256"] for item in identities
             ):
                 raise ValueError(f"{args.change_scope} requires identical native libraries")
@@ -240,12 +255,14 @@ def main():
                 "client-fusion": ["runtime/stage_protocol.py", "runtime/transformer_client.py"],
                 "prepared-refinements": ["runtime/client.py", "runtime/transformer_engine.py"],
                 "native-pacing": ["runtime/native_wan.py"],
+                "client-owners": ["runtime/semantic_executor.py"],
             }[args.change_scope]
             if changed != expected:
                 raise ValueError(f"installed Python changes differ from {args.change_scope}: {changed}")
             comparison = None
             if args.probe == "responses":
-                comparison = build_comparison_report([(experiment(args.experiment, row["mode"]), row["report"])
+                comparison = build_comparison_report([(experiment(targets[row["mode"]], row["mode"],
+                    row["repetition"] if args.response_repetitions > 1 else None), row["report"])
                                                       for row in records], compare_kernels=True)
                 if not comparison["checks"]["passed"]:
                     raise ValueError("canonical response comparison failed")

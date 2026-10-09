@@ -161,3 +161,12 @@ The [prepared-serving follow-up](prepared-serving-reference.md) profiles the
 combined client, calibrates shared native TCP pacing and charges public-artifact
 publication across independent fresh clients. It retains the blocked Qwen3
 admission and the artifact prototype's storage and client costs.
+
+The [prepared TTFT and tensor-lifetime investigation](prepared-prefill-reference.md)
+then isolates stale client tensor aliases and screens existing duplex prefill
+under calibrated shared caps. Its implementation-only repeated cohort preserves
+outputs and bodies but establishes no client peak-RSS gain. All seven priority
+metrics are retained with their distinct lifecycle scopes. A separate repeated
+combined-stack cohort with sixteen-row prefill lowers online TTFT about 18% and
+client peak RSS 5.29%, with slightly slower decode and more traffic. Preparation
+elapsed time and aggregate cold-first CPU remain nearly unchanged.

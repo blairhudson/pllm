@@ -997,6 +997,64 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             f"semantic operator {kind!r} ({operation.get('id')!r}, layout={attrs.get('layout')!r}) is not executable"
         )
 
+    def _linear_step(self, phase, step, operations, ids, values, *, continuation):
+        """Keep temporary tensor aliases inside one step's lifetime."""
+        op_ids = step["operation_ids"]
+        stage_ids = {self._stages[f"{phase}:{op_id}"] for op_id in op_ids}
+        if len(stage_ids) != 1:
+            raise TransformerClientError("semantic remote step has multiple stage bindings")
+        stage_id = stage_ids.pop()
+        if operations[op_ids[0]]["operator"] == "token_lookup":
+            primary, auxiliary = self._token_lookup(ids)
+            combined = primary if auxiliary is None else np.concatenate((primary, auxiliary), axis=-1)
+            if combined.shape[-1] != self.bundle.stages[stage_id].out_features:
+                raise TransformerClientError("semantic token lookup has an invalid width")
+            for op_id, row in zip(op_ids, step["outputs"], strict=True):
+                offset = int(row["stage_offset"])
+                width = int(row["stage_width"])
+                values[op_id] = combined[..., offset : offset + width]
+        elif operations[op_ids[0]]["operator"] == "output_head":
+            input_value = values[step["input_ids"][0]]
+            stage = self.bundle.stages[stage_id]
+            values[op_ids[0]] = (
+                self.bundle.local_linear(stage_id, input_value)
+                if stage.client_weight is not None
+                else self.remote(stage_id, input_value)
+            )
+            if continuation and (
+                np.asarray(values[op_ids[0]]).shape != np.asarray(input_value).shape[:-1] + (stage.out_features,)
+                or np.asarray(values[op_ids[0]]).dtype != np.float32
+            ):
+                raise TransformerClientError("continuation output head shape/type mismatch")
+        else:
+            input_value = values[step["input_ids"][0]]
+            terminal = bool(step.get("terminal_row_only", False)) and not continuation
+            work = input_value[..., -1:, :] if terminal else input_value
+            if step["executor"] == "client_linear" and self.bundle.stages[stage_id].client_weight is not None:
+                output = self.bundle.local_linear(stage_id, work)
+            else:
+                output = self.remote(stage_id, work)
+            if terminal:
+                shape = input_value.shape[:-1] + (self.bundle.stages[stage_id].out_features,)
+                if np.asarray(output).shape != shape[:-2] + (1, shape[-1]):
+                    raise TransformerClientError("terminal-row stage shape mismatch")
+                # These rows have no path to any retained state or logit.
+                # Keep the original local layout and conservative allocation bound.
+                expanded = np.zeros(shape, dtype=np.float32)
+                expanded[..., -1:, :] = output
+                output = expanded
+            if continuation and (
+                np.asarray(output).shape != np.asarray(input_value).shape[:-1] + (self.bundle.stages[stage_id].out_features,)
+                or np.asarray(output).dtype != np.float32
+            ):
+                raise TransformerClientError("continuation remote stage shape/type mismatch")
+            for op_id, row in zip(op_ids, step["outputs"], strict=True):
+                offset = int(row["stage_offset"])
+                width = int(row["stage_width"])
+                values[op_id] = output[..., offset : offset + width]
+        for op_id in op_ids:
+            values[op_id] = self._numeric_output(operations[op_id], values[op_id])
+
     def _forward(self, ids: np.ndarray, *, final_logits_only: bool = False,
                  continuation: bool = False) -> np.ndarray:
         self._phase_rotary = None
@@ -1138,62 +1196,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 values[op_ids[-1]] = self.remote.gated_block(
                     phase, step, values[step["input_ids"][0]], values[step["input_ids"][1]])
             elif step["executor"] in {"remote_stage", "verified_remote_stage", "client_linear"}:
-                stage_ids = {self._stages[f"{phase}:{op_id}"] for op_id in op_ids}
-                if len(stage_ids) != 1:
-                    raise TransformerClientError("semantic remote step has multiple stage bindings")
-                stage_id = stage_ids.pop()
-                if operations[op_ids[0]]["operator"] == "token_lookup":
-                    primary, auxiliary = self._token_lookup(ids)
-                    combined = (
-                        primary if auxiliary is None else np.concatenate((primary, auxiliary), axis=-1)
-                    )
-                    if combined.shape[-1] != self.bundle.stages[stage_id].out_features:
-                        raise TransformerClientError("semantic token lookup has an invalid width")
-                    for op_id, row in zip(op_ids, step["outputs"], strict=True):
-                        offset = int(row["stage_offset"])
-                        width = int(row["stage_width"])
-                        values[op_id] = combined[..., offset : offset + width]
-                elif operations[op_ids[0]]["operator"] == "output_head":
-                    input_value = values[step["input_ids"][0]]
-                    stage = self.bundle.stages[stage_id]
-                    values[op_ids[0]] = (
-                        self.bundle.local_linear(stage_id, input_value)
-                        if stage.client_weight is not None
-                        else self.remote(stage_id, input_value)
-                    )
-                    if continuation and (
-                        np.asarray(values[op_ids[0]]).shape != np.asarray(input_value).shape[:-1] + (stage.out_features,)
-                        or np.asarray(values[op_ids[0]]).dtype != np.float32
-                    ):
-                        raise TransformerClientError("continuation output head shape/type mismatch")
-                else:
-                    input_value = values[step["input_ids"][0]]
-                    terminal = bool(step.get("terminal_row_only", False)) and not continuation
-                    work = input_value[..., -1:, :] if terminal else input_value
-                    if step["executor"] == "client_linear" and self.bundle.stages[stage_id].client_weight is not None:
-                        output = self.bundle.local_linear(stage_id, work)
-                    else:
-                        output = self.remote(stage_id, work)
-                    if terminal:
-                        shape = input_value.shape[:-1] + (self.bundle.stages[stage_id].out_features,)
-                        if np.asarray(output).shape != shape[:-2] + (1, shape[-1]):
-                            raise TransformerClientError("terminal-row stage shape mismatch")
-                        # These rows have no path to any retained state or logit.
-                        # Keep the original local layout and conservative allocation bound.
-                        expanded = np.zeros(shape, dtype=np.float32)
-                        expanded[..., -1:, :] = output
-                        output = expanded
-                    if continuation and (
-                        np.asarray(output).shape != np.asarray(input_value).shape[:-1] + (self.bundle.stages[stage_id].out_features,)
-                        or np.asarray(output).dtype != np.float32
-                    ):
-                        raise TransformerClientError("continuation remote stage shape/type mismatch")
-                    for op_id, row in zip(op_ids, step["outputs"], strict=True):
-                        offset = int(row["stage_offset"])
-                        width = int(row["stage_width"])
-                        values[op_id] = output[..., offset : offset + width]
-                for op_id in op_ids:
-                    values[op_id] = self._numeric_output(operations[op_id], values[op_id])
+                self._linear_step(phase, step, operations, ids, values, continuation=continuation)
             else:
                 raise TransformerClientError("semantic runtime executor is unsupported")
             if continuation:
@@ -1205,6 +1208,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                             if operations[op_id]["operator"] == "causal_mask" else np.all(np.isfinite(tensor))
                         if not valid:
                             raise TransformerClientError("continuation operation produced nonfinite state")
+                    del tensor
             for op_id in op_ids:
                 identity = produced_hybrid.get(op_id)
                 if identity is None:
@@ -1218,6 +1222,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 ):
                     raise TransformerClientError("semantic hybrid state output is malformed")
                 pending_hybrid[identity] = np.ascontiguousarray(tensor.copy())
+                del tensor
             for input_id in step["input_ids"]:
                 remaining[input_id] -= 1
                 if remaining[input_id] == 0 and input_id != logits_id:

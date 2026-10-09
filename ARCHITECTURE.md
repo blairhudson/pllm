@@ -1185,7 +1185,7 @@ observed swap growth; it does not establish large-model capacity.
 
 Client admission now prices live allocation roots, view aliases, numeric scratch
 and geometric full-KV/snapshot overlap; unknown layouts retain the unreleased
-output bound. The runtime already released last-use tensors, so this is estimate
+output bound. The runtime already retired last-use graph entries, so this is estimate
 correction rather than a memory optimization. Lazy masks and paged artifacts
 plus that pricing put the bounded Qwen3-4B client estimate at 1.07 GiB, above the
 initial 0.83 GiB target. The benchmark retires completed response-owned state while
@@ -1310,6 +1310,23 @@ and nearly equal 166-second request time. Sampled simultaneous topology RSS rise
 the guard. This one-response allocation ablation does not establish zero swap,
 whole-topology savings or held-out quality. Evidence and replay are in
 `docs/research/qwen3-client-memory.md`.
+
+Semantic linear-step temporaries now have per-step lifetimes, preventing
+loop-local aliases from retaining consumed grouped gate/up tensors into the next
+remote exchange. Qwen2/Qwen3/Llama prefill/decode ownership regressions fail on
+the previous wheel and pass with scoped owners. An alternating four-client
+Qwen2.5 150+8 cold/repeat ablation preserves outputs and application bodies, with
+zero observed swap growth, but median client peak RSS remains effectively
+unchanged at 230.59/231.01 MB. This deterministic ownership correction establishes
+no whole-client memory reduction. A separate alternating four-client cohort
+combines the correction with existing sixteen-row duplex prefill. Online TTFT
+falls 18.28%/17.91% cold/repeat, client lifetime peak RSS 238.47 to 225.85 MB and
+client cold-first CPU 4.19%. Decode medians regress 1.88%/3.73%; two-response
+TCP-stream traffic rises 0.17%, with nearly unchanged aggregate cold-first CPU
+and Preparation elapsed time. Outputs match with zero observed swap growth.
+Qwen3 remains admission-blocked, and these scoped combined-stack results do not
+establish a tenfold client-memory improvement. All seven priority metrics and
+replay are in `docs/research/prepared-prefill-reference.md`.
 
 Dense full-KV growth is capped at the compiled response's maximum key sequence,
 so short responses no longer allocate the historical 64-row minimum. Restored

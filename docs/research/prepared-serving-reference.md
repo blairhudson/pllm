@@ -180,3 +180,7 @@ calibrated implementation is a new instrumented sample, not the same timing
 cohort. Reports retain exact implementation hashes.
 The installed-build pair requires the two historical wheel variants and matching
 dependencies: its source check admits only the recorded native-relay change.
+
+The subsequent [TTFT and tensor-lifetime investigation](prepared-prefill-reference.md)
+keeps calibrated pacing fixed. It isolates semantic-executor tensor ownership
+and measures the existing duplex-prefill option across the seven priority metrics.

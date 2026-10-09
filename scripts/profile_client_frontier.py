@@ -20,6 +20,7 @@ import signal
 import threading
 import time
 import tracemalloc
+import weakref
 
 
 def main():
@@ -28,6 +29,8 @@ def main():
     parser.add_argument("--prompt-file", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--allocations", action="store_true")
+    parser.add_argument("--array-owners", action="store_true",
+                        help="observe weakly held decoder array roots; excludes temporary native scratch")
     parser.add_argument("--max-output-tokens", type=int, default=8)
     args = parser.parse_args()
     if args.output.exists():
@@ -39,6 +42,7 @@ def main():
     phases, events, originals, timings = {}, [], [], {}
     execution_phase = ContextVar("profile_execution_phase", default="setup")
     allocation_points = {}
+    array_roots, array_points = {}, {}
     lock = threading.Lock()
     started = time.perf_counter()
 
@@ -108,6 +112,39 @@ def main():
             return timed(label, original, *values, server=server, **kwargs)
         originals.append((owner, name, descriptor))
         setattr(owner, name, type(descriptor)(measured) if special else measured)
+
+    def array_watch(owner, name):
+        original = getattr(owner, name)
+
+        def capture(label, result=None):
+            import numpy as np
+            outputs = result if isinstance(result, tuple) else (result,)
+            for output in outputs:
+                if not isinstance(output, np.ndarray):
+                    continue
+                while isinstance(output.base, np.ndarray):
+                    output = output.base
+                array_roots[id(output)] = (weakref.ref(output), output.nbytes)
+            for key, (reference, _) in list(array_roots.items()):
+                if reference() is None:
+                    del array_roots[key]
+            key = execution_phase.get() + "." + label
+            total = sum(size for _, size in array_roots.values())
+            row = array_points.setdefault(key, {"samples": 0, "peak_observed_root_bytes": 0,
+                                                "last_observed_root_bytes": 0})
+            row["samples"] += 1
+            row["peak_observed_root_bytes"] = max(row["peak_observed_root_bytes"], total)
+            row["last_observed_root_bytes"] = total
+
+        @wraps(original)
+        def measured(*values, **kwargs):
+            label = ("local." + values[1]["operator"] if name == "_local" else owner.__name__ + "." + name)
+            capture("before." + label)
+            result = original(*values, **kwargs)
+            capture("after." + label, result)
+            return result
+        originals.append((owner, name, original))
+        setattr(owner, name, measured)
 
     def watch(owner, name, *, trace_phase=False):
         descriptor = inspect.getattr_static(owner, name)
@@ -186,6 +223,12 @@ def main():
         time_watch(transformer_client, name, name)
     for name in ("_from_raw_executor", "clear", "wrap32", "gather_rows", "gather_columns"):
         time_watch(paged.PagedGEMM, name, "paged_" + name.strip("_"))
+    if args.array_owners:
+        for owner, name in ((semantic_executor.SemanticDecoderRuntime, "_local"),
+                            (transformer_client.PreparedRemoteLinear, "__call__"),
+                            (transformer_client.ClientBundle, "local_token_lookup"),
+                            (transformer_client.ClientBundle, "local_linear")):
+            array_watch(owner, name)
 
     def interrupted(*_):
         raise KeyboardInterrupt()
@@ -214,6 +257,9 @@ def main():
                 "exchange payloads exclude outer HTTP/WebSocket envelopes; pacing and network wait "
                 "are not isolated from provider/serialization time",
             "python_allocations": allocations, "phase_python_allocations": allocation_points,
+            "observed_array_roots": array_points if args.array_owners else None,
+            "array_scope": "weak references to returned NumPy allocation roots; observed root payload only, "
+                "not process RSS, unreturned scratch, or a complete owner inventory",
             "report": report,
             "source_sha256": source_hashes,
             "sources_unchanged": all(hashlib.sha256(path.read_bytes()).hexdigest()

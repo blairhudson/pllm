@@ -76,6 +76,7 @@ def _compiled(
     model_type: str = "qwen2",
     gate_weight_scale: float = 0.08,
     tie_word_embeddings: bool = True,
+    bits: int = 4,
 ):
     root = create_tiny_llama_checkpoint(
         tmp_path / "model",
@@ -88,7 +89,7 @@ def _compiled(
     )
     model_id = "tiny-runtime-execution"
     manifest = load_hf_directory(root, model_id=model_id)
-    engine = MaskedTransformerEngine(threads=1)
+    engine = MaskedTransformerEngine(threads=1, weight_bits=bits, activation_bits=bits)
     asyncio.run(engine.load(manifest))
     bundle = ClientBundle.unpack(engine.client_bundle(model_id))
     config = json.loads((root / "config.json").read_text(encoding="utf-8"))
@@ -198,6 +199,40 @@ def test_phase_rotary_tables_retire_when_a_later_stage_fails(tmp_path):
         runtime.prepare_ids([2, 3, 5])
     assert retained and runtime._phase_rotary is None
     assert all(item.retained_bytes == 0 and item.positions is None for item in retained)
+
+
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3", "llama"])
+def test_consumed_gated_inputs_retire_before_the_next_linear_call(tmp_path, monkeypatch, model_type):
+    import weakref
+    from pllm.runtime.semantic_executor import SemanticDecoderRuntime
+
+    compiled, _, remote = _compiled(tmp_path, model_type=model_type, bits=8)
+    original = SemanticDecoderRuntime._local
+    pending, checked = [], []
+
+    def local(runtime, operation, values, *args):
+        if operation["operator"] == "multiply":
+            for name in operation["inputs"]:
+                root = values[name]
+                while isinstance(root.base, np.ndarray):
+                    root = root.base
+                pending.append(weakref.ref(root))
+        return original(runtime, operation, values, *args)
+
+    def observed(stage, value):
+        if pending:
+            # Dictionary liveness is insufficient when loop-local aliases keep
+            # the entire grouped gate/up allocation alive across the exchange.
+            assert all(reference() is None for reference in pending)
+            checked.append(len(pending))
+            pending.clear()
+        return remote(stage, value)
+
+    monkeypatch.setattr(SemanticDecoderRuntime, "_local", local)
+    runtime = compiled.runtime(observed)
+    _, logits, cache = runtime.prepare_ids([2, 3, 5])
+    runtime.decode_step(int(np.argmax(logits)), cache)
+    assert checked == [2, 2, 2, 2]
 
 
 @pytest.mark.quality
