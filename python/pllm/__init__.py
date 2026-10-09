@@ -7,6 +7,7 @@ from ._version import __version__
 _EXPORTS = {
     "ArtifactLock": ("pllm.research", "ArtifactLock"),
     "AsyncOpenAI": ("pllm.runtime.client", "AsyncOpenAI"),
+    "AsyncConversation": ("pllm.runtime.conversation", "AsyncConversation"),
     "AuthenticatedMPC": ("pllm.runtime.authenticated_mpc", "AuthenticatedMPC"),
     "AuthenticationError": ("pllm.runtime.authenticated_mpc", "AuthenticationError"),
     "BenchmarkResult": ("pllm.evidence", "BenchmarkResult"),
@@ -39,6 +40,7 @@ _EXPORTS = {
     ),
     "MaskedTransformerEngine": ("pllm.runtime.transformer_engine", "MaskedTransformerEngine"),
     "OpenAI": ("pllm.runtime.client", "OpenAI"),
+    "Conversation": ("pllm.runtime.conversation", "Conversation"),
     "ParetoFrontier": ("pllm.search", "ParetoFrontier"),
     "PROFILES": ("pllm.runtime.formal_security", "PROFILES"),
     "PreparedInventory": ("pllm.runtime.preprocessing_inventory", "PreparedInventory"),

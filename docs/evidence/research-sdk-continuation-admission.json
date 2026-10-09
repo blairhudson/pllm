@@ -1,0 +1,135 @@
+{
+  "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+  "contract_digest": "414563e243c80f7a6e4320457c392f3f7038ca044b23ec501b7c1d96451dc4b8",
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]"
+  },
+  "implementation_sha256": {
+    "crates/pllm-compiler/src/decoder_continuation.rs": "3219265f523d1efd427a89b1570aa37f3cb7209839ec025a83347bf9ec11452e",
+    "crates/pllm-python/src/continuation.rs": "ee07b8f01225dc8613dff80c0fe4ad6d7af6471d04d10b55d053bc455a994b40",
+    "python/pllm/modeling.py": "4a4d6bca300658c3ffe0c4ee84ce08ca1b7cb514eb93480c4855ee0f1239645e",
+    "scripts/probe_continuation_admission.py": "f95cb572beeaf4b26a900c3bd125648fa3df1dfb96d31333e082309a4e742e23"
+  },
+  "median_total_cpu_seconds": {
+    "handle": 0.03402699999999981,
+    "stateless": 1.1697659999999996
+  },
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "plan_digest": "45bd81b81679e704447062ec380b9c97dfdff6b990a129cb5ed17ec64b2a7b2d",
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "rows": [
+    {
+      "admission_cpu_seconds": 1.0671199999999998,
+      "calls": 32,
+      "choice": "stateless",
+      "construction_cpu_seconds": 2.9999999999752447e-06,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 0,
+      "total_cpu_seconds": 1.0671229999999998
+    },
+    {
+      "admission_cpu_seconds": 1.4999999999876223e-05,
+      "calls": 32,
+      "choice": "handle",
+      "construction_cpu_seconds": 0.033663999999999916,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 0,
+      "total_cpu_seconds": 0.03367899999999979
+    },
+    {
+      "admission_cpu_seconds": 2.199999999996649e-05,
+      "calls": 32,
+      "choice": "handle",
+      "construction_cpu_seconds": 0.034352999999999856,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 1,
+      "total_cpu_seconds": 0.03437499999999982
+    },
+    {
+      "admission_cpu_seconds": 1.1022350000000003,
+      "calls": 32,
+      "choice": "stateless",
+      "construction_cpu_seconds": 4.000000000115023e-06,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 1,
+      "total_cpu_seconds": 1.1022390000000004
+    },
+    {
+      "admission_cpu_seconds": 1.1802679999999999,
+      "calls": 32,
+      "choice": "stateless",
+      "construction_cpu_seconds": 9.999999992515995e-07,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 2,
+      "total_cpu_seconds": 1.1802689999999991
+    },
+    {
+      "admission_cpu_seconds": 2.0000000000131024e-05,
+      "calls": 32,
+      "choice": "handle",
+      "construction_cpu_seconds": 0.04754099999999983,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 2,
+      "total_cpu_seconds": 0.047560999999999964
+    },
+    {
+      "admission_cpu_seconds": 2.6000000000081513e-05,
+      "calls": 32,
+      "choice": "handle",
+      "construction_cpu_seconds": 0.03900799999999993,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 3,
+      "total_cpu_seconds": 0.03903400000000001
+    },
+    {
+      "admission_cpu_seconds": 1.1592609999999999,
+      "calls": 32,
+      "choice": "stateless",
+      "construction_cpu_seconds": 2.000000000279556e-06,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 3,
+      "total_cpu_seconds": 1.1592630000000002
+    },
+    {
+      "admission_cpu_seconds": 1.185747,
+      "calls": 32,
+      "choice": "stateless",
+      "construction_cpu_seconds": 1.000000000139778e-06,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 4,
+      "total_cpu_seconds": 1.1857480000000002
+    },
+    {
+      "admission_cpu_seconds": 2.1000000000270802e-05,
+      "calls": 32,
+      "choice": "handle",
+      "construction_cpu_seconds": 0.03306900000000024,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 4,
+      "total_cpu_seconds": 0.03309000000000051
+    },
+    {
+      "admission_cpu_seconds": 2.0000000000131024e-05,
+      "calls": 32,
+      "choice": "handle",
+      "construction_cpu_seconds": 0.032878999999999436,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 5,
+      "total_cpu_seconds": 0.03289899999999957
+    },
+    {
+      "admission_cpu_seconds": 1.316751000000001,
+      "calls": 32,
+      "choice": "stateless",
+      "construction_cpu_seconds": 1.000000000139778e-06,
+      "resource_digest": "a4bb400e1b64bd988cf2e5d613b6e8fb44b8788b623cbd7ef67bde6387f90c78",
+      "sample": 5,
+      "total_cpu_seconds": 1.316752000000001
+    }
+  ],
+  "schema": "pllm.continuation_admission_probe.v1",
+  "scope": "Compare stateless native revalidation with a once-validated geometry handle.\n\nThis metadata-only probe loads no tensor values, starts no providers and measures\nno response latency or client peak RSS. Both paths retain identical admission.\n",
+  "serialized_public_metadata_bytes": 778160,
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}

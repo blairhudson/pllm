@@ -365,13 +365,17 @@ class CompiledRuntimeModel:
         return json.loads(self._canonical)
 
     def validate(self) -> None:
-        refreshed = compile_runtime_model(
+        self._validated_schedule()
+
+    def _validated_schedule(self) -> dict[str, Any]:
+        refreshed, schedule = _compile_runtime_model(
             self._plan,
             self._bundle,
             composition=Pipeline.from_spec(json.loads(self._canonical_composition)),
         )
-        if refreshed.digest != self._digest or refreshed.to_spec() != self.to_spec():
+        if refreshed.digest != self._digest or refreshed._canonical != self._canonical:
             raise RuntimeBindingError("bound plan or bundle changed since compilation")
+        return schedule
 
     def runtime(
         self,
@@ -382,7 +386,7 @@ class CompiledRuntimeModel:
         token_cache_lock: threading.Lock | None = None,
         nonlinear_evaluator: Callable[[int, np.ndarray], np.ndarray] | None = None,
     ) -> SemanticDecoderRuntime:
-        self.validate()
+        schedule = self._validated_schedule()
         from .semantic_executor import SemanticDecoderRuntime
 
         composition = Pipeline.from_spec(json.loads(self._canonical_composition))
@@ -428,7 +432,6 @@ class CompiledRuntimeModel:
                 raise RuntimeBindingError(
                     "verified plan requires a matching one-use prepared verifier-bound executor"
                 )
-        schedule = self._plan.runtime_schedule(composition).to_dict()
         bindings = {
             operation: stage.stage_id
             for stage in self._stages
@@ -1076,6 +1079,15 @@ def compile_runtime_model(
     *,
     composition: Pipeline | None = None,
 ) -> CompiledRuntimeModel:
+    return _compile_runtime_model(plan, bundle, composition=composition)[0]
+
+
+def _compile_runtime_model(
+    plan: ModelPlan,
+    bundle: ClientBundle,
+    *,
+    composition: Pipeline | None = None,
+) -> tuple[CompiledRuntimeModel, dict[str, Any]]:
     if type(plan) is not ModelPlan:
         raise RuntimeBindingError("plan must be a ModelPlan")
     if type(bundle) is not ClientBundle:
@@ -2302,7 +2314,7 @@ def compile_runtime_model(
                 composition.components["linear"].params.get("request_encoding") == "stage_packed"))
         except ValueError as exc:
             raise RuntimeBindingError(str(exc)) from exc
-    return result
+    return result, runtime_schedule_spec
 
 
 __all__ = [

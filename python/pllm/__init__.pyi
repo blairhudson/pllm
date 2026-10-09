@@ -1,5 +1,7 @@
 from pllm.research import ArtifactLock as ArtifactLock
 from pllm.runtime.client import AsyncOpenAI as AsyncOpenAI
+from pllm.runtime.conversation import AsyncConversation as AsyncConversation
+from pllm.runtime.conversation import Conversation as Conversation
 from pllm.runtime.authenticated_mpc import AuthenticatedMPC as AuthenticatedMPC
 from pllm.runtime.authenticated_mpc import AuthenticationError as AuthenticationError
 from pllm.evidence import BenchmarkResult as BenchmarkResult

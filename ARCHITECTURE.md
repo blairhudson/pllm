@@ -752,6 +752,25 @@ separate axis unless an exact schedule, binding and execution test say otherwise
 
 ## Python package
 
+The opt-in `OpenAI.conversation` and `AsyncOpenAI.conversation` handles manage one
+response-owned continuation chain under an Experiment with bounded
+`ClientPrefixReuse`. Native full-KV admission and compiled maximum state geometry
+precede reservation. Each successful turn retires the previous response/history/KV;
+failed turns preserve the prior owner. Async cancellation drains the worker and
+retires the chain, including a concurrently committed turn. The selected 1-byte to
+256-MiB bound prices one retained KV/logit snapshot; transient execution, snapshot
+overlap, text and the separately bounded prefix cache remain additional owners.
+Generated Qwen2/Qwen3 checks preserve every compared logit and KV bit against
+explicit response continuation. This is bounded ownership, not measured whole-client
+RSS or a new numeric/cryptographic protocol. Example: `examples/conversation.py`.
+Continuation admission now validates its public source/composition/schedule once
+into an immutable native handle retaining only three resource limits. Per-query
+overflow, geometry and workspace checks remain unchanged; deserialization
+revalidates the contract. Runtime binding reuses its already-checked schedule.
+An isolated six-pair, 32-admission Qwen metadata probe lowers median CPU from
+1.170 to 0.034 seconds, without measuring whole-client RSS or response latency.
+Evidence and replay: `docs/research/sdk-continuation-reference.md`.
+
 `pllm.search.BeamSearch` complements grid and random search with bounded,
 feedback-guided exploration of immutable `SearchSpace` component combinations.
 The shared `pllm.benchmark_search` facade runs all three through ordinary SDK

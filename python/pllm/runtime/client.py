@@ -102,6 +102,7 @@ from .tokenizer import AlphabetTokenizer, Tokenizer
 from .types import Response, ResponseEvent, ResponseUsage, new_id
 
 if TYPE_CHECKING:
+    from .conversation import AsyncConversation, Conversation
     from pllm.configuration import Experiment, ExperimentProfile, Model
     from pllm.runtime.model_binding import CompiledRuntimeModel
     from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -3078,9 +3079,14 @@ class RuntimeClient:
                 state.prepared_inventory = None
                 state.prepared_inventory_spare = None
                 state.retired_inventories.clear()
-            if self._local_engine is not None or self._offset_workers:
-                self._transformer_states.clear()
-                self._model_manifests.clear()
+            self._transformer_states.clear()
+            self._model_manifests.clear()
+        with self._transformer_conversation_lock:
+            self._transformer_conversations.clear()
+        self.cache.clear()
+        self.histories.clear()
+        self.message_histories.clear()
+        self._pending_response_store.clear()
         for inventory in inventories:
             self._cancel_prepared_inventory(inventory)
         if self._owns_preparation_http and self.preparation_http is not None:
@@ -4427,6 +4433,12 @@ class RuntimeResource:
 
 
 class OpenAI:
+    def conversation(self, *, max_state_bytes: int = 32 << 20, **defaults: Any) -> Conversation:
+        """Own a bounded exact multi-turn chain; use as a context manager."""
+        from .conversation import Conversation
+
+        return Conversation(self, max_state_bytes=max_state_bytes, **defaults)
+
     def __init__(
         self,
         *,
@@ -4832,6 +4844,12 @@ class AsyncRuntimeResource:
 
 
 class AsyncOpenAI:
+    def conversation(self, *, max_state_bytes: int = 32 << 20, **defaults: Any) -> AsyncConversation:
+        """Own an async exact multi-turn chain with drained cancellation."""
+        from .conversation import AsyncConversation
+
+        return AsyncConversation(self, max_state_bytes=max_state_bytes, **defaults)
+
     def __init__(self, **kwargs: Any) -> None:
         self.sync = OpenAI(**kwargs)
         self.responses = AsyncResponsesResource(self.sync.responses)

@@ -1,0 +1,347 @@
+{
+  "continuation_digest": "2e0d28953564d71ea6cb7827cba04979464628b298bd775fba6235b238f6efd5",
+  "environment": {
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]"
+  },
+  "implementation_sha256": "52fe51788c88b39f4f5a210073f1893cd299bb02f9b9421840ec9ccdc084949a",
+  "input_tokens": 39,
+  "records": [
+    {
+      "counts": {
+        "aggregate_local_cpu_seconds": 4.653581000000003,
+        "body_integer_macs": 20396113920,
+        "client_head_integer_macs": 2586558464,
+        "client_head_rows": 19,
+        "draft_cpu_seconds": 0.0004920000000048219,
+        "projected_correction_arithmetic_bytes": 53231616,
+        "projected_online_arithmetic_bytes": 90878976,
+        "stage_calls": 768,
+        "stage_rows": 5472
+      },
+      "draft": "ngram",
+      "exact_logit_values": 1215488,
+      "exact_retained_kv_values": 282624,
+      "outputs": 8,
+      "result": {
+        "draft_accepted": 0,
+        "draft_offered": 11,
+        "execution_contract": "035fcb588d9f000a537ed733d79a81687b8c37405025fe20d1f31533fa0952f6",
+        "extra_client_head_rows": 11,
+        "maximum_queried_position": 46,
+        "output_digest": "841443be195586ba659e9ca8fcdcd3dd046da6eaaae1b1b1c3fee41dd6e9a393",
+        "rejected_target_rows": 11,
+        "retained_position": 46,
+        "target_batches": 7,
+        "target_decode_rows": 18,
+        "verification_windows": 6
+      },
+      "serial_counts": {
+        "body_integer_macs": 16460021760,
+        "projected_correction_arithmetic_bytes": 42958848,
+        "projected_online_arithmetic_bytes": 73340928,
+        "stage_calls": 768,
+        "stage_rows": 4416
+      },
+      "serial_head_rows": 8,
+      "serial_local_cpu_seconds": 3.9733819999999973,
+      "width": 2
+    },
+    {
+      "counts": {
+        "aggregate_local_cpu_seconds": 5.225471999999996,
+        "body_integer_macs": 22900899840,
+        "client_head_integer_macs": 3539501056,
+        "client_head_rows": 26,
+        "draft_cpu_seconds": 0.0005639999999971224,
+        "projected_correction_arithmetic_bytes": 59768832,
+        "projected_online_arithmetic_bytes": 102039552,
+        "stage_calls": 768,
+        "stage_rows": 6144
+      },
+      "draft": "ngram",
+      "exact_logit_values": 1215488,
+      "exact_retained_kv_values": 282624,
+      "outputs": 8,
+      "result": {
+        "draft_accepted": 0,
+        "draft_offered": 18,
+        "execution_contract": "bc16b7a21d3eafeb4a0c447136f9f2fca48fc8a34118e1d25dfff2daad56c972",
+        "extra_client_head_rows": 18,
+        "maximum_queried_position": 46,
+        "output_digest": "841443be195586ba659e9ca8fcdcd3dd046da6eaaae1b1b1c3fee41dd6e9a393",
+        "rejected_target_rows": 18,
+        "retained_position": 46,
+        "target_batches": 7,
+        "target_decode_rows": 25,
+        "verification_windows": 6
+      },
+      "serial_counts": {
+        "body_integer_macs": 16460021760,
+        "projected_correction_arithmetic_bytes": 42958848,
+        "projected_online_arithmetic_bytes": 73340928,
+        "stage_calls": 768,
+        "stage_rows": 4416
+      },
+      "serial_head_rows": 8,
+      "serial_local_cpu_seconds": 3.9733819999999973,
+      "width": 4
+    },
+    {
+      "counts": {
+        "aggregate_local_cpu_seconds": 3.424880999999999,
+        "body_integer_macs": 16460021760,
+        "client_head_integer_macs": 1089077248,
+        "client_head_rows": 8,
+        "draft_cpu_seconds": 2.900000000494174e-05,
+        "projected_correction_arithmetic_bytes": 42958848,
+        "projected_online_arithmetic_bytes": 73340928,
+        "stage_calls": 384,
+        "stage_rows": 4416
+      },
+      "draft": "oracle",
+      "exact_logit_values": 1215488,
+      "exact_retained_kv_values": 282624,
+      "outputs": 8,
+      "result": {
+        "draft_accepted": 4,
+        "draft_offered": 4,
+        "execution_contract": "035fcb588d9f000a537ed733d79a81687b8c37405025fe20d1f31533fa0952f6",
+        "extra_client_head_rows": 4,
+        "maximum_queried_position": 46,
+        "output_digest": "841443be195586ba659e9ca8fcdcd3dd046da6eaaae1b1b1c3fee41dd6e9a393",
+        "rejected_target_rows": 0,
+        "retained_position": 46,
+        "target_batches": 3,
+        "target_decode_rows": 7,
+        "verification_windows": 2
+      },
+      "serial_counts": {
+        "body_integer_macs": 16460021760,
+        "projected_correction_arithmetic_bytes": 42958848,
+        "projected_online_arithmetic_bytes": 73340928,
+        "stage_calls": 768,
+        "stage_rows": 4416
+      },
+      "serial_head_rows": 8,
+      "serial_local_cpu_seconds": 3.9733819999999973,
+      "width": 2
+    },
+    {
+      "counts": {
+        "aggregate_local_cpu_seconds": 3.3611719999999963,
+        "body_integer_macs": 16460021760,
+        "client_head_integer_macs": 1089077248,
+        "client_head_rows": 8,
+        "draft_cpu_seconds": 3.500000000400405e-05,
+        "projected_correction_arithmetic_bytes": 42958848,
+        "projected_online_arithmetic_bytes": 73340928,
+        "stage_calls": 288,
+        "stage_rows": 4416
+      },
+      "draft": "oracle",
+      "exact_logit_values": 1215488,
+      "exact_retained_kv_values": 282624,
+      "outputs": 8,
+      "result": {
+        "draft_accepted": 5,
+        "draft_offered": 5,
+        "execution_contract": "bc16b7a21d3eafeb4a0c447136f9f2fca48fc8a34118e1d25dfff2daad56c972",
+        "extra_client_head_rows": 5,
+        "maximum_queried_position": 46,
+        "output_digest": "841443be195586ba659e9ca8fcdcd3dd046da6eaaae1b1b1c3fee41dd6e9a393",
+        "rejected_target_rows": 0,
+        "retained_position": 46,
+        "target_batches": 2,
+        "target_decode_rows": 7,
+        "verification_windows": 2
+      },
+      "serial_counts": {
+        "body_integer_macs": 16460021760,
+        "projected_correction_arithmetic_bytes": 42958848,
+        "projected_online_arithmetic_bytes": 73340928,
+        "stage_calls": 768,
+        "stage_rows": 4416
+      },
+      "serial_head_rows": 8,
+      "serial_local_cpu_seconds": 3.9733819999999973,
+      "width": 4
+    },
+    {
+      "counts": {
+        "aggregate_local_cpu_seconds": 11.929880000000004,
+        "body_integer_macs": 46159626240,
+        "client_head_integer_macs": 12388253696,
+        "client_head_rows": 91,
+        "draft_cpu_seconds": 0.0024720000000044706,
+        "projected_correction_arithmetic_bytes": 120471552,
+        "projected_online_arithmetic_bytes": 205673472,
+        "stage_calls": 3072,
+        "stage_rows": 12384
+      },
+      "draft": "ngram",
+      "exact_logit_values": 4861952,
+      "exact_retained_kv_values": 430080,
+      "outputs": 32,
+      "result": {
+        "draft_accepted": 0,
+        "draft_offered": 59,
+        "execution_contract": "035fcb588d9f000a537ed733d79a81687b8c37405025fe20d1f31533fa0952f6",
+        "extra_client_head_rows": 59,
+        "maximum_queried_position": 70,
+        "output_digest": "1191a1a4ff8ed28ca4f1111f79f1f32587ac445fcd2e7db4bca39e3c4083e95d",
+        "rejected_target_rows": 59,
+        "retained_position": 70,
+        "target_batches": 31,
+        "target_decode_rows": 90,
+        "verification_windows": 30
+      },
+      "serial_counts": {
+        "body_integer_macs": 25047859200,
+        "projected_correction_arithmetic_bytes": 65372160,
+        "projected_online_arithmetic_bytes": 111605760,
+        "stage_calls": 3072,
+        "stage_rows": 6720
+      },
+      "serial_head_rows": 32,
+      "serial_local_cpu_seconds": 7.8614550000000065,
+      "width": 2
+    },
+    {
+      "counts": {
+        "aggregate_local_cpu_seconds": 16.382819999999995,
+        "body_integer_macs": 65840087040,
+        "client_head_integer_macs": 19875659776,
+        "client_head_rows": 146,
+        "draft_cpu_seconds": 0.0032810000000154105,
+        "projected_correction_arithmetic_bytes": 171835392,
+        "projected_online_arithmetic_bytes": 293363712,
+        "stage_calls": 3072,
+        "stage_rows": 17664
+      },
+      "draft": "ngram",
+      "exact_logit_values": 4861952,
+      "exact_retained_kv_values": 430080,
+      "outputs": 32,
+      "result": {
+        "draft_accepted": 0,
+        "draft_offered": 114,
+        "execution_contract": "bc16b7a21d3eafeb4a0c447136f9f2fca48fc8a34118e1d25dfff2daad56c972",
+        "extra_client_head_rows": 114,
+        "maximum_queried_position": 70,
+        "output_digest": "1191a1a4ff8ed28ca4f1111f79f1f32587ac445fcd2e7db4bca39e3c4083e95d",
+        "rejected_target_rows": 114,
+        "retained_position": 70,
+        "target_batches": 31,
+        "target_decode_rows": 145,
+        "verification_windows": 30
+      },
+      "serial_counts": {
+        "body_integer_macs": 25047859200,
+        "projected_correction_arithmetic_bytes": 65372160,
+        "projected_online_arithmetic_bytes": 111605760,
+        "stage_calls": 3072,
+        "stage_rows": 6720
+      },
+      "serial_head_rows": 32,
+      "serial_local_cpu_seconds": 7.8614550000000065,
+      "width": 4
+    },
+    {
+      "counts": {
+        "aggregate_local_cpu_seconds": 6.066043999999991,
+        "body_integer_macs": 25047859200,
+        "client_head_integer_macs": 4356308992,
+        "client_head_rows": 32,
+        "draft_cpu_seconds": 0.0001270000000346272,
+        "projected_correction_arithmetic_bytes": 65372160,
+        "projected_online_arithmetic_bytes": 111605760,
+        "stage_calls": 1152,
+        "stage_rows": 6720
+      },
+      "draft": "oracle",
+      "exact_logit_values": 4861952,
+      "exact_retained_kv_values": 430080,
+      "outputs": 32,
+      "result": {
+        "draft_accepted": 20,
+        "draft_offered": 20,
+        "execution_contract": "035fcb588d9f000a537ed733d79a81687b8c37405025fe20d1f31533fa0952f6",
+        "extra_client_head_rows": 20,
+        "maximum_queried_position": 70,
+        "output_digest": "1191a1a4ff8ed28ca4f1111f79f1f32587ac445fcd2e7db4bca39e3c4083e95d",
+        "rejected_target_rows": 0,
+        "retained_position": 70,
+        "target_batches": 11,
+        "target_decode_rows": 31,
+        "verification_windows": 10
+      },
+      "serial_counts": {
+        "body_integer_macs": 25047859200,
+        "projected_correction_arithmetic_bytes": 65372160,
+        "projected_online_arithmetic_bytes": 111605760,
+        "stage_calls": 3072,
+        "stage_rows": 6720
+      },
+      "serial_head_rows": 32,
+      "serial_local_cpu_seconds": 7.8614550000000065,
+      "width": 2
+    },
+    {
+      "counts": {
+        "aggregate_local_cpu_seconds": 5.646187999999995,
+        "body_integer_macs": 25047859200,
+        "client_head_integer_macs": 4356308992,
+        "client_head_rows": 32,
+        "draft_cpu_seconds": 9.400000000425734e-05,
+        "projected_correction_arithmetic_bytes": 65372160,
+        "projected_online_arithmetic_bytes": 111605760,
+        "stage_calls": 768,
+        "stage_rows": 6720
+      },
+      "draft": "oracle",
+      "exact_logit_values": 4861952,
+      "exact_retained_kv_values": 430080,
+      "outputs": 32,
+      "result": {
+        "draft_accepted": 24,
+        "draft_offered": 24,
+        "execution_contract": "bc16b7a21d3eafeb4a0c447136f9f2fca48fc8a34118e1d25dfff2daad56c972",
+        "extra_client_head_rows": 24,
+        "maximum_queried_position": 70,
+        "output_digest": "1191a1a4ff8ed28ca4f1111f79f1f32587ac445fcd2e7db4bca39e3c4083e95d",
+        "rejected_target_rows": 0,
+        "retained_position": 70,
+        "target_batches": 7,
+        "target_decode_rows": 31,
+        "verification_windows": 6
+      },
+      "serial_counts": {
+        "body_integer_macs": 25047859200,
+        "projected_correction_arithmetic_bytes": 65372160,
+        "projected_online_arithmetic_bytes": 111605760,
+        "stage_calls": 3072,
+        "stage_rows": 6720
+      },
+      "serial_head_rows": 32,
+      "serial_local_cpu_seconds": 7.8614550000000065,
+      "width": 4
+    }
+  ],
+  "sampling": "greedy, fixed cap, no EOS stop",
+  "schema": "pllm.batched_greedy_probe.v1",
+  "scope": "Pinned clear-target block gate: exact logits/KV and fully charged attempts.\n\nThe real drafter copies bounded n-grams from client-owned history. The separately\nlabelled oracle knows future target tokens and is only an optimistic batching\ncontrol. Stage bytes are arithmetic projections; provider reservations, transport,\nWAN timing and process peak memory are not measured by this local diagnostic.\n",
+  "script_sha256": "6b6a091470a4d5f3165e7f3c885137af5903ce747e3987cbf9890bed8cdbf2ed",
+  "source": {
+    "binding_digest": "d00674dd4972ed4608fc035a25976b041fa80951cb25a4e3f349e55db051f3f4",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "1a84b259cfa1606c613007f67a51d80197a6c6b5f737d9d3eb309473599a4f8a",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "schedule_digest": "dd82466d239f8a3e6385b0191b3bc387a2dd97eac15e5b19ef2111beaa8b3a0f",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  }
+}

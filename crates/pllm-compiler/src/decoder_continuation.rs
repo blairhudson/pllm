@@ -39,6 +39,26 @@ impl DecoderContinuation {
     /// append views, live scheduled outputs and bounded per-step scratch allowance.
     /// This is an owned-array admission bound, not measured RSS or a weight bound.
     pub fn admit(&self, prefix: u64, query: u64, memory_bytes: u64) -> Result<u64, String> {
+        ContinuationAdmission {
+            token_bound: self.token_bound,
+            state_row_bytes: self.state_row_bytes,
+            working_bytes_bound: self.working_bytes_bound,
+        }
+        .admit(prefix, query, memory_bytes)
+    }
+}
+
+/// Immutable resource admission minted only after reproducing the full contract.
+/// It retains no graph, weights, tokens, cache state or one-use material.
+#[derive(Debug)]
+pub struct ContinuationAdmission {
+    token_bound: u64,
+    state_row_bytes: u64,
+    working_bytes_bound: u64,
+}
+
+impl ContinuationAdmission {
+    pub fn admit(&self, prefix: u64, query: u64, memory_bytes: u64) -> Result<u64, String> {
         let total = prefix
             .checked_add(query)
             .ok_or("continuation token count overflow")?;
@@ -342,13 +362,25 @@ pub fn admit_decoder_continuation(
     query: u64,
     memory_bytes: u64,
 ) -> Result<u64, String> {
+    validate_decoder_continuation(plan, composition, contract)?.admit(prefix, query, memory_bytes)
+}
+
+pub fn validate_decoder_continuation(
+    plan: &[u8],
+    composition: &[u8],
+    contract: &[u8],
+) -> Result<ContinuationAdmission, String> {
     let expected = decoder_continuation_bytes(plan, composition)?;
     if contract != expected {
         return Err("continuation source/numeric/schedule contract mismatch".into());
     }
     let bound: DecoderContinuation =
         serde_json::from_slice(&expected).map_err(|e| e.to_string())?;
-    bound.admit(prefix, query, memory_bytes)
+    Ok(ContinuationAdmission {
+        token_bound: bound.token_bound,
+        state_row_bytes: bound.state_row_bytes,
+        working_bytes_bound: bound.working_bytes_bound,
+    })
 }
 
 #[cfg(test)]

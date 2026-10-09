@@ -21,6 +21,7 @@ selects SDK, gateway and benchmark execution.
 | Public offline BPE compilation | `IndexedTokenizer.compile(tokenizer_json, directory)` |
 | One tokenizer owner across sizing and execution | `with client.tokenizer_scope():` |
 | Exact completed-prefix reuse | `ClientPrefixReuse(...)`; `prefix_f32` admits the matching canonical continuation contract |
+| One retained response/KV owner across conversation turns | `with client.conversation(max_state_bytes=32 << 20) as chat:` |
 | Trusted, explicitly public prefix artifacts | `PublicPrefixCapsule.publish(...)`; see [artifact construction](/sdk/evaluate/incremental-sdk/) |
 
 The calibrated native WAN relay belongs to the benchmark's `--backend native
@@ -85,6 +86,49 @@ authenticated `base_url`/`api_key` and
 `tokenizer_scope()` around awaited sizing and response calls; worker execution
 inherits the request context. Only the trusted client handles prompts, tokenization,
 activation reconstruction and KV state.
+
+## Own a bounded conversation
+
+An Experiment with bounded `ClientPrefixReuse` can manage a single conversation:
+
+```python
+from pllm import Conversation
+
+with client.conversation(max_state_bytes=32 << 20,
+                         max_output_tokens=8, temperature=0) as chat:
+    first = chat.send("Explain the first step.")
+    second = chat.send("Now expand that step.")
+    assert isinstance(chat, Conversation)
+    assert chat.response_id == second.id
+    assert chat.state_bytes <= chat.max_state_bytes
+    print(chat.state_bytes)
+```
+
+`chat.send` uses the existing exact response-owned continuation, including the
+pending sampled token. After a successful turn it evicts the previous response,
+history and KV snapshot. A failed turn preserves the prior owner. Exiting the
+handle retires its final response. Other handles and the client's separately
+bounded prefix cache retain their own ownership.
+
+`AsyncOpenAI.conversation` uses `async with` and `await chat.send(...)`.
+Cancellation drains outstanding execution, burns the failed attempt's unused
+material and closes the chain, including a turn committed just before cancellation.
+Concurrent turns on one handle reject. The handle owns `previous_response_id`,
+`store` and non-streaming execution; ordinary `responses.create` remains available
+for caller-managed response histories and streams.
+
+Before reservation, native continuation admission and the compiled maximum
+full-KV geometry must fit `max_state_bytes` (1 byte–256 MiB). The limit covers one
+retained snapshot plus next-token logits. Active tensors, old/new snapshot overlap,
+text, tokenizer and prefix-cache capacity are additional owners. Requests retain
+the Experiment's input/output bounds. This prevents accumulating every historical
+KV snapshot; it is not a process-RSS bound or a measured 10× claim.
+
+Run the generated-checkpoint example:
+
+```sh
+python examples/conversation.py --root .pllm/conversation-example
+```
 
 ## Use the same configuration with the gateway
 

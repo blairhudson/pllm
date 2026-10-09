@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
@@ -98,12 +98,19 @@ class DecoderContinuationSchedule:
     _canonical_bytes: bytes
     _source_plan: bytes
     _composition: bytes
+    _admission: Any = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         from pllm import _native
 
-        if self._canonical_bytes != _native.decoder_continuation(self._source_plan, self._composition):
-            raise ValueError("continuation source/numeric/schedule contract mismatch")
+        admission = _native.DecoderContinuationAdmission(
+            self._source_plan, self._composition, self._canonical_bytes
+        )
+        object.__setattr__(self, "_admission", admission)
+
+    def __reduce__(self):
+        # Reconstruct and validate public metadata; never pickle a native handle.
+        return type(self), (self._canonical_bytes, self._source_plan, self._composition)
 
     @property
     def digest(self) -> str:
@@ -128,13 +135,9 @@ class DecoderContinuationSchedule:
         }
 
     def admit(self, prefix: int, query: int, *, memory_bytes: int = 2 << 30) -> int:
-        from pllm import _native
-
         if any(type(n) is not int or n < 0 for n in (prefix, query, memory_bytes)):
             raise ValueError("continuation bounds must be nonnegative integers")
-        return int(_native.admit_decoder_continuation(
-            self._source_plan, self._composition, self._canonical_bytes, prefix, query, memory_bytes
-        ))
+        return int(self._admission.admit(prefix, query, memory_bytes))
 
 
 @dataclass(frozen=True, slots=True)

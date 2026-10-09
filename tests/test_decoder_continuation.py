@@ -141,6 +141,31 @@ def test_native_contract_binds_original_geometry_and_separate_semantics(checkpoi
         compiled._plan.continuation_schedule(ClientOnlyCpu(Model("continuation-checkpoint")))
 
 
+def test_native_admission_roundtrip_revalidates_and_cannot_broaden_contract(checkpoint):
+    import pickle
+    from pllm import _native
+
+    _, compiled, contract, composition = checkpoint
+    restored = pickle.loads(pickle.dumps(contract))
+    assert restored == contract and restored.digest == contract.digest
+    for prefix, query in ((1, 1), (1, 63), (32, 32), (63, 1)):
+        expected = _native.admit_decoder_continuation(
+            compiled._plan.canonical_bytes(), composition.canonical_bytes(),
+            contract.canonical_bytes(), prefix, query, 2 << 30,
+        )
+        assert restored.admit(prefix, query) == expected
+        with pytest.raises(ValueError, match="memory budget"):
+            restored.admit(prefix, query, memory_bytes=expected - 1)
+    for prefix, query in ((0, 1), (1, 0), (64, 1), ((1 << 64) - 1, 1)):
+        with pytest.raises(ValueError):
+            restored.admit(prefix, query)
+    forged = contract.to_dict()
+    forged["token_bound"] = 4096
+    with pytest.raises(ValueError, match="contract mismatch"):
+        _native.DecoderContinuationAdmission(compiled._plan.canonical_bytes(),
+            composition.canonical_bytes(), json.dumps(forged).encode())
+
+
 @pytest.mark.parametrize("prefix,suffix", [(1, 1), (8, 23), (13, 7), (31, 33)])
 def test_every_final_logit_and_teacher_fold_preserve_legacy_executor(checkpoint, prefix, suffix, record_property):
     engine, compiled, contract, _ = checkpoint
