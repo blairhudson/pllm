@@ -7,6 +7,7 @@ implemented. `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
 - [Architecture](architecture.md): ownership, lifecycle, plans, profiles, and trust boundaries.
 - [Python API](python-api.md): configuration, model lowering, compilation, and evidence interfaces.
 - [Benchmark frontiers and scoped probes](benchmark-frontier-and-probes.md): proposed incremental benchmark coverage, shared measurement runner, and bounded SDK probe targets.
+- [Five tenfold frontier challenges](frontier-tenfold-challenges.md): proposed client, Preparation and state-lifecycle experiments that exercise probe scope, target vetoes and composition retesting.
 - [CLI](cli.md): command grammar, behavior, roles, outputs, security, and implementation status.
 - [Component standard](component-standard.md): identity, discovery, composition, and native ABI.
 - [Package structure](package-structure.md): repository, distribution, dependency, and artifact boundaries.

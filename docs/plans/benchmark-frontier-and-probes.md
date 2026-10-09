@@ -4,6 +4,11 @@ Status: **design proposal**, reviewed against `2c1699d` on 6 October 2026.
 The new interfaces below are proposed, not installed APIs. Existing measurements
 retain their original scope and implementation identities.
 
+The [five tenfold challenges](frontier-tenfold-challenges.md) exercise this design
+with concrete allocation, Preparation-kernel and persistent-state hypotheses.
+They add explicit acceptance obligations for target vetoes, native backend identity,
+restart ownership and composition interactions; they are not measured advances.
+
 ## Outcome
 
 Make each optimization produce three things through the SDK: a small reproducible
