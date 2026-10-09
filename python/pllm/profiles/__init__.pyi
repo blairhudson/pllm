@@ -37,6 +37,8 @@ class RuntimeComposition:
     causal_reduction: str | None
     prepared_output_encoding: str
     preparation_storage: str
+    preparation_kernel: str
+    preparation_min_rows: int
     prefix_cache_bytes: int
     prefix_cache_bound_tokens: int | None
     remote_output_head: bool

@@ -5,8 +5,6 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from jsonschema import SchemaError, ValidationError, validators
-
 from .responses import ResponsesError
 
 
@@ -87,6 +85,8 @@ def tool_policy(body: dict[str, Any]) -> ToolPolicy:
                 "function parameters must be an object", param=f"{param}.parameters"
             )
         if value.get("strict"):
+            from jsonschema import SchemaError, validators
+
             try:
                 validators.validator_for(parameters).check_schema(parameters)
             except SchemaError as exc:
@@ -178,6 +178,8 @@ def parse_model_output(text: str, policy: ToolPolicy) -> ParsedModelOutput:
             )
         tool = tool_by_name[name]
         if tool.get("strict"):
+            from jsonschema import ValidationError, validators
+
             schema = tool.get("parameters", {"type": "object"})
             try:
                 validators.validator_for(schema)(schema).validate(arguments)

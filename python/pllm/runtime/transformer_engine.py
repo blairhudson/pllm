@@ -504,6 +504,8 @@ class MaskedTransformerEngine:
         prepared_output_encoding: str = "raw",
         weight_residency: str = "all",
         weight_storage: str = "resident",
+        preparation_kernel: str = "native",
+        preparation_min_rows: int = 64,
     ) -> None:
         if modulus is not None and (modulus <= 2 or modulus >= 2**31):
             raise ValueError("modulus must satisfy 2 < p < 2^31")
@@ -519,6 +521,17 @@ class MaskedTransformerEngine:
         ):
             raise ValueError("paged weights require CPU-only unverified Preparation residency")
         self.weight_storage = weight_storage
+        if (preparation_kernel not in {"native", "digit8"}
+                or type(preparation_min_rows) is not int or not 1 <= preparation_min_rows <= 4096
+                or (preparation_kernel == "digit8" and (weight_residency != "provider"
+                    or metal_min_rows is not None or verification_component != "none"))):
+            raise ValueError("digit8 requires CPU-only unverified Preparation residency")
+        if preparation_kernel == "digit8":
+            import platform
+            if platform.system() != "Darwin" or platform.machine() != "arm64":
+                raise ValueError("digit8 requires Apple Silicon CPU Accelerate")
+        self.preparation_kernel = preparation_kernel
+        self.preparation_min_rows = preparation_min_rows
         if (type(prepared_output_encoding) is not str
             or prepared_output_encoding not in {"raw", "row_residues"}
             or (prepared_output_encoding != "raw" and type(self) is not MaskedTransformerEngine)):
@@ -1642,6 +1655,12 @@ class MaskedTransformerEngine:
             from .paged import PagedGEMM
 
             apply = matrix.wrap32 if request.ring == "u32" else lambda x: matrix.modular(x, request.modulus)
+            use_digit = (self.preparation_kernel == "digit8"
+                         and self.preparation_min_rows <= request.rows <= 4096
+                         and min(matrix.shape) >= 32
+                         and request.rows * max(matrix.shape) <= 4 << 20)
+            if use_digit:
+                return matrix.digit8(mask, request.wire_bits)
             if not isinstance(matrix, PagedGEMM):
                 return apply(mask)
             width = max(1, (4 << 20) // max(matrix.shape))

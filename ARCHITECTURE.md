@@ -818,6 +818,32 @@ Restart-state mechanics and explicit horizon estimates establish no resumed
 decoder or tenfold serving result. Full evidence and API feedback live in
 `docs/research/benchmark-targets-reference.md`.
 
+The maintained prepared-serving study now derives its control from
+`examples/prepared_sdk.py`, exports exact coverage and seven-metric snapshots,
+and constructs independent finalist/control confirmation cohorts through
+`FrontierStudy.confirm`. Runtime decomposition records independent import-child
+footprints and module roots; ordinary text clients defer JSON-schema loading to
+strict-tool requests. A separate opt-in
+`ModelAwareCorrections(kernel="digit8", min_rows=64)` binds exact Rust-owned
+balanced-byte lifting to CPU Accelerate on Apple Silicon. Bounded 1,023-product
+float32 blocks and wrapping reconstruction preserve u16/u24/u32 corrections;
+small batches retain native integer kernels. Resident and authenticated paged
+weights share the implementation. Admission prices 224 MiB of extra workspace
+per concurrent Preparation stage, and unpriced network offers reject. This
+implementation has separate measurements from the historical NumPy research
+kernel. A twelve-client Qwen2.5 150+8-token cold/repeat confirmation under native
+shared 100/40 caps reduces cold-first Preparation CPU 25.03% with digit8. The
+windowed cold-request median improves 1.94%, while sampled Preparation RSS rises
+5.69%; serial issuance retains a different latency/memory tradeoff. Outputs and
+covered application bodies match with zero observed swap growth. These bounded
+three-replicate results do not establish a tenfold gain or automatic selection.
+A separate six-client installed-build comparison with integer Preparation keeps
+outputs and application bodies equal and lowers median client peak RSS 222.13 to
+218.15 MB (1.79%). Cold/repeat latency remains nearly unchanged with zero observed
+swap growth. Its small whole-client result stays separate from import-only and
+digit8 measurements.
+Contracts and replay: `docs/research/prepared-maintained-reference.md`.
+
 `pllm.search.BeamSearch` complements grid and random search with bounded,
 feedback-guided exploration of immutable `SearchSpace` component combinations.
 The shared `pllm.benchmark_search` facade runs all three through ordinary SDK

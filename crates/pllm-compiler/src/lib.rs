@@ -1650,15 +1650,9 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
             ));
         }
         if component.component == "pllm/model-aware-corrections"
-            && !component.params.is_empty()
-            && !(component.params.len() == 1
-                && component
-                    .params
-                    .get("storage")
-                    .and_then(serde_json::Value::as_str)
-                    == Some("paged"))
+            && !valid_preparation_parameters(component)
         {
-            return Err("invalid preparation storage parameters".into());
+            return Err("invalid preparation storage or digit kernel parameters".into());
         }
         if component.component == "pllm/two-online-offset-linear/v1"
             && !valid_offset_parameters(component)
@@ -2295,6 +2289,18 @@ fn valid_public_equalization(quantization: &ExperimentComponent) -> bool {
         })
 }
 
+fn valid_preparation_parameters(component: &ExperimentComponent) -> bool {
+    let p = &component.params;
+    let digit = p.get("kernel").and_then(serde_json::Value::as_str) == Some("digit8");
+    p.keys()
+        .all(|k| ["storage", "kernel", "min_rows"].contains(&k.as_str()))
+        && p.get("storage").is_none_or(|v| v.as_str() == Some("paged"))
+        && p.get("kernel").is_none_or(|_| digit)
+        && p.get("min_rows")
+            .is_none_or(|v| digit && v.as_u64().is_some_and(|n| (1..=4096).contains(&n)))
+        && (!digit || p.contains_key("min_rows"))
+}
+
 fn validate_masked_linear_core(
     pipeline: &ExperimentPipeline,
     allow_public_metal: bool,
@@ -2309,21 +2315,16 @@ fn validate_masked_linear_core(
         })?;
         let packed_output =
             allow_public_metal && slot == "linear" && valid_prepared_parameters(component);
-        let paged_preparation = allow_public_metal
+        let configured_preparation = allow_public_metal
             && slot == "preparation"
-            && component.params.len() == 1
-            && component
-                .params
-                .get("storage")
-                .and_then(serde_json::Value::as_str)
-                == Some("paged")
+            && valid_preparation_parameters(component)
             && !pipeline.components.contains_key("verification")
             && pipeline
                 .components
                 .get("kernels")
                 .is_some_and(|k| k.component == "pllm/cpu");
         if component.component != required
-            || (!component.params.is_empty() && !packed_output && !paged_preparation)
+            || (!component.params.is_empty() && !packed_output && !configured_preparation)
         {
             return Err(format!(
                 "masked-linear composition requires {slot} component {required} with no parameters"

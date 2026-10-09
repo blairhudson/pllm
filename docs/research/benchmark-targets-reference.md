@@ -166,8 +166,11 @@ improvement or changes an SDK serving default.
 
 The next executable adapters are output-stripe transport and transactional decoder
 state. Promotion requires complete source/numeric/ownership binding plus matched
-response costs. Current state and digit kernels are bounded research executors;
-these screens do not activate a serving component or establish a tenfold result.
+response costs. This historical screen's state and NumPy digit kernels remain
+bounded research executors. A later Rust-owned digit implementation and maintained
+serving study have separate evidence in
+[the maintained prepared frontier](prepared-maintained-reference.md); these
+historical measurements do not establish their performance or a tenfold result.
 
 ## Reproduce
 

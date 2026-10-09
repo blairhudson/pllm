@@ -159,22 +159,29 @@ def _stage(target, p, m):
         raise TargetUnavailable("stage_workload_bound", status="blocked")
     if rows * width * out * (m.sampling.repetitions + m.sampling.warmups) > 2_000_000_000:
         raise TargetUnavailable("integer_work_limit", status="blocked")
-    m.admit((160 << 20) + 8 * width * out + 32 * rows * (width + out))
+    m.admit((160 << 20) + 8 * width * out + 32 * rows * (width + out)
+            + ((224 << 20) if p["kernel"] == "digit8_native" else 0))
     path, weight_hash, bound = _weight_file(stage, p, context, m)
     weights = np.memmap(path, dtype=np.int8, mode="r", shape=(out, width))
     executor = MaskedGEMM(threads=m.sampling.threads)
     if not executor.native:
         raise TargetUnavailable("native_extension_required")
-    if p["kernel"] != "native" and p["storage"] == "paged":
+    if p["kernel"] == "digit8_native":
+        from pllm.native import capabilities
+        if not capabilities().get("digit8_cpu"):
+            raise TargetUnavailable("digit8_cpu_unavailable")
+    if p["kernel"] in {"digit4", "digit8"} and p["storage"] == "paged":
         raise TargetUnavailable("digit_paged_kernel_not_implemented")
     matrix = (PagedGEMM.from_raw(path, weight_hash, (out, width), threads=m.sampling.threads)
-               if p["storage"] == "paged" else executor.compile(weights) if p["kernel"] == "native" else None)
-    if p["kernel"] != "native":
+               if p["storage"] == "paged" else executor.compile(weights) if p["kernel"] in {"native", "digit8_native"} else None)
+    if p["kernel"] in {"digit4", "digit8"}:
         from .benchmark_digit_gemm import DigitGEMM
         matrix = DigitGEMM(weights, digit_bits=int(p["kernel"].removeprefix("digit")))
     profile = seeded_ring_profile(bound)
     def multiply(x):
         values = np.ascontiguousarray(x)
+        if p["kernel"] == "digit8_native":
+            return matrix.digit8(values, profile.wire_bits)
         return matrix.wrap32(values) if profile.modulus == 1 << 32 else matrix.modular(values, profile.modulus)
     rng = np.random.default_rng(p["seed"] + 1)
     high = (1 << (stage.activation_bits - 1)) - 1
@@ -245,7 +252,7 @@ def _stage(target, p, m):
              kind="bytes", origin="deterministic", scope="unframed_arithmetic_payload")
     m.limitations += ["Single compiler-selected stage; synthetic weights are not checkpoint values.",
         "Local mask/codec reference excludes provider transport, acknowledgement, inventory admission and full-response work.",
-        "Stripe/digit layouts are benchmark-only hypotheses; no serving component is selected.",
+        "This isolated target does not exercise serving dispatch or its shape threshold.",
         "Process peak ends before independent integer validation; file payload and filesystem cache are separate owners."]
 
 

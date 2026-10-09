@@ -61,6 +61,24 @@ def test_estimate_prices_complete_graph_and_native_copies():
     assert offset["components"]["client_mask_bytes"] == 0
 
 
+@pytest.mark.parametrize("window", [1, 4])
+def test_digit_preparation_prices_every_concurrent_workspace(window):
+    from pllm.preparation import ModelAwareCorrections, PreparedInventory
+
+    ordinary = MaskedLinearCpu(Model.tiny(), inventory=PreparedInventory(stage_window=window))
+    control = _estimate(ordinary)
+    digit = _estimate(ordinary.with_params(preparation=ModelAwareCorrections(kernel="digit8")))
+    assert digit["components"]["preparation_digit_workspace_bytes"] >= window * 224 * MiB
+    assert digit["client_peak_bytes"] == control["client_peak_bytes"]
+    assert digit["provider_peak_bytes"]["inference"] == control["provider_peak_bytes"]["inference"]
+    assert (digit["provider_peak_bytes"]["preparation"] - control["provider_peak_bytes"]["preparation"]
+            >= window * 224 * MiB)
+    # Capacity sufficient for the old layout cannot silently admit the new owners.
+    host = _host(available=control["native_total_peak_bytes"] + 4 * GiB)
+    assert memory.admit_memory(control, host)["admitted"]
+    assert not memory.admit_memory(digit, host)["admitted"]
+
+
 def test_masked_wire_prices_chunk_and_all_worker_session_owners():
     from pllm.nonlinear import MaskedWireGatedMultiplyQ12
 
@@ -195,6 +213,19 @@ def test_preparation_and_public_artifacts_charge_distinct_disk_owners():
     constrained = memory.admit_memory(candidate, _host(disk_free=before))
     assert not constrained["admitted"]
     assert any("disk headroom" in reason for reason in constrained["candidates"]["native"]["reasons"])
+
+
+def test_digit_preparation_prices_each_window_owner_and_rejects_docker():
+    from pllm.preparation import ModelAwareCorrections, PreparedInventory
+    baseline = MaskedLinearCpu(Model.tiny(), inventory=PreparedInventory(stage_window=4))
+    original = _estimate(baseline)
+    selected = _estimate(baseline.with_params(preparation=ModelAwareCorrections(kernel="digit8")))
+    assert selected["components"]["preparation_digit_workspace_bytes"] == 4 * 224 * MiB
+    assert selected["provider_peak_bytes"]["preparation"] > original["provider_peak_bytes"]["preparation"]
+    assert selected["provider_peak_bytes"]["inference"] == original["provider_peak_bytes"]["inference"]
+    admission = memory.admit_memory(selected, _host(), backend="docker", docker_capacity=(8 * GiB, 0))
+    assert not admission["admitted"]
+    assert any("digit8" in reason for reason in admission["candidates"]["docker"]["reasons"])
 
 
 @pytest.mark.parametrize("storage", [None, object(), bytearray(b"\x00"), b"\x00"])

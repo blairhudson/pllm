@@ -1,0 +1,170 @@
+{
+  "cohort": "df611b458a9edfb969c18bd0ce4d9d15118e9021c0882ae8a0c15faf36d36609",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "prepared",
+      "excluded": [],
+      "nondominated": [
+        "prepared/no-reuse",
+        "prepared/whole-prefill",
+        "prepared/serial-issuance",
+        "prepared/resident-client",
+        "prepared/resident-preparation",
+        "prepared/uncached-public-encoding",
+        "prepared/original-tokenizer",
+        "prepared/no-reuse+whole-prefill",
+        "prepared/serial-issuance+digit8"
+      ],
+      "observations": [
+        {
+          "case": "prepared",
+          "metrics": {
+            "client.cold_cpu": 20.515084,
+            "client.peak_rss": 239157248.0,
+            "network.all_link_stream_bytes": 496046377.0,
+            "preparation.cold_cpu": 16.029145856,
+            "preparation.peak_rss": 215810048.0,
+            "response.decode_tps": 3.7607788413169776,
+            "response.ttft": 21.755099188000003
+          }
+        },
+        {
+          "case": "prepared/no-reuse",
+          "metrics": {
+            "client.cold_cpu": 17.182606,
+            "client.peak_rss": 209453056.0,
+            "network.all_link_stream_bytes": 832342093.0,
+            "preparation.cold_cpu": 15.41619712,
+            "preparation.peak_rss": 213663744.0,
+            "response.decode_tps": 3.7367390090823216,
+            "response.ttft": 40.7454625625
+          }
+        },
+        {
+          "case": "prepared/whole-prefill",
+          "metrics": {
+            "client.cold_cpu": 20.698543,
+            "client.peak_rss": 233013248.0,
+            "network.all_link_stream_bytes": 495352301.0,
+            "preparation.cold_cpu": 15.513898496,
+            "preparation.peak_rss": 210534400.0,
+            "response.decode_tps": 3.7157367768903864,
+            "response.ttft": 27.4554783335
+          }
+        },
+        {
+          "case": "prepared/serial-issuance",
+          "metrics": {
+            "client.cold_cpu": 20.169267,
+            "client.peak_rss": 216432640.0,
+            "network.all_link_stream_bytes": 496046300.0,
+            "preparation.cold_cpu": 15.315989248,
+            "preparation.peak_rss": 189382656.0,
+            "response.decode_tps": 3.7880277917179264,
+            "response.ttft": 21.6531427495
+          }
+        },
+        {
+          "case": "prepared/resident-client",
+          "metrics": {
+            "client.cold_cpu": 20.697485,
+            "client.peak_rss": 497713152.0,
+            "network.all_link_stream_bytes": 496046339.0,
+            "preparation.cold_cpu": 15.236344704,
+            "preparation.peak_rss": 210862080.0,
+            "response.decode_tps": 4.104760989165962,
+            "response.ttft": 22.0916183545
+          }
+        },
+        {
+          "case": "prepared/resident-preparation",
+          "metrics": {
+            "client.cold_cpu": 20.346188,
+            "client.peak_rss": 234422272.0,
+            "network.all_link_stream_bytes": 496046342.0,
+            "preparation.cold_cpu": 14.177426048000001,
+            "preparation.peak_rss": 579010560.0,
+            "response.decode_tps": 3.770932338045913,
+            "response.ttft": 21.798248375
+          }
+        },
+        {
+          "case": "prepared/uncached-public-encoding",
+          "metrics": {
+            "client.cold_cpu": 20.248091,
+            "client.peak_rss": 240386048.0,
+            "network.all_link_stream_bytes": 496030405.0,
+            "preparation.cold_cpu": 15.644757120000001,
+            "preparation.peak_rss": 211320832.0,
+            "response.decode_tps": 3.715435902773864,
+            "response.ttft": 21.699512125
+          }
+        },
+        {
+          "case": "prepared/digit8",
+          "metrics": {
+            "client.cold_cpu": 22.270652,
+            "client.peak_rss": 227590144.0,
+            "network.all_link_stream_bytes": 496046440.0,
+            "preparation.cold_cpu": 12.505056896000001,
+            "preparation.peak_rss": 214810624.0,
+            "response.decode_tps": 3.483338001894252,
+            "response.ttft": 21.9895822915
+          }
+        },
+        {
+          "case": "prepared/original-tokenizer",
+          "metrics": {
+            "client.cold_cpu": 21.73878,
+            "client.peak_rss": 267534336.0,
+            "network.all_link_stream_bytes": 496045938.0,
+            "preparation.cold_cpu": 16.418310528,
+            "preparation.peak_rss": 214007808.0,
+            "response.decode_tps": 3.741808221213221,
+            "response.ttft": 21.848815625
+          }
+        },
+        {
+          "case": "prepared/no-reuse+whole-prefill",
+          "metrics": {
+            "client.cold_cpu": 18.8101,
+            "client.peak_rss": 217628672.0,
+            "network.all_link_stream_bytes": 830954051.0,
+            "preparation.cold_cpu": 15.885046912,
+            "preparation.peak_rss": 213876736.0,
+            "response.decode_tps": 3.7552691977323818,
+            "response.ttft": 52.477260583
+          }
+        },
+        {
+          "case": "prepared/serial-issuance+digit8",
+          "metrics": {
+            "client.cold_cpu": 20.188855,
+            "client.peak_rss": 215810048.0,
+            "network.all_link_stream_bytes": 496046364.0,
+            "preparation.cold_cpu": 11.495373312000002,
+            "preparation.peak_rss": 199131136.0,
+            "response.decode_tps": 3.826104046842463,
+            "response.ttft": 21.715882167
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "8d630bb02d51516785d4c7bde02211a148e735349618c256c5fdc06aabb5e20b",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "77e54361899f5454f182cd911e4b9d92306fe2ab0121e0779b0311ae0540b10e"
+}

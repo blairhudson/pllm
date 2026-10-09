@@ -71,6 +71,13 @@ fn admit_network_placement(
             "network offers do not yet price masked-wire issuance and worker material".into(),
         );
     }
+    if pipeline
+        .components
+        .get("preparation")
+        .is_some_and(|p| p.params.contains_key("kernel"))
+    {
+        return Err("network offers do not yet price digit8 CPU capability and workspace".into());
+    }
     let (role_capabilities, separation): (RoleCapabilities, OperatorSeparation) = match kind {
         DecoderCompositionKind::MaskedLinear | DecoderCompositionKind::VerifiedMaskedLinear => (
             &[

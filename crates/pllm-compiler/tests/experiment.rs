@@ -105,6 +105,40 @@ fn prepared_output_encoding_is_explicit_and_validated() {
 }
 
 #[test]
+fn digit_preparation_binds_kernel_threshold_and_supported_placement() {
+    let mut value = experiment();
+    let baseline = resolve_experiment(&canonical_bytes(&value)).unwrap();
+    for params in [
+        json!({"kernel":"digit8","min_rows":64}),
+        json!({"storage":"paged","kernel":"digit8","min_rows":32}),
+    ] {
+        value["pipeline"]["components"]["preparation"]["params"] = params;
+        let selected = resolve_experiment(&canonical_bytes(&value)).unwrap();
+        assert_ne!(baseline.composition_digest(), selected.composition_digest());
+    }
+    for params in [
+        json!({"kernel":"digit8"}),
+        json!({"min_rows":64}),
+        json!({"kernel":"digit8","min_rows":0}),
+        json!({"kernel":"digit8","min_rows":true}),
+        json!({"kernel":"unknown","min_rows":64}),
+    ] {
+        value["pipeline"]["components"]["preparation"]["params"] = params;
+        assert!(resolve_experiment(&canonical_bytes(&value)).is_err());
+    }
+    value["pipeline"]["components"]["preparation"]["params"] =
+        json!({"kernel":"digit8","min_rows":64});
+    value["pipeline"]["components"]["kernels"] =
+        json!({"component":"pllm/apple-metal-int8/v1","params":{"min_rows":16}});
+    assert!(resolve_experiment(&canonical_bytes(&value)).is_err());
+    value["pipeline"]["components"]["kernels"] =
+        json!({"component":"pllm/cpu","params":{"threads":1}});
+    value["pipeline"]["components"]["verification"] =
+        json!({"component":"pllm/freivalds-verify/v1","params":{"target_failure_bits":40}});
+    assert!(resolve_experiment(&canonical_bytes(&value)).is_err());
+}
+
+#[test]
 fn validates_and_rejects_unexecuted_gated_component_selections() {
     let mut malformed = experiment();
     malformed["pipeline"]["components"]["nonlinear"] = json!({

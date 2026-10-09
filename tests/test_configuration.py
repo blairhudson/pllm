@@ -219,6 +219,27 @@ def test_get_params_and_with_params_are_nested_and_immutable():
         original.with_params(budget=original.budget, budget__requests=2)
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_coupled_parameter_changes_are_atomic_through_typed_and_serialized_owners(reverse):
+    from pllm.preparation import PreparedInventory
+    from pllm.profiles import MaskedLinearCpu
+
+    original = example().with_params(pipeline=MaskedLinearCpu(Model.tiny(),
+        inventory=PreparedInventory(stage_window=4, stage_window_bytes=64 << 20)))
+    values = [("stage_window", 1), ("stage_window_bytes", 16 << 20)]
+    if reverse:
+        values.reverse()
+    changed = original.pipeline.components["inventory"].with_params(**dict(values))
+    assert changed == PreparedInventory()
+    typed = original.with_params(**{f"pipeline__inventory__{key}": value for key, value in values})
+    restored = Experiment.from_spec(original.to_spec())
+    generic = restored.with_params(**{f"pipeline__components__inventory__{key}": value for key, value in values})
+    assert typed.pipeline.components["inventory"] == generic.pipeline.components["inventory"] == changed
+    assert original.pipeline.components["inventory"].params["stage_window"] == 4
+    with pytest.raises(ConfigurationError):
+        original.with_params(pipeline__inventory__stage_window=1)
+
+
 @pytest.mark.parametrize(
     "text, message",
     [

@@ -1,0 +1,342 @@
+{
+  "study": {
+    "schema": "pllm.frontier_study.v1",
+    "suite": {
+      "schema": "pllm.benchmark_suite.v1",
+      "name": "prepared-serving-v1",
+      "cases": [
+        {
+          "name": "prepared",
+          "target": {
+            "kind": "response",
+            "parameters": {
+              "backend": "native",
+              "model": {
+                "config": null,
+                "experiment": {
+                  "budget": {
+                    "max_input_tokens": 256,
+                    "max_new_tokens": 8,
+                    "requests": 2
+                  },
+                  "deployment": {
+                    "kind": "local",
+                    "root": ".pllm/prepared-frontier-study"
+                  },
+                  "name": "prepared-sdk",
+                  "pipeline": {
+                    "components": {
+                      "cache": {
+                        "component": "pllm/client-prefix-reuse/v1",
+                        "params": {
+                          "fixed_input_tokens": 256,
+                          "max_bytes": 33554432
+                        }
+                      },
+                      "delivery": {
+                        "component": "pllm/client-bundle-transport/v1",
+                        "params": {
+                          "batch_objects": 64,
+                          "compression": "zlib",
+                          "encoding": "artifacts",
+                          "provider_cache_bytes": 536870912,
+                          "storage": "paged"
+                        }
+                      },
+                      "inference": {
+                        "component": "pllm/inference",
+                        "params": {}
+                      },
+                      "inventory": {
+                        "component": "pllm/prepared-inventory-policy/v1",
+                        "params": {
+                          "allocation": "demand",
+                          "policy": "request-sized",
+                          "refill": "on-demand",
+                          "rows": 1,
+                          "stage_window": 4,
+                          "stage_window_bytes": 67108864
+                        }
+                      },
+                      "kernels": {
+                        "component": "pllm/cpu",
+                        "params": {
+                          "threads": 1
+                        }
+                      },
+                      "linear": {
+                        "component": "pllm/masked-linear",
+                        "params": {
+                          "output_encoding": "row_residues",
+                          "prefill_chunk_rows": 16,
+                          "prefill_pruning": "terminal",
+                          "request_encoding": "stage_packed"
+                        }
+                      },
+                      "preparation": {
+                        "component": "pllm/model-aware-corrections",
+                        "params": {
+                          "storage": "paged"
+                        }
+                      },
+                      "quantization": {
+                        "component": "pllm/symmetric-per-row-quantization/v1",
+                        "params": {
+                          "activation_bits": 8,
+                          "causal_reduction": "prefix_f32",
+                          "weight_bits": 8
+                        }
+                      },
+                      "tokenizer": {
+                        "component": "pllm/indexed-tokenizer/v1",
+                        "params": {
+                          "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                          "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                        }
+                      }
+                    },
+                    "model": {
+                      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                      "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                    }
+                  },
+                  "schema": "pllm.experiment.v2"
+                },
+                "profile": "baseline.masked_linear_cpu"
+              },
+              "scenario": {
+                "count": 2,
+                "kind": "repeat",
+                "max_output_tokens": 8,
+                "name": "request"
+              },
+              "wan": {
+                "download_mbps": 100.0,
+                "parties": [],
+                "role_parties": [],
+                "schema": "pllm.wan_conditions.v1",
+                "upload_mbps": 40.0
+              }
+            },
+            "schema": "pllm.benchmark_target.v1"
+          },
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/prepared-maintained-venv/bin/python",
+            "expected_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d"
+          },
+          "budgets": []
+        }
+      ],
+      "sampling": {
+        "processes": 1,
+        "repetitions": 1,
+        "warmups": 0,
+        "timeout_seconds": 900,
+        "order": "balanced",
+        "threads": 1,
+        "memory_bytes": 8589934592
+      }
+    },
+    "variants": [
+      {
+        "name": "no-reuse",
+        "parameters": {
+          "pipeline__cache": null
+        },
+        "targets": []
+      },
+      {
+        "name": "whole-prefill",
+        "parameters": {
+          "pipeline__linear__prefill_chunk_rows": 0
+        },
+        "targets": []
+      },
+      {
+        "name": "serial-issuance",
+        "parameters": {
+          "pipeline__inventory__stage_window": 1,
+          "pipeline__inventory__stage_window_bytes": 16777216
+        },
+        "targets": []
+      },
+      {
+        "name": "resident-client",
+        "parameters": {
+          "pipeline__delivery__storage": "memory"
+        },
+        "targets": []
+      },
+      {
+        "name": "resident-preparation",
+        "parameters": {
+          "pipeline__preparation__storage": "resident"
+        },
+        "targets": []
+      },
+      {
+        "name": "uncached-public-encoding",
+        "parameters": {
+          "pipeline__delivery__provider_cache_bytes": 0
+        },
+        "targets": []
+      },
+      {
+        "name": "digit8",
+        "parameters": {
+          "pipeline__preparation__kernel": "digit8",
+          "pipeline__preparation__min_rows": 64
+        },
+        "targets": []
+      },
+      {
+        "name": "original-tokenizer",
+        "parameters": {
+          "pipeline__tokenizer": null
+        },
+        "targets": []
+      }
+    ],
+    "interactions": [
+      [
+        "no-reuse",
+        "whole-prefill"
+      ],
+      [
+        "serial-issuance",
+        "digit8"
+      ]
+    ]
+  },
+  "coverage": {
+    "cases": [
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "a476b6ee00930872350b1b1246bcb4d65bd68acb45eae2079cfe7fde6c37e796"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/no-reuse",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "fe9debf70633b32ca191dcec94357088592b4d85368e87fb51223d60898053c0"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/whole-prefill",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "bdef3662efaf30632fe357ed0fe8753d1f79c9e79e04ebfdad69446eadc8c982"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/serial-issuance",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "1be6d0183f69544c49e2311b7cdb201352a2326f11c06829578ce09d2be54a2e"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/resident-client",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "3565d75c0033a3e86b771fadcb12903cc172bfb58dc2296c5ed06dd6bf26d2c8"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/resident-preparation",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "4d6bbe9d0be22bad12f59b0d245676aca8b0dfcd6b4f604ae847425db040b109"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/uncached-public-encoding",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "dec0521ac089b8881b87793c72f5e4a95ef68baa3330c8fb7d9176fffd9d195b"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/digit8",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "148a7a0b5572a17bbe73e1a03ec69339a9e8c39048e5068c21fe129104f5b46d"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/original-tokenizer",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "db45761ee1224d10f3dafb61a664bec305b4ccab64dd448d4405915b26bbbccd"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/no-reuse+whole-prefill",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "aa578eef26af36628cbfdec01d496c24eaaf0e3e53754332ed1f06797aa9f7a0"
+      },
+      {
+        "action": "run",
+        "base": "prepared",
+        "build_digest": "15713efc57a7ff2949f6245923e28643935ed21691beb39d8f2f338a3c0f890d",
+        "case": "prepared/serial-issuance+digit8",
+        "coverage_constraint": "runtime_inputs_require_revalidation",
+        "priority": "ordinary",
+        "recorded_outcomes": [],
+        "status": "missing",
+        "target_digest": "340c2ca4854cb6d99a9621c29c81e3b3356c589d59e0a5e9c59ab8e348c862ca"
+      }
+    ],
+    "changed_paths": [],
+    "max_trials": 64,
+    "schema_version": "pllm.frontier_coverage.v1",
+    "selected_trials": 11,
+    "study_digest": "77e54361899f5454f182cd911e4b9d92306fe2ab0121e0779b0311ae0540b10e",
+    "timings_propagated": false
+  }
+}

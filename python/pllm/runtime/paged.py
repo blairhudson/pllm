@@ -163,6 +163,14 @@ class PagedGEMM:
         result = self._matrix.modular(values.tobytes(), values.shape[0], modulus)
         return np.frombuffer(result, "<u4").reshape(values.shape[0], self.shape[0])
 
+    def digit8(self, inputs: np.ndarray, bits: int = 32) -> np.ndarray:
+        """Use bounded CPU digit lifting for each authenticated weight page."""
+        if type(bits) is not int or bits not in (16, 24, 32):
+            raise NativeKernelError("digit8 requires a 16/24/32-bit ring")
+        values = self._inputs(inputs, "<u4", 0, (1 << bits) - 1)
+        result = self._matrix.digit8(values.tobytes(), len(values), bits)
+        return np.frombuffer(result, "<u4").reshape(len(values), self.shape[0])
+
     def gather_rows(self, indices) -> np.ndarray:
         ids = _integer_array(indices, "<u8", low=0, high=self.shape[0] - 1, dimensions=1)
         if not 1 <= ids.size <= 4096 or ids.size * self.shape[1] > 4 * 1024**2:

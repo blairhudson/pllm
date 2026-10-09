@@ -176,3 +176,19 @@ def test_sampling_temperature_preserves_explicit_zero() -> None:
     assert _sampling_temperature({}) == 0.8
     assert _sampling_temperature({"temperature": None}) == 0.8
     assert _sampling_temperature({"temperature": 0}) == 0.0
+
+
+def test_plain_client_defers_schema_dependency_until_strict_tools():
+    import subprocess
+    import sys
+
+    subprocess.run([sys.executable, "-I", "-c", """
+import sys
+from pllm import OpenAI
+from pllm.runtime.tools import tool_policy, parse_model_output
+assert parse_model_output('plain answer', tool_policy({})).text == 'plain answer'
+assert 'jsonschema' not in sys.modules
+tool_policy({'tools': [{'type': 'function', 'name': 'f', 'strict': True,
+                       'parameters': {'type': 'object'}}]})
+assert 'jsonschema' in sys.modules
+"""], check=True, timeout=30)

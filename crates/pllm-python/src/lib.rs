@@ -1437,6 +1437,24 @@ impl Executor {
             .map_err(invalid)?;
         py_bytes_u64(py, &out)
     }
+    fn digit8<'py>(
+        &self,
+        py: Python<'py>,
+        matrix: PyRef<'_, Matrix>,
+        input: &Bound<'_, PyBytes>,
+        batch: usize,
+        bits: u32,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        if input.as_bytes().len() > 16 << 20 {
+            return Err(invalid("digit8 input exceeds 16 MiB".into()));
+        }
+        let input = codec::u32s(input.as_bytes()).map_err(invalid)?;
+        let m = &matrix.inner;
+        let out = py
+            .detach(|| pllm_core::digit_gemm::multiply(m, &input, batch, bits))
+            .map_err(invalid)?;
+        Ok(PyBytes::new(py, &bytes_u32(&out)))
+    }
     fn clear<'py>(
         &self,
         py: Python<'py>,
@@ -1701,6 +1719,7 @@ fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
     out.set_item("he_backend", "external-seal-tenseal")?;
     out.set_item("matrix_storage", "owned-int8")?;
     out.set_item("gpu", false)?;
+    out.set_item("digit8_cpu", pllm_core::digit_gemm::available())?;
     Ok(out)
 }
 #[pymodule]

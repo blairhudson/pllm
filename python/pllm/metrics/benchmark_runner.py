@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -31,8 +32,16 @@ def _environment(threads=1):
     return env
 
 
+def _interpreter(python):
+    """Resolve in the controller's directory without following venv symlinks."""
+    path = os.path.expanduser(python)
+    if not os.path.dirname(path):
+        path = shutil.which(path) or path
+    return os.path.abspath(path)
+
+
 def inspect_build(build=BuildRef()):
-    process = subprocess.run([build.python, "-I", "-m", "pllm._benchmark_build"],
+    process = subprocess.run([_interpreter(build.python), "-I", "-m", "pllm._benchmark_build"],
         capture_output=True, timeout=120, env=_environment(), check=True)
     if len(process.stdout) > 4 << 20:
         raise ValueError("build record exceeds 4 MiB")
@@ -71,7 +80,7 @@ def _execute(case, sampling, inputs, salt, directory):
     body = canonical(request)
     if len(body) > 16 << 20:
         raise ValueError("private target inputs exceed 16 MiB")
-    process = subprocess.Popen([case.build.python, "-I", "-m", "pllm._benchmark_worker"],
+    process = subprocess.Popen([_interpreter(case.build.python), "-I", "-m", "pllm._benchmark_worker"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
          cwd=directory, env=_environment(sampling.threads), start_new_session=True)
     # Providers can own separate process groups. Remember their process identities

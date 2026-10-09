@@ -208,10 +208,7 @@ class _Configuration:
                 shorter = min(len(path), len(other))
                 if path[:shorter] == other[:shorter]:
                     raise ConfigurationError("overlapping parameter paths are not allowed")
-        result: Any = self
-        for path, value in zip(paths, changes.values(), strict=True):
-            result = _replace_path(result, path, value)
-        return result
+        return _replace_paths(self, list(zip(paths, changes.values(), strict=True)))
 
 
 _MODEL_KINDS = frozenset(
@@ -825,40 +822,38 @@ class ExperimentProfile:
         object.__setattr__(self, "provider_artifact_cache_bytes", runtime_options.provider_artifact_cache_bytes)
 
 
-def _replace_path(target: Any, path: list[str], value: object) -> Any:
-    name, *rest = path
+def _replace_paths(target: Any, changes: list[tuple[list[str], object]]) -> Any:
+    """Rebuild each immutable owner once, after applying all sibling changes."""
+    if not changes:
+        return target
     if isinstance(target, ComponentRef):
         current = target.get_params(deep=False)
+    elif isinstance(target, Pipeline) and type(target) is not Pipeline:
+        return target.with_params(**{"__".join(path): value for path, value in changes})
+    elif isinstance(target, _Configuration):
+        current = {field.name: getattr(target, field.name) for field in fields(cast(Any, target))}
+    elif isinstance(target, Mapping):
+        current = target
+    else:
+        raise ConfigurationError(
+            f"parameter path continues through non-configuration value {changes[0][0][0]!r}"
+        )
+    grouped: dict[str, list[tuple[list[str], object]]] = {}
+    for path, value in changes:
+        name, *rest = path
         if name not in current:
             raise ConfigurationError(f"unknown parameter path: {'__'.join(path)}")
-        if rest:
-            changed = _replace_path(current[name], rest, value)
-        else:
-            changed = value
+        grouped.setdefault(name, []).append((rest, value))
+    changed = {name: _replace_paths(current[name], nested) if nested[0][0] else nested[0][1]
+               for name, nested in grouped.items()}
+    if isinstance(target, ComponentRef):
+        params = {**target.params, **changed}
         if type(target) is ComponentRef:
-            component = changed if name == "component" else target.component
-            params = dict(target.params)
-            if name != "component":
-                params[name] = changed
-            return ComponentRef(cast(str, component), params)
-        params = dict(target.params)
-        params[name] = changed
+            return ComponentRef(cast(str, params.pop("component", target.component)), params)
         return type(target).from_params(params)
-    if isinstance(target, Pipeline) and type(target) is not Pipeline:
-        return target.with_params(**{"__".join(path): value})
     if isinstance(target, _Configuration):
-        field_names = {field.name for field in fields(cast(Any, target))}
-        if name not in field_names:
-            raise ConfigurationError(f"unknown parameter path: {'__'.join(path)}")
-        changed = _replace_path(getattr(target, name), rest, value) if rest else value
-        return replace(cast(Any, target), **{name: changed})
-    if isinstance(target, Mapping):
-        if name not in target:
-            raise ConfigurationError(f"unknown parameter path: {'__'.join(path)}")
-        copied = dict(target)
-        copied[name] = _replace_path(target[name], rest, value) if rest else value
-        return copied
-    raise ConfigurationError(f"parameter path continues through non-configuration value {name!r}")
+        return replace(cast(Any, target), **changed)
+    return {**current, **changed}
 
 
 def _fields(value: object, expected: set[str], path: str) -> Mapping[str, Any]:

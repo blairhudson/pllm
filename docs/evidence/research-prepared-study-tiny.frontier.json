@@ -1,0 +1,159 @@
+{
+  "cohort": "89cc6a68d7b8eb64d7673b259392014cf7ed9540df0ed58fa2cb0b44acac6e88",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "prepared",
+      "excluded": [],
+      "nondominated": [
+        "prepared",
+        "prepared/no-reuse",
+        "prepared/whole-prefill",
+        "prepared/serial-issuance",
+        "prepared/resident-client",
+        "prepared/resident-preparation",
+        "prepared/uncached-public-encoding",
+        "prepared/digit8",
+        "prepared/no-reuse+whole-prefill",
+        "prepared/serial-issuance+digit8"
+      ],
+      "observations": [
+        {
+          "case": "prepared",
+          "metrics": {
+            "client.cold_cpu": 0.597931,
+            "client.peak_rss": 116867072.0,
+            "network.all_link_stream_bytes": 200037.0,
+            "preparation.cold_cpu": 0.671165672,
+            "preparation.peak_rss": 107692032.0,
+            "response.decode_tps": 170.35508301931878,
+            "response.ttft": 0.1217225415
+          }
+        },
+        {
+          "case": "prepared/no-reuse",
+          "metrics": {
+            "client.cold_cpu": 0.46206,
+            "client.peak_rss": 107495424.0,
+            "network.all_link_stream_bytes": 216023.0,
+            "preparation.cold_cpu": 0.7390266480000001,
+            "preparation.peak_rss": 107806720.0,
+            "response.decode_tps": 232.87846562947516,
+            "response.ttft": 0.100488271
+          }
+        },
+        {
+          "case": "prepared/whole-prefill",
+          "metrics": {
+            "client.cold_cpu": 0.553567,
+            "client.peak_rss": 108101632.0,
+            "network.all_link_stream_bytes": 198337.0,
+            "preparation.cold_cpu": 0.6717166000000001,
+            "preparation.peak_rss": 107642880.0,
+            "response.decode_tps": 175.85111202538803,
+            "response.ttft": 0.10962493749999999
+          }
+        },
+        {
+          "case": "prepared/serial-issuance",
+          "metrics": {
+            "client.cold_cpu": 0.546391,
+            "client.peak_rss": 107266048.0,
+            "network.all_link_stream_bytes": 200020.0,
+            "preparation.cold_cpu": 0.684774024,
+            "preparation.peak_rss": 107364352.0,
+            "response.decode_tps": 172.14982472251586,
+            "response.ttft": 0.108727854
+          }
+        },
+        {
+          "case": "prepared/resident-client",
+          "metrics": {
+            "client.cold_cpu": 0.574799,
+            "client.peak_rss": 107446272.0,
+            "network.all_link_stream_bytes": 200018.0,
+            "preparation.cold_cpu": 0.6718258,
+            "preparation.peak_rss": 107528192.0,
+            "response.decode_tps": 167.53757413204596,
+            "response.ttft": 0.1076050415
+          }
+        },
+        {
+          "case": "prepared/resident-preparation",
+          "metrics": {
+            "client.cold_cpu": 0.552205,
+            "client.peak_rss": 108052480.0,
+            "network.all_link_stream_bytes": 200021.0,
+            "preparation.cold_cpu": 0.671646216,
+            "preparation.peak_rss": 107151360.0,
+            "response.decode_tps": 167.68624910206293,
+            "response.ttft": 0.10879647949999999
+          }
+        },
+        {
+          "case": "prepared/uncached-public-encoding",
+          "metrics": {
+            "client.cold_cpu": 0.567237,
+            "client.peak_rss": 108085248.0,
+            "network.all_link_stream_bytes": 199981.0,
+            "preparation.cold_cpu": 0.672733904,
+            "preparation.peak_rss": 107708416.0,
+            "response.decode_tps": 168.5117374354896,
+            "response.ttft": 0.11195572949999999
+          }
+        },
+        {
+          "case": "prepared/digit8",
+          "metrics": {
+            "client.cold_cpu": 0.549425,
+            "client.peak_rss": 108118016.0,
+            "network.all_link_stream_bytes": 200136.0,
+            "preparation.cold_cpu": 0.671496696,
+            "preparation.peak_rss": 107773952.0,
+            "response.decode_tps": 136.8871977232922,
+            "response.ttft": 0.107882562
+          }
+        },
+        {
+          "case": "prepared/no-reuse+whole-prefill",
+          "metrics": {
+            "client.cold_cpu": 0.447088,
+            "client.peak_rss": 107380736.0,
+            "network.all_link_stream_bytes": 212687.0,
+            "preparation.cold_cpu": 0.670438224,
+            "preparation.peak_rss": 107577344.0,
+            "response.decode_tps": 221.93185856840364,
+            "response.ttft": 0.0988150625
+          }
+        },
+        {
+          "case": "prepared/serial-issuance+digit8",
+          "metrics": {
+            "client.cold_cpu": 0.549139,
+            "client.peak_rss": 107020288.0,
+            "network.all_link_stream_bytes": 200085.0,
+            "preparation.cold_cpu": 0.6792636479999999,
+            "preparation.peak_rss": 107233280.0,
+            "response.decode_tps": 188.768395661165,
+            "response.ttft": 0.107753875
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "16adb70ad39a4b12aa681b11cf2161dfa4447be5cac3e5b8d5b574f13825b654",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "bbb4fc96716bbcc98141f51d5e8ce6e313199ef3e0a9c075fd3e9f6a25cdf6ed"
+}

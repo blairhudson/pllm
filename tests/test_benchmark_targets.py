@@ -95,6 +95,24 @@ def test_native_wide_stage_selects_wrap32(experiment, tmp_path):
     assert m.oracle["outcome"] == "passed"
 
 
+def test_pipeline_aliases_survive_target_serialization(experiment):
+    from pllm.preparation import PreparedInventory
+    from pllm.state import ClientPrefixReuse
+    experiment = experiment.with_params(pipeline=experiment.pipeline.with_params(
+        inventory=PreparedInventory(refill="on-demand"),
+        cache=ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=128)))
+    target = BenchmarkTarget.from_spec(BenchmarkTarget.response(experiment).to_spec())
+    alias = target.with_params(pipeline__inventory__stage_window=4)
+    explicit = target.with_params(pipeline__components__inventory__stage_window=4)
+    assert alias.digest == explicit.digest
+    stripped = alias.with_params(pipeline__cache=None)
+    assert "cache" not in stripped.to_spec()["parameters"]["model"]["experiment"]["pipeline"]["components"]
+    with pytest.raises(ValueError, match="duplicate"):
+        target.with_params(pipeline__cache=None, pipeline__components__cache=None)
+    with pytest.raises(ValueError, match="overlapping"):
+        target.with_params(pipeline__cache=None, pipeline__cache__max_bytes=2 << 20)
+
+
 def test_isolated_suite_parity_negative_results_and_private_input_redaction(experiment, tmp_path):
     suite = BenchmarkSuite((
         BenchmarkCase("native", BenchmarkTarget.preparation(experiment)),

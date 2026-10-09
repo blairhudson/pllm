@@ -16,7 +16,8 @@ selects SDK, gateway and benchmark execution.
 | Paged client weights and tokenizer source, compressed/batched public objects | `ClientBundleTransport("artifacts", compression="zlib", storage="paged", batch_objects=64)` |
 | Provider reuse of pre-encoded public objects across fresh clients | `provider_cache_bytes=512 << 20` on that delivery component |
 | Paged Preparation weights | `ModelAwareCorrections(storage="paged")` |
-| Demand-sized, on-demand corrections; concurrent stage issuance | `PreparedInventory(refill="on-demand", allocation="demand", stage_window=4)` |
+| Experimental large-batch CPU digit GEMM on Apple Silicon | `ModelAwareCorrections(storage="paged", kernel="digit8", min_rows=64)` |
+| Demand-sized, on-demand corrections; concurrent stage issuance | `PreparedInventory(refill="on-demand", allocation="demand", stage_window=4, stage_window_bytes=64 << 20)` |
 | Smaller exact requests/outputs and sixteen-row duplex prefill | `MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues", prefill_pruning="terminal", prefill_chunk_rows=16)` |
 | Public offline BPE compilation | `IndexedTokenizer.compile(tokenizer_json, directory)` |
 | One tokenizer owner across sizing and execution | `with client.tokenizer_scope():` |
@@ -61,7 +62,8 @@ experiment = pllm.Experiment(
         linear=MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues",
                             prefill_pruning="terminal", prefill_chunk_rows=16),
         preparation=ModelAwareCorrections(storage="paged"),
-        inventory=PreparedInventory(refill="on-demand", allocation="demand", stage_window=4),
+        inventory=PreparedInventory(refill="on-demand", allocation="demand", stage_window=4,
+                                    stage_window_bytes=64 << 20),
         delivery=ClientBundleTransport("artifacts", compression="zlib", storage="paged",
                                        batch_objects=64, provider_cache_bytes=512 << 20),
     ),
@@ -79,6 +81,11 @@ Execute it with `with pllm.serve_local(experiment) as roles:` and
 `client.responses.create(input=prompt, max_output_tokens=2, temperature=0)`.
 Ordinary requests also size preparation when needed. The explicit call moves
 that work before the online response; it does not make its CPU or traffic free.
+
+The example declares a 64 MiB concurrent-work window. The default 16 MiB window
+rejects a 150-row Qwen2.5 gate/up correction job; whole-topology memory admission
+still prices every concurrent owner. Larger shapes can exceed this window and
+must use a separately admitted configuration.
 
 Remote clients use `pllm.OpenAI` or `pllm.AsyncOpenAI` with the same Experiment,
 authenticated `base_url`/`api_key` and
@@ -149,6 +156,15 @@ The local supervisor is a functional deployment, not evidence of operator indepe
 
 ## Publication, storage and evidence
 
+The explicit `digit8` Preparation choice uses bounded, exact Rust-owned CPU
+SGEMM tiles on Apple Silicon. The public `min_rows` threshold keeps smaller
+batches on ordinary integer kernels. It composes with resident or paged
+Preparation weights; admission adds 224 MiB per concurrent stage for tiles,
+boundary copies, page overlap and platform workspace. Its stage timing and
+whole-response costs are measured separately in the
+[maintained study](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-maintained-reference.md).
+The ordinary SDK example keeps its integer-kernel selection.
+
 Paged integer-weight artifacts now share one authenticated immutable Rust file
 between delivery and execution. Source/object/bundle validation still reads
 bounded actual contents; paged binding no longer copies the complete weight file
@@ -186,3 +202,6 @@ separate from online TTFT. Sixteen-row prefill, extra issuance concurrency, pref
 cache memory and provider publication each have costs. The historical
 [prepared-prefill cohort](https://github.com/blairhudson/pllm/blob/main/docs/research/prepared-prefill-reference.md)
 does not measure this newly combined example or establish a general 10× gain.
+The [maintained benchmark study](/sdk/evaluate/benchmark-targets/#propagate-required-measurements)
+derives its control from the example and measures explicit ablations in one
+fresh cohort, followed by independent finalist/control confirmation.

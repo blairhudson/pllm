@@ -114,9 +114,11 @@ class BuildRef:
 
     @classmethod
     def capture(cls, python: str = sys.executable):
-        from pllm.metrics.benchmark_runner import inspect_build
-        observed = inspect_build(cls(python))
-        return cls(python, observed["digest"])
+        from pllm.metrics.benchmark_runner import _interpreter, inspect_build
+        declared = cls(python)
+        path = _interpreter(declared.python)
+        observed = inspect_build(cls(path))
+        return cls(path, observed["digest"])
 
     def to_spec(self):
         return asdict(self)
@@ -224,7 +226,35 @@ class BenchmarkTarget:
             model = params["model"]
             experiment = Experiment.from_spec(model["experiment"]).with_params(
                 pipeline__profile=model["profile"])
-            params["model"] = _model(experiment.with_params(**model_changes), model["config"])
+            # Serialized pipelines retain their component contract, not the
+            # original Python subclass. Preserve public slot aliases on replay.
+            normalized = {}
+            for key, value in model_changes.items():
+                path = key.split("__")
+                if path[0] == "pipeline" and path[1] in experiment.pipeline.components:
+                    path.insert(1, "components")
+                name = "__".join(path)
+                if name in normalized:
+                    raise ValueError("duplicate pipeline parameter aliases")
+                normalized[name] = value
+            paths = [key.split("__") for key in normalized]
+            for index, path in enumerate(paths):
+                for other in paths[index + 1:]:
+                    length = min(len(path), len(other))
+                    if path[:length] == other[:length]:
+                        raise ValueError("overlapping parameter paths are not allowed")
+            removed = [path[2] for path in paths if len(path) == 3
+                       and path[:2] == ["pipeline", "components"]
+                       and normalized["__".join(path)] is None]
+            for slot in removed:
+                if slot not in experiment.pipeline.components:
+                    raise ValueError("cannot remove an unknown pipeline component")
+                del normalized[f"pipeline__components__{slot}"]
+            experiment = experiment.with_params(**normalized)
+            if removed:
+                experiment = experiment.with_params(pipeline__components={
+                    key: value for key, value in experiment.pipeline.components.items() if key not in removed})
+            params["model"] = _model(experiment, model["config"])
         for key, value in changes.items():
             if key in model_changes:
                 continue
@@ -315,7 +345,7 @@ def _validate_target(document):
         from pllm.configuration import Experiment
         _model(Experiment.from_spec(m["experiment"]).with_params(pipeline__profile=m["profile"]), m["config"])
     if kind == "runtime":
-        choice(p["role"], {"sdk", "native", "client", "preparation"}, "runtime role")
+        choice(p["role"], {"python", "sdk", "numpy", "transport", "native", "client", "prepared_client", "preparation"}, "runtime role")
     if kind in {"stage", "preparation", "artifacts"}:
         identity(p["role"], "semantic role")
         if p["layer"] is not None:
@@ -325,7 +355,7 @@ def _validate_target(document):
         bounded_int(p["seed"], 0, (1 << 32) - 1, "public fixture seed")
     if kind in {"stage", "preparation"}:
         bounded_int(p["rows"], 1, 4096, "rows")
-        choice(p["kernel"], {"native", "digit4", "digit8"}, "integer kernel")
+        choice(p["kernel"], {"native", "digit4", "digit8", "digit8_native"}, "integer kernel")
         choice(p["storage"], {"resident", "paged"}, "weight storage")
     if kind == "stage":
         choice(p["phase"], {"prefill", "decode"}, "decoder phase")

@@ -14,6 +14,7 @@ pub mod coded_linear;
 pub mod coefficient_repacking;
 pub mod compact;
 pub mod compact_product;
+pub mod digit_gemm;
 pub mod fixed_point;
 mod freivalds;
 pub mod head_index;

@@ -33,7 +33,7 @@ def build_experiment(model=None, *, tokenizer=None, root=".pllm/prepared-sdk"):
                                 prefill_pruning="terminal", prefill_chunk_rows=16),
             preparation=ModelAwareCorrections(storage="paged"),
             inventory=PreparedInventory(refill="on-demand", allocation="demand",
-                                        stage_window=4, stage_window_bytes=16 << 20),
+                                        stage_window=4, stage_window_bytes=64 << 20),
             delivery=ClientBundleTransport("artifacts", compression="zlib", storage="paged",
                                            batch_objects=64, provider_cache_bytes=512 << 20),
             tokenizer=tokenizer,

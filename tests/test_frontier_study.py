@@ -125,6 +125,23 @@ def test_timeout_and_implementation_lock_mismatch_checkpoint(tmp_path):
     assert BenchmarkRun.load(tmp_path / "run.json").digest == run.digest
 
 
+def test_relative_interpreter_survives_isolated_working_directory(tmp_path, monkeypatch):
+    import os
+    import sys
+
+    monkeypatch.chdir(tmp_path)
+    relative = os.path.relpath(sys.executable, tmp_path)
+    pinned = BuildRef.capture(relative)
+    # resolve() would follow the interpreter symlink out of its virtualenv.
+    assert pinned.python == os.path.abspath(sys.executable)
+    run = benchmark_suite(BenchmarkSuite((
+        BenchmarkCase("captured", BenchmarkTarget.runtime(), pinned),
+        BenchmarkCase("unlocked", BenchmarkTarget.runtime(), BuildRef(relative)),
+    ), Sampling(processes=1)))
+    assert all(r.to_dict()["status"] == "completed" for r in run.results)
+    assert BenchmarkRun(run.to_dict()).digest == run.digest
+
+
 def test_implementation_lock_also_binds_observed_hardware(monkeypatch):
     from pllm import _benchmark_build
 
@@ -166,3 +183,30 @@ def test_completed_caller_owned_measurement_still_requires_revalidation():
     work = study.plan(EvidenceRegistry().register_all(run.results))
     assert work.suite is not None
     assert work.coverage.to_dict()["cases"][0]["status"] == "revalidation_required"
+
+
+def test_confirmation_selects_comparable_finalists_with_fresh_controls(study_run):
+    study, run = study_run
+    work = study.confirm(run, cases=["prepare/digit+chunk"], metrics={"target.cpu": "min"})
+    assert [case.name for case in work.suite.cases] == ["prepare", "prepare/digit+chunk"]
+    assert work.suite.sampling.processes == 3
+    assert work.coverage.to_dict()["selected_trials"] == 6
+    marker = object()
+    assert work.inputs({"prepare": marker}) == {"prepare": marker, "prepare/digit+chunk": marker}
+    with pytest.raises(ValueError, match="measurements"):
+        study.confirm(run, cases=["prepare/digit"], metrics={"network.all_link_stream_bytes": "min"})
+    with pytest.raises(ValueError, match="replicates"):
+        study.confirm(run, processes=2)
+
+
+def test_maintained_prepared_study_expands_public_recipe_and_keeps_ablations():
+    from benchmarks.research.prepared_frontier_study import study
+    current = study(build=BuildRef(), output_tokens=2)
+    work = current.plan()
+    assert not [row for row in work.coverage.to_dict()["cases"] if row["status"] == "incompatible"]
+    assert len(work.suite.cases) == 10
+    assert "prepared/no-reuse+whole-prefill" in {c.name for c in work.suite.cases}
+    for case in work.suite.cases:
+        from pllm.configuration import Experiment
+        p = case.target.to_spec()["parameters"]["model"]
+        Experiment.from_spec(p["experiment"]).with_params(pipeline__profile=p["profile"]).resolve()

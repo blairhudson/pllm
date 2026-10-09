@@ -482,6 +482,16 @@ impl PagedMatrix {
         self.check(x.len(), batch)?;
         self.execute(batch, |m| m.wrap32(&self.executor, x, batch))
     }
+    pub fn digit8(&self, x: &[u32], batch: usize, bits: u32) -> Result<Vec<u32>, String> {
+        if !crate::digit_gemm::available()
+            || !matches!(bits, 16 | 24 | 32)
+            || !(1..=4096).contains(&batch)
+        {
+            return Err("digit8 requires Apple Silicon and bounded 16/24/32-bit inputs".into());
+        }
+        self.check(x.len(), batch)?;
+        self.execute(batch, |m| crate::digit_gemm::multiply(m, x, batch, bits))
+    }
     pub fn modular(&self, x: &[u32], batch: usize, modulus: u32) -> Result<Vec<u32>, String> {
         self.check(x.len(), batch)?;
         self.execute(batch, |m| m.modular(&self.executor, x, batch, modulus))

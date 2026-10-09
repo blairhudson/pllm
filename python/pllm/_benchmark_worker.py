@@ -84,20 +84,23 @@ def _runtime(target, m):
     import subprocess
     role = target.to_spec()["parameters"]["role"]
     m.admit(256 << 20)
-    imports = {"sdk": "import pllm", "native": "from pllm import _native",
+    imports = {"python": "pass", "sdk": "import pllm", "numpy": "import numpy",
+               "transport": "import httpx", "native": "from pllm import _native",
                "client": "from pllm import OpenAI",
+               "prepared_client": "import pllm.runtime.transformer_client",
                "preparation": "from pllm.runtime.preparation_server import create_preparation_app"}
     def execute(_):
         code = ("import resource,sys,time,json;" + imports[role] + ";"
                 "r=resource.getrusage(resource.RUSAGE_SELF);"
                 "print(json.dumps({'rss':int(r.ru_maxrss*(1 if sys.platform=='darwin' else 1024)),"
-                "'cpu':time.process_time()}))")
+                "'cpu':time.process_time(),'modules':sorted({n.split('.')[0] for n in sys.modules})}))")
         return json.loads(subprocess.check_output([sys.executable, "-I", "-c", code], stderr=subprocess.DEVNULL))
     observed = m.run(execute)
     m.details["timings"]["cpu_seconds"] = [v["cpu"] for v in observed]
     m.details["target_peak_rss_bytes"] = max(v["rss"] for v in observed)
     m.details["target_cpu_from_birth_seconds"] = sum(v["cpu"] for v in observed) / len(observed)
     m.details["sample_owners"] = ["runtime_import_child"]
+    m.details["imported_module_roots"] = sorted(set().union(*(v["modules"] for v in observed)))
     m.oracle = {"kind": "import_completion", "outcome": "passed", "checked_values": 1}
     m.comparison.update({key: digest({"runtime": role}) for key in m.comparison})
     m.limitations += ["Fresh import child excludes the benchmark harness, model, allocator workspace and active connections.",

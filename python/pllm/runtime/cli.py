@@ -308,6 +308,8 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
                 raise RuntimeCLIError("unsupported provider Experiment")
             if preparation:
                 engine_kwargs["weight_storage"] = selected.preparation_storage
+                engine_kwargs["preparation_kernel"] = selected.preparation_kernel
+                engine_kwargs["preparation_min_rows"] = selected.preparation_min_rows
             else:
                 if config.public_artifact_cache_bytes not in (0, selected.provider_artifact_cache_bytes):
                     raise RuntimeCLIError("provider artifact cache differs from its Experiment")

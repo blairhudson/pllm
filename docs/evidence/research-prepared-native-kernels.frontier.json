@@ -1,0 +1,255 @@
+{
+  "cohort": "a9fb633f8bc7f3c8a12998cb57cc1a48d8005f6864ede264cec1822333cc105d",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "qkv_projection-16",
+      "excluded": [],
+      "nondominated": [
+        "qkv_projection-16",
+        "qkv_projection-16/paged",
+        "qkv_projection-16/digit+paged"
+      ],
+      "observations": [
+        {
+          "case": "qkv_projection-16",
+          "metrics": {
+            "process.peak_rss": 61276160.0,
+            "target.cpu": 0.002905999999999992
+          }
+        },
+        {
+          "case": "qkv_projection-16/digit",
+          "metrics": {
+            "process.peak_rss": 68763648.0,
+            "target.cpu": 0.0032139999999999946
+          }
+        },
+        {
+          "case": "qkv_projection-16/paged",
+          "metrics": {
+            "process.peak_rss": 60440576.0,
+            "target.cpu": 0.0034520000000000106
+          }
+        },
+        {
+          "case": "qkv_projection-16/digit+paged",
+          "metrics": {
+            "process.peak_rss": 62537728.0,
+            "target.cpu": 0.0025320000000000065
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "qkv_projection-150",
+      "excluded": [],
+      "nondominated": [
+        "qkv_projection-150",
+        "qkv_projection-150/digit",
+        "qkv_projection-150/paged",
+        "qkv_projection-150/digit+paged"
+      ],
+      "observations": [
+        {
+          "case": "qkv_projection-150",
+          "metrics": {
+            "process.peak_rss": 64208896.0,
+            "target.cpu": 0.017296000000000006
+          }
+        },
+        {
+          "case": "qkv_projection-150/digit",
+          "metrics": {
+            "process.peak_rss": 68386816.0,
+            "target.cpu": 0.007668000000000008
+          }
+        },
+        {
+          "case": "qkv_projection-150/paged",
+          "metrics": {
+            "process.peak_rss": 61521920.0,
+            "target.cpu": 0.018250000000000016
+          }
+        },
+        {
+          "case": "qkv_projection-150/digit+paged",
+          "metrics": {
+            "process.peak_rss": 64978944.0,
+            "target.cpu": 0.007940000000000003
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "mlp_gate_up-16",
+      "excluded": [],
+      "nondominated": [
+        "mlp_gate_up-16/digit",
+        "mlp_gate_up-16/paged",
+        "mlp_gate_up-16/digit+paged"
+      ],
+      "observations": [
+        {
+          "case": "mlp_gate_up-16",
+          "metrics": {
+            "process.peak_rss": 88588288.0,
+            "target.cpu": 0.014915999999999985
+          }
+        },
+        {
+          "case": "mlp_gate_up-16/digit",
+          "metrics": {
+            "process.peak_rss": 95764480.0,
+            "target.cpu": 0.009064000000000016
+          }
+        },
+        {
+          "case": "mlp_gate_up-16/paged",
+          "metrics": {
+            "process.peak_rss": 62324736.0,
+            "target.cpu": 0.01577099999999998
+          }
+        },
+        {
+          "case": "mlp_gate_up-16/digit+paged",
+          "metrics": {
+            "process.peak_rss": 62472192.0,
+            "target.cpu": 0.010021000000000002
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "mlp_gate_up-150",
+      "excluded": [],
+      "nondominated": [
+        "mlp_gate_up-150/digit",
+        "mlp_gate_up-150/paged",
+        "mlp_gate_up-150/digit+paged"
+      ],
+      "observations": [
+        {
+          "case": "mlp_gate_up-150",
+          "metrics": {
+            "process.peak_rss": 116178944.0,
+            "target.cpu": 0.131149
+          }
+        },
+        {
+          "case": "mlp_gate_up-150/digit",
+          "metrics": {
+            "process.peak_rss": 116277248.0,
+            "target.cpu": 0.04069699999999998
+          }
+        },
+        {
+          "case": "mlp_gate_up-150/paged",
+          "metrics": {
+            "process.peak_rss": 84541440.0,
+            "target.cpu": 0.13217600000000002
+          }
+        },
+        {
+          "case": "mlp_gate_up-150/digit+paged",
+          "metrics": {
+            "process.peak_rss": 85753856.0,
+            "target.cpu": 0.04170099999999999
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "mlp_down-16",
+      "excluded": [],
+      "nondominated": [
+        "mlp_down-16/digit",
+        "mlp_down-16/digit+paged"
+      ],
+      "observations": [
+        {
+          "case": "mlp_down-16",
+          "metrics": {
+            "process.peak_rss": 81690624.0,
+            "target.cpu": 0.008942000000000005
+          }
+        },
+        {
+          "case": "mlp_down-16/digit",
+          "metrics": {
+            "process.peak_rss": 90931200.0,
+            "target.cpu": 0.007616000000000012
+          }
+        },
+        {
+          "case": "mlp_down-16/paged",
+          "metrics": {
+            "process.peak_rss": 79069184.0,
+            "target.cpu": 0.009829999999999978
+          }
+        },
+        {
+          "case": "mlp_down-16/digit+paged",
+          "metrics": {
+            "process.peak_rss": 77709312.0,
+            "target.cpu": 0.008110000000000006
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "mlp_down-150",
+      "excluded": [],
+      "nondominated": [
+        "mlp_down-150/digit",
+        "mlp_down-150/paged",
+        "mlp_down-150/digit+paged"
+      ],
+      "observations": [
+        {
+          "case": "mlp_down-150",
+          "metrics": {
+            "process.peak_rss": 93847552.0,
+            "target.cpu": 0.07469500000000001
+          }
+        },
+        {
+          "case": "mlp_down-150/digit",
+          "metrics": {
+            "process.peak_rss": 97861632.0,
+            "target.cpu": 0.027142000000000027
+          }
+        },
+        {
+          "case": "mlp_down-150/paged",
+          "metrics": {
+            "process.peak_rss": 89882624.0,
+            "target.cpu": 0.07454799999999998
+          }
+        },
+        {
+          "case": "mlp_down-150/digit+paged",
+          "metrics": {
+            "process.peak_rss": 91389952.0,
+            "target.cpu": 0.030126999999999987
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "process.peak_rss": "min",
+    "target.cpu": "min"
+  },
+  "run_digest": "963957c7adfde35e26453c800fff538395eaa39a353c493e21e7e0ae6f3d9b1d",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "b3cbefae29bece6f41b969e44f125f7b9a341164c6c4ded477c36e0202ef3b31"
+}

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import fnmatch
 import json
 
@@ -222,6 +222,33 @@ class FrontierStudy:
             "timings_propagated": False, "changed_paths": list(changed_paths)}))
         suite = BenchmarkSuite(tuple(c for c, _ in selected), self.suite.sampling, self.suite.name) if selected else None
         return FrontierWork(suite, report, tuple((c.name, base) for c, base in selected))
+
+    def confirm(self, run, *, cases=None, metrics=None, processes=3):
+        """Build a fresh finalist cohort, including every finalist's control.
+
+        By default nominate measured Pareto neighbors. Explicit nominations must
+        have complete comparable measurements in the screen. This schedules
+        confirmation; it does not confer a performance or quality claim.
+        """
+        if type(processes) is not int or not 3 <= processes <= 32:
+            raise ValueError("confirmation requires 3..32 fresh process replicates")
+        screen = self.snapshot(run, metrics=metrics).to_dict()
+        measured = {r["case"] for g in screen["groups"] for r in g["observations"]}
+        nominated = ({n for g in screen["groups"] for n in g["nondominated"] if n != g["base"]}
+                     if cases is None else set(cases))
+        if nominated - measured:
+            raise ValueError("confirmation nominees require complete comparable screen measurements")
+        available, _ = self._cases()
+        selected = set(nominated)
+        selected.update(base for case, base in available if case.name in nominated)
+        pairs = [(case, base) for case, base in available if case.name in selected]
+        suite = (BenchmarkSuite(tuple(c for c, _ in pairs), replace(self.suite.sampling, processes=processes),
+                                self.suite.name) if pairs else None)
+        report = EvidenceReport(canonical({"schema_version": "pllm.frontier_confirmation.v1",
+            "study_digest": self.digest, "screen_digest": run.digest,
+            "nominees": sorted(nominated), "selected_trials": len(pairs) * processes,
+            "status": "ready" if pairs else "no_measured_candidates"}))
+        return FrontierWork(suite, report, tuple((c.name, base) for c, base in pairs))
 
     def snapshot(self, run, *, metrics=None, confirmation=None):
         """Pareto screen only matched cells; unknown measurements remain gaps."""

@@ -305,6 +305,13 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         gpu_client = weights
     limitations = []
     paged_preparation = options.preparation_storage == "paged"
+    digit_workspace = 0
+    if options.preparation_kernel == "digit8":
+        # 64 MiB native tiles, binding/page/output overlap, and a conservative
+        # 64 MiB allowance for the platform BLAS implementation per active stage.
+        digit_workspace = 224 * MiB * (window.params.get("stage_window", 1) if window else 1)
+        if platform.system() != "Darwin" or platform.machine() != "arm64":
+            limitations.append("digit8 requires Apple Silicon CPU Accelerate")
     preparation_disk = sum(s.in_features * s.out_features for s in remote) if paged_preparation else 0
     if paged_preparation and any(s.in_features * s.out_features > 2 * GiB
                                  or max(s.in_features, s.out_features) > 1048576 for s in remote):
@@ -352,7 +359,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
             role_weights[role] = 0
             role_engine = metadata + page_indices + active_pages + _PROCESS_BYTES
         role_verification = (verification_allocation["preparation_peak_bytes"]
-                             if verification_allocation and role == "preparation" else 0)
+                              if verification_allocation and role == "preparation" else 0)
+        if role == "preparation":
+            role_engine += digit_workspace
         role_peaks[role] = _slack(role_engine + gpu_provider + max(
             role_loading[role], delivery + corrections, work + corrections + role_verification))
         docker_role_peaks[role] = _slack(engine + weights + gpu_provider + nonlinear_worker + cache_work + max(
@@ -377,6 +386,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "docker_provider_peak_bytes": docker_role_peaks,
         "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
         "preparation_storage": options.preparation_storage,
+        "preparation_kernel": options.preparation_kernel,
         "bundle_storage": ("streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner" if paged else
                            "immutable_segments_v1; client import retains conservative copy bounds"),
         "mask_storage": "one_active_stage_v1; one benchmark response at a time",
@@ -400,6 +410,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
              "client_nonlinear_work_bytes": nonlinear_client,
              "per_provider_nonlinear_work_bytes": nonlinear_worker,
              "provider_artifact_cache_disk_bytes": artifact_cache_roles,
+             "preparation_digit_workspace_bytes": digit_workspace,
              "provider_artifact_cache_work_bytes": {role: ARTIFACT_CACHE_WORK_BYTES for role in artifact_cache_roles},
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "legacy_verifier_bytes": legacy_verification,
@@ -437,6 +448,8 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
                 else:
                     reasons.append("enforced WAN auto fallback requires explicit native TCP pacing selection")
         else:
+            if estimate.get("preparation_kernel") == "digit8":
+                reasons.append("digit8 requires native Apple Silicon CPU execution")
             if estimate["kernel"] == "metal":
                 reasons.append("Metal requires native provider processes")
             if docker_capacity is None:

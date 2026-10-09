@@ -128,6 +128,16 @@ class CompiledMatrix:
         totals = x.astype(object) @ self._reference.astype(object).T
         return np.asarray(totals % (1 << 32), dtype=np.uint32)
 
+    def digit8(self, inputs: np.ndarray, bits: int = 32) -> np.ndarray:
+        """Experimental exact CPU SGEMM lifting; bounded, Apple Silicon only."""
+        if type(bits) is not int or bits not in (16, 24, 32) or self._matrix is None:
+            raise NativeKernelError("digit8 requires a native matrix and 16/24/32-bit ring")
+        x = self._inputs(inputs, "<u4", 0, (1 << bits) - 1, bounded=False)
+        if not 1 <= len(x) <= 4096 or max(x.size, len(x) * self.shape[0]) > 4 << 20:
+            raise NativeKernelError("digit8 geometry exceeds bounded workspace")
+        data = self._execute("digit8", x.tobytes(), len(x), bits)
+        return np.frombuffer(data, "<u4").reshape(len(x), self.shape[0])
+
     def wrap64(self, inputs: np.ndarray) -> np.ndarray:
         raw = np.asarray(inputs)
         if raw.ndim < 1 or raw.dtype.kind not in {"i", "u"}:

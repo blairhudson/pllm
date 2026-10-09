@@ -43,7 +43,7 @@ process high-water mark. Each issuance gets fresh OS randomness.
 
 | Constructor | Executed scope |
 | --- | --- |
-| `runtime(role)` | Fresh SDK/native/client/Preparation import process, including import CPU and peak RSS. |
+| `runtime(role)` | Fresh Python/SDK/NumPy/HTTPX/native/client/prepared-client/Preparation import process, including import CPU, peak RSS and imported module roots. |
 | `geometry(experiment)` | Native lowering and schedule, without tensor values. |
 | `artifacts(experiment)` | Selected immutable weight-file import or bind through the real shared/copied snapshot paths. |
 | `preparation(experiment)` | Local fresh mask expansion, exact selected-stage products and correction-file output. |
@@ -57,6 +57,19 @@ Preparation `chunk_rows` bounds mask rows in a local calculation. It does not
 implement output-stripe push/ack assembly. The experimental `kernel="digit4"`
 and `"digit8"` choices run exact digit-lifted CPU float32 GEMM with conversion and
 reconstruction charged. They are benchmark targets, not serving kernel components.
+The separate `kernel="digit8_native"` target exercises Rust-owned, bounded CPU
+SGEMM tiles with resident or paged weights. Its exact 16/24/32-bit reconstruction
+is also selectable on Apple Silicon through
+`ModelAwareCorrections(kernel="digit8", min_rows=64)`. Preparation uses ordinary
+integer kernels below the declared row threshold. Serving memory admission prices
+each concurrent workspace. These selections have independent evidence from the
+earlier NumPy-based screen.
+
+Runtime roles are `"python"`, `"sdk"`, `"numpy"`, `"transport"`, `"native"`,
+`"client"`, `"prepared_client"` and `"preparation"`. Each imports into its own
+fresh child. Their footprints overlap and must not be added or subtracted as
+isolated dependency costs. `execution.details.imported_module_roots` explains
+which dependencies that entry point actually loaded.
 
 Stage transport and verified-stage targets return explicit unsupported results.
 Synthetic sealed state is not a continuation credential: private KV, logits,
@@ -144,6 +157,9 @@ Variants use immutable `with_params` patches. `pipeline__...` patches modify the
 target's Experiment. Explicit interactions and leave-one-change-out cases remain
 visible. Trial budgets count process executions. Selected neighbors always rerun
 their control in the same cohort; partial old cohorts cannot supply the control.
+Serialized targets accept existing component-slot aliases such as
+`pipeline__preparation__kernel`; setting an entire optional slot to `None` removes
+it. Duplicate aliases and overlapping paths reject.
 
 `BuildRef.capture()` inspects installed Python/native files, dependency records,
 numeric backend metadata, OS and public CPU/memory identity in a separate process.
@@ -160,6 +176,30 @@ failed/blocked/unsupported cases stay explicit. A separately measured confirmati
 run can be attached with `confirmation=...`; it needs another cohort and at least
 three independent processes. Exploratory medians are not statistical confidence
 intervals or an automatic recommendation to change an application.
+
+`study.confirm(screen, cases=[...])` constructs a fresh three-process finalist
+cohort with each finalist's control. Omitting `cases` nominates measured Pareto
+neighbors. The same `FrontierWork.inputs(...)` mapping supplies private inputs;
+`study.snapshot(screen, confirmation=confirmed)` binds both measured cohorts.
+Nominations require complete comparable screen measurements.
+
+The maintained serving study in
+`benchmarks/research/prepared_frontier_study.py` starts from
+`examples/prepared_sdk.py` and declares delivery, residency, reuse, prefill and
+Preparation-kernel ablations. `scripts/benchmark_prepared_frontier.py` exports the
+exact study, coverage plan, canonical run and seven-metric frontier together.
+Its generated-checkpoint control runs with:
+
+```bash
+python -m scripts.benchmark_prepared_frontier --tiny \
+  --output target/prepared-study.json
+```
+
+`--plan-only`, `--history`, `--changed-path` and `--max-trials` expose coverage
+planning; `--confirm SCREEN --nominate CASE` schedules independent confirmation.
+Checkpoint-backed runs require the explicit local artifacts documented with the
+study. A new build or changed recipe creates new measurements rather than
+inheriting old performance.
 
 ## Evidence and privacy
 

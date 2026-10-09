@@ -30,18 +30,27 @@ class ModelAwareCorrections(PreparationProvider):
         category_version="1",
         lifecycle_phase="preparation",
         parameter_schema={"type": "object", "additionalProperties": False,
-                          "properties": {"storage": {"type": "string", "enum": ["paged"]}}},
+                          "properties": {"storage": {"type": "string", "enum": ["paged"]},
+                                         "kernel": {"type": "string", "enum": ["digit8"]},
+                                         "min_rows": {"type": "integer", "minimum": 1, "maximum": 4096}}},
         capabilities=("one-use-masked-linear-corrections",),
         role_eligibility=("preparation",),
     )
 
-    def __init__(self, *, storage: str = "resident") -> None:
+    def __init__(self, *, storage: str = "resident", kernel: str = "native", min_rows: int = 64) -> None:
         if type(storage) is not str or storage not in {"resident", "paged"}:
             raise ConfigurationError("preparation storage must be resident or paged")
-        super().__init__(self.descriptor.component, {} if storage == "resident" else {"storage": storage})
+        if type(kernel) is not str or kernel not in {"native", "digit8"}:
+            raise ConfigurationError("preparation kernel must be native or digit8")
+        if type(min_rows) is not int or not 1 <= min_rows <= 4096 or (kernel == "native" and min_rows != 64):
+            raise ConfigurationError("digit8 threshold must be in [1,4096] and requires digit8")
+        params = {} if storage == "resident" else {"storage": storage}
+        if kernel != "native":
+            params.update(kernel=kernel, min_rows=min_rows)
+        super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return dict(self.params)
+        return {"storage": "resident", "kernel": "native", "min_rows": 64, **self.params}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

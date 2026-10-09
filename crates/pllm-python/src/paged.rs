@@ -252,6 +252,27 @@ impl Matrix {
             .map_err(invalid)?;
         Ok(PyBytes::new(py, &result))
     }
+    fn digit8<'py>(
+        &self,
+        py: Python<'py>,
+        data: &[u8],
+        batch: usize,
+        bits: u32,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let matrix = self.get()?;
+        if data.len() > 16 << 20 {
+            return Err(invalid("digit8 input exceeds 16 MiB".into()));
+        }
+        let result = py
+            .detach(|| {
+                let x = pllm_core::codec::u32s(data)?;
+                matrix
+                    .digit8(&x, batch, bits)
+                    .map(|v| v.into_iter().flat_map(u32::to_le_bytes).collect::<Vec<_>>())
+            })
+            .map_err(invalid)?;
+        Ok(PyBytes::new(py, &result))
+    }
     #[pyo3(signature=(data, columns=false))]
     fn gather<'py>(
         &self,

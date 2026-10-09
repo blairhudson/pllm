@@ -89,20 +89,10 @@ class _TypedPipeline(Pipeline):
                 shorter = min(len(path), len(other))
                 if path[:shorter] == other[:shorter]:
                     raise ConfigurationError("overlapping parameter paths are not allowed")
-        values = self.get_params(deep=False)
-        for path, value in zip(paths, changes.values(), strict=True):
-            name, *nested = path
-            if name not in values:
-                raise ConfigurationError(f"unknown parameter path: {'__'.join(path)}")
-            if nested:
-                current = values[name]
-                if not hasattr(current, "with_params"):
-                    raise ConfigurationError(
-                        f"parameter path continues through non-configuration value {name!r}"
-                    )
-                values[name] = current.with_params(**{"__".join(nested): value})
-            else:
-                values[name] = value
+        from pllm.configuration import _replace_paths
+
+        values = _replace_paths(self.get_params(deep=False),
+                                list(zip(paths, changes.values(), strict=True)))
         return type(self)(**values)
 
 
@@ -662,6 +652,8 @@ class RuntimeComposition:
     causal_reduction: str | None = None
     prepared_output_encoding: str = "raw"
     preparation_storage: str = "resident"
+    preparation_kernel: str = "native"
+    preparation_min_rows: int = 64
     nonlinear_layout: str | None = None
     nonlinear_dispatch: str = "serial"
 
@@ -717,13 +709,19 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     if preparation is not None:
         if preparation.params and not (
             preparation.component == ModelAwareCorrections.descriptor.component
-            and dict(preparation.params) == {"storage": "paged"}
             and identities.get("kernels") == "pllm/cpu"
             and "verification" not in identities
             and identities.get("linear") == "pllm/masked-linear"
         ):
             return None
+        if preparation.component == ModelAwareCorrections.descriptor.component:
+            try:
+                ModelAwareCorrections(**preparation.params)
+            except (ValueError, TypeError):
+                return None
         transport_options["preparation_storage"] = preparation.params.get("storage", "resident")
+        transport_options["preparation_kernel"] = preparation.params.get("kernel", "native")
+        transport_options["preparation_min_rows"] = preparation.params.get("min_rows", 64)
     linear = pipeline.components.get("linear")
     if linear is not None and linear.component == "pllm/masked-linear":
         if (set(linear.params) - {"output_encoding", "prefill_chunk_rows", "request_encoding", "prefill_pruning"}
