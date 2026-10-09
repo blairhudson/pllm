@@ -109,6 +109,13 @@ metadata counts exclude tensors; phase peaks include their own temporaries.
 Tracing changes costs and has a distinct measurement identity. Generated SDK
 execution and validation/failure cleanup pass; precompiled artifacts still need
 measured whole-client evidence. See `docs/research/client-metadata-reference.md`.
+The state benchmark additionally selects a bounded streaming AES-GCM codec that
+retains the original synthetic state frames and trusted-revision contract.
+Authentication precedes returned plaintext; failed writes preserve the prior
+generation. Cross-codec integer-bit/attention and separate-process restoration
+checks pass. These remain storage mechanics, with no compiler-bound layer-swapped
+decoder or persistent conversation credential. Replay:
+`docs/research/streaming-state-reference.md`.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%

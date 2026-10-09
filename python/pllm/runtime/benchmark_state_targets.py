@@ -41,6 +41,20 @@ class SealedStateFixture:
         return canonical({"schema": "pllm.synthetic_state_fixture.v1", "context": self.context,
                           "revision": revision, "index": index, "layout": self.layout[index]})
 
+    def _write_record(self, out, value, revision, index):
+        nonce = secrets.token_bytes(12)
+        sealed = nonce + self.aead.encrypt(nonce, value.tobytes(), self._aad(revision, index))
+        out.write(sealed)
+        return hashlib.sha256(sealed).hexdigest()
+
+    def _read_record(self, source, revision, index, expected):
+        sealed = source.read(self.sizes[index] + 29)
+        if (len(sealed) != self.sizes[index] + 28
+                or hashlib.sha256(sealed).hexdigest() != expected):
+            raise ValueError("sealed state frame differs")
+        value = self.aead.decrypt(sealed[:12], sealed[12:], self._aad(revision, index))
+        return np.frombuffer(value, dtype=np.float32).reshape(self.layout[index]["shape"])
+
     def commit(self, values, revision, *, fail_after=None):
         if type(revision) is not int or revision < 0:
             raise ValueError("invalid revision")
@@ -52,13 +66,10 @@ class SealedStateFixture:
             for index, value in enumerate(values):
                 if index >= len(self.layout) or value.dtype != np.float32 or list(value.shape) != self.layout[index]["shape"]:
                     raise ValueError("state layout differs")
-                nonce = secrets.token_bytes(12)
-                sealed = nonce + self.aead.encrypt(nonce, value.tobytes(), self._aad(revision, index))
                 with (pending / str(index)).open("xb") as out:
-                    out.write(sealed)
+                    hashes.append(self._write_record(out, value, revision, index))
                     out.flush()
                     os.fsync(out.fileno())
-                hashes.append(hashlib.sha256(sealed).hexdigest())
                 if fail_after == index:
                     raise ValueError("injected transaction failure")
             if len(hashes) != len(self.layout):
@@ -91,12 +102,8 @@ class SealedStateFixture:
             raise ValueError("state binding differs")
         for index, row in enumerate(self.layout):
             with (root / str(index)).open("rb") as source:
-                sealed = source.read(self.sizes[index] + 29)
-            if (len(sealed) != self.sizes[index] + 28
-                    or hashlib.sha256(sealed).hexdigest() != document["hashes"][index]):
-                raise ValueError("sealed state frame differs")
-            value = self.aead.decrypt(sealed[:12], sealed[12:], self._aad(revision, index))
-            yield np.frombuffer(value, dtype=np.float32).reshape(row["shape"])
+                value = self._read_record(source, revision, index, document["hashes"][index])
+            yield value
 
 
 def _values(layout, seed):
@@ -180,13 +187,17 @@ def execute_state(target, p, m):
     slab = max(math.prod(row["shape"]) * 4 for row in layout)
     if size > 256 << 20 or slab > 64 << 20:
         raise TargetUnavailable("state_fixture_payload_limit", status="blocked")
-    if p["operation"] == "restart" and p["storage"] != "sealed_local":
+    if p["operation"] == "restart" and p["storage"] not in {"sealed_local", "sealed_stream"}:
         raise TargetUnavailable("restart_requires_local_sealed_fixture")
     m.admit((160 << 20) + size + 8 * slab)
     binding = digest({"source": m.comparison["source_digest"], "plan": context[2].digest, "layout": layout})
     start, cpu = time.perf_counter(), time.process_time()
     key = secrets.token_bytes(32)
-    store = SealedStateFixture(m.directory / "state", key, binding, layout) if p["storage"] == "sealed_local" else None
+    if p["storage"] == "sealed_stream":
+        from .benchmark_sealed_state import StreamingSealedStateFixture
+        store = StreamingSealedStateFixture(m.directory / "state", key, binding, layout)
+    else:
+        store = SealedStateFixture(m.directory / "state", key, binding, layout) if p["storage"] == "sealed_local" else None
     head = store.commit(_values(layout, p["seed"]), 0) if store else None
     resident = None if store else list(_values(layout, p["seed"]))
     m.details["prerequisites"] = {"wall_seconds": time.perf_counter() - start,
@@ -195,7 +206,8 @@ def execute_state(target, p, m):
     children = []
     def execute(_):
         if p["operation"] == "restart":
-            request = dict(directory=str(store.root), key=key.hex(), context=binding, layout=layout, head=head)
+            request = dict(directory=str(store.root), key=key.hex(), context=binding, layout=layout,
+                           head=head, storage=p["storage"])
             process = subprocess.run([sys.executable, "-I", "-m", __name__], input=canonical(request),
                                      capture_output=True, check=True, timeout=m.sampling.timeout_seconds)
             child = json.loads(process.stdout)
@@ -233,7 +245,11 @@ def execute_state(target, p, m):
     m.metric("state.publication_cpu", m.details["prerequisites"]["cpu_seconds"], kind="cpu",
              window="fixture_publication", scope="synthetic_state_initialization")
     m.metric("state.written_bytes", m.details["prerequisites"]["written_file_bytes"], kind="allocated",
-             origin="deterministic", scope="private_disk_payload")
+              origin="deterministic", scope="private_disk_payload")
+    if p["storage"] == "sealed_stream":
+        m.details["codec"] = {"encoding": "aes_gcm_existing_fixture_v1", "chunk_bytes": store._CHUNK,
+            "maximum_record_bytes": slab, "plaintext_record_array_bound_bytes": 3 * (slab + 15),
+            "scope": "codec arrays only; attention workspaces and caller-owned values are additional"}
     m.limitations += ["Synthetic full-KV storage mechanics; no real prefill provenance, logits, pending tokens, snapshot authorization or reusable protocol material.",
         "Trusted revision/key remain in the owner; this is not a persistent anti-rollback key service.",
         "Restore timing excludes separately reported initial writes; parent and restart-child peaks stay separate. Target CPU includes both processes.",
@@ -242,6 +258,12 @@ def execute_state(target, p, m):
 
 if __name__ == "__main__":
     request = json.loads(sys.stdin.buffer.read((1 << 20) + 1))
-    store = SealedStateFixture(request["directory"], bytes.fromhex(request["key"]), request["context"], request["layout"])
+    cls = SealedStateFixture
+    if request.get("storage") == "sealed_stream":
+        from .benchmark_sealed_state import StreamingSealedStateFixture
+        cls = StreamingSealedStateFixture
+    elif request.get("storage", "sealed_local") != "sealed_local":
+        raise ValueError("unsupported restart storage")
+    store = cls(request["directory"], bytes.fromhex(request["key"]), request["context"], request["layout"])
     result = _consume(store.read(request["head"]))
     print(json.dumps({"digest": result, "cpu_seconds": time.process_time(), "peak_rss_bytes": peak_rss()}))

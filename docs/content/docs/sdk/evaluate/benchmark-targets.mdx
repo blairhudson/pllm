@@ -202,6 +202,18 @@ failure. Use `benchmarks/research/client_stage_ownership.py --metadata` to retai
 exact-build coverage through `FrontierStudy`. This measures the first load-ready
 artifact gate; no subtraction of traced bytes from RSS predicts an artifact win.
 
+### Streaming sealed-state reference
+
+`BenchmarkTarget.state(..., storage="sealed_stream")` keeps the existing
+synthetic state fixture's AES-GCM frames and trusted-head contract, while
+encrypting through bounded 1 MiB buffers and decrypting into one admitted record
+allocation. Authentication completes before any plaintext record is returned.
+`roundtrip`, `attention` and `restart` use the same frozen geometry and arithmetic
+as `sealed_local`; publication, restore-child CPU/RSS and private disk stay visible.
+`benchmarks/research/state_working_set.py` compares resident, one-shot and streaming
+layouts at multiple context lengths. This is a storage/attention gate, not yet
+a compiler-bound layer-swapped decoder or durable conversation credential.
+
 ## Propagate required measurements
 
 ```python
