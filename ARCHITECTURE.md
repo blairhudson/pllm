@@ -349,6 +349,15 @@ Qwen diagnostic checks 128,876,544 independent integer outputs per frozen profil
 but preserves no complete candidate logits/KV. Defaults and numeric identities
 stay unchanged; distributed setup, transport and decoder scheduling remain absent.
 See `docs/research/mixed-gated-reference.md` for ownership, full costs and replay.
+The separate one-evaluator cost screen binds fresh installed LogRow and Compact
+scalar reports to native-checked Qwen2.5 MLP geometry. At 39+8 tokens, evaluator
+material alone requires 326.40 GB for LogRow and 1.82–2.92 TB for two default-public
+Compact profiles, against a historical 116.84 MB covered-body control. Client
+issuance keeps encoding material local; hypothetical offline Preparation issuance
+adds its separate client delivery. Boundaries and public metadata stay separate
+estimates. These changed numeric profiles and unimplemented role compositions
+cannot become a prepared decoder through cost projection. Details and replay:
+`docs/research/prepared-region-gate.md`.
 The masked-wire component now also selects experimental CPU two-offset gated
 regions. A native model-neutral pass binds each dense float32 SiLU/multiply pair,
 the fixed numeric profile, floor float32-to-Q24 and Q12-to-float32 client boundaries,

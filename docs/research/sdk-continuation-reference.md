@@ -68,3 +68,7 @@ The separate [batched greedy screen](batched-greedy-reference.md) checks exact
 rollback and charges failed drafts. Larger protected regions retain the numeric,
 cost and role gates documented in `nonlinear-decoders.md`; two-online-worker
 regions do not replace offline Preparation plus one online Inference provider.
+The [one-evaluator material screen](prepared-region-gate.md) separately charges
+client-issued and hypothetical offline-Preparation delivery. Fresh LogRow and
+Compact scalar reports exceed the historical complete-response budgets on
+evaluator material alone, before their missing exact numeric/linear composition.
