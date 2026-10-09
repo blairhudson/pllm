@@ -112,6 +112,11 @@ A second twelve-client confirmation lowers client peak RSS 15.28%/9.63% with
 matching outputs, application bodies and zero observed swap growth. The two
 confirmation runs overlapped on one host and retain separate private cohorts;
 timings do not establish an exclusive-host latency effect.
+A third twelve-client confirmation runs after both complete and lowers client
+peak RSS 9.48%/16.31%, with matching outputs, covered application bodies and zero
+observed swap growth. Online TTFT rises 3.70%/2.90% and complete cold requests
+remain slower. Both full and tiled configurations remain nondominated across the
+seven metrics; the cohorts are not pooled and establish no tenfold improvement.
 The separate response-target metadata selector attributes Python-traced compiler,
 preparation-demand and runtime-binding construction allocations. Unique public
 metadata counts exclude tensors; phase peaks include their own temporaries.

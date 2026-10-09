@@ -25,10 +25,12 @@ automatically enabled Pipeline components. Unsupported cells remain visible.
 
 The native eligibility, exact generated prefill/decode, one-use retirement and
 separate-role SDK checks pass. A six-client Qwen2.5 screen nominated 64-row tiles;
-two separate twelve-client confirmations retain all seven serving metrics. Client
-peak-RSS medians improve 9.63–17.63% across their workload cells, with matching
-outputs and zero observed swap growth. The confirmation runs overlapped on the
-host, and TTFT/latency regressions remain explicit. This is a bounded research
+three separate twelve-client confirmations retain all seven serving metrics. Client
+peak-RSS medians improve 9.48–17.63% across their workload cells, with matching
+outputs and zero observed swap growth. The first two confirmations overlapped on
+the host. A third, non-overlapping cohort lowers RSS 9.48%/16.31% while raising
+online TTFT 3.70%/2.90%; complete cold requests also remain slower. The full and
+tiled configurations both remain nondominated. This is a bounded research
 tradeoff, not tenfold savings or an automatic Pipeline choice. Contracts and full
 cohort separation: [MLP working sets](../research/mlp-working-set-reference.md).
 

@@ -169,3 +169,44 @@ uncontended latency effect. Neither cohort is discarded or pooled. Evidence:
 `docs/evidence/research-mlp-tiling-qwen25-confirmation-b.json`, with its `.plan.json`
 and `.frontier.json` companions. Reproduce B with the same confirmation arguments;
 the CLI always requires at least three clients per nominated arm.
+
+### Non-overlapping confirmation C
+
+A third twelve-client cohort ran after A and B completed, from
+21:53:24 to 22:29:34 UTC on 2026-10-09. It uses the original screen's installed
+build and another independent private cohort salt. All 24 cold/repeat requests
+pass runtime checks, preserve source/numeric/state/privacy/workload/output
+commitments and covered application bodies, and observe zero swap growth.
+Every matched replicate has lower tiled client peak RSS.
+
+| Workload / rows | Client RSS | Client CPU | Prep CPU | Prep RSS | TTFT | Decode TPS | Stream MB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 150+8 / full | 216.84 | 21.910 | 16.218 | 190.86 | 21.984 | 3.492 | 496.046 |
+| 150+8 / 64 | 196.28 | 22.065 | 16.089 | 192.23 | 22.797 | 3.451 | 496.046 |
+| 288+8 / full | 283.95 | 27.714 | 20.089 | 257.26 | 39.905 | 3.368 | 805.269 |
+| 288+8 / 64 | 237.65 | 26.281 | 20.101 | 256.97 | 41.061 | 3.771 | 805.269 |
+
+Median client peak RSS falls **9.48% / 16.31%**, while online TTFT rises
+**3.70% / 2.90%**. Complete cold-request medians are
+**113.755 → 115.521** and **179.873 → 181.666 seconds**; repeat medians are
+**11.368 → 11.353** and **11.610 → 10.857 seconds**. Decode medians change
+**−1.16% / +11.95%** despite an unchanged decode executor. The seven-metric
+frontier retains both the full and tiled cases as nondominated; there is no
+unqualified winner. These samples strengthen the bounded memory/TTFT tradeoff,
+without establishing a decode-kernel improvement or tenfold memory reduction.
+Ordinary host/process variation remains; C is neither pooled with A/B nor used
+to rewrite their measurements.
+
+Evidence: `docs/evidence/research-mlp-tiling-qwen25-confirmation-c.json`, with
+its `.plan.json` and `.frontier.json` companions. The confirmation plan binds
+the original screen and both nominated 64-row cells; unmeasured 16-row cells
+remain missing. The successful invocation was:
+
+```sh
+target/mlp-tiling-venv/bin/python -m benchmarks.research.client_stage_ownership \
+  --working-set --processes 3 --workload medium --workload long \
+  --input-bound 384 --serial-issuance --artifacts target/prepared-frontier-artifacts \
+  --confirm target/evidence/mlp-tiling-qwen25-screen.json \
+  --nominate medium/tile64 --nominate long/tile64 \
+  --output target/evidence/mlp-tiling-qwen25-confirmation-c.json
+```
