@@ -71,6 +71,11 @@ confirmation creates at least three fresh clients per arm. Physical wire,
 checkpoint distribution and independent provider operation remain outside these
 local measurements.
 
+Confirmation also requires the screen's complete case identity, including its
+recorded interpreter and installed-build digest. Run it with that same `BuildRef`;
+a newer wheel needs a fresh matched screen. Changing the launcher environment
+must not relabel historical measurements as current-build evidence.
+
 ## Initial checkpoint screen
 
 Six fresh clients execute cold/repeat Qwen2.5-0.5B requests at **150+8** and

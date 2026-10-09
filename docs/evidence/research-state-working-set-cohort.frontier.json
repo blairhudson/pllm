@@ -1,0 +1,135 @@
+{
+  "cohort": "81ce63827ab9971979048d4c36db339e23739e70375569f0b6b8d875b0410f39",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "attention-256",
+      "excluded": [],
+      "nondominated": [
+        "attention-256",
+        "attention-256/sealed"
+      ],
+      "observations": [
+        {
+          "case": "attention-256",
+          "metrics": {
+            "process.peak_rss": 60850176.0,
+            "target.cpu": 0.0014389999999999958
+          }
+        },
+        {
+          "case": "attention-256/sealed",
+          "metrics": {
+            "process.peak_rss": 60817408.0,
+            "target.cpu": 0.010074
+          }
+        },
+        {
+          "case": "attention-256/stream",
+          "metrics": {
+            "process.peak_rss": 61145088.0,
+            "target.cpu": 0.01030700000000001
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "attention-2048",
+      "excluded": [],
+      "nondominated": [
+        "attention-2048",
+        "attention-2048/stream"
+      ],
+      "observations": [
+        {
+          "case": "attention-2048",
+          "metrics": {
+            "process.peak_rss": 106037248.0,
+            "target.cpu": 0.005666999999999978
+          }
+        },
+        {
+          "case": "attention-2048/sealed",
+          "metrics": {
+            "process.peak_rss": 64225280.0,
+            "target.cpu": 0.055483000000000005
+          }
+        },
+        {
+          "case": "attention-2048/stream",
+          "metrics": {
+            "process.peak_rss": 63225856.0,
+            "target.cpu": 0.05457299999999998
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "attention-8192",
+      "excluded": [],
+      "nondominated": [
+        "attention-8192",
+        "attention-8192/stream"
+      ],
+      "observations": [
+        {
+          "case": "attention-8192",
+          "metrics": {
+            "process.peak_rss": 258588672.0,
+            "target.cpu": 0.01788500000000004
+          }
+        },
+        {
+          "case": "attention-8192/sealed",
+          "metrics": {
+            "process.peak_rss": 82034688.0,
+            "target.cpu": 0.220626
+          }
+        },
+        {
+          "case": "attention-8192/stream",
+          "metrics": {
+            "process.peak_rss": 78987264.0,
+            "target.cpu": 0.20684999999999998
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "restart",
+      "excluded": [],
+      "nondominated": [
+        "restart/stream"
+      ],
+      "observations": [
+        {
+          "case": "restart",
+          "metrics": {
+            "process.peak_rss": 77627392.0,
+            "target.cpu": 0.415943
+          }
+        },
+        {
+          "case": "restart/stream",
+          "metrics": {
+            "process.peak_rss": 69353472.0,
+            "target.cpu": 0.4060750000000001
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "process.peak_rss": "min",
+    "target.cpu": "min"
+  },
+  "run_digest": "03ef0e4ceb4d3e57b612f01ebc9a8a9353836490b6a1b9ab11007109d004f192",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "58d509509368933c1f61165cdb4d941e0c59f6259d337fd9938f65645750d41c"
+}

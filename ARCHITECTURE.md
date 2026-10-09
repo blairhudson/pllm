@@ -118,6 +118,9 @@ metadata counts exclude tensors; phase peaks include their own temporaries.
 Tracing changes costs and has a distinct measurement identity. Generated SDK
 execution and validation/failure cleanup pass; precompiled artifacts still need
 measured whole-client evidence. See `docs/research/client-metadata-reference.md`.
+A three-client Qwen2.5 cold/repeat cohort counts 3.96 MB of unique runtime metadata
+and at most 9.58 MB of new traced construction allocation. It rejects a
+metadata-only tenfold explanation; traced CPU cannot predict untraced savings.
 The state benchmark additionally selects a bounded streaming AES-GCM codec that
 retains the original synthetic state frames and trusted-revision contract.
 Authentication precedes returned plaintext; failed writes preserve the prior
@@ -125,12 +128,20 @@ generation. Cross-codec integer-bit/attention and separate-process restoration
 checks pass. These remain storage mechanics, with no compiler-bound layer-swapped
 decoder or persistent conversation credential. Replay:
 `docs/research/streaming-state-reference.md`.
+A separate 33-target synthetic cohort checks 302,072,832 storage/attention values.
+At 8,192 tokens, streaming lowers scoped peak RSS 258.59 to 78.99 MB but multiplies
+attention CPU 11.57×. Against one-shot sealed storage, its incremental RSS/CPU
+reductions are only 3.71%/6.24%; no whole-decoder benefit follows.
 Preparation targets separately benchmark exact full-batch output stripes through
 fresh ordered local push/ack peers. Completion, malformed frames, replay and
 cancellation enforce bounded ownership; both endpoint peaks, CPU and framed bodies
 remain visible. Full masks are still resident. This fixture does not select an
 HTTP inventory protocol or establish whole-response gains. Replay:
 `docs/research/correction-stripes-reference.md`.
+Thirty-six fresh stage/receiver pairs preserve 29,067,264 corrections. At 150 rows,
+digit8 with 256-column stripes lowers endpoint peaks 27.64%/46.92%, while sample
+CPU rises 3.64% and elapsed time 30.60%. Full masks and correction bytes remain;
+serial push/ack cost prevents inferring a whole-response improvement.
 The separate bounded decoder-restart target now seals actual compiled full-KV,
 logits, executed history and a pending greedy token, then restores in a fresh
 interpreter. Generated Qwen2/Qwen3/Llama checks preserve exact continuation logits
@@ -139,6 +150,10 @@ authenticated revisions and pending-token provenance precede restoration. The
 issuer still retains key/head custody; no persistent SDK conversation, independent
 roles or full-response saving is established. Replay:
 `docs/research/decoder-restart-reference.md`.
+Nine generated-checkpoint issuer/restarted-client pairs additionally preserve
+21,636 checked values at 8/32/128 input tokens. Their roughly 0.37-second restart
+CPU includes fresh process/source loading and continuation, with original bootstrap
+and publication separately charged. This establishes bounded continuity only.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%

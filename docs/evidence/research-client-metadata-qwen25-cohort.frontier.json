@@ -1,0 +1,42 @@
+{
+  "cohort": "4e242a1b4cd8069d423ae750352230bc576e09e846574389914bbdda23005579",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "medium",
+      "excluded": [],
+      "nondominated": [
+        "medium"
+      ],
+      "observations": [
+        {
+          "case": "medium",
+          "metrics": {
+            "client.cold_cpu": 35.647026,
+            "client.peak_rss": 249511936.0,
+            "network.all_link_stream_bytes": 496046314.0,
+            "preparation.cold_cpu": 16.319202048,
+            "preparation.peak_rss": 191971328.0,
+            "response.decode_tps": 3.6453173091269138,
+            "response.ttft": 27.7943493745
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "60b5e1ca33b1b117bc1e2dfb922df313c03212b8ef0e70c5e55c3b6c5bda2421",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "76c171695b33e07659f4d5a7ee17e10094a249e39187e0112d27591e9a0f02ad"
+}

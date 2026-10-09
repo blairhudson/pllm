@@ -1,0 +1,66 @@
+{
+  "cohort": "e1f92ae6edb501ae666bb255215780bfdbea69ee0a1a109af4dba27d3184c627",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "restart-8",
+      "excluded": [],
+      "nondominated": [
+        "restart-8"
+      ],
+      "observations": [
+        {
+          "case": "restart-8",
+          "metrics": {
+            "restore_child.peak_rss": 71548928.0,
+            "target.cpu": 0.373581
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "restart-32",
+      "excluded": [],
+      "nondominated": [
+        "restart-32"
+      ],
+      "observations": [
+        {
+          "case": "restart-32",
+          "metrics": {
+            "restore_child.peak_rss": 71286784.0,
+            "target.cpu": 0.36942600000000003
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "restart-128",
+      "excluded": [],
+      "nondominated": [
+        "restart-128"
+      ],
+      "observations": [
+        {
+          "case": "restart-128",
+          "metrics": {
+            "restore_child.peak_rss": 71516160.0,
+            "target.cpu": 0.37066000000000004
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "restore_child.peak_rss": "min",
+    "target.cpu": "min"
+  },
+  "run_digest": "371ccf73d3424ecc79ed881b5a3cb952f76a8c3e9e0be79e4ab75e98497b6788",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "e56abefd9d6029ccfd0f4ef6828093076b0c75ec8a296fe86ac51c4b76d152a3"
+}

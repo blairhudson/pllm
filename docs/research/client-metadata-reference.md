@@ -43,3 +43,36 @@ runtime. It does not measure construction peaks or justify precompiled artifacts
 Source verification, artifact compilation/publication, parser/native ownership
 and fresh-client whole-response RSS remain required before selecting a load-ready
 artifact implementation. No runtime validation is bypassed by this target.
+
+## Three-client checkpoint attribution
+
+Three fresh installed clients each complete a 150+8-token cold/repeat Qwen2.5
+pair under native shared 100/40 caps. All six requests pass, with matching output
+commitments and zero observed swap growth. The instrumented build is
+`0201f1d6947159b1c5c528ac9648a8154258f24e2cbba13d1344494f78138c0f`.
+
+The following medians summarize individual observed phases, not simultaneous
+owners. MB are decimal. Each client performs eight compiler-binding phases,
+four preparation-demand phases and two runtime-binding phases.
+
+| Phase | Observations | New traced peak MB | New traced retained MB | Unique public metadata MB |
+| --- | ---: | ---: | ---: | ---: |
+| Compiler binding | 24 | 9.448 | 2.424 | 2.485 |
+| Preparation demand | 12 | 2.757 | 0.059 | 0.00974 |
+| Runtime binding | 6 | 9.471 | 4.238 | 3.962 |
+
+The largest observed construction increment is **9.580 MB**; a complete runtime's
+unique public metadata is **3,961,713 bytes**. Summing phase peaks or repeated
+metadata counts would invent an owner that was not measured. Traced phase CPU
+is about 3.5 seconds per binding and cannot predict untraced validation savings.
+
+**Decision:** metadata-only replacement is not a credible tenfold client-RAM
+explanation for this workload. The screen does not justify a new load-ready
+artifact format. Repeated binding is a separately measurable CPU opportunity,
+requiring an untraced matched ablation before any benefit claim. The target proved
+useful precisely because it distinguishes retained metadata, construction overlap
+and instrumentation overhead.
+
+Evidence: `docs/evidence/research-client-metadata-qwen25-cohort.json`, with its
+`.plan.json` and `.frontier.json` companions. Replay uses the command above;
+historical untraced MLP measurements retain their original installed build.

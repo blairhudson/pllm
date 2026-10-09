@@ -1,0 +1,227 @@
+{
+  "schema": "pllm.frontier_study.v1",
+  "suite": {
+    "schema": "pllm.benchmark_suite.v1",
+    "name": "decoder-restart-v1",
+    "cases": [
+      {
+        "name": "restart-8",
+        "target": {
+          "kind": "state",
+          "parameters": {
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 132,
+                  "max_new_tokens": 4,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://decoder-restart"
+                },
+                "name": "decoder-restart",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    }
+                  },
+                  "model": {
+                    "kind": "tiny",
+                    "source": "qwen2"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "operation": "decoder_restart",
+            "seed": 7,
+            "storage": "sealed_local",
+            "tokens": 8
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/working-set-venv/bin/python",
+          "expected_digest": "0201f1d6947159b1c5c528ac9648a8154258f24e2cbba13d1344494f78138c0f"
+        },
+        "budgets": []
+      },
+      {
+        "name": "restart-32",
+        "target": {
+          "kind": "state",
+          "parameters": {
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 132,
+                  "max_new_tokens": 4,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://decoder-restart"
+                },
+                "name": "decoder-restart",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    }
+                  },
+                  "model": {
+                    "kind": "tiny",
+                    "source": "qwen2"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "operation": "decoder_restart",
+            "seed": 7,
+            "storage": "sealed_local",
+            "tokens": 32
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/working-set-venv/bin/python",
+          "expected_digest": "0201f1d6947159b1c5c528ac9648a8154258f24e2cbba13d1344494f78138c0f"
+        },
+        "budgets": []
+      },
+      {
+        "name": "restart-128",
+        "target": {
+          "kind": "state",
+          "parameters": {
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 132,
+                  "max_new_tokens": 4,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://decoder-restart"
+                },
+                "name": "decoder-restart",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    }
+                  },
+                  "model": {
+                    "kind": "tiny",
+                    "source": "qwen2"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "operation": "decoder_restart",
+            "seed": 7,
+            "storage": "sealed_local",
+            "tokens": 128
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/working-set-venv/bin/python",
+          "expected_digest": "0201f1d6947159b1c5c528ac9648a8154258f24e2cbba13d1344494f78138c0f"
+        },
+        "budgets": []
+      }
+    ],
+    "sampling": {
+      "processes": 3,
+      "repetitions": 1,
+      "warmups": 0,
+      "timeout_seconds": 180,
+      "order": "balanced",
+      "threads": 1,
+      "memory_bytes": 805306368
+    }
+  },
+  "variants": [],
+  "interactions": []
+}

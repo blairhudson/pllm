@@ -1,0 +1,158 @@
+{
+  "cohort": "d0ef9506076e5a619e706a14da1b66e1ffe9d84a3107dab73fc1cc6ea25f0393",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "native-16",
+      "excluded": [],
+      "nondominated": [
+        "native-16",
+        "native-16/columns256",
+        "native-16/columns1024"
+      ],
+      "observations": [
+        {
+          "case": "native-16",
+          "metrics": {
+            "process.peak_rss": 88211456.0,
+            "receiver.peak_rss": 39518208.0,
+            "target.cpu": 0.10674400000000002
+          }
+        },
+        {
+          "case": "native-16/columns256",
+          "metrics": {
+            "process.peak_rss": 75186176.0,
+            "receiver.peak_rss": 36716544.0,
+            "target.cpu": 0.113179
+          }
+        },
+        {
+          "case": "native-16/columns1024",
+          "metrics": {
+            "process.peak_rss": 76365824.0,
+            "receiver.peak_rss": 36831232.0,
+            "target.cpu": 0.10683600000000003
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "native-150",
+      "excluded": [],
+      "nondominated": [
+        "native-150",
+        "native-150/columns256",
+        "native-150/columns1024"
+      ],
+      "observations": [
+        {
+          "case": "native-150",
+          "metrics": {
+            "process.peak_rss": 120520704.0,
+            "receiver.peak_rss": 69828608.0,
+            "target.cpu": 0.24524
+          }
+        },
+        {
+          "case": "native-150/columns256",
+          "metrics": {
+            "process.peak_rss": 87261184.0,
+            "receiver.peak_rss": 37208064.0,
+            "target.cpu": 0.251514
+          }
+        },
+        {
+          "case": "native-150/columns1024",
+          "metrics": {
+            "process.peak_rss": 90128384.0,
+            "receiver.peak_rss": 40091648.0,
+            "target.cpu": 0.248934
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "digit8_native-16",
+      "excluded": [],
+      "nondominated": [
+        "digit8_native-16/columns256",
+        "digit8_native-16/columns1024"
+      ],
+      "observations": [
+        {
+          "case": "digit8_native-16",
+          "metrics": {
+            "process.peak_rss": 95993856.0,
+            "receiver.peak_rss": 39550976.0,
+            "target.cpu": 0.10811999999999998
+          }
+        },
+        {
+          "case": "digit8_native-16/columns256",
+          "metrics": {
+            "process.peak_rss": 77053952.0,
+            "receiver.peak_rss": 36601856.0,
+            "target.cpu": 0.10847399999999997
+          }
+        },
+        {
+          "case": "digit8_native-16/columns1024",
+          "metrics": {
+            "process.peak_rss": 87638016.0,
+            "receiver.peak_rss": 36749312.0,
+            "target.cpu": 0.10472
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "digit8_native-150",
+      "excluded": [],
+      "nondominated": [
+        "digit8_native-150/columns256",
+        "digit8_native-150/columns1024"
+      ],
+      "observations": [
+        {
+          "case": "digit8_native-150",
+          "metrics": {
+            "process.peak_rss": 124321792.0,
+            "receiver.peak_rss": 69877760.0,
+            "target.cpu": 0.159844
+          }
+        },
+        {
+          "case": "digit8_native-150/columns256",
+          "metrics": {
+            "process.peak_rss": 89964544.0,
+            "receiver.peak_rss": 37093376.0,
+            "target.cpu": 0.165667
+          }
+        },
+        {
+          "case": "digit8_native-150/columns1024",
+          "metrics": {
+            "process.peak_rss": 92094464.0,
+            "receiver.peak_rss": 40042496.0,
+            "target.cpu": 0.15891500000000003
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "process.peak_rss": "min",
+    "receiver.peak_rss": "min",
+    "target.cpu": "min"
+  },
+  "run_digest": "00488adc5721938dbfda865f5c2328a044a7b88fdfb3e797bb640484da67a5ca",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "2076ae01ee8e047841769c96dafcab76ef145cf1b95c20d88d2f86e0c19003ec"
+}

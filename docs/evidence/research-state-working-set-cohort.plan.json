@@ -1,0 +1,391 @@
+{
+  "schema": "pllm.frontier_study.v1",
+  "suite": {
+    "schema": "pllm.benchmark_suite.v1",
+    "name": "state-working-set-v1",
+    "cases": [
+      {
+        "name": "attention-256",
+        "target": {
+          "kind": "state",
+          "parameters": {
+            "model": {
+              "config": {
+                "architectures": [
+                  "Qwen2ForCausalLM"
+                ],
+                "attention_dropout": 0.0,
+                "bos_token_id": 151643,
+                "eos_token_id": 151645,
+                "hidden_act": "silu",
+                "hidden_size": 896,
+                "initializer_range": 0.02,
+                "intermediate_size": 4864,
+                "max_position_embeddings": 32768,
+                "max_window_layers": 21,
+                "model_type": "qwen2",
+                "num_attention_heads": 14,
+                "num_hidden_layers": 24,
+                "num_key_value_heads": 2,
+                "rms_norm_eps": 1e-06,
+                "rope_theta": 1000000.0,
+                "sliding_window": 32768,
+                "tie_word_embeddings": true,
+                "torch_dtype": "bfloat16",
+                "transformers_version": "4.43.1",
+                "use_cache": true,
+                "use_sliding_window": false,
+                "vocab_size": 151936
+              },
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 8192,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://state-working-set"
+                },
+                "name": "state-working-set",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "local_files_only": true,
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "operation": "attention",
+            "seed": 7,
+            "storage": "memory",
+            "tokens": 256
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/working-set-venv/bin/python",
+          "expected_digest": "0201f1d6947159b1c5c528ac9648a8154258f24e2cbba13d1344494f78138c0f"
+        },
+        "budgets": []
+      },
+      {
+        "name": "attention-2048",
+        "target": {
+          "kind": "state",
+          "parameters": {
+            "model": {
+              "config": {
+                "architectures": [
+                  "Qwen2ForCausalLM"
+                ],
+                "attention_dropout": 0.0,
+                "bos_token_id": 151643,
+                "eos_token_id": 151645,
+                "hidden_act": "silu",
+                "hidden_size": 896,
+                "initializer_range": 0.02,
+                "intermediate_size": 4864,
+                "max_position_embeddings": 32768,
+                "max_window_layers": 21,
+                "model_type": "qwen2",
+                "num_attention_heads": 14,
+                "num_hidden_layers": 24,
+                "num_key_value_heads": 2,
+                "rms_norm_eps": 1e-06,
+                "rope_theta": 1000000.0,
+                "sliding_window": 32768,
+                "tie_word_embeddings": true,
+                "torch_dtype": "bfloat16",
+                "transformers_version": "4.43.1",
+                "use_cache": true,
+                "use_sliding_window": false,
+                "vocab_size": 151936
+              },
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 8192,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://state-working-set"
+                },
+                "name": "state-working-set",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "local_files_only": true,
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "operation": "attention",
+            "seed": 7,
+            "storage": "memory",
+            "tokens": 2048
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/working-set-venv/bin/python",
+          "expected_digest": "0201f1d6947159b1c5c528ac9648a8154258f24e2cbba13d1344494f78138c0f"
+        },
+        "budgets": []
+      },
+      {
+        "name": "attention-8192",
+        "target": {
+          "kind": "state",
+          "parameters": {
+            "model": {
+              "config": {
+                "architectures": [
+                  "Qwen2ForCausalLM"
+                ],
+                "attention_dropout": 0.0,
+                "bos_token_id": 151643,
+                "eos_token_id": 151645,
+                "hidden_act": "silu",
+                "hidden_size": 896,
+                "initializer_range": 0.02,
+                "intermediate_size": 4864,
+                "max_position_embeddings": 32768,
+                "max_window_layers": 21,
+                "model_type": "qwen2",
+                "num_attention_heads": 14,
+                "num_hidden_layers": 24,
+                "num_key_value_heads": 2,
+                "rms_norm_eps": 1e-06,
+                "rope_theta": 1000000.0,
+                "sliding_window": 32768,
+                "tie_word_embeddings": true,
+                "torch_dtype": "bfloat16",
+                "transformers_version": "4.43.1",
+                "use_cache": true,
+                "use_sliding_window": false,
+                "vocab_size": 151936
+              },
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 8192,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://state-working-set"
+                },
+                "name": "state-working-set",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "local_files_only": true,
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "operation": "attention",
+            "seed": 7,
+            "storage": "memory",
+            "tokens": 8192
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/working-set-venv/bin/python",
+          "expected_digest": "0201f1d6947159b1c5c528ac9648a8154258f24e2cbba13d1344494f78138c0f"
+        },
+        "budgets": []
+      },
+      {
+        "name": "restart",
+        "target": {
+          "kind": "state",
+          "parameters": {
+            "model": {
+              "config": {
+                "architectures": [
+                  "Qwen2ForCausalLM"
+                ],
+                "attention_dropout": 0.0,
+                "bos_token_id": 151643,
+                "eos_token_id": 151645,
+                "hidden_act": "silu",
+                "hidden_size": 896,
+                "initializer_range": 0.02,
+                "intermediate_size": 4864,
+                "max_position_embeddings": 32768,
+                "max_window_layers": 21,
+                "model_type": "qwen2",
+                "num_attention_heads": 14,
+                "num_hidden_layers": 24,
+                "num_key_value_heads": 2,
+                "rms_norm_eps": 1e-06,
+                "rope_theta": 1000000.0,
+                "sliding_window": 32768,
+                "tie_word_embeddings": true,
+                "torch_dtype": "bfloat16",
+                "transformers_version": "4.43.1",
+                "use_cache": true,
+                "use_sliding_window": false,
+                "vocab_size": 151936
+              },
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 8192,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://state-working-set"
+                },
+                "name": "state-working-set",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "local_files_only": true,
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "operation": "restart",
+            "seed": 7,
+            "storage": "sealed_local",
+            "tokens": 8192
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/working-set-venv/bin/python",
+          "expected_digest": "0201f1d6947159b1c5c528ac9648a8154258f24e2cbba13d1344494f78138c0f"
+        },
+        "budgets": []
+      }
+    ],
+    "sampling": {
+      "processes": 3,
+      "repetitions": 1,
+      "warmups": 0,
+      "timeout_seconds": 300,
+      "order": "balanced",
+      "threads": 1,
+      "memory_bytes": 805306368
+    }
+  },
+  "variants": [
+    {
+      "name": "sealed",
+      "parameters": {
+        "storage": "sealed_local"
+      },
+      "targets": [
+        "attention-256",
+        "attention-2048",
+        "attention-8192"
+      ]
+    },
+    {
+      "name": "stream",
+      "parameters": {
+        "storage": "sealed_stream"
+      },
+      "targets": []
+    }
+  ],
+  "interactions": []
+}
