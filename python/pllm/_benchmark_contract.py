@@ -309,7 +309,7 @@ class BenchmarkTarget:
 
     @classmethod
     def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None,
-                 client_mlp=None):
+                 client_mlp=None, client_metadata=False):
         if scenario is None:
             scenario = Scenario.cold()
         if not isinstance(scenario, Scenario):
@@ -321,6 +321,10 @@ class BenchmarkTarget:
             parameters["client_stage"] = dict(client_stage)
         if client_mlp is not None:
             parameters["client_mlp"] = dict(client_mlp)
+        if type(client_metadata) is not bool:
+            raise ValueError("client metadata attribution must be a boolean")
+        if client_metadata:
+            parameters["client_metadata"] = True
         return cls("response", parameters)
 
     @classmethod
@@ -346,6 +350,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"client_stage"}
     if kind == "response" and "client_mlp" in p:
         fields[kind] = fields[kind] | {"client_mlp"}
+    if kind == "response" and "client_metadata" in p:
+        fields[kind] = fields[kind] | {"client_metadata"}
     if set(p) != fields[kind]:
         raise ValueError("benchmark target fields differ from its contract")
     if "model" in p:
@@ -392,6 +398,10 @@ def _validate_target(document):
         bounded_int(p["tokens"], 1, 1 << 20, "state tokens")
     elif kind == "response":
         Scenario(**p["scenario"])
+        if "client_metadata" in p:
+            if (p["client_metadata"] is not True or p["backend"] != "native"
+                    or "client_stage" in p or "client_mlp" in p):
+                raise ValueError("metadata attribution requires a separate native response case")
         if "client_mlp" in p:
             selected = p["client_mlp"]
             if not isinstance(selected, dict) or set(selected) != {"tile_rows"}:

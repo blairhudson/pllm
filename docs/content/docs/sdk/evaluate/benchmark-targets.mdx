@@ -186,6 +186,22 @@ Exact generated Qwen2/Qwen3/Llama logits and KV are covered separately from
 checkpoint response measurements. Contracts and replay:
 `docs/research/mlp-working-set-reference.md`.
 
+### Client construction attribution
+
+`BenchmarkTarget.response(experiment, client_metadata=True)` traces Python
+allocations while the ordinary client compiles, validates, sizes preparation and
+binds its semantic runtime. `execution.details.client_metadata.phases` records
+each phase's new retained/peak traced bytes, CPU, wall time and unique public
+metadata object bytes. Nested compilation stays inside its outer runtime phase.
+Tensor storage and native allocations are outside the public-metadata count;
+construction traces still include the temporaries that those functions allocate.
+
+Tracing has a separate measurement identity and cannot rank against untraced
+serving results. The fixed executor restores its hooks and tracing ownership on
+failure. Use `benchmarks/research/client_stage_ownership.py --metadata` to retain
+exact-build coverage through `FrontierStudy`. This measures the first load-ready
+artifact gate; no subtraction of traced bytes from RSS predicts an artifact win.
+
 ## Propagate required measurements
 
 ```python

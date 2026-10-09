@@ -78,6 +78,16 @@ def mlp_study(base):
         tuple(Variant(f"tile{rows}", {"client_mlp": {"tile_rows": rows}}) for rows in (16, 64)))
 
 
+def metadata_study(base):
+    cases = []
+    for case in base.suite.cases:
+        spec = case.target.to_spec()
+        del spec["parameters"]["client_stage"]
+        spec["parameters"]["client_metadata"] = True
+        cases.append(BenchmarkCase(case.name, BenchmarkTarget.from_spec(spec), case.build, case.budgets))
+    return FrontierStudy(BenchmarkSuite(tuple(cases), base.suite.sampling, "client-metadata-attribution-v1"))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -85,7 +95,9 @@ def main(argv=None):
     parser.add_argument("--artifacts", type=Path, default=Path("target/prepared-frontier-artifacts"))
     parser.add_argument("--prompt-file", type=Path, help="Public medium-workload text, independent of model artifacts")
     parser.add_argument("--tiny", action="store_true")
-    parser.add_argument("--working-set", action="store_true", help="Screen compiler-bound MLP tiles and metadata owners")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--working-set", action="store_true", help="Screen compiler-bound MLP tiles and metadata owners")
+    selection.add_argument("--metadata", action="store_true", help="Attribute compiler/binding construction allocations")
     parser.add_argument("--serial-issuance", action="store_true",
                         help="Use explicitly serial Preparation in both controls and candidates")
     parser.add_argument("--input-bound", type=int,
@@ -97,6 +109,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.nominate and args.confirm is None:
         parser.error("--nominate requires --confirm")
+    if args.metadata and args.confirm:
+        parser.error("metadata attribution has no optimization finalist to confirm")
     if args.output.exists():
         raise FileExistsError("output already exists")
     if args.tiny:
@@ -126,6 +140,8 @@ def main(argv=None):
                     input_bound=args.input_bound)
     if args.working_set:
         current = mlp_study(current)
+    if args.metadata:
+        current = metadata_study(current)
     screen = BenchmarkRun.load(args.confirm) if args.confirm else None
     work = (current.confirm(screen, cases=args.nominate, processes=max(3, args.processes))
             if screen is not None else current.plan(max_trials=256))

@@ -103,6 +103,12 @@ at 150+8 and 288+8 tokens lowers client peak RSS 15.33%/11.51% with 64-row tiles
 while median online TTFT rises 3.41%/4.38%. Outputs match with zero observed swap
 growth. Independent confirmation remains required; this is an evidence-gated
 research executor. Contract and replay: `docs/research/mlp-working-set-reference.md`.
+The separate response-target metadata selector attributes Python-traced compiler,
+preparation-demand and runtime-binding construction allocations. Unique public
+metadata counts exclude tensors; phase peaks include their own temporaries.
+Tracing changes costs and has a distinct measurement identity. Generated SDK
+execution and validation/failure cleanup pass; precompiled artifacts still need
+measured whole-client evidence. See `docs/research/client-metadata-reference.md`.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%
