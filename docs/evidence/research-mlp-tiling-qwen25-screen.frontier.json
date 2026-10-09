@@ -1,0 +1,116 @@
+{
+  "cohort": "5f5c651c892c426539dd6c1438665d948151b7c29e88ded829d715b593e2671f",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "medium",
+      "excluded": [],
+      "nondominated": [
+        "medium",
+        "medium/tile16",
+        "medium/tile64"
+      ],
+      "observations": [
+        {
+          "case": "medium",
+          "metrics": {
+            "client.cold_cpu": 21.247963,
+            "client.peak_rss": 233455616.0,
+            "network.all_link_stream_bytes": 496046300.0,
+            "preparation.cold_cpu": 15.877245440000001,
+            "preparation.peak_rss": 188891136.0,
+            "response.decode_tps": 3.6569886683245425,
+            "response.ttft": 21.926516999999997
+          }
+        },
+        {
+          "case": "medium/tile16",
+          "metrics": {
+            "client.cold_cpu": 21.260027,
+            "client.peak_rss": 189038592.0,
+            "network.all_link_stream_bytes": 496046284.0,
+            "preparation.cold_cpu": 15.771738496000001,
+            "preparation.peak_rss": 193052672.0,
+            "response.decode_tps": 3.653094704645461,
+            "response.ttft": 25.161369917000002
+          }
+        },
+        {
+          "case": "medium/tile64",
+          "metrics": {
+            "client.cold_cpu": 20.986142,
+            "client.peak_rss": 197672960.0,
+            "network.all_link_stream_bytes": 496046300.0,
+            "preparation.cold_cpu": 15.955225087999999,
+            "preparation.peak_rss": 192020480.0,
+            "response.decode_tps": 3.8067951562668507,
+            "response.ttft": 22.6737760625
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "long",
+      "excluded": [],
+      "nondominated": [
+        "long",
+        "long/tile16",
+        "long/tile64"
+      ],
+      "observations": [
+        {
+          "case": "long",
+          "metrics": {
+            "client.cold_cpu": 27.846777,
+            "client.peak_rss": 267550720.0,
+            "network.all_link_stream_bytes": 805268892.0,
+            "preparation.cold_cpu": 21.161953280000002,
+            "preparation.peak_rss": 257146880.0,
+            "response.decode_tps": 3.483002544318066,
+            "response.ttft": 39.640040584
+          }
+        },
+        {
+          "case": "long/tile16",
+          "metrics": {
+            "client.cold_cpu": 28.829361,
+            "client.peak_rss": 235569152.0,
+            "network.all_link_stream_bytes": 805268971.0,
+            "preparation.cold_cpu": 21.614903808,
+            "preparation.peak_rss": 264437760.0,
+            "response.decode_tps": 3.6766731677447706,
+            "response.ttft": 46.707297479
+          }
+        },
+        {
+          "case": "long/tile64",
+          "metrics": {
+            "client.cold_cpu": 28.173995,
+            "client.peak_rss": 236765184.0,
+            "network.all_link_stream_bytes": 805268906.0,
+            "preparation.cold_cpu": 21.225586560000004,
+            "preparation.peak_rss": 259571712.0,
+            "response.decode_tps": 3.654966515549032,
+            "response.ttft": 41.375305396
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "client.cold_cpu": "min",
+    "client.peak_rss": "min",
+    "network.all_link_stream_bytes": "min",
+    "preparation.cold_cpu": "min",
+    "preparation.peak_rss": "min",
+    "response.decode_tps": "max",
+    "response.ttft": "min"
+  },
+  "run_digest": "22b2008ca6a215c2fe8e7b0e5f0ad86c3f90e002d0097dd9b6e28ba8532d0c00",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "d26eb011cec998caaaf97cf8a14deb24f3f91aa82909984919262b232585ff73"
+}

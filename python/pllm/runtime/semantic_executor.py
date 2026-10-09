@@ -53,6 +53,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
 
     _causal_reduction: str | None = None
     _retained = None
+    _mlp_tiling = None
 
     def _install_retained(self, contract) -> None:
         from .retained_execution import RetainedExecution
@@ -1179,7 +1180,21 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             for row in graph["state_outputs"] if row["kind"] in {"convolution", "recurrent"}
         }
         pending_hybrid: dict[tuple[int, str], np.ndarray] = {}
-        for step in steps:
+        skipped_until = 0
+        for step_index, step in enumerate(steps):
+            if step_index < skipped_until:
+                continue
+            region = (self._mlp_tiling.regions.get(step_index)
+                      if self._mlp_tiling is not None and phase == "prefill" and not continuation else None)
+            if region is not None:
+                self._mlp_tiling.execute(self, region, phase, steps, operations, ids, values)
+                skipped_until = region["end_step"]
+                for tiled_step in steps[step_index:skipped_until]:
+                    for input_id in tiled_step["input_ids"]:
+                        remaining[input_id] -= 1
+                        if remaining[input_id] == 0 and input_id != logits_id:
+                            values.pop(input_id, None)
+                continue
             op_ids = step["operation_ids"]
             if step["executor"] == "client_local":
                 operation = operations[op_ids[0]]
@@ -1250,6 +1265,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         execution = hashlib.sha256(
             b"pllm.decoder.execution-basis.v1\0" + native_phase.encode()
+            + (b"" if self._mlp_tiling is None else self._mlp_tiling.digest.encode())
             + (b"" if previous_basis is None else previous_basis.execution_digest.encode())
             + positions.astype("<i8").tobytes() + ids.astype("<i8").tobytes()
         ).hexdigest()

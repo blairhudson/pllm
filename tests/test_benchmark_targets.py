@@ -205,3 +205,38 @@ def test_research_stage_selection_is_explicit_bounded_and_retires_on_error(exper
         with client_stage_execution(selection):
             raise RuntimeError("injected")
     assert CompiledRuntimeModel.runtime is original
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("rows", [0, 7])
+def test_response_mlp_selector_measures_real_execution_and_restores_owners(experiment, tmp_path, rows):
+    from pllm.metrics import Scenario
+    from pllm.runtime.model_binding import CompiledRuntimeModel
+    from pllm.runtime.semantic_executor import SemanticDecoderRuntime
+    original, forward = CompiledRuntimeModel.runtime, SemanticDecoderRuntime._forward
+    target = BenchmarkTarget.response(experiment, scenario=Scenario.repeat(max_output_tokens=2),
+                                      client_mlp={"tile_rows": rows})
+    assert BenchmarkTarget.from_spec(target.to_spec()).digest == target.digest
+    m = measurement(tmp_path, inputs={"prompt": "Hi there."})
+    m.sampling = Sampling(processes=1, memory_bytes=2 << 30)
+    execute_target(target, m)
+    records = m.details["client_mlp_research"]["bindings"]
+    assert sum(row["prefill_calls"] for row in records) == 2
+    assert all(row["metadata_python_bytes"] > 0 for row in records)
+    assert (sum(row["tiles"] for row in records) > 0) == bool(rows)
+    assert CompiledRuntimeModel.runtime is original and SemanticDecoderRuntime._forward is forward
+    assert m.oracle["outcome"] == "passed"
+
+
+def test_research_mlp_selector_failure_cleanup_and_bounds(experiment):
+    from pllm.runtime.benchmark_client_mlp import client_mlp_execution
+    from pllm.runtime.model_binding import CompiledRuntimeModel
+    from pllm.runtime.semantic_executor import SemanticDecoderRuntime
+    for bad in (True, -1, 257):
+        with pytest.raises(ValueError):
+            BenchmarkTarget.response(experiment, client_mlp={"tile_rows": bad})
+    original, forward = CompiledRuntimeModel.runtime, SemanticDecoderRuntime._forward
+    with pytest.raises(RuntimeError, match="cancel"):
+        with client_mlp_execution({"tile_rows": 16}):
+            raise RuntimeError("cancel")
+    assert CompiledRuntimeModel.runtime is original and SemanticDecoderRuntime._forward is forward

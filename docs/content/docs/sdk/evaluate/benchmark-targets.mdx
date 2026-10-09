@@ -164,6 +164,28 @@ short-workload confirmation increases client peak RSS by 1.32%; exact arithmetic
 compatibility has not established a memory benefit or justified wider native
 ownership. Full evidence and replay: `docs/research/client-stage-ownership.md`.
 
+### Research MLP working sets
+
+`BenchmarkTarget.response(experiment, client_mlp={"tile_rows": 16})` additionally
+executes compiler-admitted initial-prefill MLP regions in row tiles. Use
+`{"tile_rows": 0}` as the matched full-tensor control. The native pass binds the
+original gate/up, SiLU, multiply and down operations, their exclusive consumers,
+public tile bound and source schedule. Both arms retain the same eligibility and
+metadata instrumentation. Decode and continuation use the original schedule.
+
+This fixed research selector requires unverified prepared execution and rejects
+protected nonlinear or retained-state contracts. Tiling retires wide intermediates
+before the next tile, while keeping body weights remote and every mask row one-use.
+`execution.details.client_mlp_research` reports actual tile counts and separately
+counted public Python metadata bytes. Whole-response RSS, CPU, traffic and latency
+remain ordinary measured metrics. Existing conservative admission still applies.
+
+`benchmarks/research/client_stage_ownership.py --working-set` screens 16- and
+64-row tiles through the same `FrontierStudy` workloads and confirmation runner.
+Exact generated Qwen2/Qwen3/Llama logits and KV are covered separately from
+checkpoint response measurements. Contracts and replay:
+`docs/research/mlp-working-set-reference.md`.
+
 ## Propagate required measurements
 
 ```python

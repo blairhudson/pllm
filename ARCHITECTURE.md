@@ -89,6 +89,20 @@ A separate 288+8 cold/repeat pair increases client RSS 6.40%, while a three-turn
 46/81/120+8 history pair lowers it 1.43%; outputs and bodies match with zero
 observed swap growth. The admitted 384-token-bound workloads retain separate
 evidence from 512-bound codec rejections. Qwen3 remains memory-admission blocked.
+An internal compiler-bound MLP working-set experiment carries a public 1–256-row
+tile through the original remote gate/up, local SiLU/multiply and remote down
+operations. Native eligibility binds exclusive intermediate consumers and the
+complete source schedule; terminal pruning, protected nonlinear and retained-state
+contracts cannot be folded into a region. Initial-prefill intermediates retire
+between tiles, while complete hidden-width outputs and ordinary decode/KV remain.
+Generated Qwen2/Qwen3/Llama logits and active KV agree exactly, including separate
+prepared-role children and failure retirement. The fixed response benchmark selector
+charges additional exchanges and reports metadata owners separately from RSS;
+conservative full-stage admission remains. An initial six-client Qwen2.5 screen
+at 150+8 and 288+8 tokens lowers client peak RSS 15.33%/11.51% with 64-row tiles,
+while median online TTFT rises 3.41%/4.38%. Outputs match with zero observed swap
+growth. Independent confirmation remains required; this is an evidence-gated
+research executor. Contract and replay: `docs/research/mlp-working-set-reference.md`.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%

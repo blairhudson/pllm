@@ -308,7 +308,8 @@ class BenchmarkTarget:
                                  storage=storage, tokens=tokens, seed=seed))
 
     @classmethod
-    def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None):
+    def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None,
+                 client_mlp=None):
         if scenario is None:
             scenario = Scenario.cold()
         if not isinstance(scenario, Scenario):
@@ -318,6 +319,8 @@ class BenchmarkTarget:
             "wan": None if wan is None else wan.to_spec()}
         if client_stage is not None:
             parameters["client_stage"] = dict(client_stage)
+        if client_mlp is not None:
+            parameters["client_mlp"] = dict(client_mlp)
         return cls("response", parameters)
 
     @classmethod
@@ -341,6 +344,8 @@ def _validate_target(document):
     }
     if kind == "response" and "client_stage" in p:
         fields[kind] = fields[kind] | {"client_stage"}
+    if kind == "response" and "client_mlp" in p:
+        fields[kind] = fields[kind] | {"client_mlp"}
     if set(p) != fields[kind]:
         raise ValueError("benchmark target fields differ from its contract")
     if "model" in p:
@@ -387,6 +392,13 @@ def _validate_target(document):
         bounded_int(p["tokens"], 1, 1 << 20, "state tokens")
     elif kind == "response":
         Scenario(**p["scenario"])
+        if "client_mlp" in p:
+            selected = p["client_mlp"]
+            if not isinstance(selected, dict) or set(selected) != {"tile_rows"}:
+                raise ValueError("invalid research MLP tiling selection")
+            bounded_int(selected["tile_rows"], 0, 256, "MLP tile rows")
+            if p["backend"] != "native" or "client_stage" in p:
+                raise ValueError("research MLP tiling requires separate native response cases")
         choice(p["backend"], {"native", "docker", "auto"}, "serving backend")
         if p["wan"] is not None:
             from pllm.deployment import WanConditions

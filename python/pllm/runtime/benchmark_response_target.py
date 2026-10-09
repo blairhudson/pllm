@@ -102,6 +102,10 @@ def execute_response(p, m):
     if selected is not None:
         from .benchmark_client_stage import client_stage_execution
         stage_scope = client_stage_execution(selected)
+    mlp = p.get("client_mlp")
+    if mlp is not None:
+        from .benchmark_client_mlp import client_mlp_execution
+        stage_scope = client_mlp_execution(mlp)
     with stage_scope as stage_records:
         report, = m.run(execute)
     if selected is not None:
@@ -109,6 +113,11 @@ def execute_response(p, m):
             raise TargetUnavailable("research_client_stage_not_executed", status="failed")
         m.details["client_stage_research"] = {"selection": selected, "bindings": stage_records,
             "scope": "one_selected_stage_in_complete_sdk_responses", "pipeline_component": False}
+    if mlp is not None:
+        if not stage_records or not any(row["prefill_calls"] for row in stage_records):
+            raise TargetUnavailable("research_mlp_not_executed", status="failed")
+        m.details["client_mlp_research"] = {"selection": mlp, "bindings": stage_records,
+            "scope": "compiler_bound_mlp_tiling_in_complete_sdk", "pipeline_component": False}
     if (report.get("checks", {}).get("passed") is not True or len(report["runs"]) != scenario.count
             or any(r["status"] != "completed" or r["tokens"].get("authoritative") is not True for r in report["runs"])):
         raise TargetUnavailable("response_checks_failed", status="failed")
@@ -127,7 +136,12 @@ def execute_response(p, m):
         m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
             "research_client_stage": {key: selected[key] for key in ("role", "layer")}})
         m.limitations += ["Explicit research stage-ownership adapter; not a selectable Pipeline component or native decoder.",
-                         "Python, tokenizer, transport, model binding and response state remain in the measured client."]
+                          "Python, tokenizer, transport, model binding and response state remain in the measured client."]
+    if mlp is not None:
+        m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
+            "research": "client_mlp_working_set_v1"})
+        m.limitations += ["Internal compiler-bound MLP tiling experiment; no selectable Pipeline component.",
+                         "Ordinary conservative memory and residue-codec admission remain in force."]
     m.fixture = {"kind": "generated_checkpoint" if experiment.pipeline.model.kind == "tiny" else "checkpoint",
         "digest": config["source_lock_digest"], "metadata": {"cached_checkpoint": True, "owned_client_cache": "fresh"}}
     m.oracle = {"kind": "ordinary_role_runtime_checks", "outcome": "passed", "checked_values": sum(r["tokens"]["output_tokens"] for r in runs)}

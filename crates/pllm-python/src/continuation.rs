@@ -70,8 +70,23 @@ fn admit_decoder_continuation(
     .map_err(crate::invalid)
 }
 
+#[pyfunction]
+fn decoder_mlp_tiling<'py>(
+    py: Python<'py>,
+    plan: &Bound<'_, PyBytes>,
+    composition: &Bound<'_, PyBytes>,
+    tile_rows: u64,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let (plan, composition) = (plan.as_bytes(), composition.as_bytes());
+    let bytes = py
+        .detach(|| pllm_compiler::mlp_tiling_bytes(plan, composition, tile_rows))
+        .map_err(crate::invalid)?;
+    Ok(PyBytes::new(py, &bytes))
+}
+
 pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyContinuationAdmission>()?;
+    module.add_function(wrap_pyfunction!(decoder_mlp_tiling, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_continuation, module)?)?;
     module.add_function(wrap_pyfunction!(admit_decoder_continuation, module)?)
 }

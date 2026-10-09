@@ -61,6 +61,23 @@ def workload_inputs(short, medium, *, tiny=False):
             "growing": {"prompts": [history[:end] for end in (1, 3, 5)]}}
 
 
+def mlp_study(base):
+    """Reuse exactly the same workloads, builds, admission and seven metrics."""
+    cases = []
+    for case in base.suite.cases:
+        spec = case.target.to_spec()
+        del spec["parameters"]["client_stage"]
+        spec["parameters"]["client_mlp"] = {"tile_rows": 0}
+        target = BenchmarkTarget.from_spec(spec)
+        if Model.from_spec(spec["parameters"]["model"]["experiment"]["pipeline"]["model"]).kind == "tiny":
+            # The one-layer transport fixture otherwise prunes its only MLP to
+            # the last row. Larger checkpoints retain their terminal pruning.
+            target = target.with_params(pipeline__linear__prefill_pruning="none")
+        cases.append(BenchmarkCase(case.name, target, case.build, case.budgets))
+    return FrontierStudy(BenchmarkSuite(tuple(cases), base.suite.sampling, "client-mlp-working-set-v1"),
+        tuple(Variant(f"tile{rows}", {"client_mlp": {"tile_rows": rows}}) for rows in (16, 64)))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -68,6 +85,7 @@ def main(argv=None):
     parser.add_argument("--artifacts", type=Path, default=Path("target/prepared-frontier-artifacts"))
     parser.add_argument("--prompt-file", type=Path, help="Public medium-workload text, independent of model artifacts")
     parser.add_argument("--tiny", action="store_true")
+    parser.add_argument("--working-set", action="store_true", help="Screen compiler-bound MLP tiles and metadata owners")
     parser.add_argument("--serial-issuance", action="store_true",
                         help="Use explicitly serial Preparation in both controls and candidates")
     parser.add_argument("--input-bound", type=int,
@@ -106,6 +124,8 @@ def main(argv=None):
     current = study(model=model, tokenizer=tokenizer, build=build, workloads=workloads,
                     processes=args.processes, serial_issuance=args.serial_issuance,
                     input_bound=args.input_bound)
+    if args.working_set:
+        current = mlp_study(current)
     screen = BenchmarkRun.load(args.confirm) if args.confirm else None
     work = (current.confirm(screen, cases=args.nominate, processes=max(3, args.processes))
             if screen is not None else current.plan(max_trials=256))
@@ -123,8 +143,10 @@ def main(argv=None):
     for name in workloads:
         if name not in measured:
             continue
-        summaries.append({"workload": name, "metrics": {
-            metric: run.compare(name, name + "/native", metric) for metric in SERVING_METRICS}})
+        for variant in current.variants:
+            if name + "/" + variant.name in measured:
+                summaries.append({"workload": name, "variant": variant.name, "metrics": {
+                    metric: run.compare(name, name + "/" + variant.name, metric) for metric in SERVING_METRICS}})
     print(json.dumps({"completed": sum(r.to_dict()["status"] == "completed" for r in run.results),
                       "trials": len(run.results), "comparisons": summaries}, indent=2))
 
