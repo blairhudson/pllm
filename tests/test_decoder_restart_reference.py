@@ -106,3 +106,12 @@ def test_source_admission_precedes_loading_values(checkpoint, monkeypatch):
     monkeypatch.setattr(MaskedTransformerEngine, "load", reject)
     with pytest.raises(TargetUnavailable, match="restart_reference_source_limit"):
         bind(checkpoint[0], 32)
+
+
+def test_publication_rejects_cross_source_runtime_owner(checkpoint):
+    source, _, _, runtime, _, root, key, _, logits, history = checkpoint
+    other = create_tiny_llama_checkpoint(source.parent / "different", seed=87, num_hidden_layers=2)
+    compiled, contract, _, _ = bind(other, 32)
+    with pytest.raises(ValueError, match="compiled owner"):
+        publish(root, key, 1, compiled, contract, runtime, logits, history)
+    assert not (root / "1").exists()

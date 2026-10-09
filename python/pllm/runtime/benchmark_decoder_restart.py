@@ -118,9 +118,21 @@ def _aad(compiled, contract, revision):
                       "continuation": contract.digest, "revision": revision})
 
 
+def _validate_owner(compiled, contract, runtime):
+    from pllm.configuration import Pipeline
+    from .model_binding import _state_binding_digest
+    compiled.validate()
+    composition = Pipeline.from_spec(json.loads(compiled._canonical_composition))
+    expected = _state_binding_digest(compiled._plan, compiled._bundle, composition.digest())
+    if runtime._state_binding_digest != expected:
+        raise ValueError("checkpoint runtime differs from its compiled owner")
+    runtime.install_continuation(contract)
+
+
 def publish(root, key, revision, compiled, contract, runtime, logits, history, *, fail=False):
     if type(revision) is not int or revision < 0 or type(key) is not bytes or len(key) != 32:
         raise ValueError("invalid checkpoint owner")
+    _validate_owner(compiled, contract, runtime)
     contract.admit(runtime.position, 2, memory_bytes=64 << 20)
     saved = runtime.snapshot_for_response("research-response")
     runtime._validate_full_snapshot(saved)
@@ -164,6 +176,7 @@ def publish(root, key, revision, compiled, contract, runtime, logits, history, *
 
 def restore(root, key, head, compiled, contract, runtime):
     from .transformer_client import LayerCache, RuntimeSnapshot, _snapshot_state_basis
+    _validate_owner(compiled, contract, runtime)
     if (not isinstance(head, dict) or set(head) != {"revision", "digest"}
             or type(head["revision"]) is not int or head["revision"] < 0):
         raise ValueError("invalid trusted checkpoint head")
