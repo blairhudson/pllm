@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 import pllm
-from pllm.kernels import AppleMetal
+from pllm.kernels import AppleMetal, Cpu
 from pllm.native import PagedGEMM
 from pllm.preparation import PreparedInventory
 from pllm.profiles import MaskedLinearCpu, TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu
@@ -261,7 +261,7 @@ def test_paged_sdk_matches_all_logits_kv_cache_and_gateway(tmp_path, monkeypatch
         raise AssertionError("SDK token-ID execution must reuse its request tokenizer")
     monkeypatch.setattr(SemanticDecoderRuntime, "tokenizer", property(unused_runtime_tokenizer))
     for storage in ("memory", "paged"):
-        common = dict(quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
+        common = dict(kernels=Cpu(threads=2), quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
             delivery=ClientBundleTransport("artifacts", compression="zlib", batch_objects=64, storage=storage),
             cache=ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=64, generated_prefixes=True))
         if topology == "offset":
@@ -276,8 +276,10 @@ def test_paged_sdk_matches_all_logits_kv_cache_and_gateway(tmp_path, monkeypatch
         experiment = pllm.Experiment("paged-sdk", pipeline, pllm.Deployment.local(root=str(tmp_path)),
             pllm.ExecutionBudget(requests=3, max_input_tokens=64, max_new_tokens=2))
         current.clear()
-        with build_roles(experiment, engine_threads=1) as roles:
+        with build_roles(experiment, engine_threads=2) as roles:
             with roles.client(bundle_cache_dir=tmp_path / f"cache-{storage}") as client:
+                native_limit = 2 if storage == "memory" else 1
+                client._core._bind_native_worker_limit(native_limit)
                 results = [client.responses.create(input="abc", max_output_tokens=2, temperature=0)
                            for _ in range(2)]
                 outputs.append([(r.output_text, r.usage) for r in results])
@@ -286,6 +288,9 @@ def test_paged_sdk_matches_all_logits_kv_cache_and_gateway(tmp_path, monkeypatch
                 assert audit["inference_stage_calls"] > 0
                 state = client._core._transformer_states[roles.model_id]
                 assert state.bundle.weight_storage == storage
+                assert state.bundle._local_kernel._executor.threads == native_limit
+                with pytest.raises(ValueError, match="precede model binding"):
+                    client._core._bind_native_worker_limit(native_limit)
                 for stage in state.bundle.stages.values():
                     if stage.client_weight is not None:
                         assert isinstance(stage.client_weight, PagedGEMM) == (storage == "paged")

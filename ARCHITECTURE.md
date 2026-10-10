@@ -888,6 +888,11 @@ full again as available memory changes, preserving outputs and retiring leases.
 Pinned SDK/gateway decisions reprice local allocations without rewriting saved
 evidence. Client resources, policy and rejected alternatives stay out of the
 exact role admission records; providers independently recheck selected costs.
+An optional 1–32 `max_client_native_threads` policy caps client native matrix
+executors before resident/paged bundle import and cache reads. Client-only source
+loaders whose selected kernel count exceeds it reject during planning. The cap
+is per executor; Python/BLAS concurrency, provider/GPU work and whole-request
+CPU budgets remain separate.
 Default selection prefers fewer dependent prefill exchanges among feasible
 choices. Directed-link delays and prefill/decode exchange counts remain separate
 from byte/CPU costs; complete TTFT/TPS forecasts and real-WAN confirmation remain

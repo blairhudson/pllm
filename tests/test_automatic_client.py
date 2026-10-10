@@ -1,6 +1,7 @@
 """Ordinary SDK calls own fresh negotiation and retire real HTTP role leases."""
 
 import asyncio
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -63,6 +64,71 @@ def test_default_sync_requests_replan_explain_and_release(configured):
         assert audit["inference_stage_calls"] > 0
         assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
     assert not client._core.records and not client._core.active
+
+
+def test_configured_native_limit_preserves_automatic_ranking_and_binds_execution(configured, monkeypatch):
+    from pllm.deployment.admission import ExecutionContract
+    from pllm.runtime.transformer_client import ClientBundle
+
+    settings = ClientSettings.load()
+    settings.planning = {"max_client_native_threads": 1}
+    settings.save(Path(os.environ["PLLM_CONFIG"]))
+    monkeypatch.setenv("PLLM_NATIVE_THREADS", "4")
+    observed = []
+    original = ClientBundle.local_linear
+
+    def linear(bundle, *args, **kwargs):
+        output = original(bundle, *args, **kwargs)
+        observed.append(bundle._local_kernel._executor.threads)
+        return output
+
+    monkeypatch.setattr(ClientBundle, "local_linear", linear)
+    with OpenAI() as client:
+        response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+        result = client.planning(response.id)
+        assert result.request.policy.objectives == ("prefill_dependent_exchanges", "client_weight_bytes")
+        assert result.costs["client_native_thread_limit"] == 1
+        assert b"max_client_native_threads" not in ExecutionContract.from_result(result, result.snapshot).canonical_bytes()
+        assert observed and set(observed) == {1}
+    released(configured)
+
+
+def test_native_limit_binding_failure_retries_owned_release(configured, monkeypatch):
+    from pllm.deployment import execution
+    from pllm.runtime.client import RuntimeClient
+
+    settings = ClientSettings.load()
+    settings.planning = {"max_client_native_threads": 1}
+    settings.save(Path(os.environ["PLLM_CONFIG"]))
+    partial_clients, closed, failed_releases = [], [], set()
+    close = RuntimeClient.close
+    control = execution.control_request
+
+    def fail_binding(core, _limit):
+        partial_clients.append(core)
+        raise ValueError("injected worker binding failure")
+
+    def close_client(core):
+        closed.append(core)
+        return close(core)
+
+    def transient_release(origin, credential, path, **kwargs):
+        key = (origin, kwargs["body"]["role_id"])
+        if path == "/v1/party/release" and key not in failed_releases:
+            failed_releases.add(key)
+            raise execution.NetworkError("injected lost release")
+        return control(origin, credential, path, **kwargs)
+
+    monkeypatch.setattr(RuntimeClient, "_bind_native_worker_limit", fail_binding)
+    monkeypatch.setattr(RuntimeClient, "close", close_client)
+    monkeypatch.setattr(execution, "control_request", transient_release)
+    with OpenAI() as client:
+        with pytest.raises(ValueError, match="worker binding failure"):
+            client.responses.create(input="Hi", max_output_tokens=2)
+        assert not client._core.active
+    assert len(partial_clients) == 1 and partial_clients[0] in closed
+    assert len(failed_releases) == 2
+    released(configured)
 
 
 def test_close_before_iteration_and_partial_stream_retire(configured):

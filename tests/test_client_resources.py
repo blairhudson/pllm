@@ -107,6 +107,26 @@ def test_resource_observation_requires_fresh_complete_costs(choices):
         replace(req, policy=replace(req.policy, evaluated_at_ms=100_000))
 
 
+def test_native_worker_limit_is_bounded_replayable_and_rejects_oversized_local_loader(choices):
+    from pllm.kernels import Cpu
+    from pllm.profiles import ClientOnlyCpu
+
+    req, snap, full, _ = choices
+    for invalid in (True, 0, 33, 1.0):
+        with pytest.raises(NetworkError):
+            replace(req.policy, max_client_native_threads=invalid)
+    assert "max_client_native_threads" not in req.policy.to_spec()
+    policy = replace(req.policy, max_client_native_threads=1)
+    assert PlanningPolicy.from_spec(policy.to_spec()) == policy
+    result = plan(replace(req, policy=policy), snapshot=snap)
+    assert result.status == "feasible" and result.costs["client_native_thread_limit"] == 1
+    assert PlanningResult.from_spec(result.to_spec()).digest == result.digest
+    local = replace(full, pipeline=ClientOnlyCpu(full.pipeline.model, kernels=Cpu(threads=2)))
+    result = plan(replace(req, policy=policy, candidates=(local,)), snapshot=snap)
+    assert result.status == "infeasible"
+    assert "native worker limit" in result.canonical_bytes().decode()
+
+
 def test_process_capacity_is_atomic_across_threads_and_released_after_failure(monkeypatch):
     capacity = _ClientCapacity()
     result = SimpleNamespace(costs={"client_incremental_memory_bytes": 100},

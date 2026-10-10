@@ -317,15 +317,26 @@ class ExecutionLease:
             self._check()
             if self._client is not None:
                 raise NetworkError("execution lease already has a client")
+            client = None
             try:
                 client = self._topology.client()
+                limit = self._result.request.policy.max_client_native_threads
+                if limit is not None:
+                    client._core._bind_native_worker_limit(limit)
                 client.responses = _LeaseResponses(self, client.responses)
                 self._client = client
                 return client
             except BaseException:
                 self._closed = True
-                self._topology.close()
-                self._cleanup_complete = True
+                self._client = client  # Retain a partial owner if cleanup needs a retry.
+                client_closed = False
+                try:
+                    if client is not None:
+                        client.close()
+                    client_closed = True
+                finally:
+                    self._topology.close()
+                    self._cleanup_complete = client_closed and getattr(self._topology, "cleanup_complete", True)
                 raise
 
     def _admit_request(self, body: dict):

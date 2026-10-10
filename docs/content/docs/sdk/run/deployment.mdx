@@ -81,6 +81,7 @@ the same settings file:
 ```toml
 [client.planning]
 max_client_peak_memory_bytes = 1073741824
+max_client_native_threads = 2
 candidate_selection = "pinned"
 ```
 
@@ -91,6 +92,13 @@ limit through the SDK. A full `PlanningPolicy` also sets its own ranking; add
 automatic client's ranking. Both declared limits and observed headroom must hold.
 Policy, observations and rejected choices remain client-local; providers receive
 the exact selected role admission contract and independently recheck it.
+
+`max_client_native_threads` accepts 1–32 and caps client-owned native matrix
+executors, including paged imports and cold/warm bundle-cache reads. A lower
+selected kernel count remains lower. Client-only candidates whose
+source loader requires more native workers reject during planning. This is a
+per-executor limit; it does not cap Python/BLAS threads, concurrent requests,
+provider workers, GPU work or whole-request CPU time.
 
 Planning explanations retain dependent prefill/decode exchange counts and separate
 directed-link delay estimates. Missing link observations remain unknown. Complete

@@ -1009,6 +1009,7 @@ class RuntimeClient:
             raise TypeError("experiment must be an Experiment or ExperimentProfile")
         self._experiment_budget = experiment.budget if isinstance(experiment, Experiment) else None
         self._local_engine = local_engine
+        self._native_worker_limit = None
         offset_execution = (
             self.experiment is not None and self.experiment.client_runtime == "compiled_offset_v1"
         )
@@ -1439,6 +1440,28 @@ class RuntimeClient:
         key = hmac.new(namespace, identity, hashlib.sha256).hexdigest()
         return self.bundle_cache_dir / key[:2] / f"{key}.msgpack"
 
+    def _bind_native_worker_limit(self, limit: int) -> None:
+        """Bind client-local native execution before importing any response bundle."""
+        if type(limit) is not int or not 1 <= limit <= 32:
+            raise ValueError("client native worker limit must be in [1,32]")
+        if self._transformer_states or self._native_worker_limit not in (None, limit):
+            raise ValueError("client native worker limit must precede model binding")
+        if self._local_engine is not None and self._local_engine.kernel.threads > limit:
+            raise ValueError("client-owned model loading exceeds native worker limit")
+        self._native_worker_limit = limit
+
+    def _bundle_threads(self, *, artifact=False) -> int:
+        # Preserve historical unbounded raw imports when no resource policy is
+        # selected. Artifact imports already use the selected kernel's threads.
+        limit = self._native_worker_limit
+        if not artifact and limit is None:
+            return 0
+        kernels = (json.loads(self.experiment.canonical_composition)
+                   .get("components", {}).get("kernels", {}).get("params", {})
+                   if self.experiment is not None else {})
+        threads = kernels.get("threads", 0)
+        return min(threads or limit, limit) if limit is not None else threads
+
     @staticmethod
     def _read_cached_bundle(
         path: Path,
@@ -1447,6 +1470,7 @@ class RuntimeClient:
         fingerprint: str,
         schema: int,
         size: int,
+        threads: int = 0,
     ) -> tuple[ClientBundle | None, str]:
         if not path.is_file():
             return None, "miss"
@@ -1460,7 +1484,7 @@ class RuntimeClient:
                 if stale.model_id == model_id and stale.schema_version == schema:
                     return None, "miss"
                 return None, "corrupt"
-            bundle = ClientBundle.unpack(payload)
+            bundle = ClientBundle.unpack(payload, threads=threads)
             if bundle.model_id != model_id or bundle.schema_version != schema:
                 return None, "corrupt"
             return bundle, "hit"
@@ -1527,7 +1551,7 @@ class RuntimeClient:
         ):
             raise _BundleIntegrityError("provider client bundle fingerprint mismatch", 409)
         try:
-            bundle = ClientBundle.unpack(payload)
+            bundle = ClientBundle.unpack(payload, threads=self._bundle_threads())
         except TransformerClientError as exc:
             raise _BundleIntegrityError("provider client bundle is invalid", 409) from exc
         if bundle.model_id != model_id or bundle.schema_version != schema:
@@ -1668,11 +1692,8 @@ class RuntimeClient:
                 raise ArtifactError("artifact reconstructed bundle descriptor mismatch")
             stats.reconstruction_seconds += time.perf_counter() - started
             stats.reconstruction_cpu_seconds += time.process_time() - cpu_started
-            kernels = (json.loads(self.experiment.canonical_composition)
-                .get("components", {}).get("kernels", {}).get("params", {})
-                if self.experiment is not None else {})
             bundle = ClientBundle._from_document(value, storage="paged" if paged else "memory",
-                                                  threads=kernels.get("threads", 0))
+                                                  threads=self._bundle_threads(artifact=True))
             if bundle.model_id != model_id or bundle.schema_version != schema:
                 raise ArtifactError("artifact reconstructed bundle descriptor mismatch")
             # Existing audit counters retain bundle-level semantics. Detailed
@@ -1764,6 +1785,7 @@ class RuntimeClient:
                         fingerprint=fingerprint,
                         schema=schema,
                         size=size,
+                        threads=self._bundle_threads(),
                     )
             except OSError:
                 bundle, status = None, "miss"
@@ -1790,6 +1812,7 @@ class RuntimeClient:
                         fingerprint=fingerprint,
                         schema=schema,
                         size=size,
+                        threads=self._bundle_threads(),
                     )
                     if status == "hit":
                         self.audit.bundle_cache_hits += 1
@@ -2027,7 +2050,7 @@ class RuntimeClient:
             if state is not None:
                 return state
             payload = self._local_engine.client_bundle(model_id, placement="client")
-            bundle = ClientBundle.unpack(payload)
+            bundle = ClientBundle.unpack(payload, threads=self._bundle_threads())
             metadata = bundle.manifest.get("metadata") or {}
             if (
                 metadata.get("client_runtime") != self.experiment.client_runtime
@@ -4526,9 +4549,9 @@ class OpenAI:
         if _automatic:
             network = network if network is not None else settings_base.network
             if planning is None and settings_base.planning is not None:
-                from pllm.search import PlanningPolicy
+                from pllm.deployment.selection import SelectedClientFactory
 
-                planning = PlanningPolicy(**settings_base.planning)
+                planning = SelectedClientFactory.default_policy(**settings_base.planning)
             if experiment is None and settings_base.experiment is not None:
                 from pllm.deployment.network import strict_load
 

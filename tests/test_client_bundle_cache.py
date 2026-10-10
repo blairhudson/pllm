@@ -137,6 +137,31 @@ def test_compressed_bundle_cold_wire_and_warm_raw_cache(tmp_path: Path):
     warm.close()
 
 
+def test_native_worker_limit_survives_cold_and_read_only_or_write_cache(tmp_path, monkeypatch):
+    import numpy as np
+
+    monkeypatch.setenv("PLLM_NATIVE_THREADS", "4")
+    payload = _bundle_payload(tmp_path)
+    cache, calls, outputs = tmp_path / "bounded-cache", {}, []
+    for mode, limit in (("read-write", 2), ("read-write", 1), ("read-only", 1)):
+        core = _core(payload, cache, calls, mode=mode, compression=True)
+        try:
+            core._bind_native_worker_limit(limit)
+            bundle = core._load_client_bundle("cache-model")
+            stage = bundle.stages["lm_head"]
+            values = np.ones((2, stage.in_features), dtype=np.float32)
+            outputs.append(bundle.local_linear(stage.id, values))
+            assert bundle._local_kernel._executor.threads == limit
+            if len(outputs) > 1:
+                assert core.audit.bundle_cache_hits == 1
+                assert core.audit.bundle_network_bytes == 0
+        finally:
+            core.close()
+    assert calls["bundle"] == 1
+    for output in outputs[1:]:
+        np.testing.assert_array_equal(output, outputs[0])
+
+
 def test_compression_negotiation_falls_back_to_legacy_uncompressed_provider(tmp_path: Path):
     payload = _bundle_payload(tmp_path)
     core = _core(

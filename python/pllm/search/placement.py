@@ -114,6 +114,7 @@ class PlanningPolicy(PublicRecord):
     minimum_switch_improvement_fraction: float = 0.0
     allocation_model: str = "payload"
     candidate_selection: str = "installed"
+    max_client_native_threads: int | None = None
 
     def __post_init__(self) -> None:
         identity(self.client_party_id, "client_party_id")
@@ -125,6 +126,8 @@ class PlanningPolicy(PublicRecord):
             raise NetworkError("unsupported allocation owner model")
         if self.candidate_selection not in {"installed", "pinned"}:
             raise NetworkError("candidate selection must be installed or pinned")
+        if self.max_client_native_threads is not None:
+            integer(self.max_client_native_threads, "max_client_native_threads", minimum=1, maximum=32)
         integer(self.max_observation_age_ms, "max_observation_age_ms")
         integer(self.reuse_horizon, "reuse_horizon", minimum=1, maximum=1024)
         integer(self.switch_body_bytes, "switch_body_bytes", maximum=1 << 40)
@@ -159,7 +162,7 @@ class PlanningPolicy(PublicRecord):
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningPolicy:
-        data = cls._fields({"candidate_selection": "installed", "allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
+        data = cls._fields({"max_client_native_threads": None, "candidate_selection": "installed", "allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
                            "switch_body_bytes": 0, "minimum_switch_improvement_fraction": 0.0, **value})
         if type(data["objectives"]) is not list:
             raise NetworkError("objectives must be an array")
@@ -172,7 +175,7 @@ class PlanningPolicy(PublicRecord):
             value.pop("reuse_horizon")
         for name, default in (("incumbent_configuration_digest", None), ("switch_body_bytes", 0),
                                ("minimum_switch_improvement_fraction", 0.0), ("allocation_model", "payload"),
-                               ("candidate_selection", "installed")):
+                               ("candidate_selection", "installed"), ("max_client_native_threads", None)):
             if getattr(self, name) == default:
                 value.pop(name)
         return value
@@ -515,6 +518,11 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
     from pllm.profiles import resolve_runtime_composition
 
     plan = request.model_plan
+    native_limit = request.policy.max_client_native_threads
+    if (native_limit is not None
+            and experiment.resolve().client_runtime == "compiled_client_local_v1"
+            and experiment.pipeline.components["kernels"].params.get("threads", 1) > native_limit):
+        raise NetworkError("client-owned model loading exceeds native worker limit")
     admitted_schedule, stages = _scheduled_stage_specs(plan, experiment.pipeline)
     schedule = admitted_schedule.to_dict()
     steps = [
@@ -692,6 +700,9 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         "setup_ms": None,
         "artifact_miss_bytes": None,
         "horizon_accounted_body_bytes": None,
+        **({"client_native_thread_limit": native_limit,
+            "client_worker_scope": "per client-owned native executor; excludes Python, BLAS, tokenizer and GPU workers"}
+           if native_limit is not None else {}),
         **({"client_state_cost_evidence_digest": state.digest,
             "client_state_scope": "assumed completed-prefill reuse; revalidated by client; no state migration",
             "reused_prefill_rows_per_request": reused_rows,

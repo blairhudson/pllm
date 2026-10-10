@@ -7,8 +7,9 @@ use the same owner. CPU `MlpPrefillTiling`, exact private role admission, bounde
 installed full/tiled choices, native allocation-owner pricing, fresh process/host/
 container observations and concurrent local reservations are implemented. Separate
 HTTP-role controls exercise automatic full/tiled/full reselection and infeasible
-budgets. Dependent-exchange and directed-delay terms are available; complete
-phase forecasts, worker limits and measured WAN confirmation remain later slices.
+budgets. Per-client native matrix worker limits bind resident/paged imports and
+cache reads. Dependent-exchange and directed-delay terms are available; complete
+phase forecasts and measured WAN confirmation remain later slices.
 The end-state requirements below distinguish those remaining contracts.
 
 ## 1. Product contract
@@ -268,8 +269,9 @@ deployment once; the SDK inside the gateway negotiates lazily for each request.
 Explicit `--config client.toml` selects a settings file. Existing `--network` and
 `--model` flags can override their corresponding configured defaults.
 
-Automatic negotiation, network settings and peak-memory policy are implemented.
-Worker/performance policy extensions below remain proposed end-state semantics.
+Automatic negotiation, network settings, peak-memory policy and per-executor
+native worker limits are implemented. Performance policy extensions below remain
+proposed end-state semantics.
 Files below are operator-created inputs, not fixtures supplied by this plan.
 
 Provider operator, on each host:
@@ -291,14 +293,14 @@ sustain at least two decode tokens/second:
 ```toml
 [client.planning]
 max_client_peak_memory_bytes = 268435456
-client_worker_threads = 2
+max_client_native_threads = 2
 min_decode_tps = 2.0
 objectives = ["request_ttft_ms"]
 ```
 
 Omitted fields inherit resolved defaults; the ordinary user needs no planning
-document. The existing memory-policy field and settings table are implemented;
-worker/TPS fields and TTFT objective require further configuration. An inverse
+document. Memory and native-worker fields and the settings table are implemented;
+TPS bounds and TTFT objectives require further configuration. An inverse
 objective minimizes `decode_token_ms` under `max_request_ttft_ms`.
 
 Advanced client workflow, inspect or reproduce a decision:

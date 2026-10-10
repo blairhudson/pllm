@@ -365,6 +365,7 @@ class ClientBundle:
     privacy: dict[str, Any]
     schema_version: int = 1
     weight_storage: str = "memory"
+    _execution_threads: int = field(default=0, init=False, repr=False)
     _local_kernel: MaskedGEMM | None = field(default=None, init=False, repr=False)
     _local_matrices: dict[str, CompiledMatrix | PagedGEMM] = field(default_factory=dict, init=False, repr=False)
     _local_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
@@ -381,12 +382,12 @@ class ClientBundle:
         return self.arrays
 
     @classmethod
-    def unpack(cls, payload: bytes | bytearray) -> "ClientBundle":
+    def unpack(cls, payload: bytes | bytearray, *, threads: int = 0) -> "ClientBundle":
         try:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         except Exception as exc:
             raise TransformerClientError("invalid transformer client bundle") from exc
-        return cls._from_document(value)
+        return cls._from_document(value, threads=threads)
 
     @classmethod
     def _from_document(cls, value, *, storage="memory", threads=0) -> "ClientBundle":
@@ -403,6 +404,8 @@ class ClientBundle:
     def _import_document(cls, value, *, storage, threads, snapshots) -> "ClientBundle":
         from .bundle_storage import FilePayload
 
+        if type(threads) is not int or not 0 <= threads <= 32:
+            raise TransformerClientError("client native threads must be in [0,32]")
         if storage not in {"memory", "paged"}:
             raise TransformerClientError("unsupported client weight storage")
         if not isinstance(value, dict) or int(value.get("v", 0)) not in {1, 2}:
@@ -738,7 +741,7 @@ class ClientBundle:
             # independently verified snapshot, just as the native matrices do.
             tokenizer["model"] = FilePayload(source.chunks(), size=len(source), digest=source.digest)
             snapshots.append(tokenizer["model"])
-        return cls(
+        bundle = cls(
             model_id=str(manifest["id"]),
             manifest=manifest,
             cfg=runtime_config,
@@ -749,6 +752,9 @@ class ClientBundle:
             schema_version=version,
             weight_storage=storage,
         )
+        bundle._execution_threads = threads
+        bundle._local_kernel = paged_executor
+        return bundle
 
     def close(self) -> None:
         """Retire bundle-owned tokenizer source storage on client shutdown."""
@@ -785,13 +791,16 @@ class ClientBundle:
 
                 matrices = MetalGEMM().bind_stages(weights)
                 min_rows = kernels.params["min_rows"]
-                cpu = MaskedGEMM()
+                threads = self._execution_threads
             elif kernels.component == "pllm/cpu":
                 matrices, min_rows = {}, 0
-                cpu = MaskedGEMM(threads=kernels.params["threads"])
+                threads = min(kernels.params["threads"], self._execution_threads or kernels.params["threads"])
             else:
                 raise TransformerClientError("unsupported client body kernel")
-            self._local_kernel = cpu
+            # Paged matrices retain their import executor. Reuse that same owner;
+            # a client-local limit was bound before any snapshot was allocated.
+            if self._local_kernel is None:
+                self._local_kernel = MaskedGEMM(threads=threads)
             self._body_metal_matrices = matrices
             self._body_metal_min_rows = min_rows
             self._body_kernel_policy = policy
@@ -812,7 +821,7 @@ class ClientBundle:
                     matrix = stage.client_weight
                 else:
                     if self._local_kernel is None:
-                        self._local_kernel = MaskedGEMM()
+                        self._local_kernel = MaskedGEMM(threads=self._execution_threads)
                     matrix = self._local_kernel.compile(stage.client_weight)
                     # Transfer bundle ownership to the immutable native snapshot.
                     # Tied token/head aliases must move together; callers retaining
