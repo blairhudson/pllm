@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from dataclasses import dataclass, fields
 from pathlib import Path
 import tomllib
@@ -28,6 +29,9 @@ class ClientSettings:
     bundle_cache_mode: str = "read-write"
     bundle_cache_dir: str | None = None
     timeout: float = 300.0
+    network: str | None = None
+    experiment: str | None = None
+    planning: dict[str, object] | None = None
 
     @classmethod
     def load(cls, path: Path | None = None) -> "ClientSettings":
@@ -59,6 +63,8 @@ class ClientSettings:
             "bundle_cache_mode": os.getenv("PLLM_BUNDLE_CACHE_MODE"),
             "bundle_cache_dir": os.getenv("PLLM_BUNDLE_CACHE_DIR"),
             "timeout": os.getenv("PLLM_TIMEOUT"),
+            "network": os.getenv("PLLM_NETWORK"),
+            "experiment": os.getenv("PLLM_EXPERIMENT"),
         }
         for key, value in env.items():
             if value not in (None, ""):
@@ -67,6 +73,26 @@ class ClientSettings:
         values["prepared_inventory_rows"] = int(values.get("prepared_inventory_rows", 64))
         values["token_cache_size"] = int(values.get("token_cache_size", 512))
         values["timeout"] = float(values.get("timeout", 300.0))
+        for name in ("network", "experiment"):
+            if values.get(name) is not None:
+                value = values[name]
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError(f"client {name} must be a nonempty JSON document path")
+                location = Path(value).expanduser()
+                if not location.is_absolute() and not env.get(name):
+                    location = source.parent / location
+                values[name] = str(location)
+        if values.get("planning") is not None:
+            from pllm.search.placement import PlanningPolicy
+
+            options = values["planning"]
+            if not isinstance(options, dict):
+                raise ValueError("[client.planning] must be a TOML table")
+            options = dict(options)
+            if "objectives" in options:
+                options["objectives"] = tuple(options["objectives"])
+            PlanningPolicy(**options)
+            values["planning"] = options
         return cls(**{f.name: values[f.name] for f in fields(cls) if f.name in values})
 
     def save(self, path: Path | None = None) -> Path:
@@ -75,7 +101,7 @@ class ClientSettings:
         rows = ["[client]"]
         for item in fields(self):
             value = getattr(self, item.name)
-            if value is None:
+            if value is None or item.name == "planning":
                 continue
             if isinstance(value, str):
                 escaped = value.replace("\\", "\\\\").replace('"', '\\"')
@@ -84,6 +110,11 @@ class ClientSettings:
                 rows.append(f"{item.name} = {'true' if value else 'false'}")
             else:
                 rows.append(f"{item.name} = {value}")
+        if self.planning is not None:
+            rows.append("\n[client.planning]")
+            for name, value in self.planning.items():
+                if value is not None:
+                    rows.append(f"{name} = {json.dumps(value, allow_nan=False)}")
         target.write_text("\n".join(rows) + "\n", encoding="utf-8")
         try:
             target.chmod(0o600)

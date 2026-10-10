@@ -1,6 +1,6 @@
 ---
 title: "Network planning and operation"
-description: "Use explicit discovery, bounded placement decisions, and fresh response leases."
+description: "Let the SDK own negotiation, with optional policy overrides and plan inspection."
 ---
 
 The implemented network lifecycle is **declare → discover → plan → admit →
@@ -8,6 +8,11 @@ respond → release**. Planning is pure and model-neutral; HTTP discovery observ
 approved installed hosts; admission separately checks and arms one bounded
 response attempt. Public records are immutable JSON, not bearer authority.
 Follow the [SDK network guide](/sdk/deployment/) for checked examples.
+
+Configured ordinary `OpenAI()` / `AsyncOpenAI()` calls and `pllm gateway` own this
+lifecycle automatically. An installed network and Experiment are deployment
+configuration; applications need no discovery or lease boilerplate. Explicit
+planning commands below remain available for inspection and pinned operation.
 
 ## Inspect a declaration
 
@@ -62,8 +67,8 @@ Consult installed
 help and the [two-party fixture](https://github.com/blairhudson/pllm/blob/main/examples/networks/README.md)
 for generated party files and host ports.
 
-The currently admitted HTTP graph is `TwoOnlineOffsetCpu` with one trusted local
-client and two installed worker roles. Separate operator IDs are declarations,
+The admitted HTTP graphs are `TwoOnlineOffsetCpu` and CPU prepared
+Inference/Preparation, each with a trusted local client. Separate operator IDs are declarations,
 not verified physical independence. Host restart/epoch changes, stale offers,
 source/numeric/schedule mismatches, or capacity exhaustion invalidate admission.
 Every response reserves and arms a fresh lease. Reusable read-only public

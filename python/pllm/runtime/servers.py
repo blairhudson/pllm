@@ -98,13 +98,13 @@ def role_client(experiment, connections):
     roles = set(connections)
     if roles == {"worker_a", "worker_b"}:
         return OpenAI(default_model=experiment.resolve().model, experiment=experiment,
-                       role_connections=connections)
+                       role_connections=connections, _automatic=False)
     if roles == {"inference", "preparation"}:
         return OpenAI(default_model=experiment.resolve().model, experiment=experiment,
                       base_url=connections["inference"][0], api_key=connections["inference"][1],
                       preparation_base_url=connections["preparation"][0],
                       preparation_api_key=connections["preparation"][1],
-                      background_inventory_refill=False)
+                      background_inventory_refill=False, _automatic=False)
     raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: no admitted role client")
 
 
@@ -850,6 +850,7 @@ class LocalTopology:
                 default_model=self._model_id,
                 experiment=self._experiment,
                 local_engine=self._local_engine,
+                _automatic=False,
                 **overrides,
             )
         if set(self._role_ids) == {"worker_a", "worker_b"}:
@@ -859,6 +860,7 @@ class LocalTopology:
                 default_model=self._model_id,
                 experiment=self._experiment,
                 role_connections=self.worker_connections(),
+                _automatic=False,
                 **overrides,
             )
         options: dict[str, Any] = {
@@ -867,6 +869,7 @@ class LocalTopology:
             "default_model": self._model_id,
             "correlation_mode": self._correlation_mode,
             "experiment": self._experiment,
+            "_automatic": False,
         }
         if self._requires_preparation:
             options.update(

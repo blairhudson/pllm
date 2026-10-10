@@ -366,6 +366,12 @@ def run_sidecar(args: argparse.Namespace) -> None:
         settings = ClientSettings.load(Path(config).expanduser() if config else None)
     except (OSError, TypeError, ValueError) as exc:
         raise RuntimeCLIError(f"Cannot load client config: {exc}") from exc
+    if settings.network:
+        manual = ("inference_url", "inference_key", "preparation_url", "preparation_key",
+                  "transport", "correlation_mode", "correlation_prefetch", "prepared_inventory_rows",
+                  "token_cache_size", "bundle_cache_mode", "bundle_cache_dir", "timeout", "tenseal_path")
+        if any(getattr(args, name, None) is not None for name in manual):
+            raise RuntimeCLIError("automatic network planning conflicts with manual runtime overrides")
     settings = settings.merged(
         base_url=getattr(args, "inference_url", None),
         api_key=getattr(args, "inference_key", None),
@@ -381,7 +387,25 @@ def run_sidecar(args: argparse.Namespace) -> None:
         bundle_cache_dir=getattr(args, "bundle_cache_dir", None),
         timeout=getattr(args, "timeout", None),
     )
-    app = create_sidecar_app(
+    if settings.network:
+        from pllm.deployment.selection import SelectedClientFactory
+
+        app = create_sidecar_app(
+            client_factory=SelectedClientFactory.from_settings(settings),
+            local_api_key=getattr(args, "api_key", None) or _env("PLLM_GATEWAY_API_KEY", "local"),
+        )
+    else:
+        app = _configured_sidecar(settings, args)
+    uvicorn.run(
+        app,
+        host=getattr(args, "host", "127.0.0.1"),
+        port=getattr(args, "port", 8080),
+        access_log=False,
+    )
+
+
+def _configured_sidecar(settings, args):
+    return create_sidecar_app(
         remote_base_url=settings.base_url,
         remote_api_key=settings.api_key,
         local_api_key=getattr(args, "api_key", None) or _env("PLLM_GATEWAY_API_KEY", "local"),
@@ -397,12 +421,6 @@ def run_sidecar(args: argparse.Namespace) -> None:
         bundle_cache_mode=settings.bundle_cache_mode,
         bundle_cache_dir=settings.bundle_cache_dir,
         timeout=settings.timeout,
-    )
-    uvicorn.run(
-        app,
-        host=getattr(args, "host", "127.0.0.1"),
-        port=getattr(args, "port", 8080),
-        access_log=False,
     )
 
 

@@ -228,8 +228,10 @@ def gateway_cli_probe(fixture, mode):
     """Launch ordinary CLI gateway, execute both API families, then reap child."""
     port = free_port()
     local_key = secrets.token_urlsafe(24)
-    child = subprocess.Popen([sys.executable, "-m", "pllm", "gateway", "--" + mode,
+    selection = [] if mode == "configured" else ["--" + mode,
         str(fixture["paths"][mode]), "--network", str(fixture["paths"]["network"]),
+    ]
+    child = subprocess.Popen([sys.executable, "-m", "pllm", "gateway", *selection,
         "--port", str(port)], env={**os.environ, "PLLM_GATEWAY_API_KEY": local_key},
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

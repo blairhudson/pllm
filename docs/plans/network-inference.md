@@ -8,6 +8,12 @@ automatically supported: the implementation ledger identifies the tested subset.
 Existing network-reduction evidence is linked in
 [network-io-10x.md](../research/network-io-10x.md).
 
+Follow-on design: [client-led resource negotiation](client-resource-negotiation.md)
+specifies automatic negotiation through ordinary SDK/gateway requests, optional
+resource-policy overrides, full-versus-tiled MLP selection, role-specific admission
+and phase-aware WAN objectives. Automatic request-owned negotiation is implemented;
+resource-aware candidate selection and role-specific admission remain in progress.
+
 ## Implementation ledger
 
 | Slice | Implemented and checked | Boundary |
@@ -15,6 +21,7 @@ Existing network-reduction evidence is linked in
 | A: snapshot planning | Immutable network/request/result records, bounded deterministic search, strict native role/resource admission, replayable decisions, selected local SDK execution | Installed client-only, prepared and two-offset compositions; unknown required costs reject |
 | B: live parties | Explicit network Experiment v3, authenticated offers and directory membership, instance epochs, capacity reservation/arm/release, expiry, drain and cancellation | Live CPU two-offset and prepared Inference/Preparation roles; isolated one-use inventories and selected-peer push credentials; declared operators do not prove independence |
 | C: shared application paths | Ordinary gateway and benchmark accept selected plans or planning requests; controlled east-fast/west-fast cohorts select different hosts | Selected latency regret was zero in two three-repetition loopback scenarios; full-wire and whole-response aggregate CPU remain unknown |
+| C2: automatic clients | Configured `OpenAI()` / `AsyncOpenAI()` and gateway calls share lazy planning, fresh response leases, cancellation draining and bounded per-response explanations | Current installed Pipeline/workload stays fixed; complete client-resource costs, phase-aware objectives and installed-choice negotiation remain subsequent slices |
 | E1: private state locality | Immutable shared KV blocks, compiler-bound batched suffix schedule, explicit canonical valid-prefix float32 reductions, real provider acknowledgement before inventory reservation | Canonical numeric choice admits growing-width completed-prefill reuse; historical numeric mode still requires matching full extent; generated KV remains explicitly response-owned |
 | E2: public artifact locality | `ClientBundleTransport("artifacts", compression="zlib")`, authenticated bounded object frames, shared raw content-addressed cache, exact reconstruction before native import | Public prepared, verified and offset bundles; private state and one-use inventory never become public artifacts |
 | E3: shallow HE | Real-shaped exact encrypted linear-region feasibility screen | Tested projection costs roughly 40 times the prepared stage bodies; non-selectable |

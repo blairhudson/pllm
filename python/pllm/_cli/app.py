@@ -282,6 +282,7 @@ def build_parser() -> _Parser:
     gateway_selection.add_argument("--plan", type=Path, help="fixed native-selected plan")
     gateway_selection.add_argument("--request", type=Path, help="bounded planning before each response")
     gateway.add_argument("--network", type=Path, help="network trust/discovery configuration")
+    gateway.add_argument("--planning-policy", type=Path, help="automatic client resource/performance policy")
     gateway.add_argument(
         "--factory", action="store_true", help="call the Python target as a zero-argument factory"
     )
@@ -1325,6 +1326,11 @@ def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_r
         raise ResolutionError("GATEWAY_HOST", "gateway bind must use a loopback address")
     if not 1 <= args.port <= 65_535:
         raise ResolutionError("GATEWAY_PORT", "gateway port must be between 1 and 65535")
+    if args.network is not None and args.plan is None and args.request is None:
+        _automatic_gateway(args, output_format, no_input, dry_run)
+        return
+    if args.planning_policy is not None:
+        raise ResolutionError("NETWORK_POLICY", "--planning-policy requires automatic --network/--experiment mode")
     selection = _network_selection(args, gateway=True)
     if selection is not None:
         network, result, request = selection
@@ -1337,7 +1343,7 @@ def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_r
             else:
                 emit_machine("gateway", data, output_format)
             return
-        from pllm.runtime.network_benchmark import SelectedClientFactory
+        from pllm.deployment.selection import SelectedClientFactory
         from pllm.runtime.sidecar import create_sidecar_app
         import uvicorn
 
@@ -1535,6 +1541,44 @@ def _network_selection(args: argparse.Namespace, *, gateway: bool):
         if network.backend == "local" and intent.kind != "local":
             raise ResolutionError("NETWORK_INTENT", "local backend requires local deployment")
     return network, result, request
+
+
+def _automatic_gateway(args, output_format, no_input, dry_run):
+    from pllm.configuration import Experiment
+    from pllm.deployment import NetworkSpec
+    from pllm.deployment.selection import SelectedClientFactory
+    from pllm.search import PlanningPolicy
+    from .network import load_record
+    from .targets import resolve_target
+
+    if not args.experiment:
+        raise ResolutionError("NETWORK_SELECTION", "automatic --network requires --experiment")
+    names = ("local", "config", "model", "model_id", "tiny", "inference_url", "preparation_url",
+             "weight_bits", "activation_bits", "transport", "correlation_mode", "correlation_prefetch",
+             "prepared_inventory_rows", "token_cache_size", "bundle_cache_mode", "bundle_cache_dir",
+             "local_files_only", "timeout", "revision")
+    if any(getattr(args, name, None) for name in names):
+        raise ResolutionError("NETWORK_OVERRIDE_CONFLICT", "automatic network owns runtime settings")
+    experiment = resolve_target(args.experiment, factory=args.factory, no_input=no_input,
+        trust_python=args.trust_python, output_format=output_format).configuration
+    if not isinstance(experiment, Experiment):
+        raise ResolutionError("GATEWAY_EXPERIMENT_TYPE", "automatic network requires an Experiment")
+    network = load_record(NetworkSpec, args.network)
+    policy = load_record(PlanningPolicy, args.planning_policy) if args.planning_policy else None
+    factory = SelectedClientFactory(network, experiment=experiment, policy=policy)
+    if dry_run:
+        data = {"dry_run": True, "url": _service_url(args.host, args.port),
+                "network_digest": network.digest, "backend": network.backend, "mode": "automatic"}
+        if output_format == "human":
+            print(f"Would start automatic network gateway on {data['url']}")
+        else:
+            emit_machine("gateway", data, output_format)
+        return
+    from pllm.runtime.sidecar import create_sidecar_app
+    import uvicorn
+
+    uvicorn.run(create_sidecar_app(client_factory=factory, local_api_key=args.api_key),
+                host=args.host, port=args.port, access_log=False)
 
 
 def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:

@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from pllm import OpenAI
-from pllm.deployment import discover, open_execution
+from pllm.deployment import Deployment, discover, open_execution
 from pllm.profiles import MaskedLinearCpu
 from test_network_execution import http_hosts, selected, setup
 
@@ -43,6 +43,28 @@ def test_prepared_http_sdk_one_use_and_fresh_attempt(prepared, tmp_path):
                     assert http.get(inference_url + "/v1/models").status_code == 200
             assert httpx.get(inference_url + "/v1/models", headers={"authorization": f"Bearer {bearer}"}).status_code == 401
             result = selected(prepared, discover(network, credentials=credentials))
+
+
+@pytest.mark.integration
+def test_prepared_automatic_sdk_negotiation(prepared, tmp_path, monkeypatch):
+    with http_hosts(prepared, tmp_path) as (network, credentials, _):
+        for name, secret in credentials.items():
+            monkeypatch.setenv(name, secret)
+        experiment = replace(prepared[2][0].experiment, deployment=Deployment.network(
+            network_id=network.network_id, network_spec_digest=network.digest))
+        with OpenAI(network=network, experiment=experiment) as client:
+            outputs = []
+            for _ in range(2):
+                response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+                outputs.append(response.output_text)
+                decision = client.planning(response.id)
+                assert {row["role_id"] for row in decision.native_placement["roles"]} == {
+                    "client", "inference", "preparation"}
+                assert all(offer.active_sessions == 0 for offer in discover(network, credentials=credentials).offers)
+            assert outputs[0] == outputs[1]
+            audit = client.privacy_audit.to_dict()
+            assert audit["inference_stage_calls"] > 0
+            assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
 
 
 @pytest.mark.integration

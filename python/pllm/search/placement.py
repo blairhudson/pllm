@@ -87,11 +87,11 @@ class CandidateCostEvidence(PublicRecord):
 @dataclass(frozen=True, slots=True)
 class PlanningPolicy(PublicRecord):
     SCHEMA = "pllm.planning_policy.v1"
-    client_party_id: str
-    evaluated_at_ms: int
-    max_candidates: int
-    max_assignments: int
-    objectives: tuple[str, ...]
+    client_party_id: str = "client"
+    evaluated_at_ms: int = 0
+    max_candidates: int = 64
+    max_assignments: int = 4096
+    objectives: tuple[str, ...] = ("client_weight_bytes",)
     max_client_weight_bytes: int | None = None
     max_client_payload_bytes: int | None = None
     minimum_remote_mac_fraction: float = 0.0

@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from contextlib import asynccontextmanager
 from collections.abc import Callable, Iterator
-from contextlib import ExitStack
-import threading
 from typing import Any, cast
 
 from fastapi import FastAPI, Header, Request, WebSocket, WebSocketDisconnect
@@ -29,6 +27,7 @@ from .http_gateway import (
     validate_response_body,
 )
 from .responses import ResponsesError
+from .planned_client import PlannedClient as _FactoryClient
 
 
 def create_sidecar_app(
@@ -49,8 +48,12 @@ def create_sidecar_app(
         client is None and client_factory is None and remote_base_url is None
         and client_kwargs.get("local_engine") is None
         and client_kwargs.get("role_connections") is None
+        and client_kwargs.get("network") is None
     ):
-        raise ValueError("gateway requires an Experiment-backed local role topology or provider")
+        from pllm.settings import ClientSettings
+
+        if not ClientSettings.load().network:
+            raise ValueError("gateway requires an Experiment-backed local role topology or provider")
     provider_options = (
         {} if remote_base_url is None else
         {"base_url": remote_base_url, "api_key": remote_api_key}
@@ -328,127 +331,6 @@ async def _closing_stream(iterator, source):
             close = getattr(source, "close", None)
             if close is not None:
                 await run_in_threadpool(close)
-
-
-class _OwnedStream:
-    """Close stream and admission even when cancelled before first iteration."""
-
-    def __init__(self, source, stack, owner, client):
-        self.source, self.stack, self.owner = iter(source), stack, owner
-        self.client = client
-        self.response_id = None
-        self.closed = False
-        self.lock = threading.RLock()
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        with self.lock:
-            if self.closed:
-                raise StopIteration
-            try:
-                event = next(self.source)
-                value = resource_dict(event)
-                response = value.get("response")
-                if isinstance(response, dict):
-                    self.response_id = response.get("id", self.response_id)
-                self.owner._remember(event)
-                return event
-            except BaseException:
-                self.close()
-                raise
-
-    def close(self):
-        with self.lock:
-            if self.closed:
-                return
-            self.closed = True
-            try:
-                close = getattr(self.source, "close", None)
-                if close is not None:
-                    close()
-            finally:
-                try:
-                    self.stack.close()
-                finally:
-                    with self.owner.lock:
-                        self.owner.active.discard(self)
-
-
-class _FactoryClient:
-    """Gateway-only per-response ownership adapter; generation stays in SDK."""
-
-    def __init__(self, factory):
-        self.factory = factory
-        self.default_model = getattr(factory, "default_model", None)
-        self.lock = threading.RLock()
-        self.active = set()
-        self.records = {}
-
-    def _remember(self, event):
-        value = resource_dict(event)
-        response = value.get("response", value)
-        if response.get("status") in {"completed", "incomplete", "cancelled"} and response.get("store", True):
-            with self.lock:
-                self.records[response["id"]] = response
-                if len(self.records) > 200:
-                    self.records.pop(next(iter(self.records)))
-
-    def create(self, body):
-        if body.get("previous_response_id"):
-            raise ValueError("per-response network leases do not retain continuation state")
-        stack = ExitStack()
-        try:
-            client = stack.enter_context(self.factory())
-            # Use lease-wrapped resource, never core.create (which bypasses budget admission).
-            result = client.responses.create(**body)
-            if body.get("stream"):
-                result = _OwnedStream(result, stack, self, client)
-                with self.lock:
-                    self.active.add(result)
-                return result
-            self._remember(result)
-            return result
-        except BaseException:
-            stack.close()
-            raise
-        finally:
-            if not body.get("stream"):
-                stack.close()
-
-    def list_models(self):
-        return {"object": "list", "data": [
-            {"id": model, "object": "model", "created": 0, "owned_by": "pllm"}
-            for model in getattr(self.factory, "model_ids", ())
-        ]}
-
-    def retrieve(self, response_id):
-        with self.lock:
-            return self.records[response_id]
-
-    def evict_response(self, response_id):
-        with self.lock:
-            self.records.pop(response_id, None)
-
-    def cancel(self, response_id):
-        with self.lock:
-            streams = tuple(self.active)
-        for stream in streams:
-            if stream.response_id == response_id:
-                value = stream.client.responses.cancel(response_id)
-                stream.close()
-                return value
-        return self.retrieve(response_id)
-
-    def preprocess(self, *args, **kwargs):
-        raise ValueError("network admission prepares only within a bounded response attempt")
-
-    def close(self):
-        with self.lock:
-            streams = tuple(self.active)
-        for stream in streams:
-            stream.close()
 
 
 def _validate_continuation(runtime_client: Any, body: dict[str, Any]) -> None:

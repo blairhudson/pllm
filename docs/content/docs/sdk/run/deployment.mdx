@@ -3,9 +3,9 @@ title: "Deployment"
 description: "Learn how to assign PLLM roles to authenticated services without changing privacy assumptions."
 ---
 
-A deployment assigns each protocol role to a process and operator. The live
-`Experiment.deployment` currently selects local execution. A separate,
-digest-bound `RoleDeployment` document can **inspect** operator IDs, HTTPS
+A deployment assigns each protocol role to a process and operator. An
+`Experiment.deployment` selects local execution or an authenticated network.
+A separate, digest-bound `RoleDeployment` document can **inspect** operator IDs, HTTPS
 origins and optional TEE policies against a role graph, but does not change
 that live Experiment, authenticate an operator or authorize new roles.
 Execution must still account for endpoints, distinct credentials, capacity,
@@ -26,6 +26,56 @@ lists the current gateway and provider-role lifecycle commands.
 
 ## Python SDK example
 
+### Automatic network requests
+
+Configure the installed network and Experiment once in `PLLM_CONFIG` (or the
+default `~/.config/pllm/config.toml`). Relative paths resolve beside that TOML file:
+
+```toml
+[client]
+network = "network.json"
+experiment = "experiment.json"
+```
+
+Provider credentials use the environment references in the network declaration.
+Ordinary calls own discovery, native selection, fresh admission, preparation and
+release:
+
+```python
+from pllm import OpenAI
+
+with OpenAI() as client:
+    response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+    print(response.output_text)
+    decision = client.planning(response.id)
+    assert decision.status == "feasible"
+```
+
+`AsyncOpenAI()` uses the same lifecycle. Closing a stream, cancelling an async
+request or closing the client drains owned work and retires leases. Response
+records and immutable planning explanations each have a 4 MiB / 64-entry bound.
+An explicit `OpenAI(network=network, experiment=experiment, planning=policy)`
+overrides configured selection inputs. `PlanningPolicy()` supplies bounded
+defaults; `[client.planning]` accepts the same optional policy fields.
+
+`pllm gateway` consumes the same configured deployment. Explicit
+`pllm gateway --network network.json --experiment experiment.json` selects it
+without a saved plan; `--planning-policy policy.json` optionally overrides policy.
+Advanced callers can still pass `execution=lease`, `--plan` or `--request`.
+
+This first slice chooses hosts for the installed Pipeline and bounded workload.
+Required costs that lack evidence still reject, including complete client CPU
+and peak-memory requirements. Automatic full-versus-tiled candidate generation
+and phase-aware TTFT/decode-TPS optimization are subsequent slices. A fresh lease
+does not retain a previous response's private decoder state.
+
+The checked example is
+[`examples/automatic_client.py`](https://github.com/blairhudson/pllm/blob/main/examples/automatic_client.py).
+Prepared Inference/Preparation and two-offset HTTP roles are admitted; operator
+independence remains a deployment claim requiring separate evidence.
+
+### Inspect a role declaration
+
 ```python
 from pllm import Experiment
 from pllm.deployment import Deployment, RoleDeployment
@@ -44,8 +94,8 @@ assert not assessment.runtime_admission_supported
 API: [`pllm.deployment`](/sdk/reference/python/pllm/deployment/#objects-and-signatures)
 
 This checks a declaration only. The same Experiment still runs locally and
-does not satisfy its Preparation–Inference non-collusion assumption; generic
-remote role deployment and live TEE attestation are not supported yet. Read
+does not satisfy its Preparation–Inference non-collusion assumption. This separate
+declaration does not authorize live remote roles or TEE attestation. Read
 [role trust](/learn/topologies/roles-and-trust/) and
 [TEE boundaries](/learn/topologies/trusted-execution/) before treating an
 operator label or policy fingerprint as security evidence.

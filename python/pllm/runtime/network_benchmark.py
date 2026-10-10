@@ -12,11 +12,11 @@ import json
 import random
 import secrets
 import time
-from contextlib import contextmanager
 from dataclasses import replace
 
 from pllm.compiler import plan
 from pllm.deployment import LivePartyOffer, NetworkError, discover, open_execution
+from pllm.deployment.selection import SelectedClientFactory
 
 from .benchmark_cli import _comparison_key, build_loopback_report
 from .benchmark_history import BenchmarkRun
@@ -45,43 +45,6 @@ def _worker_metrics(client, lease=None):
             if role in {"inference", "preparation"}:
                 http.close()
     return values
-
-
-class SelectedClientFactory:
-    """Fixed plan: revalidate/admit. Request: bounded fresh planning before response."""
-
-    def __init__(self, network, *, result=None, request=None, credentials=None, ttl_seconds=60):
-        if (result is None) == (request is None):
-            raise ValueError("choose exactly one plan or planning request")
-        self.network, self.result, self.request = network, result, request
-        self.credentials, self.ttl_seconds = credentials, ttl_seconds
-        candidates = (result.experiment,) if result is not None else request.candidates
-        if any(item is None for item in candidates):
-            raise NetworkError("NO_FEASIBLE_PLACEMENT")
-        self.model_ids = tuple(sorted({item.resolve().model for item in candidates}))
-        self.default_model = self.model_ids[0] if len(self.model_ids) == 1 else None
-
-    def select(self):
-        if self.result is not None:
-            return self.result
-        snapshot = discover(self.network, credentials=self.credentials)
-        request = replace(self.request, policy=replace(
-            self.request.policy, evaluated_at_ms=time.time_ns() // 1_000_000
-        ))
-        result = plan(request, snapshot=snapshot)
-        if result.status != "feasible":
-            raise NetworkError("SEARCH_LIMIT" if result.status == "inconclusive" else "NO_FEASIBLE_PLACEMENT")
-        return result
-
-    @contextmanager
-    def __call__(self):
-        from pllm.runtime.client import OpenAI
-
-        result = self.select()
-        with open_execution(result, network=self.network, credentials=self.credentials,
-                            ttl_seconds=self.ttl_seconds) as lease:
-            with OpenAI(execution=lease) as client:
-                yield client
 
 
 def feasible_controls(result, *, maximum=32):

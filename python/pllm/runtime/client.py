@@ -4469,6 +4469,9 @@ class OpenAI:
         local_engine: MaskedTransformerEngine | None = None,
         role_connections: Mapping[str, tuple[str, str]] | None = None,
         execution: Any | None = None,
+        network: Any | None = None,
+        planning: Any | None = None,
+        _automatic: bool = True,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
         from pllm.settings import ClientSettings
@@ -4501,6 +4504,8 @@ class OpenAI:
                 experiment,
                 local_engine,
                 role_connections,
+                network,
+                planning,
             )
             if (
                 any(value is not None for value in overrides)
@@ -4516,6 +4521,49 @@ class OpenAI:
             self.models = leased.models
             self.runtime = leased.runtime
             return
+
+        settings_base = ClientSettings.load()
+        if _automatic:
+            network = network if network is not None else settings_base.network
+            if planning is None and settings_base.planning is not None:
+                from pllm.search import PlanningPolicy
+
+                planning = PlanningPolicy(**settings_base.planning)
+            if experiment is None and settings_base.experiment is not None:
+                from pllm.deployment.network import strict_load
+
+                experiment = Experiment.from_spec(strict_load(
+                    Path(settings_base.experiment).read_bytes()))
+        if network is not None:
+            from pllm.deployment import NetworkSpec
+            from pllm.deployment.network import strict_load
+            from pllm.deployment.selection import SelectedClientFactory
+            from .planned_client import PlannedClient
+
+            manual = (api_key, base_url, session_transport, correlation_mode,
+                      preparation_base_url, preparation_api_key, correlation_prefetch,
+                      prepared_inventory_rows, token_cache_size, prefill_cache_bound_tokens,
+                      bundle_cache_mode, bundle_cache_dir, bundle_compression, tenseal_path,
+                      timeout, http_client, preparation_http_client, local_engine, role_connections)
+            if (any(value is not None for value in manual) or prefill_cache_bytes
+                    or prefill_cache_mode != "exact" or background_inventory_refill is not None):
+                raise ValueError("automatic network planning conflicts with manual runtime overrides")
+            if isinstance(network, (str, Path)):
+                network = NetworkSpec.from_spec(strict_load(Path(network).expanduser().read_bytes()))
+            if not isinstance(experiment, Experiment):
+                raise ValueError("automatic network planning requires a configured Experiment")
+            factory = SelectedClientFactory(network, experiment=experiment, policy=planning)
+            requested_model = default_model or model or settings_base.model
+            if requested_model is not None and requested_model not in factory.model_ids:
+                raise ValueError("client model conflicts with configured deployment")
+            self._core = PlannedClient(factory)
+            self._owned_topology = None
+            self.responses = ResponsesResource(self._core)
+            self.models = ModelsResource(self._core)
+            self.runtime = RuntimeResource(self._core)
+            return
+        if planning is not None:
+            raise ValueError("resource planning requires a configured network")
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
         if profile is not None and "inventory" in json.loads(profile.canonical_composition).get(
@@ -4567,7 +4615,7 @@ class OpenAI:
             raise ValueError("worker connections require an offset Experiment")
         if offset_execution and role_connections is None and not isinstance(experiment, Experiment):
             raise ValueError("offset worker loading requires an Experiment source")
-        settings = ClientSettings.load().merged(
+        settings = settings_base.merged(
             api_key=api_key,
             base_url=base_url,
             model=default_model or model,
@@ -4656,6 +4704,11 @@ class OpenAI:
     def privacy_audit(self) -> PrivacyAudit:
         return self._core.audit
 
+    def planning(self, response_id: str):
+        """Inspect the bounded immutable planning explanation for a response."""
+        inspect = getattr(self._core, "planning", None)
+        return inspect(response_id) if inspect is not None else None
+
     def preprocess(
         self,
         model: str | None = None,
@@ -4732,6 +4785,11 @@ class AsyncResponsesResource:
         self.resource = resource
 
     async def create(self, **kwargs: Any):
+        from .planned_client import PlannedClient
+
+        core = getattr(self.resource, "core", None)
+        if isinstance(core, PlannedClient):
+            return await core.async_create(kwargs)
         if kwargs.get("stream"):
             context = copy_context()
             lock = threading.Lock()
@@ -4861,6 +4919,9 @@ class AsyncOpenAI:
     def privacy_audit(self) -> PrivacyAudit:
         return self.sync.privacy_audit
 
+    async def planning(self, response_id: str):
+        return await asyncio.to_thread(self.sync.planning, response_id)
+
     def tokenizer_scope(self) -> AbstractContextManager[None]:
         """Use a regular ``with`` block around awaited sizing and response calls."""
         return self.sync.tokenizer_scope()
@@ -4908,7 +4969,12 @@ class AsyncOpenAI:
         )
 
     async def close(self) -> None:
-        await asyncio.to_thread(self.sync.close)
+        from .planned_client import PlannedClient, _owned_thread
+
+        if isinstance(self.sync._core, PlannedClient):
+            await _owned_thread(self.sync.close, cancel=lambda: None)
+        else:
+            await asyncio.to_thread(self.sync.close)
 
     async def __aenter__(self) -> "AsyncOpenAI":
         return self

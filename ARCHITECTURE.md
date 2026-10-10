@@ -864,6 +864,17 @@ separate axis unless an exact schedule, binding and execution test say otherwise
 
 ## Python package
 
+Configured ordinary `OpenAI()` / `AsyncOpenAI()` and gateway requests now own
+authenticated network discovery, native planning, fresh response admission and
+lease retirement through one shared client owner. Configuration supplies the
+installed network and Experiment; optional policy overrides and bounded per-response
+explanations remain available. Completion, partial streams, cancellation and client
+shutdown release owned attempts; async cancellation drains outstanding workers.
+Prepared and two-offset HTTP controls plus real CLI gateways exercise the path.
+This first slice retains the installed Pipeline/workload and existing cost scopes;
+full client-resource pricing, installed-choice negotiation and phase-aware WAN
+optimization remain subsequent work. Example: `examples/automatic_client.py`.
+
 The opt-in `OpenAI.conversation` and `AsyncOpenAI.conversation` handles manage one
 response-owned continuation chain under an Experiment with bounded
 `ClientPrefixReuse`. Native full-KV admission and compiled maximum state geometry
