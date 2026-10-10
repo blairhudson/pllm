@@ -12,7 +12,7 @@ from pllm.search import FrontierStudy, Variant
 from benchmarks.research.common import MODEL, REVISION
 
 
-def study(*, processes=3, rows=(16, 150)):
+def study(*, processes=3, rows=(16, 150), credit_screen=False):
     from huggingface_hub import hf_hub_download
     config = json.loads(Path(hf_hub_download(MODEL, "config.json", revision=REVISION,
                                             local_files_only=True)).read_bytes())
@@ -21,12 +21,14 @@ def study(*, processes=3, rows=(16, 150)):
         ExecutionBudget(1, max(rows), 8))
     build = BuildRef.capture()
     cases = [BenchmarkCase(f"{kernel}-{count}", BenchmarkTarget.preparation(experiment,
-        rows=count, kernel=kernel, output_columns=0, config=config), build)
+        rows=count, kernel=kernel, output_columns=256 if credit_screen else 0,
+        **({"credit_window": 1} if credit_screen else {}), config=config), build)
         for kernel in ("native", "digit8_native") for count in rows]
     return FrontierStudy(BenchmarkSuite(tuple(cases), Sampling(processes=processes,
         timeout_seconds=300, memory_bytes=1 << 30), "correction-stripes-v1"),
-        (Variant("columns256", {"output_columns": 256}),
-         Variant("columns1024", {"output_columns": 1024})))
+        ((Variant("credit4", {"credit_window": 4}), Variant("credit8", {"credit_window": 8}))
+         if credit_screen else (Variant("columns256", {"output_columns": 256}),
+                               Variant("columns1024", {"output_columns": 1024}))))
 
 
 def main(argv=None):
@@ -34,8 +36,9 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--processes", type=int, default=3)
     parser.add_argument("--rows", type=int, action="append")
+    parser.add_argument("--credit-screen", action="store_true")
     args = parser.parse_args(argv)
-    current = study(processes=args.processes, rows=tuple(args.rows or (16, 150)))
+    current = study(processes=args.processes, rows=tuple(args.rows or (16, 150)), credit_screen=args.credit_screen)
     plan = current.plan(max_trials=64)
     result = benchmark_suite(plan.suite, output=args.output)
     args.output.with_suffix(".plan.json").write_text(json.dumps(current.to_spec(), indent=2) + "\n")

@@ -154,6 +154,12 @@ Thirty-six fresh stage/receiver pairs preserve 29,067,264 corrections. At 150 ro
 digit8 with 256-column stripes lowers endpoint peaks 27.64%/46.92%, while sample
 CPU rises 3.64% and elapsed time 30.60%. Full masks and correction bytes remain;
 serial push/ack cost prevents inferring a whole-response improvement.
+The bounded follow-up admits one to eight ordered outstanding stripes, with a
+64 MiB in-flight capacity ceiling and complete acknowledgement before seal.
+Eighteen fresh 150-row endpoint pairs preserve 26,265,600 corrections and identical
+push/ack bodies. Eight credits reduce digit8 elapsed time 7.46% with nearly equal
+CPU and higher endpoint memory; integer credits regress. This remains a local
+transport fixture with full masks, rather than a live inventory or serving gain.
 The separate bounded decoder-restart target now seals actual compiled full-KV,
 logits, executed history and a pending greedy token, then restores in a fresh
 interpreter. Generated Qwen2/Qwen3/Llama checks preserve exact continuation logits

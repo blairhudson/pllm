@@ -282,12 +282,14 @@ class BenchmarkTarget:
     @classmethod
     def preparation(cls, experiment, *, role="mlp_gate_up", layer=0, rows=16,
                     weights="synthetic", seed=7, kernel="native", storage="resident",
-                    chunk_rows=0, output_columns=None, config=None):
+                    chunk_rows=0, output_columns=None, credit_window=None, config=None):
         parameters = dict(model=_model(experiment, config), role=role,
             layer=layer, rows=rows, weights=weights, seed=seed, kernel=kernel,
             storage=storage, chunk_rows=chunk_rows)
         if output_columns is not None:
             parameters["output_columns"] = output_columns
+        if credit_window is not None:
+            parameters["credit_window"] = credit_window
         return cls("preparation", parameters)
 
     @classmethod
@@ -357,6 +359,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"client_metadata"}
     if kind == "preparation" and "output_columns" in p:
         fields[kind] = fields[kind] | {"output_columns"}
+        if "credit_window" in p:
+            fields[kind] = fields[kind] | {"credit_window"}
     if set(p) != fields[kind]:
         raise ValueError("benchmark target fields differ from its contract")
     if "model" in p:
@@ -387,6 +391,7 @@ def _validate_target(document):
         bounded_int(p["chunk_rows"], 0, 4096, "mask row chunk")
         if "output_columns" in p:
             bounded_int(p["output_columns"], 0, 65536, "output stripe columns")
+            bounded_int(p.get("credit_window", 1), 1, 8, "stripe credit window")
             if p["chunk_rows"] or p["storage"] != "resident" or p["kernel"] not in {"native", "digit8_native"}:
                 raise ValueError("output stripes require resident native kernels and full input batches")
     elif kind == "artifacts":

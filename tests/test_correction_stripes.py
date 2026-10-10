@@ -95,3 +95,59 @@ def test_pipe_ack_failure_retires_child_and_incomplete_files(tmp_path, monkeypat
         execute_target(BenchmarkTarget.preparation(experiment, output_columns=3), m)
     assert children and all(child.poll() is not None for child in children)
     assert not list(tmp_path.glob("receiver-*"))
+
+
+@pytest.mark.parametrize("window", [2, 4, 8])
+def test_window_keeps_ordered_credit_and_requires_draining_before_seal(tmp_path, window):
+    contract = dict(key=b"k" * 32, context="b" * 64, rows=3, columns=window * 4,
+                    stripe_columns=4, wire_bits=32)
+    sender = CorrectionStripeSender(**contract, credit_window=window)
+    receiver = CorrectionStripeReceiver(tmp_path / "receiver", **contract)
+    expected = np.arange(3 * window * 4, dtype=np.uint32).reshape(3, window * 4)
+    replies = [receiver.accept(sender.frame(expected[:, col:col + 4]))
+               for col in range(0, window * 4, 4)]
+    assert sender.outstanding == window and sender.column == 0 and not receiver.ready
+    for reply in replies:
+        sender.acknowledge(reply)
+    assert sender.outstanding == 0 and sender.column == window * 4
+    sender.acknowledge(receiver.accept(sender.frame()))
+    np.testing.assert_array_equal(np.concatenate([v for _, v in receiver.read()], axis=1), expected)
+    assert sender.closed and receiver.ready
+
+
+@pytest.mark.parametrize("failure", ["out_of_order", "early_seal", "over_credit", "cancel"])
+def test_window_failure_burns_all_pending_stripes(failure):
+    sender = CorrectionStripeSender(key=b"k" * 32, context="b" * 64, rows=1, columns=12,
+                                    stripe_columns=4, wire_bits=16, credit_window=2)
+    from pllm.runtime.benchmark_correction_stripes import _authenticated
+    first = sender.frame(np.ones((1, 4), np.uint32))
+    second = sender.frame(np.ones((1, 4), np.uint32))
+    import hashlib
+    ack = _authenticated(b"k" * 32, b"ack", {"context": "b" * 64, "sequence": 1,
+        "next_column": 8, "ready": False, "accepted_digest": hashlib.sha256(second).hexdigest()})
+    if failure == "cancel":
+        sender.cancel()
+    else:
+        with pytest.raises(ValueError):
+            if failure == "out_of_order":
+                sender.acknowledge(ack)
+            elif failure == "early_seal":
+                sender.frame()
+            else:
+                sender.frame(np.ones((1, 4), np.uint32))
+    assert first != second and sender.closed and not sender.key and sender.outstanding == 0
+
+
+def test_window_is_bounded_before_frames_and_requires_stripes():
+    from pllm import Deployment, ExecutionBudget, Experiment, Model
+    from pllm.metrics import BenchmarkTarget
+    from pllm.profiles import MaskedLinearCpu
+    for window in (0, 9, True):
+        with pytest.raises(ValueError):
+            CorrectionStripeSender(key=b"k" * 32, context="b" * 64, rows=1, columns=12,
+                                   stripe_columns=4, wire_bits=16, credit_window=window)
+    experiment = Experiment("test", MaskedLinearCpu(Model.tiny()), Deployment.local(root="local://credits"), ExecutionBudget(1, 16, 2))
+    with pytest.raises(ValueError):
+        BenchmarkTarget.preparation(experiment, credit_window=4)
+    with pytest.raises(ValueError):
+        BenchmarkTarget.preparation(experiment, output_columns=256, credit_window=9)

@@ -78,3 +78,49 @@ study are still required before choosing this in an Experiment.
 
 Evidence: `docs/evidence/research-correction-stripes-cohort.json`, with its
 `.plan.json` and `.frontier.json` companions.
+
+## Bounded credit-window follow-up
+
+`BenchmarkTarget.preparation(..., output_columns=256, credit_window=1..8)`
+permits several ordered pushes before awaiting acknowledgement. The sender keeps
+only bounded frame commitments, advances acknowledged and issued positions
+separately, and drains all outstanding stripes before sealing. Wrong, replayed or
+reordered acknowledgements, over-credit calls, premature seal and cancellation
+burn the complete outstanding ledger. Admission prices at most 64 MiB of in-flight
+frame capacity in addition to masks and kernel workspace. The original one-credit
+choice retains its frame identities. Receiver readiness still requires a complete
+ordered seal; credits do not make partial inventories executable.
+
+An initial 36-pair screen overlaps targeted test execution and is used only for
+exploration. A subsequent non-overlapping confirmation runs 18 fresh
+Preparation/receiver pairs at 150 rows and checks **26,265,600 corrections**.
+All choices send exactly **4,384,561 push bytes** and **9,736 acknowledgement
+bytes** per sample. Actual maximum outstanding stripes are 1, 4 and 8 respectively.
+
+| Kernel / credits | Combined sample CPU, s | Elapsed, s | Parent peak, MB | Receiver peak, MB |
+| --- | ---: | ---: | ---: | ---: |
+| Integer / 1 | 0.413913 | 0.428142 | 89.24 | 37.19 |
+| Integer / 4 | 0.453661 | 0.448451 | 89.52 | 38.04 |
+| Integer / 8 | 0.443437 | 0.445406 | 88.90 | 38.04 |
+| Digit8 / 1 | 0.249135 | 0.283593 | 91.14 | 37.29 |
+| Digit8 / 4 | 0.272696 | 0.274670 | 96.24 | 37.98 |
+| Digit8 / 8 | 0.249252 | 0.262450 | 93.49 | 37.42 |
+
+Eight credits lower the digit8 elapsed median **7.46%**, with nearly equal CPU
+and higher endpoint memory. Integer credits regress in this confirmation. This
+closes the bounded ordered transport gate, with a modest local tradeoff; it does
+not justify a general serving speedup or automatic promotion. Full masks and
+weights remain resident. GPU batching, live HTTP inventory integration,
+multi-client scheduling and whole-response evidence remain separate work.
+
+Replay (fresh output path):
+
+```sh
+python -m benchmarks.research.correction_stripes --credit-screen --rows 150 \
+  --processes 3 --output target/correction-credits.json
+```
+
+Evidence: `docs/evidence/research-correction-credits-confirm.json` and its plan and
+frontier companions. Build: `b299b1629b9ad522f826a150fed754d67b64cd0a67057596718f50ab9302383e`.
+Fifty-nine targeted target/transport checks pass, including outstanding-window
+retirement and inherited-child cleanup.

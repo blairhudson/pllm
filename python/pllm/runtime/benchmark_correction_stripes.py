@@ -7,6 +7,7 @@ It never exposes incomplete corrections as READY or imports reusable tickets.
 from __future__ import annotations
 
 import hashlib
+from collections import deque
 import hmac
 import json
 import os
@@ -124,35 +125,52 @@ class CorrectionStripeReceiver:
 
 
 class CorrectionStripeSender:
-    def __init__(self, *, key, context, rows, columns, stripe_columns, wire_bits):
+    def __init__(self, *, key, context, rows, columns, stripe_columns, wire_bits, credit_window=1):
         _admit(key, context, rows, columns, stripe_columns, wire_bits)
+        if type(credit_window) is not int or not 1 <= credit_window <= 8:
+            raise ValueError("invalid correction stripe credit window")
+        if credit_window * (rows * stripe_columns * (wire_bits // 8) + 4096) > 64 << 20:
+            raise ValueError("correction stripe window exceeds 64 MiB")
         self.key, self.context = key, context
         self.rows, self.columns, self.stripe_columns, self.wire_bits = rows, columns, stripe_columns, wire_bits
         self.column = self.sequence = 0
-        self.pending = None
+        self._issued_column = self._issued_sequence = 0
+        self.credit_window = credit_window
+        self._pending = deque()
         self.closed = False
+
+    @property
+    def pending(self):
+        return self._pending[0] if self._pending else None
+
+    @property
+    def outstanding(self):
+        return len(self._pending)
 
     def frame(self, values=None):
         try:
-            if self.closed or self.pending is not None:
+            if self.closed or self.outstanding >= self.credit_window or (self.pending and values is None):
                 raise ValueError("correction stripe sender is not ready")
             seal = values is None
-            width = 0 if seal else min(self.stripe_columns, self.columns - self.column)
+            width = 0 if seal else min(self.stripe_columns, self.columns - self._issued_column)
             if (seal and self.column != self.columns or not seal and (width < 1
                     or type(values) is not np.ndarray or values.dtype != np.uint32
                     or values.shape != (self.rows, width))):
                 raise ValueError("invalid correction stripe output")
-            frame = _authenticated(self.key, b"push", {"context": self.context, "sequence": self.sequence,
-                "operation": "seal" if seal else "stripe", "column": self.column, "width": width},
+            frame = _authenticated(self.key, b"push", {"context": self.context, "sequence": self._issued_sequence,
+                "operation": "seal" if seal else "stripe", "column": self._issued_column, "width": width},
                 b"" if seal else pack_residues(values, self.wire_bits))
-            self.pending = (hashlib.sha256(frame).hexdigest(), self.column + width, seal)
+            self._issued_column += width
+            self._issued_sequence += 1
+            self._pending.append((hashlib.sha256(frame).hexdigest(), self._issued_column, seal))
             return frame
         except BaseException:
             self.cancel()
             raise
 
     def cancel(self):
-        self.closed, self.pending, self.key = True, None, b""
+        self.closed, self.key = True, b""
+        self._pending.clear()
 
     def acknowledge(self, frame):
         try:
@@ -166,7 +184,7 @@ class CorrectionStripeSender:
                 raise ValueError("correction stripe acknowledgement differs")
             self.column, self.closed = self.pending[1], self.pending[2]
             self.sequence += 1
-            self.pending = None
+            self._pending.popleft()
         except BaseException:
             self.cancel()
             raise
@@ -231,6 +249,10 @@ def execute_stripes(p, m):
     stage = _select(context[3], p)
     rows, width, out = p["rows"], stage.in_features, stage.out_features
     columns = min(p["output_columns"] or out, out)
+    credit_window = p.get("credit_window", 1)
+    window_bytes = credit_window * (rows * columns * 4 + 4096)
+    if window_bytes > 64 << 20:
+        raise TargetUnavailable("stripe_credit_window_limit", status="blocked")
     count = m.sampling.repetitions + m.sampling.warmups
     if context[4].verification_component is not None:
         raise TargetUnavailable("verified_striped_corrections_not_implemented")
@@ -240,6 +262,7 @@ def execute_stripes(p, m):
     if p["kernel"] == "digit8_native" and not capabilities().get("digit8_cpu"):
         raise TargetUnavailable("digit8_cpu_unavailable")
     m.admit((288 << 20) + 8 * width * out + 32 * rows * (width + out)
+            + window_bytes
             + ((224 << 20) if p["kernel"] == "digit8_native" else 0))
     path, weight_hash, bound = _weight_file(stage, p, context, m)
     weights = np.memmap(path, dtype=np.int8, mode="r", shape=(out, width))
@@ -262,7 +285,7 @@ def execute_stripes(p, m):
         binding = digest({"plan": context[2].digest, "request": req.metadata()})
         contract = dict(key=key, context=binding, rows=rows, columns=out,
                         stripe_columns=columns, wire_bits=profile.wire_bits)
-        sender = CorrectionStripeSender(**contract)
+        sender = CorrectionStripeSender(**contract, credit_window=credit_window)
         cursor = prepared_mask_rows(req)
         process = None
         complete = False
@@ -280,7 +303,14 @@ def execute_stripes(p, m):
             send(process.stdin, bootstrap)
             pushed = acknowledged = 0
             kernel_cpu = exchange_wall = 0.0
+            maximum_outstanding = 0
             for number, matrix in enumerate(matrices):
+                if sender.outstanding == credit_window:
+                    before_wall = time.perf_counter()
+                    ack = receive(process.stdout)
+                    sender.acknowledge(ack)
+                    acknowledged += len(ack) + 4
+                    exchange_wall += time.perf_counter() - before_wall
                 start = number * columns
                 before = time.process_time()
                 correction = (matrix.digit8(r, profile.wire_bits) if p["kernel"] == "digit8_native"
@@ -292,12 +322,16 @@ def execute_stripes(p, m):
                 frame = sender.frame(correction)
                 del correction
                 send(process.stdin, frame)
-                ack = receive(process.stdout)
-                sender.acknowledge(ack)
                 exchange_wall += time.perf_counter() - before_wall
                 pushed += len(frame) + 4
+                maximum_outstanding = max(maximum_outstanding, sender.outstanding)
+                del frame
+            before_wall = time.perf_counter()
+            while sender.outstanding:
+                ack = receive(process.stdout)
+                sender.acknowledge(ack)
                 acknowledged += len(ack) + 4
-                del frame, ack
+            exchange_wall += time.perf_counter() - before_wall
             frame = sender.frame()
             send(process.stdin, frame)
             ack = receive(process.stdout)
@@ -312,7 +346,8 @@ def execute_stripes(p, m):
                 raise ValueError("correction receiver accounting differs")
             stats.update(push_bytes=pushed, acknowledgement_bytes=acknowledged,
                 control_bytes=len(bootstrap) + len(raw_stats) + 8, mask_cpu_seconds=mask_cpu,
-                kernel_cpu_seconds=kernel_cpu, exchange_wall_seconds=exchange_wall)
+                 kernel_cpu_seconds=kernel_cpu, exchange_wall_seconds=exchange_wall)
+            stats["maximum_outstanding_stripes"] = maximum_outstanding
             samples.append(stats)
             if index < m.sampling.warmups:
                 shutil.rmtree(root)
@@ -356,6 +391,7 @@ def execute_stripes(p, m):
         output_digest=m.commitment({"algebra": "W-r-minus-s", "weight": weight_hash, "ring": profile.to_dict(), "shape": [rows, out]}),
         measurement_digest=digest({"scope": "correction_stripe_pipe_ack_v1", "oracle_outside_timing": True}))
     m.details.update(output_columns=columns, input_mask_bytes=rows * width * 4,
+        credit_window=credit_window, maximum_inflight_body_bound_bytes=window_bytes,
         retained_output_mask_bytes=rows * out * 4, maximum_correction_array_bytes=rows * columns * 4,
         receiver_samples=samples, target_cpu_owners=["preparation", "receiver_child"], integer_macs=rows * width * out,
         private_correction_file_bytes=rows * out * (profile.wire_bits // 8) * len(values),

@@ -1,0 +1,85 @@
+{
+  "cohort": "63ad2bb262fe0e7705b2130f4980e1a8bda9c626401d08cace22cd9cd0af3fb1",
+  "confirmation": null,
+  "groups": [
+    {
+      "base": "native-150",
+      "excluded": [],
+      "nondominated": [
+        "native-150",
+        "native-150/credit8"
+      ],
+      "observations": [
+        {
+          "case": "native-150",
+          "metrics": {
+            "process.peak_rss": 89243648.0,
+            "receiver.peak_rss": 37191680.0,
+            "target.cpu": 0.413913
+          }
+        },
+        {
+          "case": "native-150/credit4",
+          "metrics": {
+            "process.peak_rss": 89522176.0,
+            "receiver.peak_rss": 38043648.0,
+            "target.cpu": 0.453661
+          }
+        },
+        {
+          "case": "native-150/credit8",
+          "metrics": {
+            "process.peak_rss": 88899584.0,
+            "receiver.peak_rss": 38043648.0,
+            "target.cpu": 0.44343699999999997
+          }
+        }
+      ],
+      "status": "exploratory"
+    },
+    {
+      "base": "digit8_native-150",
+      "excluded": [],
+      "nondominated": [
+        "digit8_native-150"
+      ],
+      "observations": [
+        {
+          "case": "digit8_native-150",
+          "metrics": {
+            "process.peak_rss": 91144192.0,
+            "receiver.peak_rss": 37289984.0,
+            "target.cpu": 0.249135
+          }
+        },
+        {
+          "case": "digit8_native-150/credit4",
+          "metrics": {
+            "process.peak_rss": 96239616.0,
+            "receiver.peak_rss": 37978112.0,
+            "target.cpu": 0.272696
+          }
+        },
+        {
+          "case": "digit8_native-150/credit8",
+          "metrics": {
+            "process.peak_rss": 93487104.0,
+            "receiver.peak_rss": 37421056.0,
+            "target.cpu": 0.24925199999999997
+          }
+        }
+      ],
+      "status": "exploratory"
+    }
+  ],
+  "incompatible": [],
+  "metrics": {
+    "process.peak_rss": "min",
+    "receiver.peak_rss": "min",
+    "target.cpu": "min"
+  },
+  "run_digest": "02e3e64b54aa8bf3b32ab623e11ba4b525e882791357859b0470ef87e383e163",
+  "schema_version": "pllm.frontier_snapshot.v1",
+  "scope": "best measured in each exact cell; no cross-build or cross-lifecycle propagation",
+  "study_digest": "43de745adb7d172f712ca43e80f1501bbf7de61f0f479326efe247e3ee450c6e"
+}

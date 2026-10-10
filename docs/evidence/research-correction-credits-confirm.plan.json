@@ -1,0 +1,223 @@
+{
+  "schema": "pllm.frontier_study.v1",
+  "suite": {
+    "schema": "pllm.benchmark_suite.v1",
+    "name": "correction-stripes-v1",
+    "cases": [
+      {
+        "name": "native-150",
+        "target": {
+          "kind": "preparation",
+          "parameters": {
+            "chunk_rows": 0,
+            "credit_window": 1,
+            "kernel": "native",
+            "layer": 0,
+            "model": {
+              "config": {
+                "architectures": [
+                  "Qwen2ForCausalLM"
+                ],
+                "attention_dropout": 0.0,
+                "bos_token_id": 151643,
+                "eos_token_id": 151645,
+                "hidden_act": "silu",
+                "hidden_size": 896,
+                "initializer_range": 0.02,
+                "intermediate_size": 4864,
+                "max_position_embeddings": 32768,
+                "max_window_layers": 21,
+                "model_type": "qwen2",
+                "num_attention_heads": 14,
+                "num_hidden_layers": 24,
+                "num_key_value_heads": 2,
+                "rms_norm_eps": 1e-06,
+                "rope_theta": 1000000.0,
+                "sliding_window": 32768,
+                "tie_word_embeddings": true,
+                "torch_dtype": "bfloat16",
+                "transformers_version": "4.43.1",
+                "use_cache": true,
+                "use_sliding_window": false,
+                "vocab_size": 151936
+              },
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://correction-stripes"
+                },
+                "name": "correction-stripes",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "local_files_only": true,
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "output_columns": 256,
+            "role": "mlp_gate_up",
+            "rows": 150,
+            "seed": 7,
+            "storage": "resident",
+            "weights": "synthetic"
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/.venv/bin/python",
+          "expected_digest": "b299b1629b9ad522f826a150fed754d67b64cd0a67057596718f50ab9302383e"
+        },
+        "budgets": []
+      },
+      {
+        "name": "digit8_native-150",
+        "target": {
+          "kind": "preparation",
+          "parameters": {
+            "chunk_rows": 0,
+            "credit_window": 1,
+            "kernel": "digit8_native",
+            "layer": 0,
+            "model": {
+              "config": {
+                "architectures": [
+                  "Qwen2ForCausalLM"
+                ],
+                "attention_dropout": 0.0,
+                "bos_token_id": 151643,
+                "eos_token_id": 151645,
+                "hidden_act": "silu",
+                "hidden_size": 896,
+                "initializer_range": 0.02,
+                "intermediate_size": 4864,
+                "max_position_embeddings": 32768,
+                "max_window_layers": 21,
+                "model_type": "qwen2",
+                "num_attention_heads": 14,
+                "num_hidden_layers": 24,
+                "num_key_value_heads": 2,
+                "rms_norm_eps": 1e-06,
+                "rope_theta": 1000000.0,
+                "sliding_window": 32768,
+                "tie_word_embeddings": true,
+                "torch_dtype": "bfloat16",
+                "transformers_version": "4.43.1",
+                "use_cache": true,
+                "use_sliding_window": false,
+                "vocab_size": 151936
+              },
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "local://correction-stripes"
+                },
+                "name": "correction-stripes",
+                "pipeline": {
+                  "components": {
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {}
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "local_files_only": true,
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "output_columns": 256,
+            "role": "mlp_gate_up",
+            "rows": 150,
+            "seed": 7,
+            "storage": "resident",
+            "weights": "synthetic"
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/.venv/bin/python",
+          "expected_digest": "b299b1629b9ad522f826a150fed754d67b64cd0a67057596718f50ab9302383e"
+        },
+        "budgets": []
+      }
+    ],
+    "sampling": {
+      "processes": 3,
+      "repetitions": 1,
+      "warmups": 0,
+      "timeout_seconds": 300,
+      "order": "balanced",
+      "threads": 1,
+      "memory_bytes": 1073741824
+    }
+  },
+  "variants": [
+    {
+      "name": "credit4",
+      "parameters": {
+        "credit_window": 4
+      },
+      "targets": []
+    },
+    {
+      "name": "credit8",
+      "parameters": {
+        "credit_window": 8
+      },
+      "targets": []
+    }
+  ],
+  "interactions": []
+}
