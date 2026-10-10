@@ -230,6 +230,18 @@ decode, and the benchmark counts both storage categories separately. A pinned
 three-request Qwen cohort preserves outputs with almost equal CPU/Metal request
 latency and another 44.04 MB of client GPU weights; compatibility alone does not
 justify automatic device selection.
+A separate model-neutral native stage compiler now selects CPU/Metal independently
+for prefill and decode under one joint GPU snapshot/workspace budget. Complete
+source/build/workload-bound profiles drive a bounded Pareto search; runtime checks
+actual stage weights and numeric boundaries before allocation. Generated complete
+decoder logits and KV remain exact. A separate profiler checks 367,386,624 integer
+outputs; twelve fresh pinned Qwen decoder processes preserve complete logits/KV
+with zero observed swap growth. The 2 GiB-budget selection lowers local decoder
+elapsed time 10.86% versus CPU but remains 3.67% slower than fixed-threshold Metal.
+CPU snapshots coexist with 347.28 MB of GPU weights. This local-clear reference
+retains fixed stage ownership; provider negotiation, joint paging/tiling and
+protected whole-response improvement require additional evidence. Details:
+`docs/research/stage-kernel-reference.md`.
 Core also contains a bounded, non-selectable coded-matvec verifier inspired by
 Maverick's public preprocessing and sparse-check algebra. Its Walsh-linear code
 proves half-distance over BabyBear for six to ten output rows; exponential code

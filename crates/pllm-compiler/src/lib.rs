@@ -24,6 +24,8 @@ mod decoder_continuation;
 mod decoder_runtime_schedule;
 mod execution_capsule;
 pub use execution_capsule::ExecutionCapsule;
+mod stage_kernel_plan;
+pub use stage_kernel_plan::stage_kernel_plan;
 mod mlp_tiling;
 pub use mlp_tiling::mlp_tiling_bytes;
 mod retained_decoder;

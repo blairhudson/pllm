@@ -32,6 +32,7 @@ mod row_memo;
 mod secret_replication;
 mod shared_rescale;
 mod shared_selection;
+mod stage_kernel_plan;
 mod token_pruning;
 mod wavelet_gated;
 
@@ -1757,6 +1758,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     network::register(module)?;
     continuation::register(module)?;
     execution_capsule::register(module)?;
+    stage_kernel_plan::register(module)?;
     module.add_class::<Matrix>()?;
     module.add_class::<CompactQ7Reference>()?;
     module.add_class::<CompiledPlan>()?;
