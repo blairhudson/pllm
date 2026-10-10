@@ -477,6 +477,7 @@ def _comparison_nonlinear_component(components: dict[str, Any]) -> Any:
 
 def _matched_kernel_composition(candidates: list[tuple[Experiment, dict[str, Any]]]) -> bool:
     """Require recorded source, numeric and output identity for cross-kernel ranking."""
+    from pllm.schedulers import _numeric_component
     identities = []
     source_by_roles: dict[tuple[str, ...], str] = {}
     for experiment, report in candidates:
@@ -507,7 +508,7 @@ def _matched_kernel_composition(candidates: list[tuple[Experiment, dict[str, Any
             "numeric": {
                 "quantization": pipeline["components"].get("quantization"),
                 "nonlinear": _comparison_nonlinear_component(pipeline["components"]),
-                "scheduler": pipeline["components"].get("scheduler"),
+                "scheduler": _numeric_component(pipeline["components"].get("scheduler")),
                 "state": pipeline["components"].get("state"),
             },
             "outputs": outputs,
@@ -519,6 +520,7 @@ def build_comparison_report(
     candidates: list[tuple[Experiment, dict[str, Any]]], *, compare_kernels: bool = False,
 ) -> dict[str, Any]:
     """Build one matched report over independently executed Experiment pipelines."""
+    from pllm.schedulers import _numeric_component
     if len(candidates) < 2:
         raise ValueError("comparison requires at least two Experiment pipelines")
     records = [
@@ -552,7 +554,8 @@ def build_comparison_report(
     for experiment, _ in candidates:
         components = experiment.pipeline.to_spec()["components"]
         numeric_contracts.append(json.dumps({
-            "nonlinear": _comparison_nonlinear_component(components), "scheduler": components.get("scheduler"),
+            "nonlinear": _comparison_nonlinear_component(components),
+            "scheduler": _numeric_component(components.get("scheduler")),
             "state": components.get("state"),
             "causal_reduction": components.get("quantization", {}).get("params", {}).get("causal_reduction"),
         }, sort_keys=True))

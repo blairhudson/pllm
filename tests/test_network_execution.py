@@ -67,7 +67,7 @@ def setup(tmp_path):
                           "http", ("client", "operator-a", "operator-b"), roots)
     credentials = {root.credential_env: secrets.token_urlsafe(32) for root in roots}
     specs = tuple(PartySpec(root.party_id, installed, source_lock, ("worker_a", "worker_b"),
-                           64 << 20, 64 << 20, peer_party_ids=tuple(r.party_id for r in roots))
+                           1 << 30, 64 << 20, peer_party_ids=tuple(r.party_id for r in roots))
                   for root in roots)
     return network, credentials, specs, model_plan, source_lock
 

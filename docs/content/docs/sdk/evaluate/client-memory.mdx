@@ -48,6 +48,31 @@ mask claims and token/head operations, with identical bytes/results and zero swa
 growth. Combined CPU increased 15.2%. The probe excludes decoder body, attention,
 KV and provider sessions; it does not establish 10× whole-client memory.
 
+## MLP prefill working sets
+
+`pllm.schedulers.MlpPrefillTiling(tile_rows=64)` is an explicit scheduler on
+`MaskedLinearCpu` and `ClientOnlyCpu`. It carries each public row tile through
+the original gate/up projections, local SiLU/multiply and down projection before
+retiring intermediates. Attention, full hidden outputs, KV and decode remain
+charged. Tile sizes are 1–256; native eligibility rejects incompatible regions.
+
+```python
+from pllm import Model, Pipeline
+from pllm.profiles import MaskedLinearCpu
+from pllm.schedulers import MlpPrefillTiling
+
+pipeline = MaskedLinearCpu(Model.tiny(), scheduler=MlpPrefillTiling(tile_rows=16))
+assert pipeline.scheduler.params["tile_rows"] == 16
+assert Pipeline.from_spec(pipeline.to_spec()).digest() == pipeline.digest()
+```
+
+Generated SDK and gateway checks preserve complete logits/KV and burn unused rows
+on failure. The [isolated Qwen confirmation](https://github.com/blairhudson/pllm/blob/main/docs/research/mlp-working-set-reference.md)
+measured 9.48%/16.31% lower client RSS at 150/288+8 tokens with slower TTFT.
+Those historical research-selector measurements remain separate from this SDK
+promotion. Smaller tiles add dependent exchanges; full-stage codec admission
+still applies. Freivalds, Metal and retained-state compositions reject tiling.
+
 ## Complete-response measurement
 
 A matched, fresh-process Qwen2.5 37+8-token cohort measures

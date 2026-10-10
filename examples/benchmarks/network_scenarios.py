@@ -172,7 +172,7 @@ def scenario_fixture(root: Path, *, fast_region="east", hidden_size=32):
     credentials = {item.credential_env: secrets.token_urlsafe(32) for item in roots}
     rates = {name: (20_000_000 if name.endswith(fast_region) else 200_000) for name in names}
     placeholders = tuple(PartyOffer(item.party_id, item.operator_id, str(index + 1) * 64,
-        stamp + 60_000, ("public_linear_provider",), 256 << 20, 64 << 20, 2, 0, ("*",), ("*",))
+        stamp + 60_000, ("public_linear_provider",), 1 << 30, 64 << 20, 2, 0, ("*",), ("*",))
         for index, item in enumerate(roots))
     links = tuple(LinkObservation(left, right, "controlled-proxy-rate", stamp, stamp + 60_000,
         rates[name], 0) for name in names for left, right in (("client", name), (name, "client")))
@@ -181,7 +181,7 @@ def scenario_fixture(root: Path, *, fast_region="east", hidden_size=32):
         ("client", *(item.operator_id for item in roots)), roots)
     specs = tuple(PartySpec(item.party_id, installed, source,
         ("worker_a",) if item.party_id.startswith("a-") else ("worker_b",),
-        256 << 20, 64 << 20, max_sessions=2, offer_seconds=60, peer_party_ids=names) for item in roots)
+        1 << 30, 64 << 20, max_sessions=2, offer_seconds=60, peer_party_ids=names) for item in roots)
     children = [create_party_app(spec, network, credentials=credentials) for spec in specs]
     proxies = []
     with ExitStack() as stack:

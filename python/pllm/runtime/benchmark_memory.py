@@ -155,10 +155,41 @@ def _freivalds_memory(native, stages, *, rows, failure_bits, stage_window):
             "preparation_peak_bytes": preparation, "inference_peak_bytes": 0}
 
 
+def _validate_workload(max_input_tokens, max_output_tokens, inventory_rows, cache_bytes, cache_bound_tokens):
+    for value in (max_input_tokens, max_output_tokens, inventory_rows):
+        if type(value) is not int or not 1 <= value <= 32768:
+            raise BenchmarkMemoryError("memory admission requires bounded positive workload counts")
+    if type(cache_bytes) is not int or cache_bytes < 0:
+        raise BenchmarkMemoryError("invalid client cache memory bound")
+    if cache_bound_tokens is not None and (
+        type(cache_bound_tokens) is not int or not 1 <= cache_bound_tokens <= 32768
+    ):
+        raise BenchmarkMemoryError("invalid client cache input bound")
+
+
 def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                     inventory_rows=64, cache_bytes=0, cache_bound_tokens=None, checkpoint_bytes=0, store=None):
     """Model-neutral graph geometry; no arrays or checkpoint tensor reads."""
     from pllm.modeling import lower_model
+    from pllm.profiles import resolve_runtime_composition
+
+    _validate_workload(max_input_tokens, max_output_tokens, inventory_rows, cache_bytes, cache_bound_tokens)
+    options = resolve_runtime_composition(pipeline)
+    if options is None:
+        raise BenchmarkMemoryError("memory estimation requires an implemented composition")
+    compiled_input_bound = max(max_input_tokens, cache_bound_tokens or 0,
+                               options.prefix_cache_bound_tokens or 0)
+    plan = lower_model(config, batch=1, max_input_tokens=compiled_input_bound,
+                       max_new_tokens=max_output_tokens)
+    return estimate_plan_memory(plan, pipeline, max_input_tokens=max_input_tokens,
+        max_output_tokens=max_output_tokens, inventory_rows=inventory_rows, cache_bytes=cache_bytes,
+        cache_bound_tokens=cache_bound_tokens, checkpoint_bytes=checkpoint_bytes, store=store)
+
+
+def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
+                         inventory_rows=64, cache_bytes=0, cache_bound_tokens=None,
+                         checkpoint_bytes=0, store=None):
+    """Shared native allocation-owner estimate from an admitted semantic plan."""
     from pllm.profiles import resolve_runtime_composition
     from pllm.roles.topology import graph_for_runtime
     from .semantic_stages import client_owns_linear, provider_owns_linear, scheduled_stage_specs
@@ -177,15 +208,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     if not snapshot_storage or not hasattr(native, "PreparedMaskRows"):
         raise BenchmarkMemoryError("memory admission requires the installed native snapshot storage and mask-stream backend")
 
-    for value in (max_input_tokens, max_output_tokens, inventory_rows):
-        if type(value) is not int or not 1 <= value <= 32768:
-            raise BenchmarkMemoryError("memory admission requires bounded positive workload counts")
-    if type(cache_bytes) is not int or cache_bytes < 0:
-        raise BenchmarkMemoryError("invalid client cache memory bound")
-    if cache_bound_tokens is not None and (
-        type(cache_bound_tokens) is not int or not 1 <= cache_bound_tokens <= 32768
-    ):
-        raise BenchmarkMemoryError("invalid client cache input bound")
+    _validate_workload(max_input_tokens, max_output_tokens, inventory_rows, cache_bytes, cache_bound_tokens)
     options = resolve_runtime_composition(pipeline)
     if options is None or options.privacy_mode not in {"public", "offset_public", "client_only"}:
         raise BenchmarkMemoryError("memory estimation requires an implemented public compiled topology")
@@ -196,8 +219,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         raise BenchmarkMemoryError("paged memory admission requires native shared authenticated snapshots")
     compiled_input_bound = max(max_input_tokens, cache_bound_tokens or 0,
                                options.prefix_cache_bound_tokens or 0)
-    plan = lower_model(config, batch=1, max_input_tokens=compiled_input_bound,
-                       max_new_tokens=max_output_tokens)
+    if (plan.prefill["query_sequence"] != compiled_input_bound
+            or plan.decode["maximum_key_sequence"] != compiled_input_bound + max_output_tokens - 1):
+        raise BenchmarkMemoryError("allocation plan and compiled workload bounds differ")
     stages = scheduled_stage_specs(plan, pipeline)
     from .semantic_tensors import required_client_tensors, preflight_semantic_checkpoint
     local_tensors = 4 * sum(math.prod(shape) for shape in required_client_tensors(plan).values())
@@ -220,11 +244,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     boundary = sum(s.in_features * s.out_features for s in stages
                    if s.role in {"token_lookup", "lm_head"}
                    and not (s.role == "lm_head" and options.remote_output_head))
-    raw_config = config.get("text_config", config)
     token = next(s for s in stages if s.role == "token_lookup")
     head = next(s for s in stages if s.role == "lm_head")
-    shared_main_table = bool(raw_config.get("tie_word_embeddings")
-                             and token.weight_keys and head.weight_keys
+    shared_main_table = bool(token.weight_keys and head.weight_keys
                              and token.weight_keys[0] == head.weight_keys[0])
     if shared_main_table:
         boundary -= next(s.in_features * s.out_features for s in stages if s.role == "lm_head")
@@ -273,7 +295,8 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     window = pipeline.components.get("inventory")
     work *= window.params.get("stage_window", 1) if window is not None else 1
     from .decoder_memory import decoder_memory
-    workspace = decoder_memory(plan, plan.runtime_schedule(pipeline))
+    workspace = decoder_memory(plan, plan.runtime_schedule(pipeline),
+        initial_prefill_only=not (cache_bytes or options.prefix_cache_bytes))
     tensors = workspace["working_bytes"] + workspace["state_bytes"]
     # Serial dispatch owns one client chunk; overlap also owns one prefetched
     # chunk. A worker may own one chunk in each of

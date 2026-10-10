@@ -27,7 +27,7 @@ def _bytes(shape):
     return result
 
 
-def _phase_working_bytes(graph, schedule):
+def _phase_working_bytes(graph, schedule, tiling=None):
     """Retain whole allocation roots for views and grouped projection slices."""
     operations = {op["id"]: op for op in graph["operations"]}
     remaining = Counter(name for step in schedule["steps"] for name in step["input_ids"])
@@ -60,11 +60,28 @@ def _phase_working_bytes(graph, schedule):
     if len(logits) != 1:
         raise ValueError("live schedule has no unique logits source")
     peak, largest_step = sum(roots.values()), 0
+    regions = {region["first_step"]: region for region in tiling["regions"]} if tiling else {}
+    skip_until = 0
     for index, step in enumerate(schedule["steps"]):
-        inputs = step["input_ids"]
+        if index < skip_until:
+            continue
+        region = regions.get(index)
+        if region is not None:
+            # Native admission proved exclusive intermediate consumers. Keep the
+            # full source/output roots and conservatively retain every tile
+            # intermediate plus the largest stage's numeric conversion scratch.
+            count = min(sequence, tiling["tile_rows"])
+            hidden, width = region["hidden_width"], region["intermediate_width"]
+            tile_live = 8 * count * (4 * width + hidden)
+            tile_step = 8 * count * max(hidden + 2 * width, 3 * width)
+            inputs = [region["input_id"]]
+            outputs = schedule["steps"][region["end_step"] - 1]["outputs"]
+            skip_until = region["end_step"]
+        else:
+            inputs = step["input_ids"]
+            outputs = step["outputs"]
         if any(name not in values for name in inputs):
             raise ValueError("live schedule input is unavailable")
-        outputs = step["outputs"]
         output_bytes = sum(_bytes(row["output_shape"]) for row in outputs)
         # Grouped remote outputs slice one allocation. A local operation can
         # allocate even when its common implementation is a view (reshape/BF16).
@@ -77,10 +94,10 @@ def _phase_working_bytes(graph, schedule):
                 for source in inputs:
                     owners.update(values[source])
             retain(name, frozenset(owners), _bytes(row["output_shape"]))
-        step_bytes = output_bytes + sum(sizes[name] for name in inputs)
+        step_bytes = tile_step if region is not None else output_bytes + sum(sizes[name] for name in inputs)
         # Eight four-byte arrays per declared input/output element. Includes
         # f64 reductions, quantization and Python/native conversion scratch.
-        peak = max(peak, sum(roots.values()) + 4 * step_bytes)
+        peak = max(peak, sum(roots.values()) + 4 * step_bytes + (tile_live if region is not None else 0))
         largest_step = max(largest_step, step_bytes)
         for name in inputs:
             remaining[name] -= 1
@@ -90,7 +107,7 @@ def _phase_working_bytes(graph, schedule):
     return peak + 2 * largest_step
 
 
-def decoder_memory(plan, schedule):
+def decoder_memory(plan, schedule, *, initial_prefill_only=False):
     graphs = (plan.prefill, plan.decode)
     rotary = max(rotary_coefficient_bound(graph) for graph in graphs)
     legacy = sum(_bytes(op["output_shape"]) for graph in graphs for op in graph["operations"])
@@ -121,7 +138,8 @@ def decoder_memory(plan, schedule):
         return {"mode": "unreleased_outputs", "working_bytes": legacy + rotary,
                 "state_bytes": 0, "legacy_working_bytes": legacy,
                 "rotary_coefficient_bytes": rotary}
-    working = max(_phase_working_bytes(graph, phases[phase])
+    tiling = phases.get("mlp_tiling") if initial_prefill_only else None
+    working = max(_phase_working_bytes(graph, phases[phase], tiling if phase == "prefill" else None)
                   for phase, graph in zip(("prefill", "decode"), graphs, strict=True))
     # KV growth is capped at the compiled sequence bound. Growth overlap,
     # restored state, completed-response
@@ -129,6 +147,6 @@ def decoder_memory(plan, schedule):
     # payload capacity is charged separately by the caller. Benchmark response
     # snapshots must be retired after each run; arbitrary SDK history is unbounded.
     state = 6 * sum(states.values())
-    return {"mode": "full_kv_bounded_live_roots_v2", "working_bytes": working + rotary,
+    return {"mode": "tiled_mlp_full_kv_live_roots_v1" if tiling else "full_kv_bounded_live_roots_v2", "working_bytes": working + rotary,
             "state_bytes": state, "legacy_working_bytes": legacy,
             "rotary_coefficient_bytes": rotary}

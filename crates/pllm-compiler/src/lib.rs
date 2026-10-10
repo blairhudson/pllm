@@ -1935,6 +1935,7 @@ fn validate_bounded_linear_composition(
     linear_identity: &str,
     topology_identity: &str,
 ) -> Result<(), String> {
+    mlp_tiling::selected_rows(pipeline)?;
     for (slot, required) in [("linear", linear_identity), ("topology", topology_identity)] {
         let component = pipeline
             .components
@@ -2003,6 +2004,7 @@ fn validate_bounded_linear_composition(
     }
     if pipeline.components.len()
         != 3 + usize::from(quantization.is_some())
+            + usize::from(pipeline.components.contains_key("scheduler"))
             + usize::from(pipeline.components.contains_key("state"))
             + usize::from(cache.is_some())
             + usize::from(delivery.is_some())
@@ -2018,6 +2020,7 @@ fn validate_bounded_linear_composition(
 fn validate_masked_linear_composition(
     pipeline: &ExperimentPipeline,
 ) -> Result<MaskedLinearComposition, String> {
+    mlp_tiling::selected_rows(pipeline)?;
     validate_masked_linear_core(pipeline, true)?;
     let quantization = pipeline.components.get("quantization");
     if let Some(quantization) = quantization {
@@ -2220,6 +2223,7 @@ fn validate_masked_linear_composition(
     }
     if pipeline.components.len()
         != 4 + usize::from(quantization.is_some())
+            + usize::from(pipeline.components.contains_key("scheduler"))
             + usize::from(pipeline.components.contains_key("state"))
             + usize::from(verification.is_some())
             + usize::from(topology.is_some())

@@ -403,6 +403,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/nonlinear/curl-wavelet-gated-multiply-q9/', 'pllm/curl-wavelet-gated-multiply-q9/v1', '/research/papers/curl/'],
     ['/sdk/components/nonlinear/logrow-gated-multiply-q9/', 'pllm/logrow-gated-multiply-q9/v1', '/research/papers/logrow/'],
     ['/sdk/components/schedulers/bounded-independent-elements/', 'pllm/bounded-independent-elements/v1', null],
+    ['/sdk/components/schedulers/mlp-prefill-tiling/', 'pllm/mlp-prefill-tiling/v1', null],
     ['/sdk/components/schedulers/scalar/', 'pllm/scalar/v1', null],
     ['/sdk/components/schedulers/independent-lanes/', 'pllm/independent-lanes/v1', null],
     ['/sdk/components/schedulers/chunked-independent-lanes/', 'pllm/chunked-independent-lanes/v1', null],

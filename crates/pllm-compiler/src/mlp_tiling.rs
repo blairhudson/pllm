@@ -1,5 +1,8 @@
 //! Bounded row-independent MLP regions in an already admitted semantic schedule.
-use crate::{lower_decoder_runtime_schedule, DecoderCompositionKind, DecoderRuntimeExecutor};
+use crate::{
+    lower_decoder_runtime_schedule, DecoderCompositionKind, DecoderRuntimeExecutor,
+    DecoderRuntimeSchedule, ExperimentPipeline,
+};
 use pllm_models::{DecoderPlan, ModelOperator};
 use pllm_types::{canonical_bytes, Digest};
 use serde::Serialize;
@@ -27,6 +30,44 @@ struct Contract {
     regions: Vec<Region>,
 }
 
+pub(crate) fn selected_rows(pipeline: &ExperimentPipeline) -> Result<Option<u64>, String> {
+    let Some(component) = pipeline.components.get("scheduler") else {
+        return Ok(None);
+    };
+    if component.component != "pllm/mlp-prefill-tiling/v1"
+        || component.params.len() != 1
+        || !matches!(
+            component
+                .params
+                .get("tile_rows")
+                .and_then(serde_json::Value::as_u64),
+            Some(1..=256)
+        )
+        || pipeline
+            .components
+            .get("kernels")
+            .is_none_or(|k| k.component != "pllm/cpu")
+        || !pipeline.components.get("linear").is_some_and(|l| {
+            matches!(
+                l.component.as_str(),
+                "pllm/masked-linear" | "pllm/cleartext-linear"
+            )
+        })
+        || ["verification", "nonlinear", "state"]
+            .iter()
+            .any(|s| pipeline.components.contains_key(*s))
+    {
+        return Err(
+            "MLP prefill tiling requires bounded unverified CPU linear execution and full KV"
+                .into(),
+        );
+    }
+    Ok(component
+        .params
+        .get("tile_rows")
+        .and_then(serde_json::Value::as_u64))
+}
+
 pub fn mlp_tiling_bytes(
     plan: &[u8],
     composition: &[u8],
@@ -43,6 +84,27 @@ pub fn mlp_tiling_bytes(
     }
     let plan: DecoderPlan = serde_json::from_slice(plan).map_err(|e| e.to_string())?;
     let source = lower_decoder_runtime_schedule(&plan, composition)?;
+    if let Some(contract) = &source.mlp_tiling {
+        if contract
+            .get("tile_rows")
+            .and_then(serde_json::Value::as_u64)
+            != Some(tile_rows)
+        {
+            return Err("MLP tiling differs from selected scheduler".into());
+        }
+        return Ok(canonical_bytes(contract));
+    }
+    build_contract(&plan, &source, tile_rows)
+}
+
+pub(crate) fn build_contract(
+    plan: &DecoderPlan,
+    source: &DecoderRuntimeSchedule,
+    tile_rows: u64,
+) -> Result<Vec<u8>, String> {
+    if !(1..=256).contains(&tile_rows) || source.mlp_tiling.is_some() {
+        return Err("invalid MLP tiling source schedule".into());
+    }
     if source.nonlinear.is_some() || source.retained_state.is_some() || plan.prefill.batch != 1 {
         return Err("MLP tiling requires the ordinary dense client numeric contract".into());
     }
@@ -157,7 +219,7 @@ pub fn mlp_tiling_bytes(
         schema: "pllm.client_mlp_tiling.v1",
         source_plan_digest: plan.digest(),
         source_schedule_digest: source.digest(),
-        composition_digest: source.composition_digest,
+        composition_digest: source.composition_digest.clone(),
         tile_rows,
         regions,
     }))

@@ -1,0 +1,37 @@
+---
+title: "MLP prefill tiling"
+description: "Bound initial-prefill MLP intermediates with exact compiler-bound row tiles."
+---
+
+API: [`MlpPrefillTiling`](/sdk/reference/python/pllm/schedulers/#objects-and-signatures)
+
+`pllm/mlp-prefill-tiling/v1` selects 1–256 public rows per MLP tile on
+`MaskedLinearCpu` or `ClientOnlyCpu`. Native compilation binds exclusive
+gate/up, SiLU, multiply and down operations to the selected tile geometry.
+Every operation retains its original numeric contract. Full hidden outputs,
+attention, KV and decode retain their ordinary owners.
+
+## Python SDK example
+
+```python
+from pllm import Model, Pipeline
+from pllm.profiles import MaskedLinearCpu
+from pllm.schedulers import MlpPrefillTiling
+
+pipeline = MaskedLinearCpu(Model.tiny(), scheduler=MlpPrefillTiling(tile_rows=64))
+assert pipeline.scheduler.component == "pllm/mlp-prefill-tiling/v1"
+assert Pipeline.from_spec(pipeline.to_spec()).digest() == pipeline.digest()
+```
+
+Use this Pipeline in the ordinary [Experiment and gateway workflow](/sdk/inference/masked-linear/).
+Generated Qwen2/Qwen3/Llama SDK and gateway checks preserve complete logits/KV,
+including separate prepared-role processes and cancellation retirement.
+Freivalds, Metal, protected nonlinear and retained-state compositions reject this
+scheduler. Full-stage codec bounds remain in force.
+
+The [Qwen working-set study](https://github.com/blairhudson/pllm/blob/main/docs/research/mlp-working-set-reference.md)
+measured 9.48%/16.31% lower client peak RSS for 150/288 input tokens plus eight
+outputs in its isolated confirmation, with 3.70%/2.90% slower online TTFT.
+Those research-selector measurements establish a bounded memory/latency tradeoff.
+Smaller tiles add dependent provider exchanges; WAN timing requires its own
+measurement. See [complete client-memory accounting](/sdk/evaluate/client-memory/).

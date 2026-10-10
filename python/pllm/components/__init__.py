@@ -87,6 +87,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         TwoOnlineOffsetRoles,
     )
     from pllm.schedulers import (
+        MlpPrefillTiling,
         BoundedIndependentElementsProtectedTensorSchedule,
         ChunkedIndependentLanesProtectedTensorSchedule,
         IndependentLanesProtectedTensorSchedule,
@@ -140,6 +141,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         PackedEncryptedSoftmax,
         MaskedWireGatedMultiplyQ12,
         ModelAwareCorrections,
+        MlpPrefillTiling,
         OutputHeadAtInference,
         ClientPrefixLayers,
         ClientLinearRoles,

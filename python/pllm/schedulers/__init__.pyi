@@ -1,5 +1,11 @@
 from pllm.configuration import ComponentDescriptor, ComponentRef
 
+class MlpPrefillTiling(ComponentRef):
+    descriptor: ComponentDescriptor
+    def __init__(self, *, tile_rows: int = 64) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
 class ProtectedScheduler(ComponentRef): ...
 
 class BoundedIndependentElementsProtectedTensorSchedule(ProtectedScheduler):

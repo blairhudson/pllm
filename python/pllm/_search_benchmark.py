@@ -26,12 +26,15 @@ def _digest(value):
 
 
 def _boundary(experiment):
+    from pllm.schedulers import _numeric_component
+
     resolved = experiment.resolve()
     return {
         "source": experiment.pipeline.model.to_spec(),
         "profile": resolved.profile,
         "numeric": {name: value.to_spec() for name, value in experiment.pipeline.components.items()
-                    if name in {"quantization", "nonlinear", "scheduler"}},
+                     if name in {"quantization", "nonlinear", "scheduler"}
+                     and (name != "scheduler" or _numeric_component(value.to_spec()) is not None)},
         "privacy": {
             "mode": resolved.privacy_mode,
             "protocol": resolved.privacy_protocol,

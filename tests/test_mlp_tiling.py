@@ -8,6 +8,7 @@ import pytest
 
 from pllm import Model, _native, lower_model
 from pllm.profiles import ClientOnlyCpu
+from pllm.schedulers import MlpPrefillTiling
 from pllm.runtime.mlp_tiling import MlpTiling
 from pllm.runtime.model_binding import compile_runtime_model
 from pllm.runtime.transformer_client import ClientBundle, TransformerClientError
@@ -16,9 +17,44 @@ from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.loaders import load_hf_directory
 
 
+def test_selected_scheduler_serialization_and_native_rejection():
+    from pllm import Pipeline
+    from pllm.components import create_component
+    from pllm.kernels import AppleMetal
+    from pllm.profiles import MaskedLinearCpu, VerifiedMaskedLinearCpu
+    from pllm.sources import _tiny_model_config
+
+    component = MlpPrefillTiling(tile_rows=7)
+    assert create_component(component.component, component.get_params()) == component
+    pipeline = ClientOnlyCpu(Model.tiny(), scheduler=component)
+    assert Pipeline.from_spec(pipeline.to_spec()).digest() == pipeline.digest()
+    from pllm._search_benchmark import _boundary
+    from pllm import Deployment, ExecutionBudget, Experiment
+    full = Experiment("full", ClientOnlyCpu(Model.tiny()), Deployment.local(root="local://tiling"),
+                      ExecutionBudget(requests=1, max_input_tokens=16, max_new_tokens=2))
+    tiled = full.with_params(pipeline__scheduler=component)
+    assert full.configuration_digest() != tiled.configuration_digest()
+    assert _boundary(full)["numeric"] == _boundary(tiled)["numeric"]
+    plan = lower_model(_tiny_model_config(), batch=1, max_input_tokens=16, max_new_tokens=2)
+    schedule = plan.runtime_schedule(pipeline).to_dict()
+    assert schedule["mlp_tiling"]["tile_rows"] == 7
+    assert json.loads(_native.decoder_mlp_tiling(plan.canonical_bytes(), pipeline.canonical_bytes(), 7)) == schedule["mlp_tiling"]
+    with pytest.raises(ValueError, match="selected scheduler"):
+        _native.decoder_mlp_tiling(plan.canonical_bytes(), pipeline.canonical_bytes(), 8)
+    for bad in (0, 257, True, 1.5):
+        with pytest.raises(ValueError):
+            MlpPrefillTiling(tile_rows=bad)
+    for unsupported in (MaskedLinearCpu(Model.tiny(), kernels=AppleMetal()),
+                        VerifiedMaskedLinearCpu(Model.tiny())):
+        forged = Pipeline(model=unsupported.model, components={**unsupported.components, "scheduler": component})
+        with pytest.raises(ValueError):
+            plan.runtime_schedule(forged)
+
+
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
 @pytest.mark.parametrize("tile", [1, 7, 16])
-def test_tiled_mlp_exact_logits_kv_and_intermediate_retirement(tmp_path, family, tile):
+@pytest.mark.parametrize("selection", ["research", "component"])
+def test_tiled_mlp_exact_logits_kv_and_intermediate_retirement(tmp_path, family, tile, selection):
     path = create_tiny_llama_checkpoint(tmp_path / "model", model_type=family,
         num_hidden_layers=2, with_qkv_bias=family == "qwen2", qk_norm=family == "qwen3")
     model_id = "tile-test"
@@ -31,10 +67,15 @@ def test_tiled_mlp_exact_logits_kv_and_intermediate_retirement(tmp_path, family,
     compiled = compile_runtime_model(plan, bundle, composition=composition)
     results = []
     for tiled in (False, True):
+        selected = (composition.with_params(scheduler=MlpPrefillTiling(tile_rows=tile))
+                    if tiled and selection == "component" else composition)
+        compiled = compile_runtime_model(plan, bundle, composition=selected)
         executor = compiled.client_linear_executor(engine)
         runtime = compiled.runtime(executor)
-        contract = MlpTiling(compiled, runtime, tile)
+        contract = runtime._mlp_tiling or MlpTiling(compiled, runtime, tile)
         if tiled:
+            if selection == "component":
+                assert runtime._mlp_tiling is not None
             runtime._mlp_tiling = contract
         gate_ids = {s.stage_id for s in compiled.stage_bindings if s.role == "mlp_gate_up"}
         down_ids = {s.stage_id for s in compiled.stage_bindings if s.role == "mlp_down"}
@@ -65,7 +106,8 @@ def test_tiled_mlp_exact_logits_kv_and_intermediate_retirement(tmp_path, family,
 
 @pytest.mark.integration
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
-def test_mlp_tiles_preserve_separate_role_logits_state_and_burn(tmp_path, monkeypatch, family):
+@pytest.mark.parametrize("selection", ["research", "component"])
+def test_mlp_tiles_preserve_separate_role_logits_state_and_burn(tmp_path, monkeypatch, family, selection):
     from test_prepared_row_residues import experiment
     from pllm.runtime.model_binding import CompiledRuntimeModel
     from pllm.runtime.semantic_executor import SemanticDecoderRuntime
@@ -78,7 +120,10 @@ def test_mlp_tiles_preserve_separate_role_logits_state_and_burn(tmp_path, monkey
     def bind(compiled, remote, **kwargs):
         runtime = original_runtime(compiled, remote, **kwargs)
         if tile:
-            runtime._mlp_tiling = MlpTiling(compiled, runtime, tile)
+            if selection == "component":
+                assert runtime._mlp_tiling is not None
+            else:
+                runtime._mlp_tiling = MlpTiling(compiled, runtime, tile)
             leases.append(remote.inventory)
         return runtime
 
@@ -93,10 +138,21 @@ def test_mlp_tiles_preserve_separate_role_logits_state_and_burn(tmp_path, monkey
     for tile in (0, 7):
         exp = experiment(source, tmp_path / str(tile), "row_residues").with_params(
             pipeline__linear__request_encoding="stage_packed", pipeline__linear__prefill_chunk_rows=4)
+        if tile and selection == "component":
+            exp = exp.with_params(pipeline__scheduler=MlpPrefillTiling(tile_rows=tile))
         with build_roles(exp, engine_threads=1) as roles, roles.client(bundle_cache_dir=tmp_path / f"cache-{tile}") as client:
             response = client.responses.create(input="abcde " * 8, max_output_tokens=3, temperature=0)
             results.append((response.output_text, observed.copy()))
             observed.clear()
+            if tile and selection == "component":
+                from starlette.testclient import TestClient
+                with TestClient(roles.gateway_app(local_api_key="tile-gateway")) as gateway:
+                    reply = gateway.post("/v1/responses", headers={"authorization": "Bearer tile-gateway"},
+                        json={"model": "residue-test", "input": "abcde " * 8,
+                              "max_output_tokens": 3, "temperature": 0})
+                    assert reply.status_code == 200, reply.text
+                    assert observed == results[-1][1]
+                    observed.clear()
     assert results[0] == results[1]
     original_tile = MlpTiling._tile
     def fail_after_first_tile(*args):

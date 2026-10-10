@@ -15,6 +15,7 @@ from pllm.deployment.network import (
     digest_value, discover, exact, integer, strict_load,
 )
 from pllm.plan import PlanningResult
+from pllm.deployment.admission import ExecutionContract, RoleAdmission
 
 _LEASE_KEY = object()
 
@@ -59,22 +60,24 @@ class LiveExecutionBinding(ExecutionBinding):
     attempt_digest: str
     source_lock_digest: str
     expires_at_ms: int
+    execution_digest: str
 
     def __post_init__(self):
         ExecutionBinding.__post_init__(self)
-        for name in ("attempt_id", "attempt_digest", "source_lock_digest"):
+        for name in ("attempt_id", "attempt_digest", "source_lock_digest", "execution_digest"):
             digest_value(getattr(self, name), name, nonzero=True)
         integer(self.expires_at_ms, "expires_at_ms", minimum=1)
-        expected = hashlib.sha256(b"pllm.execution_attempt.v1\0" + canonical({
-            "attempt_id": self.attempt_id, "result_digest": self.result_digest,
+        expected = hashlib.sha256(b"pllm.execution_attempt.v2\0" + canonical({
+            "attempt_id": self.attempt_id, "execution_digest": self.execution_digest,
             "network_digest": self.network_digest,
         })).hexdigest()
         if expected != self.attempt_digest:
             raise NetworkError("execution attempt binding mismatch")
 
     def to_spec(self):
-        return {**ExecutionBinding.to_spec(self), "schema": "pllm.execution_binding.http.v1",
-                "attempt_id": self.attempt_id, "attempt_digest": self.attempt_digest,
+        return {**ExecutionBinding.to_spec(self), "schema": "pllm.execution_binding.http.v2",
+                 "attempt_id": self.attempt_id, "attempt_digest": self.attempt_digest,
+                 "execution_digest": self.execution_digest,
                 "source_lock_digest": self.source_lock_digest, "expires_at_ms": self.expires_at_ms}
 
 
@@ -87,10 +90,8 @@ class _LiveTopology:
         self._rows = []
         self._connections = {}
         self.attempt = secrets.token_hex(32)
-        self.attempt_digest = hashlib.sha256(b"pllm.execution_attempt.v1\0" + canonical({
-            "attempt_id": self.attempt, "result_digest": result.digest,
-            "network_digest": network.digest,
-        })).hexdigest()
+        self.contract = None
+        self.attempt_digest = None
         self.expires_at_ms = clock() + ttl * 1000
 
     def start(self, ttl):
@@ -132,21 +133,30 @@ class _LiveTopology:
                 or not offer.accepting or role not in offer.role_ids):
                 raise NetworkError("CAPABILITY_MISMATCH: live installed role/source required")
             pending.append((party, role, roots[party], previous))
+        self.contract = ExecutionContract.from_result(self.result, snapshot)
+        native = self.contract.validate(evaluated_at_ms=self.clock())
+        self.attempt_digest = hashlib.sha256(b"pllm.execution_attempt.v2\0" + canonical({
+            "attempt_id": self.attempt, "execution_digest": self.contract.digest,
+            "network_digest": self.network.digest,
+        })).hexdigest()
         try:
             for _party, role, trust, offer in sorted(pending):
+                admission = RoleAdmission(role, self.contract)
                 control = {"attempt_id": self.attempt, "role_id": role,
                            "binding_digest": self.attempt_digest, "instance_epoch": offer.instance_epoch}
                 # Record before request: a lost response may still have reserved capacity.
                 self._rows.append((trust, control))
                 value = control_request(trust.origin, trust.credential_env, "/v1/party/reserve",
                                         credentials=self._credentials, body={
-                                            **control, "schema": "pllm.party_reserve.v1",
+                                             **control, "schema": "pllm.party_reserve.v2",
                                             "ttl_seconds": ttl, "descriptor_digest": offer.descriptor_digest,
-                                             "result": self.result.to_spec(),
+                                              "admission": admission.to_spec(),
                                              **({"prepared_peer": peer} if peer is not None else {}),
                                         })
                 exact(value, {"schema", "attempt_id", "role_id", "expires_at_ms", "capacity_token",
-                              "binding_digest", "instance_epoch"}, "pllm.party_capacity.v1")
+                              "binding_digest", "instance_epoch", "admission_digest"}, "pllm.party_capacity.v2")
+                if value["admission_digest"] != admission.digest:
+                    raise NetworkError("role admission acknowledgement mismatch")
                 if any(value[name] != control[name] for name in control):
                     raise NetworkError("capacity acknowledgement binding mismatch")
                 integer(value["expires_at_ms"], "expires_at_ms", minimum=self.clock() + 1)
@@ -161,7 +171,9 @@ class _LiveTopology:
             for trust, control in self._rows:
                 armed = control_request(trust.origin, trust.credential_env, "/v1/party/arm",
                                         credentials=self._credentials, body=control)
-                exact(armed, {"status", "binding_digest", "expires_at_ms"})
+                exact(armed, {"status", "binding_digest", "expires_at_ms", "admission_digest"})
+                if armed["admission_digest"] != RoleAdmission(control["role_id"], self.contract).digest:
+                    raise NetworkError("armed role admission mismatch")
                 if armed["status"] != "armed" or armed["binding_digest"] != self.attempt_digest:
                     raise NetworkError("ambiguous capacity commit; abort attempt")
                 if (armed["expires_at_ms"] != expiries[(trust.party_id, control["role_id"])]
@@ -474,7 +486,8 @@ def open_execution(
             native = topology.start(ttl_seconds)
             binding = LiveExecutionBinding(result.digest, network.digest, canonical(native),
                                            topology.attempt, topology.attempt_digest,
-                                           result.request.source_lock_digest, topology.expires_at_ms)
+                                           result.request.source_lock_digest, topology.expires_at_ms,
+                                           topology.contract.digest)
             return ExecutionLease(result, network, clock, topology, tokenizer, binding, _key=_LEASE_KEY)
         except BaseException:
             topology.close()

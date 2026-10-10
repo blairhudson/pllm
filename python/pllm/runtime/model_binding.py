@@ -462,6 +462,9 @@ class CompiledRuntimeModel:
             runtime._install_retained(RetainedDecoderContract(
                 _canonical_json(schedule["retained_state"]), self._plan.canonical_bytes(),
                 self._canonical_composition, policy, 2 << 30))
+        if schedule.get("mlp_tiling") is not None:
+            from .mlp_tiling import MlpTiling
+            runtime._mlp_tiling = MlpTiling(self, runtime, schedule["mlp_tiling"]["tile_rows"])
         return runtime
 
     def _runtime_with_nonlinear(

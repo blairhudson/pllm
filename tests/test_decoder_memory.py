@@ -63,3 +63,26 @@ def test_missing_schedule_dependency_fails_instead_of_pricing_zero():
     phase["steps"][1]["input_ids"] = ["missing.source"]
     with pytest.raises(ValueError, match="unavailable"):
         _phase_working_bytes(plan.prefill, phase)
+
+
+def test_tiling_prices_full_outputs_state_and_continuation_fallback():
+    from pllm.schedulers import MlpPrefillTiling
+    from pllm.runtime.benchmark_memory import estimate_memory
+    from pllm.state import ClientPrefixReuse
+
+    config = _tiny_model_config() | {"num_hidden_layers": 2, "intermediate_size": 4096}
+    full = MaskedLinearCpu(Model.tiny())
+    tiled = full.with_params(scheduler=MlpPrefillTiling(tile_rows=8))
+    plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=8)
+    baseline = decoder_memory(plan, plan.runtime_schedule(full))
+    initial = decoder_memory(plan, plan.runtime_schedule(tiled), initial_prefill_only=True)
+    assert initial["working_bytes"] < baseline["working_bytes"]
+    assert initial["state_bytes"] == baseline["state_bytes"] > 0
+    fallback = decoder_memory(plan, plan.runtime_schedule(tiled))
+    assert fallback["working_bytes"] == baseline["working_bytes"]
+    estimates = [estimate_memory(config, pipeline, max_input_tokens=128, max_output_tokens=8)
+                 for pipeline in (full, tiled)]
+    assert estimates[1]["client_peak_bytes"] < estimates[0]["client_peak_bytes"]
+    cached = tiled.with_params(cache=ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=128))
+    restored = estimate_memory(config, cached, max_input_tokens=128, max_output_tokens=8)
+    assert restored["components"]["client_live_tensor_bytes"] == baseline["working_bytes"]

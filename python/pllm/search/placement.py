@@ -107,6 +107,7 @@ class PlanningPolicy(PublicRecord):
     incumbent_configuration_digest: str | None = None
     switch_body_bytes: int = 0
     minimum_switch_improvement_fraction: float = 0.0
+    allocation_model: str = "payload"
 
     def __post_init__(self) -> None:
         identity(self.client_party_id, "client_party_id")
@@ -114,6 +115,8 @@ class PlanningPolicy(PublicRecord):
         integer(self.max_candidates, "max_candidates", minimum=1, maximum=1024)
         integer(self.max_assignments, "max_assignments", minimum=1, maximum=1_000_000)
         integer(self.buffer_reserve_bytes, "buffer_reserve_bytes")
+        if self.allocation_model not in {"payload", "native_shared_v1"}:
+            raise NetworkError("unsupported allocation owner model")
         integer(self.max_observation_age_ms, "max_observation_age_ms")
         integer(self.reuse_horizon, "reuse_horizon", minimum=1, maximum=1024)
         integer(self.switch_body_bytes, "switch_body_bytes", maximum=1 << 40)
@@ -148,7 +151,7 @@ class PlanningPolicy(PublicRecord):
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningPolicy:
-        data = cls._fields({"reuse_horizon": 1, "incumbent_configuration_digest": None,
+        data = cls._fields({"allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
                            "switch_body_bytes": 0, "minimum_switch_improvement_fraction": 0.0, **value})
         if type(data["objectives"]) is not list:
             raise NetworkError("objectives must be an array")
@@ -160,7 +163,7 @@ class PlanningPolicy(PublicRecord):
         if self.reuse_horizon == 1:
             value.pop("reuse_horizon")
         for name, default in (("incumbent_configuration_digest", None), ("switch_body_bytes", 0),
-                              ("minimum_switch_improvement_fraction", 0.0)):
+                               ("minimum_switch_improvement_fraction", 0.0), ("allocation_model", "payload")):
             if getattr(self, name) == default:
                 value.pop(name)
         return value
@@ -590,6 +593,25 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
     }
     online = sum(value for (*_, phase), value in edges.items() if phase == "online")
     prep = sum(value for (*_, phase), value in edges.items() if phase == "preprocessing")
+    allocation = {}
+    if request.policy.allocation_model == "native_shared_v1":
+        from pllm.runtime.benchmark_memory import BenchmarkMemoryError, estimate_plan_memory
+
+        try:
+            estimate = estimate_plan_memory(plan, experiment.pipeline,
+                max_input_tokens=experiment.budget.max_input_tokens,
+                max_output_tokens=experiment.budget.max_new_tokens,
+                inventory_rows=max(64, profile.prepared_inventory_rows or 0))
+        except (BenchmarkMemoryError, AttributeError) as exc:
+            raise NetworkError("native allocation owners unavailable") from exc
+        if estimate["limitations"]:
+            raise NetworkError("native allocation owners unsupported: " + "; ".join(estimate["limitations"]))
+        memory = {"client": estimate["client_peak_bytes"], **estimate["provider_peak_bytes"]}
+        memory = {role: max(value, requirements["minimum_memory_bytes"][role])
+                  + request.policy.buffer_reserve_bytes for role, value in memory.items()}
+        allocation = {"allocation_model": "native_shared_v1", "role_peak_memory_estimates": memory,
+            "client_peak_memory_bytes": memory["client"],
+            "memory_scope": "shared native allocation owners plus 25% margin and explicit reserve; estimate, not measured RSS"}
     denominator = request.policy.remote_mac_denominator
     remote = body_remote if denominator == "body_linear" else all_remote
     total = body_total if denominator == "body_linear" else all_total
@@ -625,6 +647,7 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
             {"source_role": a, "target_role": b, "phase": phase, "bytes": value}
             for (a, b, phase), value in sorted(edges.items())
         ],
+        **allocation,
     }
 
 
@@ -650,6 +673,8 @@ def _costs(
     costs["client_linear_macs"] = sum(
         base["role_linear_macs"].get(role, 0) for role in client_roles
     )
+    if "role_peak_memory_estimates" in base:
+        costs["client_peak_memory_bytes"] = sum(base["role_peak_memory_estimates"][role] for role in client_roles)
     # Logical work is offloaded only if no online provider runs at the client party.
     # Two-offset duplicates are not extra denominator credit.
     if any(role in client_roles for role in ("inference", "worker_a", "worker_b")):

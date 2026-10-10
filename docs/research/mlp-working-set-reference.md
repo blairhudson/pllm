@@ -27,10 +27,15 @@ provider-owned in the measured prepared composition.
 
 Only eligible initial-prefill regions are tiled. Decode, continuation, terminal
 pruning, tokenizer, attention and full KV retain their ordinary execution. The
-internal override has its own execution identity and is not a selectable Pipeline
-component. Freivalds, protected nonlinear regions and retained-state compositions
-reject. Whole-topology memory admission retains its conservative existing bound;
-tiling cannot bypass full-stage residue-layout admission.
+historical internal override retains its own execution identity. The installed
+`pllm.schedulers.MlpPrefillTiling(tile_rows=64)` now selects the same compiler-bound
+contract through `MaskedLinearCpu` and `ClientOnlyCpu`. The complete schedule and
+Pipeline commit the tile geometry; historical default digests remain unchanged.
+Freivalds, Metal, protected nonlinear regions and retained-state compositions
+reject. Initial-prefill memory admission prices bounded tile intermediates plus
+complete hidden outputs, attention, state, masks and import owners. Compositions
+allowing prefix continuation retain full-stage fallback pricing. Tiling cannot
+bypass full-stage residue-layout admission.
 
 ## Validation and measurement
 

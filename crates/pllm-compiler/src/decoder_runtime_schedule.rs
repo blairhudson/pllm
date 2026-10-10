@@ -125,6 +125,8 @@ pub struct DecoderRuntimeSchedule {
     pub nonlinear: Option<crate::masked_wire_schedule::MaskedWireNumericContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retained_state: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mlp_tiling: Option<serde_json::Value>,
 }
 
 impl DecoderRuntimeSchedule {
@@ -1794,6 +1796,7 @@ pub fn lower_decoder_runtime_schedule(
         complete: true,
         nonlinear,
         retained_state: None,
+        mlp_tiling: None,
     };
     if let Some(policy) = composition
         .components
@@ -1809,6 +1812,10 @@ pub fn lower_decoder_runtime_schedule(
         )?;
         schedule.retained_state =
             Some(serde_json::from_slice(&contract).map_err(|e| e.to_string())?);
+    }
+    if let Some(rows) = crate::mlp_tiling::selected_rows(&composition)? {
+        let contract = crate::mlp_tiling::build_contract(plan, &schedule, rows)?;
+        schedule.mlp_tiling = Some(serde_json::from_slice(&contract).map_err(|e| e.to_string())?);
     }
     Ok(schedule)
 }

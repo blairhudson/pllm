@@ -1,7 +1,13 @@
 ---
-title: "Choose a protected scheduler"
-description: "Separate one-use lane order and resource limits from the nonlinear method."
+title: "Choose a scheduler"
+description: "Select prefill working sets or bounded one-use protected execution."
 ---
+
+[MLP prefill tiling](/sdk/components/schedulers/mlp-prefill-tiling/) bounds
+intermediates in ordinary CPU masked-linear and client-only decoders. It preserves
+their numeric operations while trading smaller working sets for more exchanges.
+
+## Protected research regions
 
 [Bounded independent elements](/sdk/components/schedulers/bounded-independent-elements/)
 schedules the unary SiLU reference. For gated Q7 methods, choose

@@ -103,6 +103,13 @@ at 150+8 and 288+8 tokens lowers client peak RSS 15.33%/11.51% with 64-row tiles
 while median online TTFT rises 3.41%/4.38%. Outputs match with zero observed swap
 growth. Independent confirmation remains required; this is an evidence-gated
 research executor. Contract and replay: `docs/research/mlp-working-set-reference.md`.
+The same contract is now selectable as `pllm.schedulers.MlpPrefillTiling` on CPU
+prepared and client-only Pipelines. The native schedule binds public tile geometry;
+generated SDK/gateway checks preserve exact logits and KV. Initial-prefill admission
+prices tile intermediates alongside full outputs and ordinary state; prefix reuse
+retains full-stage continuation pricing. Metal, Freivalds and retained-state
+compositions reject. Historical research-selector timing cohorts remain separate
+from SDK promotion and do not imply automatic selection or WAN speed gains.
 A separate twelve-client confirmation at 150/288 input tokens plus eight outputs
 reduces median client peak RSS 17.13%/17.63%, with matching outputs and zero
 observed swap growth. Median online TTFT rises 3.65%/4.70%; complete cold requests

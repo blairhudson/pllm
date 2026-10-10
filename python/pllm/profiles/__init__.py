@@ -33,6 +33,7 @@ from pllm.roles import (
     TwoOnlineOffsetRoles,
 )
 from pllm.sources import ModelSource
+from pllm.schedulers import MlpPrefillTiling
 from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, VerificationScheme
@@ -109,7 +110,7 @@ class MaskedLinearCpu(_TypedPipeline):
         "placement",
         "inventory",
         "delivery",
-        "tokenizer", "public_prefix", "state",
+        "tokenizer", "public_prefix", "state", "scheduler",
     )
     __slots__ = ()
 
@@ -130,6 +131,7 @@ class MaskedLinearCpu(_TypedPipeline):
         tokenizer: IndexedTokenizer | None = None,
         public_prefix: PublicPrefixCapsule | None = None,
         state: ClientLocalKv | None = None,
+        scheduler: MlpPrefillTiling | None = None,
     ) -> None:
         if quantization is not None:
             _slot("quantization", quantization, QuantizationScheme)
@@ -175,6 +177,7 @@ class MaskedLinearCpu(_TypedPipeline):
                 **({"tokenizer": _slot("tokenizer", tokenizer, IndexedTokenizer)} if tokenizer is not None else {}),
                 **({"public_prefix": _slot("public_prefix", public_prefix, PublicPrefixCapsule)} if public_prefix is not None else {}),
                 **({"state": _slot("state", state, ClientLocalKv)} if state is not None else {}),
+                **({"scheduler": _slot("scheduler", scheduler, MlpPrefillTiling)} if scheduler is not None else {}),
             },
         )
 
@@ -230,12 +233,16 @@ class MaskedLinearCpu(_TypedPipeline):
     def state(self) -> ClientLocalKv | None:
         return self.components.get("state")
 
+    @property
+    def scheduler(self) -> MlpPrefillTiling | None:
+        return self.components.get("scheduler")
+
 
 class ClientOnlyCpu(_TypedPipeline):
     """Client-owned decoder with local quantized body linear stages."""
 
     PROFILE = "baseline.client_only_cpu"
-    SLOT_NAMES = ("linear", "kernels", "quantization", "topology", "state")
+    SLOT_NAMES = ("linear", "kernels", "quantization", "topology", "state", "scheduler")
     __slots__ = ()
 
     def __init__(
@@ -247,6 +254,7 @@ class ClientOnlyCpu(_TypedPipeline):
         quantization: QuantizationScheme | None = None,
         topology: RoleTopology = _DEFAULT_CLIENT_ONLY,
         state: ClientLocalKv | None = None,
+        scheduler: MlpPrefillTiling | None = None,
     ) -> None:
         if quantization is not None:
             _slot("quantization", quantization, QuantizationScheme)
@@ -274,6 +282,7 @@ class ClientOnlyCpu(_TypedPipeline):
                 ),
                 **({"quantization": quantization} if quantization is not None else {}),
                 **({"state": _slot("state", state, ClientLocalKv)} if state is not None else {}),
+                **({"scheduler": _slot("scheduler", scheduler, MlpPrefillTiling)} if scheduler is not None else {}),
             },
         )
 
@@ -302,6 +311,7 @@ class ClientOnlyMetal(ClientOnlyCpu):
     """Client-owned compiled decoder with Metal prefill and CPU decode."""
 
     PROFILE = "baseline.client_only_metal"
+    SLOT_NAMES = ("linear", "kernels", "quantization", "topology", "state")
     __slots__ = ()
 
     def __init__(
@@ -660,6 +670,18 @@ class RuntimeComposition:
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    scheduler = pipeline.components.get("scheduler")
+    if scheduler is not None:
+        if (scheduler.component != MlpPrefillTiling.descriptor.component
+                or identities.get("linear") not in {"pllm/masked-linear", "pllm/cleartext-linear"}
+                or identities.get("kernels") != "pllm/cpu"
+                or {"verification", "nonlinear", "state"} & identities.keys()):
+            return None
+        try:
+            MlpPrefillTiling.from_params(scheduler.params)
+        except (ConfigurationError, TypeError, ValueError):
+            return None
+        del identities["scheduler"]
     state = pipeline.components.get("state")
     if state is not None:
         if (state.component != ClientLocalKv.descriptor.component

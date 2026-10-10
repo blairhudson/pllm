@@ -197,6 +197,35 @@ def test_retained_state_prices_native_owners_and_workspace_before_placement():
             candidate.pipeline.canonical_bytes(), canonical(tampered))
 
 
+def test_shared_allocation_budget_selects_exact_mlp_tiles_and_replays():
+    from pllm.schedulers import MlpPrefillTiling
+    from pllm.runtime.benchmark_memory import estimate_plan_memory
+
+    graph = lower_model({**CONFIG, "hidden_size": 64, "intermediate_size": 1024},
+                        batch=1, max_input_tokens=192, max_new_tokens=2)
+    full = replace(request().candidates[0], budget=ExecutionBudget(1, 192, 2))
+    tiled = replace(full, name="tiled", pipeline=full.pipeline.with_params(
+        scheduler=MlpPrefillTiling(tile_rows=16)))
+    snap = snapshot(offers=tuple(replace(row, max_memory_bytes=2 << 30,
+        max_weight_bytes=2 << 30) for row in snapshot().offers))
+    policy = PlanningPolicy(evaluated_at_ms=100, allocation_model="native_shared_v1",
+        objectives=("client_peak_memory_bytes",), buffer_reserve_bytes=4096)
+    estimates = [estimate_plan_memory(graph, row.pipeline, max_input_tokens=192,
+        max_output_tokens=2)["client_peak_bytes"] + 4096 for row in (full, tiled)]
+    assert estimates[1] < estimates[0]
+    req = PlanningRequest(graph, (full, tiled), replace(policy,
+        max_client_peak_memory_bytes=estimates[1]))
+    result = plan(req, snapshot=snap)
+    assert result.experiment == tiled
+    assert result.costs["client_peak_memory_bytes"] == estimates[1]
+    assert "POLICY_BOUND:client_peak_memory_bytes" in reasons(result)
+    assert PlanningResult.from_spec(result.to_spec()).digest == result.digest
+    rejected = plan(replace(req, policy=replace(req.policy,
+        max_client_peak_memory_bytes=estimates[1] - 1)), snapshot=snap)
+    assert rejected.status == "infeasible"
+    assert "allocation_model" not in PlanningPolicy().to_spec()
+
+
 def test_small_exhaustive_native_oracle_with_hand_computed_stage_link_cost():
     req, snap = request(), snapshot()
     exp = req.candidates[0]

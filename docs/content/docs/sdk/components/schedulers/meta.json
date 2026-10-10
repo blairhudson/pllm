@@ -1,4 +1,4 @@
 {
-  "title": "Protected scheduling",
-  "pages": ["index", "bounded-independent-elements", "scalar", "independent-lanes", "chunked-independent-lanes"]
+  "title": "Scheduling",
+  "pages": ["index", "mlp-prefill-tiling", "bounded-independent-elements", "scalar", "independent-lanes", "chunked-independent-lanes"]
 }

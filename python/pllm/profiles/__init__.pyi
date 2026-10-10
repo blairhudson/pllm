@@ -16,6 +16,7 @@ from pllm.protocols import (
 from pllm.roles import ClientPlacement, ClientOnlyRoles, InferenceRole, OutputHeadAtInference, RoleTopology, PreparedProviderRoles, TwoOnlineOffsetRoles
 from pllm.sources import ModelSource
 from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
+from pllm.schedulers import MlpPrefillTiling
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
@@ -91,6 +92,7 @@ class MaskedLinearCpu(Pipeline):
         tokenizer: IndexedTokenizer | None = ...,
         public_prefix: PublicPrefixCapsule | None = ...,
         state: ClientLocalKv | None = ...,
+        scheduler: MlpPrefillTiling | None = ...,
     ) -> None: ...
     @property
     def linear(self) -> ProtocolMethod: ...
@@ -118,6 +120,8 @@ class MaskedLinearCpu(Pipeline):
     def public_prefix(self) -> PublicPrefixCapsule | None: ...
     @property
     def state(self) -> ClientLocalKv | None: ...
+    @property
+    def scheduler(self) -> MlpPrefillTiling | None: ...
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> MaskedLinearCpu: ...
 
@@ -125,7 +129,8 @@ class ClientOnlyCpu(Pipeline):
     PROFILE: str
     def __init__(self, model: ModelSource, *, linear: ProtocolMethod = ...,
                  kernels: KernelBackend = ..., quantization: QuantizationScheme | None = ...,
-                 topology: RoleTopology = ..., state: ClientLocalKv | None = ...) -> None: ...
+                 topology: RoleTopology = ..., state: ClientLocalKv | None = ...,
+                 scheduler: MlpPrefillTiling | None = ...) -> None: ...
     @property
     def linear(self) -> CleartextLinear: ...
     @property

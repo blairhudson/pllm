@@ -22,6 +22,7 @@ from pllm.deployment.network import (
     digest_value, exact, integer, strict_load,
 )
 from pllm.plan import PlanningResult
+from pllm.deployment.admission import RoleAdmission
 from pllm.runtime.servers import load_role_adapter
 
 
@@ -64,6 +65,7 @@ class _Reservation:
     lifespan: object | None = None
     push_credential: str | None = None
     inventory_opened: bool = False
+    admission_digest: str | None = None
 
 
 class PartyController:
@@ -218,11 +220,12 @@ class PartyController:
             self._descriptor_digest = None
 
     def _validate_binding(self, body):
+        projected = body.get("schema") == "pllm.party_reserve.v2"
         fields = {"schema", "attempt_id", "ttl_seconds", "role_id", "instance_epoch",
-                  "descriptor_digest", "binding_digest", "result"}
+                  "descriptor_digest", "binding_digest", "admission" if projected else "result"}
         if body.get("role_id") in {"inference", "preparation"}:
             fields.add("prepared_peer")
-        exact(body, fields, "pllm.party_reserve.v1")
+        exact(body, fields, "pllm.party_reserve.v2" if projected else "pllm.party_reserve.v1")
         integer(body["ttl_seconds"], "ttl_seconds", minimum=5, maximum=self.spec.max_lease_seconds)
         digest_value(body["attempt_id"], "attempt", nonzero=True)
         digest_value(body["binding_digest"], "binding", nonzero=True)
@@ -233,21 +236,30 @@ class PartyController:
             raise NetworkError("STALE_INSTANCE_EPOCH")
         if body["descriptor_digest"] != self._descriptor_digest:
             raise NetworkError("CAPABILITY_MISMATCH: installed descriptor differs")
-        result = PlanningResult.from_spec(body["result"])
-        if not result.exhaustive and not result.request.policy.allow_incomplete_execution:
-            raise NetworkError("SEARCH_LIMIT: incomplete execution needs explicit policy permission")
+        if projected:
+            admission = RoleAdmission.from_spec(body["admission"])
+            if admission.role_id != role:
+                raise NetworkError("role admission substitution")
+            result = admission.execution
+            source_lock, model_plan = result.source_lock_digest, result.model_plan
+        else:
+            result = PlanningResult.from_spec(body["result"])
+            if not result.exhaustive and not result.request.policy.allow_incomplete_execution:
+                raise NetworkError("SEARCH_LIMIT: incomplete execution needs explicit policy permission")
+            source_lock, model_plan = result.request.source_lock_digest, result.request.model_plan
         selected = result.experiment
         if selected is None or selected.deployment.kind != "network":
             raise NetworkError("explicit v3 network intent required")
         intent = selected.deployment
         if (intent.network_id != self.network.network_id or intent.network_spec_digest != self.network.digest
-            or (intent.snapshot_digest is not None and intent.snapshot_digest != result.snapshot.digest)):
+            or (intent.snapshot_digest is not None and intent.snapshot_digest != (
+                result.selection_snapshot_digest if projected else result.snapshot.digest))):
             raise NetworkError("network intent mismatch")
         if selected.pipeline != self.spec.experiment.pipeline or selected.budget != self.spec.experiment.budget:
             raise NetworkError("CAPABILITY_MISMATCH: exact installed pipeline/workload required")
-        if result.request.source_lock_digest != self.spec.source_lock_digest:
+        if source_lock != self.spec.source_lock_digest:
             raise NetworkError("source lock mismatch")
-        if result.request.model_plan.digest != self._model_plan.digest:
+        if model_plan.digest != self._model_plan.digest:
             raise NetworkError("actual checkpoint ModelPlan digest mismatch")
         native = result.validate(evaluated_at_ms=self.clock())
         assignment = {item["role_id"]: item["party_id"] for item in native["roles"]}
@@ -288,16 +300,16 @@ class PartyController:
             or offer.origin != self.trust.origin or offer.operator_id != self.trust.operator_id
         ):
             raise NetworkError("CAPABILITY_MISMATCH: authenticated installed offer required")
-        expected = hashlib.sha256(b"pllm.execution_attempt.v1\0" + canonical({
-            "attempt_id": body["attempt_id"], "result_digest": result.digest,
+        expected = hashlib.sha256((b"pllm.execution_attempt.v2\0" if projected else b"pllm.execution_attempt.v1\0") + canonical({
+            "attempt_id": body["attempt_id"], "execution_digest" if projected else "result_digest": result.digest,
             "network_digest": self.network.digest,
         })).hexdigest()
         if body["binding_digest"] != expected:
             raise NetworkError("execution binding mismatch")
-        return result, native
+        return result, native, admission.digest if projected else None
 
     async def reserve(self, body):
-        result, native = self._validate_binding(body)
+        result, native, admission_digest = self._validate_binding(body)
         async with self._lock:
             if not self.accepting or self.left:
                 raise NetworkError("PARTY_DRAINING")
@@ -315,8 +327,9 @@ class PartyController:
                 raise NetworkError("RESERVATION_CONFLICT: capacity exceeded")
             self._used_attempts.add(key)
             row = _Reservation(attempt, role, body["binding_digest"],
-                               self.clock() + body["ttl_seconds"] * 1000,
-                                secrets.token_urlsafe(32), memory, weights, result.experiment.budget)
+                                self.clock() + body["ttl_seconds"] * 1000,
+                                 secrets.token_urlsafe(32), memory, weights, result.experiment.budget,
+                                 admission_digest=admission_digest)
             if role in {"inference", "preparation"}:
                 roots = {item.party_id: item for item in self.network.parties}
                 peer = body["prepared_peer"]
@@ -329,7 +342,9 @@ class PartyController:
                 row.lifespan = row.adapter.router.lifespan_context(row.adapter)
                 await row.lifespan.__aenter__()
             self._reservations[key] = row
-            return {"schema": "pllm.party_capacity.v1", "attempt_id": attempt, "role_id": role,
+            return {"schema": "pllm.party_capacity.v2" if admission_digest else "pllm.party_capacity.v1",
+                    **({"admission_digest": admission_digest} if admission_digest else {}),
+                    "attempt_id": attempt, "role_id": role,
                     "expires_at_ms": row.expires_at_ms, "capacity_token": row.credential,
                     "binding_digest": row.binding_digest, "instance_epoch": self.epoch}
 
@@ -358,7 +373,8 @@ class PartyController:
                 raise NetworkError("lease expired or revoked")
             row.armed = True
             return {"status": "armed", "binding_digest": row.binding_digest,
-                    "expires_at_ms": row.expires_at_ms}
+                    "expires_at_ms": row.expires_at_ms,
+                    **({"admission_digest": row.admission_digest} if row.admission_digest else {})}
 
     async def role_call(self, role, scope, receive, send):
         headers = [value for name, value in scope["headers"] if name.lower() == b"authorization"]

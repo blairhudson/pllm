@@ -1,4 +1,4 @@
-"""Internal compiler-bound MLP working-set experiment using ordinary stage owners."""
+"""Compiler-bound MLP working-set scheduling using ordinary stage owners."""
 from __future__ import annotations
 
 from collections import Counter
@@ -17,8 +17,13 @@ class MlpTiling:
             raise TransformerClientError("invalid MLP tiling numeric contract")
         raw = _native.decoder_mlp_tiling(compiled._plan.canonical_bytes(), compiled._canonical_composition, rows)
         contract = json.loads(raw)
+        schedule_digest = compiled.runtime_schedule_digest
+        if runtime._schedule.get("mlp_tiling") is not None:
+            source = {key: value for key, value in runtime._schedule.items() if key != "mlp_tiling"}
+            canonical = json.dumps(source, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+            schedule_digest = hashlib.sha256(b"pllm.decoder_runtime_schedule.v2\0" + canonical).hexdigest()
         if (contract["source_plan_digest"] != compiled.model_plan_digest
-                or contract["source_schedule_digest"] != compiled.runtime_schedule_digest):
+                or contract["source_schedule_digest"] != schedule_digest):
             raise TransformerClientError("MLP tiling differs from the compiled binding")
         self.digest = hashlib.sha256(b"pllm.client_mlp_tiling.v1\0" + raw).hexdigest()
         self.rows = rows
