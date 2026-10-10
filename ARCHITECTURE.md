@@ -907,8 +907,21 @@ seeds going Client to Preparation and corrections Preparation to Inference.
 These estimates exclude framing, verifier material, public delivery and CPU.
 Zero hysteresis permits improvements in later objectives; positive margins retain
 the explicit primary-objective gate. Directed-link delays and exchange counts remain separate
-from byte/CPU costs; complete TTFT/TPS forecasts and real-WAN confirmation remain
-open. Example: `examples/automatic_client.py`.
+from byte/CPU costs. A bounded client-local `PlanningPrior` now compiles matched
+network benchmarks into build/source/host/link-bound admission-to-first-output
+and decode forecasts. Configured ordinary SDK/gateway calls reuse them across
+decisions; complete matching coverage ranks historical medians before geometry,
+while stale, changed or missing evidence falls back. Forecasts retain the prior
+workload and public-cache lifecycle within the same compiled envelope. Immutable
+native admission and geometry use a 64-entry/2 MiB-accounted process cache; offers,
+capacity, policy, client RSS and concurrent reservations are rechecked every time.
+No prompt benchmark, selected plan or lease is cached. A six-pair installed-wheel
+32-choice Qwen-shaped planning screen measures 7.69-second cache-empty decisions
+versus 70.78 ms warm, retaining identical selections and fresh native assignment
+checks. Source resolution, initial lowering, discovery and leasing are excluded;
+this is decision overhead, not end-to-end negotiation or serving latency. Evidence:
+`docs/research/planning-prior-reference.md`. Generalized phase forecasts
+and real-WAN confirmation remain open. Example: `examples/automatic_client.py`.
 
 The opt-in `OpenAI.conversation` and `AsyncOpenAI.conversation` handles manage one
 response-owned continuation chain under an Experiment with bounded

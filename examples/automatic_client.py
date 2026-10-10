@@ -2,6 +2,7 @@
 
 The TOML file's [client] table sets network and experiment JSON paths. Provider
 credentials remain in the environment references declared by the network file.
+An optional performance_prior JSON path reuses matched benchmark forecasts.
 """
 
 from pllm import OpenAI

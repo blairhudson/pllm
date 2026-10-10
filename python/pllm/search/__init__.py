@@ -605,8 +605,10 @@ from pllm.search.placement import ArtifactCostEvidence, CandidateCostEvidence, C
 from pllm.search.optimizations import optimization_space
 from pllm.search.beam import BeamSearch, CandidateRejected, SearchOutcome, SearchRejection
 from pllm.search.frontier import FrontierStudy, FrontierWork, Variant
+from pllm.search.performance import PlanningPrior, PerformanceSample
 
 __all__ = [
+    "PlanningPrior", "PerformanceSample",
     "FrontierStudy", "FrontierWork", "Variant",
     "BeamSearch",
     "CandidateRejected",

@@ -129,9 +129,11 @@ def _refresh_control(decision, network, credentials):
 
 
 def _attempt(result, network, *, credentials, prompt, cap, temperature, timeout,
-             capture_output_digest):
+              capture_output_digest):
     from pllm.runtime.client import OpenAI
+    from pllm.search.performance import performance_binding
 
+    binding = performance_binding(result)
     started_at = time.time_ns()
     start = time.monotonic()
     cpu_start = time.process_time()
@@ -197,6 +199,9 @@ def _attempt(result, network, *, credentials, prompt, cap, temperature, timeout,
                        for content in item.get("content", []) if content.get("type") == "output_text")
         run["generation"]["output_text_digest"] = hashlib.sha256(json.dumps(text, sort_keys=True).encode()).hexdigest()
     run["network_audit"] = {
+        "performance_binding": binding,
+        "request_ttft_seconds": None if first is None else first - start,
+        "request_ttft_scope": "fresh admission through first output; selection, discovery and host startup excluded",
         "placement": [{"role_id": row["role_id"], "party_id": row["party_id"]}
                       for row in result.native_placement["roles"]],
         "prediction": result.to_spec()["selection"]["costs"],

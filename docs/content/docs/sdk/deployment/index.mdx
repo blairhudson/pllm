@@ -135,6 +135,58 @@ v1 identity. Cache misses are charged in encoded bytes, while residency and
 memory retain raw sizes. These persisted declarations are estimates; they do not
 measure compression CPU or prove the objects remain resident.
 
+## Fast decisions from prior measurements
+
+[`PlanningPrior`](/sdk/reference/python/pllm/search/#planningprior) compiles a
+passed `--compare-feasible` network benchmark with output commitments into a
+client-local table of at most 32 assignment samples / 32 KiB. Compilation reads
+the report; it runs no model or calibration. This helper accepts an already
+completed comparison:
+
+```python
+from pathlib import Path
+from pllm.search import PlanningPrior
+
+def save_planning_prior(comparison: dict, destination: Path):
+    prior = PlanningPrior.from_network_benchmark(comparison)
+    destination.write_bytes(prior.canonical_bytes())
+    return prior
+
+assert callable(save_planning_prior)
+```
+
+Supply it as `PlanningRequest(..., performance_prior=prior)`,
+`plan_on_load(..., performance_prior=prior)`, or the ordinary client's
+`performance_prior` setting. `PLLM_PERFORMANCE_PRIOR` accepts its JSON path.
+Once configured, SDK/gateway requests reuse it automatically.
+
+Evidence binds exact source, Pipeline, compiled workload envelope, runtime build,
+client hardware/thread environment, installed host epochs, and directed link
+conditions. The compiler rechecks source, numeric, output and workload agreement
+across all measured controls. Historical reports lacking these bindings reject.
+Default expiry is one day; explicit lifetimes are bounded to 30 days.
+
+Among feasible assignments, complete matching coverage ranks median admission-to-
+first-output time, then median decode milliseconds per token, then ordinary
+geometry objectives. `PlanningPolicy.prior_objectives` can reverse those two
+preferences or be empty to disable them. Missing, stale or changed evidence and
+incomplete searches retain geometry ranking. Body-switching objectives retain
+their existing byte-unit policy. Each decision records its selection basis and
+evidence identity. These are forecasts for the prior's recorded token counts and
+public-cache warm state inside the same compiled envelope; no new private prompt
+is benchmarked, matched by text, or guaranteed the historical timing.
+
+A shared process-local cache holds at most 64 immutable native admission/geometry
+entries under a 2 MiB accounting bound. Warm decisions reuse schedules and
+allocation facts; each assignment still checks fresh offers, capacity, client RSS,
+concurrent reservations, policy and link observations before fresh leasing.
+First use pays compilation; no plan selection or live lease is cached. See
+`scripts/probe_planning_latency.py` for the isolated 32-choice latency probe:
+six cache-empty decisions have a 7.69-second median, versus 70.78 ms across
+48 warm decisions. Source resolution, initial lowering, discovery and leasing
+are outside this measurement. Evidence and replay are in
+`docs/research/planning-prior-reference.md`.
+
 ## Immutable decisions
 
 [`PlanningResult`](/sdk/reference/python/pllm/plan/#objects-and-signatures) contains

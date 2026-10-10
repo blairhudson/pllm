@@ -4494,6 +4494,7 @@ class OpenAI:
         execution: Any | None = None,
         network: Any | None = None,
         planning: Any | None = None,
+        performance_prior: Any | None = None,
         _automatic: bool = True,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
@@ -4529,6 +4530,7 @@ class OpenAI:
                 role_connections,
                 network,
                 planning,
+                performance_prior,
             )
             if (
                 any(value is not None for value in overrides)
@@ -4548,6 +4550,8 @@ class OpenAI:
         settings_base = ClientSettings.load()
         if _automatic:
             network = network if network is not None else settings_base.network
+            if performance_prior is None:
+                performance_prior = settings_base.performance_prior
             if planning is None and settings_base.planning is not None:
                 from pllm.deployment.selection import SelectedClientFactory
 
@@ -4575,7 +4579,8 @@ class OpenAI:
                 network = NetworkSpec.from_spec(strict_load(Path(network).expanduser().read_bytes()))
             if not isinstance(experiment, Experiment):
                 raise ValueError("automatic network planning requires a configured Experiment")
-            factory = SelectedClientFactory(network, experiment=experiment, policy=planning)
+            factory = SelectedClientFactory(network, experiment=experiment, policy=planning,
+                                            performance_prior=performance_prior)
             requested_model = default_model or model or settings_base.model
             if requested_model is not None and requested_model not in factory.model_ids:
                 raise ValueError("client model conflicts with configured deployment")
@@ -4585,7 +4590,7 @@ class OpenAI:
             self.models = ModelsResource(self._core)
             self.runtime = RuntimeResource(self._core)
             return
-        if planning is not None:
+        if planning is not None or performance_prior is not None:
             raise ValueError("resource planning requires a configured network")
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment

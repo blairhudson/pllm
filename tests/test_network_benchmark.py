@@ -29,7 +29,7 @@ def network_fixture(tmp_path):
         yield fixture
 
 
-def test_live_benchmark_matched_controls_new_attempts_and_text_free_cost_scopes(network_fixture):
+def test_live_benchmark_matched_controls_new_attempts_and_text_free_cost_scopes(network_fixture, monkeypatch, tmp_path):
     fixture = network_fixture
     report = run_network_benchmark(
         network=fixture["network"], request=fixture["request"], credentials=fixture["credentials"],
@@ -66,6 +66,57 @@ def test_live_benchmark_matched_controls_new_attempts_and_text_free_cost_scopes(
         assert credential not in serialized
     assert '"output_text"' not in serialized and '"prompt"' not in serialized
     assert '"token_ids"' not in serialized and '"seed"' not in serialized
+    from dataclasses import replace
+    import time
+    from pllm.compiler import plan
+    from pllm.deployment import discover
+    from pllm.search import PlanningPrior
+
+    prior = PlanningPrior.from_network_benchmark(report)
+    assert len(prior.rows) == 4 and all(row.samples == 3 for row in prior.rows)
+    assert prior.input_tokens == 22 and prior.output_tokens == 2
+    assert prior.warm == report["comparison_key"]["warm"]
+    assert PlanningPrior.from_spec(prior.to_spec()) == prior
+    fresh = discover(fixture["network"], credentials=fixture["credentials"])
+    req = replace(fixture["request"], performance_prior=prior,
+        policy=replace(fixture["request"].policy, evaluated_at_ms=time.time_ns() // 1_000_000))
+    decision = plan(req, snapshot=fresh)
+    assert decision.costs["selection_basis"] == "matched_performance_prior"
+    best = min(prior.rows, key=lambda row: (row.ttft_ms, row.decode_ms_per_token))
+    assert decision.costs["forecast_ttft_ms"] == best.ttft_ms
+    # Compiling and replaying evidence never reserves providers.
+    assert sum(len(child.state.controller._used_attempts) for child in fixture["children"]) == 32
+    import copy
+    from pllm import OpenAI
+    from pllm.deployment import NetworkError
+    from pllm.deployment.admission import ExecutionContract
+    from pllm.settings import ClientSettings
+
+    bad = copy.deepcopy(report)
+    bad["candidates"][0]["report"]["runs"][0]["generation"]["output_text_digest"] = "a" * 64
+    with pytest.raises(NetworkError, match="cohorts differ"):
+        PlanningPrior.from_network_benchmark(bad)
+    del bad["candidates"][0]["report"]["runs"][0]["network_audit"]["performance_binding"]
+    with pytest.raises(NetworkError, match="lacks performance context"):
+        PlanningPrior.from_network_benchmark(bad)
+    prior_path = tmp_path / "performance.json"
+    prior_path.write_bytes(prior.canonical_bytes())
+    config_path = tmp_path / "client.toml"
+    experiment_path = tmp_path / "experiment.json"
+    experiment_path.write_bytes(req.candidates[0].canonical_bytes())
+    ClientSettings(network=str(fixture["paths"]["network"]), experiment=str(experiment_path),
+                   performance_prior=str(prior_path)).save(config_path)
+    monkeypatch.setenv("PLLM_CONFIG", str(config_path))
+    for key, value in fixture["credentials"].items():
+        monkeypatch.setenv(key, value)
+    with OpenAI() as client:
+        response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+        selection = client.planning(response.id)
+        assert selection.costs["selection_basis"] == "matched_performance_prior"
+        assert selection.costs["forecast_ttft_ms"] == best.ttft_ms
+        contract = ExecutionContract.from_result(selection, selection.snapshot).canonical_bytes()
+        assert b"performance_prior" not in contract and b"forecast_ttft" not in contract
+    assert all(not child.state.controller._reservations for child in fixture["children"])
 
 
 def test_fixed_plan_default_sampling_and_opt_in_digest(network_fixture):

@@ -32,6 +32,7 @@ class ClientSettings:
     network: str | None = None
     experiment: str | None = None
     planning: dict[str, object] | None = None
+    performance_prior: str | None = None
 
     @classmethod
     def load(cls, path: Path | None = None) -> "ClientSettings":
@@ -65,6 +66,7 @@ class ClientSettings:
             "timeout": os.getenv("PLLM_TIMEOUT"),
             "network": os.getenv("PLLM_NETWORK"),
             "experiment": os.getenv("PLLM_EXPERIMENT"),
+            "performance_prior": os.getenv("PLLM_PERFORMANCE_PRIOR"),
         }
         for key, value in env.items():
             if value not in (None, ""):
@@ -73,7 +75,7 @@ class ClientSettings:
         values["prepared_inventory_rows"] = int(values.get("prepared_inventory_rows", 64))
         values["token_cache_size"] = int(values.get("token_cache_size", 512))
         values["timeout"] = float(values.get("timeout", 300.0))
-        for name in ("network", "experiment"):
+        for name in ("network", "experiment", "performance_prior"):
             if values.get(name) is not None:
                 value = values[name]
                 if not isinstance(value, str) or not value.strip():
@@ -89,8 +91,9 @@ class ClientSettings:
             if not isinstance(options, dict):
                 raise ValueError("[client.planning] must be a TOML table")
             options = dict(options)
-            if "objectives" in options:
-                options["objectives"] = tuple(options["objectives"])
+            for name in ("objectives", "prior_objectives"):
+                if name in options:
+                    options[name] = tuple(options[name])
             PlanningPolicy(**options)
             values["planning"] = options
         return cls(**{f.name: values[f.name] for f in fields(cls) if f.name in values})

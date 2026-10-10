@@ -212,7 +212,7 @@ class PlanningResult:
 
     def validate(self, *, snapshot=None, evaluated_at_ms=None):
         """Revalidate selected binding at a caller-specified clock/epoch; no reservation."""
-        from pllm import _native
+        from pllm.search._planning_cache import _cache
         from pllm.deployment.network import NetworkError, canonical, integer, strict_load
         from pllm.search.placement import _costs, _policy_rejection
         from dataclasses import replace
@@ -262,13 +262,8 @@ class PlanningResult:
             evaluated_at_ms=now,
             parties=[offers[key].native_spec() for key in sorted(original)],
         )
-        validated = strict_load(
-            _native.validate_network_placement(
-                self.request.model_plan.canonical_bytes(),
-                self.experiment.pipeline.canonical_bytes(),
-                canonical(native_request),
-            )
-        )
+        admitted, _, _ = _cache.get(self.request, self.experiment)
+        validated = strict_load(admitted.validate(canonical(native_request)))
         assignment = {item["role_id"]: item["party_id"] for item in value["roles"]}
         policy = replace(self.request.policy, evaluated_at_ms=now)
         costs = _costs(self.to_spec()["selection"]["costs"], assignment, snapshot, policy)

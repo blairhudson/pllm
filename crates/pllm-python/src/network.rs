@@ -2,6 +2,45 @@
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
+/// Validated immutable plan facts only; contains no offers, leases or material.
+#[pyclass(frozen, name = "NetworkPlacementAdmission")]
+struct PyNetworkPlacementAdmission {
+    inner: pllm_compiler::NetworkPlacementAdmission,
+}
+
+#[pymethods]
+impl PyNetworkPlacementAdmission {
+    #[new]
+    fn new(
+        py: Python<'_>,
+        model_plan: &Bound<'_, PyBytes>,
+        composition: &Bound<'_, PyBytes>,
+    ) -> PyResult<Self> {
+        let (plan, pipeline) = (model_plan.as_bytes(), composition.as_bytes());
+        Ok(Self {
+            inner: py
+                .detach(|| pllm_compiler::NetworkPlacementAdmission::new(plan, pipeline))
+                .map_err(crate::invalid)?,
+        })
+    }
+
+    fn requirements<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.requirements())
+    }
+
+    fn validate<'py>(
+        &self,
+        py: Python<'py>,
+        document: &Bound<'_, PyBytes>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let document = document.as_bytes();
+        let output = py
+            .detach(|| self.inner.validate(document))
+            .map_err(crate::invalid)?;
+        Ok(PyBytes::new(py, &output))
+    }
+}
+
 /// network_placement_requirements(model_plan: bytes, composition: bytes) -> bytes
 ///
 /// Derive requirements before selecting parties, with the same native parsing,
@@ -83,6 +122,7 @@ fn validate_network_placement<'py>(
 }
 
 pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<PyNetworkPlacementAdmission>()?;
     module.add_function(wrap_pyfunction!(network_placement_requirements, module)?)?;
     module.add_function(wrap_pyfunction!(validate_network_placement, module)?)
 }

@@ -58,6 +58,16 @@ An explicit `OpenAI(network=network, experiment=experiment, planning=policy)`
 overrides configured selection inputs. `PlanningPolicy()` supplies bounded
 defaults; `[client.planning]` accepts the same optional policy fields.
 
+An optional `[client] performance_prior = "performance.json"` (or
+`PLLM_PERFORMANCE_PRIOR`) loads a compact
+[`PlanningPrior`](/sdk/deployment/#fast-decisions-from-prior-measurements) compiled
+from matched network benchmarks. `OpenAI(..., performance_prior=prior)` accepts
+the same record directly. Matching complete evidence ranks historical TTFT and
+decode cost before geometric ties, with fresh resource checks and leases on every
+request. Repeated decisions reuse bounded immutable planning work; selection does
+not benchmark the current prompt. Stale, changed or missing evidence falls back
+to the ordinary geometry objectives.
+
 `pllm gateway` consumes the same configured deployment. Explicit
 `pllm gateway --network network.json --experiment experiment.json` selects it
 without a saved plan; `--planning-policy policy.json` optionally overrides policy.
@@ -121,9 +131,10 @@ artifacts and private prefix reuse stay explicitly configured. Unknown required
 CPU/GPU costs reject; compatibility alone cannot earn a speed ranking.
 
 Planning explanations retain dependent prefill/decode exchange counts and separate
-directed-link delay estimates. Missing link observations remain unknown. Complete
-client CPU, request-TTFT and decode-TPS forecasts need further phase evidence;
-exchange counts do not certify performance. A fresh lease does not retain a
+directed-link delay estimates. Missing link observations remain unknown. Whole-
+request CPU and cross-workload TTFT/decode predictions need further phase evidence;
+configured priors retain their measured workload/lifecycle scope. Exchange counts
+do not certify performance. A fresh lease does not retain a
 previous response's private decoder state.
 
 The checked example is

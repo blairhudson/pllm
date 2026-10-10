@@ -17,6 +17,7 @@ from pllm.deployment.network import (
 from pllm.deployment.resources import _capacity
 from pllm.search.placement import PlanningPolicy
 from pllm.search.optimizations import compatible_execution_choices
+from pllm.search.performance import PlanningPrior
 
 
 class SelectedClientFactory:
@@ -27,7 +28,7 @@ class SelectedClientFactory:
     """
 
     def __init__(self, network, *, result=None, request=None, experiment=None,
-                 policy=None, credentials=None, ttl_seconds=60):
+                 policy=None, performance_prior=None, credentials=None, ttl_seconds=60):
         if not isinstance(network, NetworkSpec):
             raise TypeError("network must be NetworkSpec")
         if sum(value is not None for value in (result, request, experiment)) != 1:
@@ -36,10 +37,18 @@ class SelectedClientFactory:
             raise TypeError("policy requires an Experiment and PlanningPolicy")
         if experiment is not None and not isinstance(experiment, Experiment):
             raise TypeError("experiment must be Experiment")
+        if performance_prior is not None:
+            if experiment is None:
+                raise ValueError("supply performance_prior on the planning request or with an Experiment")
+            if isinstance(performance_prior, (str, Path)):
+                performance_prior = PlanningPrior.from_file(performance_prior)
+            if not isinstance(performance_prior, PlanningPrior):
+                raise TypeError("performance_prior must be PlanningPrior or its file path")
         if type(ttl_seconds) is not int or not 5 <= ttl_seconds <= 300:
             raise ValueError("lease lifetime must be in [5,300] seconds")
         self.network, self.result, self.request = network, result, request
         self.experiment = experiment
+        self.performance_prior = performance_prior
         self.policy = replace(policy or self.default_policy(), allocation_model="native_shared_v1")
         self.credentials, self.ttl_seconds = credentials, ttl_seconds
         self._lock = threading.Lock()
@@ -71,7 +80,8 @@ class SelectedClientFactory:
         network = NetworkSpec.from_spec(strict_load(Path(settings.network).read_bytes()))
         experiment = Experiment.from_spec(strict_load(Path(settings.experiment).read_bytes()))
         policy = cls.default_policy(**(settings.planning or {}))
-        factory = cls(network, experiment=experiment, policy=policy)
+        factory = cls(network, experiment=experiment, policy=policy,
+                      performance_prior=settings.performance_prior)
         if settings.model is not None and settings.model not in factory.model_ids:
             raise NetworkError("client model conflicts with configured deployment")
         return factory
@@ -109,7 +119,8 @@ class SelectedClientFactory:
             if self.request is None:
                 policy = replace(self.policy, evaluated_at_ms=stamp)
                 result = plan_on_load(self.experiment, snapshot=snapshot, policy=policy,
-                                      space=self._space(snapshot), client_resources=resources)
+                                      space=self._space(snapshot), client_resources=resources,
+                                      performance_prior=self.performance_prior)
                 self.request = result.request
             else:
                 request = replace(self.request, policy=replace(

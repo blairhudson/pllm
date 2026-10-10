@@ -40,7 +40,9 @@ mod logrow_protected;
 mod logrow_session;
 mod masked_wire_schedule;
 mod network_placement;
-pub use network_placement::{network_placement_requirements, validate_network_placement};
+pub use network_placement::{
+    network_placement_requirements, validate_network_placement, NetworkPlacementAdmission,
+};
 mod provenance_primitives;
 mod rms_norm_protected;
 mod rms_norm_stream_protected;

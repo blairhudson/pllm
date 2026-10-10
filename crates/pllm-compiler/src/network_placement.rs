@@ -34,7 +34,8 @@ fn nonzero(digest: &Digest) -> bool {
     digest.as_str().bytes().any(|byte| byte != b'0')
 }
 
-struct NativePlacementAdmission {
+/// Immutable source/composition admission; each assignment still validates fresh offers.
+pub struct NetworkPlacementAdmission {
     model_identity: Digest,
     requirements: NetworkPlacementRequirements,
 }
@@ -43,7 +44,7 @@ struct NativePlacementAdmission {
 fn admit_network_placement(
     model_plan: &[u8],
     composition: &[u8],
-) -> Result<NativePlacementAdmission, String> {
+) -> Result<NetworkPlacementAdmission, String> {
     bounded(model_plan, NETWORK_MAX_MODEL_PLAN_BYTES, "model plan")?;
     bounded(composition, NETWORK_MAX_DOCUMENT_BYTES, "composition")?;
     let plan: DecoderPlan = serde_json::from_slice(model_plan)
@@ -121,7 +122,7 @@ fn admit_network_placement(
             )
             .ok_or("retained client memory floor overflows")?;
     }
-    Ok(NativePlacementAdmission {
+    Ok(NetworkPlacementAdmission {
         model_identity: plan.config_digest,
         requirements: NetworkPlacementRequirements {
             schema: NETWORK_PLACEMENT_REQUIREMENTS_SCHEMA.to_owned(),
@@ -156,6 +157,20 @@ pub fn network_placement_requirements(
     ))
 }
 
+impl NetworkPlacementAdmission {
+    pub fn new(model_plan: &[u8], composition: &[u8]) -> Result<Self, String> {
+        admit_network_placement(model_plan, composition)
+    }
+
+    pub fn requirements(&self) -> Vec<u8> {
+        canonical_bytes(&self.requirements)
+    }
+
+    pub fn validate(&self, document: &[u8]) -> Result<Vec<u8>, String> {
+        validate_admitted_placement(self, document)
+    }
+}
+
 /// Validate three immutable JSON byte documents and return canonical JSON bytes.
 /// Model plan and composition must already use native canonical JSON. Request
 /// may use arbitrary whitespace/key order, but cannot contain duplicate fields.
@@ -166,10 +181,18 @@ pub fn validate_network_placement(
 ) -> Result<Vec<u8>, String> {
     bounded(document, NETWORK_MAX_DOCUMENT_BYTES, "placement document")?;
     let admitted = admit_network_placement(model_plan, composition)?;
-    let requirements = admitted.requirements;
+    admitted.validate(document)
+}
+
+fn validate_admitted_placement(
+    admitted: &NetworkPlacementAdmission,
+    document: &[u8],
+) -> Result<Vec<u8>, String> {
+    bounded(document, NETWORK_MAX_DOCUMENT_BYTES, "placement document")?;
+    let requirements = &admitted.requirements;
     let mut request: NetworkPlacementRequest = serde_json::from_slice(document)
         .map_err(|error| format!("invalid network placement document: {error}"))?;
-    validate_request(&request, &requirements, &admitted.model_identity)?;
+    validate_request(&request, requirements, &admitted.model_identity)?;
     request
         .roles
         .sort_by(|left, right| left.role_id.cmp(&right.role_id));
@@ -192,9 +215,9 @@ pub fn validate_network_placement(
     }
     let commitment = Commitment {
         request: &request,
-        schedule_digest: requirements.schedule_digest,
-        model_plan_digest: requirements.model_plan_digest,
-        composition_digest: requirements.composition_digest,
+        schedule_digest: requirements.schedule_digest.clone(),
+        model_plan_digest: requirements.model_plan_digest.clone(),
+        composition_digest: requirements.composition_digest.clone(),
         minimum_weight_bytes: &requirements.minimum_weight_bytes,
         minimum_memory_bytes: &requirements.minimum_memory_bytes,
     };
@@ -203,8 +226,8 @@ pub fn validate_network_placement(
         schedule_digest: commitment.schedule_digest,
         model_plan_digest: commitment.model_plan_digest,
         composition_digest: commitment.composition_digest,
-        minimum_memory_bytes: requirements.minimum_memory_bytes,
-        minimum_weight_bytes: requirements.minimum_weight_bytes,
+        minimum_memory_bytes: requirements.minimum_memory_bytes.clone(),
+        minimum_weight_bytes: requirements.minimum_weight_bytes.clone(),
         placement_digest,
         request,
     }))

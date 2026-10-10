@@ -1,0 +1,694 @@
+{
+  "schema": "pllm.planning_latency_probe.v1",
+  "candidates": 32,
+  "scope": "public Qwen2.5-shaped 64+8 geometry; request refresh, native planning and serialization",
+  "excludes": [
+    "source loading",
+    "initial lowering",
+    "discovery",
+    "lease operations",
+    "model execution"
+  ],
+  "prior_scope": "synthetic ranking oracle; no serving-performance claim",
+  "cache_scope": "cold cache within one initialized process; not interpreter cold start",
+  "runtime_digest": "55a6d59af9ea5afee3ae206464f683fb172cda19d490f34893250fc89bf143af",
+  "environment": {
+    "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O"
+  },
+  "implementation_sha256": {
+    "scripts/probe_planning_latency.py": "1eec58f4168baa94f0d5cd48f26a327fd6f35d25ff3e0fc297c92c1fe12303ca",
+    "python/pllm/search/placement.py": "ca985ebe195f3926867f16f283211b9095b4cb42426a4b217f9b30cb96fc7a3f",
+    "python/pllm/search/_planning_cache.py": "72514eac119db5e9d11163b185d52c9a4dd2c2f1bb4a51c302e1cea1a8b4aac4",
+    "python/pllm/search/performance.py": "0293cfdc8a32b3fd99dfe10cdcc4e3495322080f24363ad213ed69574d37e2f3",
+    "crates/pllm-compiler/src/network_placement.rs": "30331e5b89630062e93aea07909ec6f96522c7b4606df8eb4f928e45b56019f5",
+    "crates/pllm-python/src/network.rs": "f976e5346311e06d9e0f41862c9d8c29638a0dd188882380c4ae82094bd424a0"
+  },
+  "model_plan_digest": "3b340e71fc5486e402a3118b27b80937ec27098c17f82993b6ae96d9fe0a22da",
+  "summary": {
+    "cold": {
+      "wall_ms": 7687.319688,
+      "cpu_ms": 7646.855
+    },
+    "warm": {
+      "wall_ms": 70.7756455,
+      "cpu_ms": 70.6695
+    }
+  },
+  "samples": [
+    {
+      "pair": 0,
+      "cache": "cold",
+      "wall_ms": 7585.469125,
+      "cpu_ms": 7423.383,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 0,
+      "cache": "warm",
+      "wall_ms": 68.099834,
+      "cpu_ms": 68.021,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 0,
+      "cache": "warm",
+      "wall_ms": 66.424291,
+      "cpu_ms": 66.325,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 0,
+      "cache": "warm",
+      "wall_ms": 61.127167,
+      "cpu_ms": 61.051,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 0,
+      "cache": "warm",
+      "wall_ms": 90.189417,
+      "cpu_ms": 87.206,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 0,
+      "cache": "warm",
+      "wall_ms": 90.27775,
+      "cpu_ms": 89.399,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 0,
+      "cache": "warm",
+      "wall_ms": 68.070791,
+      "cpu_ms": 67.917,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 0,
+      "cache": "warm",
+      "wall_ms": 68.079375,
+      "cpu_ms": 67.978,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 0,
+      "cache": "warm",
+      "wall_ms": 65.872584,
+      "cpu_ms": 65.801,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "cold",
+      "wall_ms": 7577.241583,
+      "cpu_ms": 7474.052,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "warm",
+      "wall_ms": 81.60075,
+      "cpu_ms": 81.459,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "warm",
+      "wall_ms": 66.675917,
+      "cpu_ms": 66.446,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "warm",
+      "wall_ms": 66.644083,
+      "cpu_ms": 66.55,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "warm",
+      "wall_ms": 57.216833,
+      "cpu_ms": 57.196,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "warm",
+      "wall_ms": 67.402458,
+      "cpu_ms": 67.193,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "warm",
+      "wall_ms": 80.837083,
+      "cpu_ms": 80.679,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "warm",
+      "wall_ms": 65.842666,
+      "cpu_ms": 65.717,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 1,
+      "cache": "warm",
+      "wall_ms": 65.399334,
+      "cpu_ms": 65.275,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "cold",
+      "wall_ms": 8260.768333,
+      "cpu_ms": 8077.386,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "warm",
+      "wall_ms": 97.383083,
+      "cpu_ms": 95.93,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "warm",
+      "wall_ms": 93.981333,
+      "cpu_ms": 92.526,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "warm",
+      "wall_ms": 67.058166,
+      "cpu_ms": 66.93,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "warm",
+      "wall_ms": 64.730667,
+      "cpu_ms": 64.633,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "warm",
+      "wall_ms": 99.512583,
+      "cpu_ms": 96.854,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "warm",
+      "wall_ms": 107.924375,
+      "cpu_ms": 100.957,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "warm",
+      "wall_ms": 111.257625,
+      "cpu_ms": 107.508,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 2,
+      "cache": "warm",
+      "wall_ms": 69.882292,
+      "cpu_ms": 69.197,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "cold",
+      "wall_ms": 7760.047542,
+      "cpu_ms": 7711.801,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "warm",
+      "wall_ms": 64.399833,
+      "cpu_ms": 64.242,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "warm",
+      "wall_ms": 67.041417,
+      "cpu_ms": 66.854,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "warm",
+      "wall_ms": 76.631958,
+      "cpu_ms": 76.497,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "warm",
+      "wall_ms": 76.287083,
+      "cpu_ms": 76.029,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "warm",
+      "wall_ms": 89.115667,
+      "cpu_ms": 88.847,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "warm",
+      "wall_ms": 66.787875,
+      "cpu_ms": 66.588,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "warm",
+      "wall_ms": 99.983625,
+      "cpu_ms": 97.634,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 3,
+      "cache": "warm",
+      "wall_ms": 106.286208,
+      "cpu_ms": 103.302,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "cold",
+      "wall_ms": 7614.591834,
+      "cpu_ms": 7581.909,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "warm",
+      "wall_ms": 69.761041,
+      "cpu_ms": 69.543,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "warm",
+      "wall_ms": 89.702083,
+      "cpu_ms": 89.509,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "warm",
+      "wall_ms": 66.366542,
+      "cpu_ms": 66.292,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "warm",
+      "wall_ms": 58.835458,
+      "cpu_ms": 58.758,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "warm",
+      "wall_ms": 66.841709,
+      "cpu_ms": 66.731,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "warm",
+      "wall_ms": 71.390583,
+      "cpu_ms": 71.307,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "warm",
+      "wall_ms": 70.160708,
+      "cpu_ms": 70.032,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 4,
+      "cache": "warm",
+      "wall_ms": 73.642,
+      "cpu_ms": 73.499,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "cold",
+      "wall_ms": 8653.501709,
+      "cpu_ms": 8482.723,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "warm",
+      "wall_ms": 135.177708,
+      "cpu_ms": 130.343,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "warm",
+      "wall_ms": 108.927084,
+      "cpu_ms": 105.03,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "warm",
+      "wall_ms": 105.378042,
+      "cpu_ms": 99.87,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "warm",
+      "wall_ms": 103.245666,
+      "cpu_ms": 101.006,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "warm",
+      "wall_ms": 94.88375,
+      "cpu_ms": 94.59,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "warm",
+      "wall_ms": 101.750208,
+      "cpu_ms": 99.928,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "warm",
+      "wall_ms": 89.139417,
+      "cpu_ms": 88.271,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    },
+    {
+      "pair": 5,
+      "cache": "warm",
+      "wall_ms": 63.127208,
+      "cpu_ms": 63.026,
+      "coverage": {
+        "assignments_evaluated": 32,
+        "candidates_evaluated": 32,
+        "exhaustive": true,
+        "feasible_assignments": 32
+      }
+    }
+  ],
+  "cache": {
+    "entries": 32,
+    "charged_bytes": 609136,
+    "maximum_bytes": 2097152
+  },
+  "same_selected_pipeline": true
+}

@@ -25,6 +25,9 @@ from pllm.deployment.network import (
 )
 from pllm.modeling import ModelPlan
 from pllm.deployment.resources import ClientResources
+from .performance import PlanningPrior, assignment_context
+
+PRIOR_OBJECTIVES = ("forecast_ttft_ms", "forecast_decode_ms_per_token")
 
 OBJECTIVES = frozenset(
     {
@@ -115,6 +118,7 @@ class PlanningPolicy(PublicRecord):
     allocation_model: str = "payload"
     candidate_selection: str = "installed"
     max_client_native_threads: int | None = None
+    prior_objectives: tuple[str, ...] = PRIOR_OBJECTIVES
 
     def __post_init__(self) -> None:
         identity(self.client_party_id, "client_party_id")
@@ -141,6 +145,10 @@ class PlanningPolicy(PublicRecord):
         if self.switch_body_bytes and (not self.objectives or self.objectives[0] != "horizon_accounted_body_bytes"):
             raise NetworkError("body switching costs require a horizon-body primary objective")
         strings(self.objectives, "objectives", choices=OBJECTIVES)
+        if self.prior_objectives:
+            strings(self.prior_objectives, "prior_objectives", choices=frozenset(PRIOR_OBJECTIVES))
+        elif type(self.prior_objectives) is not tuple:
+            raise NetworkError("prior_objectives must be a tuple")
         finite(self.minimum_remote_mac_fraction, "minimum_remote_mac_fraction")
         if self.minimum_remote_mac_fraction > 1 or self.remote_mac_denominator not in {
             "body_linear",
@@ -162,11 +170,14 @@ class PlanningPolicy(PublicRecord):
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningPolicy:
-        data = cls._fields({"max_client_native_threads": None, "candidate_selection": "installed", "allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
+        data = cls._fields({"prior_objectives": list(PRIOR_OBJECTIVES), "max_client_native_threads": None, "candidate_selection": "installed", "allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
                            "switch_body_bytes": 0, "minimum_switch_improvement_fraction": 0.0, **value})
         if type(data["objectives"]) is not list:
             raise NetworkError("objectives must be an array")
         data["objectives"] = tuple(data["objectives"])
+        if type(data["prior_objectives"]) is not list:
+            raise NetworkError("prior_objectives must be an array")
+        data["prior_objectives"] = tuple(data["prior_objectives"])
         return cls(**data)
 
     def to_spec(self):
@@ -175,7 +186,8 @@ class PlanningPolicy(PublicRecord):
             value.pop("reuse_horizon")
         for name, default in (("incumbent_configuration_digest", None), ("switch_body_bytes", 0),
                                ("minimum_switch_improvement_fraction", 0.0), ("allocation_model", "payload"),
-                               ("candidate_selection", "installed"), ("max_client_native_threads", None)):
+                               ("candidate_selection", "installed"), ("max_client_native_threads", None),
+                               ("prior_objectives", PRIOR_OBJECTIVES)):
             if getattr(self, name) == default:
                 value.pop(name)
         return value
@@ -353,12 +365,16 @@ class PlanningRequest(PublicRecord):
     artifact_evidence: tuple[ArtifactCostEvidence, ...] = ()
     state_evidence: tuple[ClientStateCostEvidence, ...] = ()
     client_resources: ClientResources | None = None
+    performance_prior: PlanningPrior | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_plan, ModelPlan) or not isinstance(
             self.policy, PlanningPolicy
         ):
             raise TypeError("request requires ModelPlan and PlanningPolicy")
+        if self.performance_prior is not None:
+            if not isinstance(self.performance_prior, PlanningPrior):
+                raise TypeError("performance_prior must be PlanningPrior")
         if self.client_resources is not None:
             if not isinstance(self.client_resources, ClientResources):
                 raise TypeError("client_resources must be ClientResources")
@@ -487,11 +503,16 @@ class PlanningRequest(PublicRecord):
             result["state_evidence"] = [item.to_spec() for item in self.state_evidence]
         if self.client_resources is not None:
             result["client_resources"] = self.client_resources.to_spec()
+        if self.performance_prior is not None:
+            result["performance_prior"] = self.performance_prior.to_spec()
         return result
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningRequest:
-        data = cls._fields({"artifact_evidence": [], "state_evidence": [], "client_resources": None, **value})
+        data = cls._fields({"performance_prior": None,
+            "artifact_evidence": [], "state_evidence": [], "client_resources": None, **value})
+        if data["performance_prior"] is not None:
+            data["performance_prior"] = PlanningPrior.from_spec(data["performance_prior"])
         if data["client_resources"] is not None:
             data["client_resources"] = ClientResources.from_spec(data["client_resources"])
         data["model_plan"] = ModelPlan(canonical(data["model_plan"]))
@@ -663,18 +684,6 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         allocation = {"allocation_model": "native_shared_v1", "role_peak_memory_estimates": memory,
             "client_peak_memory_bytes": memory["client"],
             "memory_scope": "shared native allocation owners plus 25% margin and explicit reserve; estimate, not measured RSS"}
-        if request.client_resources is not None:
-            resources = request.client_resources
-            incremental = memory["client"]
-            if incremental > resources.headroom_bytes:
-                raise NetworkError("insufficient client host memory headroom")
-            memory["client"] += resources.process_memory_bytes + resources.reserved_memory_bytes
-            allocation.update(client_peak_memory_bytes=memory["client"],
-                client_incremental_memory_bytes=incremental,
-                client_request_allocation_bytes=incremental,
-                client_allocation_headroom_bytes=resources.headroom_bytes,
-                client_resource_observation_digest=resources.digest,
-                memory_scope="native owner estimate plus current process RSS, concurrent reservations and reserve; conservative, not an RSS guarantee")
     denominator = request.policy.remote_mac_denominator
     remote = body_remote if denominator == "body_linear" else all_remote
     total = body_total if denominator == "body_linear" else all_total
@@ -833,8 +842,7 @@ def _policy_rejection(costs: dict, policy: PlanningPolicy) -> str | None:
 
 
 def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> Any:
-    from pllm import _native
-    from pllm.deployment.network import strict_load
+    from ._planning_cache import _cache
     from pllm.plan import PlanningResult
 
     if not isinstance(request, PlanningRequest) or not isinstance(snapshot, NetworkSnapshot):
@@ -848,6 +856,16 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
     exhaustive = True
     incumbent = None
     incumbent_key: tuple[Any, ...] | None = None
+    prior = request.performance_prior
+    prior_index = {(row.pipeline_digest, row.assignment_context_digest): row for row in prior.rows
+                   } if (prior is not None and prior.matches(request) and policy.prior_objectives
+                         and not policy.switch_body_bytes
+                         and all(0 <= policy.evaluated_at_ms - link.observed_at_ms <= policy.max_observation_age_ms
+                                 and policy.evaluated_at_ms < link.expires_at_ms
+                                 for link in snapshot.links)) else {}
+    prior_complete = bool(prior_index)
+    prior_winner = prior_incumbent = prior_key = prior_incumbent_key = None
+    prior_alternatives = {}
     incumbent_components = next(
         (row.pipeline.components for row in request.candidates
          if row.configuration_digest() == policy.incumbent_configuration_digest), None
@@ -864,12 +882,21 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
         candidates += 1
         digest = experiment.configuration_digest()
         try:
-            requirements = strict_load(
-                _native.network_placement_requirements(
-                    request.model_plan.canonical_bytes(), experiment.pipeline.canonical_bytes()
-                )
-            )
-            base = _geometry(request, experiment, requirements)
+            admitted, requirements, base = _cache.get(request, experiment)
+            if request.client_resources is not None:
+                resources = request.client_resources
+                memory = base["role_memory_estimates"]
+                incremental = memory["client"]
+                if incremental > resources.headroom_bytes:
+                    raise NetworkError("insufficient client host memory headroom")
+                memory["client"] += resources.process_memory_bytes + resources.reserved_memory_bytes
+                base["role_peak_memory_estimates"] = dict(memory)
+                base.update(client_peak_memory_bytes=memory["client"],
+                    client_incremental_memory_bytes=incremental,
+                    client_request_allocation_bytes=incremental,
+                    client_allocation_headroom_bytes=resources.headroom_bytes,
+                    client_resource_observation_digest=resources.digest,
+                    memory_scope="native owner estimate plus current process RSS, concurrent reservations and reserve; conservative, not an RSS guarantee")
             for evidence in request.artifact_evidence:
                 if evidence.configuration_digest != digest:
                     continue
@@ -977,11 +1004,7 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
                 "required_weight_bytes": base["role_weight_estimates"],
             }
             try:
-                validated = _native.validate_network_placement(
-                    request.model_plan.canonical_bytes(),
-                    experiment.pipeline.canonical_bytes(),
-                    canonical(native_request),
-                )
+                validated = admitted.validate(canonical(native_request))
             except ValueError as exc:
                 reasons[(digest, f"NATIVE_ADMISSION:{exc}")] += 1
                 continue
@@ -996,6 +1019,17 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
                 reasons[(digest, rejection)] += 1
                 continue
             feasible += 1
+            sample = prior_index.get((experiment.pipeline.digest(), assignment_context(
+                snapshot, assignment, policy.max_client_native_threads))) if prior_index else None
+            if sample is None:
+                prior_complete = False
+            else:
+                costs.update(forecast_ttft_ms=sample.ttft_ms,
+                    forecast_decode_ms_per_token=sample.decode_ms_per_token,
+                    performance_prior_digest=prior.digest,
+                    performance_evidence_digest=prior.evidence_digest,
+                    performance_prior_samples=sample.samples,
+                    performance_forecast_scope="prior matched workload inside this compiled envelope; not a measurement of the current private request")
             changes = 0 if incumbent_components is None else sum(
                 incumbent_components.get(slot) != experiment.pipeline.components.get(slot)
                 for slot in set(incumbent_components) | set(experiment.pipeline.components)
@@ -1019,8 +1053,27 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
                     and (incumbent_key is None or key < incumbent_key)):
                 incumbent_key = key
                 incumbent = (experiment, validated, canonical(costs))
+            if sample is not None:
+                measured_key = (*[costs[name] for name in policy.prior_objectives], *key)
+                previous = prior_alternatives.get(digest)
+                if previous is None:
+                    prior_alternatives[digest] = {"key": measured_key, "feasible_assignments": 1}
+                else:
+                    previous["feasible_assignments"] += 1
+                    previous["key"] = min(previous["key"], measured_key)
+                if prior_key is None or measured_key < prior_key:
+                    prior_key, prior_winner = measured_key, (experiment, validated, canonical(costs))
+                if (digest == policy.incumbent_configuration_digest
+                        and (prior_incumbent_key is None or measured_key < prior_incumbent_key)):
+                    prior_incumbent_key, prior_incumbent = measured_key, (experiment, validated, canonical(costs))
         if not exhaustive:
             break
+    objectives = policy.objectives
+    if prior_complete and exhaustive and prior_winner is not None:
+        winner, best_key = prior_winner, prior_key
+        incumbent, incumbent_key = prior_incumbent, prior_incumbent_key
+        alternatives = prior_alternatives
+        objectives = (*policy.prior_objectives, *objectives)
     held_incumbent = False
     if (policy.minimum_switch_improvement_fraction > 0
             and incumbent is not None and winner is not None and incumbent_key is not None
@@ -1029,11 +1082,17 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
         if gain <= float(incumbent_key[0]) * policy.minimum_switch_improvement_fraction:
             winner, best_key = incumbent, incumbent_key
             held_incumbent = True
+    if winner is not None and prior is not None:
+        costs = strict_load(winner[2])
+        costs["selection_basis"] = "matched_performance_prior" if prior_complete and exhaustive else "geometry_fallback"
+        costs["effective_objectives"] = list(objectives)
+        costs["prior_coverage_complete"] = bool(prior_complete and exhaustive)
+        winner = (winner[0], winner[1], canonical(costs))
     status = "feasible" if winner is not None else ("infeasible" if exhaustive else "inconclusive")
     comparisons = tuple(
         {
             "configuration_digest": digest,
-            "best_objective_values": list(item["key"][:len(policy.objectives)]),
+            "best_objective_values": list(item["key"][:len(objectives)]),
             "component_changes_from_incumbent": item["key"][-3],
             "best_roles": [{"role_id": role, "party_id": party} for role, party in item["key"][-1]],
             "feasible_assignments": item["feasible_assignments"],

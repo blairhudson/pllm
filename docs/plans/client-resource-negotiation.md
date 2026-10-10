@@ -14,8 +14,13 @@ component axes preserve interactions. Arithmetic estimates price selected public
 ring/residue bounds, terminal rows and demand corrections with correct seed/correction
 directions. Default ranking uses exchanges, online bodies, preprocessing bodies and
 client weights; a zero hysteresis margin permits improvements in later objectives.
-Dependent-exchange and directed-delay terms are available; complete
-phase forecasts and measured WAN confirmation remain later slices.
+Dependent-exchange and directed-delay terms are available. A bounded process-local
+cache now reuses immutable native admission and allocation facts; every decision
+still checks current resources and offers. Optional `PlanningPrior` tables compile
+matched network benchmarks into build/source/host/link-bound TTFT/decode forecasts
+for configured SDK/gateway requests. Incomplete or mismatched coverage falls back
+to geometry. Cross-workload phase models and measured WAN confirmation remain
+later slices.
 The end-state requirements below distinguish those remaining contracts.
 
 ## 1. Product contract
@@ -74,7 +79,8 @@ Current limitations matter to the implementation:
   unknown; required unknown costs reject.
 - Existing `link_transfer_ms` prices arithmetic bytes / directed bandwidth. It
   explicitly excludes latency and overlap. Separate dependent-exchange/directed-delay
-  terms now expose tile round trips without claiming complete TTFT/TPS forecasts.
+  terms now expose tile round trips. Matching whole-attempt priors can rank TTFT/TPS;
+  unseen workloads and generalized phase forecasts remain unmeasured.
 - Reserve v2 sends only exact execution/role contracts. Full planning explanations,
   observations, budgets and alternatives remain client-local.
 - MLP tiling is an ordinary immutable scheduler component. Initial-prefill memory
@@ -279,9 +285,9 @@ deployment once; the SDK inside the gateway negotiates lazily for each request.
 Explicit `--config client.toml` selects a settings file. Existing `--network` and
 `--model` flags can override their corresponding configured defaults.
 
-Automatic negotiation, network settings, peak-memory policy and per-executor
-native worker limits are implemented. Performance policy extensions below remain
-proposed end-state semantics.
+Automatic negotiation, network settings, peak-memory policy, per-executor native
+worker limits and configured prior-performance preferences are implemented.
+The performance ceilings below remain proposed end-state semantics.
 Files below are operator-created inputs, not fixtures supplied by this plan.
 
 Provider operator, on each host:

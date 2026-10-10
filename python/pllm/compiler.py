@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from pllm.deployment.resources import ClientResources
     from pllm.plan import PlanningResult
     from pllm.search import SearchSpace
+    from pllm.search.performance import PlanningPrior
     from pllm.search.placement import (
         ArtifactCostEvidence,
         ClientStateCostEvidence,
@@ -70,6 +71,7 @@ def plan_on_load(
     artifact_evidence: tuple[ArtifactCostEvidence, ...] = (),
     state_evidence: tuple[ClientStateCostEvidence, ...] = (),
     client_resources: ClientResources | None = None,
+    performance_prior: PlanningPrior | None = None,
 ) -> PlanningResult:
     """Resolve a locked checkpoint once and select an ordinary executable plan.
 
@@ -173,6 +175,7 @@ def plan_on_load(
         artifact_evidence=artifact_evidence,
         state_evidence=state_evidence,
         client_resources=client_resources,
+        performance_prior=performance_prior,
     )
     return plan(request, snapshot=snapshot)
 
