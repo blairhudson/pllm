@@ -185,6 +185,49 @@ space = optimization_space(base, allow_client_weights=True,
 assert 1 < len(GridSearch("automatic-options", space).candidates()) <= 64
 ```
 
+For finer choices, `component_choices` supplies bounded axes whose complete
+Cartesian product includes the incumbent. These replace the default delivery,
+inventory and codec proposals; explicit ownership/cache/kernel permissions above
+remain available. Native compilation checks every complete combination:
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, MaskedLinearCpu, Model
+from pllm.preparation import PreparedInventory
+from pllm.protocols import ClientBundleTransport, MaskedLinear
+from pllm.schedulers import MlpPrefillTiling
+from pllm.search import GridSearch, optimization_space
+
+base = Experiment("fine-options",
+    MaskedLinearCpu(Model("Qwen/Qwen2.5-0.5B-Instruct")),
+    Deployment.local(root="local://fine-options"), ExecutionBudget(1, 32, 2))
+space = optimization_space(base, max_candidates=16, component_choices={
+    "linear": (MaskedLinear(request_encoding="stage_packed",
+                            output_encoding="row_residues"),),
+    "delivery": (ClientBundleTransport("artifacts", storage="paged"),),
+    "inventory": (PreparedInventory("request-sized", rows=1,
+                                    allocation="demand", refill="on-demand"),),
+    "scheduler": (MlpPrefillTiling(tile_rows=16),),
+})
+assert len(GridSearch("fine-options", space).candidates()) == 16
+```
+
+Axes can also select supported CPU/Metal kernels, Preparation storage/kernel,
+request chunking, artifact batching and preparation windows. Costs remain scoped:
+public shape/quantizer bounds price rings, residues, demand rows and terminal
+pruning, with stage seeds directed Client → Preparation and corrections directed
+Preparation → Inference. This excludes framing, verifier material, public
+delivery and whole-request CPU. Required unknown costs reject. Exact measured
+artifact and reuse evidence retains its separate contract.
+The revised arithmetic-cost identity is `pllm.schedule_arithmetic_cost.v5`;
+saved plans with different replayed estimates require replanning. Historical
+evidence keeps its original cost-model scope.
+
+The ordinary SDK selects among authenticated installed compatible combinations,
+without requiring this advanced API. Provider alternatives must share the host's
+installed engine; other kernel/storage/layout owners need separate compatible
+hosts. Equal primary scores may improve later objectives; only a positive explicit
+hysteresis margin requires a primary-objective improvement before switching.
+
 [`compiler.plan_on_load`](/sdk/reference/python/pllm/compiler/#plan_on_load)
 accepts that base, space, `NetworkSnapshot` and `PlanningPolicy`. It resolves the
 checkpoint once, verifies the configuration against its source lock, lowers its

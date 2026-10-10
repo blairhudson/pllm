@@ -56,6 +56,8 @@ class _Reservation:
     memory: int
     weights: int
     budget: object
+    inventory_rows: int = 64
+    request_encoding: str = "raw"
     armed: bool = False
     revoked: bool = False
     opened: bool = False
@@ -334,7 +336,9 @@ class PartyController:
             row = _Reservation(attempt, role, body["binding_digest"],
                                 self.clock() + body["ttl_seconds"] * 1000,
                                  secrets.token_urlsafe(32), memory, weights, result.experiment.budget,
-                                 admission_digest=admission_digest)
+                                   admission_digest=admission_digest,
+                                   inventory_rows=result.experiment.resolve().prepared_inventory_rows or 64,
+                                   request_encoding=result.experiment.pipeline.components["linear"].params.get("request_encoding", "raw"))
             if role in {"inference", "preparation"}:
                 roots = {item.party_id: item for item in self.network.parties}
                 peer = body["prepared_peer"]
@@ -344,6 +348,11 @@ class PartyController:
                     preloaded_engine=self._engines[role], push_key=row.push_credential,
                     inference_url=roots[peer["inference_party_id"]].origin + "/roles/inference",
                 )
+                row.lifespan = row.adapter.router.lifespan_context(row.adapter)
+                await row.lifespan.__aenter__()
+            else:
+                row.adapter, _ = await load_role_adapter(
+                    result.experiment, role, row.credential, preloaded_engine=self._engines[role])
                 row.lifespan = row.adapter.router.lifespan_context(row.adapter)
                 await row.lifespan.__aenter__()
             self._reservations[key] = row
@@ -447,7 +456,7 @@ class PartyController:
             translated = dict(scope)
             translated["headers"] = [(name, value) for name, value in scope["headers"]
                                      if name.lower() != b"authorization"] + [
-                (b"authorization", f"Bearer {self._static_keys[role]}".encode())]
+                (b"authorization", f"Bearer {row.credential if row.adapter is not None else self._static_keys[role]}".encode())]
             captured, status = [], [0]
             async def forward(message):
                 nonlocal sent
@@ -462,7 +471,7 @@ class PartyController:
                     raise NetworkError("lease expired during provider call")
                 await send(message)
                 sent = True
-            await self._adapters[role](translated, receive, forward)
+            await (row.adapter or self._adapters[role])(translated, receive, forward)
         except NetworkError:
             if sent:
                 raise
@@ -506,12 +515,14 @@ class PartyController:
                 if body.get("model") != self.spec.experiment.resolve().model:
                     raise NetworkError("opening model differs from installed plan")
                 if path.endswith("inventories"):
-                    cap = max(64, row.budget.max_input_tokens + row.budget.max_new_tokens - 1,
-                              self.spec.experiment.resolve().prepared_inventory_rows or 64)
+                    cap = max(row.budget.max_input_tokens + row.budget.max_new_tokens - 1,
+                              row.inventory_rows)
                     if type(body.get("rows")) is not int or not 1 <= body["rows"] <= cap:
                         raise NetworkError("inventory rows exceed admitted workload")
                     row.inventory_opened = True
                 else:
+                    if body.get("prepared_request_encoding", "raw") != row.request_encoding:
+                        raise NetworkError("session codec differs from admitted lease")
                     contract = body.get("decoder_plan")
                     if (type(contract) is not dict or type(contract.get("max_input_tokens")) is not int
                         or not 1 <= contract["max_input_tokens"] <= row.budget.max_input_tokens

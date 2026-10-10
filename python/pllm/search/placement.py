@@ -568,6 +568,8 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
                 count -= 1  # Exact completed-prefill hit includes its logits.
         else:
             count -= reused_rows
+            if step.get("terminal_row_only") and not reused_rows:
+                count -= experiment.budget.max_input_tokens - 1
         local = (
             client_only
             or step["executor"] == "client_linear"
@@ -583,6 +585,19 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         if local:
             macs["client"] += work
             continue
+        parameters = experiment.pipeline.components["linear"].params
+        bound = stage.in_features * ((1 << (numeric.weight_bits - 1)) - 1) * ((1 << (numeric.activation_bits - 1)) - 1)
+        residue_width = min(32, (2 * bound).bit_length())
+        ring_width = next(width for width in (16, 24, 32) if width >= residue_width)
+        prepared = "preparation" in role_ids
+        input_row_bytes = stage.in_features * (ring_width // 8 if prepared else 4)
+        output_row_bytes = stage.out_features * (ring_width // 8 if prepared else 4)
+        if parameters.get("output_encoding") == "row_residues":
+            # Shape/quantizer maxima are public upper bounds. Checkpoint-bound
+            # widths can be smaller; no sampled sparsity or compression is assumed.
+            output_row_bytes = (stage.out_features * residue_width + 7) // 8
+        if prepared and parameters.get("request_encoding") == "stage_packed":
+            input_row_bytes = (stage.in_features * residue_width + 7) // 8
         all_remote += work
         if stage.role != "lm_head":
             body_remote += work
@@ -593,30 +608,22 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
             exchanges[(worker, "prefill")] += prefill_calls
             exchanges[(worker, "decode")] += 1
             macs[worker] += work
-            parameters = experiment.pipeline.components["linear"].params
             seeded = worker == "worker_b" and parameters.get("input_encoding") == "seeded"
             batches = experiment.budget.max_new_tokens - int(reused_rows == experiment.budget.max_input_tokens)
             edges[("client", worker, "online")] += requests * (
-                batches * 32 if seeded else count * stage.in_features * 4)
-            output_bytes = count * stage.out_features * 4
-            if worker in {"worker_a", "worker_b"} and parameters.get("output_encoding") == "row_residues":
-                # Public shape/quantizer worst case; exact per-row widths need
-                # validated checkpoint summaries. Never assume sampled sparsity.
-                bound = stage.in_features * ((1 << (numeric.weight_bits - 1)) - 1) * ((1 << (numeric.activation_bits - 1)) - 1)
-                width = min(32, (2 * bound).bit_length())
-                output_bytes = count * ((stage.out_features * width + 7) // 8)
-            edges[(worker, "client", "online")] += requests * output_bytes
-        if "preparation" in role_ids:
-            # Conservative arithmetic arrays; seeds/framing/control/authentication unpriced.
-            macs["preparation"] += work
-            edges[("client", "preparation", "preprocessing")] += (
-                requests * count * stage.in_features * 4
-            )
-            edges[("preparation", "client", "preprocessing")] += (
-                requests * count * stage.out_features * 4
-            )
+                batches * 32 if seeded else count * input_row_bytes)
+            edges[(worker, "client", "online")] += requests * count * output_row_bytes
+        if prepared:
+            inventory = experiment.pipeline.components.get("inventory")
+            demand = inventory is not None and inventory.params.get("allocation") == "demand"
+            correction_rows = count if demand else max(profile.prepared_inventory_rows or 64, rows - reused_rows)
+            macs["preparation"] += requests * correction_rows * stage.in_features * stage.out_features
+            # Actual seeded inventory directions: one seed per stage; corrections
+            # travel only Preparation -> Inference. Tickets, framing, projections
+            # and authentication are outside this payload estimate.
+            edges[("client", "preparation", "preprocessing")] += requests * 32
             edges[("preparation", "inference", "preprocessing")] += (
-                requests * count * stage.out_features * 4
+                requests * correction_rows * output_row_bytes
             )
     retained = schedule.get("retained_state")
     state_bytes = (retained["owned_array_bound_bytes"] if retained is not None else
@@ -645,7 +652,7 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
             estimate = estimate_plan_memory(plan, experiment.pipeline,
                 max_input_tokens=experiment.budget.max_input_tokens,
                 max_output_tokens=experiment.budget.max_new_tokens,
-                inventory_rows=max(64, profile.prepared_inventory_rows or 0))
+                inventory_rows=profile.prepared_inventory_rows or 64)
         except (BenchmarkMemoryError, AttributeError) as exc:
             raise NetworkError("native allocation owners unavailable") from exc
         if estimate["limitations"]:
@@ -672,9 +679,9 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
     remote = body_remote if denominator == "body_linear" else all_remote
     total = body_total if denominator == "body_linear" else all_total
     return {
-        "scope": "arithmetic-body-estimate; excludes full wire/control, setup and CPU",
+        "scope": "shape-bounded arithmetic and seed payload; excludes tickets/control, verifier material, public delivery, full wire and CPU",
         "origin": "estimate",
-        "cost_model": "pllm.schedule_arithmetic_cost.v4",
+        "cost_model": "pllm.schedule_arithmetic_cost.v5",
         "online_all_link_body_bytes": online,
         "preprocessing_all_link_body_bytes": prep,
         "total_arithmetic_body_bytes": online + prep,
@@ -1015,7 +1022,8 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
         if not exhaustive:
             break
     held_incumbent = False
-    if (incumbent is not None and winner is not None and incumbent_key is not None
+    if (policy.minimum_switch_improvement_fraction > 0
+            and incumbent is not None and winner is not None and incumbent_key is not None
             and best_key is not None and incumbent_key != best_key):
         gain = float(incumbent_key[0]) - float(best_key[0])
         if gain <= float(incumbent_key[0]) * policy.minimum_switch_improvement_fraction:

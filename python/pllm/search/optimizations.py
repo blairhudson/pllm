@@ -13,6 +13,50 @@ if TYPE_CHECKING:
     from pllm.search import SearchSpace
 
 
+def compatible_execution_choices(base: Pipeline, candidate: Pipeline) -> bool:
+    """Automatic choices retain source, numerics, privacy and ownership.
+
+    Private-state reuse and trusted local artifacts stay explicit. Native
+    compilation and each host's installed engine are separate admissions.
+    """
+    if not isinstance(base, Pipeline) or not isinstance(candidate, Pipeline) or base.model != candidate.model:
+        return False
+    allowed = {
+        "linear": {"pllm/masked-linear", "pllm/two-online-offset-linear/v1"},
+        "kernels": {"pllm/cpu", "pllm/apple-metal-int8/v1"},
+        "delivery": {"pllm/client-bundle-transport/v1"},
+        "inventory": {"pllm/prepared-inventory-policy/v1"},
+        "preparation": {"pllm/model-aware-corrections"},
+        "scheduler": {"pllm/mlp-prefill-tiling/v1"},
+    }
+    left, right = base.components, candidate.components
+    for slot in left.keys() | right.keys():
+        before, after = left.get(slot), right.get(slot)
+        if before == after:
+            continue
+        if slot not in allowed or any(row is not None and row.component not in allowed[slot]
+                                      for row in (before, after)):
+            return False
+        if slot in {"linear", "preparation", "kernels"} and (before is None or after is None):
+            return False
+        if slot == "linear" and before.component != after.component:
+            return False
+    return True
+
+
+def shared_engine_choices(base: Pipeline, candidate: Pipeline, role_ids: tuple[str, ...] = ()) -> bool:
+    """Per-lease adapters may vary only choices retaining installed weights."""
+    if not compatible_execution_choices(base, candidate):
+        return False
+    fixed = ("kernels", "preparation") if not role_ids or "preparation" in role_ids else ("kernels",)
+    if any(base.components.get(slot) != candidate.components.get(slot) for slot in fixed):
+        return False
+    # Prepared output layouts are committed when the engine publishes its bundle.
+    before, after = base.components.get("linear"), candidate.components.get("linear")
+    return not (before is not None and before.component == "pllm/masked-linear"
+                and before.params.get("output_encoding", "raw") != after.params.get("output_encoding", "raw"))
+
+
 def optimization_space(
     experiment: Experiment,
     *,
@@ -20,13 +64,16 @@ def optimization_space(
     client_prefix_layers: tuple[int, ...] = (),
     prefix_cache_bytes: int = 0,
     metal_min_rows: int | None = None,
+    component_choices: dict[str, tuple] | None = None,
     max_candidates: int = 64,
 ) -> SearchSpace:
     """Propose choices without declaring their cost or enabling them.
 
     Model, precision, verification and topology remain fixed. Additional client
     weights and equality-revealing cache reuse require explicit permission.
-    Native model/placement admission remains the compatibility authority.
+    Native model/placement admission remains the compatibility authority. Explicit
+    component_choices replace default proposal axes with their complete bounded
+    product, including the incumbent, rather than a catalog of hand-built stacks.
     """
     from pllm.kernels import AppleMetal
     from pllm.preparation import PreparedInventory
@@ -93,6 +140,24 @@ def optimization_space(
         )
     elif allow_client_weights or prefix_cache_bytes:
         raise ValueError("requested ownership/cache proposals require ordinary prepared execution")
+
+    if component_choices is not None:
+        if type(component_choices) is not dict or not component_choices:
+            raise ValueError("component_choices requires a nonempty dictionary of tuple axes")
+        axes = {name: value for name, value in axes.items() if name in {"placement", "cache", "kernels"}}
+        for slot, values in component_choices.items():
+            if type(values) is not tuple or not values:
+                raise ValueError("component choice axes must be nonempty tuples")
+            for value in values:
+                components = dict(original)
+                if value is None:
+                    components.pop(slot, None)
+                else:
+                    components[slot] = value
+                proposal = Pipeline(model=experiment.pipeline.model, components=components)
+                if not compatible_execution_choices(experiment.pipeline, proposal):
+                    raise ValueError("component choices must preserve source, numeric, privacy and ownership contracts")
+            choices(slot, *values)
 
     size = math.prod(len(values) for values in axes.values())
     if size > max_candidates:

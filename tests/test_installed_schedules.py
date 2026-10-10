@@ -53,7 +53,7 @@ def test_installed_records_reject_incompatible_or_duplicate_choices(installed):
         replace(spec, alternatives=(spec.experiment.pipeline,))
     from pllm.quantization import SymmetricPerRow
 
-    with pytest.raises(NetworkError, match="only supported client scheduling"):
+    with pytest.raises(NetworkError, match="numeric/privacy"):
         replace(spec, alternatives=(spec.alternatives[0].with_params(quantization=SymmetricPerRow(
             weight_bits=4, activation_bits=8)),))
     forged = spec.to_spec()

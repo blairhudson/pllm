@@ -882,7 +882,7 @@ The SDK additionally observes process RSS, post-reserve host memory and concurre
 request ownership, intersecting Linux cgroup v1/v2 ancestor headroom where present.
 Shared native allocation-owner pricing plus margin admits explicit memory limits;
 one process-wide reservation owner prevents concurrent headroom reuse. Bounded
-installed Pipeline alternatives now advertise compatible full/tiled MLP schedules
+installed Pipeline alternatives now advertise compatible execution choices
 under an exact source/workload. Separate HTTP-role controls select full, tiled and
 full again as available memory changes, preserving outputs and retiring leases.
 Pinned SDK/gateway decisions reprice local allocations without rewriting saved
@@ -893,8 +893,20 @@ executors before resident/paged bundle import and cache reads. Client-only sourc
 loaders whose selected kernel count exceeds it reject during planning. The cap
 is per executor; Python/BLAS concurrency, provider/GPU work and whole-request
 CPU budgets remain separate.
-Default selection prefers fewer dependent prefill exchanges among feasible
-choices. Directed-link delays and prefill/decode exchange counts remain separate
+Up to 32 choices per host can compose delivery/paging, inventory, request codecs
+and full/tiled scheduling under shared-engine ownership. Offset leases bind their
+own input/output codecs. Preparation kernels/storage and prepared output layouts
+need matching installed owners; CPU kernel choices require their own installed
+engine. Explicit bounded optimization axes preserve cross-component interactions,
+while automatic discovery considers only exact installed combinations. Source,
+precision, verifier, placement, reuse permissions and trusted artifacts stay fixed.
+Default selection prefers fewer dependent prefill exchanges, then smaller online
+arithmetic bodies, preprocessing bodies and client weights. Shape/quantizer bounds
+price selected rings, residues, terminal rows and demand corrections, with stage
+seeds going Client to Preparation and corrections Preparation to Inference.
+These estimates exclude framing, verifier material, public delivery and CPU.
+Zero hysteresis permits improvements in later objectives; positive margins retain
+the explicit primary-objective gate. Directed-link delays and exchange counts remain separate
 from byte/CPU costs; complete TTFT/TPS forecasts and real-WAN confirmation remain
 open. Example: `examples/automatic_client.py`.
 

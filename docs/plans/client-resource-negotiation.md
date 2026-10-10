@@ -4,11 +4,17 @@ Status: **implementation in progress**. Configured ordinary SDK and gateway
 requests now own discovery, native planning, one-response admission and lease
 retirement. Sync/async, interrupted streams, cancellation and real CLI gateways
 use the same owner. CPU `MlpPrefillTiling`, exact private role admission, bounded
-installed full/tiled choices, native allocation-owner pricing, fresh process/host/
+installed execution choices, native allocation-owner pricing, fresh process/host/
 container observations and concurrent local reservations are implemented. Separate
 HTTP-role controls exercise automatic full/tiled/full reselection and infeasible
 budgets. Per-client native matrix worker limits bind resident/paged imports and
-cache reads. Dependent-exchange and directed-delay terms are available; complete
+cache reads. Compatible choices now span client delivery/paging, codecs, inventory,
+scheduling and separately installed kernels/Preparation variants. Bounded explicit
+component axes preserve interactions. Arithmetic estimates price selected public
+ring/residue bounds, terminal rows and demand corrections with correct seed/correction
+directions. Default ranking uses exchanges, online bodies, preprocessing bodies and
+client weights; a zero hysteresis margin permits improvements in later objectives.
+Dependent-exchange and directed-delay terms are available; complete
 phase forecasts and measured WAN confirmation remain later slices.
 The end-state requirements below distinguish those remaining contracts.
 
@@ -54,8 +60,12 @@ semantic compiler remains the authority for eligibility and execution.
 
 Current limitations matter to the implementation:
 
-- `PartySpec` installs one exact workload and up to eight compatible Pipelines.
-  Additional entries can change only supported full/tiled client scheduling.
+- `PartySpec` installs one exact workload and up to 32 compatible Pipelines.
+  Shared-engine alternatives can vary delivery, scheduling, request codecs and
+  inventory; offset adapters also select their own input/output codecs. Kernel,
+  prepared output-layout and Preparation-owner changes need separately installed
+  compatible engines. Automatic choices preserve source, precision, topology,
+  verifier, placement, reuse permissions and trusted artifacts.
   Its HTTP host currently admits
   at most 64 input and 32 output tokens. Larger buckets need explicit admission
   work; the 150/288-token research results cannot simply be selected on that host.

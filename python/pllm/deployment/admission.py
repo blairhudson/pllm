@@ -110,7 +110,7 @@ class ExecutionContract(PublicRecord):
             estimate = estimate_plan_memory(self.model_plan, self.pipeline,
                 max_input_tokens=self.budget.max_input_tokens,
                 max_output_tokens=self.budget.max_new_tokens,
-                inventory_rows=max(64, self.experiment.resolve().prepared_inventory_rows))
+                inventory_rows=self.experiment.resolve().prepared_inventory_rows or 64)
         except BenchmarkMemoryError as exc:
             raise NetworkError("provider allocation owners unavailable") from exc
         if estimate["limitations"]:

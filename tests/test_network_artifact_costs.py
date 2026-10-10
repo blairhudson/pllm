@@ -11,6 +11,7 @@ from pllm.compiler import plan
 from pllm.deployment import NetworkError
 from pllm.model_loader import resolve_model
 from pllm.profiles import MaskedLinearCpu
+from pllm.preparation import PreparedInventory
 from pllm.protocols import ClientBundleTransport
 from pllm.roles import ClientLinearRoles
 from pllm.runtime.bundle_artifacts import export_bundle
@@ -33,7 +34,10 @@ def inputs(tmp_path):
                         max_input_tokens=3, max_new_tokens=2)
     candidates, evidence = [], []
     for roles in ((), ("attention_output", "qkv_projection")):
+        # This locality crossover prices the four executed rows. The implicit
+        # 64-row inventory can already favor client attention on the first use.
         pipeline = MaskedLinearCpu(model, delivery=ClientBundleTransport("artifacts"),
+            inventory=PreparedInventory("request-sized", rows=1),
             **({"placement": ClientLinearRoles(roles)} if roles else {}))
         experiment = Experiment("attention" if roles else "baseline", pipeline,
             Deployment.local(root="local://locality"), ExecutionBudget(1, 3, 2))

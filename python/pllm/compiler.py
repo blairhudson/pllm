@@ -85,7 +85,7 @@ def plan_on_load(
     from pllm.configuration import Experiment
     from pllm.model_loader import resolve_model
     from pllm.modeling import lower_model
-    from pllm.protocols import TwoOnlineOffsetLinear
+    from pllm.search.optimizations import compatible_execution_choices
     from pllm.search import (
         GridSearch,
         PlanningPolicy,
@@ -109,7 +109,7 @@ def plan_on_load(
     if not candidates:
         raise ValueError("optimization space has no candidates satisfying its constraints")
     base_components = experiment.pipeline.components
-    adjustable = {"kernels", "inventory", "delivery", "placement", "cache", "scheduler"}
+    adjustable = {"kernels", "inventory", "delivery", "placement", "cache", "scheduler", "preparation"}
     for candidate in candidates:
         if (
             candidate.pipeline.model != experiment.pipeline.model
@@ -118,24 +118,24 @@ def plan_on_load(
         ):
             raise ValueError("load-time optimization cannot change model, workload or deployment")
         keys = set(base_components) | set(candidate.pipeline.components)
-        if base_components.get("scheduler") != candidate.pipeline.components.get("scheduler"):
-            from pllm.deployment.network import client_schedule_compatible
-
-            if not client_schedule_compatible(experiment.pipeline, candidate.pipeline):
-                raise ValueError("load-time scheduler changes require an exact supported client-schedule alternative")
         if any(
             base_components.get(key) != candidate.pipeline.components.get(key)
             for key in keys - adjustable - {"linear"}
         ):
             raise ValueError("load-time optimization cannot change numeric or privacy contracts")
-        before, after = base_components.get("linear"), candidate.pipeline.components.get("linear")
-        if before != after and (
-            before is None
-            or after is None
-            or before.component != after.component
-            or before.component != TwoOnlineOffsetLinear.descriptor.component
-        ):
-            raise ValueError("load-time optimization cannot change protocol or topology")
+        # Explicit ownership/cache choices in SearchSpace remain separate; other
+        # slots share the automatic client's compatibility contract.
+        comparison = dict(candidate.pipeline.components)
+        for slot in ("placement", "cache"):
+            if slot in base_components:
+                comparison[slot] = base_components[slot]
+            else:
+                comparison.pop(slot, None)
+        from pllm.configuration import Pipeline
+
+        if not compatible_execution_choices(experiment.pipeline, Pipeline(
+                model=experiment.pipeline.model, components=comparison)):
+            raise ValueError("load-time optimization cannot change numeric or privacy contracts")
     if experiment.configuration_digest() not in {row.configuration_digest() for row in candidates}:
         raise ValueError(
             "load-time optimization space must include its incumbent; constraints are never bypassed"

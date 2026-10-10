@@ -12,16 +12,17 @@ from pllm.compiler import plan, plan_on_load
 from pllm.configuration import Experiment
 from pllm.deployment.execution import open_execution
 from pllm.deployment.network import (
-    LivePartyOffer, NetworkError, NetworkSpec, client_schedule_compatible, discover, strict_load,
+    LivePartyOffer, NetworkError, NetworkSpec, discover, strict_load,
 )
 from pllm.deployment.resources import _capacity
 from pllm.search.placement import PlanningPolicy
+from pllm.search.optimizations import compatible_execution_choices
 
 
 class SelectedClientFactory:
     """Fresh capacity per attempt; cached immutable planning inputs only.
 
-    Installed client schedules are considered by default. Source resolution is
+    Installed compatible compositions are considered by default. Source resolution is
     lazy; native admission remains authoritative for every role assignment.
     """
 
@@ -60,7 +61,8 @@ class SelectedClientFactory:
     @classmethod
     def default_policy(cls, **overrides):
         return PlanningPolicy(**{"allocation_model": "native_shared_v1",
-            "objectives": ("prefill_dependent_exchanges", "client_weight_bytes"), **overrides})
+            "objectives": ("prefill_dependent_exchanges", "online_all_link_body_bytes",
+                           "preprocessing_all_link_body_bytes", "client_weight_bytes"), **overrides})
 
     @classmethod
     def from_settings(cls, settings):
@@ -76,7 +78,6 @@ class SelectedClientFactory:
 
     def _space(self, snapshot):
         from pllm.search import SearchSpace
-        from pllm.schedulers import MlpPrefillTiling
 
         base = self.experiment
         if self.policy.candidate_selection == "pinned":
@@ -86,17 +87,15 @@ class SelectedClientFactory:
             if not isinstance(offer, LivePartyOffer) or offer.workload != base.budget:
                 continue
             for pipeline in offer.configurations:
-                if client_schedule_compatible(base.pipeline, pipeline):
+                if compatible_execution_choices(base.pipeline, pipeline):
                     pipelines[pipeline.digest()] = pipeline
         if len(pipelines) > self.policy.max_candidates:
             raise NetworkError("installed configuration search exceeds candidate bound")
         if len(pipelines) == 1:
             return SearchSpace(base, {})
-        schedulers = []
-        for pipeline in sorted(pipelines.values(), key=lambda row: row.digest()):
-            component = pipeline.components.get("scheduler")
-            schedulers.append(None if component is None else MlpPrefillTiling.from_params(component.params))
-        return SearchSpace(base, {"pipeline__scheduler": tuple(schedulers)})
+        # Preserve the installed combination. Recombining advertised component
+        # axes could invent a composition that neither provider installed.
+        return SearchSpace(base, {"pipeline": tuple(sorted(pipelines.values(), key=lambda row: row.digest()))})
 
     def select(self):
         if self.result is not None:

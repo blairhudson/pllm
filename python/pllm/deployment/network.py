@@ -224,7 +224,7 @@ class LivePartyOffer(PartyOffer):
         if type(self.accepting) is not bool or self.independence_verified is not False:
             raise NetworkError("operator declaration cannot assert verified independence")
         from pllm.configuration import ExecutionBudget, Pipeline
-        if (type(self.configurations) is not tuple or len(self.configurations) > 8
+        if (type(self.configurations) is not tuple or len(self.configurations) > 32
                 or any(not isinstance(row, Pipeline) for row in self.configurations)):
             raise NetworkError("installed configurations must be a bounded immutable tuple")
         if self.configurations and (
@@ -271,27 +271,6 @@ class LivePartyOffer(PartyOffer):
             exact(data["workload"], {"requests", "max_input_tokens", "max_new_tokens"})
             data["workload"] = ExecutionBudget(**data["workload"])
         return cls(**data)
-
-
-def client_schedule_compatible(base, candidate):
-    """The installed client-schedule extension leaves provider kernels and trust exact."""
-    from pllm.schedulers import MlpPrefillTiling
-
-    if base.model != candidate.model:
-        return False
-    keys = set(base.components) | set(candidate.components)
-    if any(base.components.get(key) != candidate.components.get(key) for key in keys - {"scheduler"}):
-        return False
-    for pipeline in (base, candidate):
-        component = pipeline.components.get("scheduler")
-        if component is not None:
-            if component.component != MlpPrefillTiling.descriptor.component:
-                return False
-            try:
-                MlpPrefillTiling.from_params(component.params)
-            except (TypeError, ValueError):
-                return False
-    return True
 
 
 def origin_value(value):
@@ -343,7 +322,7 @@ class PartyTrust(PublicRecord):
 
 @dataclass(frozen=True, slots=True)
 class PartySpec(PublicRecord):
-    """Installed source/workload and bounded, provider-compatible client schedules."""
+    """Installed source/workload and bounded, shared-engine execution choices."""
 
     SCHEMA = "pllm.party_spec.v1"
     party_id: str
@@ -386,14 +365,15 @@ class PartySpec(PublicRecord):
         integer(self.experiment.budget.max_input_tokens, "max_input_tokens", minimum=1, maximum=64)
         integer(self.experiment.budget.max_new_tokens, "max_new_tokens", minimum=1, maximum=32)
         from pllm.configuration import Pipeline
-        if (type(self.alternatives) is not tuple or len(self.alternatives) > 7
+        if (type(self.alternatives) is not tuple or len(self.alternatives) > 31
                 or any(not isinstance(row, Pipeline) for row in self.alternatives)):
-            raise NetworkError("party alternatives require up to seven immutable Pipelines")
+            raise NetworkError("party alternatives require up to 31 immutable Pipelines")
         if len({row.digest() for row in self.configurations}) != len(self.configurations):
             raise NetworkError("duplicate installed configuration")
+        from pllm.search.optimizations import shared_engine_choices
         for pipeline in self.alternatives:
-            if not client_schedule_compatible(self.experiment.pipeline, pipeline):
-                raise NetworkError("installed alternatives may change only supported client scheduling")
+            if not shared_engine_choices(self.experiment.pipeline, pipeline, self.role_ids):
+                raise NetworkError("installed alternatives must preserve numeric/privacy contracts and the shared engine")
             Experiment("installed-choice", pipeline, self.experiment.deployment, self.experiment.budget).resolve()
 
     @property

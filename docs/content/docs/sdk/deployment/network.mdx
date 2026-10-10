@@ -13,8 +13,13 @@ Inference/Preparation execution. Other remote graphs and GPU hosting remain gate
 `PartyTrust` approves a party/operator/origin and names a credential environment
 variable. `PartySpec` installs an exact pipeline, source lock, allowed worker
 roles, capacities, and bounded workload. Its optional `alternatives` tuple admits
-up to seven additional compatible full/tiled client schedules. Each is compiled
-at startup; source, numeric, provider kernels and trust composition must agree.
+up to 31 additional compatible execution choices. Delivery/paging, inventory,
+request codecs and scheduling can vary; offset choices can also change their
+output codecs. Each complete combination is compiled at startup. Source,
+numerics, native kernels, prepared output layouts and trust composition must agree;
+Preparation hosts additionally retain their installed Preparation storage/kernel.
+Other compatible engine owners require separately installed hosts. The ordinary
+SDK selects among exact advertised combinations and rechecks memory before leasing.
 `LivePartyOffer` adds the installed
 descriptor/source, host epoch, role IDs, accepting status, and bounded expiry.
 Importing a record with `authenticated=True` alone grants no live authority.

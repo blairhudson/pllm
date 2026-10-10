@@ -71,11 +71,18 @@ include loading, masks, attention, KV, full outputs and selected MLP intermediat
 with the benchmark's 25% margin. These are conservative admission estimates, not
 an OS-enforced peak-RSS guarantee.
 
-Prepared hosts can advertise bounded full/tiled MLP schedules through
+Hosts can advertise up to 32 compatible installed Pipelines through
 `PartySpec(alternatives=(... ,))`. The SDK considers only installed, compatible
-choices. A tighter RAM budget can select `MlpPrefillTiling`; insufficient headroom
-rejects before issuing material. Defaults prefer fewer dependent prefill exchanges
-among feasible choices. Pin the configured Pipeline or set a process budget in
+combinations across MLP tiling, client paging, raw/compressed/artifact delivery,
+artifact batching, preparation inventory sizing/windowing, exact request/output
+codecs, and supported kernel/Preparation implementations. Source, precision,
+verifier, topology, placement, reuse permissions and trusted artifacts remain bound
+to the configured experiment. A tighter RAM budget can select paging or
+`MlpPrefillTiling`; insufficient headroom rejects before issuing material.
+Defaults prefer fewer dependent prefill exchanges, then smaller online arithmetic
+bodies, preprocessing bodies and client weights. These estimates omit framing,
+public delivery and CPU; they do not predict complete request latency.
+Pin the configured Pipeline or set a process budget in
 the same settings file:
 
 ```toml
@@ -88,7 +95,8 @@ candidate_selection = "pinned"
 Omit `candidate_selection` to keep automatic installed-choice selection. An
 explicit `PlanningPolicy(max_client_peak_memory_bytes=1 << 30)` supplies the same
 limit through the SDK. A full `PlanningPolicy` also sets its own ranking; add
-`objectives=("prefill_dependent_exchanges", "client_weight_bytes")` to retain the
+`objectives=("prefill_dependent_exchanges", "online_all_link_body_bytes",
+"preprocessing_all_link_body_bytes", "client_weight_bytes")` to retain the
 automatic client's ranking. Both declared limits and observed headroom must hold.
 Policy, observations and rejected choices remain client-local; providers receive
 the exact selected role admission contract and independently recheck it.
@@ -99,6 +107,18 @@ selected kernel count remains lower. Client-only candidates whose
 source loader requires more native workers reject during planning. This is a
 per-executor limit; it does not cap Python/BLAS threads, concurrent requests,
 provider workers, GPU work or whole-request CPU time.
+
+One host shares its installed engine across lease-local adapters. Its alternatives
+must retain native kernels, prepared output-residue layouts and, on a Preparation
+host, Preparation storage/kernel choices. Separately installed compatible hosts
+can advertise those other choices. The selected adapter binds its own wire and
+inventory contract; a provider never silently changes engine ownership.
+
+`optimization_space(component_choices=...)` builds bounded interacting component
+axes for explicit planning or provider provisioning; see [search](/sdk/evaluate/search/).
+Ordinary application calls need no candidate construction. Public tokenizer/prefix
+artifacts and private prefix reuse stay explicitly configured. Unknown required
+CPU/GPU costs reject; compatibility alone cannot earn a speed ranking.
 
 Planning explanations retain dependent prefill/decode exchange counts and separate
 directed-link delay estimates. Missing link observations remain unknown. Complete

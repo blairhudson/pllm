@@ -86,7 +86,8 @@ def test_configured_native_limit_preserves_automatic_ranking_and_binds_execution
     with OpenAI() as client:
         response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
         result = client.planning(response.id)
-        assert result.request.policy.objectives == ("prefill_dependent_exchanges", "client_weight_bytes")
+        assert result.request.policy.objectives == ("prefill_dependent_exchanges", "online_all_link_body_bytes",
+                                                   "preprocessing_all_link_body_bytes", "client_weight_bytes")
         assert result.costs["client_native_thread_limit"] == 1
         assert b"max_client_native_threads" not in ExecutionContract.from_result(result, result.snapshot).canonical_bytes()
         assert observed and set(observed) == {1}

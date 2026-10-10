@@ -265,14 +265,15 @@ def test_small_exhaustive_native_oracle_with_hand_computed_stage_link_cost():
         except ValueError:
             continue
         # Independent fixture geometry: QKV 8->16, output 8->8,
-        # grouped gate/up 8->32, down 16->8; four evaluated rows, 4-byte arrays.
+        # grouped gate/up 8->32, down 16->8; four evaluated rows in u24.
+        # Preparation receives four 32-byte seeds and publishes 64 correction
+        # rows per stage. No correction travels to the client.
         score = math.fsum(
             (
-                1000 * 640 / link["client", inference],
-                1000 * 1024 / link[inference, "client"],
-                1000 * 640 / link["client", preparation],
-                1000 * 1024 / link[preparation, "client"],
-                1000 * 1024 / link[preparation, inference],
+                1000 * 480 / link["client", inference],
+                1000 * 768 / link[inference, "client"],
+                1000 * 128 / link["client", preparation],
+                1000 * 12288 / link[preparation, inference],
             )
         )
         oracle.append((score, tuple(sorted(roles.items()))))
@@ -282,8 +283,8 @@ def test_small_exhaustive_native_oracle_with_hand_computed_stage_link_cost():
     assert (result.costs["link_transfer_ms"], tuple(sorted(assigned(result).items()))) == min(
         oracle
     )
-    assert result.costs["online_all_link_body_bytes"] == 1664
-    assert result.costs["preprocessing_all_link_body_bytes"] == 2688
+    assert result.costs["online_all_link_body_bytes"] == 1248
+    assert result.costs["preprocessing_all_link_body_bytes"] == 12416
     assert result.costs["logical_total_linear_macs"] == 2304
 
 
@@ -589,8 +590,8 @@ def test_declared_cost_evidence_exact_locks_geometry_and_no_measurement_fraud():
         req.source_lock_digest,
         req.workload_cohort_digest,
         "native-geometry-scenario",
-        1664,
-        2688,
+        1248,
+        12416,
     )
     bound = replace(req, cost_evidence=(evidence,))
     result = plan(bound, snapshot=snapshot())
