@@ -51,10 +51,19 @@ pickled. Manual endpoint/execution overrides are rejected. Output/input caps and
 request budget are checked before provider work.
 
 For live execution, every response attempt gets a new reserve/arm lifecycle and
-lease. Fixed-plan gateways revalidate the saved selection; request-mode gateways
-discover and perform bounded planning before each response. They call the
+lease. Fixed-plan gateways revalidate the saved selection and reprice its client
+allocation against current resources without changing the saved explanation.
+Request-mode gateways discover and perform bounded planning with fresh client
+resource observations before each response. They call the
 ordinary SDK Responses route. Public read-only artifacts may survive between
 attempts; capacity tokens, sessions, additive shares, and one-use masks do not.
+
+Automatic SDK/gateway attempts share a process-wide allocation reservation owner.
+Concurrent requests cannot each spend the same observed headroom; completion,
+failure and cancellation release that local reservation after their execution
+owner retires. HTTP providers receive selected execution/role contracts with
+matching digest acknowledgements. Client budgets, resource observations and
+rejected alternatives are absent from reserve requests.
 
 ## CLI selection
 

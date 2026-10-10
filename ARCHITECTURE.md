@@ -878,9 +878,20 @@ installed network and Experiment; optional policy overrides and bounded per-resp
 explanations remain available. Completion, partial streams, cancellation and client
 shutdown release owned attempts; async cancellation drains outstanding workers.
 Prepared and two-offset HTTP controls plus real CLI gateways exercise the path.
-This first slice retains the installed Pipeline/workload and existing cost scopes;
-full client-resource pricing, installed-choice negotiation and phase-aware WAN
-optimization remain subsequent work. Example: `examples/automatic_client.py`.
+The SDK additionally observes process RSS, post-reserve host memory and concurrent
+request ownership, intersecting Linux cgroup v1/v2 ancestor headroom where present.
+Shared native allocation-owner pricing plus margin admits explicit memory limits;
+one process-wide reservation owner prevents concurrent headroom reuse. Bounded
+installed Pipeline alternatives now advertise compatible full/tiled MLP schedules
+under an exact source/workload. Separate HTTP-role controls select full, tiled and
+full again as available memory changes, preserving outputs and retiring leases.
+Pinned SDK/gateway decisions reprice local allocations without rewriting saved
+evidence. Client resources, policy and rejected alternatives stay out of the
+exact role admission records; providers independently recheck selected costs.
+Default selection prefers fewer dependent prefill exchanges among feasible
+choices. Directed-link delays and prefill/decode exchange counts remain separate
+from byte/CPU costs; complete TTFT/TPS forecasts and real-WAN confirmation remain
+open. Example: `examples/automatic_client.py`.
 
 The opt-in `OpenAI.conversation` and `AsyncOpenAI.conversation` handles manage one
 response-owned continuation chain under an Experiment with bounded

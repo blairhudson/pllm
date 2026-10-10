@@ -24,6 +24,7 @@ from pllm.deployment.network import (
     strict_load,
 )
 from pllm.modeling import ModelPlan
+from pllm.deployment.resources import ClientResources
 
 OBJECTIVES = frozenset(
     {
@@ -40,6 +41,10 @@ OBJECTIVES = frozenset(
         "setup_ms",
         "artifact_miss_bytes",
         "horizon_accounted_body_bytes",
+        "prefill_dependent_exchanges",
+        "decode_dependent_exchanges_per_token",
+        "prefill_round_trip_ms",
+        "decode_round_trip_ms_per_token",
     }
 )
 
@@ -108,6 +113,7 @@ class PlanningPolicy(PublicRecord):
     switch_body_bytes: int = 0
     minimum_switch_improvement_fraction: float = 0.0
     allocation_model: str = "payload"
+    candidate_selection: str = "installed"
 
     def __post_init__(self) -> None:
         identity(self.client_party_id, "client_party_id")
@@ -117,6 +123,8 @@ class PlanningPolicy(PublicRecord):
         integer(self.buffer_reserve_bytes, "buffer_reserve_bytes")
         if self.allocation_model not in {"payload", "native_shared_v1"}:
             raise NetworkError("unsupported allocation owner model")
+        if self.candidate_selection not in {"installed", "pinned"}:
+            raise NetworkError("candidate selection must be installed or pinned")
         integer(self.max_observation_age_ms, "max_observation_age_ms")
         integer(self.reuse_horizon, "reuse_horizon", minimum=1, maximum=1024)
         integer(self.switch_body_bytes, "switch_body_bytes", maximum=1 << 40)
@@ -151,7 +159,7 @@ class PlanningPolicy(PublicRecord):
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningPolicy:
-        data = cls._fields({"allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
+        data = cls._fields({"candidate_selection": "installed", "allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
                            "switch_body_bytes": 0, "minimum_switch_improvement_fraction": 0.0, **value})
         if type(data["objectives"]) is not list:
             raise NetworkError("objectives must be an array")
@@ -163,7 +171,8 @@ class PlanningPolicy(PublicRecord):
         if self.reuse_horizon == 1:
             value.pop("reuse_horizon")
         for name, default in (("incumbent_configuration_digest", None), ("switch_body_bytes", 0),
-                               ("minimum_switch_improvement_fraction", 0.0), ("allocation_model", "payload")):
+                               ("minimum_switch_improvement_fraction", 0.0), ("allocation_model", "payload"),
+                               ("candidate_selection", "installed")):
             if getattr(self, name) == default:
                 value.pop(name)
         return value
@@ -340,12 +349,21 @@ class PlanningRequest(PublicRecord):
     cost_evidence: tuple[CandidateCostEvidence, ...] = ()
     artifact_evidence: tuple[ArtifactCostEvidence, ...] = ()
     state_evidence: tuple[ClientStateCostEvidence, ...] = ()
+    client_resources: ClientResources | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_plan, ModelPlan) or not isinstance(
             self.policy, PlanningPolicy
         ):
             raise TypeError("request requires ModelPlan and PlanningPolicy")
+        if self.client_resources is not None:
+            if not isinstance(self.client_resources, ClientResources):
+                raise TypeError("client_resources must be ClientResources")
+            if self.policy.allocation_model != "native_shared_v1":
+                raise NetworkError("client resource admission requires complete native allocation pricing")
+            age = self.policy.evaluated_at_ms - self.client_resources.observed_at_ms
+            if not 0 <= age <= self.policy.max_observation_age_ms:
+                raise NetworkError("stale client resource observation")
         raw_plan = self.model_plan.canonical_bytes()
         if type(raw_plan) is not bytes or canonical(strict_load(raw_plan)) != raw_plan:
             raise NetworkError("ModelPlan must contain strict canonical immutable JSON bytes")
@@ -464,11 +482,15 @@ class PlanningRequest(PublicRecord):
             result["artifact_evidence"] = [item.to_spec() for item in self.artifact_evidence]
         if self.state_evidence:
             result["state_evidence"] = [item.to_spec() for item in self.state_evidence]
+        if self.client_resources is not None:
+            result["client_resources"] = self.client_resources.to_spec()
         return result
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningRequest:
-        data = cls._fields({"artifact_evidence": [], "state_evidence": [], **value})
+        data = cls._fields({"artifact_evidence": [], "state_evidence": [], "client_resources": None, **value})
+        if data["client_resources"] is not None:
+            data["client_resources"] = ClientResources.from_spec(data["client_resources"])
         data["model_plan"] = ModelPlan(canonical(data["model_plan"]))
         if type(data["candidates"]) is not list:
             raise NetworkError("candidates must be an array")
@@ -523,6 +545,11 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
     macs: Counter[str] = Counter()
     body_total = all_total = body_remote = all_remote = 0
     workspace = 0
+    exchanges: Counter[tuple[str, str]] = Counter()
+    tiling = schedule.get("mlp_tiling")
+    tiled_steps = ({index for region in tiling["regions"]
+                    for index in range(region["first_step"], region["end_step"])} if tiling else set())
+    indices = {id(step): index for index, step in enumerate(schedule["prefill"]["steps"])}
     for stage, step in zip(stages, steps, strict=True):
         count = experiment.budget.max_new_tokens if stage.role == "lm_head" else rows
         # Capacity must accommodate a miss and ordinary fallback; reuse is only
@@ -552,6 +579,11 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         if stage.role != "lm_head":
             body_remote += work
         for worker in workers:
+            prefill_calls = int(reused_rows < experiment.budget.max_input_tokens)
+            if prefill_calls and indices[id(step)] in tiled_steps:
+                prefill_calls = math.ceil(experiment.budget.max_input_tokens / tiling["tile_rows"])
+            exchanges[(worker, "prefill")] += prefill_calls
+            exchanges[(worker, "decode")] += 1
             macs[worker] += work
             parameters = experiment.pipeline.components["linear"].params
             seeded = worker == "worker_b" and parameters.get("input_encoding") == "seeded"
@@ -591,6 +623,10 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         + (payload if role == "client" else workspace)
         for role, value in weights.items()
     }
+    # Legacy payload/weight ceilings have their own conservative scope. Do not
+    # subtract a six-copy weight bound from the shared/paged peak estimate.
+    payloads = {role: value - weights[role] - request.policy.buffer_reserve_bytes
+                for role, value in memory.items()}
     online = sum(value for (*_, phase), value in edges.items() if phase == "online")
     prep = sum(value for (*_, phase), value in edges.items() if phase == "preprocessing")
     allocation = {}
@@ -612,13 +648,25 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         allocation = {"allocation_model": "native_shared_v1", "role_peak_memory_estimates": memory,
             "client_peak_memory_bytes": memory["client"],
             "memory_scope": "shared native allocation owners plus 25% margin and explicit reserve; estimate, not measured RSS"}
+        if request.client_resources is not None:
+            resources = request.client_resources
+            incremental = memory["client"]
+            if incremental > resources.headroom_bytes:
+                raise NetworkError("insufficient client host memory headroom")
+            memory["client"] += resources.process_memory_bytes + resources.reserved_memory_bytes
+            allocation.update(client_peak_memory_bytes=memory["client"],
+                client_incremental_memory_bytes=incremental,
+                client_request_allocation_bytes=incremental,
+                client_allocation_headroom_bytes=resources.headroom_bytes,
+                client_resource_observation_digest=resources.digest,
+                memory_scope="native owner estimate plus current process RSS, concurrent reservations and reserve; conservative, not an RSS guarantee")
     denominator = request.policy.remote_mac_denominator
     remote = body_remote if denominator == "body_linear" else all_remote
     total = body_total if denominator == "body_linear" else all_total
     return {
         "scope": "arithmetic-body-estimate; excludes full wire/control, setup and CPU",
         "origin": "estimate",
-        "cost_model": "pllm.schedule_arithmetic_cost.v3",
+        "cost_model": "pllm.schedule_arithmetic_cost.v4",
         "online_all_link_body_bytes": online,
         "preprocessing_all_link_body_bytes": prep,
         "total_arithmetic_body_bytes": online + prep,
@@ -630,8 +678,13 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         "logical_remote_linear_macs": remote,
         "logical_total_linear_macs": total,
         "role_linear_macs": dict(sorted(macs.items())),
+        "prefill_dependent_exchanges": sum(value for (_, phase), value in exchanges.items() if phase == "prefill"),
+        "decode_dependent_exchanges_per_token": sum(value for (_, phase), value in exchanges.items() if phase == "decode"),
+        "role_exchanges": [{"worker_role": worker, "phase": phase, "count": count}
+                           for (worker, phase), count in sorted(exchanges.items())],
         "role_memory_estimates": memory,
         "role_weight_estimates": weights,
+        "role_payload_estimates": payloads,
         "memory_scope": "6 bytes per owned element plus explicit buffers; not complete peak RAM",
         "client_cpu_ns": None,
         "client_peak_memory_bytes": None,
@@ -664,17 +717,15 @@ def _costs(
     costs = {**base}
     client_roles = [role for role, party in assignment.items() if party == policy.client_party_id]
     costs["client_weight_bytes"] = sum(base["role_weight_estimates"][role] for role in client_roles)
-    costs["client_payload_bytes"] = sum(
-        base["role_memory_estimates"][role]
-        - base["role_weight_estimates"][role]
-        - policy.buffer_reserve_bytes
-        for role in client_roles
-    )
+    costs["client_payload_bytes"] = sum(base["role_payload_estimates"][role] for role in client_roles)
     costs["client_linear_macs"] = sum(
         base["role_linear_macs"].get(role, 0) for role in client_roles
     )
     if "role_peak_memory_estimates" in base:
         costs["client_peak_memory_bytes"] = sum(base["role_peak_memory_estimates"][role] for role in client_roles)
+    if "client_incremental_memory_bytes" in base:
+        costs["client_incremental_memory_bytes"] = base["client_request_allocation_bytes"] + sum(
+            base["role_peak_memory_estimates"][role] for role in client_roles if role != "client")
     # Logical work is offloaded only if no online provider runs at the client party.
     # Two-offset duplicates are not extra denominator credit.
     if any(role in client_roles for role in ("inference", "worker_a", "worker_b")):
@@ -708,6 +759,26 @@ def _costs(
     costs["link_transfer_scope"] = (
         "serialized arithmetic arrays / directed bandwidth; excludes RTT and overlap"
     )
+    # Latency terms remain separate from bandwidth and compute. A duplex stage
+    # contributes one dependent exchange; its pipelined frames are not serial RTTs.
+    # Offset workers are conservatively serialized: this is not seed-first timing.
+    for phase, metric in (("prefill", "prefill_round_trip_ms"), ("decode", "decode_round_trip_ms_per_token")):
+        terms, unknown = [], False
+        for edge in base["role_exchanges"]:
+            if edge["phase"] != phase or not edge["count"]:
+                continue
+            left, right = assignment["client"], assignment[edge["worker_role"]]
+            if left == right:
+                continue
+            for pair in ((left, right), (right, left)):
+                observation = observations.get(pair)
+                if (observation is None or observation.expires_at_ms <= policy.evaluated_at_ms
+                        or not 0 <= policy.evaluated_at_ms - observation.observed_at_ms <= policy.max_observation_age_ms):
+                    unknown = True
+                else:
+                    terms.append(edge["count"] * observation.latency_ms * (1 + observation.uncertainty_fraction))
+        costs[metric] = None if unknown else math.fsum(terms)
+    costs["round_trip_scope"] = "per-request dependent stage exchanges times declared RTT; excludes bandwidth, compute, preparation, control and overlap"
     costs["party_links"] = [
         {"source_party": left, "target_party": right, "phase": phase, "bytes": value}
         for (left, right, phase), value in sorted(distribution.items())
@@ -718,6 +789,9 @@ def _costs(
 def _policy_rejection(costs: dict, policy: PlanningPolicy) -> str | None:
     if policy.require_verified_privacy:
         return "UNRESOLVED_VERIFIED_PRIVACY"
+    if ("client_incremental_memory_bytes" in costs
+            and costs["client_incremental_memory_bytes"] > costs["client_allocation_headroom_bytes"]):
+        return "INSUFFICIENT_CLIENT_HEADROOM"
     for bound, metric in (
         ("max_client_weight_bytes", "client_weight_bytes"),
         ("max_client_payload_bytes", "client_payload_bytes"),
@@ -830,6 +904,8 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
                     reason = "PARTY_DRAINING"
                 elif isinstance(offer, LivePartyOffer) and role["role_id"] not in offer.role_ids:
                     reason = "ROLE_INSTANCE_MISMATCH"
+                elif isinstance(offer, LivePartyOffer) and offer.workload is not None and offer.workload != experiment.budget:
+                    reason = "WORKLOAD_NOT_INSTALLED"
                 elif isinstance(offer, LivePartyOffer) and (
                     offer.observed_at_ms > policy.evaluated_at_ms
                     or policy.evaluated_at_ms - offer.observed_at_ms > policy.max_observation_age_ms

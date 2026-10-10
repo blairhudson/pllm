@@ -165,7 +165,7 @@ def scenario_fixture(root: Path, *, fast_region="east", hidden_size=32):
                               max_input_tokens=32, max_new_tokens=2)
     stamp = time.time_ns() // 1_000_000
     client = PartyOffer("client", "client", "c" * 64, stamp + 60_000, ("trusted_client",),
-                        256 << 20, 64 << 20, 8, 0, ("*",), ("*",))
+                        2 << 30, 64 << 20, 8, 0, ("*",), ("*",))
     names = ("a-east", "a-west", "b-east", "b-west")
     roots = tuple(PartyTrust(name, "operator-" + name, f"http://127.0.0.1:{free_port()}",
                             "PLLM_SCENARIO_" + name.upper().replace("-", "_")) for name in names)

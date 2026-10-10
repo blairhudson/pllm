@@ -85,9 +85,25 @@ API: [`PlanningRequest` and `PlanningPolicy`](/sdk/reference/python/pllm/search/
 Candidates must share exact model source, numeric contract, and budget. Model-plan
 prefill/decode bounds must match that budget. Objectives are ordered explicitly;
 unknown required costs fail closed rather than becoming zero. Arithmetic body
-estimates omit HTTP/TLS framing and checkpoint distribution. CPU, peak memory,
-full-wire bytes, and setup time remain unknown without admitted evidence; declared
+estimates omit HTTP/TLS framing and checkpoint distribution. CPU, full-wire bytes,
+and setup time remain unknown without admitted evidence; declared
 `CandidateCostEvidence` is an estimate, not a measurement certificate.
+
+`PlanningPolicy(allocation_model="native_shared_v1")` selects the same conservative
+allocation-owner estimates as native benchmark admission. Supply a fresh
+`ClientResources.observe()` in `PlanningRequest.client_resources` to add current
+process RSS, concurrent ownership and post-reserve host/container headroom. Pure
+planning never silently reads live resources; configured ordinary SDK requests do
+this automatically. `plan_on_load(..., client_resources=...)` accepts the same
+record. Required unknown costs reject, while an explicit peak-memory limit is
+checked against the complete estimate rather than tensor payload alone.
+
+`prefill_dependent_exchanges` and `decode_dependent_exchanges_per_token` count
+semantic remote exchanges. Their `prefill_round_trip_ms` and
+`decode_round_trip_ms_per_token` estimates price both directed delays and declared
+uncertainty, separately from arithmetic-byte transfer. Duplex frames are not
+counted as independent serial round trips. CPU, control, preparation and overlap
+remain outside these delay terms; they are not request-TTFT or TPS predictions.
 
 `minimum_remote_mac_fraction` names either `body_linear` or `all_linear` as its
 denominator. Token lookup is excluded. Logical matrix work is not credited twice

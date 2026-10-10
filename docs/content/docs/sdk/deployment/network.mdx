@@ -11,10 +11,17 @@ Inference/Preparation execution. Other remote graphs and GPU hosting remain gate
 
 `PartyOffer` is a static declaration with `authenticated=False`.
 `PartyTrust` approves a party/operator/origin and names a credential environment
-variable. `PartySpec` installs one exact pipeline, source lock, allowed worker
-roles, capacities, and bounded workload. `LivePartyOffer` adds the installed
+variable. `PartySpec` installs an exact pipeline, source lock, allowed worker
+roles, capacities, and bounded workload. Its optional `alternatives` tuple admits
+up to seven additional compatible full/tiled client schedules. Each is compiled
+at startup; source, numeric, provider kernels and trust composition must agree.
+`LivePartyOffer` adds the installed
 descriptor/source, host epoch, role IDs, accepting status, and bounded expiry.
 Importing a record with `authenticated=True` alone grants no live authority.
+Party specifications with alternatives use schema v2; installed-choice offers use
+v3 and bind exact Pipeline documents and workload. Legacy specifications and
+offers retain their original serialization. Discovering a choice does not install
+provider code or authorize an unsupported composition.
 
 ## Python SDK example
 

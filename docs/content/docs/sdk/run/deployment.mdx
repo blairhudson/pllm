@@ -63,11 +63,40 @@ defaults; `[client.planning]` accepts the same optional policy fields.
 without a saved plan; `--planning-policy policy.json` optionally overrides policy.
 Advanced callers can still pass `execution=lease`, `--plan` or `--request`.
 
-This first slice chooses hosts for the installed Pipeline and bounded workload.
-Required costs that lack evidence still reject, including complete client CPU
-and peak-memory requirements. Automatic full-versus-tiled candidate generation
-and phase-aware TTFT/decode-TPS optimization are subsequent slices. A fresh lease
-does not retain a previous response's private decoder state.
+The SDK observes process RSS, post-reserve host RAM and other active client
+reservations before selecting and opening each attempt. On Linux, visible cgroup
+v1/v2 memory ceilings and ancestor usage further constrain headroom. No swap or
+reclaimable-cache credit is assumed. Complete native allocation-owner estimates
+include loading, masks, attention, KV, full outputs and selected MLP intermediates,
+with the benchmark's 25% margin. These are conservative admission estimates, not
+an OS-enforced peak-RSS guarantee.
+
+Prepared hosts can advertise bounded full/tiled MLP schedules through
+`PartySpec(alternatives=(... ,))`. The SDK considers only installed, compatible
+choices. A tighter RAM budget can select `MlpPrefillTiling`; insufficient headroom
+rejects before issuing material. Defaults prefer fewer dependent prefill exchanges
+among feasible choices. Pin the configured Pipeline or set a process budget in
+the same settings file:
+
+```toml
+[client.planning]
+max_client_peak_memory_bytes = 1073741824
+candidate_selection = "pinned"
+```
+
+Omit `candidate_selection` to keep automatic installed-choice selection. An
+explicit `PlanningPolicy(max_client_peak_memory_bytes=1 << 30)` supplies the same
+limit through the SDK. A full `PlanningPolicy` also sets its own ranking; add
+`objectives=("prefill_dependent_exchanges", "client_weight_bytes")` to retain the
+automatic client's ranking. Both declared limits and observed headroom must hold.
+Policy, observations and rejected choices remain client-local; providers receive
+the exact selected role admission contract and independently recheck it.
+
+Planning explanations retain dependent prefill/decode exchange counts and separate
+directed-link delay estimates. Missing link observations remain unknown. Complete
+client CPU, request-TTFT and decode-TPS forecasts need further phase evidence;
+exchange counts do not certify performance. A fresh lease does not retain a
+previous response's private decoder state.
 
 The checked example is
 [`examples/automatic_client.py`](https://github.com/blairhudson/pllm/blob/main/examples/automatic_client.py).

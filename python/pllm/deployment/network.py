@@ -206,6 +206,8 @@ class LivePartyOffer(PartyOffer):
     observed_at_ms: int = 0
     accepting: bool = True
     independence_verified: bool = False
+    configurations: tuple[Any, ...] = ()
+    workload: Any = None
 
     def __post_init__(self):
         base = {item.name: getattr(self, item.name) for item in fields(PartyOffer)}
@@ -221,6 +223,27 @@ class LivePartyOffer(PartyOffer):
             raise NetworkError("live offer lifetime must be bounded by 300s")
         if type(self.accepting) is not bool or self.independence_verified is not False:
             raise NetworkError("operator declaration cannot assert verified independence")
+        from pllm.configuration import ExecutionBudget, Pipeline
+        if (type(self.configurations) is not tuple or len(self.configurations) > 8
+                or any(not isinstance(row, Pipeline) for row in self.configurations)):
+            raise NetworkError("installed configurations must be a bounded immutable tuple")
+        if self.configurations and (
+                len({row.digest() for row in self.configurations}) != len(self.configurations)
+                or {row.digest() for row in self.configurations} != set(self.allowed_compositions)):
+            raise NetworkError("installed configurations differ from composition allowlist")
+        if bool(self.configurations) != isinstance(self.workload, ExecutionBudget):
+            raise NetworkError("installed configurations require an exact workload")
+        if not self.configurations and self.workload is not None:
+            raise NetworkError("legacy offers cannot declare workload choices")
+
+    def to_spec(self):
+        value = super(LivePartyOffer, self).to_spec()
+        if self.configurations:
+            value["schema"] = "pllm.party_offer.v3"
+        else:
+            value.pop("configurations")
+            value.pop("workload")
+        return value
 
     def native_spec(self):
         return {key: getattr(self, key) if type(getattr(self, key)) is not tuple
@@ -231,12 +254,44 @@ class LivePartyOffer(PartyOffer):
 
     @classmethod
     def from_spec(cls, value):
-        data = cls._fields(value)
+        from pllm.configuration import ExecutionBudget, Pipeline
+        versioned = value.get("schema") == "pllm.party_offer.v3"
+        if not versioned and {"configurations", "workload"} & value.keys():
+            raise NetworkError("installed configurations require offer v3")
+        data = cls._fields({"configurations": [], "workload": None, **value,
+                            "schema": cls.SCHEMA if versioned else value.get("schema")})
         for key in ("capabilities", "allowed_models", "allowed_compositions", "devices", "role_ids"):
             if type(data[key]) is not list:
                 raise NetworkError(f"{key} must be an array")
             data[key] = tuple(data[key])
+        if type(data["configurations"]) is not list or versioned and not data["configurations"]:
+            raise NetworkError("offer v3 requires installed configurations")
+        data["configurations"] = tuple(Pipeline.from_spec(row) for row in data["configurations"])
+        if versioned:
+            exact(data["workload"], {"requests", "max_input_tokens", "max_new_tokens"})
+            data["workload"] = ExecutionBudget(**data["workload"])
         return cls(**data)
+
+
+def client_schedule_compatible(base, candidate):
+    """The installed client-schedule extension leaves provider kernels and trust exact."""
+    from pllm.schedulers import MlpPrefillTiling
+
+    if base.model != candidate.model:
+        return False
+    keys = set(base.components) | set(candidate.components)
+    if any(base.components.get(key) != candidate.components.get(key) for key in keys - {"scheduler"}):
+        return False
+    for pipeline in (base, candidate):
+        component = pipeline.components.get("scheduler")
+        if component is not None:
+            if component.component != MlpPrefillTiling.descriptor.component:
+                return False
+            try:
+                MlpPrefillTiling.from_params(component.params)
+            except (TypeError, ValueError):
+                return False
+    return True
 
 
 def origin_value(value):
@@ -288,7 +343,7 @@ class PartyTrust(PublicRecord):
 
 @dataclass(frozen=True, slots=True)
 class PartySpec(PublicRecord):
-    """Local installed allowlist. One exact pipeline, source and bounded workload."""
+    """Installed source/workload and bounded, provider-compatible client schedules."""
 
     SCHEMA = "pllm.party_spec.v1"
     party_id: str
@@ -301,6 +356,7 @@ class PartySpec(PublicRecord):
     max_lease_seconds: int = 300
     offer_seconds: int = 60
     peer_party_ids: tuple[str, ...] = ()
+    alternatives: tuple[Any, ...] = ()
 
     def __post_init__(self):
         from pllm.configuration import Experiment
@@ -329,17 +385,46 @@ class PartySpec(PublicRecord):
             raise NetworkError("party admission supports one bounded response attempt")
         integer(self.experiment.budget.max_input_tokens, "max_input_tokens", minimum=1, maximum=64)
         integer(self.experiment.budget.max_new_tokens, "max_new_tokens", minimum=1, maximum=32)
+        from pllm.configuration import Pipeline
+        if (type(self.alternatives) is not tuple or len(self.alternatives) > 7
+                or any(not isinstance(row, Pipeline) for row in self.alternatives)):
+            raise NetworkError("party alternatives require up to seven immutable Pipelines")
+        if len({row.digest() for row in self.configurations}) != len(self.configurations):
+            raise NetworkError("duplicate installed configuration")
+        for pipeline in self.alternatives:
+            if not client_schedule_compatible(self.experiment.pipeline, pipeline):
+                raise NetworkError("installed alternatives may change only supported client scheduling")
+            Experiment("installed-choice", pipeline, self.experiment.deployment, self.experiment.budget).resolve()
+
+    @property
+    def configurations(self):
+        return (self.experiment.pipeline, *self.alternatives)
+
+    def to_spec(self):
+        value = super(PartySpec, self).to_spec()
+        if self.alternatives:
+            value["schema"] = "pllm.party_spec.v2"
+        else:
+            value.pop("alternatives")
+        return value
 
     @classmethod
     def from_spec(cls, value):
-        from pllm.configuration import Experiment
+        from pllm.configuration import Experiment, Pipeline
 
-        data = cls._fields(value)
+        versioned = value.get("schema") == "pllm.party_spec.v2"
+        if not versioned and "alternatives" in value:
+            raise NetworkError("installed alternatives require party spec v2")
+        data = cls._fields({"alternatives": [], **value,
+                            "schema": cls.SCHEMA if versioned else value.get("schema")})
         data["experiment"] = Experiment.from_spec(data["experiment"])
         for key in ("role_ids", "peer_party_ids"):
             if type(data[key]) is not list:
                 raise NetworkError(f"{key} must be an array")
             data[key] = tuple(data[key])
+        if type(data["alternatives"]) is not list or versioned and not data["alternatives"]:
+            raise NetworkError("party spec v2 requires installed alternatives")
+        data["alternatives"] = tuple(Pipeline.from_spec(row) for row in data["alternatives"])
         return cls(**data)
 
 
@@ -452,7 +537,8 @@ class NetworkSnapshot(PublicRecord):
         if type(data["offers"]) is not list or type(data["links"]) is not list:
             raise NetworkError("offers and links must be arrays")
         data["offers"] = tuple(
-            (LivePartyOffer if item.get("schema") == LivePartyOffer.SCHEMA else PartyOffer).from_spec(item)
+            (LivePartyOffer if item.get("schema") in {LivePartyOffer.SCHEMA, "pllm.party_offer.v3"}
+             else PartyOffer).from_spec(item)
             for item in data["offers"])
         data["links"] = tuple(LinkObservation.from_spec(item) for item in data["links"])
         return cls(**data)

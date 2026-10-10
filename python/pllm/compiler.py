@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from pllm.configuration import Experiment
     from pllm.deployment.network import NetworkSnapshot
+    from pllm.deployment.resources import ClientResources
     from pllm.plan import PlanningResult
     from pllm.search import SearchSpace
     from pllm.search.placement import (
@@ -68,6 +69,7 @@ def plan_on_load(
     cache_dir: str | Path | None = None,
     artifact_evidence: tuple[ArtifactCostEvidence, ...] = (),
     state_evidence: tuple[ClientStateCostEvidence, ...] = (),
+    client_resources: ClientResources | None = None,
 ) -> PlanningResult:
     """Resolve a locked checkpoint once and select an ordinary executable plan.
 
@@ -107,7 +109,7 @@ def plan_on_load(
     if not candidates:
         raise ValueError("optimization space has no candidates satisfying its constraints")
     base_components = experiment.pipeline.components
-    adjustable = {"kernels", "inventory", "delivery", "placement", "cache"}
+    adjustable = {"kernels", "inventory", "delivery", "placement", "cache", "scheduler"}
     for candidate in candidates:
         if (
             candidate.pipeline.model != experiment.pipeline.model
@@ -116,6 +118,11 @@ def plan_on_load(
         ):
             raise ValueError("load-time optimization cannot change model, workload or deployment")
         keys = set(base_components) | set(candidate.pipeline.components)
+        if base_components.get("scheduler") != candidate.pipeline.components.get("scheduler"):
+            from pllm.deployment.network import client_schedule_compatible
+
+            if not client_schedule_compatible(experiment.pipeline, candidate.pipeline):
+                raise ValueError("load-time scheduler changes require an exact supported client-schedule alternative")
         if any(
             base_components.get(key) != candidate.pipeline.components.get(key)
             for key in keys - adjustable - {"linear"}
@@ -165,6 +172,7 @@ def plan_on_load(
         source_lock_digest=resolved.manifest.source_lock_digest,
         artifact_evidence=artifact_evidence,
         state_evidence=state_evidence,
+        client_resources=client_resources,
     )
     return plan(request, snapshot=snapshot)
 

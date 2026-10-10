@@ -115,7 +115,8 @@ class PartyController:
         budget = self.spec.experiment.budget
         self._model_plan = lower_model(config, batch=1, max_input_tokens=budget.max_input_tokens,
                                        max_new_tokens=budget.max_new_tokens)
-        self._model_plan.runtime_schedule(self.spec.experiment.pipeline)
+        for pipeline in self.spec.configurations:
+            self._model_plan.runtime_schedule(pipeline)
         descriptor = {}
         try:
             for role in self.spec.role_ids:
@@ -137,6 +138,8 @@ class PartyController:
                     "source_lock_digest": resolved.source_lock_digest,
                     "model_plan_digest": self._model_plan.digest,
                     "role_descriptors": descriptor,
+                    **({"configurations": [row.to_spec() for row in self.spec.configurations]}
+                       if self.spec.alternatives else {}),
                 })
             ).hexdigest()
         except BaseException:
@@ -157,10 +160,12 @@ class PartyController:
             })),
             self.spec.max_memory_bytes, self.spec.max_weight_bytes, self.spec.max_sessions,
             len(self._reservations), (self._model_plan.to_dict()["config_digest"],),
-            (self.spec.experiment.pipeline.digest(),), authenticated=True,
+            tuple(row.digest() for row in self.spec.configurations), authenticated=True,
             origin=self.trust.origin, descriptor_digest=self._descriptor_digest,
             source_lock_digest=self.spec.source_lock_digest, role_ids=self.spec.role_ids,
             observed_at_ms=stamp, accepting=self.accepting,
+            configurations=self.spec.configurations,
+            workload=self.spec.experiment.budget,
         )
 
     async def _burn(self, row):
@@ -255,7 +260,7 @@ class PartyController:
             or (intent.snapshot_digest is not None and intent.snapshot_digest != (
                 result.selection_snapshot_digest if projected else result.snapshot.digest))):
             raise NetworkError("network intent mismatch")
-        if selected.pipeline != self.spec.experiment.pipeline or selected.budget != self.spec.experiment.budget:
+        if selected.pipeline not in self.spec.configurations or selected.budget != self.spec.experiment.budget:
             raise NetworkError("CAPABILITY_MISMATCH: exact installed pipeline/workload required")
         if source_lock != self.spec.source_lock_digest:
             raise NetworkError("source lock mismatch")
@@ -335,7 +340,7 @@ class PartyController:
                 peer = body["prepared_peer"]
                 row.push_credential = peer["push_credential"]
                 row.adapter, _ = await load_role_adapter(
-                    self.spec.experiment, role, row.credential,
+                    result.experiment, role, row.credential,
                     preloaded_engine=self._engines[role], push_key=row.push_credential,
                     inference_url=roots[peer["inference_party_id"]].origin + "/roles/inference",
                 )

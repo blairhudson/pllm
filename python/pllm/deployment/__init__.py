@@ -2,6 +2,7 @@
 
 from pllm.configuration import Deployment
 from pllm.deployment.wan import PartyAccess, WanConditions
+from pllm.deployment.resources import ClientResources
 from pllm.components._planned import (
     PendingComponent as PendingMethod,
     install_planned_components,
@@ -39,6 +40,7 @@ class TeeFheTopology(PendingMethod):
 __all__ = [
     "AttestationPolicy",
     "Deployment",
+    "ClientResources",
     "PlacementAssessment",
     "RoleDeployment",
     "RolePlacement",

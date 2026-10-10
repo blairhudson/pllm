@@ -60,7 +60,7 @@ def setup(tmp_path):
                              max_input_tokens=32, max_new_tokens=2)
     now = time.time_ns() // 1_000_000
     client = PartyOffer("client", "client", "c" * 64, now + 300_000, ("trusted_client",),
-                        64 << 20, 64 << 20, 8, 0, ("*",), ("*",))
+                        2 << 30, 64 << 20, 8, 0, ("*",), ("*",))
     roots = tuple(PartyTrust(party, f"operator-{party}", f"http://127.0.0.1:{free_port()}", f"PLLM_TEST_{party.upper()}")
                   for party in ("a", "b"))
     network = NetworkSpec("test", NetworkSnapshot("test", (client,), (), "local-client", now, now + 300_000),

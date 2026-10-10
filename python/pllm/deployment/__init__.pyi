@@ -1,4 +1,5 @@
 from pllm.configuration import Deployment as Deployment
+from pllm.deployment.resources import ClientResources as ClientResources
 from pllm.deployment.wan import PartyAccess as PartyAccess, WanConditions as WanConditions
 from pllm.deployment.network import (
     LinkObservation as LinkObservation,

@@ -30,6 +30,10 @@ class BenchmarkMemoryError(RuntimeError):
         self.report = report
 
 
+def host_reserve_bytes(total: int) -> int:
+    return max(GiB, total // 8)
+
+
 @dataclass(frozen=True)
 class HostMemory:
     total: int
@@ -44,7 +48,7 @@ class HostMemory:
 
     @property
     def reserve(self) -> int:
-        return max(GiB, self.total // 8)
+        return host_reserve_bytes(self.total)
 
 
 def host_memory() -> HostMemory:

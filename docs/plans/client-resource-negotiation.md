@@ -3,8 +3,13 @@
 Status: **implementation in progress**. Configured ordinary SDK and gateway
 requests now own discovery, native planning, one-response admission and lease
 retirement. Sync/async, interrupted streams, cancellation and real CLI gateways
-use the same owner. Resource-aware candidate selection and the role-specific
-protocol extensions below remain subsequent slices.
+use the same owner. CPU `MlpPrefillTiling`, exact private role admission, bounded
+installed full/tiled choices, native allocation-owner pricing, fresh process/host/
+container observations and concurrent local reservations are implemented. Separate
+HTTP-role controls exercise automatic full/tiled/full reselection and infeasible
+budgets. Dependent-exchange and directed-delay terms are available; complete
+phase forecasts, worker limits and measured WAN confirmation remain later slices.
+The end-state requirements below distinguish those remaining contracts.
 
 ## 1. Product contract
 
@@ -48,17 +53,22 @@ semantic compiler remains the authority for eligibility and execution.
 
 Current limitations matter to the implementation:
 
-- `PartySpec` installs one exact Pipeline/workload. Its HTTP host currently admits
+- `PartySpec` installs one exact workload and up to eight compatible Pipelines.
+  Additional entries can change only supported full/tiled client scheduling.
+  Its HTTP host currently admits
   at most 64 input and 32 output tokens. Larger buckets need explicit admission
   work; the 150/288-token research results cannot simply be selected on that host.
-- `PlanningPolicy` already has CPU and peak-memory limit fields, but the planner
-  cannot currently supply those complete costs. Required unknown costs reject.
+- `PlanningPolicy` checks peak-memory limits with the shared native allocation
+  model and current process/headroom observations. Whole-request CPU costs remain
+  unknown; required unknown costs reject.
 - Existing `link_transfer_ms` prices arithmetic bytes / directed bandwidth. It
-  explicitly excludes latency and overlap, despite link records carrying latency.
-- Reserve v1 sends the complete serialized planning result to each provider.
-  Resource negotiation needs a role-specific projection instead.
-- MLP tiling is a research override. Current admission retains conservative
-  full-stage bounds, including residue-codec limits.
+  explicitly excludes latency and overlap. Separate dependent-exchange/directed-delay
+  terms now expose tile round trips without claiming complete TTFT/TPS forecasts.
+- Reserve v2 sends only exact execution/role contracts. Full planning explanations,
+  observations, budgets and alternatives remain client-local.
+- MLP tiling is an ordinary immutable scheduler component. Initial-prefill memory
+  pricing reduces proven intermediates; full-stage continuation and residue-codec
+  limits remain conservative.
 
 ## 3. Declarations and ownership
 
@@ -258,8 +268,8 @@ deployment once; the SDK inside the gateway negotiates lazily for each request.
 Explicit `--config client.toml` selects a settings file. Existing `--network` and
 `--model` flags can override their corresponding configured defaults.
 
-These are **proposed end-state semantics**. Command grammar exists today; the
-automatic negotiation, network settings and resource-policy extensions do not.
+Automatic negotiation, network settings and peak-memory policy are implemented.
+Worker/performance policy extensions below remain proposed end-state semantics.
 Files below are operator-created inputs, not fixtures supplied by this plan.
 
 Provider operator, on each host:
@@ -279,7 +289,7 @@ ceiling, two native workers and fastest first output among candidates forecast t
 sustain at least two decode tokens/second:
 
 ```toml
-[planning]
+[client.planning]
 max_client_peak_memory_bytes = 268435456
 client_worker_threads = 2
 min_decode_tps = 2.0
@@ -287,8 +297,8 @@ objectives = ["request_ttft_ms"]
 ```
 
 Omitted fields inherit resolved defaults; the ordinary user needs no planning
-document. The existing memory-policy field is reused; this settings table, worker/
-TPS fields and TTFT objective require the new versioned configuration. An inverse
+document. The existing memory-policy field and settings table are implemented;
+worker/TPS fields and TTFT objective require further configuration. An inverse
 objective minimizes `decode_token_ms` under `max_request_ttft_ms`.
 
 Advanced client workflow, inspect or reproduce a decision:
@@ -329,7 +339,7 @@ digests, predicted phase costs and rejected alternatives with reason codes.
 
 ### Default: ordinary inference
 
-**Proposed default behavior using the existing inference call shape:**
+**Implemented default behavior using the existing inference call shape:**
 
 ```python
 from pllm import OpenAI
@@ -348,7 +358,8 @@ request is optional when configured. Construction validates settings; discovery,
 source binding and capacity reservation happen lazily when needed. The application
 does not construct a `PlanningRequest`, resource observation or execution lease.
 
-Inside the normal response lifecycle, the SDK:
+The intended complete response lifecycle combines the implemented ownership and
+memory admission with later workload-bucket, worker-limit and phase-cost work:
 
 1. Resolves the chosen model, authorized deployment and immutable numeric/trust
    contract; observes local resources and fresh/cached authenticated offers.
@@ -372,8 +383,9 @@ every token/request. The ordinary timeout includes negotiation and preparation.
 
 Default search stays within the configured source/numeric/privacy contract and
 permitted placement. New client-owned body weights or private-state reuse retain
-their existing explicit permissions. An explicitly supplied immutable Experiment
-pins its Pipeline; placement/resource management can remain automatic around it.
+their existing explicit permissions. The configured Experiment seeds the installed
+full/tiled schedule choices. `candidate_selection="pinned"` fixes its Pipeline;
+placement/resource management remains automatic around that choice.
 
 ### Optional: override policy, keep automatic ownership
 
@@ -413,12 +425,13 @@ planning progress messages.
 ### Advanced: explicit discovery, planning and lease ownership
 
 Retain the lower-level APIs for custom planners, deterministic replay and external
-orchestration. `ClientResources.observe()` and the `client_resources` argument in
-this sketch are proposed additions:
+orchestration. `ClientResources.observe()` is explicit for these pure-planning
+callers. The ordinary SDK captures the same observation automatically:
 
 ```python
 from pllm import OpenAI
 from pllm.compiler import plan
+from dataclasses import replace
 from pllm.deployment import (
     ClientResources, NetworkSpec, discover, open_execution,
 )
@@ -426,11 +439,15 @@ from pllm.search import PlanningRequest
 
 network = NetworkSpec.from_file("network.json")
 request = PlanningRequest.from_file("request.json")
+resources = ClientResources.observe()
+request = replace(request, client_resources=resources, policy=replace(
+    request.policy, allocation_model="native_shared_v1",
+    evaluated_at_ms=resources.observed_at_ms,
+))
 
 decision = plan(
     request,
     snapshot=discover(network),
-    client_resources=ClientResources.observe(),
 )
 
 with open_execution(decision, network=network) as lease:
@@ -443,11 +460,14 @@ with open_execution(decision, network=network) as lease:
 
 `private_prompt` is application-owned and never passed to discovery. Local sizing
 checks the request against its declared bucket before material reservation.
-`open_execution` refreshes local admission, validates the exact selected plan,
-acquires all leases and owns release. Non-feasible decisions cannot open a lease.
-Async discovery/open/client paths implement the same cancellation semantics.
+`open_execution` validates the exact selected plan, acquires provider leases and
+owns their release. Non-feasible decisions cannot open a lease. The ordinary
+automatic SDK path also refreshes local resource observations and reserves process
+headroom; callers using raw leases currently own their local allocation policy.
+Bringing that same local reservation owner into the raw lease API remains part of
+the end-state contract. Async discovery/open/client paths retain cancellation cleanup.
 
-Extend `plan_on_load` to accept the same resource input and policy. Its bounded,
+`plan_on_load` accepts the same resource input and policy. Its bounded,
 source-preserving candidate generator supplies the default SDK path as well as
 explicit planning. CLI, gateway and benchmark share defaults, policy resolution
 and lifecycle ownership with the SDK.
