@@ -975,6 +975,19 @@ revalidates the contract. Runtime binding reuses its already-checked schedule.
 An isolated six-pair, 32-admission Qwen metadata probe lowers median CPU from
 1.170 to 0.034 seconds, without measuring whole-client RSS or response latency.
 Evidence and replay: `docs/research/sdk-continuation-reference.md`.
+The internal existing-checkpoint drafter complements exact batched greedy target
+verification with client-local vocabulary bridging and response-owned prefix
+rollback. Exact target-prefix round trips gate proposals; rejected draft/target
+rows, both checkpoints and fallback work stay charged. Generated controls preserve
+every emitted target selection, logit vector and active KV bit. This local-clear
+reference establishes neither stochastic equivalence nor a speculative provider
+protocol. Nine fresh pinned Qwen/SmolLM2 processes check 299,649,024 target values
+with zero observed swap growth. Two/four-token drafting accepts 63.16%/53.70% of
+proposals and halves or better the target calls, but increases target rows/bodies
+8.35%/14.90%, local execution CPU 81.68%/92.89% and peak RSS 17.18%/17.56%.
+Both checkpoints and rejected work remain charged; this gate does not justify
+serving promotion. The earlier overlapping cohort remains separate. Contract and replay:
+`docs/research/checkpoint-drafter-reference.md`.
 
 The installed `pllm.metrics.BenchmarkTarget` and `benchmark_suite` share bounded
 fresh-process execution across runtime imports, native geometry, selected artifact

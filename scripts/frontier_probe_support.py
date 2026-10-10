@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 import json
 import os
+from pathlib import Path
 import signal
 import subprocess
 import sys
@@ -10,6 +11,23 @@ import sys
 
 @contextmanager
 def fresh_workers(script, *, memory_bytes, timeout=240):
+    from filelock import FileLock, Timeout
+    path = Path.home() / ".cache" / "pllm" / "frontier-probe.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock = FileLock(str(path), timeout=0)
+    try:
+        lock.acquire()
+    except Timeout as error:
+        raise RuntimeError("another frontier cohort owns this user's measurement slot") from error
+    try:
+        with _fresh_workers(script, memory_bytes=memory_bytes, timeout=timeout) as workers:
+            yield workers
+    finally:
+        lock.release()
+
+
+@contextmanager
+def _fresh_workers(script, *, memory_bytes, timeout):
     from pllm.metrics import BuildRef
     from pllm.runtime.benchmark_memory import MemoryWatchdog, host_memory
     from pllm.runtime.shutdown import defer_termination_signals

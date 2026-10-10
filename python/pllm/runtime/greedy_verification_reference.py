@@ -10,6 +10,25 @@ from __future__ import annotations
 import numpy as np
 
 
+def _truncate_response_prefix(runtime, kept, owner):
+    """Erase rejected clear research KV without refunding any attempted work."""
+    import hashlib
+    from .transformer_client import _snapshot_state_basis
+    basis = runtime._snapshot_basis
+    if (basis is None or not basis.valid() or basis.position != runtime.position
+            or basis.owner_response_id != owner or not 1 <= kept <= runtime.position):
+        raise ValueError("batched response ownership changed during verification")
+    for cache in runtime.caches:
+        cache.key[kept:cache.length].fill(0)
+        cache.value[kept:cache.length].fill(0)
+        cache.length = kept
+    runtime.position = kept
+    execution = hashlib.sha256(b"pllm.research.greedy-prefix.v1\0"
+        + basis.execution_digest.encode() + kept.to_bytes(8, "big")).hexdigest()
+    runtime._snapshot_basis = _snapshot_state_basis("incremental", kept,
+        basis.source_binding_digest, basis.native_phase_digest, execution, owner, basis.prefill_extent)
+
+
 def verify_batched_greedy(runtime, contract, prompt, propose, *, outputs, width,
                           on_output=None):
     """Bounded clear-kernel screen for exact blocks under canonical prefix_f32.
@@ -22,14 +41,14 @@ def verify_batched_greedy(runtime, contract, prompt, propose, *, outputs, width,
     import hashlib
     import secrets
     from .semantic_executor import SemanticDecoderRuntime
-    from .transformer_client import _snapshot_state_basis
 
     if (type(outputs) is not int or not 1 <= outputs <= 32
             or type(width) is not int or not 1 <= width <= 16):
         raise ValueError("bounded greedy verification requires 1..32 outputs and 1..16 draft width")
     if (type(runtime) is not SemanticDecoderRuntime or runtime._causal_reduction != "prefix_f32"
             or runtime._verification_bits or runtime.nonlinear_evaluator is not None
-            or runtime._retained is not None or hasattr(runtime.remote, "inventory")):
+             or runtime._retained is not None or runtime._tiered is not None
+             or hasattr(runtime.remote, "inventory")):
         raise ValueError("batched research verification requires canonical clear full-KV execution")
     if (not isinstance(prompt, list) or not 1 <= len(prompt) <= 256
             or any(type(token) is not int or not 0 <= token < runtime.cfg["vocab_size"]
@@ -130,23 +149,7 @@ def verify_batched_greedy(runtime, contract, prompt, propose, *, outputs, width,
             # Causal prefix_f32 proves later proposal rows cannot alter earlier
             # rows. Keep this cut response-owned; never qualify it for a fresh
             # prefill cache. Material/callback attempt counters are not rewound.
-            basis = runtime._snapshot_basis
-            if (basis is None or not basis.valid() or basis.position != runtime.position
-                    or basis.owner_response_id != owner):
-                raise ValueError("batched response ownership changed during verification")
-            for cache in runtime.caches:
-                cache.key[kept:cache.length].fill(0)
-                cache.value[kept:cache.length].fill(0)
-                cache.length = kept
-            runtime.position = kept
-            execution = hashlib.sha256(
-                b"pllm.research.greedy-prefix.v1\0" + basis.execution_digest.encode()
-                + kept.to_bytes(8, "big")
-            ).hexdigest()
-            runtime._snapshot_basis = _snapshot_state_basis(
-                "incremental", kept, basis.source_binding_digest,
-                basis.native_phase_digest, execution, owner, basis.prefill_extent,
-            )
+            _truncate_response_prefix(runtime, kept, owner)
             windows += bool(proposals)
             offered += len(proposals)
             accepted_total += accepted

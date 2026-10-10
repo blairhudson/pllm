@@ -10,6 +10,29 @@ import psutil
 import pytest
 
 
+def test_probe_slot_rejects_concurrent_cohort_and_releases_on_error(tmp_path, monkeypatch):
+    helpers = Path(__file__).resolve().parents[1] / "scripts"
+    monkeypatch.syspath_prepend(str(helpers))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from frontier_probe_support import fresh_workers
+
+    code = f'''import sys
+sys.path.insert(0, {str(helpers)!r})
+from frontier_probe_support import fresh_workers
+with fresh_workers(__file__, memory_bytes=0):
+    print("incorrect concurrent admission")
+'''.replace("__file__", repr(str(tmp_path / "unused.py")))
+    with pytest.raises(ValueError, match="cohort failure"):
+        with fresh_workers(tmp_path / "unused.py", memory_bytes=0):
+            contender = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30)
+            assert contender.returncode != 0
+            assert "another frontier cohort" in contender.stderr
+            assert not contender.stdout
+            raise ValueError("cohort failure")
+    with fresh_workers(tmp_path / "unused.py", memory_bytes=0):
+        pass
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX detached-process cancellation")
 @pytest.mark.parametrize("termination", [signal.SIGINT, signal.SIGTERM])
 def test_probe_cancellation_retires_owned_worker(tmp_path, termination):
