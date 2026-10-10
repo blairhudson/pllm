@@ -133,6 +133,18 @@ measured whole-client evidence. See `docs/research/client-metadata-reference.md`
 A three-client Qwen2.5 cold/repeat cohort counts 3.96 MB of unique runtime metadata
 and at most 9.58 MB of new traced construction allocation. It rejects a
 metadata-only tenfold explanation; traced CPU cannot predict untraced savings.
+An internal load-ready execution capsule now retains public instructions and
+last-use metadata in Rust, exposing one bounded frame to the existing semantic
+executor. Trusted publisher, checkpoint, composition and implementation digests
+precede import; generated Qwen2/Qwen3/Llama logits and active KV remain exact.
+Source planning, Python dispatch and tensor kernels remain charged. Complete
+native-client and prepared-response memory gains require separate evidence.
+A pinned Qwen2.5 three-pair local-clear screen preserves logits/KV with zero
+observed swap growth. Counted Python graph/schedule ownership falls 23.20-fold,
+but median process peak RSS stays at about 1.109 GB and cold process CPU rises
+2.66%. Native instructions and the 0.995 MB public capsule remain additional
+owners; no thin-client memory gain follows. Contract and replay:
+`docs/research/execution-capsule-reference.md`.
 The state benchmark additionally selects a bounded streaming AES-GCM codec that
 retains the original synthetic state frames and trusted-revision contract.
 Authentication precedes returned plaintext; failed writes preserve the prior

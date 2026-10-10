@@ -55,6 +55,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
     _retained = None
     _mlp_tiling = None
     _tiered = None
+    _capsule = None
 
     def _install_retained(self, contract) -> None:
         from .retained_execution import RetainedExecution
@@ -262,6 +263,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
 
     def install_continuation(self, contract: DecoderContinuationSchedule) -> None:
         """Bind a native extension without changing the original stage schema."""
+        if self._capsule is not None:
+            raise TransformerClientError("execution capsule continuation is not admitted")
         if self._tiered is not None:
             raise TransformerClientError("tiered research state requires its authenticated checkpoint owner")
         if self._retained is not None:
@@ -1195,16 +1198,21 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             ):
                 raise TransformerClientError("semantic cache state is unavailable")
             values[state["id"]] = stored[: cache.length].transpose(1, 0, 2)[None]
-        operations = {op["id"]: op for op in graph["operations"]}
-        state_kinds = self._declared_state_kinds(graph)
-        steps = phase_schedule["steps"]
-        remaining = Counter(input_id for step in steps for input_id in step["input_ids"])
-        selections = [
-            op for op in graph["operations"] if op["operator"] == "greedy_token_selection"
-        ]
-        if len(selections) != 1 or len(selections[0]["inputs"]) != 1:
-            raise TransformerClientError("semantic plan has no unique logit selection source")
-        logits_id = selections[0]["inputs"][0]
+        if self._capsule is None:
+            operations = {op["id"]: op for op in graph["operations"]}
+            state_kinds = self._declared_state_kinds(graph)
+            steps = phase_schedule["steps"]
+            remaining = Counter(input_id for step in steps for input_id in step["input_ids"])
+            selections = [op for op in graph["operations"] if op["operator"] == "greedy_token_selection"]
+            if len(selections) != 1 or len(selections[0]["inputs"]) != 1:
+                raise TransformerClientError("semantic plan has no unique logit selection source")
+            logits_id = selections[0]["inputs"][0]
+            frames = ({"step": step, "operations": operations} for step in steps)
+        else:
+            facts = self._capsule.facts[phase]
+            state_kinds, logits_id = facts["state_kinds"], facts["logits_id"]
+            steps, remaining = [], Counter()
+            frames = self._capsule.frames(phase)
         pending_keys: dict[int, tuple[str, np.ndarray]] = {}
         produced_hybrid = {
             row["id"]: (int(row["layer"]), row["kind"])
@@ -1212,7 +1220,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         }
         pending_hybrid: dict[tuple[int, str], np.ndarray] = {}
         skipped_until = 0
-        for step_index, step in enumerate(steps):
+        for step_index, frame in enumerate(frames):
+            step, operations = frame["step"], frame["operations"]
             if step_index < skipped_until:
                 continue
             region = (self._mlp_tiling.regions.get(step_index)
@@ -1269,10 +1278,14 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                     raise TransformerClientError("semantic hybrid state output is malformed")
                 pending_hybrid[identity] = np.ascontiguousarray(tensor.copy())
                 del tensor
-            for input_id in step["input_ids"]:
-                remaining[input_id] -= 1
-                if remaining[input_id] == 0 and input_id != logits_id:
+            if self._capsule is not None:
+                for input_id in frame["retire"]:
                     values.pop(input_id, None)
+            else:
+                for input_id in step["input_ids"]:
+                    remaining[input_id] -= 1
+                    if remaining[input_id] == 0 and input_id != logits_id:
+                        values.pop(input_id, None)
             if self._tiered is not None:
                 self._tiered.retire_step(self, step_index, values)
         if pending_keys:
@@ -1292,7 +1305,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         import hashlib
         import json
 
-        native_phase = hashlib.sha256(json.dumps({
+        native_phase = self._capsule.facts[phase]["native_phase"] if self._capsule is not None else hashlib.sha256(json.dumps({
             "source_plan": self._source_plan.digest, "graph": graph,
             "schedule": phase_schedule,
         }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()

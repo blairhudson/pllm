@@ -8,6 +8,7 @@ mod ckks;
 mod coded_delegation;
 mod compact_product;
 mod continuation;
+mod execution_capsule;
 mod head_index;
 mod logrow;
 mod logrow_product;
@@ -1755,6 +1756,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     polynomial_shift::register(module)?;
     network::register(module)?;
     continuation::register(module)?;
+    execution_capsule::register(module)?;
     module.add_class::<Matrix>()?;
     module.add_class::<CompactQ7Reference>()?;
     module.add_class::<CompiledPlan>()?;

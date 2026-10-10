@@ -22,6 +22,8 @@ use std::sync::{Mutex, OnceLock};
 mod compact_protected;
 mod decoder_continuation;
 mod decoder_runtime_schedule;
+mod execution_capsule;
+pub use execution_capsule::ExecutionCapsule;
 mod mlp_tiling;
 pub use mlp_tiling::mlp_tiling_bytes;
 mod retained_decoder;

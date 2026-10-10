@@ -1,0 +1,198 @@
+{
+  "schema": "pllm.execution_capsule_probe.v1",
+  "scope": "Fresh-process native instruction ownership on a pinned, complete Qwen decoder.\n\nAll clear checkpoint kernels remain resident. Publication is a separate process;\nimport, Python scheduling, token/head and all local decoder arithmetic are charged.\n",
+  "publication": {
+    "digest": "6a19cea73f85f51778486beaa21a2c21dea355219e7bc99e902e68b702a6d1f4",
+    "bytes": 994972,
+    "source": {
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+      "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72"
+    },
+    "wall_seconds": 1.1348468754440546,
+    "cpu_seconds": 1.104254000000001
+  },
+  "samples": [
+    {
+      "python": {
+        "mode": "python",
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+          "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+          "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72"
+        },
+        "logits": "6b44751b5493561f7ac4f7c1fbe62a8bb0c92dbac7a4aba925974453869b8bb3",
+        "construction_cpu_seconds": 1.2510199999999987,
+        "construction_seconds": 1.2645595846697688,
+        "execution_cpu_seconds": 9.391422,
+        "execution_seconds": 4.018045750446618,
+        "cold_process_cpu_seconds": 20.428723,
+        "memory": {
+          "rss_bytes": 1109803008,
+          "lifetime_peak_rss_bytes": 1109966848
+        },
+        "python_graph_schedule_bytes": 3214260,
+        "kv": "e922e553e153c1cb2d0a39742b122aa6f4109dca3b7c54cbc6c336ece43f700f"
+      },
+      "native": {
+        "mode": "native",
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+          "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+          "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72"
+        },
+        "logits": "6b44751b5493561f7ac4f7c1fbe62a8bb0c92dbac7a4aba925974453869b8bb3",
+        "construction_cpu_seconds": 1.0453360000000007,
+        "construction_seconds": 1.0769669581204653,
+        "execution_cpu_seconds": 9.435279999999999,
+        "execution_seconds": 3.9803337082266808,
+        "cold_process_cpu_seconds": 19.551583,
+        "memory": {
+          "rss_bytes": 1108754432,
+          "lifetime_peak_rss_bytes": 1108901888
+        },
+        "python_graph_schedule_bytes": 138557,
+        "kv": "e922e553e153c1cb2d0a39742b122aa6f4109dca3b7c54cbc6c336ece43f700f"
+      }
+    },
+    {
+      "native": {
+        "mode": "native",
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+          "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+          "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72"
+        },
+        "logits": "6b44751b5493561f7ac4f7c1fbe62a8bb0c92dbac7a4aba925974453869b8bb3",
+        "construction_cpu_seconds": 1.1699769999999994,
+        "construction_seconds": 1.2215010821819305,
+        "execution_cpu_seconds": 9.555719000000002,
+        "execution_seconds": 4.020058541558683,
+        "cold_process_cpu_seconds": 22.104854,
+        "memory": {
+          "rss_bytes": 1110851584,
+          "lifetime_peak_rss_bytes": 1110999040
+        },
+        "python_graph_schedule_bytes": 138557,
+        "kv": "e922e553e153c1cb2d0a39742b122aa6f4109dca3b7c54cbc6c336ece43f700f"
+      },
+      "python": {
+        "mode": "python",
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+          "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+          "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72"
+        },
+        "logits": "6b44751b5493561f7ac4f7c1fbe62a8bb0c92dbac7a4aba925974453869b8bb3",
+        "construction_cpu_seconds": 1.217353000000001,
+        "construction_seconds": 1.230092165991664,
+        "execution_cpu_seconds": 9.428844,
+        "execution_seconds": 4.216758541762829,
+        "cold_process_cpu_seconds": 21.301846,
+        "memory": {
+          "rss_bytes": 1108344832,
+          "lifetime_peak_rss_bytes": 1108492288
+        },
+        "python_graph_schedule_bytes": 3214260,
+        "kv": "e922e553e153c1cb2d0a39742b122aa6f4109dca3b7c54cbc6c336ece43f700f"
+      }
+    },
+    {
+      "python": {
+        "mode": "python",
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+          "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+          "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72"
+        },
+        "logits": "6b44751b5493561f7ac4f7c1fbe62a8bb0c92dbac7a4aba925974453869b8bb3",
+        "construction_cpu_seconds": 1.3770100000000003,
+        "construction_seconds": 1.4092063754796982,
+        "execution_cpu_seconds": 9.305084999999998,
+        "execution_seconds": 4.139270082116127,
+        "cold_process_cpu_seconds": 20.903546,
+        "memory": {
+          "rss_bytes": 1106378752,
+          "lifetime_peak_rss_bytes": 1106526208
+        },
+        "python_graph_schedule_bytes": 3214260,
+        "kv": "e922e553e153c1cb2d0a39742b122aa6f4109dca3b7c54cbc6c336ece43f700f"
+      },
+      "native": {
+        "mode": "native",
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+          "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+          "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72"
+        },
+        "logits": "6b44751b5493561f7ac4f7c1fbe62a8bb0c92dbac7a4aba925974453869b8bb3",
+        "construction_cpu_seconds": 1.5933089999999996,
+        "construction_seconds": 1.6801986256614327,
+        "execution_cpu_seconds": 9.231749,
+        "execution_seconds": 4.318197291344404,
+        "cold_process_cpu_seconds": 21.459563,
+        "memory": {
+          "rss_bytes": 1106034688,
+          "lifetime_peak_rss_bytes": 1106165760
+        },
+        "python_graph_schedule_bytes": 138557,
+        "kv": "e922e553e153c1cb2d0a39742b122aa6f4109dca3b7c54cbc6c336ece43f700f"
+      }
+    }
+  ],
+  "host": {
+    "total": 34359738368,
+    "available": 11355979776,
+    "swap_used": 924319744,
+    "disk_free": 44857376768
+  },
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/bin/python",
+    "expected_digest": "d4c5bc12436c5354c1974b2731c5ccd45ef6e68f35c22023c5dd057e78b0a04e"
+  },
+  "script_sha256": "ec92c83922bce25bdfb3a8daac592ff6a3dae3b8f9d1fb0f2842cdb3fc0e043d",
+  "maximum_swap_growth_bytes": 0,
+  "exact_parity": true
+}
