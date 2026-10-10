@@ -172,6 +172,22 @@ Nine generated-checkpoint issuer/restarted-client pairs additionally preserve
 21,636 checked values at 8/32/128 input tokens. Their roughly 0.37-second restart
 CPU includes fresh process/source loading and continuation, with original bootstrap
 and publication separately charged. This establishes bounded continuity only.
+The separate transactional layer-paged executor now runs the original dense
+full-KV attention while retaining one layer slab. Bounded AES-GCM pages and a
+complete executed-history/logit manifest bind the compiler continuation contract.
+File/directory synchronization precedes single-generation publication; failure
+burns the active owner while preserving the prior trusted head. Generated
+Qwen2/Qwen3/Llama logits and active KV match across append and restoration.
+The caller retains key/head custody, and complete decoder tensors, plaintext
+temporaries, source weights and disk traffic remain additional owners. This
+internal executor does not select persistent SDK conversations. Contract and
+replay: `docs/research/tiered-decoder-reference.md`.
+Twenty-four fresh pinned Qwen2.5 processes preserve all checked logits and final
+active KV through 128/512-row execution and fresh-interpreter restoration, with
+zero observed swap growth. The live KV slab falls 24×, but process peak RSS
+rises 0.77%/0.20% and execution CPU 11.52%/3.90%. Checkpoint loading, authenticated
+I/O and original publication remain charged; this is exact bounded recovery,
+not a whole-client memory improvement or persistent SDK conversation.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%

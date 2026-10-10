@@ -54,6 +54,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
     _causal_reduction: str | None = None
     _retained = None
     _mlp_tiling = None
+    _tiered = None
 
     def _install_retained(self, contract) -> None:
         from .retained_execution import RetainedExecution
@@ -235,6 +236,11 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         return total
 
     def reset(self) -> None:
+        if self._tiered is not None:
+            self._tiered.close(self)
+        self._reset_state()
+
+    def _reset_state(self) -> None:
         if self._retained is not None:
             self._retained.reset()
         super().reset()
@@ -245,6 +251,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             self.caches[layer] = WindowedLayerCache(window=window)
 
     def snapshot(self) -> RuntimeSnapshot:
+        if self._tiered is not None:
+            raise TransformerClientError("tiered research state requires its authenticated checkpoint owner")
         if self._retained is not None:
             raise TransformerClientError("retained state is response-owned and cannot enter full-KV snapshots")
         saved = super().snapshot()
@@ -254,6 +262,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
 
     def install_continuation(self, contract: DecoderContinuationSchedule) -> None:
         """Bind a native extension without changing the original stage schema."""
+        if self._tiered is not None:
+            raise TransformerClientError("tiered research state requires its authenticated checkpoint owner")
         if self._retained is not None:
             raise TransformerClientError("retained state cannot enter full-KV continuation")
         if not isinstance(contract, DecoderContinuationSchedule):
@@ -278,6 +288,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         self._continuation_contract = contract
 
     def _validate_full_snapshot(self, snapshot: RuntimeSnapshot) -> None:
+        if self._tiered is not None:
+            raise TransformerClientError("tiered research state requires its authenticated checkpoint owner")
         if self._retained is not None:
             raise TransformerClientError("retained execution rejects full-KV snapshots")
         if (
@@ -415,6 +427,13 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
     def prepare_ids(self, ids: list[int]) -> tuple[list[int], np.ndarray, list[LayerCache]]:
         if len(ids) == 0 and self.cfg.get("bos_token_policy") == "nonempty_only":
             raise TransformerClientError("model without a BOS token requires nonempty input")
+        if self._tiered is not None:
+            if self._tiered.head is not None or self._tiered.closed or self._tiered.failed:
+                raise TransformerClientError("tiered prefill requires a fresh checkpoint owner")
+            ids = list(ids) or [int(self.cfg["bos_token_id"])]
+            self._reset_state()
+            logits = self._forward(np.asarray(ids, dtype=np.int64), final_logits_only=True)
+            return ids, logits[-1], self.caches
         if not self._window_contracts:
             return super().prepare_ids(ids)
         if len(ids) == 0:
@@ -784,6 +803,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         elif kind == "kv_cache_append":
             if type(layer) is not int:
                 raise TransformerClientError("semantic cache operation lacks a layer")
+            if self._tiered is not None:
+                self._tiered.load(self, layer)
             cache = self.caches[layer]
             if attrs.get("mode") == "append":
                 current_index = 1
@@ -1060,11 +1081,18 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                  continuation: bool = False) -> np.ndarray:
         self._phase_rotary = None
         try:
+            if self._tiered is not None:
+                self._tiered.begin(self, ids, continuation)
             if self._retained is not None:
                 self._retained.begin(self, int(ids.size))
-            return self._forward_phase(ids, final_logits_only=final_logits_only,
-                                        continuation=continuation)
+            result = self._forward_phase(ids, final_logits_only=final_logits_only,
+                                         continuation=continuation)
+            if self._tiered is not None:
+                self._tiered.finish(self, ids, result)
+            return result
         except BaseException:
+            if self._tiered is not None:
+                self._tiered.abort(self)
             if self._retained is not None:
                 self._retained.burn(self)
             raise
@@ -1129,6 +1157,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             "input.attention_mask": np.ones((1, ids.size), dtype=np.bool_),
         }
         for state in graph["state_inputs"]:
+            if self._tiered is not None:
+                values[state["id"]] = None
+                continue
             if self._retained is not None:
                 values[state["id"]] = self.caches[int(state["layer"])]
                 continue
@@ -1242,6 +1273,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 remaining[input_id] -= 1
                 if remaining[input_id] == 0 and input_id != logits_id:
                     values.pop(input_id, None)
+            if self._tiered is not None:
+                self._tiered.retire_step(self, step_index, values)
         if pending_keys:
             raise TransformerClientError("semantic cache key has no matching value")
         if set(pending_hybrid) != set(self._hybrid_contracts):

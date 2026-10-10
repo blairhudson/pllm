@@ -1,0 +1,835 @@
+{
+  "schema": "pllm.tiered_decoder_probe.v1",
+  "scope": "Pinned full decoder layer paging and fresh-interpreter restart, local clear kernels.\n\nAll checkpoint weights remain in each process. This is not SDK/provider serving;\nkey/head custody belongs to the parent. Authentication, disk I/O and publication\nare charged; source loading, execution and restart have separate timings.\n",
+  "samples": [
+    {
+      "repeat": 0,
+      "resident": {
+        "mode": "resident",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 5.848994417116046,
+        "window_cpu_seconds": 10.077430999999999,
+        "cold_process_cpu_seconds": 21.516432,
+        "memory": {
+          "rss_bytes": 1090027520,
+          "lifetime_peak_rss_bytes": 1090191360
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      },
+      "paged": {
+        "mode": "paged",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 7.318145957775414,
+        "window_cpu_seconds": 11.443031999999999,
+        "cold_process_cpu_seconds": 23.469321,
+        "memory": {
+          "rss_bytes": 1098399744,
+          "lifetime_peak_rss_bytes": 1098547200
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "peak_live_kv_bytes": 134144,
+        "read_bytes": 9523008,
+        "written_bytes": 5750282,
+        "disk_bytes": 5750282,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      },
+      "issuer": {
+        "mode": "issue",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 6.758878999389708,
+        "window_cpu_seconds": 10.549083999999999,
+        "cold_process_cpu_seconds": 22.136927,
+        "memory": {
+          "rss_bytes": 1099071488,
+          "lifetime_peak_rss_bytes": 1099235328
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8"
+        ],
+        "position": 128,
+        "final_dense_kv_bytes": 3145728,
+        "peak_live_kv_bytes": 131072,
+        "read_bytes": 0,
+        "written_bytes": 3769760,
+        "disk_bytes": 3769760,
+        "kv_hash": "7325301df44465796dabf5ce75486707f8fb157b30cc9e848e7c5775f8e756ce"
+      },
+      "restored": {
+        "mode": "restore",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 3.286166874691844,
+        "window_cpu_seconds": 3.4954089999999987,
+        "cold_process_cpu_seconds": 14.117001,
+        "memory": {
+          "rss_bytes": 1060765696,
+          "lifetime_peak_rss_bytes": 1060929536
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "peak_live_kv_bytes": 134144,
+        "read_bytes": 10144352,
+        "written_bytes": 1980522,
+        "disk_bytes": 5750282,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      }
+    },
+    {
+      "repeat": 1,
+      "resident": {
+        "mode": "resident",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 6.2979550417512655,
+        "window_cpu_seconds": 10.574255999999998,
+        "cold_process_cpu_seconds": 22.690405,
+        "memory": {
+          "rss_bytes": 1091043328,
+          "lifetime_peak_rss_bytes": 1091207168
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      },
+      "paged": {
+        "mode": "paged",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 7.278110999614,
+        "window_cpu_seconds": 11.573267,
+        "cold_process_cpu_seconds": 23.154473,
+        "memory": {
+          "rss_bytes": 1098645504,
+          "lifetime_peak_rss_bytes": 1098809344
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "peak_live_kv_bytes": 134144,
+        "read_bytes": 9523008,
+        "written_bytes": 5750282,
+        "disk_bytes": 5750282,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      },
+      "issuer": {
+        "mode": "issue",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 6.466615792363882,
+        "window_cpu_seconds": 10.557341999999998,
+        "cold_process_cpu_seconds": 21.174535,
+        "memory": {
+          "rss_bytes": 1096941568,
+          "lifetime_peak_rss_bytes": 1097121792
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8"
+        ],
+        "position": 128,
+        "final_dense_kv_bytes": 3145728,
+        "peak_live_kv_bytes": 131072,
+        "read_bytes": 0,
+        "written_bytes": 3769760,
+        "disk_bytes": 3769760,
+        "kv_hash": "7325301df44465796dabf5ce75486707f8fb157b30cc9e848e7c5775f8e756ce"
+      },
+      "restored": {
+        "mode": "restore",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 2.642714916728437,
+        "window_cpu_seconds": 2.870832,
+        "cold_process_cpu_seconds": 13.185501,
+        "memory": {
+          "rss_bytes": 1058406400,
+          "lifetime_peak_rss_bytes": 1058586624
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "peak_live_kv_bytes": 134144,
+        "read_bytes": 10144352,
+        "written_bytes": 1980522,
+        "disk_bytes": 5750282,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      }
+    },
+    {
+      "repeat": 2,
+      "resident": {
+        "mode": "resident",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 6.334560625255108,
+        "window_cpu_seconds": 10.261305000000002,
+        "cold_process_cpu_seconds": 22.030921,
+        "memory": {
+          "rss_bytes": 1089126400,
+          "lifetime_peak_rss_bytes": 1089306624
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      },
+      "paged": {
+        "mode": "paged",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 6.987638458609581,
+        "window_cpu_seconds": 11.248977,
+        "cold_process_cpu_seconds": 21.647007,
+        "memory": {
+          "rss_bytes": 1096679424,
+          "lifetime_peak_rss_bytes": 1096843264
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "peak_live_kv_bytes": 134144,
+        "read_bytes": 9523008,
+        "written_bytes": 5750282,
+        "disk_bytes": 5750282,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      },
+      "issuer": {
+        "mode": "issue",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 6.652556500397623,
+        "window_cpu_seconds": 10.686798000000001,
+        "cold_process_cpu_seconds": 22.863894,
+        "memory": {
+          "rss_bytes": 1098596352,
+          "lifetime_peak_rss_bytes": 1098776576
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8"
+        ],
+        "position": 128,
+        "final_dense_kv_bytes": 3145728,
+        "peak_live_kv_bytes": 131072,
+        "read_bytes": 0,
+        "written_bytes": 3769760,
+        "disk_bytes": 3769760,
+        "kv_hash": "7325301df44465796dabf5ce75486707f8fb157b30cc9e848e7c5775f8e756ce"
+      },
+      "restored": {
+        "mode": "restore",
+        "tokens": 128,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "6908b2aaf29831c2276da77dad88f07e0bc7e9847f920393e0ecb1f6709e46bd",
+          "schedule_digest": "390b269c1942acfa494764cff1db270ca8e136daf0a43c3d00a3bd10e53e56b6",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "8de1e08f01ac760555d38fbee9db24d5d35dc7fc5a5165fc97e040ce4161d929"
+        },
+        "window_seconds": 2.856015957891941,
+        "window_cpu_seconds": 3.1011110000000013,
+        "cold_process_cpu_seconds": 15.209514,
+        "memory": {
+          "rss_bytes": 1057964032,
+          "lifetime_peak_rss_bytes": 1058127872
+        },
+        "logit_hashes": [
+          "99bdfae6f00483fc6687d38e32aa946b7198292a3bd4355377a03d6f09a2e9e8",
+          "39656fee90332d42f7de3ab6efbf413fe5a4e4ba5d9f1a35163d5c091e6b95a0",
+          "75ea317a8f9130186755163898b3004242b68c5a0c65531bd06e40dcc76f7843",
+          "80477e982649fc56ebe244af220d833d28d3e46233227930df5aa5eaa43577a8"
+        ],
+        "position": 131,
+        "final_dense_kv_bytes": 3219456,
+        "peak_live_kv_bytes": 134144,
+        "read_bytes": 10144352,
+        "written_bytes": 1980522,
+        "disk_bytes": 5750282,
+        "kv_hash": "df5ee52427c51c961731e0e823e774537a7016d78761b51bc85dd114bcf3828b"
+      }
+    },
+    {
+      "repeat": 0,
+      "resident": {
+        "mode": "resident",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 21.84758033324033,
+        "window_cpu_seconds": 37.635017,
+        "cold_process_cpu_seconds": 48.176891,
+        "memory": {
+          "rss_bytes": 1275068416,
+          "lifetime_peak_rss_bytes": 1275232256
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      },
+      "paged": {
+        "mode": "paged",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 24.45050850044936,
+        "window_cpu_seconds": 39.842535000000005,
+        "cold_process_cpu_seconds": 51.594134,
+        "memory": {
+          "rss_bytes": 1277886464,
+          "lifetime_peak_rss_bytes": 1278033920
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "peak_live_kv_bytes": 527360,
+        "read_bytes": 37858752,
+        "written_bytes": 15355566,
+        "disk_bytes": 15355566,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      },
+      "issuer": {
+        "mode": "issue",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 24.409721499308944,
+        "window_cpu_seconds": 39.442267,
+        "cold_process_cpu_seconds": 50.597261,
+        "memory": {
+          "rss_bytes": 1272987648,
+          "lifetime_peak_rss_bytes": 1273151488
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3"
+        ],
+        "position": 512,
+        "final_dense_kv_bytes": 12582912,
+        "peak_live_kv_bytes": 524288,
+        "read_bytes": 0,
+        "written_bytes": 13254981,
+        "disk_bytes": 13254981,
+        "kv_hash": "8867bf3148987cc82ab48c4a71de0e383d17bf8ecdbd6dbde06faa920bb84241"
+      },
+      "restored": {
+        "mode": "restore",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 3.1045220838859677,
+        "window_cpu_seconds": 3.2303110000000004,
+        "cold_process_cpu_seconds": 13.858159,
+        "memory": {
+          "rss_bytes": 1055539200,
+          "lifetime_peak_rss_bytes": 1055703040
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "peak_live_kv_bytes": 527360,
+        "read_bytes": 38520069,
+        "written_bytes": 2100585,
+        "disk_bytes": 15355566,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      }
+    },
+    {
+      "repeat": 1,
+      "resident": {
+        "mode": "resident",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 22.777936208061874,
+        "window_cpu_seconds": 38.17735,
+        "cold_process_cpu_seconds": 50.346916,
+        "memory": {
+          "rss_bytes": 1277689856,
+          "lifetime_peak_rss_bytes": 1277853696
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      },
+      "paged": {
+        "mode": "paged",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 23.700579083524644,
+        "window_cpu_seconds": 39.249214,
+        "cold_process_cpu_seconds": 50.821168,
+        "memory": {
+          "rss_bytes": 1277657088,
+          "lifetime_peak_rss_bytes": 1277804544
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "peak_live_kv_bytes": 527360,
+        "read_bytes": 37858752,
+        "written_bytes": 15355566,
+        "disk_bytes": 15355566,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      },
+      "issuer": {
+        "mode": "issue",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 24.539779874496162,
+        "window_cpu_seconds": 39.676603,
+        "cold_process_cpu_seconds": 50.489278,
+        "memory": {
+          "rss_bytes": 1277657088,
+          "lifetime_peak_rss_bytes": 1277820928
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3"
+        ],
+        "position": 512,
+        "final_dense_kv_bytes": 12582912,
+        "peak_live_kv_bytes": 524288,
+        "read_bytes": 0,
+        "written_bytes": 13254981,
+        "disk_bytes": 13254981,
+        "kv_hash": "8867bf3148987cc82ab48c4a71de0e383d17bf8ecdbd6dbde06faa920bb84241"
+      },
+      "restored": {
+        "mode": "restore",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 2.8574504163116217,
+        "window_cpu_seconds": 3.1108729999999998,
+        "cold_process_cpu_seconds": 13.605281,
+        "memory": {
+          "rss_bytes": 1058144256,
+          "lifetime_peak_rss_bytes": 1058308096
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "peak_live_kv_bytes": 527360,
+        "read_bytes": 38520069,
+        "written_bytes": 2100585,
+        "disk_bytes": 15355566,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      }
+    },
+    {
+      "repeat": 2,
+      "resident": {
+        "mode": "resident",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 24.296448834240437,
+        "window_cpu_seconds": 38.714488,
+        "cold_process_cpu_seconds": 49.820716,
+        "memory": {
+          "rss_bytes": 1273217024,
+          "lifetime_peak_rss_bytes": 1273380864
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      },
+      "paged": {
+        "mode": "paged",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 24.384983375668526,
+        "window_cpu_seconds": 39.665991,
+        "cold_process_cpu_seconds": 50.442338,
+        "memory": {
+          "rss_bytes": 1273643008,
+          "lifetime_peak_rss_bytes": 1273806848
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "peak_live_kv_bytes": 527360,
+        "read_bytes": 37858752,
+        "written_bytes": 15355566,
+        "disk_bytes": 15355566,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      },
+      "issuer": {
+        "mode": "issue",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 19.620286082848907,
+        "window_cpu_seconds": 32.20986,
+        "cold_process_cpu_seconds": 42.661642,
+        "memory": {
+          "rss_bytes": 1273266176,
+          "lifetime_peak_rss_bytes": 1273446400
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3"
+        ],
+        "position": 512,
+        "final_dense_kv_bytes": 12582912,
+        "peak_live_kv_bytes": 524288,
+        "read_bytes": 0,
+        "written_bytes": 13254981,
+        "disk_bytes": 13254981,
+        "kv_hash": "8867bf3148987cc82ab48c4a71de0e383d17bf8ecdbd6dbde06faa920bb84241"
+      },
+      "restored": {
+        "mode": "restore",
+        "tokens": 512,
+        "source": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+          "plan_digest": "8332c22fed3ea2acc9fb0dd290dbc78236942cbfbe9bc0cc744344b7857aa985",
+          "schedule_digest": "b12c2639778e3c29c5c9ca87578f868cbe545ec1243e15dcc00d31c6e77afa3f",
+          "composition_digest": "40310d5ef05c8d7b8d3f92942eb73b28bf7856a54d636fc174708ebd05c7b6e7",
+          "binding_digest": "70bf4a70e76bdfafdea4689954074810b20efe27f586f924609b28bb7b654a8f"
+        },
+        "window_seconds": 2.302094708196819,
+        "window_cpu_seconds": 2.5167149999999996,
+        "cold_process_cpu_seconds": 11.699847,
+        "memory": {
+          "rss_bytes": 1050476544,
+          "lifetime_peak_rss_bytes": 1050640384
+        },
+        "logit_hashes": [
+          "87b1a5cd2ff62ded9afc23224a1136a8f9d88ea313e521d741b357b2a71caaa3",
+          "138e845e2349b1254eb3ff5a0755ee550a5db1e12041f1653df55b4b3b76a787",
+          "4db7419852a6c260776296758b93d8aeb4f6a280c10aa60959b95b28bcb10840",
+          "b70d65d223a4c8e08a9b86d529933f2388f264205e0d74ccca819007f9f9edca"
+        ],
+        "position": 515,
+        "final_dense_kv_bytes": 12656640,
+        "peak_live_kv_bytes": 527360,
+        "read_bytes": 38520069,
+        "written_bytes": 2100585,
+        "disk_bytes": 15355566,
+        "kv_hash": "8229d557b48de0add74eebfa575fe677f4eadaf3bb9451cba481bed199e03e74"
+      }
+    }
+  ],
+  "host": {
+    "total": 34359738368,
+    "available": 10874421248,
+    "swap_used": 924319744,
+    "disk_free": 44858314752
+  },
+  "maximum_swap_growth_bytes": 0,
+  "script_sha256": "a4f33aed9587d13c752eb7e8657362d4cc949483c4aa99f1072ea3e002e78cdf",
+  "exact_parity": true,
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/bin/python",
+    "expected_digest": "d4c5bc12436c5354c1974b2731c5ccd45ef6e68f35c22023c5dd057e78b0a04e"
+  }
+}
