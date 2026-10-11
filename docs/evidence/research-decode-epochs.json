@@ -1,0 +1,3992 @@
+{
+  "cohorts": [
+    {
+      "canonical_report_sha256": "cf973ce7acb70925f23a7b8f135d18444014072d3be36d679e1fe31bdb4a5323",
+      "original_raw_sha256": "15aa2f2dfc452ae9f107d9e196ec9343a59ba7c76278ec9a4333e07c36a82a98",
+      "report": {
+        "allocation_admission": {
+          "allocation_slack_percent": 25,
+          "mutually_exclusive_temporary_phases": {
+            "bundle_import": 1095128064,
+            "execution": 571287976,
+            "weight_loading": 272269312
+          },
+          "owners": {
+            "checkpoint_mapping_bytes": 988097824,
+            "launcher_import_hash_buffers_bytes": 268435456,
+            "resident_bundle_weights_metadata_bytes": 182521344,
+            "resident_engine_i8_native_bytes": 630095872,
+            "worker_import_baseline_bytes": 268435456
+          },
+          "required_bytes": 4290892520,
+          "scope": "conservative config/header allocation bound, not RSS; one in-process engine",
+          "shared_estimator": {
+            "allocation_slack_percent": 25,
+            "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+            "client_peak_bytes": 2085938450,
+            "compiled_input_bound": 256,
+            "components": {
+              "checkpoint_bytes": 988097824,
+              "client_additional_paged_disk_bytes": 0,
+              "client_bundle_work_bytes": 1095128064,
+              "client_cache_bytes": 33554432,
+              "client_live_tensor_bytes": 221122568,
+              "client_mask_bytes": 8190368,
+              "client_mask_cursor_bytes": 201120,
+              "client_metal_bytes": 0,
+              "client_nonlinear_work_bytes": 0,
+              "client_paged_metadata_bytes": 0,
+              "client_public_artifact_work_bytes": 0,
+              "client_rotary_coefficient_bytes": 131072,
+              "client_state_work_bytes": 42319872,
+              "client_tensor_work_bytes": 263442440,
+              "client_tokenizer_snapshot_disk_bytes": 0,
+              "client_weight_snapshot_disk_bytes": 0,
+              "float_quantization_work_bytes": 25525248,
+              "largest_loading_temporary_bytes": 272269312,
+              "legacy_client_mask_bytes": 365002752,
+              "legacy_client_tensor_work_bytes": 2246712864,
+              "legacy_largest_loading_temporary_bytes": 544538624,
+              "legacy_per_engine_i8_and_native_bytes": 1260191744,
+              "legacy_verifier_bytes": 0,
+              "per_engine_compiled_disk_bytes": 272269312,
+              "per_engine_i8_and_native_bytes": 630095872,
+              "per_provider_metal_bytes": 0,
+              "per_provider_nonlinear_work_bytes": 0,
+              "per_role_i8_and_native_bytes": {
+                "inference": 493961216,
+                "preparation": 357826560
+              },
+              "per_role_loading_temporary_bytes": {
+                "inference": 272269312,
+                "preparation": 161659904
+              },
+              "preparation_additional_paged_disk_bytes": 0,
+              "preparation_digit_workspace_bytes": 0,
+              "provider_artifact_cache_disk_bytes": {},
+              "provider_artifact_cache_work_bytes": {},
+              "provider_correction_bytes": 114352128,
+              "raw_client_bundle_bytes": 182521344,
+              "verifier_bytes": 0
+            },
+            "docker_provider_peak_bytes": {
+              "inference": 3252465920,
+              "preparation": 2649440640
+            },
+            "inventory_rows": 47,
+            "kernel": "cpu",
+            "limitations": [],
+            "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+            "max_input_tokens": 16,
+            "max_output_tokens": 32,
+            "model_plan_digest": "194662f6dbd85f25f530904a58977b36e65ea246f432e50ca342ed76c91cc796",
+            "native_total_peak_bytes": 4480140050,
+            "pipeline_digest": "84d43128fe224c013dc5a3dc9078a09360a8011049525d43461bd092f8b4bcb0",
+            "preparation_kernel": "native",
+            "preparation_storage": "resident",
+            "provider_peak_bytes": {
+              "inference": 1351315840,
+              "preparation": 1042885760
+            },
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+            "verification_allocation": null,
+            "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+          }
+        },
+        "complete": true,
+        "cost_owners": [
+          "checkpoint/import/source hashing",
+          "client logits and full KV",
+          "old/new state overlap if SDK snapshots used",
+          "mask expansion and corrections",
+          "provider matrices",
+          "idle preparation pauses",
+          "SDK control/admission not measured"
+        ],
+        "historical_control": {
+          "classes": {
+            "control_and_seeds": 42799,
+            "corrections": 139060689,
+            "inputs": 90443518,
+            "outputs": 139123150,
+            "public_bundle": 124905091
+          },
+          "evidence_sha256": "9b54ee455e7307429d4cc1bf19c93f1c58ff3ef966c258ddebde2ec8c68c42db",
+          "pair_bytes": 493575247,
+          "scope": "first complete digit8 cold/exact-repeat pair; application bodies, not wire"
+        },
+        "host_guard": {
+          "initial_available_bytes": 10649305088,
+          "initial_swap_used_bytes": 924319744,
+          "initial_total_bytes": 34359738368,
+          "maximum_host_used_bytes": 24761499648,
+          "maximum_swap_growth_bytes": 0,
+          "maximum_swap_used_bytes_upper_bound": 924319744,
+          "minimum_available_bytes": 9598238720,
+          "reserve_bytes": 4294967296
+        },
+        "measurements": {
+          "cells": [
+            {
+              "candidate": {
+                "added_idle_pauses": 7,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1762816,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 32,
+                "epoch": 4,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 1779
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  }
+                ],
+                "executed_generated_rows": 31,
+                "execution_count": 8,
+                "measured_covered_stage_body_total": 109235124,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 26603803,
+                  "client_to_preparation_requests": 76032,
+                  "inference_to_client_online": 41056127,
+                  "preparation_to_inference_corrections": 41499162
+                },
+                "output_commitment": "c496e3f7d1ba3bcba6455ba0756730714adf669716a87ca62de3b3ade6c72f79",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 4467,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "790f82d775816a947203e5850acdbdb744b2946d1b6012c9b312d49a76592e1b",
+                  "float32_values": 440704,
+                  "position": 47
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1762816,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 32,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  }
+                ],
+                "executed_generated_rows": 31,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 108486106,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 26603803,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 41056127,
+                  "preparation_to_inference_corrections": 40816672
+                },
+                "output_commitment": "c496e3f7d1ba3bcba6455ba0756730714adf669716a87ca62de3b3ade6c72f79",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 4467,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "790f82d775816a947203e5850acdbdb744b2946d1b6012c9b312d49a76592e1b",
+                  "float32_values": 440704,
+                  "position": 47
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": -749018,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 32
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 1,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1762816,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 32,
+                "epoch": 16,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 2931
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  }
+                ],
+                "executed_generated_rows": 31,
+                "execution_count": 2,
+                "measured_covered_stage_body_total": 108593104,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 26603803,
+                  "client_to_preparation_requests": 19008,
+                  "inference_to_client_online": 41056127,
+                  "preparation_to_inference_corrections": 40914166
+                },
+                "output_commitment": "c496e3f7d1ba3bcba6455ba0756730714adf669716a87ca62de3b3ade6c72f79",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 4467,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "790f82d775816a947203e5850acdbdb744b2946d1b6012c9b312d49a76592e1b",
+                  "float32_values": 440704,
+                  "position": 47
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1762816,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 32,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  }
+                ],
+                "executed_generated_rows": 31,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 108486106,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 26603803,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 41056127,
+                  "preparation_to_inference_corrections": 40816672
+                },
+                "output_commitment": "c496e3f7d1ba3bcba6455ba0756730714adf669716a87ca62de3b3ade6c72f79",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 4467,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "790f82d775816a947203e5850acdbdb744b2946d1b6012c9b312d49a76592e1b",
+                  "float32_values": 440704,
+                  "position": 47
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": -106998,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 32
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 1,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1099264,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 5,
+                "epoch": 4,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 1779
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  }
+                ],
+                "executed_generated_rows": 4,
+                "execution_count": 2,
+                "measured_covered_stage_body_total": 48083142,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 11104939,
+                  "client_to_preparation_requests": 19008,
+                  "inference_to_client_online": 17092925,
+                  "preparation_to_inference_corrections": 19866270
+                },
+                "output_commitment": "a97ced3e2b0ad811ca6d30d95e633352ff202ca08274c4f7118835d82e8c0985",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 288,
+                  "prepared_stage_rows_claimed": 1875,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 2163,
+                  "prepared_stage_rows_reserved": 2163
+                },
+                "state": {
+                  "bits": "bffe1baf76a994b2511a93e391d9d968e90e7eb2cbda0bc918a93ad85d6bb63e",
+                  "float32_values": 274816,
+                  "position": 20
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1099264,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 5,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  }
+                ],
+                "executed_generated_rows": 4,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 69024040,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 11104939,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 17092925,
+                  "preparation_to_inference_corrections": 40816672
+                },
+                "output_commitment": "a97ced3e2b0ad811ca6d30d95e633352ff202ca08274c4f7118835d82e8c0985",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 2592,
+                  "prepared_stage_rows_claimed": 1875,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "bffe1baf76a994b2511a93e391d9d968e90e7eb2cbda0bc918a93ad85d6bb63e",
+                  "float32_values": 274816,
+                  "position": 20
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": 20940898,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 5
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1099264,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 5,
+                "epoch": 16,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 2931
+                  }
+                ],
+                "executed_generated_rows": 4,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 54992184,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 11104939,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 17092925,
+                  "preparation_to_inference_corrections": 26784816
+                },
+                "output_commitment": "a97ced3e2b0ad811ca6d30d95e633352ff202ca08274c4f7118835d82e8c0985",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 1056,
+                  "prepared_stage_rows_claimed": 1875,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 2931,
+                  "prepared_stage_rows_reserved": 2931
+                },
+                "state": {
+                  "bits": "bffe1baf76a994b2511a93e391d9d968e90e7eb2cbda0bc918a93ad85d6bb63e",
+                  "float32_values": 274816,
+                  "position": 20
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1099264,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 5,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  }
+                ],
+                "executed_generated_rows": 4,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 69024040,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 11104939,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 17092925,
+                  "preparation_to_inference_corrections": 40816672
+                },
+                "output_commitment": "a97ced3e2b0ad811ca6d30d95e633352ff202ca08274c4f7118835d82e8c0985",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 2592,
+                  "prepared_stage_rows_claimed": 1875,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "bffe1baf76a994b2511a93e391d9d968e90e7eb2cbda0bc918a93ad85d6bb63e",
+                  "float32_values": 274816,
+                  "position": 20
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": 14031856,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 5
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 1,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1123840,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 5,
+                "epoch": 4,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 1779
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  }
+                ],
+                "executed_generated_rows": 5,
+                "execution_count": 2,
+                "measured_covered_stage_body_total": 49544700,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 11678971,
+                  "client_to_preparation_requests": 19008,
+                  "inference_to_client_online": 17980451,
+                  "preparation_to_inference_corrections": 19866270
+                },
+                "output_commitment": "a97ced3e2b0ad811ca6d30d95e633352ff202ca08274c4f7118835d82e8c0985",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 192,
+                  "prepared_stage_rows_claimed": 1971,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 2163,
+                  "prepared_stage_rows_reserved": 2163
+                },
+                "state": {
+                  "bits": "c1c689700b4fa48117b32761ecadc679f2e41a4ddffff305950e8465e5e91330",
+                  "float32_values": 280960,
+                  "position": 21
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1123840,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 5,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  }
+                ],
+                "executed_generated_rows": 5,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 70485598,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 11678971,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 17980451,
+                  "preparation_to_inference_corrections": 40816672
+                },
+                "output_commitment": "a97ced3e2b0ad811ca6d30d95e633352ff202ca08274c4f7118835d82e8c0985",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 2496,
+                  "prepared_stage_rows_claimed": 1971,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "c1c689700b4fa48117b32761ecadc679f2e41a4ddffff305950e8465e5e91330",
+                  "float32_values": 280960,
+                  "position": 21
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "covered_stage_body_saving_bytes": 20940898,
+              "exact_gate_passed": true,
+              "termination": "eos",
+              "used": 5
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1123840,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 5,
+                "epoch": 16,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 2931
+                  }
+                ],
+                "executed_generated_rows": 5,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 56453742,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 11678971,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 17980451,
+                  "preparation_to_inference_corrections": 26784816
+                },
+                "output_commitment": "a97ced3e2b0ad811ca6d30d95e633352ff202ca08274c4f7118835d82e8c0985",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 960,
+                  "prepared_stage_rows_claimed": 1971,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 2931,
+                  "prepared_stage_rows_reserved": 2931
+                },
+                "state": {
+                  "bits": "c1c689700b4fa48117b32761ecadc679f2e41a4ddffff305950e8465e5e91330",
+                  "float32_values": 280960,
+                  "position": 21
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 32,
+                "client_active_kv_logits_logical_bytes": 1123840,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 5,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  }
+                ],
+                "executed_generated_rows": 5,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 70485598,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 11678971,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 17980451,
+                  "preparation_to_inference_corrections": 40816672
+                },
+                "output_commitment": "a97ced3e2b0ad811ca6d30d95e633352ff202ca08274c4f7118835d82e8c0985",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 2496,
+                  "prepared_stage_rows_claimed": 1971,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "c1c689700b4fa48117b32761ecadc679f2e41a4ddffff305950e8465e5e91330",
+                  "float32_values": 280960,
+                  "position": 21
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "covered_stage_body_saving_bytes": 14031856,
+              "exact_gate_passed": true,
+              "termination": "eos",
+              "used": 5
+            }
+          ],
+          "compiled_digest": "2a176de3bd123f80c3e0808253dd6703ba19c8c491e158f3ec40325f4124023c",
+          "compiler_stage_geometry": [
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20363,
+              "role": "attention_output",
+              "stage_id": "layers.0.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22440,
+              "role": "mlp_down",
+              "stage_id": "layers.0.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223380,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.0.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26280,
+              "role": "qkv_projection",
+              "stage_id": "layers.0.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20561,
+              "role": "attention_output",
+              "stage_id": "layers.1.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22487,
+              "role": "mlp_down",
+              "stage_id": "layers.1.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223408,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.1.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26440,
+              "role": "qkv_projection",
+              "stage_id": "layers.1.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20445,
+              "role": "attention_output",
+              "stage_id": "layers.2.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22454,
+              "role": "mlp_down",
+              "stage_id": "layers.2.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223282,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.2.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26336,
+              "role": "qkv_projection",
+              "stage_id": "layers.2.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20530,
+              "role": "attention_output",
+              "stage_id": "layers.3.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22437,
+              "role": "mlp_down",
+              "stage_id": "layers.3.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223341,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.3.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26366,
+              "role": "qkv_projection",
+              "stage_id": "layers.3.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20515,
+              "role": "attention_output",
+              "stage_id": "layers.4.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22283,
+              "role": "mlp_down",
+              "stage_id": "layers.4.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223116,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.4.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26400,
+              "role": "qkv_projection",
+              "stage_id": "layers.4.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20542,
+              "role": "attention_output",
+              "stage_id": "layers.5.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22363,
+              "role": "mlp_down",
+              "stage_id": "layers.5.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223422,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.5.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26397,
+              "role": "qkv_projection",
+              "stage_id": "layers.5.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20530,
+              "role": "attention_output",
+              "stage_id": "layers.6.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22333,
+              "role": "mlp_down",
+              "stage_id": "layers.6.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223122,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.6.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26383,
+              "role": "qkv_projection",
+              "stage_id": "layers.6.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20504,
+              "role": "attention_output",
+              "stage_id": "layers.7.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22224,
+              "role": "mlp_down",
+              "stage_id": "layers.7.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223184,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.7.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26348,
+              "role": "qkv_projection",
+              "stage_id": "layers.7.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20532,
+              "role": "attention_output",
+              "stage_id": "layers.8.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22320,
+              "role": "mlp_down",
+              "stage_id": "layers.8.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223072,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.8.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26373,
+              "role": "qkv_projection",
+              "stage_id": "layers.8.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20504,
+              "role": "attention_output",
+              "stage_id": "layers.9.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22243,
+              "role": "mlp_down",
+              "stage_id": "layers.9.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223250,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.9.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26334,
+              "role": "qkv_projection",
+              "stage_id": "layers.9.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20480,
+              "role": "attention_output",
+              "stage_id": "layers.10.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22246,
+              "role": "mlp_down",
+              "stage_id": "layers.10.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223109,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.10.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26401,
+              "role": "qkv_projection",
+              "stage_id": "layers.10.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20518,
+              "role": "attention_output",
+              "stage_id": "layers.11.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22249,
+              "role": "mlp_down",
+              "stage_id": "layers.11.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223083,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.11.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26297,
+              "role": "qkv_projection",
+              "stage_id": "layers.11.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20516,
+              "role": "attention_output",
+              "stage_id": "layers.12.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22308,
+              "role": "mlp_down",
+              "stage_id": "layers.12.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223054,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.12.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26419,
+              "role": "qkv_projection",
+              "stage_id": "layers.12.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20548,
+              "role": "attention_output",
+              "stage_id": "layers.13.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22246,
+              "role": "mlp_down",
+              "stage_id": "layers.13.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223074,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.13.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26373,
+              "role": "qkv_projection",
+              "stage_id": "layers.13.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20533,
+              "role": "attention_output",
+              "stage_id": "layers.14.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22168,
+              "role": "mlp_down",
+              "stage_id": "layers.14.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 222961,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.14.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26357,
+              "role": "qkv_projection",
+              "stage_id": "layers.14.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20538,
+              "role": "attention_output",
+              "stage_id": "layers.15.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22202,
+              "role": "mlp_down",
+              "stage_id": "layers.15.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 222615,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.15.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26373,
+              "role": "qkv_projection",
+              "stage_id": "layers.15.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20321,
+              "role": "attention_output",
+              "stage_id": "layers.16.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22196,
+              "role": "mlp_down",
+              "stage_id": "layers.16.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 222582,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.16.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26262,
+              "role": "qkv_projection",
+              "stage_id": "layers.16.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20550,
+              "role": "attention_output",
+              "stage_id": "layers.17.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22323,
+              "role": "mlp_down",
+              "stage_id": "layers.17.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223284,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.17.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26336,
+              "role": "qkv_projection",
+              "stage_id": "layers.17.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20559,
+              "role": "attention_output",
+              "stage_id": "layers.18.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22411,
+              "role": "mlp_down",
+              "stage_id": "layers.18.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223448,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.18.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26276,
+              "role": "qkv_projection",
+              "stage_id": "layers.18.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20550,
+              "role": "attention_output",
+              "stage_id": "layers.19.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22246,
+              "role": "mlp_down",
+              "stage_id": "layers.19.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 222956,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.19.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26375,
+              "role": "qkv_projection",
+              "stage_id": "layers.19.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20477,
+              "role": "attention_output",
+              "stage_id": "layers.20.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22278,
+              "role": "mlp_down",
+              "stage_id": "layers.20.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223044,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.20.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26215,
+              "role": "qkv_projection",
+              "stage_id": "layers.20.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20519,
+              "role": "attention_output",
+              "stage_id": "layers.21.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22433,
+              "role": "mlp_down",
+              "stage_id": "layers.21.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223430,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.21.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26101,
+              "role": "qkv_projection",
+              "stage_id": "layers.21.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20579,
+              "role": "attention_output",
+              "stage_id": "layers.22.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22451,
+              "role": "mlp_down",
+              "stage_id": "layers.22.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223274,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.22.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26153,
+              "role": "qkv_projection",
+              "stage_id": "layers.22.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20505,
+              "role": "attention_output",
+              "stage_id": "layers.23.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22419,
+              "role": "mlp_down",
+              "stage_id": "layers.23.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223516,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.23.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26345,
+              "role": "qkv_projection",
+              "stage_id": "layers.23.self_attn.qkv_proj",
+              "wire_bits": 24
+            }
+          ],
+          "frozen": {
+            "build": {
+              "expected_digest": "dd39f305bb3110398c70d75e7a7c3a2d1bee00572c454542dfd4028880c0aa94",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "checkpoint_tree_sha256": "fd6f3601f5a56e98e804176f59ec9770551b5f8460156e96ff2a39e8dabb7f7b",
+            "control_reader_sha256": "06c206b66f93b767f2b1638e949f6cda21e6d61ff313e605865be4d3d4d3bf3f",
+            "control_sha256": "9b54ee455e7307429d4cc1bf19c93f1c58ff3ef966c258ddebde2ec8c68c42db",
+            "dependency_records_sha256": "bbbf373684395fa7a2424a3d5fe79a9bc781cac7cbcf7f4518132037172a8638",
+            "driver_sha256": "e2dfc844fe5e8cb1d4d08a0f347947643304657910db9f6bcf6bef2edb590f87",
+            "imported_pllm_tree_sha256": "ff38b54fab73c889da81b9f4fe98874632b0a29c4441ae585e6d4cf712bb8306",
+            "msgpack_tree_sha256": "9163e1fa1fce3ee942b03decf0e29c2f10bc732b5752cc1f5f37e44f0cb7e4cd",
+            "native_sha256": "f223a8682138afde74b528df070d285480fd21b5f8ab20c6befc9e441f98418c",
+            "numpy_tree_sha256": "f5a6815bb5aff47de23c0062006694b032ca23671d03d647aa065b85973684d3",
+            "support_sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+            "tests_sha256": "28d780a08cc284e38241223121b48b403478cf008cb7135f533f0ff7e4342489"
+          },
+          "illustrative_workload_geometry_forecasts": [
+            {
+              "admitted_execution": false,
+              "cap": 512,
+              "control_packed_correction_bytes": 574728478,
+              "control_reserved_stage_rows": 63009,
+              "epoch": 4,
+              "epoch_packed_correction_bytes": 195868474,
+              "epoch_reserved_stage_rows": 21537,
+              "execution_count": 20,
+              "input_rows": 150,
+              "packed_correction_saving_bytes": 378860004,
+              "scope": "geometry forecast: packed correction residues only; excludes framing and admission",
+              "used": 80,
+              "whole_request_saving_fraction": null
+            },
+            {
+              "admitted_execution": false,
+              "cap": 512,
+              "control_packed_correction_bytes": 574728478,
+              "control_reserved_stage_rows": 63009,
+              "epoch": 16,
+              "epoch_packed_correction_bytes": 195868474,
+              "epoch_reserved_stage_rows": 21537,
+              "execution_count": 5,
+              "input_rows": 150,
+              "packed_correction_saving_bytes": 378860004,
+              "scope": "geometry forecast: packed correction residues only; excludes framing and admission",
+              "used": 80,
+              "whole_request_saving_fraction": null
+            }
+          ]
+        },
+        "memory_guard_passed": true,
+        "schema": "pllm.research.decode_epochs.v1",
+        "scope": "exact decoder + in-process one-use prepared stages; not executable SDK choice",
+        "workload": "public synthetic token IDs; controlled EOS predicate, greedy samples unchanged"
+      }
+    },
+    {
+      "canonical_report_sha256": "bde380306975fa5daa4c4f79c81d9d1306c67d9ab4790f09fb0580cb5c3b82dd",
+      "original_raw_sha256": "15a412f00b8c04acb6230f2babd5fe8983770d3c689b29d587b9737b9731d0f2",
+      "report": {
+        "allocation_admission": {
+          "allocation_slack_percent": 25,
+          "mutually_exclusive_temporary_phases": {
+            "bundle_import": 1095128064,
+            "execution": 863653288,
+            "weight_loading": 272269312
+          },
+          "owners": {
+            "checkpoint_mapping_bytes": 988097824,
+            "launcher_import_hash_buffers_bytes": 268435456,
+            "resident_bundle_weights_metadata_bytes": 182521344,
+            "resident_engine_i8_native_bytes": 630095872,
+            "worker_import_baseline_bytes": 268435456
+          },
+          "required_bytes": 4290892520,
+          "scope": "conservative config/header allocation bound, not RSS; one in-process engine",
+          "shared_estimator": {
+            "allocation_slack_percent": 25,
+            "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+            "client_peak_bytes": 2124042770,
+            "compiled_input_bound": 256,
+            "components": {
+              "checkpoint_bytes": 988097824,
+              "client_additional_paged_disk_bytes": 0,
+              "client_bundle_work_bytes": 1095128064,
+              "client_cache_bytes": 33554432,
+              "client_live_tensor_bytes": 221122568,
+              "client_mask_bytes": 24518048,
+              "client_mask_cursor_bytes": 210336,
+              "client_metal_bytes": 0,
+              "client_nonlinear_work_bytes": 0,
+              "client_paged_metadata_bytes": 0,
+              "client_public_artifact_work_bytes": 0,
+              "client_rotary_coefficient_bytes": 131072,
+              "client_state_work_bytes": 56475648,
+              "client_tensor_work_bytes": 277598216,
+              "client_tokenizer_snapshot_disk_bytes": 0,
+              "client_weight_snapshot_disk_bytes": 0,
+              "float_quantization_work_bytes": 25525248,
+              "largest_loading_temporary_bytes": 272269312,
+              "legacy_client_mask_bytes": 1110540288,
+              "legacy_client_tensor_work_bytes": 2261900832,
+              "legacy_largest_loading_temporary_bytes": 544538624,
+              "legacy_per_engine_i8_and_native_bytes": 1260191744,
+              "legacy_verifier_bytes": 0,
+              "per_engine_compiled_disk_bytes": 272269312,
+              "per_engine_i8_and_native_bytes": 630095872,
+              "per_provider_metal_bytes": 0,
+              "per_provider_nonlinear_work_bytes": 0,
+              "per_role_i8_and_native_bytes": {
+                "inference": 493961216,
+                "preparation": 357826560
+              },
+              "per_role_loading_temporary_bytes": {
+                "inference": 272269312,
+                "preparation": 161659904
+              },
+              "preparation_additional_paged_disk_bytes": 0,
+              "preparation_digit_workspace_bytes": 0,
+              "provider_artifact_cache_disk_bytes": {},
+              "provider_artifact_cache_work_bytes": {},
+              "provider_correction_bytes": 347922432,
+              "raw_client_bundle_bytes": 182521344,
+              "verifier_bytes": 0
+            },
+            "docker_provider_peak_bytes": {
+              "inference": 3544428800,
+              "preparation": 2649440640
+            },
+            "inventory_rows": 143,
+            "kernel": "cpu",
+            "limitations": [],
+            "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+            "max_input_tokens": 16,
+            "max_output_tokens": 128,
+            "model_plan_digest": "636609648aad669bdde4a6bbb50143b228c53a76ff1b7ccc9c4108a8e80ce086",
+            "native_total_peak_bytes": 5016392210,
+            "pipeline_digest": "84d43128fe224c013dc5a3dc9078a09360a8011049525d43461bd092f8b4bcb0",
+            "preparation_kernel": "native",
+            "preparation_storage": "resident",
+            "provider_peak_bytes": {
+              "inference": 1572334720,
+              "preparation": 1320014720
+            },
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+            "verification_allocation": null,
+            "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+          }
+        },
+        "complete": true,
+        "cost_owners": [
+          "checkpoint/import/source hashing",
+          "client logits and full KV",
+          "old/new state overlap if SDK snapshots used",
+          "mask expansion and corrections",
+          "provider matrices",
+          "idle preparation pauses",
+          "SDK control/admission not measured"
+        ],
+        "historical_control": {
+          "classes": {
+            "control_and_seeds": 42799,
+            "corrections": 139060689,
+            "inputs": 90443518,
+            "outputs": 139123150,
+            "public_bundle": 124905091
+          },
+          "evidence_sha256": "9b54ee455e7307429d4cc1bf19c93f1c58ff3ef966c258ddebde2ec8c68c42db",
+          "pair_bytes": 493575247,
+          "scope": "first complete digit8 cold/exact-repeat pair; application bodies, not wire"
+        },
+        "host_guard": {
+          "initial_available_bytes": 10706190336,
+          "initial_swap_used_bytes": 924319744,
+          "initial_total_bytes": 34359738368,
+          "maximum_host_used_bytes": 23883120640,
+          "maximum_swap_growth_bytes": 0,
+          "maximum_swap_used_bytes_upper_bound": 924319744,
+          "minimum_available_bytes": 10476617728,
+          "reserve_bytes": 4294967296
+        },
+        "measurements": {
+          "cells": [
+            {
+              "candidate": {
+                "added_idle_pauses": 31,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 4122112,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 128,
+                "epoch": 4,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 1779
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  }
+                ],
+                "executed_generated_rows": 127,
+                "execution_count": 32,
+                "measured_covered_stage_body_total": 336304356,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 81710875,
+                  "client_to_preparation_requests": 304128,
+                  "inference_to_client_online": 126258623,
+                  "preparation_to_inference_corrections": 128030730
+                },
+                "output_commitment": "72a713e90dde39d829f0e2bcd3f8f4be4c726c7d5cdc45aef93f45a36e7d0b3c",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 13683,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "1b9bfd03ec3461d167340a120a1b06b5167cadd814bb6adfd49e26605cfae33d",
+                  "float32_values": 1030528,
+                  "position": 143
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 4122112,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 128,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 127,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 332986978,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 81710875,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 126258623,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "72a713e90dde39d829f0e2bcd3f8f4be4c726c7d5cdc45aef93f45a36e7d0b3c",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 13683,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "1b9bfd03ec3461d167340a120a1b06b5167cadd814bb6adfd49e26605cfae33d",
+                  "float32_values": 1030528,
+                  "position": 143
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": -3317378,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 128
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 7,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 4122112,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 128,
+                "epoch": 16,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 2931
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  }
+                ],
+                "executed_generated_rows": 127,
+                "execution_count": 8,
+                "measured_covered_stage_body_total": 333735796,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 81710875,
+                  "client_to_preparation_requests": 76032,
+                  "inference_to_client_online": 126258623,
+                  "preparation_to_inference_corrections": 125690266
+                },
+                "output_commitment": "72a713e90dde39d829f0e2bcd3f8f4be4c726c7d5cdc45aef93f45a36e7d0b3c",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 13683,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "1b9bfd03ec3461d167340a120a1b06b5167cadd814bb6adfd49e26605cfae33d",
+                  "float32_values": 1030528,
+                  "position": 143
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 4122112,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 128,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 127,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 332986978,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 81710875,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 126258623,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "72a713e90dde39d829f0e2bcd3f8f4be4c726c7d5cdc45aef93f45a36e7d0b3c",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 13683,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "1b9bfd03ec3461d167340a120a1b06b5167cadd814bb6adfd49e26605cfae33d",
+                  "float32_values": 1030528,
+                  "position": 143
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": -748818,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 128
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 3,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 4122112,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 128,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 3072
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 3072
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 3072
+                  }
+                ],
+                "executed_generated_rows": 127,
+                "execution_count": 4,
+                "measured_covered_stage_body_total": 333308224,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 81710875,
+                  "client_to_preparation_requests": 38016,
+                  "inference_to_client_online": 126258623,
+                  "preparation_to_inference_corrections": 125300710
+                },
+                "output_commitment": "72a713e90dde39d829f0e2bcd3f8f4be4c726c7d5cdc45aef93f45a36e7d0b3c",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 13683,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "1b9bfd03ec3461d167340a120a1b06b5167cadd814bb6adfd49e26605cfae33d",
+                  "float32_values": 1030528,
+                  "position": 143
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 4122112,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 128,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 127,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 332986978,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 81710875,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 126258623,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "72a713e90dde39d829f0e2bcd3f8f4be4c726c7d5cdc45aef93f45a36e7d0b3c",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 13683,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "1b9bfd03ec3461d167340a120a1b06b5167cadd814bb6adfd49e26605cfae33d",
+                  "float32_values": 1030528,
+                  "position": 143
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": -321246,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 128
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 4,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1394176,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 4,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 1779
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  }
+                ],
+                "executed_generated_rows": 16,
+                "execution_count": 5,
+                "measured_covered_stage_body_total": 76466796,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 17993323,
+                  "client_to_preparation_requests": 47520,
+                  "inference_to_client_online": 27743237,
+                  "preparation_to_inference_corrections": 30682716
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 288,
+                  "prepared_stage_rows_claimed": 3027,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 3315,
+                  "prepared_stage_rows_reserved": 3315
+                },
+                "state": {
+                  "bits": "91ff467a76eb08cddec47c5baeabe110962ed346b3f8cca32f011b0b720d2000",
+                  "float32_values": 348544,
+                  "position": 32
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1394176,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 16,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 170754040,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 17993323,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 27743237,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 10656,
+                  "prepared_stage_rows_claimed": 3027,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "91ff467a76eb08cddec47c5baeabe110962ed346b3f8cca32f011b0b720d2000",
+                  "float32_values": 348544,
+                  "position": 32
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": 94287244,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 17
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 1,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1394176,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 16,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 2931
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  }
+                ],
+                "executed_generated_rows": 16,
+                "execution_count": 2,
+                "measured_covered_stage_body_total": 86669734,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 17993323,
+                  "client_to_preparation_requests": 19008,
+                  "inference_to_client_online": 27743237,
+                  "preparation_to_inference_corrections": 40914166
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 1440,
+                  "prepared_stage_rows_claimed": 3027,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "91ff467a76eb08cddec47c5baeabe110962ed346b3f8cca32f011b0b720d2000",
+                  "float32_values": 348544,
+                  "position": 32
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1394176,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 16,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 170754040,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 17993323,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 27743237,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 10656,
+                  "prepared_stage_rows_claimed": 3027,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "91ff467a76eb08cddec47c5baeabe110962ed346b3f8cca32f011b0b720d2000",
+                  "float32_values": 348544,
+                  "position": 32
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": 84084306,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 17
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1394176,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  }
+                ],
+                "executed_generated_rows": 16,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 86562736,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 17993323,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 27743237,
+                  "preparation_to_inference_corrections": 40816672
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 1440,
+                  "prepared_stage_rows_claimed": 3027,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "91ff467a76eb08cddec47c5baeabe110962ed346b3f8cca32f011b0b720d2000",
+                  "float32_values": 348544,
+                  "position": 32
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1394176,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 16,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 170754040,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 17993323,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 27743237,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 1,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 10656,
+                  "prepared_stage_rows_claimed": 3027,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "91ff467a76eb08cddec47c5baeabe110962ed346b3f8cca32f011b0b720d2000",
+                  "float32_values": 348544,
+                  "position": 32
+                },
+                "status": "completed",
+                "termination": "explicit"
+              },
+              "covered_stage_body_saving_bytes": 84191304,
+              "exact_gate_passed": true,
+              "termination": "explicit",
+              "used": 17
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 4,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1418752,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 4,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 1779
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 3,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 384
+                  }
+                ],
+                "executed_generated_rows": 17,
+                "execution_count": 5,
+                "measured_covered_stage_body_total": 77928354,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 18567355,
+                  "client_to_preparation_requests": 47520,
+                  "inference_to_client_online": 28630763,
+                  "preparation_to_inference_corrections": 30682716
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 192,
+                  "prepared_stage_rows_claimed": 3123,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 3315,
+                  "prepared_stage_rows_reserved": 3315
+                },
+                "state": {
+                  "bits": "d2ddf0b3a022e081212d7fc6d0b52ec2b9ae63ec0ed03989456a076547cf78f2",
+                  "float32_values": 354688,
+                  "position": 33
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1418752,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 17,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 172215598,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 18567355,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 28630763,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 10560,
+                  "prepared_stage_rows_claimed": 3123,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "d2ddf0b3a022e081212d7fc6d0b52ec2b9ae63ec0ed03989456a076547cf78f2",
+                  "float32_values": 354688,
+                  "position": 33
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "covered_stage_body_saving_bytes": 94287244,
+              "exact_gate_passed": true,
+              "termination": "eos",
+              "used": 17
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 1,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1418752,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 16,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 2931
+                  },
+                  {
+                    "continuation": true,
+                    "decode_steps_allowance": 15,
+                    "prefill_rows": 1,
+                    "stage_rows_reserved": 1536
+                  }
+                ],
+                "executed_generated_rows": 17,
+                "execution_count": 2,
+                "measured_covered_stage_body_total": 88131292,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 18567355,
+                  "client_to_preparation_requests": 19008,
+                  "inference_to_client_online": 28630763,
+                  "preparation_to_inference_corrections": 40914166
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 1344,
+                  "prepared_stage_rows_claimed": 3123,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "d2ddf0b3a022e081212d7fc6d0b52ec2b9ae63ec0ed03989456a076547cf78f2",
+                  "float32_values": 354688,
+                  "position": 33
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1418752,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 17,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 172215598,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 18567355,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 28630763,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 10560,
+                  "prepared_stage_rows_claimed": 3123,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "d2ddf0b3a022e081212d7fc6d0b52ec2b9ae63ec0ed03989456a076547cf78f2",
+                  "float32_values": 354688,
+                  "position": 33
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "covered_stage_body_saving_bytes": 84084306,
+              "exact_gate_passed": true,
+              "termination": "eos",
+              "used": 17
+            },
+            {
+              "candidate": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1418752,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 32,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 31,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 4467
+                  }
+                ],
+                "executed_generated_rows": 17,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 88024294,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 18567355,
+                  "client_to_preparation_requests": 9504,
+                  "inference_to_client_online": 28630763,
+                  "preparation_to_inference_corrections": 40816672
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 1344,
+                  "prepared_stage_rows_claimed": 3123,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 4467,
+                  "prepared_stage_rows_reserved": 4467
+                },
+                "state": {
+                  "bits": "d2ddf0b3a022e081212d7fc6d0b52ec2b9ae63ec0ed03989456a076547cf78f2",
+                  "float32_values": 354688,
+                  "position": 33
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "control": {
+                "added_idle_pauses": 0,
+                "all_link_tcp_stream_bytes": null,
+                "cap": 128,
+                "client_active_kv_logits_logical_bytes": 1418752,
+                "client_cpu_seconds": null,
+                "client_peak_rss_bytes": null,
+                "emitted_count": 17,
+                "epoch": 128,
+                "epochs": [
+                  {
+                    "continuation": false,
+                    "decode_steps_allowance": 127,
+                    "prefill_rows": 16,
+                    "stage_rows_reserved": 13683
+                  }
+                ],
+                "executed_generated_rows": 17,
+                "execution_count": 1,
+                "measured_covered_stage_body_total": 172215598,
+                "measured_serialized_stage_body_bytes": {
+                  "client_to_inference_online": 18567355,
+                  "client_to_preparation_requests": 9600,
+                  "inference_to_client_online": 28630763,
+                  "preparation_to_inference_corrections": 125007880
+                },
+                "output_commitment": "d90a3eafbdba8c4228ea9f03e89f0d5f32ff04f103e63b233b3022571878a5a1",
+                "pause_seconds": null,
+                "pending_count": 0,
+                "public_delivery_bytes": null,
+                "remote_body_mac_fraction_proposed": 1.0,
+                "sdk_admission_control_bytes": null,
+                "stage_rows": {
+                  "prepared_stage_rows_burned": 10560,
+                  "prepared_stage_rows_claimed": 3123,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 13683,
+                  "prepared_stage_rows_reserved": 13683
+                },
+                "state": {
+                  "bits": "d2ddf0b3a022e081212d7fc6d0b52ec2b9ae63ec0ed03989456a076547cf78f2",
+                  "float32_values": 354688,
+                  "position": 33
+                },
+                "status": "completed",
+                "termination": "eos"
+              },
+              "covered_stage_body_saving_bytes": 84191304,
+              "exact_gate_passed": true,
+              "termination": "eos",
+              "used": 17
+            }
+          ],
+          "compiled_digest": "a87be124abee784d3276e6e6a140d78826a2a50664f29ce4db4e5844b85f0ccc",
+          "compiler_stage_geometry": [
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20363,
+              "role": "attention_output",
+              "stage_id": "layers.0.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22440,
+              "role": "mlp_down",
+              "stage_id": "layers.0.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223380,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.0.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26280,
+              "role": "qkv_projection",
+              "stage_id": "layers.0.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20561,
+              "role": "attention_output",
+              "stage_id": "layers.1.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22487,
+              "role": "mlp_down",
+              "stage_id": "layers.1.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223408,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.1.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26440,
+              "role": "qkv_projection",
+              "stage_id": "layers.1.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20445,
+              "role": "attention_output",
+              "stage_id": "layers.2.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22454,
+              "role": "mlp_down",
+              "stage_id": "layers.2.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223282,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.2.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26336,
+              "role": "qkv_projection",
+              "stage_id": "layers.2.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20530,
+              "role": "attention_output",
+              "stage_id": "layers.3.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22437,
+              "role": "mlp_down",
+              "stage_id": "layers.3.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223341,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.3.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26366,
+              "role": "qkv_projection",
+              "stage_id": "layers.3.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20515,
+              "role": "attention_output",
+              "stage_id": "layers.4.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22283,
+              "role": "mlp_down",
+              "stage_id": "layers.4.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223116,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.4.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26400,
+              "role": "qkv_projection",
+              "stage_id": "layers.4.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20542,
+              "role": "attention_output",
+              "stage_id": "layers.5.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22363,
+              "role": "mlp_down",
+              "stage_id": "layers.5.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223422,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.5.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26397,
+              "role": "qkv_projection",
+              "stage_id": "layers.5.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20530,
+              "role": "attention_output",
+              "stage_id": "layers.6.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22333,
+              "role": "mlp_down",
+              "stage_id": "layers.6.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223122,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.6.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26383,
+              "role": "qkv_projection",
+              "stage_id": "layers.6.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20504,
+              "role": "attention_output",
+              "stage_id": "layers.7.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22224,
+              "role": "mlp_down",
+              "stage_id": "layers.7.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223184,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.7.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26348,
+              "role": "qkv_projection",
+              "stage_id": "layers.7.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20532,
+              "role": "attention_output",
+              "stage_id": "layers.8.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22320,
+              "role": "mlp_down",
+              "stage_id": "layers.8.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223072,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.8.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26373,
+              "role": "qkv_projection",
+              "stage_id": "layers.8.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20504,
+              "role": "attention_output",
+              "stage_id": "layers.9.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22243,
+              "role": "mlp_down",
+              "stage_id": "layers.9.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223250,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.9.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26334,
+              "role": "qkv_projection",
+              "stage_id": "layers.9.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20480,
+              "role": "attention_output",
+              "stage_id": "layers.10.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22246,
+              "role": "mlp_down",
+              "stage_id": "layers.10.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223109,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.10.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26401,
+              "role": "qkv_projection",
+              "stage_id": "layers.10.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20518,
+              "role": "attention_output",
+              "stage_id": "layers.11.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22249,
+              "role": "mlp_down",
+              "stage_id": "layers.11.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223083,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.11.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26297,
+              "role": "qkv_projection",
+              "stage_id": "layers.11.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20516,
+              "role": "attention_output",
+              "stage_id": "layers.12.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22308,
+              "role": "mlp_down",
+              "stage_id": "layers.12.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223054,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.12.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26419,
+              "role": "qkv_projection",
+              "stage_id": "layers.12.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20548,
+              "role": "attention_output",
+              "stage_id": "layers.13.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22246,
+              "role": "mlp_down",
+              "stage_id": "layers.13.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223074,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.13.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26373,
+              "role": "qkv_projection",
+              "stage_id": "layers.13.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20533,
+              "role": "attention_output",
+              "stage_id": "layers.14.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22168,
+              "role": "mlp_down",
+              "stage_id": "layers.14.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 222961,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.14.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26357,
+              "role": "qkv_projection",
+              "stage_id": "layers.14.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20538,
+              "role": "attention_output",
+              "stage_id": "layers.15.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22202,
+              "role": "mlp_down",
+              "stage_id": "layers.15.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 222615,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.15.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26373,
+              "role": "qkv_projection",
+              "stage_id": "layers.15.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20321,
+              "role": "attention_output",
+              "stage_id": "layers.16.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22196,
+              "role": "mlp_down",
+              "stage_id": "layers.16.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 222582,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.16.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26262,
+              "role": "qkv_projection",
+              "stage_id": "layers.16.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20550,
+              "role": "attention_output",
+              "stage_id": "layers.17.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22323,
+              "role": "mlp_down",
+              "stage_id": "layers.17.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223284,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.17.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26336,
+              "role": "qkv_projection",
+              "stage_id": "layers.17.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20559,
+              "role": "attention_output",
+              "stage_id": "layers.18.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22411,
+              "role": "mlp_down",
+              "stage_id": "layers.18.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223448,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.18.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26276,
+              "role": "qkv_projection",
+              "stage_id": "layers.18.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20550,
+              "role": "attention_output",
+              "stage_id": "layers.19.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22246,
+              "role": "mlp_down",
+              "stage_id": "layers.19.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 222956,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.19.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26375,
+              "role": "qkv_projection",
+              "stage_id": "layers.19.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20477,
+              "role": "attention_output",
+              "stage_id": "layers.20.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22278,
+              "role": "mlp_down",
+              "stage_id": "layers.20.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223044,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.20.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26215,
+              "role": "qkv_projection",
+              "stage_id": "layers.20.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20519,
+              "role": "attention_output",
+              "stage_id": "layers.21.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22433,
+              "role": "mlp_down",
+              "stage_id": "layers.21.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223430,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.21.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26101,
+              "role": "qkv_projection",
+              "stage_id": "layers.21.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20579,
+              "role": "attention_output",
+              "stage_id": "layers.22.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22451,
+              "role": "mlp_down",
+              "stage_id": "layers.22.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223274,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.22.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26153,
+              "role": "qkv_projection",
+              "stage_id": "layers.22.self_attn.qkv_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 896,
+              "output_residue_width_sum": 20505,
+              "role": "attention_output",
+              "stage_id": "layers.23.self_attn.o_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 4864,
+              "out_features": 896,
+              "output_residue_width_sum": 22419,
+              "role": "mlp_down",
+              "stage_id": "layers.23.mlp.down_proj",
+              "wire_bits": 32
+            },
+            {
+              "in_features": 896,
+              "out_features": 9728,
+              "output_residue_width_sum": 223516,
+              "role": "mlp_gate_up",
+              "stage_id": "layers.23.mlp.gate_up_proj",
+              "wire_bits": 24
+            },
+            {
+              "in_features": 896,
+              "out_features": 1152,
+              "output_residue_width_sum": 26345,
+              "role": "qkv_projection",
+              "stage_id": "layers.23.self_attn.qkv_proj",
+              "wire_bits": 24
+            }
+          ],
+          "frozen": {
+            "build": {
+              "expected_digest": "dd39f305bb3110398c70d75e7a7c3a2d1bee00572c454542dfd4028880c0aa94",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "checkpoint_tree_sha256": "fd6f3601f5a56e98e804176f59ec9770551b5f8460156e96ff2a39e8dabb7f7b",
+            "control_reader_sha256": "06c206b66f93b767f2b1638e949f6cda21e6d61ff313e605865be4d3d4d3bf3f",
+            "control_sha256": "9b54ee455e7307429d4cc1bf19c93f1c58ff3ef966c258ddebde2ec8c68c42db",
+            "dependency_records_sha256": "bbbf373684395fa7a2424a3d5fe79a9bc781cac7cbcf7f4518132037172a8638",
+            "driver_sha256": "e2dfc844fe5e8cb1d4d08a0f347947643304657910db9f6bcf6bef2edb590f87",
+            "imported_pllm_tree_sha256": "ff38b54fab73c889da81b9f4fe98874632b0a29c4441ae585e6d4cf712bb8306",
+            "msgpack_tree_sha256": "9163e1fa1fce3ee942b03decf0e29c2f10bc732b5752cc1f5f37e44f0cb7e4cd",
+            "native_sha256": "f223a8682138afde74b528df070d285480fd21b5f8ab20c6befc9e441f98418c",
+            "numpy_tree_sha256": "f5a6815bb5aff47de23c0062006694b032ca23671d03d647aa065b85973684d3",
+            "support_sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+            "tests_sha256": "28d780a08cc284e38241223121b48b403478cf008cb7135f533f0ff7e4342489"
+          },
+          "illustrative_workload_geometry_forecasts": [
+            {
+              "admitted_execution": false,
+              "cap": 512,
+              "control_packed_correction_bytes": 574728478,
+              "control_reserved_stage_rows": 63009,
+              "epoch": 4,
+              "epoch_packed_correction_bytes": 195868474,
+              "epoch_reserved_stage_rows": 21537,
+              "execution_count": 20,
+              "input_rows": 150,
+              "packed_correction_saving_bytes": 378860004,
+              "scope": "geometry forecast: packed correction residues only; excludes framing and admission",
+              "used": 80,
+              "whole_request_saving_fraction": null
+            },
+            {
+              "admitted_execution": false,
+              "cap": 512,
+              "control_packed_correction_bytes": 574728478,
+              "control_reserved_stage_rows": 63009,
+              "epoch": 16,
+              "epoch_packed_correction_bytes": 195868474,
+              "epoch_reserved_stage_rows": 21537,
+              "execution_count": 5,
+              "input_rows": 150,
+              "packed_correction_saving_bytes": 378860004,
+              "scope": "geometry forecast: packed correction residues only; excludes framing and admission",
+              "used": 80,
+              "whole_request_saving_fraction": null
+            },
+            {
+              "admitted_execution": false,
+              "cap": 512,
+              "control_packed_correction_bytes": 574728478,
+              "control_reserved_stage_rows": 63009,
+              "epoch": 32,
+              "epoch_packed_correction_bytes": 209900326,
+              "epoch_reserved_stage_rows": 23073,
+              "execution_count": 3,
+              "input_rows": 150,
+              "packed_correction_saving_bytes": 364828152,
+              "scope": "geometry forecast: packed correction residues only; excludes framing and admission",
+              "used": 80,
+              "whole_request_saving_fraction": null
+            }
+          ]
+        },
+        "memory_guard_passed": true,
+        "schema": "pllm.research.decode_epochs.v1",
+        "scope": "exact decoder + in-process one-use prepared stages; not executable SDK choice",
+        "workload": "public synthetic token IDs; controlled EOS predicate, greedy samples unchanged"
+      }
+    }
+  ],
+  "complete": true,
+  "historical_tiny_functional": {
+    "all_link_tcp_stream_bytes": null,
+    "blockers": [
+      "No public same-generation SDK yield/resume contract",
+      "No authenticated separated-provider serving measurement",
+      "Pinned real-checkpoint cohort remains parent-owned",
+      "150/512/80 is non-admitted compiler geometry only"
+    ],
+    "client_cpu_seconds": null,
+    "client_peak_rss_bytes": null,
+    "codecs": {
+      "allocation": "demand",
+      "causal_reduction": "prefix_f32",
+      "output_encoding": "row_residues",
+      "prefill_pruning": "terminal",
+      "request_encoding": "stage_packed"
+    },
+    "complete": false,
+    "functional_tests": {
+      "command": "target/frontier-sdk-env/bin/python -m pytest -o pythonpath= -q tests/test_decode_epochs_probe.py",
+      "passed": 56
+    },
+    "header_only_pinned_allocation_forecast": {
+      "allocation_slack_percent": 25,
+      "compiler_continuation_bound": 256,
+      "explicit_ceiling_bytes": 4294967296,
+      "input_tokens": 16,
+      "mutually_exclusive_temporary_phases": {
+        "bundle_import_bytes": 1095128064,
+        "execution_128_cap_bytes": 863653288,
+        "execution_32_cap_bytes": 571287976,
+        "weight_loading_bytes": 272269312
+      },
+      "output_caps_checked": [
+        32,
+        128
+      ],
+      "required_bytes_for_either_cap": 4290892520,
+      "retained_owners": {
+        "checkpoint_mapping_bytes": 988097824,
+        "launcher_import_hash_buffers_bytes": 268435456,
+        "resident_bundle_weights_metadata_bytes": 182521344,
+        "resident_engine_i8_native_bytes": 630095872,
+        "worker_import_baseline_bytes": 268435456
+      },
+      "scope": "conservative calculated allocation, not measured RSS; no checkpoint tensor values loaded",
+      "shared_reserve_swap_watchdog_unchanged": true
+    },
+    "historical_control": {
+      "classes": {
+        "control_and_seeds": 42799,
+        "corrections": 139060689,
+        "inputs": 90443518,
+        "outputs": 139123150,
+        "public_bundle": 124905091
+      },
+      "evidence_sha256": "9b54ee455e7307429d4cc1bf19c93f1c58ff3ef966c258ddebde2ec8c68c42db",
+      "pair_bytes": 493575247,
+      "scope": "historical directed application bodies only; not subtracted from this reference",
+      "source": "scripts/probe_all_link_frontier.py:conserved_control"
+    },
+    "pause_seconds": null,
+    "provider_cpu_seconds": null,
+    "provider_peak_rss_bytes": null,
+    "real_checkpoint_measurements": null,
+    "remote_body_mac_fraction_proposed": 1.0,
+    "schema": "pllm.research.decode_epochs.v1",
+    "scope": "installed exact decoder plus in-process one-use prepared stages; not SDK or whole-wire measurements",
+    "sdk_admission_control_bytes": null,
+    "status": "packed_codec_tiny_functional_reference_ready; parent_pinned_cohort_pending",
+    "tiny_functional_check": {
+      "all_six_exact_final_state_output_pending_gates_passed": true,
+      "before_after_frozen_identity_check_passed": true,
+      "cells": [
+        {
+          "active_kv_logits_logical_bytes": 4360,
+          "control_correction_bytes": 17851,
+          "control_covered_bytes": 53646,
+          "epoch": 1,
+          "epoch_burned_rows": 0,
+          "epoch_claimed_rows": 92,
+          "epoch_correction_bytes": 48270,
+          "epoch_covered_bytes": 90401,
+          "epoch_reserved_rows": 92,
+          "executions": 9,
+          "termination": "explicit",
+          "used": 9
+        },
+        {
+          "active_kv_logits_logical_bytes": 4360,
+          "control_correction_bytes": 17851,
+          "control_covered_bytes": 53646,
+          "epoch": 4,
+          "epoch_burned_rows": 0,
+          "epoch_claimed_rows": 92,
+          "epoch_correction_bytes": 25460,
+          "epoch_covered_bytes": 62839,
+          "epoch_reserved_rows": 92,
+          "executions": 3,
+          "termination": "explicit",
+          "used": 9
+        },
+        {
+          "active_kv_logits_logical_bytes": 2824,
+          "control_correction_bytes": 17851,
+          "control_covered_bytes": 33822,
+          "epoch": 1,
+          "epoch_burned_rows": 0,
+          "epoch_claimed_rows": 44,
+          "epoch_correction_bytes": 18126,
+          "epoch_covered_bytes": 35681,
+          "epoch_reserved_rows": 44,
+          "executions": 3,
+          "termination": "explicit",
+          "used": 3
+        },
+        {
+          "active_kv_logits_logical_bytes": 2824,
+          "control_correction_bytes": 17851,
+          "control_covered_bytes": 33822,
+          "epoch": 4,
+          "epoch_burned_rows": 8,
+          "epoch_claimed_rows": 44,
+          "epoch_correction_bytes": 11742,
+          "epoch_covered_bytes": 27713,
+          "epoch_reserved_rows": 52,
+          "executions": 1,
+          "termination": "explicit",
+          "used": 3
+        },
+        {
+          "active_kv_logits_logical_bytes": 3080,
+          "control_correction_bytes": 17851,
+          "control_covered_bytes": 37126,
+          "epoch": 1,
+          "epoch_burned_rows": 0,
+          "epoch_claimed_rows": 52,
+          "epoch_correction_bytes": 23150,
+          "epoch_covered_bytes": 44801,
+          "epoch_reserved_rows": 52,
+          "executions": 4,
+          "termination": "controlled_eos",
+          "used": 3
+        },
+        {
+          "active_kv_logits_logical_bytes": 3080,
+          "control_correction_bytes": 17851,
+          "control_covered_bytes": 37126,
+          "epoch": 4,
+          "epoch_burned_rows": 0,
+          "epoch_claimed_rows": 52,
+          "epoch_correction_bytes": 11742,
+          "epoch_covered_bytes": 31017,
+          "epoch_reserved_rows": 52,
+          "executions": 1,
+          "termination": "controlled_eos",
+          "used": 3
+        }
+      ],
+      "checkpoint": "generated Qwen2 test fixture, seed 179, 2 layers, hidden 32, intermediate 64, head_dim 8",
+      "early_outputs": 3,
+      "execution": "direct generated-fixture functional check; not performance cohort or launcher admission",
+      "frozen": {
+        "build_digest": "dd39f305bb3110398c70d75e7a7c3a2d1bee00572c454542dfd4028880c0aa94",
+        "checkpoint_tree_sha256": "931f3c40a56f44c7d2fbab269d04a7f54720e75af24c12b77b41152c3f305e9a",
+        "control_reader_sha256": "06c206b66f93b767f2b1638e949f6cda21e6d61ff313e605865be4d3d4d3bf3f",
+        "dependency_records_sha256": "bbbf373684395fa7a2424a3d5fe79a9bc781cac7cbcf7f4518132037172a8638",
+        "driver_sha256": "cdfa62f9434e998afe72c5671c303b461a6ce9a88ab97ee0564f78be7892a56e",
+        "imported_pllm_tree_sha256": "ff38b54fab73c889da81b9f4fe98874632b0a29c4441ae585e6d4cf712bb8306",
+        "msgpack_tree_sha256": "9163e1fa1fce3ee942b03decf0e29c2f10bc732b5752cc1f5f37e44f0cb7e4cd",
+        "native_sha256": "f223a8682138afde74b528df070d285480fd21b5f8ab20c6befc9e441f98418c",
+        "numpy_tree_sha256": "f5a6815bb5aff47de23c0062006694b032ca23671d03d647aa065b85973684d3",
+        "support_sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+        "tests_sha256": "35c1af716fcde90c73d05fc28c804204a5994977a6cf239cfa248894c209f3f0"
+      },
+      "host_guard": null,
+      "input_tokens": 5,
+      "output_cap": 9,
+      "reserved_equals_claimed_plus_burned_checked_in_each_cell": true,
+      "sampling": "greedy; controlled EOS predicate, not natural model EOS"
+    },
+    "whole_request_saving_fraction": null
+  },
+  "rejected_scope_attempt": {
+    "cap": 128,
+    "input_tokens": 64,
+    "log_sha256": "fac858546c50bd598aef4579005a4b7efe566140c1b5d2f7cfb9f85270e54a89",
+    "reason": "public probe input bound is 16 tokens",
+    "status": "unsupported_before_checkpoint_execution",
+    "used": 8
+  },
+  "schema": "pllm.research.decode_epochs.collection.v1",
+  "scope": "two fresh in-process pinned-checkpoint workers, serialized prepared-stage bodies and final-state parity; no SDK or full-wire result",
+  "storage": "Each complete report retains its original raw file hash and its canonical JSON hash using sort_keys=True and compact separators."
+}
