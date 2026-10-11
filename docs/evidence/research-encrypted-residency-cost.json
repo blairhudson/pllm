@@ -1,0 +1,1046 @@
+{
+  "schema": "pllm.encrypted_residency_probe.v1",
+  "scope": "Finite encrypted residual-state boundary; serial versus interleaved SIMD lanes.\n\nThis is a synthetic polynomial-state probe, not a trained decoder or private\ntoken feedback implementation. Only the final public head is decrypted.\nAll packed lanes belong to one client and one key context, not multiple clients.\n",
+  "schedule": {
+    "width": 8,
+    "output_rows": 2,
+    "steps": 2,
+    "lanes": 8,
+    "depth": 5,
+    "live_ciphertexts": 16
+  },
+  "samples": [
+    {
+      "serial": {
+        "mode": "serial",
+        "schedule": {
+          "width": 8,
+          "output_rows": 2,
+          "steps": 2,
+          "lanes": 8,
+          "depth": 5,
+          "live_ciphertexts": 16
+        },
+        "source_identity": {
+          "frontier_probe_support": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/frontier_probe_support.py",
+            "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+          },
+          "pllm._benchmark_contract": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+            "sha256": "0f6d092cb6ceb5a9bc3834b693729bcb277a0ce5ec3c2513279d6d52f3ae76b6"
+          },
+          "pllm.runtime.benchmark_memory": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+            "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+          },
+          "pllm.runtime.ckks_reference": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/ckks_reference.py",
+            "sha256": "eb164fd53873c8163c1ef7dbaa52632fd0d6337a349eb2703c80c29e1fd701be"
+          },
+          "pllm.runtime.seal_frames": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/seal_frames.py",
+            "sha256": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+          },
+          "pllm.runtime.shutdown": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+            "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+          },
+          "probe_encrypted_residency": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/probe_encrypted_residency.py",
+            "sha256": "a7d5fbc485b8548deb37dccfb82cd44ac2f22511b92f9788400a95b9a15d89bc"
+          }
+        },
+        "public_execution": {
+          "rotation_steps": [
+            1
+          ],
+          "ciphertext_queries": 8,
+          "client_key_contexts": 1,
+          "cross_client_multikey_batching": false
+        },
+        "native_implementation_digest": "2abc45fabca231c4a298801842b99887ac742316a9bd211a7cdacb1f5f017134",
+        "parameters": {
+          "allocation_bytes_estimate": 189255680,
+          "ciphertext_frame_bytes": 1576960,
+          "coefficient_bits": [
+            50,
+            40,
+            40,
+            40,
+            40,
+            40,
+            50
+          ],
+          "degree": 16384,
+          "depth": 5,
+          "live_ciphertexts": 16,
+          "public_key_frame_bytes": 1839104,
+          "relinearization": true,
+          "rotation_keys": 1,
+          "scale_bits": 40,
+          "switching_key_frame_bytes": 11038720
+        },
+        "setup_frames": {
+          "parameters": 512,
+          "public-key": 1839104,
+          "galois-keys": 11042816,
+          "relinearization-keys": 11042816
+        },
+        "frames": [
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          }
+        ],
+        "setup_bytes": 23925248,
+        "online_bytes": 14746896,
+        "total_delivery_bytes": 38672144,
+        "owners": {
+          "client_secret_polynomial_bytes": 917504,
+          "client_public_key_frame_bytes": 1839104,
+          "provider_public_evaluation_key_frame_bytes": 23924736,
+          "public_matrix_float64_bytes": 640,
+          "public_diagonal_float64_bytes": 1024,
+          "combined_native_allocation_estimate_bytes": 189255680,
+          "live_ciphertext_admission_count": 16,
+          "contexts": {
+            "client_secret_context": 1,
+            "provider_public_only_context": 1
+          },
+          "serialization_file_payload_io": {
+            "serialized_file_write_bytes": 61375492,
+            "serialized_file_read_bytes": 61375492
+          },
+          "physical_disk_io_bytes": null,
+          "physical_wire_bytes": null
+        },
+        "quality": {
+          "checked_output_slots": 16384,
+          "checked_zero_padding_slots": 49152,
+          "unique_output_values": 16,
+          "maximum_absolute_error": 4.4394986219165045e-07,
+          "maximum_zero_padding_error": 5.478581886825239e-08,
+          "tolerance": 0.0002,
+          "exact_integer_outputs": 0
+        },
+        "operations": {
+          "plaintext_multiplications": 192,
+          "rescales": 208,
+          "scale_normalizations": 208,
+          "rotations": 168,
+          "ciphertext_additions": 184,
+          "ciphertext_multiplications": 16,
+          "relinearizations": 16,
+          "modulus_switches": 16
+        },
+        "remaining_depth": 0,
+        "timings": {
+          "public_layout_wall_seconds": 2.3125670850276947e-05,
+          "setup_wall_seconds": 0.4321789164096117,
+          "setup_process_cpu_seconds": 0.4179689999999999,
+          "online_wall_seconds": 2.7138910414651036,
+          "online_process_cpu_seconds": 2.687888,
+          "oracle_validation_cpu_seconds": 0.018440000000000012,
+          "oracle_validation_wall_seconds": 0.01859112549573183,
+          "client_online_cpu_seconds": 0.2613499999999994,
+          "provider_online_cpu_seconds": 2.4263450000000004
+        },
+        "whole_process_peak_rss_bytes": 226459648,
+        "whole_response_metrics": {
+          "client_rss": null,
+          "client_cpu": null,
+          "preparation_cpu": null,
+          "preparation_rss": null,
+          "ttft": null,
+          "n_minus_1_decode_tps": null,
+          "all_link_traffic": null
+        }
+      },
+      "packed": {
+        "mode": "packed",
+        "schedule": {
+          "width": 8,
+          "output_rows": 2,
+          "steps": 2,
+          "lanes": 8,
+          "depth": 5,
+          "live_ciphertexts": 16
+        },
+        "source_identity": {
+          "frontier_probe_support": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/frontier_probe_support.py",
+            "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+          },
+          "pllm._benchmark_contract": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+            "sha256": "0f6d092cb6ceb5a9bc3834b693729bcb277a0ce5ec3c2513279d6d52f3ae76b6"
+          },
+          "pllm.runtime.benchmark_memory": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+            "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+          },
+          "pllm.runtime.ckks_reference": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/ckks_reference.py",
+            "sha256": "eb164fd53873c8163c1ef7dbaa52632fd0d6337a349eb2703c80c29e1fd701be"
+          },
+          "pllm.runtime.seal_frames": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/seal_frames.py",
+            "sha256": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+          },
+          "pllm.runtime.shutdown": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+            "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+          },
+          "probe_encrypted_residency": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/probe_encrypted_residency.py",
+            "sha256": "a7d5fbc485b8548deb37dccfb82cd44ac2f22511b92f9788400a95b9a15d89bc"
+          }
+        },
+        "public_execution": {
+          "rotation_steps": [
+            8
+          ],
+          "ciphertext_queries": 1,
+          "client_key_contexts": 1,
+          "cross_client_multikey_batching": false
+        },
+        "native_implementation_digest": "2abc45fabca231c4a298801842b99887ac742316a9bd211a7cdacb1f5f017134",
+        "parameters": {
+          "allocation_bytes_estimate": 189255680,
+          "ciphertext_frame_bytes": 1576960,
+          "coefficient_bits": [
+            50,
+            40,
+            40,
+            40,
+            40,
+            40,
+            50
+          ],
+          "degree": 16384,
+          "depth": 5,
+          "live_ciphertexts": 16,
+          "public_key_frame_bytes": 1839104,
+          "relinearization": true,
+          "rotation_keys": 1,
+          "scale_bits": 40,
+          "switching_key_frame_bytes": 11038720
+        },
+        "setup_frames": {
+          "parameters": 512,
+          "public-key": 1839104,
+          "galois-keys": 11042816,
+          "relinearization-keys": 11042816
+        },
+        "frames": [
+          {
+            "request": 1577041,
+            "reply": 266321
+          }
+        ],
+        "setup_bytes": 23925248,
+        "online_bytes": 1843362,
+        "total_delivery_bytes": 25768610,
+        "owners": {
+          "client_secret_polynomial_bytes": 917504,
+          "client_public_key_frame_bytes": 1839104,
+          "provider_public_evaluation_key_frame_bytes": 23924736,
+          "public_matrix_float64_bytes": 640,
+          "public_diagonal_float64_bytes": 1024,
+          "combined_native_allocation_estimate_bytes": 189255680,
+          "live_ciphertext_admission_count": 16,
+          "contexts": {
+            "client_secret_context": 1,
+            "provider_public_only_context": 1
+          },
+          "serialization_file_payload_io": {
+            "serialized_file_write_bytes": 40929136,
+            "serialized_file_read_bytes": 40929136
+          },
+          "physical_disk_io_bytes": null,
+          "physical_wire_bytes": null
+        },
+        "quality": {
+          "checked_output_slots": 2048,
+          "checked_zero_padding_slots": 6144,
+          "unique_output_values": 16,
+          "maximum_absolute_error": 4.2361857605088815e-07,
+          "maximum_zero_padding_error": 5.643216884297742e-08,
+          "tolerance": 0.0002,
+          "exact_integer_outputs": 0
+        },
+        "operations": {
+          "plaintext_multiplications": 24,
+          "rescales": 26,
+          "scale_normalizations": 26,
+          "rotations": 21,
+          "ciphertext_additions": 23,
+          "ciphertext_multiplications": 2,
+          "relinearizations": 2,
+          "modulus_switches": 2
+        },
+        "remaining_depth": 0,
+        "timings": {
+          "public_layout_wall_seconds": 2.691708505153656e-05,
+          "setup_wall_seconds": 0.4790581660345197,
+          "setup_process_cpu_seconds": 0.478383,
+          "online_wall_seconds": 0.362081790342927,
+          "online_process_cpu_seconds": 0.3552209999999999,
+          "oracle_validation_cpu_seconds": 0.0018450000000000966,
+          "oracle_validation_wall_seconds": 0.0019169170409440994,
+          "client_online_cpu_seconds": 0.026949,
+          "provider_online_cpu_seconds": 0.32823
+        },
+        "whole_process_peak_rss_bytes": 217792512,
+        "whole_response_metrics": {
+          "client_rss": null,
+          "client_cpu": null,
+          "preparation_cpu": null,
+          "preparation_rss": null,
+          "ttft": null,
+          "n_minus_1_decode_tps": null,
+          "all_link_traffic": null
+        }
+      },
+      "ratios_control_over_candidate": {
+        "online_frame_bytes": 8.0,
+        "setup_plus_online_frame_bytes": 1.500746217976057,
+        "client_online_cpu": 9.69794797580613
+      }
+    },
+    {
+      "packed": {
+        "mode": "packed",
+        "schedule": {
+          "width": 8,
+          "output_rows": 2,
+          "steps": 2,
+          "lanes": 8,
+          "depth": 5,
+          "live_ciphertexts": 16
+        },
+        "source_identity": {
+          "frontier_probe_support": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/frontier_probe_support.py",
+            "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+          },
+          "pllm._benchmark_contract": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+            "sha256": "0f6d092cb6ceb5a9bc3834b693729bcb277a0ce5ec3c2513279d6d52f3ae76b6"
+          },
+          "pllm.runtime.benchmark_memory": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+            "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+          },
+          "pllm.runtime.ckks_reference": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/ckks_reference.py",
+            "sha256": "eb164fd53873c8163c1ef7dbaa52632fd0d6337a349eb2703c80c29e1fd701be"
+          },
+          "pllm.runtime.seal_frames": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/seal_frames.py",
+            "sha256": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+          },
+          "pllm.runtime.shutdown": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+            "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+          },
+          "probe_encrypted_residency": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/probe_encrypted_residency.py",
+            "sha256": "a7d5fbc485b8548deb37dccfb82cd44ac2f22511b92f9788400a95b9a15d89bc"
+          }
+        },
+        "public_execution": {
+          "rotation_steps": [
+            8
+          ],
+          "ciphertext_queries": 1,
+          "client_key_contexts": 1,
+          "cross_client_multikey_batching": false
+        },
+        "native_implementation_digest": "2abc45fabca231c4a298801842b99887ac742316a9bd211a7cdacb1f5f017134",
+        "parameters": {
+          "allocation_bytes_estimate": 189255680,
+          "ciphertext_frame_bytes": 1576960,
+          "coefficient_bits": [
+            50,
+            40,
+            40,
+            40,
+            40,
+            40,
+            50
+          ],
+          "degree": 16384,
+          "depth": 5,
+          "live_ciphertexts": 16,
+          "public_key_frame_bytes": 1839104,
+          "relinearization": true,
+          "rotation_keys": 1,
+          "scale_bits": 40,
+          "switching_key_frame_bytes": 11038720
+        },
+        "setup_frames": {
+          "parameters": 512,
+          "public-key": 1839104,
+          "galois-keys": 11042816,
+          "relinearization-keys": 11042816
+        },
+        "frames": [
+          {
+            "request": 1577041,
+            "reply": 266321
+          }
+        ],
+        "setup_bytes": 23925248,
+        "online_bytes": 1843362,
+        "total_delivery_bytes": 25768610,
+        "owners": {
+          "client_secret_polynomial_bytes": 917504,
+          "client_public_key_frame_bytes": 1839104,
+          "provider_public_evaluation_key_frame_bytes": 23924736,
+          "public_matrix_float64_bytes": 640,
+          "public_diagonal_float64_bytes": 1024,
+          "combined_native_allocation_estimate_bytes": 189255680,
+          "live_ciphertext_admission_count": 16,
+          "contexts": {
+            "client_secret_context": 1,
+            "provider_public_only_context": 1
+          },
+          "serialization_file_payload_io": {
+            "serialized_file_write_bytes": 40928022,
+            "serialized_file_read_bytes": 40928022
+          },
+          "physical_disk_io_bytes": null,
+          "physical_wire_bytes": null
+        },
+        "quality": {
+          "checked_output_slots": 2048,
+          "checked_zero_padding_slots": 6144,
+          "unique_output_values": 16,
+          "maximum_absolute_error": 4.2833391271368537e-07,
+          "maximum_zero_padding_error": 4.567623614312788e-08,
+          "tolerance": 0.0002,
+          "exact_integer_outputs": 0
+        },
+        "operations": {
+          "plaintext_multiplications": 24,
+          "rescales": 26,
+          "scale_normalizations": 26,
+          "rotations": 21,
+          "ciphertext_additions": 23,
+          "ciphertext_multiplications": 2,
+          "relinearizations": 2,
+          "modulus_switches": 2
+        },
+        "remaining_depth": 0,
+        "timings": {
+          "public_layout_wall_seconds": 2.400018274784088e-05,
+          "setup_wall_seconds": 0.46818191558122635,
+          "setup_process_cpu_seconds": 0.45912900000000006,
+          "online_wall_seconds": 0.36707779113203287,
+          "online_process_cpu_seconds": 0.35910999999999993,
+          "oracle_validation_cpu_seconds": 0.0012030000000000651,
+          "oracle_validation_wall_seconds": 0.0012025004252791405,
+          "client_online_cpu_seconds": 0.026197000000000026,
+          "provider_online_cpu_seconds": 0.33288699999999993
+        },
+        "whole_process_peak_rss_bytes": 218152960,
+        "whole_response_metrics": {
+          "client_rss": null,
+          "client_cpu": null,
+          "preparation_cpu": null,
+          "preparation_rss": null,
+          "ttft": null,
+          "n_minus_1_decode_tps": null,
+          "all_link_traffic": null
+        }
+      },
+      "serial": {
+        "mode": "serial",
+        "schedule": {
+          "width": 8,
+          "output_rows": 2,
+          "steps": 2,
+          "lanes": 8,
+          "depth": 5,
+          "live_ciphertexts": 16
+        },
+        "source_identity": {
+          "frontier_probe_support": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/frontier_probe_support.py",
+            "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+          },
+          "pllm._benchmark_contract": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+            "sha256": "0f6d092cb6ceb5a9bc3834b693729bcb277a0ce5ec3c2513279d6d52f3ae76b6"
+          },
+          "pllm.runtime.benchmark_memory": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+            "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+          },
+          "pllm.runtime.ckks_reference": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/ckks_reference.py",
+            "sha256": "eb164fd53873c8163c1ef7dbaa52632fd0d6337a349eb2703c80c29e1fd701be"
+          },
+          "pllm.runtime.seal_frames": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/seal_frames.py",
+            "sha256": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+          },
+          "pllm.runtime.shutdown": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+            "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+          },
+          "probe_encrypted_residency": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/probe_encrypted_residency.py",
+            "sha256": "a7d5fbc485b8548deb37dccfb82cd44ac2f22511b92f9788400a95b9a15d89bc"
+          }
+        },
+        "public_execution": {
+          "rotation_steps": [
+            1
+          ],
+          "ciphertext_queries": 8,
+          "client_key_contexts": 1,
+          "cross_client_multikey_batching": false
+        },
+        "native_implementation_digest": "2abc45fabca231c4a298801842b99887ac742316a9bd211a7cdacb1f5f017134",
+        "parameters": {
+          "allocation_bytes_estimate": 189255680,
+          "ciphertext_frame_bytes": 1576960,
+          "coefficient_bits": [
+            50,
+            40,
+            40,
+            40,
+            40,
+            40,
+            50
+          ],
+          "degree": 16384,
+          "depth": 5,
+          "live_ciphertexts": 16,
+          "public_key_frame_bytes": 1839104,
+          "relinearization": true,
+          "rotation_keys": 1,
+          "scale_bits": 40,
+          "switching_key_frame_bytes": 11038720
+        },
+        "setup_frames": {
+          "parameters": 512,
+          "public-key": 1839104,
+          "galois-keys": 11042816,
+          "relinearization-keys": 11042816
+        },
+        "frames": [
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          }
+        ],
+        "setup_bytes": 23925248,
+        "online_bytes": 14746896,
+        "total_delivery_bytes": 38672144,
+        "owners": {
+          "client_secret_polynomial_bytes": 917504,
+          "client_public_key_frame_bytes": 1839104,
+          "provider_public_evaluation_key_frame_bytes": 23924736,
+          "public_matrix_float64_bytes": 640,
+          "public_diagonal_float64_bytes": 1024,
+          "combined_native_allocation_estimate_bytes": 189255680,
+          "live_ciphertext_admission_count": 16,
+          "contexts": {
+            "client_secret_context": 1,
+            "provider_public_only_context": 1
+          },
+          "serialization_file_payload_io": {
+            "serialized_file_write_bytes": 61376076,
+            "serialized_file_read_bytes": 61376076
+          },
+          "physical_disk_io_bytes": null,
+          "physical_wire_bytes": null
+        },
+        "quality": {
+          "checked_output_slots": 16384,
+          "checked_zero_padding_slots": 49152,
+          "unique_output_values": 16,
+          "maximum_absolute_error": 4.4191540024551834e-07,
+          "maximum_zero_padding_error": 5.043330314528793e-08,
+          "tolerance": 0.0002,
+          "exact_integer_outputs": 0
+        },
+        "operations": {
+          "plaintext_multiplications": 192,
+          "rescales": 208,
+          "scale_normalizations": 208,
+          "rotations": 168,
+          "ciphertext_additions": 184,
+          "ciphertext_multiplications": 16,
+          "relinearizations": 16,
+          "modulus_switches": 16
+        },
+        "remaining_depth": 0,
+        "timings": {
+          "public_layout_wall_seconds": 2.1958723664283752e-05,
+          "setup_wall_seconds": 0.5318522499874234,
+          "setup_process_cpu_seconds": 0.522635,
+          "online_wall_seconds": 3.6206473344936967,
+          "online_process_cpu_seconds": 3.223355,
+          "oracle_validation_cpu_seconds": 0.019489999999999785,
+          "oracle_validation_wall_seconds": 0.03186062444001436,
+          "client_online_cpu_seconds": 0.3087339999999994,
+          "provider_online_cpu_seconds": 2.914383000000001
+        },
+        "whole_process_peak_rss_bytes": 234176512,
+        "whole_response_metrics": {
+          "client_rss": null,
+          "client_cpu": null,
+          "preparation_cpu": null,
+          "preparation_rss": null,
+          "ttft": null,
+          "n_minus_1_decode_tps": null,
+          "all_link_traffic": null
+        }
+      },
+      "ratios_control_over_candidate": {
+        "online_frame_bytes": 8.0,
+        "setup_plus_online_frame_bytes": 1.500746217976057,
+        "client_online_cpu": 11.78508989578956
+      }
+    },
+    {
+      "serial": {
+        "mode": "serial",
+        "schedule": {
+          "width": 8,
+          "output_rows": 2,
+          "steps": 2,
+          "lanes": 8,
+          "depth": 5,
+          "live_ciphertexts": 16
+        },
+        "source_identity": {
+          "frontier_probe_support": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/frontier_probe_support.py",
+            "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+          },
+          "pllm._benchmark_contract": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+            "sha256": "0f6d092cb6ceb5a9bc3834b693729bcb277a0ce5ec3c2513279d6d52f3ae76b6"
+          },
+          "pllm.runtime.benchmark_memory": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+            "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+          },
+          "pllm.runtime.ckks_reference": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/ckks_reference.py",
+            "sha256": "eb164fd53873c8163c1ef7dbaa52632fd0d6337a349eb2703c80c29e1fd701be"
+          },
+          "pllm.runtime.seal_frames": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/seal_frames.py",
+            "sha256": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+          },
+          "pllm.runtime.shutdown": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+            "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+          },
+          "probe_encrypted_residency": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/probe_encrypted_residency.py",
+            "sha256": "a7d5fbc485b8548deb37dccfb82cd44ac2f22511b92f9788400a95b9a15d89bc"
+          }
+        },
+        "public_execution": {
+          "rotation_steps": [
+            1
+          ],
+          "ciphertext_queries": 8,
+          "client_key_contexts": 1,
+          "cross_client_multikey_batching": false
+        },
+        "native_implementation_digest": "2abc45fabca231c4a298801842b99887ac742316a9bd211a7cdacb1f5f017134",
+        "parameters": {
+          "allocation_bytes_estimate": 189255680,
+          "ciphertext_frame_bytes": 1576960,
+          "coefficient_bits": [
+            50,
+            40,
+            40,
+            40,
+            40,
+            40,
+            50
+          ],
+          "degree": 16384,
+          "depth": 5,
+          "live_ciphertexts": 16,
+          "public_key_frame_bytes": 1839104,
+          "relinearization": true,
+          "rotation_keys": 1,
+          "scale_bits": 40,
+          "switching_key_frame_bytes": 11038720
+        },
+        "setup_frames": {
+          "parameters": 512,
+          "public-key": 1839104,
+          "galois-keys": 11042816,
+          "relinearization-keys": 11042816
+        },
+        "frames": [
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          },
+          {
+            "request": 1577041,
+            "reply": 266321
+          }
+        ],
+        "setup_bytes": 23925248,
+        "online_bytes": 14746896,
+        "total_delivery_bytes": 38672144,
+        "owners": {
+          "client_secret_polynomial_bytes": 917504,
+          "client_public_key_frame_bytes": 1839104,
+          "provider_public_evaluation_key_frame_bytes": 23924736,
+          "public_matrix_float64_bytes": 640,
+          "public_diagonal_float64_bytes": 1024,
+          "combined_native_allocation_estimate_bytes": 189255680,
+          "live_ciphertext_admission_count": 16,
+          "contexts": {
+            "client_secret_context": 1,
+            "provider_public_only_context": 1
+          },
+          "serialization_file_payload_io": {
+            "serialized_file_write_bytes": 61376098,
+            "serialized_file_read_bytes": 61376098
+          },
+          "physical_disk_io_bytes": null,
+          "physical_wire_bytes": null
+        },
+        "quality": {
+          "checked_output_slots": 16384,
+          "checked_zero_padding_slots": 49152,
+          "unique_output_values": 16,
+          "maximum_absolute_error": 4.494776259938993e-07,
+          "maximum_zero_padding_error": 5.291475421846524e-08,
+          "tolerance": 0.0002,
+          "exact_integer_outputs": 0
+        },
+        "operations": {
+          "plaintext_multiplications": 192,
+          "rescales": 208,
+          "scale_normalizations": 208,
+          "rotations": 168,
+          "ciphertext_additions": 184,
+          "ciphertext_multiplications": 16,
+          "relinearizations": 16,
+          "modulus_switches": 16
+        },
+        "remaining_depth": 0,
+        "timings": {
+          "public_layout_wall_seconds": 2.7417205274105072e-05,
+          "setup_wall_seconds": 0.5223716255277395,
+          "setup_process_cpu_seconds": 0.52092,
+          "online_wall_seconds": 2.8031013747677207,
+          "online_process_cpu_seconds": 2.7267219999999996,
+          "oracle_validation_cpu_seconds": 0.017182000000000364,
+          "oracle_validation_wall_seconds": 0.017532290890812874,
+          "client_online_cpu_seconds": 0.25816799999999984,
+          "provider_online_cpu_seconds": 2.4683669999999998
+        },
+        "whole_process_peak_rss_bytes": 235520000,
+        "whole_response_metrics": {
+          "client_rss": null,
+          "client_cpu": null,
+          "preparation_cpu": null,
+          "preparation_rss": null,
+          "ttft": null,
+          "n_minus_1_decode_tps": null,
+          "all_link_traffic": null
+        }
+      },
+      "packed": {
+        "mode": "packed",
+        "schedule": {
+          "width": 8,
+          "output_rows": 2,
+          "steps": 2,
+          "lanes": 8,
+          "depth": 5,
+          "live_ciphertexts": 16
+        },
+        "source_identity": {
+          "frontier_probe_support": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/frontier_probe_support.py",
+            "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+          },
+          "pllm._benchmark_contract": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+            "sha256": "0f6d092cb6ceb5a9bc3834b693729bcb277a0ce5ec3c2513279d6d52f3ae76b6"
+          },
+          "pllm.runtime.benchmark_memory": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+            "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+          },
+          "pllm.runtime.ckks_reference": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/ckks_reference.py",
+            "sha256": "eb164fd53873c8163c1ef7dbaa52632fd0d6337a349eb2703c80c29e1fd701be"
+          },
+          "pllm.runtime.seal_frames": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/seal_frames.py",
+            "sha256": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+          },
+          "pllm.runtime.shutdown": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+            "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+          },
+          "probe_encrypted_residency": {
+            "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/probe_encrypted_residency.py",
+            "sha256": "a7d5fbc485b8548deb37dccfb82cd44ac2f22511b92f9788400a95b9a15d89bc"
+          }
+        },
+        "public_execution": {
+          "rotation_steps": [
+            8
+          ],
+          "ciphertext_queries": 1,
+          "client_key_contexts": 1,
+          "cross_client_multikey_batching": false
+        },
+        "native_implementation_digest": "2abc45fabca231c4a298801842b99887ac742316a9bd211a7cdacb1f5f017134",
+        "parameters": {
+          "allocation_bytes_estimate": 189255680,
+          "ciphertext_frame_bytes": 1576960,
+          "coefficient_bits": [
+            50,
+            40,
+            40,
+            40,
+            40,
+            40,
+            50
+          ],
+          "degree": 16384,
+          "depth": 5,
+          "live_ciphertexts": 16,
+          "public_key_frame_bytes": 1839104,
+          "relinearization": true,
+          "rotation_keys": 1,
+          "scale_bits": 40,
+          "switching_key_frame_bytes": 11038720
+        },
+        "setup_frames": {
+          "parameters": 512,
+          "public-key": 1839104,
+          "galois-keys": 11042816,
+          "relinearization-keys": 11042816
+        },
+        "frames": [
+          {
+            "request": 1577041,
+            "reply": 266321
+          }
+        ],
+        "setup_bytes": 23925248,
+        "online_bytes": 1843362,
+        "total_delivery_bytes": 25768610,
+        "owners": {
+          "client_secret_polynomial_bytes": 917504,
+          "client_public_key_frame_bytes": 1839104,
+          "provider_public_evaluation_key_frame_bytes": 23924736,
+          "public_matrix_float64_bytes": 640,
+          "public_diagonal_float64_bytes": 1024,
+          "combined_native_allocation_estimate_bytes": 189255680,
+          "live_ciphertext_admission_count": 16,
+          "contexts": {
+            "client_secret_context": 1,
+            "provider_public_only_context": 1
+          },
+          "serialization_file_payload_io": {
+            "serialized_file_write_bytes": 40934314,
+            "serialized_file_read_bytes": 40934314
+          },
+          "physical_disk_io_bytes": null,
+          "physical_wire_bytes": null
+        },
+        "quality": {
+          "checked_output_slots": 2048,
+          "checked_zero_padding_slots": 6144,
+          "unique_output_values": 16,
+          "maximum_absolute_error": 4.303368775632199e-07,
+          "maximum_zero_padding_error": 3.7148020088128434e-08,
+          "tolerance": 0.0002,
+          "exact_integer_outputs": 0
+        },
+        "operations": {
+          "plaintext_multiplications": 24,
+          "rescales": 26,
+          "scale_normalizations": 26,
+          "rotations": 21,
+          "ciphertext_additions": 23,
+          "ciphertext_multiplications": 2,
+          "relinearizations": 2,
+          "modulus_switches": 2
+        },
+        "remaining_depth": 0,
+        "timings": {
+          "public_layout_wall_seconds": 2.824980765581131e-05,
+          "setup_wall_seconds": 0.5810316242277622,
+          "setup_process_cpu_seconds": 0.572274,
+          "online_wall_seconds": 0.4748943326994777,
+          "online_process_cpu_seconds": 0.4367599999999998,
+          "oracle_validation_cpu_seconds": 0.0017120000000001578,
+          "oracle_validation_wall_seconds": 0.0017120828852057457,
+          "client_online_cpu_seconds": 0.0439449999999999,
+          "provider_online_cpu_seconds": 0.39278000000000013
+        },
+        "whole_process_peak_rss_bytes": 225067008,
+        "whole_response_metrics": {
+          "client_rss": null,
+          "client_cpu": null,
+          "preparation_cpu": null,
+          "preparation_rss": null,
+          "ttft": null,
+          "n_minus_1_decode_tps": null,
+          "all_link_traffic": null
+        }
+      },
+      "ratios_control_over_candidate": {
+        "online_frame_bytes": 8.0,
+        "setup_plus_online_frame_bytes": 1.500746217976057,
+        "client_online_cpu": 5.874798043008315
+      }
+    }
+  ],
+  "host": {
+    "total": 34359738368,
+    "available": 10614702080,
+    "swap_used": 924319744,
+    "disk_free": 44149637120
+  },
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/bin/python",
+    "expected_digest": "d4c5bc12436c5354c1974b2731c5ccd45ef6e68f35c22023c5dd057e78b0a04e"
+  },
+  "source_identity_frozen_before_workers": {
+    "frontier_probe_support": {
+      "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/frontier_probe_support.py",
+      "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+    },
+    "pllm._benchmark_contract": {
+      "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+      "sha256": "0f6d092cb6ceb5a9bc3834b693729bcb277a0ce5ec3c2513279d6d52f3ae76b6"
+    },
+    "pllm.runtime.benchmark_memory": {
+      "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+      "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+    },
+    "pllm.runtime.ckks_reference": {
+      "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/ckks_reference.py",
+      "sha256": "eb164fd53873c8163c1ef7dbaa52632fd0d6337a349eb2703c80c29e1fd701be"
+    },
+    "pllm.runtime.seal_frames": {
+      "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/seal_frames.py",
+      "sha256": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781"
+    },
+    "pllm.runtime.shutdown": {
+      "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+      "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+    },
+    "probe_encrypted_residency": {
+      "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-encrypted-decoder/scripts/probe_encrypted_residency.py",
+      "sha256": "a7d5fbc485b8548deb37dccfb82cd44ac2f22511b92f9788400a95b9a15d89bc"
+    }
+  },
+  "source_identity_verified_unchanged_after_workers": true,
+  "maximum_swap_growth_bytes": 0,
+  "limitations": [
+    "synthetic finite polynomial recurrence, not checkpoint decoder execution",
+    "no token selection, feedback, encrypted KV, bootstrapping or malicious-result proof",
+    "head zeros hide other logical coordinates only within observed CKKS tolerance; no circuit privacy",
+    "same key reused across independent randomized inputs, no one-use garbling material",
+    "all packed lanes belong to one client/key context; cross-client multi-key batching not established",
+    "local serialization file payload bytes charged; physical disk and transport traffic unknown",
+    "process RSS includes both roles; per-party RSS and whole-response serving metrics unknown"
+  ]
+}
