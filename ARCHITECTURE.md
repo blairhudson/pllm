@@ -172,6 +172,16 @@ Eighteen fresh 150-row endpoint pairs preserve 26,265,600 corrections and identi
 push/ack bodies. Eight credits reduce digit8 elapsed time 7.46% with nearly equal
 CPU and higher endpoint memory; integer credits regress. This remains a local
 transport fixture with full masks, rather than a live inventory or serving gain.
+The separate multi-inventory Preparation factory streams independently bound fresh
+mask rows against shared immutable CPU/Metal weights. Across 264 fresh synthetic
+workers, 200,851,456 corrections match independent integer oracles with zero
+observed swap growth. At 150-row down projections, Metal batching lowers service
+time 5.77% and process service CPU 13.32%, while raising RSS and modeled individual
+completion time. Kernel time does not improve; mask/copy and encoding account for
+the gain. Small jobs prefer CPU, and adaptive threshold batching regresses against
+its separate CPU control. Arrival waits are modeled; checkpoint import, live peer
+delivery and whole-response gains remain unmeasured. Replay:
+`docs/research/preparation-factory-reference.md`.
 The separate bounded decoder-restart target now seals actual compiled full-KV,
 logits, executed history and a pending greedy token, then restores in a fresh
 interpreter. Generated Qwen2/Qwen3/Llama checks preserve exact continuation logits
@@ -200,6 +210,16 @@ zero observed swap growth. The live KV slab falls 24×, but process peak RSS
 rises 0.77%/0.20% and execution CPU 11.52%/3.90%. Checkpoint loading, authenticated
 I/O and original publication remain charged; this is exact bounded recovery,
 not a whole-client memory improvement or persistent SDK conversation.
+The internal exact-context graph adds authenticated manifest deltas with one full
+anchor every sixteen revisions to the same immutable shared-page store. Caller-held
+trusted heads, pending-token provenance and single-writer publication preserve
+independent sequential branches. Sixty-six fresh pinned Qwen processes preserve
+complete branch/restart logits and final KV against resident continuation, with
+zero observed swap growth. At 128/512 prefix rows, complete store bytes fall
+8.06%/9.40% versus shared-page full manifests, but restart reads increase and
+branch CPU/RSS do not improve. Full-ledger serialization, source loading, complete
+attention and old revisions remain charged. This bounded internal owner does not
+select persistent SDK conversations. Replay: `docs/research/context-graph-reference.md`.
 Preparation also subtracts output masks directly in uint32 before exact ring
 narrowing, and prepared WebSockets decline deflate for arithmetic frames. A
 separate matched Qwen2.5 150+8 cold/repeat pair improves decode TPS 19.41%/23.60%
@@ -908,6 +928,16 @@ local prepared-role children, with masked traffic and no plaintext prompt or
 token-ID bytes sent. This narrow cohort does not establish representative
 quality, independent operators or matched provider costs. The text rotary
 contract still rejects multimodal position axes and prompt image/video tokens.
+A separate source-locked local-clear recurrent ownership probe retains gated-delta
+state and fixed scratch instead of exporting a fresh state copy per token. Eighteen
+fresh synthetic workers execute 8,064 transitions, with nine exact-bit output/state
+commitment pairs against the existing reference; 44 separate pinned Torch-oracle
+rows pass their tolerance gates. At 1,024 steps, median loop CPU falls 18.20% and
+process peak RSS 14.97%, with unchanged 2 MiB recurrent state and 4.06 MiB candidate
+state/workspace ownership. Pure RWKV/Falcon configuration estimates remain separate
+from this Qwen-shaped operator. Qwen3.5 retains full-attention KV growth; full
+checkpoint integration, long-context quality, protected state ownership and
+whole-response benefits remain open. Replay: `docs/research/constant-state-reference.md`.
 The pinned
 Qwen3-0.6B checkpoint passes a local clear-kernel compiled prefill-to-decode
 functionality check, but W4A4 and one tested short-prompt W8A8 case
@@ -1156,6 +1186,16 @@ counterexamples prevent treating this as ring32 elementwise triples or FSS-key
 compression. Distributed setup, reviewed transport, measured peak memory and a
 compiler-bound decoder consumer remain absent. Details:
 `docs/research/secret-replication-reference.md`.
+
+The separate Preparation-owned subset correlation compiler builds public signed-i8
+subset tables and expands fresh full-ring masks without disclosing seeds to
+Inference. Forty-five fresh synthetic processes preserve 114,624 independent
+oracle outputs against native SIMD and digit8 controls. Four-bit subset issuance
+is 151.80–353.22 times slower than native SIMD at full stage shapes and raises
+setup/RSS; complete body tables project 2.86 GB. Wider tables retain explicit
+admission gates. This Python/NumPy prototype fails its amortization gate and
+establishes neither a compact private correlation generator nor production
+one-use ownership. Replay: `docs/research/correlation-compiler-reference.md`.
 
 The separate `pllm.metrics.ProjectedPolynomialCostProbe` combines mask-derived
 linear coefficients, offline projection of constant coefficients and seeded
@@ -2233,6 +2273,17 @@ remain absent. A separate fresh twelve-prompt pinned W8A8 Qwen audit rejects all
 decoder executes without an encrypted candidate, clipping or private range fitting.
 This narrow-domain operator establishes no checkpoint quality or paper-system
 reproduction. Details: `docs/research/encrypted-softmax-reference.md`.
+
+A separate finite encrypted-residency probe carries state through two synthetic
+residual transitions and an output head under one client/key context. Six fresh
+workers check 221,184 decoded and padding slots, with worst output error below
+4.50e-7 and zero observed swap growth. Eight-lane SIMD batching cuts online frames
+eightfold, but equal 23.93 MB setup narrows setup-inclusive delivery savings to
+1.50-fold. Median paired client-online CPU falls 9.70-fold; setup-inclusive process
+CPU falls 3.73-fold, with the client share of setup unmeasured. Batch-fill delay,
+cross-client keys, checkpoint fidelity, encrypted KV, private token feedback and
+bootstrap remain outside this bounded throughput experiment. It activates no
+decoder or SDK component. Replay: `docs/research/encrypted-residency-reference.md`.
 
 ## Application boundary
 

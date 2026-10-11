@@ -23,11 +23,11 @@ def test_generated_decoder_shared_branches_logits_and_every_kv_word(fixture, tmp
             serial, _ = runtime_for(compiled, engine)
             serial.prepare_ids([1, 4, 6])
             branch_head = head
-            for index in range(18):
+            token = first_token
+            for _ in range(18):
                 _, remote = runtime_for(compiled, engine)
                 candidate = factory(compiled, remote, root, b"k" * 32,
                                     head=branch_head, page_rows=2)
-                token = first_token if index == 0 else int(np.argmax(expected))
                 expected = serial.forward_ids([token])[-1]
                 actual = candidate.forward_ids([token])[-1]
                 np.testing.assert_array_equal(actual.view(np.uint32), expected.view(np.uint32))
@@ -46,4 +46,5 @@ def test_generated_decoder_shared_branches_logits_and_every_kv_word(fixture, tmp
                             getattr(serial.caches[layer], kind)[:serial.position].view(np.uint32))
                     state._retire(candidate)
                 candidate.reset()
+                token = int(np.argmax(expected))
             serial.reset()
