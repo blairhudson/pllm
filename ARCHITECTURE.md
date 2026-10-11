@@ -1037,6 +1037,22 @@ overlap, text and the separately bounded prefix cache remain additional owners.
 Generated Qwen2/Qwen3 checks preserve every compared logit and KV bit against
 explicit response continuation. This is bounded ownership, not measured whole-client
 RSS or a new numeric/cryptographic protocol. Example: `examples/conversation.py`.
+The explicit `checkpoint`/`restore` methods additionally seal ordinary full-KV
+`prefix_f32` conversations into authenticated client-local pages and bounded
+encrypted history metadata. Caller-held keys and `ConversationCheckpoint` heads
+bind executed history, pending selection, logits and KV. Fresh-interpreter import
+validates all pages before minting a new response owner; subsequent turns issue
+fresh provider material. Generated Qwen2/Qwen3/Llama state parity, publication
+failure and async cancellation controls pass. File retirement and trusted-head
+freshness remain caller responsibilities. Contract and matched measurement driver:
+`docs/research/conversation-restore-reference.md`.
+A separate nine-cell pinned Qwen2.5 three-turn cohort preserves complete logits,
+active KV, history and outputs across 21 fresh client interpreters with zero
+observed swap growth. Encrypted restoration lowers all-link TCP streams from
+684.31 to 373.95 MB (45.35%) versus restart-and-replay and complete cell time
+19.90%, while client CPU rises 56.17%. Two local checkpoints together write
+4.684 MB and read 4.684 MB. Live RAM continuation still uses 373.07 MB and less
+CPU/time; persistence has no traffic advantage when that owner survives.
 Continuation admission now validates its public source/composition/schedule once
 into an immutable native handle retaining only three resource limits. Per-query
 overflow, geometry and workspace checks remain unchanged; deserialization

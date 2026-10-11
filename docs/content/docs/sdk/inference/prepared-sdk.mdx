@@ -23,6 +23,7 @@ selects SDK, gateway and benchmark execution.
 | One tokenizer owner across sizing and execution | `with client.tokenizer_scope():` |
 | Exact completed-prefix reuse | `ClientPrefixReuse(...)`; `prefix_f32` admits the matching canonical continuation contract |
 | One retained response/KV owner across conversation turns | `with client.conversation(max_state_bytes=32 << 20) as chat:` |
+| Explicit encrypted conversation recovery | `chat.checkpoint(directory, key)` and `chat.restore(directory, key, head)` |
 | Trusted, explicitly public prefix artifacts | `PublicPrefixCapsule.publish(...)`; see [artifact construction](/sdk/evaluate/incremental-sdk/) |
 
 The calibrated native WAN relay belongs to the benchmark's `--backend native
@@ -135,6 +136,60 @@ Run the generated-checkpoint example:
 
 ```sh
 python examples/conversation.py --root .pllm/conversation-example
+```
+
+### Save and restore a completed turn
+
+Select `SymmetricPerRow(causal_reduction="prefix_f32")` and bounded
+`ClientPrefixReuse` for an ordinary full-KV conversation. A completed turn can
+be sealed into a new client-local directory:
+
+```python
+import os
+from pathlib import Path
+from pllm.state import ConversationCheckpoint
+
+key = os.urandom(32)
+directory = Path("conversation-checkpoint")  # Parent must exist; directory must be new.
+with client.conversation(max_state_bytes=32 << 20) as chat:
+    first = chat.send("Explain the first step.")
+    head = chat.checkpoint(directory, key, page_rows=64)
+    assert isinstance(head, ConversationCheckpoint)
+
+# Retain the key and newest trusted head in caller-controlled private storage.
+head = ConversationCheckpoint.from_spec(head.to_spec())
+with fresh_client.conversation(max_state_bytes=32 << 20) as chat:
+    previous = chat.restore(directory, key, head)
+    assert previous.output_text == first.output_text
+    assert previous.id != first.id
+    response = chat.send("Now expand that step.")
+    assert chat.response_id == response.id
+```
+
+The snapshot authenticates executed history, pending selection, logits and every
+KV page against the same source and composition. Bounded encrypted metadata also
+retains the response and message history. Restoration publishes a fresh local
+response identity only after all pages validate; the next turn obtains fresh
+provider inventory. Saving preserves the live chain. Concurrent operations reject,
+and async cancellation drains storage work before retiring the chain. Async handles
+use `await chat.checkpoint(...)` and `await chat.restore(...)`.
+
+Keys and trusted-head freshness remain caller responsibilities. Storage is local;
+remote backup needs its own transfer accounting. Snapshot overlap, encrypted I/O
+and history metadata (bounded to 2 MiB) are additional to `max_state_bytes`.
+The current contract rejects retained/windowed state, tiled execution and Freivalds.
+Use the exact Experiment/source when reopening a checkpoint.
+
+A separate three-replicate Qwen2.5 three-turn cohort preserves exact state and
+outputs while reducing all-link TCP traffic **45.35% versus restart-and-replay**.
+Complete elapsed time falls 19.90%, but client CPU rises 56.17%; a surviving RAM
+conversation remains cheaper. Local checkpoint I/O is charged separately from
+network traffic. See the [matched recovery evidence](https://github.com/blairhudson/pllm/blob/main/docs/research/conversation-restore-reference.md).
+
+The complete generated-checkpoint example is:
+
+```sh
+python examples/conversation_checkpoint.py
 ```
 
 ## Use the same configuration with the gateway

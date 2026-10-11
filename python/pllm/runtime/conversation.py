@@ -5,9 +5,13 @@ from __future__ import annotations
 import asyncio
 import math
 import threading
-from typing import Any
+from pathlib import Path
+from typing import Any, TYPE_CHECKING
 
 from .types import Response
+
+if TYPE_CHECKING:
+    from pllm.state.conversation import ConversationCheckpoint
 
 
 class _TurnCancelled(Exception):
@@ -150,6 +154,35 @@ class Conversation:
                 self._core.evict_response(self._response_id)
             self._response_id, self._state_bytes = None, 0
 
+    def checkpoint(self, directory: str | Path, key: bytes, *, page_rows: int = 64) -> ConversationCheckpoint:
+        """Seal one completed turn into a new local directory; retain key and head.
+
+        Requires ordinary full-KV prefix_f32 execution. The encrypted generation
+        includes history, pending selection, logits and KV, with no provider
+        credentials, masks or tickets. Saving leaves the live chain usable.
+        """
+        from .conversation_checkpoint import save
+        if not self._lock.acquire(blocking=False):
+            raise RuntimeError("conversation already has an active turn")
+        try:
+            return save(self, directory, key, page_rows=page_rows)
+        finally:
+            self._lock.release()
+
+    def restore(self, directory: str | Path, key: bytes, head: ConversationCheckpoint) -> Response:
+        """Restore into an empty handle, with a new client-local response identity.
+
+        All saved pages authenticate before state is published. Subsequent sends
+        reserve fresh one-use material through ordinary provider admission.
+        """
+        from .conversation_checkpoint import restore
+        if not self._lock.acquire(blocking=False):
+            raise RuntimeError("conversation already has an active turn")
+        try:
+            return restore(self, directory, key, head)
+        finally:
+            self._lock.release()
+
     def __enter__(self):
         if self._closed:
             raise RuntimeError("conversation is closed")
@@ -210,6 +243,34 @@ class AsyncConversation:
     async def close(self) -> None:
         async with self._lock:
             self._sync.close()
+
+    async def _storage_call(self, operation, *args, **kwargs):
+        if self._lock.locked():
+            raise RuntimeError("conversation already has an active turn")
+        async with self._lock:
+            task = asyncio.create_task(asyncio.to_thread(operation, *args, **kwargs))
+            try:
+                return await asyncio.shield(task)
+            except asyncio.CancelledError:
+                while not task.done():
+                    try:
+                        await asyncio.shield(task)
+                    except asyncio.CancelledError:
+                        continue
+                    except BaseException:
+                        break
+                if not task.cancelled():
+                    task.exception()
+                self._sync.close()
+                raise
+
+    async def checkpoint(self, directory: str | Path, key: bytes, *, page_rows: int = 64) -> ConversationCheckpoint:
+        """Seal a local generation; drain publication before cancellation returns."""
+        return await self._storage_call(self._sync.checkpoint, directory, key, page_rows=page_rows)
+
+    async def restore(self, directory: str | Path, key: bytes, head: ConversationCheckpoint) -> Response:
+        """Authenticate local state; cancellation drains and retires restored owners."""
+        return await self._storage_call(self._sync.restore, directory, key, head)
 
     async def __aenter__(self):
         self._sync.__enter__()

@@ -2,9 +2,10 @@
 
 This screen starts from the maintained three-client Qwen2.5-0.5B digit8
 confirmation, with 150 input and eight output tokens in each cold/exact-repeat
-pair. It preserves the historical evidence. The new public-matrix codec has
-its own installed-build cohort; placement, restart and publication calculations
-remain projections, not measured changes to that serving configuration.
+pair. It preserves the historical evidence. The public-matrix codec has its own
+installed-build cohort. The original placement, restart and publication screens
+remain projections; separate measured SDK follow-ups for placement and recovery
+appear below with their own workload and build identities.
 
 ## Where the bytes go
 
@@ -51,6 +52,17 @@ One-use masks and tickets are never restored with decoder state.
 **Next gate:** same-client, multi-process prepared conversation against both
 fresh re-prefill and the current exact RAM-cache control. Compare complete
 logits/KV, all directed bodies, storage I/O and all seven serving metrics.
+
+**Measured follow-up:** the installed `Conversation.checkpoint`/`restore` now
+passes that bounded recovery gate in a separate 50/76/100-input, eight-output
+three-turn cohort. Three replicates per mode preserve complete logits/KV/history
+and outputs, with zero observed swap growth. All-link streams fall **45.35%**
+against fresh-client replay, from 684.31 to 373.95 MB; complete time falls 19.90%
+but client CPU rises 56.17%. Live RAM continuation uses 373.07 MB and remains
+cheaper. Two local checkpoints together write 4.684 MB and read 4.684 MB.
+This measured workload is not the historical 150/288/512 row projection above.
+See [prepared conversation recovery](conversation-restore-reference.md) for all
+seven metrics, ownership, exact evidence and replay.
 
 ## 2. Byte-aware stage ownership under a small client budget
 
