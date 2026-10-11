@@ -166,9 +166,18 @@ all separate timing samples; this index does not pool their numeric identities.
 
 ## Result-driven follow-up gates
 
-1. **Owned recurrence:** integrate through the existing model-neutral state contract,
-   check generated and pinned full-decoder logits/state, then measure whole-client
-   resources. Preserve borrow lifetimes and failure retirement.
+The [SDK follow-up](../research/frontier-sdk-reference.md) integrates exact
+recurrence pairing into ordinary semantic decoder execution, adds installed
+recurrence/checkpoint/Preparation-batch targets, and exposes same-client SIMD
+through `PackedEncryptedLinear(batch_size=...)`. Local state and batching owners
+have explicit lifecycle/resource admission; historical probe ratios retain their
+original measurement windows. The remaining gates below still govern serving
+performance and protocol promotion.
+
+1. **Owned recurrence:** measure the integrated model-neutral executor on pinned
+   full decoders, checking complete logits/state and whole-client resources.
+   Generated parity, borrow lifetimes and failure retirement are covered by the
+   SDK integration gate.
 2. **Preparation batching:** test arrival-aware admission and independently completed
    inventories on the existing protocol; include waiting, transfer and CPU/GPU copies.
 3. **Context graph:** construct deltas directly and qualify histories beyond resident

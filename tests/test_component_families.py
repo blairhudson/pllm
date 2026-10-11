@@ -77,6 +77,7 @@ from pllm.schedulers import (
     BoundedIndependentElementsProtectedTensorSchedule,
     ChunkedIndependentLanesProtectedTensorSchedule,
     IndependentLanesProtectedTensorSchedule,
+    MlpPrefillTiling,
     ProtectedScheduler,
     ScalarProtectedTensorSchedule,
 )
@@ -127,6 +128,7 @@ def _instances():
         MaskedLinear(),
         MaskedWireGatedMultiplyQ12(),
         Memory(),
+        MlpPrefillTiling(),
         ModelAwareCorrections(),
         OutputHeadAtInference(),
         ClientOnlyRoles(),

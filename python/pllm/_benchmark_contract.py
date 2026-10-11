@@ -282,7 +282,7 @@ class BenchmarkTarget:
     @classmethod
     def preparation(cls, experiment, *, role="mlp_gate_up", layer=0, rows=16,
                     weights="synthetic", seed=7, kernel="native", storage="resident",
-                    chunk_rows=0, output_columns=None, credit_window=None, config=None):
+                    chunk_rows=0, output_columns=None, credit_window=None, config=None, batch=None):
         parameters = dict(model=_model(experiment, config), role=role,
             layer=layer, rows=rows, weights=weights, seed=seed, kernel=kernel,
             storage=storage, chunk_rows=chunk_rows)
@@ -290,7 +290,19 @@ class BenchmarkTarget:
             parameters["output_columns"] = output_columns
         if credit_window is not None:
             parameters["credit_window"] = credit_window
+        if batch is not None:
+            parameters["batch"] = dict(batch)
         return cls("preparation", parameters)
+
+    @classmethod
+    def preparation_batch(cls, experiment, *, inventories=4, batch_size=4, window_rows=128,
+                          min_gpu_rows=64, role="mlp_gate_up", layer=0, rows=16,
+                          weights="synthetic", seed=7, kernel="native", config=None):
+        """One bounded stage with independent inventories and a shared kernel snapshot."""
+        return cls.preparation(experiment, role=role, layer=layer, rows=rows,
+            weights=weights, seed=seed, kernel=kernel, config=config,
+            batch={"inventories": inventories, "batch_size": batch_size,
+                   "window_rows": window_rows, "min_gpu_rows": min_gpu_rows})
 
     @classmethod
     def artifacts(cls, experiment, *, role="lm_head", layer=None, weights="synthetic",
@@ -308,18 +320,27 @@ class BenchmarkTarget:
 
     @classmethod
     def state(cls, experiment, *, operation="roundtrip", storage="memory",
-              tokens=16, seed=7, config=None, owner=None, layer=None):
+              tokens=16, seed=7, config=None, owner=None, layer=None, steps=None, page_rows=None):
         parameters = dict(model=_model(experiment, config), operation=operation,
                           storage=storage, tokens=tokens, seed=seed)
         if owner is not None or layer is not None:
             parameters.update(owner=owner, layer=layer)
+        if steps is not None or page_rows is not None:
+            parameters.update(steps=steps, page_rows=page_rows)
         return cls("state", parameters)
 
     @classmethod
     def recurrence(cls, experiment, *, owner="owned", layer=0, tokens=64, seed=7, config=None):
         """Exact source-shaped local recurrence, including state and scratch owners."""
         return cls.state(experiment, operation="recurrence", tokens=tokens, seed=seed,
-                         config=config, owner=owner, layer=layer)
+                          config=config, owner=owner, layer=layer)
+
+    @classmethod
+    def checkpoint(cls, experiment, *, storage="context_graph", tokens=8, steps=2,
+                   page_rows=64, seed=7):
+        """Compiled local checkpoint publication, restart and exact continuation."""
+        return cls.state(experiment, operation="checkpoint", storage=storage, tokens=tokens,
+                         seed=seed, steps=steps, page_rows=page_rows)
 
     @classmethod
     def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None,
@@ -364,6 +385,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"client_stage"}
     if kind == "state" and p.get("operation") == "recurrence":
         fields[kind] = fields[kind] | {"owner", "layer"}
+    if kind == "state" and p.get("operation") == "checkpoint":
+        fields[kind] = fields[kind] | {"steps", "page_rows"}
     if kind == "response" and "client_mlp" in p:
         fields[kind] = fields[kind] | {"client_mlp"}
     if kind == "response" and "client_metadata" in p:
@@ -372,6 +395,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"output_columns"}
         if "credit_window" in p:
             fields[kind] = fields[kind] | {"credit_window"}
+    if kind == "preparation" and "batch" in p:
+        fields[kind] = fields[kind] | {"batch"}
     if set(p) != fields[kind]:
         raise ValueError("benchmark target fields differ from its contract")
     if "model" in p:
@@ -391,7 +416,8 @@ def _validate_target(document):
         bounded_int(p["seed"], 0, (1 << 32) - 1, "public fixture seed")
     if kind in {"stage", "preparation"}:
         bounded_int(p["rows"], 1, 4096, "rows")
-        choice(p["kernel"], {"native", "digit4", "digit8", "digit8_native"}, "integer kernel")
+        choice(p["kernel"], {"native", "digit8_native", "metal", "adaptive"} if "batch" in p
+               else {"native", "digit4", "digit8", "digit8_native"}, "integer kernel")
         choice(p["storage"], {"resident", "paged"}, "weight storage")
     if kind == "stage":
         choice(p["phase"], {"prefill", "decode"}, "decoder phase")
@@ -400,6 +426,15 @@ def _validate_target(document):
             raise ValueError("decode stage targets require one row")
     elif kind == "preparation":
         bounded_int(p["chunk_rows"], 0, 4096, "mask row chunk")
+        if "batch" in p:
+            batch = p["batch"]
+            if (type(batch) is not dict or set(batch) != {"inventories", "batch_size", "window_rows", "min_gpu_rows"}
+                    or p["storage"] != "resident" or p["chunk_rows"] or "output_columns" in p):
+                raise ValueError("preparation batching requires resident kernels and its own row window")
+            bounded_int(batch["inventories"], 1, 8, "inventory count")
+            bounded_int(batch["batch_size"], 1, batch["inventories"], "batch size")
+            bounded_int(batch["window_rows"], 1, 128, "batch row window")
+            bounded_int(batch["min_gpu_rows"], 1, 128, "batch GPU row threshold")
         if "output_columns" in p:
             bounded_int(p["output_columns"], 0, 65536, "output stripe columns")
             bounded_int(p.get("credit_window", 1), 1, 8, "stripe credit window")
@@ -418,9 +453,14 @@ def _validate_target(document):
         if p["geometry"] is not None and not isinstance(p["geometry"], dict):
             raise ValueError("operator geometry must be a mapping")
     elif kind == "state":
-        choice(p["operation"], {"roundtrip", "attention", "restart", "decoder_restart", "recurrence"}, "state operation")
-        choice(p["storage"], {"memory", "sealed_local", "sealed_stream"}, "state storage")
+        choice(p["operation"], {"roundtrip", "attention", "restart", "decoder_restart", "recurrence", "checkpoint"}, "state operation")
+        choice(p["storage"], {"layer_pages", "context_graph"} if p["operation"] == "checkpoint"
+               else {"memory", "sealed_local", "sealed_stream"}, "state storage")
         bounded_int(p["tokens"], 1, 1 << 20, "state tokens")
+        if p["operation"] == "checkpoint":
+            bounded_int(p["tokens"], 1, 128, "checkpoint tokens")
+            bounded_int(p["steps"], 1, 32, "checkpoint steps")
+            bounded_int(p["page_rows"], 1, 256, "checkpoint page rows")
         if p["operation"] == "recurrence":
             choice(p["owner"], {"owned", "copy_reference"}, "recurrence owner")
             bounded_int(p["layer"], 0, 1023, "recurrence layer")

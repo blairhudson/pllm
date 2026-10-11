@@ -178,6 +178,9 @@ def _projection(p, m):
 
 
 def execute_state(target, p, m):
+    if p.get("operation") == "checkpoint":
+        from .benchmark_checkpoint import execute_checkpoint
+        return execute_checkpoint(p, m)
     from .benchmark_targets import model_context, state_layout
     if target.kind == "projection":
         return _projection(p, m)

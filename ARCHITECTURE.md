@@ -958,6 +958,22 @@ copying reference. Historical recurrence-probe savings remain separately scoped;
 whole-response CPU/RSS benefits need matched evidence. Contract:
 `docs/research/frontier-sdk-reference.md`.
 
+The installed `pllm.state.CheckpointSession` additionally exposes explicit
+trusted-client key/head custody over the existing layer-page and context-graph
+owners. `BenchmarkTarget.checkpoint` charges publication, fresh-process source
+loading, exact continuation and complete KV audit, with separately reported
+issuer/child peaks. It does not persist OpenAI conversations or provider leases.
+`pllm.preparation.CorrectionBatch` and `BenchmarkTarget.preparation_batch` expose
+bounded local cross-inventory row windows over shared native/Metal weights, fresh
+native mask cursors and consume-once correction streams. Weight/ring/source
+admission precedes issuance; failure burns all owned material. Kernel setup,
+private files, GPU snapshots and independent integer audits stay visible. This
+local API adds no serving queue or automatic batch policy. The existing
+`PackedEncryptedLinear` operator separately accepts power-of-two same-client
+SIMD batches with unchanged numeric identity and complete partial-batch/setup
+accounting. Historical frontier timings remain separate from installed SDK
+whole-response evidence. Replay: `examples/benchmarks/frontier_sdk.py`.
+
 Configured ordinary `OpenAI()` / `AsyncOpenAI()` and gateway requests now own
 authenticated network discovery, native planning, fresh response admission and
 lease retirement through one shared client owner. Configuration supplies the

@@ -56,3 +56,48 @@ def test_recurrence_installed_fresh_process_suite(experiment, tmp_path):
                              output=tmp_path / "recurrence.json")
     assert [row.to_dict()["status"] for row in result.results] == ["completed", "completed"]
     assert result.compare("copy", "owned", "target.cpu")["status"] == "comparable"
+
+
+def test_batch_target_counts_independent_inventories_and_preserves_comparison(experiment, tmp_path):
+    target = BenchmarkTarget.preparation_batch(experiment, rows=3, inventories=3, batch_size=3, window_rows=8)
+    records = []
+    for size in (1, 3):
+        candidate = target.with_params(batch={**target.to_spec()["parameters"]["batch"], "batch_size": size})
+        assert BenchmarkTarget.from_spec(candidate.to_spec()).digest == candidate.digest
+        root = tmp_path / str(size)
+        root.mkdir()
+        m = measurement(root)
+        execute_target(candidate, m)
+        assert m.oracle["outcome"] == "passed"
+        assert m.details["batch"]["inventories"] == 3
+        assert sum(g["rows"] for g in m.details["samples"][0]["groups"]) == 9
+        records.append(m)
+    assert records[0].comparison == records[1].comparison
+    for changes in ({"storage": "paged"}, {"chunk_rows": 1}, {"kernel": "digit4"}):
+        with pytest.raises(ValueError):
+            target.with_params(**changes)
+
+
+def test_checkpoint_installed_fresh_process_suite(experiment, tmp_path):
+    from pllm.quantization import SymmetricPerRow
+    experiment = experiment.with_params(pipeline=MaskedLinearCpu(experiment.pipeline.model,
+        quantization=SymmetricPerRow(causal_reduction="prefix_f32")))
+    target = BenchmarkTarget.checkpoint(experiment, tokens=3, steps=1, page_rows=2)
+    cases = (BenchmarkCase("pages", target.with_params(storage="layer_pages")),
+             BenchmarkCase("graph", target))
+    result = benchmark_suite(BenchmarkSuite(cases, Sampling(processes=1, memory_bytes=1 << 30)),
+                             output=tmp_path / "checkpoint.json")
+    assert [row.to_dict()["status"] for row in result.results] == ["completed", "completed"]
+    assert result.compare("pages", "graph", "target.cpu")["status"] == "comparable"
+    raw = (tmp_path / "checkpoint.json").read_text()
+    for private in ('"pending":', '"key":', '"head":', '"frames":'):
+        assert private not in raw
+
+
+def test_preparation_batch_installed_fresh_process_suite(experiment, tmp_path):
+    target = BenchmarkTarget.preparation_batch(experiment, rows=3, inventories=3, batch_size=3, window_rows=8)
+    control = target.with_params(batch={**target.to_spec()["parameters"]["batch"], "batch_size": 1})
+    result = benchmark_suite(BenchmarkSuite((BenchmarkCase("serial", control), BenchmarkCase("batched", target)),
+                                           Sampling(processes=1)), output=tmp_path / "batch.json")
+    assert [row.to_dict()["status"] for row in result.results] == ["completed", "completed"]
+    assert result.compare("serial", "batched", "target.cpu")["status"] == "comparable"
