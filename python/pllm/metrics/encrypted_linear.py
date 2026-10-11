@@ -36,7 +36,7 @@ class _EncryptedLinearBenchmark(_OperatorBenchmark):
     def __post_init__(self):
         _OperatorBenchmark.__post_init__(self)
         if self.lanes > 64:
-            raise ConfigurationError("encrypted linear admits at most 64 serial vectors")
+            raise ConfigurationError("encrypted linear admits at most 64 vectors")
         for name in ("rows", "columns"):
             if type(getattr(self, name)) is not int or not 1 <= getattr(self, name) <= 32:
                 raise ConfigurationError(f"encrypted linear {name} must be in [1,32]")
@@ -56,10 +56,16 @@ class _EncryptedLinearBenchmark(_OperatorBenchmark):
 
         width = 1 << (max(self.rows, self.columns) - 1).bit_length()
         policy = self.component.params["rotation_keys"]
-        steps = (() if width == 1 else (1,)) if policy == "single" else tuple(range(1, width))
+        batch = self.component.params.get("batch_size", 1)
+        queries = (self.lanes + batch - 1) // batch
+        steps = (() if width == 1 else (batch,)) if policy == "single" else tuple(i * batch for i in range(1, width))
         # All shape/material bounds are resolved before fitting, key generation
         # or decoding caller inputs. This is an estimate, not measured peak RSS.
         metadata = json.loads(_native.ckks_parameters(1, len(steps), False, 8))
+        batch_workspace = 32 * width * batch if batch > 1 else 0
+        if (width * batch > metadata["parameters"]["degree"] // 2
+                or metadata["parameters"]["allocation_bytes_estimate"] + batch_workspace > 512 << 20):
+            raise ConfigurationError("encrypted batch exceeds slot or allocation admission")
         source = "public-fixture" if weights is None and vectors is None else "caller-owned"
         if source == "public-fixture":
             weights = [((i * 7 + i // self.columns * 3) % 19 - 9) / 16 for i in range(self.rows * self.columns)]
@@ -81,19 +87,25 @@ class _EncryptedLinearBenchmark(_OperatorBenchmark):
             cpu = time.process_time()
             with tempfile.TemporaryDirectory(prefix="pllm-ckks-linear-") as directory:
                 client, provider, measured = ckks.setup(seal, _native, Path(directory), depth=1,
-                    rotation_steps=steps, relinearization=False, live_ciphertexts=8, queries=self.lanes,
+                    rotation_steps=steps, rotation_stride=batch,
+                    relinearization=False, live_ciphertexts=8, queries=queries,
                     binding=bytes.fromhex(self.digest))
                 frames, output = [], []
                 started = time.perf_counter()
                 evaluation_seconds = 0.0
                 try:
-                    for q in range(self.lanes):
-                        vector = list(vectors[q * self.columns:(q + 1) * self.columns]) + [0.0] * (width - self.columns)
-                        request = client.request(vector * (client.encoder.slot_count() // width))
+                    for q in range(0, self.lanes, batch):
+                        count = min(batch, self.lanes - q)
+                        vector = [vectors[(q + lane) * self.columns + column]
+                                  if lane < count and column < self.columns else 0.0
+                                  for column in range(width) for lane in range(batch)]
+                        request = client.request(vector * (client.encoder.slot_count() // (width * batch)))
                         start = time.perf_counter()
-                        reply = provider.evaluate(request, lambda arithmetic, x: ckks.diagonal_linear(arithmetic, x, diagonals, policy))
+                        reply = provider.evaluate(request, lambda arithmetic, x: ckks.diagonal_linear(
+                            arithmetic, x, diagonals, policy, batch_size=batch))
                         evaluation_seconds += time.perf_counter() - start
-                        output.extend(client.receive(reply, 1)[:self.rows])
+                        decoded = client.receive(reply, 1)
+                        output.extend(decoded[row * batch + lane] for lane in range(count) for row in range(self.rows))
                         frames.append((len(request), len(reply)))
                 finally:
                     client.retire()
@@ -129,7 +141,7 @@ class _EncryptedLinearBenchmark(_OperatorBenchmark):
             native_implementation_digest=metadata["native_implementation_digest"],
             sdk_implementation_digest=_sdk_digest("encrypted_linear.py"), input_source=source,
             resources=OperatorBenchmarkResources(keys, tuple(8*v for v in keys), directions, 8*sum(directions),
-                self.lanes, 0, parameters["allocation_bytes_estimate"], 0, 0,
+                queries, 0, parameters["allocation_bytes_estimate"] + batch_workspace, 0, 0,
                 role_names=("client-key-owner", "encrypted-evaluator"),
                 public_table_bytes_by_party=(0, 8*self.rows*self.columns + 8*width*width),
                 key_payload_bytes_by_operation=(("secret-polynomial-and-public-key", keys[0], 0),
@@ -145,7 +157,9 @@ class _EncryptedLinearBenchmark(_OperatorBenchmark):
             environment=(("platform", platform.platform()), ("python", platform.python_version()),
                          ("pllm", __version__), ("native", metadata["native_version"])),
             limitations=(
-                "Bounded 1..32 matrix dimensions, 1..64 serial vectors, public weights and hidden client vectors in [-1,1]",
+                "Bounded 1..32 matrix dimensions, 1..64 vectors, public weights and hidden client vectors in [-1,1]",
+                "Optional power-of-two SIMD batches interleave vectors from one client/key context; final partial batches are zero padded",
+                "Batch waiting, multi-client keys and live request scheduling are not implemented or measured",
                 "N=8192, [50,40,50]-bit coefficient primes and 2^40 scale; SEAL TC128; one consumed rescale level",
                 "Every sample creates a fresh client key; provider receives only parameters, public and Galois keys in its separate context",
                 "Input/output frames include context/sequence headers and public padding; setup frames are separate and charged once per sample",

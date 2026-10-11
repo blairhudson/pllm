@@ -69,6 +69,37 @@ def test_geometry_input_and_resource_rejection_precedes_key_material(monkeypatch
         _native.ckks_parameters(8, 31, True, 64)
 
 
+@pytest.mark.parametrize("keys", ["single", "full"])
+@pytest.mark.parametrize("lanes,batch,rows,columns", [(8, 8, 3, 5), (7, 4, 5, 3), (3, 4, 1, 1)])
+def test_same_client_simd_batches_charge_partial_frames_and_preserve_numeric_contract(keys, lanes, batch, rows, columns):
+    pytest.importorskip("_sealapi_cpp")
+    geometry = {"rows": rows, "columns": columns}
+    serial, packed = [benchmark_operator(PackedEncryptedLinear(rotation_keys=keys, batch_size=size),
+        lanes=lanes, samples=1, geometry=geometry) for size in (1, batch)]
+    assert serial.numeric_contract_digest == packed.numeric_contract_digest
+    assert packed.quality.checked_outputs == lanes * rows
+    assert packed.quality.maximum_absolute_error < packed.quality.absolute_tolerance
+    queries = (lanes + batch - 1) // batch
+    assert packed.resources.peer_rounds == queries
+    assert packed.resources.peer_frame_bytes * lanes == serial.resources.peer_frame_bytes * queries
+    assert packed.resources.setup_frame_bytes_by_operation == serial.resources.setup_frame_bytes_by_operation
+    assert packed.resources.protocol_allocation_estimate_bytes > serial.resources.protocol_allocation_estimate_bytes
+    assert create_component(packed.configuration["component"]["component"],
+                            packed.configuration["component"]["params"]).params["batch_size"] == batch
+    assert replay_operator_benchmark(packed.configuration).resources == packed.resources
+
+
+def test_simd_batch_geometry_rejects_before_setup_and_preserves_default_identity(monkeypatch):
+    assert PackedEncryptedLinear(batch_size=1).params == {"rotation_keys": "single"}
+    for value in (0, True, 3, 65, 2.0):
+        with pytest.raises(ConfigurationError):
+            PackedEncryptedLinear(batch_size=value)
+    seal = pytest.importorskip("_sealapi_cpp")
+    with pytest.raises(ValueError, match="geometry"):
+        ckks.setup(seal, _native, None, depth=1, rotation_steps=(32,), relinearization=False,
+                   live_ciphertexts=8, queries=1, binding=bytes(32))
+
+
 def _session(tmp_path, *, depth=1, relin=False):
     seal = pytest.importorskip("_sealapi_cpp")
     return ckks.setup(seal, _native, tmp_path, depth=depth, rotation_steps=(),

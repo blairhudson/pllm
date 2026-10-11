@@ -31,13 +31,19 @@ Component identity: `pllm/packed-encrypted-linear/v1`.
 | Option | Values | Meaning |
 | --- | --- | --- |
 | `rotation_keys` | `"single"` (default), `"full"` | One sequential rotation key, or one key per nonzero diagonal shift |
+| `batch_size` | `1` (default), `2`, `4`, `8`, `16`, `32`, `64` | Same-client vectors interleaved in one ciphertext; partial batches pay for a full padded frame |
 
 Benchmark geometry declares `rows` and `columns`, each 1–32; `lanes` counts
-1–64 serial vectors and `samples` counts 1–16 independent keys. Caller input is
+1–64 vectors and `samples` counts 1–16 independent keys. Caller input is
 `inputs={"weights": row_major_weights, "vectors": row_major_vectors}`. Both
 contain finite numeric values in `[-1,1]`. The vector length is `lanes * columns`.
 Omitting inputs selects public deterministic fixtures. No values or value hashes
 enter reports; caller-owned replay requires resupplying inputs.
+
+With `batch_size > 1`, only vectors sharing one client/key context are batched.
+Reports charge `ceil(lanes / batch_size)` complete query/reply pairs and retain
+the actual setup keys. The numeric contract is unchanged; batch-fill waiting,
+multi-client keys and request scheduling are outside this local operator.
 
 The native layout pads rectangular matrices to a power of two. The client repeats
 its padded vector across SIMD slots; the provider multiplies public diagonals by

@@ -236,19 +236,23 @@ class Client:
 
 
 def setup(seal, native, directory: Path, *, depth, rotation_steps, relinearization,
-          live_ciphertexts, queries, binding, softmax_width=None):
+          live_ciphertexts, queries, binding, softmax_width=None, rotation_stride=1):
     if (type(queries) is not int or not 1 <= queries <= 64 or len(binding) != 32
+            or type(rotation_stride) is not int or rotation_stride not in (1, 2, 4, 8, 16, 32, 64)
             or len(set(rotation_steps)) != len(rotation_steps)
-            or any(type(step) is not int or not 1 <= step <= 31 for step in rotation_steps)):
+            or any(type(step) is not int or step % rotation_stride != 0
+                   or not 1 <= step // rotation_stride <= 31 for step in rotation_steps)):
         raise ValueError("invalid CKKS reference session geometry")
     if softmax_width is None:
         metadata = json.loads(native.ckks_parameters(depth, len(rotation_steps), relinearization, live_ciphertexts))
     else:
         metadata = json.loads(native.ckks_softmax_parameters(softmax_width))
-        if (depth != 14 or relinearization is not True or live_ciphertexts != 32
+        if (depth != 14 or relinearization is not True or live_ciphertexts != 32 or rotation_stride != 1
                 or rotation_steps != ((1,) if softmax_width > 1 else ())):
             raise ValueError("CKKS softmax requires its fixed admitted schedule")
     p = metadata["parameters"]
+    if any(step >= p["degree"] // 2 for step in rotation_steps):
+        raise ValueError("CKKS rotation exceeds the admitted slot count")
     started = time.perf_counter()
     params = seal.EncryptionParameters(seal.SCHEME_TYPE.CKKS)
     params.set_poly_modulus_degree(p["degree"])
@@ -289,15 +293,19 @@ def setup(seal, native, directory: Path, *, depth, rotation_steps, relinearizati
     return client, provider, metadata
 
 
-def diagonal_linear(arithmetic, x, diagonals, key_policy):
+def diagonal_linear(arithmetic, x, diagonals, key_policy, *, batch_size=1):
     width, result, shifted = len(diagonals), None, x
     slots = arithmetic.encoder.slot_count()
+    if (type(batch_size) is not int or batch_size not in (1, 2, 4, 8, 16, 32, 64)
+            or width * batch_size > slots or slots % (width * batch_size)):
+        raise ValueError("CKKS interleaved batch exceeds admitted slots")
     for index, diagonal in enumerate(diagonals):
         if index:
             shifted = arithmetic.rotate(shifted if key_policy == "single" else x,
-                                        1 if key_policy == "single" else index)
+                                         batch_size if key_policy == "single" else index * batch_size)
         if any(diagonal):
-            term = arithmetic.multiply_plain(shifted, diagonal * (slots // width))
+            interleaved = [coefficient for coefficient in diagonal for _ in range(batch_size)]
+            term = arithmetic.multiply_plain(shifted, interleaved * (slots // (width * batch_size)))
             result = term if result is None else arithmetic.add(result, term)
     if result is None:
         # Public zero weights still follow the same output-level contract.
