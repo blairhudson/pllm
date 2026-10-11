@@ -1,0 +1,2998 @@
+{
+  "schema": "pllm.preparation_factory_probe.v1",
+  "scope": "Bounded cross-inventory correction factory; synthetic stages, not serving.\n\nExisting immutable native/Metal matrices do arithmetic. Python owns admission,\nnative mask cursors and authenticated row attribution only. CUDA is unavailable.\n",
+  "samples": [
+    {
+      "spec": {
+        "role": "qkv_projection",
+        "rows": 16,
+        "backend": "integer",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "0386e1a5e502b1efac434fe2c3b5087f5ce92bc9155ee2164af2573ae3b33631",
+      "shape": [
+        1152,
+        896
+      ],
+      "construction": {
+        "seconds": 0.2498790007084608,
+        "cpu_seconds": 0.24729600000000002
+      },
+      "services": [
+        {
+          "mask_seconds": 0.000386582687497139,
+          "mask_cpu_seconds": 0.0003869999999999152,
+          "kernel_seconds": 0.0006026243790984154,
+          "kernel_cpu_seconds": 0.002043000000000017,
+          "encoding_seconds": 0.0013925004750490189,
+          "encoding_cpu_seconds": 0.0013929999999999776,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.00240341667085886,
+          "service_cpu_seconds": 0.0038440000000000696
+        },
+        {
+          "mask_seconds": 0.0003767088055610657,
+          "mask_cpu_seconds": 0.0003769999999999607,
+          "kernel_seconds": 0.0005644997581839561,
+          "kernel_cpu_seconds": 0.002047000000000021,
+          "encoding_seconds": 0.00035558268427848816,
+          "encoding_cpu_seconds": 0.00035599999999991194,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0013138744980096817,
+          "service_cpu_seconds": 0.0027970000000000494
+        },
+        {
+          "mask_seconds": 0.000367957167327404,
+          "mask_cpu_seconds": 0.00036999999999998145,
+          "kernel_seconds": 0.0005391659215092659,
+          "kernel_cpu_seconds": 0.0020130000000000425,
+          "encoding_seconds": 0.00031083356589078903,
+          "encoding_cpu_seconds": 0.00031100000000006123,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0012309998273849487,
+          "service_cpu_seconds": 0.0027049999999999574
+        },
+        {
+          "mask_seconds": 0.00036683399230241776,
+          "mask_cpu_seconds": 0.00036800000000003497,
+          "kernel_seconds": 0.0005146246403455734,
+          "kernel_cpu_seconds": 0.0019479999999999498,
+          "encoding_seconds": 0.0003176666796207428,
+          "encoding_cpu_seconds": 0.00031800000000004047,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0012113330885767937,
+          "service_cpu_seconds": 0.0026439999999999797
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.00240341667085886
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.00140341667085886,
+          "modeled_arrival_to_completion_seconds": 0.0027172911688685417
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0017172911688685417,
+          "modeled_arrival_to_completion_seconds": 0.0029482909962534904
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0019482909962534904,
+          "modeled_arrival_to_completion_seconds": 0.003159624084830284
+        }
+      ],
+      "calls": {
+        "integer": 4,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 80658432,
+        "lifetime_peak_rss_bytes": 80789504
+      },
+      "cpu_weight_bytes": 1032192,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 73728,
+      "oracle_seconds": 0.04528870899230242,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 0.790211,
+      "disk_correction_payload_bytes": 294912,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "qkv_projection",
+        "rows": 16,
+        "backend": "integer",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "0386e1a5e502b1efac434fe2c3b5087f5ce92bc9155ee2164af2573ae3b33631",
+      "shape": [
+        1152,
+        896
+      ],
+      "construction": {
+        "seconds": 0.3321095407009125,
+        "cpu_seconds": 0.3310290000000001
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0017991652712225914,
+          "mask_cpu_seconds": 0.0018000000000000238,
+          "kernel_seconds": 0.002513917163014412,
+          "kernel_cpu_seconds": 0.008763999999999994,
+          "encoding_seconds": 0.00299025047570467,
+          "encoding_cpu_seconds": 0.0029810000000000114,
+          "encoded_bytes": 295332,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.007368874736130238,
+          "service_cpu_seconds": 0.013607000000000036
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.010368874736130237
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.009368874736130236
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.008368874736130237
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.007368874736130237
+        }
+      ],
+      "calls": {
+        "integer": 1,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 80166912,
+        "lifetime_peak_rss_bytes": 80314368
+      },
+      "cpu_weight_bytes": 1032192,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 73728,
+      "oracle_seconds": 0.056534250266849995,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.081208,
+      "disk_correction_payload_bytes": 294912,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "qkv_projection",
+        "rows": 16,
+        "backend": "digit8",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "0386e1a5e502b1efac434fe2c3b5087f5ce92bc9155ee2164af2573ae3b33631",
+      "shape": [
+        1152,
+        896
+      ],
+      "construction": {
+        "seconds": 0.24118241667747498,
+        "cpu_seconds": 0.23862099999999997
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0005465410649776459,
+          "mask_cpu_seconds": 0.0005479999999999929,
+          "kernel_seconds": 0.002658415585756302,
+          "kernel_cpu_seconds": 0.0026599999999999957,
+          "encoding_seconds": 0.00222933292388916,
+          "encoding_cpu_seconds": 0.0022300000000000653,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.005473374389111996,
+          "service_cpu_seconds": 0.005473000000000061
+        },
+        {
+          "mask_seconds": 0.0005635833367705345,
+          "mask_cpu_seconds": 0.0005649999999999267,
+          "kernel_seconds": 0.0013817083090543747,
+          "kernel_cpu_seconds": 0.001358999999999999,
+          "encoding_seconds": 0.0006597498431801796,
+          "encoding_cpu_seconds": 0.0006599999999999939,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0026345420628786087,
+          "service_cpu_seconds": 0.002610000000000001
+        },
+        {
+          "mask_seconds": 0.0005425410345196724,
+          "mask_cpu_seconds": 0.0005430000000000712,
+          "kernel_seconds": 0.0015357919037342072,
+          "kernel_cpu_seconds": 0.0015119999999999578,
+          "encoding_seconds": 0.0006324173882603645,
+          "encoding_cpu_seconds": 0.0006320000000000769,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0027465838938951492,
+          "service_cpu_seconds": 0.002722000000000002
+        },
+        {
+          "mask_seconds": 0.00059458427131176,
+          "mask_cpu_seconds": 0.0005800000000000249,
+          "kernel_seconds": 0.0012647910043597221,
+          "kernel_cpu_seconds": 0.0012579999999999814,
+          "encoding_seconds": 0.0005360832437872887,
+          "encoding_cpu_seconds": 0.0005359999999999809,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.002423916943371296,
+          "service_cpu_seconds": 0.0024009999999999865
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.005473374389111996
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.004473374389111996,
+          "modeled_arrival_to_completion_seconds": 0.007107916451990604
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.006107916451990604,
+          "modeled_arrival_to_completion_seconds": 0.008854500345885754
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.007854500345885754,
+          "modeled_arrival_to_completion_seconds": 0.01027841728925705
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 4,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 86704128,
+        "lifetime_peak_rss_bytes": 86851584
+      },
+      "cpu_weight_bytes": 1032192,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 73728,
+      "oracle_seconds": 0.07321533374488354,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 0.955435,
+      "disk_correction_payload_bytes": 294912,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "qkv_projection",
+        "rows": 16,
+        "backend": "digit8",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "0386e1a5e502b1efac434fe2c3b5087f5ce92bc9155ee2164af2573ae3b33631",
+      "shape": [
+        1152,
+        896
+      ],
+      "construction": {
+        "seconds": 0.3168669156730175,
+        "cpu_seconds": 0.30194800000000005
+      },
+      "services": [
+        {
+          "mask_seconds": 0.002908499911427498,
+          "mask_cpu_seconds": 0.002678999999999987,
+          "kernel_seconds": 0.00566695723682642,
+          "kernel_cpu_seconds": 0.005445000000000033,
+          "encoding_seconds": 0.004663041792809963,
+          "encoding_cpu_seconds": 0.004537999999999931,
+          "encoded_bytes": 295332,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.013312583789229393,
+          "service_cpu_seconds": 0.012725000000000097
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.016312583789229392
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.015312583789229391
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.014312583789229392
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.013312583789229393
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 1,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 87654400,
+        "lifetime_peak_rss_bytes": 87801856
+      },
+      "cpu_weight_bytes": 1032192,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 73728,
+      "oracle_seconds": 0.07311791647225618,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.0316,
+      "disk_correction_payload_bytes": 294912,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "qkv_projection",
+        "rows": 16,
+        "backend": "metal",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "0386e1a5e502b1efac434fe2c3b5087f5ce92bc9155ee2164af2573ae3b33631",
+      "shape": [
+        1152,
+        896
+      ],
+      "construction": {
+        "seconds": 0.4018464172258973,
+        "cpu_seconds": 0.3927880000000001
+      },
+      "services": [
+        {
+          "mask_seconds": 0.00046062562614679337,
+          "mask_cpu_seconds": 0.00046200000000007346,
+          "kernel_seconds": 0.007832707837224007,
+          "kernel_cpu_seconds": 0.007705000000000073,
+          "encoding_seconds": 0.0019827494397759438,
+          "encoding_cpu_seconds": 0.002010999999999985,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.010316249914467335,
+          "service_cpu_seconds": 0.010211999999999999
+        },
+        {
+          "mask_seconds": 0.00045299995690584183,
+          "mask_cpu_seconds": 0.0004530000000000367,
+          "kernel_seconds": 0.0008213752880692482,
+          "kernel_cpu_seconds": 0.0003509999999999902,
+          "encoding_seconds": 0.000421999953687191,
+          "encoding_cpu_seconds": 0.00043599999999999195,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0017183329910039902,
+          "service_cpu_seconds": 0.0012630000000000141
+        },
+        {
+          "mask_seconds": 0.00046166684478521347,
+          "mask_cpu_seconds": 0.0004609999999999337,
+          "kernel_seconds": 0.0006526242941617966,
+          "kernel_cpu_seconds": 0.00019599999999997397,
+          "encoding_seconds": 0.0003701653331518173,
+          "encoding_cpu_seconds": 0.00038599999999999746,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0014980416744947433,
+          "service_cpu_seconds": 0.0010570000000000856
+        },
+        {
+          "mask_seconds": 0.0004221666604280472,
+          "mask_cpu_seconds": 0.0004229999999999512,
+          "kernel_seconds": 0.0005959589034318924,
+          "kernel_cpu_seconds": 0.0001260000000000705,
+          "encoding_seconds": 0.00035899970680475235,
+          "encoding_cpu_seconds": 0.00038800000000005497,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0013882089406251907,
+          "service_cpu_seconds": 0.0009469999999999201
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.010316249914467335
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.009316249914467334,
+          "modeled_arrival_to_completion_seconds": 0.011034582905471324
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.010034582905471325,
+          "modeled_arrival_to_completion_seconds": 0.011532624579966068
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.010532624579966069,
+          "modeled_arrival_to_completion_seconds": 0.01192083352059126
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 4
+      },
+      "service_window_memory": {
+        "rss_bytes": 96059392,
+        "lifetime_peak_rss_bytes": 96305152
+      },
+      "cpu_weight_bytes": 1032192,
+      "gpu_weight_bytes": 1032192,
+      "gpu_workspace_admission_bytes": 8388608,
+      "mlx_memory": {
+        "active_bytes": 1032192,
+        "peak_bytes": 1179648,
+        "cache_bytes": 147456
+      },
+      "checked_values": 73728,
+      "oracle_seconds": 0.06811787467449903,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.068836,
+      "disk_correction_payload_bytes": 294912,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "qkv_projection",
+        "rows": 16,
+        "backend": "metal",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "0386e1a5e502b1efac434fe2c3b5087f5ce92bc9155ee2164af2573ae3b33631",
+      "shape": [
+        1152,
+        896
+      ],
+      "construction": {
+        "seconds": 0.423164582811296,
+        "cpu_seconds": 0.40015
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0018295003101229668,
+          "mask_cpu_seconds": 0.001802999999999999,
+          "kernel_seconds": 0.011936791241168976,
+          "kernel_cpu_seconds": 0.008125000000000049,
+          "encoding_seconds": 0.003306875005364418,
+          "encoding_cpu_seconds": 0.0033079999999999776,
+          "encoded_bytes": 295332,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.01713379193097353,
+          "service_cpu_seconds": 0.013290000000000024
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.02013379193097353
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.019133791930973528
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.01813379193097353
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.01713379193097353
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 1
+      },
+      "service_window_memory": {
+        "rss_bytes": 97697792,
+        "lifetime_peak_rss_bytes": 97927168
+      },
+      "cpu_weight_bytes": 1032192,
+      "gpu_weight_bytes": 1032192,
+      "gpu_workspace_admission_bytes": 8388608,
+      "mlx_memory": {
+        "active_bytes": 1032192,
+        "peak_bytes": 1556480,
+        "cache_bytes": 524288
+      },
+      "checked_values": 73728,
+      "oracle_seconds": 0.061608707532286644,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.131434,
+      "disk_correction_payload_bytes": 294912,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "qkv_projection",
+        "rows": 16,
+        "backend": "adaptive",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "0386e1a5e502b1efac434fe2c3b5087f5ce92bc9155ee2164af2573ae3b33631",
+      "shape": [
+        1152,
+        896
+      ],
+      "construction": {
+        "seconds": 0.46541862562298775,
+        "cpu_seconds": 0.449692
+      },
+      "services": [
+        {
+          "mask_seconds": 0.00046075042337179184,
+          "mask_cpu_seconds": 0.0004629999999999912,
+          "kernel_seconds": 0.0009448332712054253,
+          "kernel_cpu_seconds": 0.003062999999999927,
+          "encoding_seconds": 0.0018255002796649933,
+          "encoding_cpu_seconds": 0.0018119999999999248,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0032641664147377014,
+          "service_cpu_seconds": 0.005365999999999982
+        },
+        {
+          "mask_seconds": 0.0004388336092233658,
+          "mask_cpu_seconds": 0.0004389999999999672,
+          "kernel_seconds": 0.0006395839154720306,
+          "kernel_cpu_seconds": 0.0023279999999999967,
+          "encoding_seconds": 0.00043624918907880783,
+          "encoding_cpu_seconds": 0.0004369999999999097,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.001537625677883625,
+          "service_cpu_seconds": 0.003225999999999951
+        },
+        {
+          "mask_seconds": 0.00044833216816186905,
+          "mask_cpu_seconds": 0.00044800000000000395,
+          "kernel_seconds": 0.0007005427032709122,
+          "kernel_cpu_seconds": 0.002506999999999926,
+          "encoding_seconds": 0.0003899587318301201,
+          "encoding_cpu_seconds": 0.0003889999999999727,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0015589995309710503,
+          "service_cpu_seconds": 0.003366000000000091
+        },
+        {
+          "mask_seconds": 0.00042237527668476105,
+          "mask_cpu_seconds": 0.0004230000000000622,
+          "kernel_seconds": 0.0006680842489004135,
+          "kernel_cpu_seconds": 0.0024860000000000992,
+          "encoding_seconds": 0.00036954227834939957,
+          "encoding_cpu_seconds": 0.00036999999999998145,
+          "encoded_bytes": 73833,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0014740834012627602,
+          "service_cpu_seconds": 0.003290000000000015
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.0032641664147377014
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0022641664147377014,
+          "modeled_arrival_to_completion_seconds": 0.0038017920926213264
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0028017920926213264,
+          "modeled_arrival_to_completion_seconds": 0.004360791623592377
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0033607916235923766,
+          "modeled_arrival_to_completion_seconds": 0.004834875024855137
+        }
+      ],
+      "calls": {
+        "integer": 4,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 94470144,
+        "lifetime_peak_rss_bytes": 94683136
+      },
+      "cpu_weight_bytes": 1032192,
+      "gpu_weight_bytes": 1032192,
+      "gpu_workspace_admission_bytes": 8388608,
+      "mlx_memory": {
+        "active_bytes": 1032192,
+        "peak_bytes": 1032192,
+        "cache_bytes": 0
+      },
+      "checked_values": 73728,
+      "oracle_seconds": 0.05461170896887779,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.173671,
+      "disk_correction_payload_bytes": 294912,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "qkv_projection",
+        "rows": 16,
+        "backend": "adaptive",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "0386e1a5e502b1efac434fe2c3b5087f5ce92bc9155ee2164af2573ae3b33631",
+      "shape": [
+        1152,
+        896
+      ],
+      "construction": {
+        "seconds": 0.36554033402353525,
+        "cpu_seconds": 0.353456
+      },
+      "services": [
+        {
+          "mask_seconds": 0.00213420856744051,
+          "mask_cpu_seconds": 0.002134999999999998,
+          "kernel_seconds": 0.012458791956305504,
+          "kernel_cpu_seconds": 0.010600000000000054,
+          "encoding_seconds": 0.0035460004583001137,
+          "encoding_cpu_seconds": 0.0035479999999999956,
+          "encoded_bytes": 295332,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.018197832629084587,
+          "service_cpu_seconds": 0.01633499999999999
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.021197832629084586
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.020197832629084585
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.019197832629084588
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.018197832629084587
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 1
+      },
+      "service_window_memory": {
+        "rss_bytes": 95125504,
+        "lifetime_peak_rss_bytes": 95322112
+      },
+      "cpu_weight_bytes": 1032192,
+      "gpu_weight_bytes": 1032192,
+      "gpu_workspace_admission_bytes": 8388608,
+      "mlx_memory": {
+        "active_bytes": 1032192,
+        "peak_bytes": 1556480,
+        "cache_bytes": 524288
+      },
+      "checked_values": 73728,
+      "oracle_seconds": 0.07034462504088879,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.069733,
+      "disk_correction_payload_bytes": 294912,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_gate_up",
+        "rows": 16,
+        "backend": "integer",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "3e0e8d110ddac466a371b57ed2f6b1de8d2cca0fadd2cbaa6653909af562c79b",
+      "shape": [
+        9728,
+        896
+      ],
+      "construction": {
+        "seconds": 0.36978008318692446,
+        "cpu_seconds": 0.365474
+      },
+      "services": [
+        {
+          "mask_seconds": 0.002317458391189575,
+          "mask_cpu_seconds": 0.002319000000000071,
+          "kernel_seconds": 0.0051813749596476555,
+          "kernel_cpu_seconds": 0.01786399999999999,
+          "encoding_seconds": 0.0045679593458771706,
+          "encoding_cpu_seconds": 0.0045520000000000005,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.012103582732379436,
+          "service_cpu_seconds": 0.024766999999999983
+        },
+        {
+          "mask_seconds": 0.0021832920610904694,
+          "mask_cpu_seconds": 0.0021849999999999925,
+          "kernel_seconds": 0.0047395844012498856,
+          "kernel_cpu_seconds": 0.01732800000000001,
+          "encoding_seconds": 0.002750542014837265,
+          "encoding_cpu_seconds": 0.0027519999999999767,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.009709791280329227,
+          "service_cpu_seconds": 0.0222969999999999
+        },
+        {
+          "mask_seconds": 0.0022507086396217346,
+          "mask_cpu_seconds": 0.0022280000000000078,
+          "kernel_seconds": 0.005436749197542667,
+          "kernel_cpu_seconds": 0.019434000000000062,
+          "encoding_seconds": 0.0031760847195982933,
+          "encoding_cpu_seconds": 0.0031769999999999854,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.01089370809495449,
+          "service_cpu_seconds": 0.024864999999999915
+        },
+        {
+          "mask_seconds": 0.0027991672977805138,
+          "mask_cpu_seconds": 0.002793999999999963,
+          "kernel_seconds": 0.0061234161257743835,
+          "kernel_cpu_seconds": 0.022262000000000004,
+          "encoding_seconds": 0.004250457510352135,
+          "encoding_cpu_seconds": 0.004161000000000081,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.013206541538238525,
+          "service_cpu_seconds": 0.029247000000000023
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.012103582732379436
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.011103582732379436,
+          "modeled_arrival_to_completion_seconds": 0.020813374012708663
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.019813374012708662,
+          "modeled_arrival_to_completion_seconds": 0.030707082107663153
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.029707082107663155,
+          "modeled_arrival_to_completion_seconds": 0.04291362364590168
+        }
+      ],
+      "calls": {
+        "integer": 4,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 108265472,
+        "lifetime_peak_rss_bytes": 108412928
+      },
+      "cpu_weight_bytes": 8716288,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 622592,
+      "oracle_seconds": 0.5228828750550747,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.528624,
+      "disk_correction_payload_bytes": 2490368,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_gate_up",
+        "rows": 16,
+        "backend": "integer",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "3e0e8d110ddac466a371b57ed2f6b1de8d2cca0fadd2cbaa6653909af562c79b",
+      "shape": [
+        9728,
+        896
+      ],
+      "construction": {
+        "seconds": 0.3387929582968354,
+        "cpu_seconds": 0.336241
+      },
+      "services": [
+        {
+          "mask_seconds": 0.011259041726589203,
+          "mask_cpu_seconds": 0.011237000000000053,
+          "kernel_seconds": 0.024566917680203915,
+          "kernel_cpu_seconds": 0.08354899999999998,
+          "encoding_seconds": 0.016853291541337967,
+          "encoding_cpu_seconds": 0.016560999999999937,
+          "encoded_bytes": 2490788,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.052841125056147575,
+          "service_cpu_seconds": 0.11148100000000005
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.05584112505614758
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.05484112505614758
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.053841125056147576
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.052841125056147575
+        }
+      ],
+      "calls": {
+        "integer": 1,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 121241600,
+        "lifetime_peak_rss_bytes": 121389056
+      },
+      "cpu_weight_bytes": 8716288,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 622592,
+      "oracle_seconds": 0.5839873747900128,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.630653,
+      "disk_correction_payload_bytes": 2490368,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_gate_up",
+        "rows": 16,
+        "backend": "digit8",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "3e0e8d110ddac466a371b57ed2f6b1de8d2cca0fadd2cbaa6653909af562c79b",
+      "shape": [
+        9728,
+        896
+      ],
+      "construction": {
+        "seconds": 0.3674467084929347,
+        "cpu_seconds": 0.36164999999999997
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0022731246426701546,
+          "mask_cpu_seconds": 0.0022659999999999902,
+          "kernel_seconds": 0.010658040642738342,
+          "kernel_cpu_seconds": 0.010654000000000052,
+          "encoding_seconds": 0.004676291719079018,
+          "encoding_cpu_seconds": 0.004677000000000042,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0176550829783082,
+          "service_cpu_seconds": 0.017641000000000018
+        },
+        {
+          "mask_seconds": 0.0024267910048365593,
+          "mask_cpu_seconds": 0.0024040000000000727,
+          "kernel_seconds": 0.007873333059251308,
+          "kernel_cpu_seconds": 0.007874999999999965,
+          "encoding_seconds": 0.0030024172738194466,
+          "encoding_cpu_seconds": 0.003002999999999978,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.01335066743195057,
+          "service_cpu_seconds": 0.013325000000000031
+        },
+        {
+          "mask_seconds": 0.0018885834142565727,
+          "mask_cpu_seconds": 0.0018890000000000295,
+          "kernel_seconds": 0.007001415826380253,
+          "kernel_cpu_seconds": 0.006976000000000093,
+          "encoding_seconds": 0.0027365004643797874,
+          "encoding_cpu_seconds": 0.0027369999999999894,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.011670833453536034,
+          "service_cpu_seconds": 0.011643999999999988
+        },
+        {
+          "mask_seconds": 0.0019385004416108131,
+          "mask_cpu_seconds": 0.0019400000000000528,
+          "kernel_seconds": 0.007254875265061855,
+          "kernel_cpu_seconds": 0.007233999999999963,
+          "encoding_seconds": 0.0024828752502799034,
+          "encoding_cpu_seconds": 0.002483000000000013,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.01171799935400486,
+          "service_cpu_seconds": 0.011696999999999957
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.0176550829783082
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0166550829783082,
+          "modeled_arrival_to_completion_seconds": 0.03000575041025877
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.029005750410258768,
+          "modeled_arrival_to_completion_seconds": 0.0406765838637948
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0396765838637948,
+          "modeled_arrival_to_completion_seconds": 0.05139458321779966
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 4,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 114458624,
+        "lifetime_peak_rss_bytes": 114606080
+      },
+      "cpu_weight_bytes": 8716288,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 622592,
+      "oracle_seconds": 0.5806147493422031,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.670073,
+      "disk_correction_payload_bytes": 2490368,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_gate_up",
+        "rows": 16,
+        "backend": "digit8",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "3e0e8d110ddac466a371b57ed2f6b1de8d2cca0fadd2cbaa6653909af562c79b",
+      "shape": [
+        9728,
+        896
+      ],
+      "construction": {
+        "seconds": 0.418995457701385,
+        "cpu_seconds": 0.410597
+      },
+      "services": [
+        {
+          "mask_seconds": 0.009719999507069588,
+          "mask_cpu_seconds": 0.009697999999999984,
+          "kernel_seconds": 0.016606749966740608,
+          "kernel_cpu_seconds": 0.016603000000000034,
+          "encoding_seconds": 0.0147707499563694,
+          "encoding_cpu_seconds": 0.01475700000000002,
+          "encoded_bytes": 2490788,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.04117287416011095,
+          "service_cpu_seconds": 0.04112400000000005
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.04417287416011095
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.04317287416011095
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.04217287416011095
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.04117287416011095
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 1,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 122273792,
+        "lifetime_peak_rss_bytes": 122404864
+      },
+      "cpu_weight_bytes": 8716288,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 622592,
+      "oracle_seconds": 0.5690527083352208,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.642541,
+      "disk_correction_payload_bytes": 2490368,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_gate_up",
+        "rows": 16,
+        "backend": "metal",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "3e0e8d110ddac466a371b57ed2f6b1de8d2cca0fadd2cbaa6653909af562c79b",
+      "shape": [
+        9728,
+        896
+      ],
+      "construction": {
+        "seconds": 0.39539691619575024,
+        "cpu_seconds": 0.39110300000000003
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0026699164882302284,
+          "mask_cpu_seconds": 0.0026720000000000077,
+          "kernel_seconds": 0.012876542285084724,
+          "kernel_cpu_seconds": 0.009830000000000005,
+          "encoding_seconds": 0.007300791330635548,
+          "encoding_cpu_seconds": 0.007275999999999949,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.02291745785623789,
+          "service_cpu_seconds": 0.019840999999999998
+        },
+        {
+          "mask_seconds": 0.0033311257138848305,
+          "mask_cpu_seconds": 0.0032800000000000606,
+          "kernel_seconds": 0.004642958752810955,
+          "kernel_cpu_seconds": 0.0010529999999999706,
+          "encoding_seconds": 0.004205750301480293,
+          "encoding_cpu_seconds": 0.004207000000000072,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.012243750505149364,
+          "service_cpu_seconds": 0.008596000000000048
+        },
+        {
+          "mask_seconds": 0.003381083719432354,
+          "mask_cpu_seconds": 0.0033599999999999186,
+          "kernel_seconds": 0.004449374973773956,
+          "kernel_cpu_seconds": 0.0006840000000000179,
+          "encoding_seconds": 0.0041330838575959206,
+          "encoding_cpu_seconds": 0.0041160000000000085,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.012022707611322403,
+          "service_cpu_seconds": 0.008209000000000022
+        },
+        {
+          "mask_seconds": 0.003293166868388653,
+          "mask_cpu_seconds": 0.0032800000000000606,
+          "kernel_seconds": 0.004807000048458576,
+          "kernel_cpu_seconds": 0.0007289999999999797,
+          "encoding_seconds": 0.004336250014603138,
+          "encoding_cpu_seconds": 0.0040799999999999725,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.012473540380597115,
+          "service_cpu_seconds": 0.008125999999999967
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.02291745785623789
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.021917457856237887,
+          "modeled_arrival_to_completion_seconds": 0.03416120836138725
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.03316120836138725,
+          "modeled_arrival_to_completion_seconds": 0.045183915972709654
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.04418391597270965,
+          "modeled_arrival_to_completion_seconds": 0.05665745635330677
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 4
+      },
+      "service_window_memory": {
+        "rss_bytes": 130580480,
+        "lifetime_peak_rss_bytes": 130793472
+      },
+      "cpu_weight_bytes": 8716288,
+      "gpu_weight_bytes": 8716288,
+      "gpu_workspace_admission_bytes": 43515904,
+      "mlx_memory": {
+        "active_bytes": 8716288,
+        "peak_bytes": 9404416,
+        "cache_bytes": 688128
+      },
+      "checked_values": 622592,
+      "oracle_seconds": 0.576421832665801,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.610205,
+      "disk_correction_payload_bytes": 2490368,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_gate_up",
+        "rows": 16,
+        "backend": "metal",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "3e0e8d110ddac466a371b57ed2f6b1de8d2cca0fadd2cbaa6653909af562c79b",
+      "shape": [
+        9728,
+        896
+      ],
+      "construction": {
+        "seconds": 0.45727429166436195,
+        "cpu_seconds": 0.451436
+      },
+      "services": [
+        {
+          "mask_seconds": 0.008521250449120998,
+          "mask_cpu_seconds": 0.008520000000000083,
+          "kernel_seconds": 0.02037112507969141,
+          "kernel_cpu_seconds": 0.008012000000000019,
+          "encoding_seconds": 0.013007250614464283,
+          "encoding_cpu_seconds": 0.012998999999999983,
+          "encoded_bytes": 2490788,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.0419660834595561,
+          "service_cpu_seconds": 0.029587999999999948
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.044966083459556105
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.043966083459556105
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.042966083459556104
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.0419660834595561
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 1
+      },
+      "service_window_memory": {
+        "rss_bytes": 137412608,
+        "lifetime_peak_rss_bytes": 137658368
+      },
+      "cpu_weight_bytes": 8716288,
+      "gpu_weight_bytes": 8716288,
+      "gpu_workspace_admission_bytes": 43515904,
+      "mlx_memory": {
+        "active_bytes": 8716288,
+        "peak_bytes": 11436032,
+        "cache_bytes": 2719744
+      },
+      "checked_values": 622592,
+      "oracle_seconds": 0.5723268333822489,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.634341,
+      "disk_correction_payload_bytes": 2490368,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_gate_up",
+        "rows": 16,
+        "backend": "adaptive",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "3e0e8d110ddac466a371b57ed2f6b1de8d2cca0fadd2cbaa6653909af562c79b",
+      "shape": [
+        9728,
+        896
+      ],
+      "construction": {
+        "seconds": 0.44924554135650396,
+        "cpu_seconds": 0.435359
+      },
+      "services": [
+        {
+          "mask_seconds": 0.002014082856476307,
+          "mask_cpu_seconds": 0.0020130000000000425,
+          "kernel_seconds": 0.00416145846247673,
+          "kernel_cpu_seconds": 0.014663000000000093,
+          "encoding_seconds": 0.003814541734755039,
+          "encoding_cpu_seconds": 0.0038159999999999306,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.010029375553131104,
+          "service_cpu_seconds": 0.020526999999999962
+        },
+        {
+          "mask_seconds": 0.0021752920001745224,
+          "mask_cpu_seconds": 0.0021529999999999605,
+          "kernel_seconds": 0.004060583189129829,
+          "kernel_cpu_seconds": 0.014502000000000015,
+          "encoding_seconds": 0.0030726250261068344,
+          "encoding_cpu_seconds": 0.0030729999999999924,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.009340999647974968,
+          "service_cpu_seconds": 0.01976
+        },
+        {
+          "mask_seconds": 0.002289624884724617,
+          "mask_cpu_seconds": 0.0022900000000000142,
+          "kernel_seconds": 0.004460749216377735,
+          "kernel_cpu_seconds": 0.016661000000000037,
+          "encoding_seconds": 0.003226708620786667,
+          "encoding_cpu_seconds": 0.0032159999999999966,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.010027499869465828,
+          "service_cpu_seconds": 0.022214000000000067
+        },
+        {
+          "mask_seconds": 0.0023292088881134987,
+          "mask_cpu_seconds": 0.0023079999999999767,
+          "kernel_seconds": 0.0042902082204818726,
+          "kernel_cpu_seconds": 0.015920999999999963,
+          "encoding_seconds": 0.002844458445906639,
+          "encoding_cpu_seconds": 0.0028449999999999864,
+          "encoded_bytes": 622697,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.009493082761764526,
+          "service_cpu_seconds": 0.021100000000000008
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.010029375553131104
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.009029375553131103,
+          "modeled_arrival_to_completion_seconds": 0.01837037520110607
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.01737037520110607,
+          "modeled_arrival_to_completion_seconds": 0.027397875070571898
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0263978750705719,
+          "modeled_arrival_to_completion_seconds": 0.03589095783233642
+        }
+      ],
+      "calls": {
+        "integer": 4,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 127008768,
+        "lifetime_peak_rss_bytes": 127238144
+      },
+      "cpu_weight_bytes": 8716288,
+      "gpu_weight_bytes": 8716288,
+      "gpu_workspace_admission_bytes": 43515904,
+      "mlx_memory": {
+        "active_bytes": 8716288,
+        "peak_bytes": 8716288,
+        "cache_bytes": 0
+      },
+      "checked_values": 622592,
+      "oracle_seconds": 0.5876055834814906,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.727213,
+      "disk_correction_payload_bytes": 2490368,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_gate_up",
+        "rows": 16,
+        "backend": "adaptive",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "3e0e8d110ddac466a371b57ed2f6b1de8d2cca0fadd2cbaa6653909af562c79b",
+      "shape": [
+        9728,
+        896
+      ],
+      "construction": {
+        "seconds": 0.4502266254276037,
+        "cpu_seconds": 0.439209
+      },
+      "services": [
+        {
+          "mask_seconds": 0.011200083419680595,
+          "mask_cpu_seconds": 0.011198000000000041,
+          "kernel_seconds": 0.032859208062291145,
+          "kernel_cpu_seconds": 0.010878999999999972,
+          "encoding_seconds": 0.01287037506699562,
+          "encoding_cpu_seconds": 0.012866000000000044,
+          "encoded_bytes": 2490788,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.05701379105448723,
+          "service_cpu_seconds": 0.03501499999999991
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.06001379105448723
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.05901379105448723
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.05801379105448723
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.05701379105448723
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 1
+      },
+      "service_window_memory": {
+        "rss_bytes": 141312000,
+        "lifetime_peak_rss_bytes": 141541376
+      },
+      "cpu_weight_bytes": 8716288,
+      "gpu_weight_bytes": 8716288,
+      "gpu_workspace_admission_bytes": 43515904,
+      "mlx_memory": {
+        "active_bytes": 8716288,
+        "peak_bytes": 11436032,
+        "cache_bytes": 2719744
+      },
+      "checked_values": 622592,
+      "oracle_seconds": 0.5755712492391467,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.728363,
+      "disk_correction_payload_bytes": 2490368,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_down",
+        "rows": 16,
+        "backend": "integer",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "c9c7a3a9c938cfb3acbed58eea8df9d279bcc5876331c969a0930c9043adbd20",
+      "shape": [
+        896,
+        4864
+      ],
+      "construction": {
+        "seconds": 0.35298916697502136,
+        "cpu_seconds": 0.34883900000000007
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0011924579739570618,
+          "mask_cpu_seconds": 0.0011940000000000284,
+          "kernel_seconds": 0.0025054151192307472,
+          "kernel_cpu_seconds": 0.00912500000000005,
+          "encoding_seconds": 0.001992166042327881,
+          "encoding_cpu_seconds": 0.0019799999999999818,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.005729959346354008,
+          "service_cpu_seconds": 0.012334999999999985
+        },
+        {
+          "mask_seconds": 0.001191500574350357,
+          "mask_cpu_seconds": 0.0011919999999999709,
+          "kernel_seconds": 0.0020917924121022224,
+          "kernel_cpu_seconds": 0.008006999999999986,
+          "encoding_seconds": 0.0004160003736615181,
+          "encoding_cpu_seconds": 0.00041599999999997195,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0037245415151119232,
+          "service_cpu_seconds": 0.009638000000000035
+        },
+        {
+          "mask_seconds": 0.0012042084708809853,
+          "mask_cpu_seconds": 0.0012050000000000116,
+          "kernel_seconds": 0.0021225837990641594,
+          "kernel_cpu_seconds": 0.008145000000000069,
+          "encoding_seconds": 0.0003071250393986702,
+          "encoding_cpu_seconds": 0.0003090000000000037,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.003651125356554985,
+          "service_cpu_seconds": 0.009672999999999932
+        },
+        {
+          "mask_seconds": 0.0011677080765366554,
+          "mask_cpu_seconds": 0.0011680000000000579,
+          "kernel_seconds": 0.002149166539311409,
+          "kernel_cpu_seconds": 0.008420000000000094,
+          "encoding_seconds": 0.0003119995817542076,
+          "encoding_cpu_seconds": 0.00031199999999997896,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.003642541356384754,
+          "service_cpu_seconds": 0.009915000000000007
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.005729959346354008
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.004729959346354008,
+          "modeled_arrival_to_completion_seconds": 0.00845450086146593
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.007454500861465931,
+          "modeled_arrival_to_completion_seconds": 0.011105626218020916
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.010105626218020917,
+          "modeled_arrival_to_completion_seconds": 0.013748167574405671
+        }
+      ],
+      "calls": {
+        "integer": 4,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 91406336,
+        "lifetime_peak_rss_bytes": 91553792
+      },
+      "cpu_weight_bytes": 4358144,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 57344,
+      "oracle_seconds": 0.28956920839846134,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.276095,
+      "disk_correction_payload_bytes": 229376,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_down",
+        "rows": 16,
+        "backend": "integer",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "c9c7a3a9c938cfb3acbed58eea8df9d279bcc5876331c969a0930c9043adbd20",
+      "shape": [
+        896,
+        4864
+      ],
+      "construction": {
+        "seconds": 0.25392862502485514,
+        "cpu_seconds": 0.24930500000000005
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0044116247445344925,
+          "mask_cpu_seconds": 0.004384999999999972,
+          "kernel_seconds": 0.00783470831811428,
+          "kernel_cpu_seconds": 0.028914999999999913,
+          "encoding_seconds": 0.0023490414023399353,
+          "encoding_cpu_seconds": 0.0023499999999999632,
+          "encoded_bytes": 229796,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.014637374319136143,
+          "service_cpu_seconds": 0.035687000000000024
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.017637374319136142
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.01663737431913614
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.015637374319136144
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.014637374319136143
+        }
+      ],
+      "calls": {
+        "integer": 1,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 94912512,
+        "lifetime_peak_rss_bytes": 95043584
+      },
+      "cpu_weight_bytes": 4358144,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 57344,
+      "oracle_seconds": 0.28707112465053797,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.15636,
+      "disk_correction_payload_bytes": 229376,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_down",
+        "rows": 16,
+        "backend": "digit8",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "c9c7a3a9c938cfb3acbed58eea8df9d279bcc5876331c969a0930c9043adbd20",
+      "shape": [
+        896,
+        4864
+      ],
+      "construction": {
+        "seconds": 0.2966440822929144,
+        "cpu_seconds": 0.296014
+      },
+      "services": [
+        {
+          "mask_seconds": 0.001330832950770855,
+          "mask_cpu_seconds": 0.0013050000000000006,
+          "kernel_seconds": 0.0064145419746637344,
+          "kernel_cpu_seconds": 0.006408999999999998,
+          "encoding_seconds": 0.0016996245831251144,
+          "encoding_cpu_seconds": 0.0017009999999999525,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.009490291588008404,
+          "service_cpu_seconds": 0.009454999999999991
+        },
+        {
+          "mask_seconds": 0.0012092916294932365,
+          "mask_cpu_seconds": 0.0012110000000000731,
+          "kernel_seconds": 0.006450916640460491,
+          "kernel_cpu_seconds": 0.006454000000000071,
+          "encoding_seconds": 0.0004327083006501198,
+          "encoding_cpu_seconds": 0.00043399999999993444,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.00812387466430664,
+          "service_cpu_seconds": 0.00812400000000002
+        },
+        {
+          "mask_seconds": 0.0012310836464166641,
+          "mask_cpu_seconds": 0.0012240000000000029,
+          "kernel_seconds": 0.005480708554387093,
+          "kernel_cpu_seconds": 0.005437000000000025,
+          "encoding_seconds": 0.00043954234570264816,
+          "encoding_cpu_seconds": 0.00043999999999999595,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.007180042564868927,
+          "service_cpu_seconds": 0.007128999999999941
+        },
+        {
+          "mask_seconds": 0.001200125552713871,
+          "mask_cpu_seconds": 0.0011999999999999789,
+          "kernel_seconds": 0.00597454234957695,
+          "kernel_cpu_seconds": 0.005975999999999981,
+          "encoding_seconds": 0.00041866768151521683,
+          "encoding_cpu_seconds": 0.00041999999999997595,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.007616957649588585,
+          "service_cpu_seconds": 0.007616999999999985
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.009490291588008404
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.008490291588008403,
+          "modeled_arrival_to_completion_seconds": 0.016614166252315044
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.015614166252315044,
+          "modeled_arrival_to_completion_seconds": 0.02279420881718397
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.021794208817183972,
+          "modeled_arrival_to_completion_seconds": 0.029411166466772557
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 4,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 95338496,
+        "lifetime_peak_rss_bytes": 95485952
+      },
+      "cpu_weight_bytes": 4358144,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 57344,
+      "oracle_seconds": 0.2811268335208297,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.175363,
+      "disk_correction_payload_bytes": 229376,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_down",
+        "rows": 16,
+        "backend": "digit8",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "c9c7a3a9c938cfb3acbed58eea8df9d279bcc5876331c969a0930c9043adbd20",
+      "shape": [
+        896,
+        4864
+      ],
+      "construction": {
+        "seconds": 0.38747804053127766,
+        "cpu_seconds": 0.38007799999999997
+      },
+      "services": [
+        {
+          "mask_seconds": 0.007607417181134224,
+          "mask_cpu_seconds": 0.0074209999999999,
+          "kernel_seconds": 0.0146697498857975,
+          "kernel_cpu_seconds": 0.014518000000000031,
+          "encoding_seconds": 0.004358625039458275,
+          "encoding_cpu_seconds": 0.004216999999999915,
+          "encoded_bytes": 229796,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.026754625141620636,
+          "service_cpu_seconds": 0.026244000000000045
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.029754625141620635
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.028754625141620634
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.027754625141620637
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.026754625141620636
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 1,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 97861632,
+        "lifetime_peak_rss_bytes": 98009088
+      },
+      "cpu_weight_bytes": 4358144,
+      "gpu_weight_bytes": 0,
+      "gpu_workspace_admission_bytes": 0,
+      "mlx_memory": null,
+      "checked_values": 57344,
+      "oracle_seconds": 0.2815340831875801,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.330317,
+      "disk_correction_payload_bytes": 229376,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_down",
+        "rows": 16,
+        "backend": "metal",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "c9c7a3a9c938cfb3acbed58eea8df9d279bcc5876331c969a0930c9043adbd20",
+      "shape": [
+        896,
+        4864
+      ],
+      "construction": {
+        "seconds": 0.36366079188883305,
+        "cpu_seconds": 0.355376
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0018843747675418854,
+          "mask_cpu_seconds": 0.001859000000000055,
+          "kernel_seconds": 0.010531583800911903,
+          "kernel_cpu_seconds": 0.009747999999999979,
+          "encoding_seconds": 0.002477000467479229,
+          "encoding_cpu_seconds": 0.0024799999999999267,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.014961250126361847,
+          "service_cpu_seconds": 0.014146000000000103
+        },
+        {
+          "mask_seconds": 0.001896541565656662,
+          "mask_cpu_seconds": 0.0018439999999999568,
+          "kernel_seconds": 0.0021954160183668137,
+          "kernel_cpu_seconds": 0.0004940000000001055,
+          "encoding_seconds": 0.0005673328414559364,
+          "encoding_cpu_seconds": 0.0005990000000000162,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0046982914209365845,
+          "service_cpu_seconds": 0.0029719999999999747
+        },
+        {
+          "mask_seconds": 0.002041500061750412,
+          "mask_cpu_seconds": 0.001962999999999937,
+          "kernel_seconds": 0.002051916904747486,
+          "kernel_cpu_seconds": 0.0004790000000000072,
+          "encoding_seconds": 0.00045895855873823166,
+          "encoding_cpu_seconds": 0.0004939999999999944,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.004583375528454781,
+          "service_cpu_seconds": 0.002983000000000069
+        },
+        {
+          "mask_seconds": 0.001768374815583229,
+          "mask_cpu_seconds": 0.0017199999999999438,
+          "kernel_seconds": 0.0021594157442450523,
+          "kernel_cpu_seconds": 0.00040600000000001746,
+          "encoding_seconds": 0.0004219580441713333,
+          "encoding_cpu_seconds": 0.00042199999999992244,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.004375583492219448,
+          "service_cpu_seconds": 0.0025720000000000187
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.014961250126361847
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.013961250126361846,
+          "modeled_arrival_to_completion_seconds": 0.01865954154729843
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.01765954154729843,
+          "modeled_arrival_to_completion_seconds": 0.02224291707575321
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.021242917075753213,
+          "modeled_arrival_to_completion_seconds": 0.02561850056797266
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 4
+      },
+      "service_window_memory": {
+        "rss_bytes": 108969984,
+        "lifetime_peak_rss_bytes": 109199360
+      },
+      "cpu_weight_bytes": 4358144,
+      "gpu_weight_bytes": 4358144,
+      "gpu_workspace_admission_bytes": 23592960,
+      "mlx_memory": {
+        "active_bytes": 4358144,
+        "peak_bytes": 4734976,
+        "cache_bytes": 376832
+      },
+      "checked_values": 57344,
+      "oracle_seconds": 0.30634233355522156,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.299389,
+      "disk_correction_payload_bytes": 229376,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_down",
+        "rows": 16,
+        "backend": "metal",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "c9c7a3a9c938cfb3acbed58eea8df9d279bcc5876331c969a0930c9043adbd20",
+      "shape": [
+        896,
+        4864
+      ],
+      "construction": {
+        "seconds": 0.4319259589537978,
+        "cpu_seconds": 0.41801900000000003
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0070846667513251305,
+          "mask_cpu_seconds": 0.006940999999999975,
+          "kernel_seconds": 0.01642887480556965,
+          "kernel_cpu_seconds": 0.009958000000000022,
+          "encoding_seconds": 0.004142625257372856,
+          "encoding_cpu_seconds": 0.0040879999999999805,
+          "encoded_bytes": 229796,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.027727792039513588,
+          "service_cpu_seconds": 0.021050000000000013
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.030727792039513587
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.029727792039513586
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.02872779203951359
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.027727792039513588
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 1
+      },
+      "service_window_memory": {
+        "rss_bytes": 113508352,
+        "lifetime_peak_rss_bytes": 113721344
+      },
+      "cpu_weight_bytes": 4358144,
+      "gpu_weight_bytes": 4358144,
+      "gpu_workspace_admission_bytes": 23592960,
+      "mlx_memory": {
+        "active_bytes": 4358144,
+        "peak_bytes": 5832704,
+        "cache_bytes": 1474560
+      },
+      "checked_values": 57344,
+      "oracle_seconds": 0.2912860410287976,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.31146,
+      "disk_correction_payload_bytes": 229376,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_down",
+        "rows": 16,
+        "backend": "adaptive",
+        "layout": "separate",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "c9c7a3a9c938cfb3acbed58eea8df9d279bcc5876331c969a0930c9043adbd20",
+      "shape": [
+        896,
+        4864
+      ],
+      "construction": {
+        "seconds": 0.39386883471161127,
+        "cpu_seconds": 0.38410199999999994
+      },
+      "services": [
+        {
+          "mask_seconds": 0.0017587924376130104,
+          "mask_cpu_seconds": 0.0017289999999999806,
+          "kernel_seconds": 0.0031097084283828735,
+          "kernel_cpu_seconds": 0.010183000000000053,
+          "encoding_seconds": 0.002110583707690239,
+          "encoding_cpu_seconds": 0.002110999999999974,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.007029082626104355,
+          "service_cpu_seconds": 0.01406699999999994
+        },
+        {
+          "mask_seconds": 0.0014812080189585686,
+          "mask_cpu_seconds": 0.001483000000000012,
+          "kernel_seconds": 0.002508542500436306,
+          "kernel_cpu_seconds": 0.009680000000000022,
+          "encoding_seconds": 0.00043795909732580185,
+          "encoding_cpu_seconds": 0.0004390000000000782,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.004453958012163639,
+          "service_cpu_seconds": 0.011624999999999996
+        },
+        {
+          "mask_seconds": 0.001408957876265049,
+          "mask_cpu_seconds": 0.0014089999999999936,
+          "kernel_seconds": 0.002476499415934086,
+          "kernel_cpu_seconds": 0.009681999999999968,
+          "encoding_seconds": 0.0005884580314159393,
+          "encoding_cpu_seconds": 0.0005910000000000082,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.004500541836023331,
+          "service_cpu_seconds": 0.011707000000000023
+        },
+        {
+          "mask_seconds": 0.0014761248603463173,
+          "mask_cpu_seconds": 0.0014770000000000616,
+          "kernel_seconds": 0.002502208575606346,
+          "kernel_cpu_seconds": 0.009500999999999982,
+          "encoding_seconds": 0.0003982502967119217,
+          "encoding_cpu_seconds": 0.0003989999999999272,
+          "encoded_bytes": 57449,
+          "windows": 1,
+          "rows": 16,
+          "service_seconds": 0.0044065844267606735,
+          "service_cpu_seconds": 0.01140400000000008
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.007029082626104355
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.006029082626104355,
+          "modeled_arrival_to_completion_seconds": 0.010483040638267993
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.009483040638267994,
+          "modeled_arrival_to_completion_seconds": 0.013983582474291325
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.012983582474291325,
+          "modeled_arrival_to_completion_seconds": 0.017390166901052
+        }
+      ],
+      "calls": {
+        "integer": 4,
+        "digit8": 0,
+        "metal": 0
+      },
+      "service_window_memory": {
+        "rss_bytes": 106528768,
+        "lifetime_peak_rss_bytes": 106790912
+      },
+      "cpu_weight_bytes": 4358144,
+      "gpu_weight_bytes": 4358144,
+      "gpu_workspace_admission_bytes": 23592960,
+      "mlx_memory": {
+        "active_bytes": 4358144,
+        "peak_bytes": 4358144,
+        "cache_bytes": 0
+      },
+      "checked_values": 57344,
+      "oracle_seconds": 0.2534090830013156,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.328504,
+      "disk_correction_payload_bytes": 229376,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    },
+    {
+      "spec": {
+        "role": "mlp_down",
+        "rows": 16,
+        "backend": "adaptive",
+        "layout": "batch",
+        "inventories": 4,
+        "arrival_interval_seconds": 0.001,
+        "deadline_seconds": 0.005,
+        "repeat": 0
+      },
+      "source": {
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+        "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+        "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+      },
+      "weight_sha256": "c9c7a3a9c938cfb3acbed58eea8df9d279bcc5876331c969a0930c9043adbd20",
+      "shape": [
+        896,
+        4864
+      ],
+      "construction": {
+        "seconds": 0.4465975007042289,
+        "cpu_seconds": 0.421383
+      },
+      "services": [
+        {
+          "mask_seconds": 0.006392999552190304,
+          "mask_cpu_seconds": 0.006241000000000052,
+          "kernel_seconds": 0.017383958213031292,
+          "kernel_cpu_seconds": 0.008948999999999985,
+          "encoding_seconds": 0.0031852498650550842,
+          "encoding_cpu_seconds": 0.0031689999999999774,
+          "encoded_bytes": 229796,
+          "windows": 1,
+          "rows": 64,
+          "service_seconds": 0.027035249397158623,
+          "service_cpu_seconds": 0.01842200000000005
+        }
+      ],
+      "modeled_delays": [
+        {
+          "inventory_index": 0,
+          "fill_wait_seconds": 0.003,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.030035249397158622
+        },
+        {
+          "inventory_index": 1,
+          "fill_wait_seconds": 0.002,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.02903524939715862
+        },
+        {
+          "inventory_index": 2,
+          "fill_wait_seconds": 0.001,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.028035249397158624
+        },
+        {
+          "inventory_index": 3,
+          "fill_wait_seconds": 0.0,
+          "busy_queue_seconds": 0.0,
+          "modeled_arrival_to_completion_seconds": 0.027035249397158623
+        }
+      ],
+      "calls": {
+        "integer": 0,
+        "digit8": 0,
+        "metal": 1
+      },
+      "service_window_memory": {
+        "rss_bytes": 113033216,
+        "lifetime_peak_rss_bytes": 113278976
+      },
+      "cpu_weight_bytes": 4358144,
+      "gpu_weight_bytes": 4358144,
+      "gpu_workspace_admission_bytes": 23592960,
+      "mlx_memory": {
+        "active_bytes": 4358144,
+        "peak_bytes": 5832704,
+        "cache_bytes": 1474560
+      },
+      "checked_values": 57344,
+      "oracle_seconds": 0.2709962921217084,
+      "exact_parity": true,
+      "process_cpu_seconds_including_oracle": 1.346631,
+      "disk_correction_payload_bytes": 229376,
+      "cuda": "unavailable; no CUDA measurement",
+      "gpu_compute_seconds": null,
+      "physical_device_memory_bytes": null,
+      "provider_traffic_bytes": null,
+      "runtime_identity_digest": "7ba078191072cedfcdb4af546e5077360cbedeb44dcc245ca82c7eebcd49ef97",
+      "runtime_identity_verified": true
+    }
+  ],
+  "failures": [],
+  "host": {
+    "total": 34359738368,
+    "available": 10907369472,
+    "swap_used": 924319744,
+    "disk_free": 44129542144
+  },
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/bin/python",
+    "expected_digest": "d4c5bc12436c5354c1974b2731c5ccd45ef6e68f35c22023c5dd057e78b0a04e"
+  },
+  "probe_sha256": "ce694ed66b95da5fb67da40d94fe17032b3eda7a4df58d0e5b5e9d9d20750008",
+  "runtime_identity_before": {
+    "files": {
+      "pllm.runtime.native": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/native.py",
+        "sha256": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f"
+      },
+      "pllm.runtime.metal": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/metal.py",
+        "sha256": "68803f30d06cab64a31f8d91d9a52400b09dce854e57adcab3022d4191e86dfd"
+      },
+      "pllm.runtime.preparation_protocol": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/preparation_protocol.py",
+        "sha256": "0d8353b5312e5a8e3225b049d270395ae72aceeaaf5d6a635e4cf45ee8a192b1"
+      },
+      "pllm.runtime.stage_protocol": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/stage_protocol.py",
+        "sha256": "bf22cc5031abb1c28da8f4f0678d490f20e373406f6ffbca7427f3ad434a4d12"
+      },
+      "pllm.runtime.protocol": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/protocol.py",
+        "sha256": "726d7606b3e20c7ab4e636470fddd60c6b703a12ac856820bcc681e022391e25"
+      },
+      "pllm.runtime._native_support": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/_native_support.py",
+        "sha256": "ce14f68b2184dc103a7e60eb03fa4b26dbfd2d9a5794f3deacdf6f4dd4fd6031"
+      },
+      "pllm.runtime.benchmark_memory": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+        "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+      },
+      "pllm.runtime.shutdown": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+        "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+      },
+      "msgpack": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/msgpack/__init__.py",
+        "sha256": "b94f613933485a1d34feb523e98b9897e81fc3cd91206bcf3bd1477f6f645e19"
+      },
+      "msgpack._cmsgpack": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/msgpack/_cmsgpack.cpython-313-darwin.so",
+        "sha256": "ffbbf56c83872abb59e8d3cc50479b22dd0d94b97598f14b08706f9ad60dacd5"
+      },
+      "numpy": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/numpy/__init__.py",
+        "sha256": "09295a80660f17925ae23765ce8cbd7ff7ceae968d5f2f89349f1cb74c0b9e11"
+      },
+      "numpy._core._multiarray_umath": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/numpy/_core/_multiarray_umath.cpython-313-darwin.so",
+        "sha256": "c3f325f8c20ffada58134c2bf0cfe157bd03bccdaac784168f1b97bd6ba12c23"
+      },
+      "probe": {
+        "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-preparation-factory/scripts/probe_preparation_factory.py",
+        "sha256": "ce694ed66b95da5fb67da40d94fe17032b3eda7a4df58d0e5b5e9d9d20750008"
+      },
+      "frontier_probe_support": {
+        "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-preparation-factory/scripts/frontier_probe_support.py",
+        "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+      },
+      "pllm._native": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+        "sha256": "bf312712f6ca3320ca894369c6b6e68f10234055a38318bc47edf52b26f8152f"
+      },
+      "mlx:mlx/core.cpython-313-darwin.so": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/mlx/core.cpython-313-darwin.so",
+        "sha256": "74f41ba06185ece0f81808e7a3d3d1242d02b9337ffb19957a38bf012bae6cf3"
+      },
+      "mlx-metal:mlx/lib/libjaccl.dylib": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/mlx/lib/libjaccl.dylib",
+        "sha256": "9cfd72679ff35c593a1d46fd30d995cc4a131eed15733617efb1118001e74084"
+      },
+      "mlx-metal:mlx/lib/libmlx.dylib": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/mlx/lib/libmlx.dylib",
+        "sha256": "d24c7a9b9d55a76bfd3bbcd1d042251a185cbadcb6340c3244a6ffa3dcb7c7e8"
+      },
+      "mlx-metal:mlx/lib/mlx.metallib": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/mlx/lib/mlx.metallib",
+        "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed"
+      }
+    },
+    "versions": {
+      "numpy": "2.5.3",
+      "msgpack": "1.2.2",
+      "mlx": "0.32.2",
+      "mlx-metal": "0.32.2"
+    },
+    "native_capabilities": {
+      "api_version": 2,
+      "implementation": "rust",
+      "crate_version": "0.1.0-alpha.2",
+      "avx2": false,
+      "neon": true,
+      "parallel": "rayon",
+      "he_backend": "external-seal-tenseal",
+      "matrix_storage": "owned-int8",
+      "gpu": false,
+      "digit8_cpu": true,
+      "compiled": true
+    }
+  },
+  "runtime_identity_after": {
+    "files": {
+      "pllm.runtime.native": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/native.py",
+        "sha256": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f"
+      },
+      "pllm.runtime.metal": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/metal.py",
+        "sha256": "68803f30d06cab64a31f8d91d9a52400b09dce854e57adcab3022d4191e86dfd"
+      },
+      "pllm.runtime.preparation_protocol": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/preparation_protocol.py",
+        "sha256": "0d8353b5312e5a8e3225b049d270395ae72aceeaaf5d6a635e4cf45ee8a192b1"
+      },
+      "pllm.runtime.stage_protocol": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/stage_protocol.py",
+        "sha256": "bf22cc5031abb1c28da8f4f0678d490f20e373406f6ffbca7427f3ad434a4d12"
+      },
+      "pllm.runtime.protocol": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/protocol.py",
+        "sha256": "726d7606b3e20c7ab4e636470fddd60c6b703a12ac856820bcc681e022391e25"
+      },
+      "pllm.runtime._native_support": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/_native_support.py",
+        "sha256": "ce14f68b2184dc103a7e60eb03fa4b26dbfd2d9a5794f3deacdf6f4dd4fd6031"
+      },
+      "pllm.runtime.benchmark_memory": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+        "sha256": "3533faa5fc3dcae97859755fa374c200079e044020d5c857576870983a6d8f7e"
+      },
+      "pllm.runtime.shutdown": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+        "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+      },
+      "msgpack": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/msgpack/__init__.py",
+        "sha256": "b94f613933485a1d34feb523e98b9897e81fc3cd91206bcf3bd1477f6f645e19"
+      },
+      "msgpack._cmsgpack": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/msgpack/_cmsgpack.cpython-313-darwin.so",
+        "sha256": "ffbbf56c83872abb59e8d3cc50479b22dd0d94b97598f14b08706f9ad60dacd5"
+      },
+      "numpy": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/numpy/__init__.py",
+        "sha256": "09295a80660f17925ae23765ce8cbd7ff7ceae968d5f2f89349f1cb74c0b9e11"
+      },
+      "numpy._core._multiarray_umath": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/numpy/_core/_multiarray_umath.cpython-313-darwin.so",
+        "sha256": "c3f325f8c20ffada58134c2bf0cfe157bd03bccdaac784168f1b97bd6ba12c23"
+      },
+      "probe": {
+        "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-preparation-factory/scripts/probe_preparation_factory.py",
+        "sha256": "ce694ed66b95da5fb67da40d94fe17032b3eda7a4df58d0e5b5e9d9d20750008"
+      },
+      "frontier_probe_support": {
+        "path": "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/pllm-sol61-preparation-factory/scripts/frontier_probe_support.py",
+        "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+      },
+      "pllm._native": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+        "sha256": "bf312712f6ca3320ca894369c6b6e68f10234055a38318bc47edf52b26f8152f"
+      },
+      "mlx:mlx/core.cpython-313-darwin.so": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/mlx/core.cpython-313-darwin.so",
+        "sha256": "74f41ba06185ece0f81808e7a3d3d1242d02b9337ffb19957a38bf012bae6cf3"
+      },
+      "mlx-metal:mlx/lib/libjaccl.dylib": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/mlx/lib/libjaccl.dylib",
+        "sha256": "9cfd72679ff35c593a1d46fd30d995cc4a131eed15733617efb1118001e74084"
+      },
+      "mlx-metal:mlx/lib/libmlx.dylib": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/mlx/lib/libmlx.dylib",
+        "sha256": "d24c7a9b9d55a76bfd3bbcd1d042251a185cbadcb6340c3244a6ffa3dcb7c7e8"
+      },
+      "mlx-metal:mlx/lib/mlx.metallib": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-wheel-env/lib/python3.13/site-packages/mlx/lib/mlx.metallib",
+        "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed"
+      }
+    },
+    "versions": {
+      "numpy": "2.5.3",
+      "msgpack": "1.2.2",
+      "mlx": "0.32.2",
+      "mlx-metal": "0.32.2"
+    },
+    "native_capabilities": {
+      "api_version": 2,
+      "implementation": "rust",
+      "crate_version": "0.1.0-alpha.2",
+      "avx2": false,
+      "neon": true,
+      "parallel": "rayon",
+      "he_backend": "external-seal-tenseal",
+      "matrix_storage": "owned-int8",
+      "gpu": false,
+      "digit8_cpu": true,
+      "compiled": true
+    }
+  },
+  "runtime_identity_unchanged": true,
+  "status": "finished",
+  "stopped": null,
+  "planned_cells": 24,
+  "unattempted_cells": [],
+  "maximum_swap_growth_bytes": 0,
+  "whole_response_metrics": null,
+  "production_activation": false,
+  "waiting_scope": "virtual public arrival schedule; fill/queue delays modeled, service measured",
+  "private_material_policy": "fresh independent requests; no seeds, masks, tickets or correction hashes persisted"
+}
