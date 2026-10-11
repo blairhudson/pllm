@@ -198,6 +198,10 @@ class ExperimentProfile:
     prepared_inventory_rows: int
     background_inventory_refill: bool
     inventory_refill: str | None
+    preparation_decode_epoch_tokens: int | None
+    inflight: bool
+    inflight_max_requests: int
+    inflight_max_bytes: int
     bundle_compression: str
     provider_artifact_cache_bytes: int
     role_graph: RoleGraph | None

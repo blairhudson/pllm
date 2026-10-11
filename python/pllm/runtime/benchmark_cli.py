@@ -32,7 +32,8 @@ def accounted_benchmark_body_totals(accounting: Mapping[str, Any]) -> dict[str, 
     startup = accounting.get("startup")
     windows = [*accounting.get("warmups", []), *accounting.get("runs", [])]
     rows = [startup, *windows]
-    complete = bool(windows) and all(
+    from .topology_accounting import accounting_coverage_identity
+    complete = accounting_coverage_identity(accounting) is not None and bool(windows) and all(
         type(row) is dict
         and row.get("tracked_body_counter_set_present") is True
         and type(row.get("all_link_serialized_body_bytes")) is int
@@ -255,6 +256,8 @@ def build_loopback_report(
     body_records = [account(record) for record in runs] if account is not None else []
     online_bodies = [row["online_all_link_serialized_body_bytes"] for row in body_records]
     covered_bodies = [row["all_link_serialized_body_bytes"] for row in body_records]
+    from .topology_accounting import body_coverage_identity
+    body_coverages = [body_coverage_identity(row) for row in body_records]
     median_online_bodies = (
         statistics.median(online_bodies)
         if online_bodies and all(type(value) is int and value >= 0 for value in online_bodies)
@@ -263,6 +266,7 @@ def build_loopback_report(
     median_covered_bodies = (
         statistics.median(covered_bodies)
         if covered_bodies
+        and None not in body_coverages and len(set(body_coverages)) == 1
         and all(
             row.get("tracked_body_counter_set_present") is True
             and type(value) is int
@@ -401,6 +405,8 @@ def build_loopback_report(
     }
     if report["topology_accounting"] is not None:
         report["summary"].update(accounted_benchmark_body_totals(report["topology_accounting"]))
+        from .topology_accounting import accounting_coverage_identity
+        report["summary"]["body_counter_coverage"] = accounting_coverage_identity(report["topology_accounting"])
     from pllm.metrics import communication_per_token, wan_readiness
 
     report["communication_per_token"] = communication_per_token(report)
@@ -410,6 +416,10 @@ def build_loopback_report(
 
 
 def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
+    from .topology_accounting import accounting_coverage_identity
+    coverage = accounting_coverage_identity(report.get("topology_accounting"))
+    if coverage is None:
+        return None
     runs = report.get("runs")
     if not isinstance(runs, list) or not runs:
         return None
@@ -443,6 +453,7 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
             report["configuration"]["prompt_sequence_digest"],
             sampling_key,
             transport_key,
+            coverage,
         )
     keys = {
         (
@@ -455,6 +466,7 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
             report.get("configuration", {}).get("prompt_digest"),
             sampling_key,
             transport_key,
+            coverage,
         )
         for run in runs
     }

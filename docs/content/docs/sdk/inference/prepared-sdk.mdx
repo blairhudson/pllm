@@ -18,10 +18,12 @@ selects SDK, gateway and benchmark execution.
 | Paged Preparation weights | `ModelAwareCorrections(storage="paged")` |
 | Experimental large-batch CPU digit GEMM on Apple Silicon | `ModelAwareCorrections(storage="paged", kernel="digit8", min_rows=64)` |
 | Demand-sized, on-demand corrections; concurrent stage issuance | `PreparedInventory(refill="on-demand", allocation="demand", stage_window=4, stage_window_bytes=64 << 20)` |
+| Fresh bounded decode inventories within one response | `PreparedInventory(refill="on-demand", allocation="demand", decode_epoch_tokens=16)` with canonical full-KV prefix reuse |
 | Smaller exact requests/outputs and sixteen-row duplex prefill | `MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues", prefill_pruning="terminal", prefill_chunk_rows=16)` |
 | Public offline BPE compilation | `IndexedTokenizer.compile(tokenizer_json, directory)` |
 | One tokenizer owner across sizing and execution | `with client.tokenizer_scope():` |
 | Exact completed-prefix reuse | `ClientPrefixReuse(...)`; `prefix_f32` admits the matching canonical continuation contract |
+| Same-client pending-prefill sharing | `ClientPrefixReuse(..., inflight=True)` under the canonical full-KV contract |
 | One retained response/KV owner across conversation turns | `with client.conversation(max_state_bytes=32 << 20) as chat:` |
 | Explicit encrypted conversation recovery | `chat.checkpoint(directory, key)` and `chat.restore(directory, key, head)` |
 | Trusted, explicitly public prefix artifacts | `PublicPrefixCapsule.publish(...)`; see [artifact construction](/sdk/evaluate/incremental-sdk/) |
@@ -94,6 +96,41 @@ authenticated `base_url`/`api_key` and
 `tokenizer_scope()` around awaited sizing and response calls; worker execution
 inherits the request context. Only the trusted client handles prompts, tokenization,
 activation reconstruction and KV state.
+
+## Bound decode preparation and share pending prefills
+
+`PreparedInventory(decode_epoch_tokens=16, allocation="demand", refill="on-demand")`
+prepares the initial prefill and at most sixteen output selections at a time.
+If generation continues, the client retires the prior provider session and burns
+its remaining rows, prepares fresh material while execution is idle, and resumes
+the same application response. The selected pending token, exact logits/KV,
+sampling state and output event sequence continue across that pause.
+
+The epoch size is an explicit 1–64-token bound. Select request-sized inventory
+with `rows=1`, `ClientPrefixReuse` and
+`SymmetricPerRow(causal_reduction="prefix_f32")`. The complete request still
+needs admission for its full token and state bounds. Small epochs can waste less
+Preparation work when generation ends early, while adding session setup and
+visible pauses when the request uses its full output allowance.
+
+`ClientPrefixReuse(..., inflight=True, inflight_max_requests=8,
+inflight_max_bytes=64 << 20)` lets concurrent callers on one trusted client join
+a compatible pending prefill. A completed-cache hit uses the existing cache path.
+Each joined caller receives independent state and fresh one-use provider material;
+the in-flight owner separately bounds producer and branch state overlap.
+Prepared execution queues ready callers so fresh Preparation remains idle-time
+work. Caller concurrency alone does not establish parallel provider execution.
+
+The first installed contract shares complete pending prefills; it does not split
+arbitrary private prompts into speculative common-prefix tasks. Its resource
+limit is additional to the completed-prefix cache and ordinary decoder owners.
+These options require the admitted full-KV prepared composition; unimplemented
+verification and state combinations reject during resolution.
+
+Historical stage-body projections in the
+[five-method screen](https://github.com/blairhudson/pllm/blob/main/docs/plans/all-link-next-five.md)
+retain their original scope. Compare installed SDK execution with all seed,
+correction, session, pause and branch costs charged.
 
 ## Own a bounded conversation
 

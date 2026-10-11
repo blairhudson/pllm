@@ -114,3 +114,14 @@ publication audit verifies 13,894 file hashes, with the narrow-ingress report
 explicitly retaining its pre-cohort research-prose digest alongside the updated
 publication digest. Runtime, source and control hashes agree. SDK promotion remains
 separate from these bounded screens.
+
+## Subsequent SDK integration
+
+The bounded epoch and pending-prefill contracts are now explicit installed SDK
+options, with native admission, fresh inventory/session ownership and ordinary
+benchmark targets. Generated Qwen2/Qwen3/Llama controls preserve exact logits/KV,
+natural EOS and stochastic continuity; gateway controls compose both lifecycles.
+The four-target installed-wheel example completes, including genuine pending joins
+and cleanup audits. Historical probe percentages remain separate from complete
+SDK traffic and resource measurements. Contracts, gates and replay:
+[epoch and prefix SDK reference](../research/epoch-prefix-sdk-reference.md).

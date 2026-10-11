@@ -82,7 +82,15 @@ class PreparedInventory(ComponentRef):
                 "stage_window": {"type": "integer", "minimum": 1, "maximum": 4},
                 "stage_window_bytes": {"type": "integer", "minimum": 1048576, "maximum": 67108864},
                 "allocation": {"type": "string", "enum": ["demand"]},
+                "decode_epoch_tokens": {"type": "integer", "minimum": 1, "maximum": 64},
             },
+            "allOf": [{
+                "if": {"required": ["decode_epoch_tokens"]},
+                "then": {"required": ["allocation", "refill"], "properties": {
+                    "policy": {"const": "request-sized"}, "rows": {"const": 1},
+                    "allocation": {"const": "demand"}, "refill": {"const": "on-demand"},
+                }},
+            }],
         },
         capabilities=("bounded-prepared-inventory", "request-sized-preparation"),
         role_eligibility=("client", "preparation", "inference"),
@@ -90,7 +98,7 @@ class PreparedInventory(ComponentRef):
 
     def __init__(self, policy: str = "request-sized", *, rows: int | None = None, refill: str | None = None,
                  stage_window: int = 1, allocation: str = "uniform",
-                 stage_window_bytes: int = 16 << 20) -> None:
+                 stage_window_bytes: int = 16 << 20, decode_epoch_tokens: int | None = None) -> None:
         if policy not in {"prewarm", "request-sized"}:
             raise ConfigurationError("inventory policy must be prewarm or request-sized")
         if rows is None:
@@ -106,6 +114,12 @@ class PreparedInventory(ComponentRef):
             (policy != "request-sized" or rows != 1 or refill != "on-demand")):
             raise ConfigurationError("demand allocation requires request-sized rows=1 and on-demand refill")
         params = {"policy": policy, "rows": rows}
+        if decode_epoch_tokens is not None:
+            if type(decode_epoch_tokens) is not int or not 1 <= decode_epoch_tokens <= 64:
+                raise ConfigurationError("decode_epoch_tokens must be an integer in [1, 64]")
+            if policy != "request-sized" or rows != 1 or allocation != "demand" or refill != "on-demand":
+                raise ConfigurationError("decode epochs require request-sized rows=1, demand allocation and on-demand refill")
+            params["decode_epoch_tokens"] = decode_epoch_tokens
         if refill is not None:
             if refill not in {"idle", "on-demand"}:
                 raise ConfigurationError("inventory refill must be idle or on-demand")
@@ -119,7 +133,8 @@ class PreparedInventory(ComponentRef):
         super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"stage_window": 1, "stage_window_bytes": 16 << 20, "allocation": "uniform", **self.params}
+        return {"stage_window": 1, "stage_window_bytes": 16 << 20, "allocation": "uniform",
+                "decode_epoch_tokens": None, **self.params}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

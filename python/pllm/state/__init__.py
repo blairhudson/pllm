@@ -113,25 +113,49 @@ class ClientPrefixReuse(ComponentRef):
                 "max_bytes": {"type": "integer", "minimum": 1048576, "maximum": 268435456, "multipleOf": 1048576},
                 "fixed_input_tokens": {"type": "integer", "minimum": 2, "maximum": 4096},
                 "generated_prefixes": {"type": "boolean"},
+                "inflight": {"type": "boolean", "const": True},
+                "inflight_max_requests": {"type": "integer", "minimum": 2, "maximum": 32},
+                "inflight_max_bytes": {"type": "integer", "minimum": 1048576, "maximum": 268435456, "multipleOf": 1048576},
             },
             "additionalProperties": False,
+            "dependentRequired": {
+                "inflight": ["inflight_max_requests", "inflight_max_bytes"],
+                "inflight_max_requests": ["inflight"], "inflight_max_bytes": ["inflight"],
+            },
         },
         capabilities=("causal-prefix-kv-reuse", "client-only-state", "repeat-pattern-visible"),
         role_eligibility=("client",),
     )
 
-    def __init__(self, *, max_bytes: int, fixed_input_tokens: int, generated_prefixes: bool = False) -> None:
+    def __init__(self, *, max_bytes: int, fixed_input_tokens: int, generated_prefixes: bool = False,
+                 inflight: bool = False, inflight_max_requests: int = 8,
+                 inflight_max_bytes: int = 64 << 20) -> None:
         if type(max_bytes) is not int or not 1 <= max_bytes >> 20 <= 256 or max_bytes % (1 << 20):
             raise ConfigurationError("client prefix cache max_bytes must be whole MiB in [1, 256]")
         if type(fixed_input_tokens) is not int or not 2 <= fixed_input_tokens <= 4096:
             raise ConfigurationError("client prefix fixed_input_tokens must be in [2, 4096]")
         if type(generated_prefixes) is not bool:
             raise ConfigurationError("generated_prefixes must be a boolean")
+        if type(inflight) is not bool:
+            raise ConfigurationError("inflight must be a boolean")
+        if type(inflight_max_requests) is not int or not 2 <= inflight_max_requests <= 32:
+            raise ConfigurationError("inflight_max_requests must be an integer in [2, 32]")
+        if (type(inflight_max_bytes) is not int or not 1 <= inflight_max_bytes >> 20 <= 256
+                or inflight_max_bytes % (1 << 20)):
+            raise ConfigurationError("inflight_max_bytes must be whole MiB in [1, 256]")
+        if not inflight and (inflight_max_requests != 8 or inflight_max_bytes != 64 << 20):
+            raise ConfigurationError("non-default in-flight limits require inflight=True")
         super().__init__(
             self.descriptor.component,
             {"max_bytes": max_bytes, "fixed_input_tokens": fixed_input_tokens,
-             **({"generated_prefixes": True} if generated_prefixes else {})},
+              **({"generated_prefixes": True} if generated_prefixes else {}),
+              **({"inflight": True, "inflight_max_requests": inflight_max_requests,
+                  "inflight_max_bytes": inflight_max_bytes} if inflight else {})},
         )
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {"generated_prefixes": False, "inflight": False, "inflight_max_requests": 8,
+                "inflight_max_bytes": 64 << 20, **self.params}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

@@ -120,6 +120,38 @@ metric. Missing roles, unmetered streams and zero decode denominators remain nul
 Import-process memory, parent-only memory and full-client memory never share an
 implicit measurement scope.
 
+### Decode epochs and concurrent callers
+
+Select `PreparedInventory(decode_epoch_tokens=16, allocation="demand",
+refill="on-demand")` with `ClientPrefixReuse` and canonical `prefix_f32`
+quantization to benchmark fresh inventory epochs inside an ordinary response.
+Full request time includes every idle Preparation pause. Reports retain epochs
+started, pause count/time, issued/reserved/claimed/burned/discarded stage rows,
+and separately directed lifecycle-control bodies.
+
+`BenchmarkTarget.response(experiment, concurrent_requests=4)` submits two to eight
+barrier-aligned requests on one fresh client. It requires a cold, native, greedy
+prepared scenario with one repeated private prompt. Select
+`ClientPrefixReuse(inflight=True)` to let matching pending prefills share work.
+Ready execution remains queued; completed-cache hits are reported separately.
+
+The group charges setup through client and role cleanup, aggregate client/child
+CPU, one client process peak RSS, actual body counters and additional queued and
+retained state. Unknown per-role peaks and physical-wire measurements remain null.
+It does not add overlapping per-request audit deltas or process peaks. Serial
+responses and grouped workloads have distinct comparison identities.
+
+Run the installed public example with a private prompt supplied on stdin:
+
+```sh
+python examples/benchmarks/epoch_prefix_sdk.py --output epoch-prefix.json < prompt.txt
+```
+
+The source contains serial full-cap/epoch and grouped full/in-flight controls.
+Source, natural EOS, output cap and numeric identity stay fixed within each pair.
+See [prepared SDK configuration](/sdk/inference/prepared-sdk/) and the
+[ownership and replay contract](https://github.com/blairhudson/pllm/blob/main/docs/research/epoch-prefix-sdk-reference.md).
+
 ### Research client-stage ownership
 
 An explicit response-only selection can compare Python ownership with a bounded

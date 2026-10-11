@@ -157,6 +157,29 @@ def test_history_uses_xdg_versioned_immutable_sqlite_and_filters(tmp_path: Path)
     memory.close()
 
 
+def test_history_preserves_epoch_and_prefix_counters_without_backfilling_old_runs(tmp_path: Path) -> None:
+    audit = PrivacyAudit()
+    audit.inference_control_upload_bytes = 157
+    audit.preparation_control_download_bytes = 23
+    audit.decode_epochs_started = 4
+    audit.decode_epoch_pauses = 3
+    audit.decode_epoch_pause_ns = 500
+    audit.inflight_joins = 2
+    audit.inflight_prefill_tokens_reused = 48
+    audit.inflight_peak_reserved_bytes = 8192
+    record = replace(_record("run_epochs"), privacy_delta=audit.to_dict())
+    history = BenchmarkHistory(tmp_path / "epochs.sqlite3")
+    try:
+        history.add(_record("run_historical"))
+        history.add(record)
+        assert history.get("run_epochs")["privacy"] == audit.to_dict()
+        assert history.get("run_historical")["privacy"] == {"online_steps": 2}
+        with pytest.raises(ValueError):
+            replace(record, privacy_delta={**audit.to_dict(), "inflight_token_ids": 123})
+    finally:
+        history.close()
+
+
 def test_history_schema_initialization_is_atomic_across_connections(tmp_path: Path) -> None:
     database = tmp_path / "concurrent.sqlite3"
     barrier = threading.Barrier(4)

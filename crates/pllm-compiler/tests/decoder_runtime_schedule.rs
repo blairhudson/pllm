@@ -65,6 +65,135 @@ fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> 
     lower_decoder_runtime_schedule(plan, &composition(false))
 }
 
+fn all_link_composition(epoch: Option<u64>, inflight: bool) -> serde_json::Value {
+    let mut value: serde_json::Value = serde_json::from_slice(&composition(false)).unwrap();
+    value["components"]["quantization"] = json!({
+        "component": "pllm/symmetric-per-row-quantization/v1",
+        "params": {"weight_bits": 8, "activation_bits": 8, "causal_reduction": "prefix_f32"}
+    });
+    value["components"]["cache"] = json!({
+        "component": "pllm/client-prefix-reuse/v1",
+        "params": {"max_bytes": 1048576, "fixed_input_tokens": 3}
+    });
+    value["components"]["inventory"] = json!({
+        "component": "pllm/prepared-inventory-policy/v1",
+        "params": {"policy": "request-sized", "rows": 1, "allocation": "demand", "refill": "on-demand"}
+    });
+    if let Some(tokens) = epoch {
+        value["components"]["inventory"]["params"]["decode_epoch_tokens"] = json!(tokens);
+    }
+    if inflight {
+        value["components"]["cache"]["params"]["inflight"] = json!(true);
+        value["components"]["cache"]["params"]["inflight_max_requests"] = json!(8);
+        value["components"]["cache"]["params"]["inflight_max_bytes"] = json!(67108864);
+    }
+    value
+}
+
+#[test]
+fn all_link_contracts_bind_identity_without_reducing_semantic_bounds() {
+    for config in [QWEN2, QWEN3] {
+        let model = plan(config);
+        let old = lower_decoder_runtime_schedule(
+            &model,
+            &canonical_bytes(&all_link_composition(None, false)),
+        )
+        .unwrap();
+        let old_bytes = canonical_bytes(&old);
+        let old_json: serde_json::Value = serde_json::from_slice(&old_bytes).unwrap();
+        assert!(old_json.get("decode_epochs").is_none());
+        assert!(old_json.get("inflight_prefix").is_none());
+        let replay: DecoderRuntimeSchedule = serde_json::from_slice(&old_bytes).unwrap();
+        assert_eq!(canonical_bytes(&replay), old_bytes);
+        for tokens in [1, 4, 32, 64] {
+            for inflight in [false, true] {
+                let composition = all_link_composition(Some(tokens), inflight);
+                let experiment = json!({
+                    "schema": "pllm.experiment.v2", "name": "all-link",
+                    "pipeline": composition,
+                    "deployment": {"kind": "local", "root": "local://all-link"},
+                    "budget": {"requests": 8, "max_input_tokens": 3, "max_new_tokens": 2}
+                });
+                let resolved =
+                    pllm_compiler::resolve_experiment(&canonical_bytes(&experiment)).unwrap();
+                assert_eq!(
+                    resolved.canonical_composition(),
+                    canonical_bytes(&composition)
+                );
+                let schedule =
+                    lower_decoder_runtime_schedule(&model, &canonical_bytes(&composition)).unwrap();
+                assert_eq!(schedule.prefill, old.prefill);
+                assert_eq!(schedule.decode, old.decode);
+                assert_ne!(schedule.digest(), old.digest());
+                let epochs = schedule.decode_epochs.as_ref().unwrap();
+                assert_eq!(epochs["decode_epoch_tokens"], json!(tokens));
+                assert_eq!(epochs["model_plan_digest"], json!(model.digest()));
+                assert_eq!(
+                    epochs["maximum_key_sequence"],
+                    json!(model.decode.maximum_key_sequence)
+                );
+                assert_eq!(schedule.inflight_prefix.is_some(), inflight);
+                let restored: DecoderRuntimeSchedule =
+                    serde_json::from_slice(&canonical_bytes(&schedule)).unwrap();
+                assert_eq!(restored, schedule);
+            }
+        }
+    }
+}
+
+#[test]
+fn all_link_contracts_reject_unimplemented_compositions_and_malformed_limits() {
+    let model = plan(QWEN2);
+    for (slot, key, invalid) in [
+        ("inventory", "decode_epoch_tokens", json!(0)),
+        ("inventory", "decode_epoch_tokens", json!(65)),
+        ("inventory", "decode_epoch_tokens", json!(true)),
+        ("inventory", "decode_epoch_tokens", json!(4.0)),
+        ("inventory", "rows", json!(2)),
+        ("inventory", "refill", json!("idle")),
+        ("cache", "inflight", json!(false)),
+        ("cache", "inflight_max_requests", json!(1)),
+        ("cache", "inflight_max_requests", json!(33)),
+        ("cache", "inflight_max_bytes", json!(1048577)),
+        ("cache", "inflight_max_bytes", json!(0)),
+        ("quantization", "causal_reduction", json!("other")),
+    ] {
+        let mut value = all_link_composition(Some(4), true);
+        value["components"][slot]["params"][key] = invalid;
+        assert!(
+            lower_decoder_runtime_schedule(&model, &canonical_bytes(&value)).is_err(),
+            "{slot}/{key}"
+        );
+    }
+    for slot in [
+        "verification",
+        "state",
+        "scheduler",
+        "nonlinear",
+        "public_prefix",
+    ] {
+        let mut value = all_link_composition(Some(4), true);
+        value["components"][slot] = json!({"component": "unsupported", "params": {}});
+        assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&value)).is_err());
+    }
+    for slot in ["cache", "quantization"] {
+        let mut value = all_link_composition(Some(4), true);
+        value["components"].as_object_mut().unwrap().remove(slot);
+        assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&value)).is_err());
+    }
+    for config in [
+        GEMMA4_E2B,
+        include_bytes!("../../pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json")
+            .as_slice(),
+    ] {
+        assert!(lower_decoder_runtime_schedule(
+            &plan(config),
+            &canonical_bytes(&all_link_composition(Some(4), true))
+        )
+        .is_err());
+    }
+}
+
 #[test]
 fn packed_ingress_requires_the_exact_output_quotient_contract() {
     for verified in [false, true] {

@@ -273,13 +273,14 @@ def test_prior_pending_and_new_suffix_use_admitted_batch_and_match_fresh(tmp_pat
 
 def test_generated_basis_never_aliases_prefill_after_eos_cancel_store_false_or_bound(tmp_path, monkeypatch):
     model_id, experiment = prefix_experiment(tmp_path, bound=128)
-    sampled, runtimes = [], []
+    sampled, runtimes, snapshots = [], [], []
     sample = SemanticDecoderRuntime.sample
 
     def sampling(runtime, *args, **kwargs):
         token = sample(runtime, *args, **kwargs)
         sampled.append(token)
         runtimes.append(runtime)
+        snapshots.append(runtime.snapshot())
         return token
 
     monkeypatch.setattr(SemanticDecoderRuntime, "sample", sampling)
@@ -291,9 +292,11 @@ def test_generated_basis_never_aliases_prefill_after_eos_cancel_store_false_or_b
         private = client.responses.create(model=model_id, input="do not store", temperature=0, max_output_tokens=3, store=False)
         assert private.id not in client._core._transformer_conversations
         assert private.usage.output_tokens == 3
-        assert runtimes[-1].snapshot().state_basis.phase == "incremental"
+        assert snapshots[-1].state_basis.phase == "incremental"
+        assert runtimes[-1].position == 0
+        assert all(row.key is None and row.value is None and row.length == 0 for row in runtimes[-1].caches)
         state = client._core._transformer_states[model_id]
-        assert not state.prefill_cache.put("store-false-alias", runtimes[-1].snapshot(), np.zeros(258, np.float32))
+        assert not state.prefill_cache.put("store-false-alias", snapshots[-1], np.zeros(258, np.float32))
         stream = client.responses.create(model=model_id, input="cancel after evaluation", temperature=0, max_output_tokens=4, stream=True)
         deltas = 0
         for event in stream:
@@ -306,9 +309,11 @@ def test_generated_basis_never_aliases_prefill_after_eos_cancel_store_false_or_b
         rendered_ids = runtime.encode_prompt(runtime.bundle.render_prompt(
             [{"role": "user", "content": "cancel after evaluation"}], add_generation_prompt=True
         ))
-        assert runtime.position == len(rendered_ids) + 1
-        assert runtime.snapshot().state_basis.phase == "incremental"
-        assert not state.prefill_cache.put("cancel-alias", runtime.snapshot(), np.zeros(258, np.float32))
+        assert runtime.position == 0
+        assert all(row.key is None and row.value is None and row.length == 0 for row in runtime.caches)
+        assert snapshots[-1].position == len(rendered_ids) + 1
+        assert snapshots[-1].state_basis.phase == "incremental"
+        assert not state.prefill_cache.put("cancel-alias", snapshots[-1], np.zeros(258, np.float32))
         assert cached_state(client, model_id, [*rendered_ids, sampled[-2]], 4)[2] is None
         # Immediate EOS is sampled, never appended/evaluated or promoted.
         monkeypatch.setattr(SemanticDecoderRuntime, "sample", lambda runtime, *a, **kw: int(runtime.cfg["eos_token_id"]))

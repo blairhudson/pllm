@@ -188,6 +188,9 @@ class PlannedClient:
                 _, role, metric = name.split(".", 2)
                 phases = self._audit.role_link_bodies.setdefault(role, {})
                 phases[metric] = phases.get(metric, 0) + value
+            elif name == "inflight_peak_reserved_bytes":
+                # An owner high-water is not a simultaneous multi-attempt peak.
+                setattr(self._audit, name, max(getattr(self._audit, name), value))
             else:
                 setattr(self._audit, name, getattr(self._audit, name) + value)
 

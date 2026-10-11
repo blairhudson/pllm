@@ -284,6 +284,24 @@ class PrivacyAudit:
     prefill_cache_hits: int = 0
     prefill_cache_misses: int = 0
     prefill_prefix_tokens_reused: int = 0
+    inflight_prefill_tokens_reused: int = 0
+    inflight_producer_registrations: int = 0
+    inflight_publications: int = 0
+    inflight_joins: int = 0
+    inflight_failures: int = 0
+    inflight_cancellations: int = 0
+    inflight_cancelled_producers: int = 0
+    inflight_retired: int = 0
+    inflight_copy_bytes: int = 0
+    inflight_bound_rejections: int = 0
+    inflight_cache_bypasses: int = 0
+    inflight_reserved_bytes: int = 0
+    inflight_peak_reserved_bytes: int = 0
+    inflight_requests: int = 0
+    inflight_nodes: int = 0
+    inflight_pending_nodes: int = 0
+    inflight_active_producers: int = 0
+    _inflight_owner: Any = field(default=None, repr=False, compare=False)
     direct_fhe_upload_bytes: int = 0
     direct_fhe_download_bytes: int = 0
     direct_fhe_steps: int = 0
@@ -312,6 +330,13 @@ class PrivacyAudit:
     _inventory_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
     preparation_requests_during_online: int = 0
     preparation_failures: int = 0
+    inference_control_upload_bytes: int = 0
+    inference_control_download_bytes: int = 0
+    preparation_control_upload_bytes: int = 0
+    preparation_control_download_bytes: int = 0
+    decode_epochs_started: int = 0
+    decode_epoch_pauses: int = 0
+    decode_epoch_pause_ns: int = 0
     bundle_network_bytes: int = 0
     bundle_cache_hits: int = 0
     bundle_cache_misses: int = 0
@@ -335,6 +360,9 @@ class PrivacyAudit:
         for role, phases in self.role_link_bodies.items():
             for metric, count in phases.items():
                 values[f"role_link.{role}.{metric}"] = int(count)
+        if self._inflight_owner is not None:
+            values.update({f"inflight_{name}": value
+                           for name, value in self._inflight_owner.counters().items()})
         return values
 
     def record_inventory(self, name: str, count: int) -> None:
@@ -969,6 +997,8 @@ class _CorrelationSource:
 
 
 class RuntimeClient:
+    prepared_concurrency_contract = "prepared_queue_inflight_before_admission_v1"
+
     def __init__(
         self,
         *,
@@ -981,6 +1011,7 @@ class RuntimeClient:
         preparation_api_key: str | None = None,
         correlation_prefetch: int = 4,
         prepared_inventory_rows: int | None = None,
+        preparation_decode_epoch_tokens: int | None = None,
         background_inventory_refill: bool | None = None,
         token_cache_size: int = 512,
         prefill_cache_bytes: int = 0,
@@ -1170,6 +1201,26 @@ class RuntimeClient:
         self.preparation_allocation = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("inventory", {}).get("params", {}).get("allocation", "uniform")
             if self.experiment is not None else "uniform")
+        components = (json.loads(self.experiment.canonical_composition).get("components", {})
+                      if self.experiment is not None else {})
+        epoch_tokens = components.get("inventory", {}).get("params", {}).get("decode_epoch_tokens")
+        if preparation_decode_epoch_tokens is not None and (
+                type(preparation_decode_epoch_tokens) is not int or not 1 <= preparation_decode_epoch_tokens <= 64):
+            raise ValueError("preparation_decode_epoch_tokens must be in [1, 64]")
+        if preparation_decode_epoch_tokens is not None and preparation_decode_epoch_tokens != epoch_tokens:
+            raise ValueError("decode epoch override differs from immutable Experiment")
+        self.preparation_decode_epoch_tokens = epoch_tokens
+        if epoch_tokens is not None:
+            if type(epoch_tokens) is not int or not 1 <= epoch_tokens <= 64:
+                raise ValueError("preparation_decode_epoch_tokens must be in [1, 64]")
+            if (self.preparation_allocation != "demand" or refill != "on-demand"
+                    or self.prefill_cache_mode != "prefix" or offset_execution or local_engine is not None
+                    or self.experiment.verification_component not in {None, "none"}
+                    or components.get("quantization", {}).get("params", {}).get("causal_reduction") != "prefix_f32"
+                    or {"verification", "state", "nonlinear", "scheduler", "public_prefix"} & components.keys()):
+                raise ValueError("decode epochs require public demand/on-demand full-KV prefix execution")
+            if background_inventory_refill:
+                raise ValueError("decode epochs forbid background inventory refill")
         self.prefill_chunk_rows = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("linear", {}).get("params", {}).get("prefill_chunk_rows", 0)
             if self.experiment is not None else 0)
@@ -1261,6 +1312,7 @@ class RuntimeClient:
         )
         self._response_cache_order: deque[str] = deque()
         self._response_cache_lock = threading.Lock()
+        self._decode_epoch_responses: dict[str, tuple[threading.Event, str, str]] = {}
         self._pending_response_store: dict[str, bool] = {}
         self._ephemeral_response_ids: set[str] = set()
         self._ephemeral_response_order: deque[str] = deque()
@@ -1275,7 +1327,7 @@ class RuntimeClient:
         self._crypto_states: dict[str, _ModelCryptoState] = {}
         self._crypto_state_lock = threading.Lock()
         self._transformer_states: dict[str, _TransformerCryptoState] = {}
-        self._transformer_state_lock = threading.Lock()
+        self._transformer_state_lock = threading.RLock()
         self._tokenizer_owner: ContextVar[_ScopedTokenizer | None] = ContextVar(
             "pllm_request_tokenizer", default=None
         )
@@ -1286,6 +1338,25 @@ class RuntimeClient:
         self._transformer_conversations: dict[str, _TransformerConversationState] = {}
         self._transformer_conversation_lock = threading.Lock()
         self._model_manifests: dict[str, dict[str, Any]] = {}
+        from .prepared_queue import PreparedExecutionQueue
+
+        cache_options = components.get("cache", {}).get("params", {})
+        self._prepared_queue = (PreparedExecutionQueue(
+            max_requests=cache_options.get("inflight_max_requests", 8))
+            if self.experiment is not None and self.experiment.privacy_mode == "public"
+            and not (local_engine is not None or offset_execution) else None)
+        self._prepared_attempt_lock = threading.RLock()
+        self._prepared_attempts: set[Any] = set()
+        self._inflight_prefix_owner = None
+        if cache_options.get("inflight"):
+            if self._prepared_queue is None:
+                raise ValueError("in-flight prefixes require prepared client ownership")
+            from .inflight_prefix import InflightPrefixOwner
+
+            self._inflight_prefix_owner = InflightPrefixOwner(self,
+                max_requests=cache_options.get("inflight_max_requests", 8),
+                max_bytes=cache_options.get("inflight_max_bytes", 64 << 20))
+            self.audit._inflight_owner = self._inflight_prefix_owner
 
     def _open_private_session(
         self,
@@ -2282,7 +2353,7 @@ class RuntimeClient:
         if self.preparation_http is None:
             raise ProtocolError("public inference requires a preparation service", 400)
         remote_stages = self._remote_stages(state)
-        response = self.http.post(
+        response = self._control_post(self.http,
             "/v1/runtime/inventories",
             headers=self.headers,
             json={
@@ -2301,7 +2372,7 @@ class RuntimeClient:
                 (self.preparation_http, f"/v1/preparation/inventories/{inventory_id}/cancel", self.preparation_headers),
             ):
                 try:
-                    client.post(path, headers=headers)
+                    self._control_post(client, path, headers=headers)
                 except Exception:
                     pass
         try:
@@ -2360,8 +2431,8 @@ class RuntimeClient:
                 },
                 content=authorization_payload,
             )
-            _raise(authorized)
             self.audit.session_authorization_download_bytes += len(authorized.content)
+            _raise(authorized)
             if SessionAuthorizationAck.unpack(authorized.content).session_id != inventory_id:
                 raise ModelError("preparation inventory authorization mismatch")
 
@@ -2420,12 +2491,14 @@ class RuntimeClient:
                         ),
                         stream=True,
                     )
-                    _raise(prepared)
                     prepared_content = bytearray()
                     for chunk in prepared.iter_bytes():
+                        with audit_lock:
+                            self.audit.preparation_download_bytes += len(chunk)
                         if len(prepared_content) + len(chunk) > max_prepared_bytes:
                             raise ProtocolError("preparation response exceeds its bound", 413)
                         prepared_content.extend(chunk)
+                    _raise(prepared)
                     prepared.close()
                 except Exception as exc:
                     if prepared is not None:
@@ -2436,7 +2509,6 @@ class RuntimeClient:
                 with audit_lock:
                     self.audit.preparation_attempts += 1
                     self.audit.preparation_rows += request.rows
-                    self.audit.preparation_download_bytes += len(prepared_content)
                 try:
                     ack = PreparationAck.unpack(bytes(prepared_content))
                 except Exception as exc:
@@ -2503,7 +2575,7 @@ class RuntimeClient:
                 max_bytes=self.preparation_stage_window_bytes,
                 cost=work_bytes, prepare=prepare_stage, accept=accept, abort=cancel_remote,
                 discard=lambda item: item[1].cancel(), cancelled=lambda: self._closing)
-            sealed = self.http.post(
+            sealed = self._control_post(self.http,
                 f"/v1/runtime/inventories/{inventory_id}/ready",
                 headers=self.headers,
             )
@@ -2522,23 +2594,85 @@ class RuntimeClient:
     def _cancel_prepared_inventory(self, inventory: PreparedInventory) -> None:
         inventory.cancel()
         try:
-            self.http.post(f"/v1/runtime/inventories/{inventory.id}/cancel", headers=self.headers)
+            self._control_post(self.http, f"/v1/runtime/inventories/{inventory.id}/cancel", headers=self.headers)
         except Exception:
             pass
         if self.preparation_http is not None:
             try:
-                self.preparation_http.post(
+                self._control_post(self.preparation_http,
                     f"/v1/preparation/inventories/{inventory.id}/cancel",
                     headers=self.preparation_headers,
                 )
             except Exception:
                 pass
 
+    def _control_post(self, client, path: str, **kwargs):
+        """Charge directed control bodies, including rejected lifecycle controls."""
+        role = "preparation" if client is self.preparation_http else "inference"
+        try:
+            response = client.post(path, **kwargs)
+        except httpx.HTTPError as error:
+            request = getattr(error, "request", None)
+            if request is not None:
+                name = f"{role}_control_upload_bytes"
+                setattr(self.audit, name, getattr(self.audit, name) + len(request.content))
+            raise
+        for direction, count in (("upload", len(response.request.content)),
+                                 ("download", len(response.content))):
+            name = f"{role}_control_{direction}_bytes"
+            setattr(self.audit, name, getattr(self.audit, name) + count)
+        return response
+
+    def _fresh_decode_epoch_inventory(self, model_id, state, rows, stage_rows, *, initial=False) -> None:
+        """Only idle, fully retired material may precede a fresh epoch."""
+        with self._transformer_state_lock:
+            if self._closing or state.active_prepared_responses or state.refill_in_progress:
+                raise ModelError("decode epoch preparation requires an idle live client")
+            inventory = state.prepared_inventory
+            if (initial and inventory is not None and inventory.claimed == 0
+                    and inventory.capacity == rows and not inventory.status()["reserved"]
+                    and stage_rows is not None and set(inventory.stages) == set(stage_rows)
+                    and all(inventory.stages[sid].request.rows == count
+                            for sid, count in stage_rows.items())
+                    and self._prepared_inventory_is_live(inventory)):
+                # Explicit SDK/benchmark preparation may already have issued this
+                # exact first epoch. It has never been reserved or consumed.
+                return
+            for inventory in (state.prepared_inventory, state.prepared_inventory_spare):
+                if inventory is not None:
+                    if inventory.status()["reserved"]:
+                        raise ModelError("decode epoch previous reservation remains active")
+                    self._cancel_prepared_inventory(inventory)
+            state.prepared_inventory = state.prepared_inventory_spare = None
+            state.prepared_inventory = self._prepare_inventory_locked(model_id, state, rows, stage_rows)
+
+    def _open_decode_epoch(self, model_id, state, rows, stage_rows, *, max_output_tokens,
+                           compiled, cancelled=lambda: None, initial=False):
+        # Preparation and reservation are one model-local admission transaction.
+        # Otherwise another request could replace fresh, not-yet-leased material.
+        with self._transformer_state_lock:
+            try:
+                cancelled()
+                self._fresh_decode_epoch_inventory(model_id, state, rows, stage_rows, initial=initial)
+                cancelled()
+                result = self._open_transformer_session(model_id,
+                    max_output_tokens=max_output_tokens, required_rows=rows, compiled=compiled,
+                    semantic_input_tokens=self.prefill_cache_bound_tokens)
+                self.audit.decode_epochs_started += 1
+                return result
+            except BaseException:
+                inventory = state.prepared_inventory
+                if inventory is not None and not inventory.status()["reserved"]:
+                    self._cancel_prepared_inventory(inventory)
+                    state.prepared_inventory = None
+                raise
+
     def _prepared_inventory_is_live(self, inventory: PreparedInventory) -> bool:
         try:
             response = self.http.get(
                 f"/v1/runtime/inventories/{inventory.id}", headers=self.headers
             )
+            self.audit.inference_control_download_bytes += len(response.content)
         except httpx.HTTPError:
             raise
         if response.status_code in {404, 409, 410}:
@@ -2624,6 +2758,8 @@ class RuntimeClient:
 
     def _begin_online(self) -> None:
         with self._activity_lock:
+            if self._closing:
+                raise ModelError("prepared client admission is closed")
             if self._preparation_active:
                 raise ModelError("prepared inventory refill is in progress; retry when ready")
             self._online_active += 1
@@ -2634,6 +2770,8 @@ class RuntimeClient:
 
     def _begin_preparation(self) -> None:
         with self._activity_lock:
+            if self._closing:
+                raise ModelError("prepared client admission is closed")
             if self._online_active:
                 self.audit.preparation_requests_during_online += 1
                 raise ModelError("preparation cannot run while inference is online")
@@ -2642,6 +2780,25 @@ class RuntimeClient:
     def _end_preparation(self) -> None:
         with self._activity_lock:
             self._preparation_active = max(0, self._preparation_active - 1)
+
+    def _stop_prepared_admission(self) -> None:
+        with self._activity_lock:
+            self._closing = True
+        if self._prepared_queue is not None:
+            self._prepared_queue.close()
+
+    def _cancel_transformer_session(self, session_id: str) -> bool:
+        try:
+            canceled = self._control_post(self.http,
+                f"/v1/runtime/sessions/{session_id}/cancel", headers=self.headers)
+            if canceled.status_code not in {404, 410}:
+                _raise(canceled)
+            return True
+        except Exception:
+            # No later queued or explicitly prepared request may treat an
+            # unacknowledged online owner as idle.
+            self._stop_prepared_admission()
+            return False
 
     def _open_transformer_session(
         self,
@@ -2719,25 +2876,34 @@ class RuntimeClient:
             if state.context_ids:
                 session_body["context_ids"] = list(state.context_ids.values())
             online_started = False
+            session_id = None
             try:
                 if prepared_public:
                     self._begin_online()
                     online_started = True
-                session_response = self.http.post(
+                session_response = self._control_post(self.http,
                     "/v1/runtime/sessions",
                     headers=self.headers,
                     json=session_body,
                 )
                 _raise(session_response)
                 session_value = session_response.json()
-                session_id = str(session_value["id"])
+                session_id = session_value.get("id")
+                if not isinstance(session_id, str) or not 1 <= len(session_id) <= 256:
+                    session_id = None
+                    raise ModelError("provider session identifier is invalid")
+                if (not isinstance(session_value.get("response_id"), str)
+                        or not 1 <= len(session_value["response_id"]) <= 256):
+                    raise ModelError("provider response identifier is invalid")
                 if prepared_public and session_value.get("prepared_request_encoding", "raw") != self.prepared_request_encoding:
-                    try:
-                        self.http.post(f"/v1/runtime/sessions/{session_id}/cancel", headers=self.headers)
-                    finally:
-                        raise ModelError("provider did not admit the prepared request encoding")
+                    raise ModelError("provider did not admit the prepared request encoding")
             except BaseException:
                 if prepared_public and provider is not None:
+                    if online_started:
+                        if session_id is not None:
+                            self._cancel_transformer_session(session_id)
+                        else:
+                            self._stop_prepared_admission()
                     provider.close()
                     if online_started:
                         self._end_online()
@@ -3043,7 +3209,8 @@ class RuntimeClient:
         prefix_rows = (
             0 if cached is None else (cached[0] if type(cached[0]) is int else len(full_ids))
         )
-        required = max(1, len(full_ids) - prefix_rows + max(0, max_output_tokens - 1))
+        allowance = min(self.preparation_decode_epoch_tokens or max_output_tokens, max_output_tokens)
+        required = max(1, len(full_ids) - prefix_rows + max(0, allowance - 1))
         if not _stage_demand:
             return required
         demand = None
@@ -3051,7 +3218,7 @@ class RuntimeClient:
             compiled = self._compiled_public_decoder(state, max_input_tokens=len(full_ids), max_new_tokens=max_output_tokens)
             if compiled is None:
                 raise ModelError("demand preparation requires a complete compiled schedule")
-            demand = compiled.prepared_stage_rows(len(full_ids) - prefix_rows, max(0, max_output_tokens - 1),
+            demand = compiled.prepared_stage_rows(len(full_ids) - prefix_rows, max(0, allowance - 1),
                                                   continuation=prefix_rows > 0)
         return required, demand
 
@@ -3086,6 +3253,18 @@ class RuntimeClient:
             self._closing = True
             offset_transports = tuple(self._active_offset_transports.values())
             self._active_offset_transports.clear()
+        if self._prepared_queue is not None:
+            self._prepared_queue.close()
+            if self._inflight_prefix_owner is not None:
+                self._inflight_prefix_owner.close(wait=False)
+            with self._prepared_attempt_lock:
+                attempts = tuple(self._prepared_attempts)
+            for attempt in attempts:
+                attempt.cancel()
+            for attempt in attempts:
+                attempt.close()
+            if self._inflight_prefix_owner is not None:
+                self._inflight_prefix_owner.close()
         for transport in offset_transports:
             transport.abort()
         self._provider_executor.shutdown(wait=True, cancel_futures=True)
@@ -3203,6 +3382,30 @@ class RuntimeClient:
             self._ephemeral_response_ids.discard(self._ephemeral_response_order.popleft())
 
     def cancel(self, response_id: str) -> Response:
+        with self._prepared_attempt_lock:
+            attempts = tuple(self._prepared_attempts)
+        for attempt in attempts:
+            if getattr(attempt, "response_id", None) == response_id:
+                attempt.cancel()
+                if not attempt.is_set():
+                    # Surviving joiners still own this original prefill. Its
+                    # producer stops before private decode, then retires the
+                    # remote session. Do not cancel shared material mid-prefill.
+                    return Response(id=response_id, model=attempt.model_id,
+                                    output=[], status="cancelled")
+        with self._response_cache_lock:
+            epoch_response = self._decode_epoch_responses.get(response_id)
+            if epoch_response is not None:
+                epoch_response[0].set()
+        if epoch_response is not None:
+            if epoch_response[1]:
+                canceled = self._control_post(self.http,
+                    f"/v1/runtime/sessions/{epoch_response[1]}/cancel", headers=self.headers)
+                # Completed epochs may already have been retired by the provider.
+                if canceled.status_code not in {404, 410}:
+                    _raise(canceled)
+            self._pending_response_store.pop(response_id, None)
+            return Response(id=response_id, model=epoch_response[2], output=[], status="cancelled")
         if self._local_engine is not None or self._offset_workers:
             response = self.cache.get(response_id)
             if response is None:
@@ -3229,6 +3432,13 @@ class RuntimeClient:
         return final
 
     def events(self, body: dict[str, Any]) -> Iterator[ResponseEvent]:
+        if self._prepared_queue is not None:
+            from .prepared_queue import OwnedPreparedAttempt
+
+            return OwnedPreparedAttempt(self, body)
+        return self._scoped_events(body)
+
+    def _scoped_events(self, body: dict[str, Any]) -> Iterator[ResponseEvent]:
         with self.tokenizer_scope():
             yield from self._events(body)
 
@@ -3504,13 +3714,29 @@ class RuntimeClient:
             channel.close()
 
     def _transformer_events(
+        self, body: dict[str, Any], messages: list[Any], descriptor: dict[str, Any],
+        *, previous_history: str | None = None,
+    ) -> Iterator[ResponseEvent]:
+        from contextlib import ExitStack
+
+        with ExitStack() as cleanup:
+            yield from self._owned_transformer_events(body, messages, descriptor,
+                previous_history=previous_history, cleanup=cleanup)
+
+    def _owned_transformer_events(
         self,
         body: dict[str, Any],
         messages: list[Any],
         descriptor: dict[str, Any],
         *,
         previous_history: str | None = None,
+        cleanup,
     ) -> Iterator[ResponseEvent]:
+        from .prepared_queue import prepared_attempt
+
+        attempt = prepared_attempt.get()
+        if attempt is not None and attempt.client is not self:
+            attempt = None
         model_id = str(body["model"])
         state = self._transformer_state(model_id)
         max_tokens = max(
@@ -3548,6 +3774,7 @@ class RuntimeClient:
         if not input_ids and state.bundle.config.get("bos_token_policy") == "nonempty_only":
             raise ModelError("model without a BOS token requires nonempty input")
         required_input_rows = len(input_ids or [int(state.bundle.config["bos_token_id"])])
+        response_input_extent = required_input_rows
         if previous_id:
             with self._transformer_conversation_lock:
                 candidate = self._transformer_conversations.get(str(previous_id))
@@ -3560,6 +3787,7 @@ class RuntimeClient:
                 required_input_rows = len(
                     tokenizer.encode(rendered[len(candidate.rendered_context) :], add_bos=False)
                 ) + len(candidate.pending_token_ids)
+                response_input_extent = candidate.snapshot.position + required_input_rows
         compiled = self._compiled_public_decoder(
             state,
             max_input_tokens=len(input_ids or [int(state.bundle.config["bos_token_id"])]),
@@ -3598,19 +3826,64 @@ class RuntimeClient:
                 ):
                     required_input_rows -= cached_prefix[0]
                     cached_prefill = (cached_prefix[1], None)
+        inflight_joined = False
+        if self._inflight_prefix_owner is not None and prefill_candidate is not None:
+            from .inflight_prefix import InflightBinding, InflightResources
+
+            if attempt is None or compiled is None:
+                raise ModelError("in-flight prefixes require a bounded compiled request owner")
+            binding = InflightBinding.from_compiled(compiled)
+            resources = InflightResources.from_compiled(compiled)
+
+            def admit_prefix(prefix, suffix):
+                if len(full_prefill_ids) + max_tokens - 1 > resources.capacity_tokens:
+                    raise ModelError("in-flight request exceeds compiled state capacity")
+                if suffix:
+                    self._decoder_continuation(compiled).admit(prefix, suffix)
+
+            request = self._inflight_prefix_owner.lookup_or_register(self, binding,
+                full_prefill_ids, resources, admit=admit_prefix,
+                completed_cache_hit=cached_prefill is not None)
+            attempt.bind_prefix(request)
+            if request is not None and not request.is_producer:
+                lease = request.wait()
+                cached_prefill = (lease.snapshot,
+                    lease.logits if lease.prefix_tokens == len(full_prefill_ids) else None)
+                required_input_rows = len(full_prefill_ids) - lease.prefix_tokens
+                inflight_joined = True
         client_owned = self._local_engine is not None
         offset_execution = bool(self._offset_workers)
         if (client_owned or offset_execution) and compiled is None:
             raise ModelError("selected topology requires complete compiled execution")
-        required_rows = max(1, required_input_rows + max(0, max_tokens - 1))
+        epoch_tokens = self.preparation_decode_epoch_tokens
+        epoch_allowance = min(epoch_tokens, max_tokens) if epoch_tokens is not None else max_tokens
+        if epoch_tokens is not None:
+            if (compiled is None or state.privacy_mode != "public"
+                    or state.bundle.privacy.get("verification_component", "none") != "none"):
+                raise ModelError("decode epochs require a compiled public unverified decoder")
+            # Native continuation validates source, composition, arithmetic and
+            # exclusive full-KV state before any new material can be published.
+            epoch_contract = self._decoder_continuation(compiled)
+            bound = epoch_contract.to_dict()["token_bound"]
+            initial_extent = response_input_extent
+            if initial_extent + max_tokens - 1 > bound:
+                raise ModelError("decode epoch response exceeds fixed continuation token bound")
+            if max_tokens > 1:
+                epoch_contract.admit(initial_extent, max_tokens - 1)
+        # Joining precedes this queue. One response owns all online work and
+        # idle epoch pauses, so another request cannot prepare during execution.
+        if attempt is not None:
+            attempt.enter()
+        required_rows = max(1, required_input_rows + max(0, epoch_allowance - 1))
         if state.privacy_mode == "public":
             demand = None
             if self.preparation_allocation == "demand":
                 if compiled is None:
                     raise ModelError("demand preparation requires a complete compiled schedule")
-                demand = compiled.prepared_stage_rows(required_input_rows, max(0, max_tokens - 1),
+                demand = compiled.prepared_stage_rows(required_input_rows, max(0, epoch_allowance - 1),
                     continuation=bool(previous_id) or required_input_rows != len(full_prefill_ids))
-            self._ensure_prepared_inventory(model_id, state, required_rows, demand)
+            if epoch_tokens is None:
+                self._ensure_prepared_inventory(model_id, state, required_rows, demand)
         offset_transport = None
         if offset_execution:
             assert compiled is not None
@@ -3642,6 +3915,10 @@ class RuntimeClient:
         elif client_owned:
             session_value = {"id": new_id("client_session"), "response_id": new_id("resp")}
             provider = None
+        elif epoch_tokens is not None:
+            session_value, state, provider = self._open_decode_epoch(model_id, state,
+                required_rows, demand, max_output_tokens=max_tokens, compiled=compiled,
+                initial=True, cancelled=attempt.check_cancelled if attempt is not None else lambda: None)
         else:
             session_value, state, provider = self._open_transformer_session(
                 model_id,
@@ -3656,25 +3933,39 @@ class RuntimeClient:
             )
         session_id = str(session_value["id"])
         response_id = str(session_value["response_id"])
+        if attempt is not None:
+            attempt.response_id = response_id
+            attempt.model_id = model_id
         self._track_response(response_id, bool(body.get("store", True)))
         channel: _Channel | None = None
+        runtime = None
+        initializing = True
+        abandoned = False
 
         def abandon_transformer_session() -> None:
+            nonlocal abandoned
+            if abandoned:
+                return
+            abandoned = True
             if channel is not None:
                 channel.close()
+            if not (client_owned or offset_execution):
+                self._cancel_transformer_session(session_id)
             if isinstance(provider, PreparedInventoryLease):
                 self._finish_prepared_response(model_id, state, provider)
+            if runtime is not None:
+                runtime.reset()
+            self._pending_response_store.pop(response_id, None)
+            if epoch_tokens is not None:
+                with self._transformer_state_lock:
+                    if state.prepared_inventory is not None:
+                        self._cancel_prepared_inventory(state.prepared_inventory)
+                        state.prepared_inventory = None
+                return
             if offset_transport is not None:
                 offset_transport.abort()
-            if client_owned or offset_execution:
-                return
-            try:
-                self.http.post(
-                    f"/v1/runtime/sessions/{session_id}/cancel",
-                    headers=self.headers,
-                )
-            except Exception:
-                pass
+
+        cleanup.callback(lambda: abandon_transformer_session() if initializing else None)
 
         if not client_owned and not offset_execution:
             try:
@@ -3697,6 +3988,8 @@ class RuntimeClient:
 
         def exchange(stage_id: str, payloads: list[bytes]) -> list[bytes]:
             nonlocal sequence
+            if attempt is not None:
+                attempt.check_cancelled()
             if client_owned or offset_execution:
                 raise ModelError("topology linear stage cannot use a legacy provider channel")
             assert channel is not None
@@ -3835,6 +4128,67 @@ class RuntimeClient:
         previous_text = ""
         session_completed = False
         first_output_online_bytes: int | None = None
+        epoch_session_active = True
+        epoch_cancelled = threading.Event()
+        if epoch_tokens is not None:
+            with self._response_cache_lock:
+                self._decode_epoch_responses[response_id] = (epoch_cancelled, session_id, model_id)
+
+        def check_epoch_cancelled():
+            if attempt is not None:
+                attempt.check_cancelled()
+            if epoch_tokens is not None and (epoch_cancelled.is_set() or self._closing):
+                raise ProtocolError("decode epoch response cancelled", 409)
+
+        def rotate_decode_epoch(token: int, emitted: int):
+            nonlocal session_id, session_value, provider, channel, key, sequence, epoch_session_active
+            assert compiled is not None and isinstance(remote, PreparedRemoteLinear)
+            check_epoch_cancelled()
+            # Complete the old authenticated execution, drain its transport, burn
+            # its lease, and only then publish fresh masks/corrections while idle.
+            complete = self._control_post(self.http,
+                f"/v1/runtime/sessions/{session_id}/complete", headers=self.headers,
+                json={"usage": ResponseUsage(len(input_ids), emitted, len(input_ids) + emitted).to_dict()})
+            _raise(complete)
+            if channel is not None:
+                channel.close()
+                channel = None
+            self._finish_prepared_response(model_id, state, remote.inventory)
+            epoch_session_active = False
+            with self._response_cache_lock:
+                self._decode_epoch_responses[response_id] = (epoch_cancelled, "", model_id)
+            snapshot = runtime.snapshot_for_response(response_id)
+            allowance = min(epoch_tokens, max_tokens - emitted)
+            epoch_contract.admit(runtime.position, allowance)
+            session_value, _, provider = self._open_decode_epoch(model_id, state, allowance,
+                compiled.prepared_stage_rows(1, allowance - 1, continuation=True),
+                max_output_tokens=max_tokens, compiled=compiled, cancelled=check_epoch_cancelled)
+            session_id = str(session_value["id"])
+            epoch_session_active = True
+            remote.inventory = provider
+            with self._response_cache_lock:
+                self._decode_epoch_responses[response_id] = (epoch_cancelled, session_id, model_id)
+            check_epoch_cancelled()
+            key = derive_session_key(self.api_key, session_id)
+            sequence = 0  # Provider nonce scope is fresh; application events are not.
+            channel = _Channel(self.http, self.base_url, self.api_key, session_id,
+                "websocket" if self.prefill_chunk_rows else self.session_transport,
+                frame_limit=(16 << 20) if self.prefill_chunk_rows else None, compression=None)
+            runtime.install_continuation(self._admitted_decoder_continuation(session_value, compiled))
+            runtime.restore_for_response(snapshot, response_id)
+            resumed_logits = runtime.continue_ids([token])[-1]
+            return resumed_logits, runtime.caches
+
+        def resume_decode_epoch(token: int, emitted: int):
+            check_epoch_cancelled()
+            started = time.perf_counter_ns()
+            self.audit.decode_epoch_pauses += 1
+            try:
+                return rotate_decode_epoch(token, emitted)
+            finally:
+                # Include completion/drain, fresh admission and pending-token
+                # execution; failed/cancelled pauses are charged too.
+                self.audit.decode_epoch_pause_ns += time.perf_counter_ns() - started
 
         def response_online_bytes() -> int | None:
             # Per-response transport counters are authoritative before the audit
@@ -3856,7 +4210,10 @@ class RuntimeClient:
             status="in_progress",
             **_response_contract_fields(body, max_output_tokens=max_tokens),
         ).to_dict()
+        initializing = False
         try:
+            if epoch_tokens is not None:
+                runtime.install_continuation(self._admitted_decoder_continuation(session_value, compiled))
             yield ResponseEvent.from_dict(
                 {"type": "response.created", "sequence_number": event_sequence, "response": created}
             )
@@ -3903,6 +4260,7 @@ class RuntimeClient:
                 )
                 event_sequence += 1
 
+            check_epoch_cancelled()
             continuation_used = False
             prior: _TransformerConversationState | None = None
             if previous_id:
@@ -3982,15 +4340,31 @@ class RuntimeClient:
                         self._admitted_decoder_continuation(session_value, compiled)
                     )
                     logits = runtime.continue_ids(full_input_ids[reused:])[-1]
-                    self.audit.prefill_prefix_tokens_reused += reused
+                    if not inflight_joined:
+                        self.audit.prefill_prefix_tokens_reused += reused
                 else:
                     if runtime.position != len(full_input_ids):
                         raise ModelError("cached logits do not match prefill state")
                     logits = saved_logits
                 caches = runtime.caches
-                self.audit.prefill_cache_hits += 1
+                if inflight_joined:
+                    self.audit.inflight_prefill_tokens_reused += snapshot.position
+                else:
+                    self.audit.prefill_cache_hits += 1
             else:
                 input_ids, logits, caches = runtime.prepare_ids(full_input_ids)
+                if attempt is not None and attempt.prefix is not None and attempt.prefix.is_producer:
+                    from .inflight_prefix import _erase
+
+                    snapshot = runtime.snapshot()
+                    shared_logits = np.array(logits, dtype=np.float32, copy=True)
+                    try:
+                        attempt.prefix.publish(snapshot, shared_logits,
+                            validate_snapshot=runtime._validate_full_snapshot)
+                        attempt.published = True
+                    finally:
+                        _erase(snapshot, shared_logits)
+                    check_epoch_cancelled()
                 if prefill_candidate is not None:
                     self.audit.prefill_cache_misses += 1
                     cache, cache_key = prefill_candidate
@@ -4020,6 +4394,7 @@ class RuntimeClient:
             pending_token_ids: list[int] = []
             hit_token_limit = True
             for step in range(max_tokens):
+                check_epoch_cancelled()
                 token = runtime.sample(logits, temperature=temperature, top_p=top_p)
                 if token == int(runtime.cfg["eos_token_id"]):
                     hit_token_limit = False
@@ -4051,7 +4426,10 @@ class RuntimeClient:
                 if step + 1 >= max_tokens:
                     pending_token_ids = [token]
                     break
-                logits, caches = runtime.decode_step(token, caches, len(input_ids) + step)
+                if epoch_tokens is not None and (step + 1) % epoch_tokens == 0:
+                    logits, caches = resume_decode_epoch(token, step + 1)
+                else:
+                    logits, caches = runtime.decode_step(token, caches, len(input_ids) + step)
 
             self.audit.token_lookup_cache_hits += runtime.token_cache_hits
             self.audit.token_lookup_cache_misses += runtime.token_cache_misses
@@ -4223,6 +4601,7 @@ class RuntimeClient:
                 )
                 output_index += 1
             usage = ResponseUsage(len(input_ids), len(output_ids), len(input_ids) + len(output_ids))
+            check_epoch_cancelled()
             final = Response(
                 id=response_id,
                 model=model_id,
@@ -4236,7 +4615,7 @@ class RuntimeClient:
                 assert offset_transport is not None
                 offset_transport.complete()
             elif not client_owned:
-                complete = self.http.post(
+                complete = self._control_post(self.http,
                     f"/v1/runtime/sessions/{session_id}/complete",
                     headers=self.headers,
                     json={"usage": usage.to_dict()},
@@ -4323,14 +4702,28 @@ class RuntimeClient:
                 self.audit.inference_server_ns += remote.stats.inference_server_ns
                 self.audit.correction_push_bytes += remote.stats.correction_push_bytes
                 self.audit.correction_push_ns += remote.stats.correction_push_ns
-                self._finish_prepared_response(model_id, state, remote.inventory)
-                if not session_completed:
-                    try:
-                        self.http.post(f"/v1/responses/{response_id}/cancel", headers=self.headers)
-                    except Exception:
-                        pass
+                if not session_completed and (epoch_tokens is None or epoch_session_active):
+                    # Cancel/drain the current provider before releasing its online
+                    # exclusion. No fresh epoch may be issued after cancellation.
+                    if channel is not None:
+                        channel.close()
+                        channel = None
+                    self._cancel_transformer_session(session_id)
+                if epoch_tokens is None or epoch_session_active:
+                    self._finish_prepared_response(model_id, state, remote.inventory)
+                if epoch_tokens is not None:
+                    with self._response_cache_lock:
+                        self._decode_epoch_responses.pop(response_id, None)
+                    with self._transformer_state_lock:
+                        if state.prepared_inventory is not None:
+                            self._cancel_prepared_inventory(state.prepared_inventory)
+                            state.prepared_inventory = None
+                    if not session_completed:
+                        runtime.reset()
             if channel is not None:
                 channel.close()
+            if attempt is not None:
+                runtime.reset()
 
 
 class ResponsesResource:
@@ -4476,6 +4869,7 @@ class OpenAI:
         preparation_api_key: str | None = None,
         correlation_prefetch: int | None = None,
         prepared_inventory_rows: int | None = None,
+        preparation_decode_epoch_tokens: int | None = None,
         background_inventory_refill: bool | None = None,
         token_cache_size: int | None = None,
         prefill_cache_bytes: int = 0,
@@ -4516,6 +4910,7 @@ class OpenAI:
                 preparation_api_key,
                 correlation_prefetch,
                 prepared_inventory_rows,
+                preparation_decode_epoch_tokens,
                 token_cache_size,
                 prefill_cache_bound_tokens,
                 bundle_cache_mode,
@@ -4569,7 +4964,7 @@ class OpenAI:
 
             manual = (api_key, base_url, session_transport, correlation_mode,
                       preparation_base_url, preparation_api_key, correlation_prefetch,
-                      prepared_inventory_rows, token_cache_size, prefill_cache_bound_tokens,
+                       prepared_inventory_rows, preparation_decode_epoch_tokens, token_cache_size, prefill_cache_bound_tokens,
                       bundle_cache_mode, bundle_cache_dir, bundle_compression, tenseal_path,
                       timeout, http_client, preparation_http_client, local_engine, role_connections)
             if (any(value is not None for value in manual) or prefill_cache_bytes
@@ -4603,6 +4998,15 @@ class OpenAI:
             ):
                 raise ValueError("inventory rows conflict with immutable Experiment")
             prepared_inventory_rows = profile.prepared_inventory_rows
+        expected_epoch = (json.loads(profile.canonical_composition).get("components", {})
+                          .get("inventory", {}).get("params", {}).get("decode_epoch_tokens")
+                          if profile is not None else None)
+        if preparation_decode_epoch_tokens is not None and (
+                type(preparation_decode_epoch_tokens) is not int or not 1 <= preparation_decode_epoch_tokens <= 64):
+            raise ValueError("preparation_decode_epoch_tokens must be in [1, 64]")
+        if preparation_decode_epoch_tokens is not None and preparation_decode_epoch_tokens != expected_epoch:
+            raise ValueError("decode epoch override differs from immutable Experiment")
+        preparation_decode_epoch_tokens = expected_epoch
         client_owned = profile is not None and profile.client_runtime == "compiled_client_local_v1"
         offset_execution = profile is not None and profile.client_runtime == "compiled_offset_v1"
         self._owned_topology: Any | None = None
@@ -4704,6 +5108,7 @@ class OpenAI:
                 preparation_api_key=settings.preparation_api_key,
                 correlation_prefetch=settings.correlation_prefetch,
                 prepared_inventory_rows=settings.prepared_inventory_rows,
+                preparation_decode_epoch_tokens=preparation_decode_epoch_tokens,
                 background_inventory_refill=background_inventory_refill,
                 token_cache_size=settings.token_cache_size,
                 prefill_cache_bytes=prefill_cache_bytes,
@@ -4813,38 +5218,67 @@ class AsyncResponsesResource:
         self.resource = resource
 
     async def create(self, **kwargs: Any):
-        from .planned_client import PlannedClient
+        from .planned_client import PlannedClient, _owned_thread
+        from .prepared_queue import PreparedCancellation, prepared_cancellation
 
         core = getattr(self.resource, "core", None)
         if isinstance(core, PlannedClient):
             return await core.async_create(kwargs)
+        context = copy_context()
+        cancellation = PreparedCancellation()
+        context.run(prepared_cancellation.set, cancellation)
+        lock = threading.Lock()
+
+        def owned_call(function, *args, **options):
+            # Resume/close share one context; cancellation reaches queue/prefix
+            # waiters before a provider has minted a response identifier.
+            with lock:
+                return context.run(function, *args, **options)
+
         if kwargs.get("stream"):
-            context = copy_context()
-            lock = threading.Lock()
-
-            def owned_call(function, *args, **options):
-                # A suspended generator must resume and close in the context
-                # that owns its tokenizer. Cancellation can schedule close
-                # while a threaded next() is still draining; serialize both.
-                with lock:
-                    return context.run(function, *args, **options)
-
-            stream = await asyncio.to_thread(owned_call, self.resource.create, **kwargs)
+            stream = await _owned_thread(lambda: owned_call(self.resource.create, **kwargs),
+                                         cancel=cancellation.cancel)
             assert isinstance(stream, ResponseStream)
 
             async def iterate() -> AsyncIterator[ResponseEvent]:
                 sentinel = object()
+                response_id = None
+
+                def advance():
+                    nonlocal response_id
+                    event = _next_or(stream, sentinel)
+                    response = getattr(event, "response", None) if event is not sentinel else None
+                    if response is not None:
+                        response_id = response.get("id", response_id)
+                    return event
+
                 try:
                     while True:
-                        event = await asyncio.to_thread(owned_call, _next_or, stream, sentinel)
+                        event = await _owned_thread(owned_call, advance, cancel=cancellation.cancel)
                         if event is sentinel:
                             break
                         yield event
                 finally:
-                    await asyncio.to_thread(owned_call, stream.close)
+                    await _owned_thread(owned_call, stream.close, cancel=cancellation.cancel)
+                    if cancellation.event.is_set() and response_id is not None:
+                        core.evict_response(response_id)
 
             return iterate()
-        return await asyncio.to_thread(self.resource.create, **kwargs)
+        completed = []
+
+        def create():
+            response = owned_call(self.resource.create, **kwargs)
+            completed.append(response)
+            return response
+
+        try:
+            return await _owned_thread(create, cancel=cancellation.cancel)
+        except asyncio.CancelledError:
+            # Cancellation can race the final commit. The drained worker's
+            # otherwise-unobservable completed response remains ours to retire.
+            for response in completed:
+                core.evict_response(response.id)
+            raise
 
     async def retrieve(self, response_id: str) -> Response:
         return await asyncio.to_thread(self.resource.retrieve, response_id)
@@ -4997,12 +5431,9 @@ class AsyncOpenAI:
         )
 
     async def close(self) -> None:
-        from .planned_client import PlannedClient, _owned_thread
+        from .planned_client import _owned_thread
 
-        if isinstance(self.sync._core, PlannedClient):
-            await _owned_thread(self.sync.close, cancel=lambda: None)
-        else:
-            await asyncio.to_thread(self.sync.close)
+        await _owned_thread(self.sync.close, cancel=lambda: None)
 
     async def __aenter__(self) -> "AsyncOpenAI":
         return self

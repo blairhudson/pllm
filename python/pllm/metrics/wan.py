@@ -28,9 +28,13 @@ def _placement(record, conditions):
 
 
 def _window(ledgers, conditions, *, online=False, placements=None):
+    from pllm.runtime.topology_accounting import body_coverage_identity
     if not ledgers or any(not isinstance(x, Mapping)
             or x.get("tracked_body_counter_set_present") is not True
             or type(x.get("body_bytes_by_edge")) is not list for x in ledgers):
+        return None
+    coverage = [body_coverage_identity(ledger) for ledger in ledgers]
+    if None in coverage or len(set(coverage)) != 1:
         return None
     edges = {}
     placements = placements if placements is not None else [{} for _ in ledgers]
@@ -51,7 +55,7 @@ def _window(ledgers, conditions, *, online=False, placements=None):
                 raise ValueError("WAN byte count must be a bounded nonnegative integer")
             total += size
             online_total += size if row["phase"] == "online" else 0
-            if row["phase"] not in {"cold", "offline", "online", "bundle", "setup", "teardown"}:
+            if row["phase"] not in {"cold", "offline", "online", "bundle", "setup", "teardown", "control"}:
                 raise ValueError("invalid WAN ledger phase")
             a = placement.get(row["source"], conditions.party_for(row["source"]))
             b = placement.get(row["destination"], conditions.party_for(row["destination"]))
@@ -81,6 +85,7 @@ def _window(ledgers, conditions, *, online=False, placements=None):
             if seconds > floor:
                 floor, bottleneck = seconds, {"party_id": party, "direction": direction}
     return {"minimum_transfer_seconds": floor, "bottleneck": bottleneck,
+            "body_counter_coverage": coverage[0],
             "parties": parties, "wan_body_bytes": sum(edges.values()) - local,
             "intra_party_body_bytes": local}
 

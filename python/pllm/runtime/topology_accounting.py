@@ -1,6 +1,6 @@
 """Bounded accounting of already-recorded topology application-body counters.
 
-This is deliberately *not* a wire meter: control frames, HTTP/TLS framing,
+This is deliberately *not* a wire meter: uninstrumented control frames, HTTP/TLS framing,
 transport retries, inference-to-preparation acks, and setup before the separately
 captured initial inventory are not represented by the client privacy counters.
 """
@@ -12,6 +12,8 @@ from collections.abc import Mapping
 from typing import Any
 
 ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v1"
+CONTROL_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v2"
+CONTROL_COVERAGE = "prepared_protocol_and_instrumented_lifecycle_controls_v2"
 
 # Count every serialized body once, from the sending side of one edge. Other
 # audit counters (masked_online_*, upload_bytes, and server metrics) overlap.
@@ -30,6 +32,13 @@ _PREPARED_BODY_COUNTERS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
 _REQUIRED_COUNTERS = frozenset(
     key for _, _, _, fields in _PREPARED_BODY_COUNTERS for key in fields
 )
+_CONTROL_BODY_COUNTERS = (
+    ("client", "inference", "control", ("inference_control_upload_bytes",)),
+    ("inference", "client", "control", ("inference_control_download_bytes",)),
+    ("client", "preparation", "control", ("preparation_control_upload_bytes",)),
+    ("preparation", "client", "control", ("preparation_control_download_bytes",)),
+)
+_CONTROL_REQUIRED = frozenset(key for _, _, _, fields in _CONTROL_BODY_COUNTERS for key in fields)
 _ROLES = ("client", "preparation", "inference")
 _STAGE_COUNTERS = {
     ("client", "preparation"): "preparation_upload_bytes",
@@ -43,6 +52,32 @@ _CLIENT_ONLY_ZERO_COUNTERS = (
     "preparation_upload_bytes", "preparation_download_bytes",
     "correction_push_bytes", "plaintext_prompt_bytes_sent", "plaintext_token_ids_sent",
 )
+
+
+def body_coverage_identity(ledger: Mapping[str, Any]) -> str | None:
+    """Original scope stays identifiable; partial new coverage never ranks."""
+    if not isinstance(ledger, Mapping):
+        return None
+    coverage = ledger.get("body_counter_coverage")
+    if coverage == CONTROL_COVERAGE:
+        return coverage if ledger.get("control_body_counter_set_present") is True else None
+    if ledger.get("schema") == CONTROL_ACCOUNTING_SCHEMA:
+        return None
+    return coverage or ledger.get("schema", ACCOUNTING_SCHEMA)
+
+
+def accounting_coverage_identity(accounting: Mapping[str, Any] | None) -> str | None:
+    """One coverage contract across startup, warmups and measured windows."""
+    if accounting is None:
+        return "historical_coverage_not_recorded"
+    rows = [accounting.get("startup"), *accounting.get("warmups", []), *accounting.get("runs", [])]
+    # Historical client-owned startup is a model-ownership record, not a body
+    # ledger. It has no control coverage and must not relabel the run bodies.
+    identities = [body_coverage_identity(row) for row in rows if isinstance(row, Mapping)
+                  and ("body_bytes_by_edge" in row or "body_counter_coverage" in row)]
+    if not identities:
+        return "historical_coverage_not_recorded"
+    return identities[0] if None not in identities and len(set(identities)) == 1 else None
 
 
 def online_body_counter_total(counters: Mapping[str, Any], roles: tuple[str, ...]) -> int | None:
@@ -129,10 +164,15 @@ def prepared_body_accounting(
     """
     privacy = record.get("privacy")
     counters: dict[str, Any] = privacy if type(privacy) is dict else {}
-    complete = (
+    base_complete = (
         _REQUIRED_COUNTERS <= counters.keys()
         and all(type(counters[key]) is int and counters[key] >= 0 for key in _REQUIRED_COUNTERS)
     )
+    controls_present = bool(_CONTROL_REQUIRED & counters.keys())
+    controls_complete = _CONTROL_REQUIRED <= counters.keys() and all(
+        type(counters[key]) is int and counters[key] >= 0 for key in _CONTROL_REQUIRED)
+    complete = base_complete and (not controls_present or controls_complete)
+    control_bytes = sum(counters[key] for key in _CONTROL_REQUIRED) if controls_complete else None
     links: list[dict[str, str | int]] | None = None
     client_bytes: int | None = None
     all_bytes: int | None = None
@@ -142,7 +182,8 @@ def prepared_body_accounting(
         links = [
             {"source": source, "destination": destination, "phase": phase,
              "serialized_body_bytes": sum(counters[field] for field in fields)}
-            for source, destination, phase, fields in _PREPARED_BODY_COUNTERS
+            for source, destination, phase, fields in (
+                *_PREPARED_BODY_COUNTERS, *(_CONTROL_BODY_COUNTERS if controls_complete else ()))
         ]
         client_bytes = sum(
             int(item["serialized_body_bytes"]) for item in links
@@ -168,12 +209,17 @@ def prepared_body_accounting(
     ):
         cpu = {role: float(processes[role]["cpu_seconds"]) for role in _ROLES}
     return {
-        "schema": ACCOUNTING_SCHEMA,
+        "schema": CONTROL_ACCOUNTING_SCHEMA if controls_present else ACCOUNTING_SCHEMA,
+        "body_counter_coverage": CONTROL_COVERAGE if controls_present else ACCOUNTING_SCHEMA,
+        "control_body_counter_set_present": controls_complete if controls_present else None,
+        "lifecycle_control_serialized_body_bytes": control_bytes,
+        "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
         "scope": (
             "initial inventory and client-bundle serialized bodies; startup CPU unmeasured"
             if initial_preparation else
             "recorded prepared-protocol serialized bodies and run-window CPU samples only"
-        ),
+        ) + ("; instrumented lifecycle control bodies included once in separate control phase" if controls_complete else
+             "; lifecycle control coverage incomplete; directed totals unavailable" if controls_present else ""),
         "tracked_body_counter_set_present": complete,
         "body_bytes_by_edge": links,
         "client_serialized_body_bytes": client_bytes,
@@ -185,7 +231,8 @@ def prepared_body_accounting(
         "total_wire_bytes": None,
         "full_response_compute_cap_checked": False,
         "unmeasured": [
-            "HTTP/TLS/WebSocket framing and control traffic",
+            ("HTTP/TLS/WebSocket framing and uninstrumented control endpoints" if controls_complete
+             else "HTTP/TLS/WebSocket framing and control traffic"),
             "inference-to-preparation correction acknowledgements",
             "duplicate or failed transport attempts not represented by client audit counters",
             (

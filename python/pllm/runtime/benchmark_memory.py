@@ -299,10 +299,24 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     work = max((4096 + rows * (16 * s.in_features + 24 * s.out_features) for s in remote), default=0)
     window = pipeline.components.get("inventory")
     work *= window.params.get("stage_window", 1) if window is not None else 1
+    # Epochs limit fresh inventory, never full-cap semantic/client state. Keep
+    # the full inventory upper bound too until role lifetimes are independently
+    # measured. In-flight responses may each own an inventory and active claim.
+    concurrent_requests = options.inflight_max_requests if options.inflight else 1
+    masks *= concurrent_requests
+    mask_cursors *= concurrent_requests
+    legacy_masks *= concurrent_requests
+    corrections *= concurrent_requests
+    work *= concurrent_requests
     from .decoder_memory import decoder_memory
     workspace = decoder_memory(plan, plan.runtime_schedule(pipeline),
         initial_prefill_only=not (cache_bytes or options.prefix_cache_bytes))
     tensors = workspace["working_bytes"] + workspace["state_bytes"]
+    tensors *= concurrent_requests
+    # Shared pending owner is NOT the completed cache or any branch's live KV.
+    # Charge owner plus two bounded snapshot/export copies during fork/import.
+    inflight_owner = options.inflight_max_bytes if options.inflight else 0
+    inflight_copy_work = 2 * inflight_owner
     # Serial dispatch owns one client chunk; overlap also owns one prefetched
     # chunk. A worker may own one chunk in each of
     # eight admitted sessions. Charge the native allocation ceiling, packet
@@ -337,7 +351,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     if options.preparation_kernel == "digit8":
         # 64 MiB native tiles, binding/page/output overlap, and a conservative
         # 64 MiB allowance for the platform BLAS implementation per active stage.
-        digit_workspace = 224 * MiB * (window.params.get("stage_window", 1) if window else 1)
+        digit_workspace = (224 * MiB * concurrent_requests
+                           * (window.params.get("stage_window", 1) if window else 1))
         if platform.system() != "Darwin" or platform.machine() != "arm64":
             limitations.append("digit8 requires Apple Silicon CPU Accelerate")
     preparation_disk = sum(s.in_features * s.out_features for s in remote) if paged_preparation else 0
@@ -383,7 +398,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         if role == "preparation" and paged_preparation:
             page_indices = sum(256 + 128 * math.ceil(s.in_features * s.out_features / MiB)
                                + 8 * max(s.in_features, s.out_features) for s in remote)
-            active_pages = 16 * MiB * (window.params.get("stage_window", 1) if window else 1)
+            active_pages = (16 * MiB * concurrent_requests
+                            * (window.params.get("stage_window", 1) if window else 1))
             role_weights[role] = 0
             role_engine = metadata + page_indices + active_pages + _PROCESS_BYTES
         role_verification = (verification_allocation["preparation_peak_bytes"]
@@ -400,6 +416,7 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     # authenticated private DB snapshot disk, and capsule parse/copy overlap.
     public_artifact_work = (32 * MiB if tokenizer else 0) + (4 * capsule.params["size_bytes"] if capsule else 0)
     client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client + public_artifact_work + nonlinear_client
+    client += inflight_owner + inflight_copy_work
     if not roles:
         client += engine + loading
     client_peak = _slack(client)
@@ -409,6 +426,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         "max_input_tokens": max_input_tokens, "max_output_tokens": max_output_tokens,
         "compiled_input_bound": compiled_input_bound,
         "inventory_rows": rows, "kernel": "metal" if metal else "cpu",
+        "preparation_decode_epoch_tokens": options.preparation_decode_epoch_tokens,
+        "concurrent_response_bound": concurrent_requests,
         "allocation_slack_percent": 25, "client_peak_bytes": client_peak,
         "provider_peak_bytes": role_peaks,
         "docker_provider_peak_bytes": docker_role_peaks,
@@ -443,11 +462,13 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
             "legacy_client_mask_bytes": legacy_masks, "client_mask_cursor_bytes": mask_cursors,
             "verifier_bytes": verification, "legacy_verifier_bytes": legacy_verification,
             "client_tensor_work_bytes": tensors,
-            "client_live_tensor_bytes": workspace["working_bytes"],
-            "client_rotary_coefficient_bytes": workspace["rotary_coefficient_bytes"],
-            "client_state_work_bytes": workspace["state_bytes"],
-            "legacy_client_tensor_work_bytes": workspace["legacy_working_bytes"],
-            "client_cache_bytes": cache_bytes, "per_provider_metal_bytes": gpu_provider,
+             "client_live_tensor_bytes": concurrent_requests * workspace["working_bytes"],
+             "client_rotary_coefficient_bytes": concurrent_requests * workspace["rotary_coefficient_bytes"],
+             "client_state_work_bytes": concurrent_requests * workspace["state_bytes"],
+             "legacy_client_tensor_work_bytes": concurrent_requests * workspace["legacy_working_bytes"],
+             "client_cache_bytes": cache_bytes, "per_provider_metal_bytes": gpu_provider,
+             "client_inflight_owner_bytes": inflight_owner,
+             "client_inflight_copy_work_bytes": inflight_copy_work,
             "client_metal_bytes": gpu_client, "checkpoint_bytes": checkpoint_bytes,
             "per_engine_compiled_disk_bytes": sum(s.in_features * s.out_features
                 for s in stages if s.in_features * s.out_features >= 50_000_000)},

@@ -729,6 +729,10 @@ class ExperimentProfile:
     prepared_inventory_rows: int
     background_inventory_refill: bool
     inventory_refill: str | None
+    preparation_decode_epoch_tokens: int | None
+    inflight: bool
+    inflight_max_requests: int
+    inflight_max_bytes: int
     bundle_compression: str
     provider_artifact_cache_bytes: int
     role_graph: RoleGraph | None
@@ -740,6 +744,9 @@ class ExperimentProfile:
         from pllm.roles.topology import graph_for_runtime
 
         runtime_options = resolve_runtime_composition(experiment.pipeline)
+        if runtime_options is not None:
+            for name in ("preparation_decode_epoch_tokens", "inflight", "inflight_max_requests", "inflight_max_bytes"):
+                object.__setattr__(self, name, getattr(runtime_options, name))
         object.__setattr__(
             self,
             "role_graph",

@@ -14,8 +14,60 @@ SERVING_METRICS = {
 }
 
 
+AUDIT_COUNTERS = (
+    "decode_epochs_started", "decode_epoch_pauses", "decode_epoch_pause_ns", "preparation_attempts",
+    "preparation_rows", "preparation_failures", "prepared_stage_rows_issued",
+    "prepared_stage_rows_reserved", "prepared_stage_rows_claimed",
+    "prepared_stage_rows_burned", "prepared_stage_rows_discarded",
+    "prefill_cache_hits", "prefill_cache_misses", "prefill_prefix_tokens_reused",
+    "correction_push_bytes", "preparation_upload_bytes", "preparation_download_bytes",
+    "session_authorization_upload_bytes", "session_authorization_download_bytes",
+    "inference_control_upload_bytes", "inference_control_download_bytes",
+    "preparation_control_upload_bytes", "preparation_control_download_bytes", "bundle_network_bytes",
+    "generation_completed_responses", "generation_output_tokens",
+    "inflight_producer_registrations", "inflight_publications", "inflight_joins",
+    "inflight_failures", "inflight_cancellations", "inflight_cancelled_producers",
+    "inflight_retired", "inflight_copy_bytes", "inflight_bound_rejections", "inflight_cache_bypasses",
+)
+
+# Owner gauges/high-water marks are not additive counters. Dashboard deltas
+# cannot recover their absolute values; retain unknown rather than sum peaks.
+INFLIGHT_NONADDITIVE = {
+    "inflight_reserved_bytes", "inflight_peak_reserved_bytes", "inflight_requests",
+    "inflight_nodes", "inflight_pending_nodes", "inflight_active_producers",
+}
+
+
+def audit_metrics(windows, m, *, window="request_windows"):
+    """Only disjoint runtime audit deltas; never substitute lifetime counters."""
+    names = set(AUDIT_COUNTERS)
+    names.update(key for row in windows for key in row if key.startswith("inflight_"))
+    totals = {}
+    for name in sorted(names):
+        values = [row.get(name) for row in windows]
+        total = sum(values) if (name not in INFLIGHT_NONADDITIVE and values
+            and all(type(v) is int and v >= 0 for v in values)) else None
+        totals[name] = total
+    m.details["runtime_audit"] = {"window": window, "scope": "disjoint_runtime_audit_deltas",
+                                  "totals": totals, "windows": windows}
+    reserved, claimed, burned = (totals[key] for key in (
+        "prepared_stage_rows_reserved", "prepared_stage_rows_claimed", "prepared_stage_rows_burned"))
+    m.details["runtime_audit"]["reserved_equals_claimed_plus_burned"] = (
+        reserved == claimed + burned if all(v is not None for v in (reserved, claimed, burned)) else None)
+    pauses = [row.get("decode_epoch_pause_ns") for row in windows]
+    m.metric("response.epoch_pause", sum(pauses) / 1e9 if pauses and all(
+        type(v) is int and v >= 0 for v in pauses) else None,
+        statistic="sum", window=window, scope="runtime_idle_epoch_pause")
+
+
 def response_metrics(report, m):
+    from .topology_accounting import ACCOUNTING_SCHEMA, accounting_coverage_identity
+    coverage = accounting_coverage_identity(report.get("topology_accounting"))
+    body_scope = "covered_application_bodies"
+    if coverage not in {ACCOUNTING_SCHEMA, "historical_coverage_not_recorded"}:
+        body_scope += f":{coverage or 'mixed_or_unknown'}"
     runs = report["runs"]
+    audit_metrics([run.get("privacy", {}) for run in runs], m)
     cpu = report.get("process_cpu_accounting", {}).get("cold_first_response_cpu_seconds_by_role", {}) or {}
     m.metric("client.peak_rss", report.get("client_process_memory", {}).get("after", {}).get("lifetime_peak_rss_bytes"),
              kind="memory", window="process_birth_through_scenario", scope="process_lifetime_high_water")
@@ -28,6 +80,13 @@ def response_metrics(report, m):
              kind="memory", role="preparation", window="request_windows", scope="sampled_process_rss")
     for index, run in enumerate(runs):
         duration, tokens = run["durations"], run["tokens"]
+        m.metric(f"request.{index}.full", duration.get("full_seconds"),
+                 window="request_setup_through_completion", scope="ordinary_response_lifecycle")
+        m.metric(f"request.{index}.preparation", duration.get("preparation_seconds"), phase="offline",
+                 window="request_initial_preparation", scope="ordinary_response_initial_setup")
+        pause = run.get("privacy", {}).get("decode_epoch_pause_ns")
+        m.metric(f"request.{index}.epoch_pause", pause / 1e9 if type(pause) is int and pause >= 0 else None,
+                 window="request_epoch_pauses", scope="runtime_idle_epoch_pause", statistic="sum")
         denominator = max(0, tokens["output_tokens"] - 1)
         m.metric(f"request.{index}.ttft", duration.get("ttft_seconds"), window="online_to_first_token", phase="online")
         m.metric(f"request.{index}.decode_tps", duration.get("tokens_per_second") if denominator else None,
@@ -47,8 +106,18 @@ def response_metrics(report, m):
              window="relay_start_through_scenario", scope="tcp_stream_payload")
     body = report.get("communication_per_token", {}).get("summary", {})
     rate, count = body.get("setup_inclusive_mb_per_output_token"), body.get("generated_output_tokens")
-    m.metric("network.covered_body_bytes", None if rate is None or count is None else rate * count * 1e6,
-             kind="bytes", role="all-links", statistic="sum", window="setup_through_scenario", scope="covered_application_bodies")
+    summary = report.get("summary", {})
+    exact = summary.get("total_accounted_benchmark_body_bytes")
+    covered = (exact if type(exact) is int else None) if "total_accounted_benchmark_body_bytes" in summary else (
+        None if rate is None or count is None else rate * count * 1e6)
+    if coverage is None:
+        covered = None
+    m.metric("network.covered_body_bytes", covered,
+              kind="bytes", role="all-links", statistic="sum", window="setup_through_scenario", scope=body_scope)
+    startup = (report.get("topology_accounting") or {}).get("startup") or {}
+    m.metric("network.startup_body_bytes", startup.get("all_link_serialized_body_bytes"),
+             kind="bytes", role="all-links", statistic="sum", window="ordinary_startup",
+             scope=body_scope)
 
 
 def execute_response(p, m):
@@ -74,6 +143,9 @@ def execute_response(p, m):
             prompt = validate_context(prompt)
     except ValueError:
         raise TargetUnavailable("response_input_contract") from None
+    if p.get("concurrent_requests", 1) > 1:
+        from .benchmark_response_group import execute_group
+        return execute_group(p, m, prompt)
     declared = p["model"]
     experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
     if experiment.budget.requests < scenario.count or experiment.budget.max_new_tokens < scenario.max_output_tokens:
@@ -141,6 +213,11 @@ def execute_response(p, m):
             "backend": config["provider_backend"], "wan": config.get("wan_emulation_digest"), "sampling": config["sampling"]}),
         output_digest=digest([r["generation"]["output_text_digest"] for r in runs]),
         measurement_digest=digest({"schema": report["schema_version"], "scenario": scenario.to_spec(), "cached_checkpoint": True}))
+    from .topology_accounting import ACCOUNTING_SCHEMA, accounting_coverage_identity
+    coverage = accounting_coverage_identity(report.get("topology_accounting"))
+    if coverage not in {ACCOUNTING_SCHEMA, "historical_coverage_not_recorded"}:
+        m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
+                                                    "body_counter_coverage": coverage})
     if selected is not None:
         m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
             "research_client_stage": {key: selected[key] for key in ("role", "layer")}})

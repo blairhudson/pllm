@@ -49,7 +49,7 @@ class Latency(Metric):
         parameter_schema={
             "type": "object",
             "properties": {
-                "statistic": {"enum": ["mean", "median", "p50", "p95", "p99"]},
+                "statistic": {"enum": ["mean", "median", "p50", "p95", "p99", "sum"]},
                 "phase": {"enum": ["offline", "online", "full"]},
             },
             "required": ["statistic", "phase"],
@@ -63,7 +63,7 @@ class Latency(Metric):
             self.descriptor.component,
             {
                 "statistic": _choice(
-                    statistic, {"mean", "median", "p50", "p95", "p99"}, "statistic"
+                    statistic, {"mean", "median", "p50", "p95", "p99", "sum"}, "statistic"
                 ),
                 "phase": _choice(phase, {"offline", "online", "full"}, "phase"),
             },

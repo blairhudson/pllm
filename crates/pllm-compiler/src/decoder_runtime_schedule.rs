@@ -127,6 +127,10 @@ pub struct DecoderRuntimeSchedule {
     pub retained_state: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mlp_tiling: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decode_epochs: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inflight_prefix: Option<serde_json::Value>,
 }
 
 impl DecoderRuntimeSchedule {
@@ -1818,7 +1822,45 @@ pub fn lower_decoder_runtime_schedule(
         nonlinear,
         retained_state: None,
         mlp_tiling: None,
+        decode_epochs: None,
+        inflight_prefix: None,
     };
+    if let Some(tokens) = composition
+        .components
+        .get("inventory")
+        .and_then(|value| value.params.get("decode_epoch_tokens"))
+    {
+        schedule.decode_epochs = Some(serde_json::json!({
+            "schema_version": "pllm.decode_epochs.v1",
+            "decode_epoch_tokens": tokens,
+            "composition_digest": schedule.composition_digest,
+            "model_plan_digest": schedule.model_plan_digest,
+            "maximum_key_sequence": plan.decode.maximum_key_sequence,
+            "state_identity": "exact_compiled_generation_and_session",
+            "material_lifetime": "fresh_one_use_inventory_per_epoch",
+            "semantic_bounds": "unchanged_full_cap"
+        }));
+    }
+    if let Some(cache) = composition.components.get("cache").filter(|value| {
+        value
+            .params
+            .get("inflight")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+    }) {
+        schedule.inflight_prefix = Some(serde_json::json!({
+            "schema_version": "pllm.inflight_prefix.v1",
+            "composition_digest": schedule.composition_digest,
+            "model_plan_digest": schedule.model_plan_digest,
+            "fixed_input_tokens": cache.params["fixed_input_tokens"],
+            "inflight_max_requests": cache.params["inflight_max_requests"],
+            "inflight_max_bytes": cache.params["inflight_max_bytes"],
+            "ownership": "trusted_client_pending_prefill",
+            "resource_allowance": "additional_to_completed_cache_and_per_response_state",
+            "state_identity": "exact_compiled_generation_and_session",
+            "traffic_accounting": "executed_stage_rows_only_not_noop_joins"
+        }));
+    }
     if let Some(policy) = composition
         .components
         .get("state")

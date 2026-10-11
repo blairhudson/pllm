@@ -61,6 +61,21 @@ quote or GPU attestation; it does not authenticate mutable KV payload contents.
 
 ## Python SDK example
 
+The optional `inflight=True` contract additionally shares compatible **pending**
+prefills among concurrent callers on one client under `prefix_f32`. It uses a
+separate `inflight_max_bytes` allowance (whole MiB, 1–256 MiB) and
+`inflight_max_requests` bound (2–32). Defaults are 64 MiB and eight callers.
+These limits charge producer/snapshot and branch/runtime overlap, in addition to
+`max_bytes` for completed cache entries. Each branch receives independent KV and
+fresh one-use material. Completed-cache hits bypass the pending owner.
+
+This initial contract joins complete pending prefills rather than creating extra
+partial-prefill tasks. Ready prepared requests queue behind active execution,
+preserving idle-only Preparation. Failures and cancellation retire owned state
+and unblock waiters; one cancelled waiter does not retire another caller's state.
+See [prepared execution](/sdk/inference/prepared-sdk/) for compatible epoch
+inventory and benchmark accounting.
+
 ```python
 from pllm import Deployment, ExecutionBudget, Experiment, Model
 from pllm.profiles import MaskedLinearCpu

@@ -1825,6 +1825,28 @@ model body, and must follow the protocol, erase masks, and not collude with the
 inference provider. Self-hosting keeps that trust inside the client boundary.
 The online public path does not use BFV or contact preparation.
 
+The opt-in `PreparedInventory(decode_epoch_tokens=...)` now binds one to sixty-four
+output selections per fresh prepared inventory within a single SDK response.
+Authenticated completion or cancellation retires each online session before idle
+Preparation can issue the next epoch. Exact full-KV/logits, the pending token,
+sampler state and application event sequence continue under the original compiled
+request bound. Demand allocation, on-demand refill and canonical `prefix_f32`
+continuation are required; complete response memory admission remains charged.
+`ClientPrefixReuse(inflight=True)` separately admits bounded same-client pending
+prefills before fresh material allocation. Each waiter owns independent state and
+fresh sessions; a FIFO of ready requests keeps Preparation idle during online
+execution. Cancellation preserves shared producer work only for surviving callers,
+then retires private decode and all owned arrays. Completed-cache hits retain their
+existing path. Generated Qwen2/Qwen3/Llama HTTP/WebSocket checks preserve exact
+logits/KV, natural EOS and stochastic continuity across these lifecycles.
+Streaming and non-streaming gateway controls additionally compose shared prefill
+with multiple epochs and independent exact branch state.
+`BenchmarkTarget.response(concurrent_requests=...)` charges one fresh-client group,
+queued and retained state, setup, cleanup, aggregate CPU and directed bodies.
+Versioned body coverage includes instrumented lifecycle controls without rewriting
+historical totals. Stage-probe savings remain separate from installed SDK response
+measurements. Contract and replay: `docs/research/epoch-prefix-sdk-reference.md`.
+
 The optional `pllm.protocols.MaskedLinear(output_encoding="row_residues")` uses
 public per-output weight-row bounds to encode both corrections and online outputs
 in exact smaller power-of-two residues. Full-width input masks, one-use tickets,

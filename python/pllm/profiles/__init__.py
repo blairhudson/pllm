@@ -658,6 +658,10 @@ class RuntimeComposition:
     prepared_inventory_rows: int = 64
     background_inventory_refill: bool = True
     inventory_refill: str | None = None
+    preparation_decode_epoch_tokens: int | None = None
+    inflight: bool = False
+    inflight_max_requests: int = 8
+    inflight_max_bytes: int = 64 << 20
     bundle_compression: str = "none"
     provider_artifact_cache_bytes: int = 0
     causal_reduction: str | None = None
@@ -671,6 +675,19 @@ class RuntimeComposition:
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    inventory = pipeline.components.get("inventory")
+    cache = pipeline.components.get("cache")
+    epochs = inventory is not None and "decode_epoch_tokens" in inventory.params
+    inflight = cache is not None and cache.params.get("inflight") is True
+    if epochs or inflight:
+        quantization = pipeline.components.get("quantization")
+        if (identities.get("linear") != "pllm/masked-linear"
+                or identities.get("preparation") != "pllm/model-aware-corrections"
+                or quantization is None or quantization.component != SymmetricPerRow.descriptor.component
+                or quantization.params.get("causal_reduction") != "prefix_f32"
+                or {"verification", "state", "nonlinear", "scheduler", "public_prefix"} & identities.keys()
+                or epochs and cache is None):
+            return None
     scheduler = pipeline.components.get("scheduler")
     if scheduler is not None:
         if (scheduler.component != MlpPrefillTiling.descriptor.component
@@ -766,7 +783,10 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         if (
             inventory.component != PreparedInventory.descriptor.component
             or not {"policy", "rows"} <= set(inventory.params)
-            or set(inventory.params) - {"policy", "rows", "refill", "stage_window", "stage_window_bytes", "allocation"}
+            or set(inventory.params) - {"policy", "rows", "refill", "stage_window", "stage_window_bytes", "allocation", "decode_epoch_tokens"}
+            or (epochs and (type(inventory.params["decode_epoch_tokens"]) is not int
+                or not 1 <= inventory.params["decode_epoch_tokens"] <= 64
+                or inventory.params.get("allocation") != "demand"))
             or ("allocation" in inventory.params and (
                 inventory.params["allocation"] != "demand" or inventory.params.get("policy") != "request-sized"
                 or inventory.params.get("rows") != 1 or inventory.params.get("refill") != "on-demand"))
@@ -787,6 +807,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             prepared_inventory_rows=inventory.params["rows"],
             background_inventory_refill=inventory.params.get("refill", "idle") == "idle",
             inventory_refill=inventory.params.get("refill"),
+            preparation_decode_epoch_tokens=inventory.params.get("decode_epoch_tokens"),
         )
         del identities["inventory"]
     if delivery is not None:
@@ -817,12 +838,15 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         transport_options["provider_artifact_cache_bytes"] = delivery.params.get("provider_cache_bytes", 0)
         del identities["delivery"]
     cache = pipeline.components.get("cache")
-    cache_options: dict[str, int | None] = {}
+    cache_options: dict[str, Any] = {}
     if cache is not None:
+        try:
+            canonical_cache = ClientPrefixReuse.from_params(cache.params)
+        except (ConfigurationError, TypeError, ValueError):
+            return None
         if (
             cache.component != ClientPrefixReuse.descriptor.component
-            or set(cache.params) not in ({"max_bytes", "fixed_input_tokens"},
-                {"max_bytes", "fixed_input_tokens", "generated_prefixes"})
+            or canonical_cache.params != cache.params
             or ("generated_prefixes" in cache.params and cache.params["generated_prefixes"] is not True)
             or (cache.params.get("generated_prefixes") and (
                 pipeline.components.get("quantization") is None or
@@ -838,6 +862,9 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         cache_options = {
             "prefix_cache_bytes": cache.params["max_bytes"],
             "prefix_cache_bound_tokens": cache.params["fixed_input_tokens"],
+            "inflight": cache.params.get("inflight", False),
+            "inflight_max_requests": cache.params.get("inflight_max_requests", 8),
+            "inflight_max_bytes": cache.params.get("inflight_max_bytes", 64 << 20),
         }
         del identities["cache"]
     boundary = pipeline.components.get("boundary")

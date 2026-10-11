@@ -1753,6 +1753,7 @@ fn validate_decoder_linear_composition(
     pipeline: &ExperimentPipeline,
 ) -> Result<DecoderCompositionKind, String> {
     retained_decoder::validate_state_component(pipeline)?;
+    validate_all_link_composition(pipeline)?;
     if pipeline.components.get("cache").is_some_and(|cache| {
         cache
             .params
@@ -1853,13 +1854,37 @@ fn valid_prefix_cache(component: &ExperimentComponent) -> bool {
         && component.params.keys().all(|key| {
             matches!(
                 key.as_str(),
-                "max_bytes" | "fixed_input_tokens" | "generated_prefixes"
+                "max_bytes"
+                    | "fixed_input_tokens"
+                    | "generated_prefixes"
+                    | "inflight"
+                    | "inflight_max_requests"
+                    | "inflight_max_bytes"
             )
         })
         && component
             .params
             .get("generated_prefixes")
             .is_none_or(|value| value.as_bool() == Some(true))
+        && if component.params.contains_key("inflight") {
+            component
+                .params
+                .get("inflight")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
+                && matches!(
+                    component
+                        .params
+                        .get("inflight_max_requests")
+                        .and_then(serde_json::Value::as_u64),
+                    Some(2..=32)
+                )
+                && matches!(component.params.get("inflight_max_bytes").and_then(serde_json::Value::as_u64),
+                    Some(value) if (1_048_576..=268_435_456).contains(&value) && value % 1_048_576 == 0)
+        } else {
+            !component.params.contains_key("inflight_max_requests")
+                && !component.params.contains_key("inflight_max_bytes")
+        }
         && matches!(component.params.get("max_bytes").and_then(serde_json::Value::as_u64),
             Some(value) if (1_048_576..=268_435_456).contains(&value) && value % 1_048_576 == 0)
         && matches!(
@@ -1869,6 +1894,80 @@ fn valid_prefix_cache(component: &ExperimentComponent) -> bool {
                 .and_then(serde_json::Value::as_u64),
             Some(2..=4096)
         )
+}
+
+// Opt-in mechanisms are admitted by exact composition, never model-family names.
+fn validate_all_link_composition(pipeline: &ExperimentPipeline) -> Result<(), String> {
+    let inventory = pipeline.components.get("inventory");
+    let cache = pipeline.components.get("cache");
+    let epochs = inventory.is_some_and(|value| value.params.contains_key("decode_epoch_tokens"));
+    let inflight = cache.is_some_and(|value| value.params.contains_key("inflight"));
+    if !epochs && !inflight {
+        return Ok(());
+    }
+    let prefix_f32 = pipeline
+        .components
+        .get("quantization")
+        .is_some_and(|value| {
+            value.component == "pllm/symmetric-per-row-quantization/v1"
+                && valid_baseline_quantization(value)
+                && value
+                    .params
+                    .get("causal_reduction")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("prefix_f32")
+        });
+    if !prefix_f32
+        || !pipeline
+            .components
+            .get("linear")
+            .is_some_and(|value| value.component == "pllm/masked-linear")
+        || !pipeline
+            .components
+            .get("preparation")
+            .is_some_and(|value| value.component == "pllm/model-aware-corrections")
+        || [
+            "verification",
+            "state",
+            "nonlinear",
+            "scheduler",
+            "public_prefix",
+        ]
+        .iter()
+        .any(|slot| pipeline.components.contains_key(*slot))
+        || !cache.is_some_and(valid_prefix_cache)
+    {
+        return Err("decode epochs/in-flight sharing require prepared baseline, full-KV prefix_f32 and a fixed-bound client prefix cache; verifier, retained, special-region and tile state are unsupported".into());
+    }
+    if epochs
+        && !inventory.is_some_and(|value| {
+            matches!(
+                value
+                    .params
+                    .get("decode_epoch_tokens")
+                    .and_then(serde_json::Value::as_u64),
+                Some(1..=64)
+            ) && value
+                .params
+                .get("policy")
+                .and_then(serde_json::Value::as_str)
+                == Some("request-sized")
+                && value.params.get("rows").and_then(serde_json::Value::as_u64) == Some(1)
+                && value
+                    .params
+                    .get("allocation")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("demand")
+                && value
+                    .params
+                    .get("refill")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("on-demand")
+        })
+    {
+        return Err("decode epochs require tokens in [1,64], request-sized rows=1, demand allocation and on-demand refill".into());
+    }
+    Ok(())
 }
 
 fn valid_bundle_transport(component: &ExperimentComponent) -> bool {
@@ -2039,7 +2138,7 @@ fn validate_masked_linear_composition(
     let inventory = pipeline.components.get("inventory");
     if let Some(inventory) = inventory {
         if inventory.component != "pllm/prepared-inventory-policy/v1"
-            || !matches!(inventory.params.len(), 2..=6)
+            || !matches!(inventory.params.len(), 2..=7)
             || inventory.params.keys().any(|key| {
                 !matches!(
                     key.as_str(),
@@ -2049,6 +2148,7 @@ fn validate_masked_linear_composition(
                         | "stage_window"
                         | "stage_window_bytes"
                         | "allocation"
+                        | "decode_epoch_tokens"
                 )
             })
             || inventory.params.get("allocation").is_some_and(|value| {

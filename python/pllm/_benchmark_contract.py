@@ -344,7 +344,7 @@ class BenchmarkTarget:
 
     @classmethod
     def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None,
-                 client_mlp=None, client_metadata=False):
+                 client_mlp=None, client_metadata=False, concurrent_requests=1):
         if scenario is None:
             scenario = Scenario.cold()
         if not isinstance(scenario, Scenario):
@@ -352,6 +352,10 @@ class BenchmarkTarget:
         parameters = {"model": _model(experiment, None),
             "scenario": scenario.to_spec(), "backend": backend,
             "wan": None if wan is None else wan.to_spec()}
+        bounded_int(concurrent_requests, 1, 8, "concurrent requests")
+        # Omit the serial default to preserve existing target identities.
+        if concurrent_requests != 1:
+            parameters["concurrent_requests"] = concurrent_requests
         if client_stage is not None:
             parameters["client_stage"] = dict(client_stage)
         if client_mlp is not None:
@@ -391,6 +395,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"client_mlp"}
     if kind == "response" and "client_metadata" in p:
         fields[kind] = fields[kind] | {"client_metadata"}
+    if kind == "response" and "concurrent_requests" in p:
+        fields[kind] = fields[kind] | {"concurrent_requests"}
     if kind == "preparation" and "output_columns" in p:
         fields[kind] = fields[kind] | {"output_columns"}
         if "credit_window" in p:
@@ -468,6 +474,12 @@ def _validate_target(document):
                 raise ValueError("recurrence requires local memory storage")
     elif kind == "response":
         Scenario(**p["scenario"])
+        if "concurrent_requests" in p:
+            bounded_int(p["concurrent_requests"], 2, 8, "concurrent requests")
+            if (p["scenario"]["kind"] != "cold" or p["backend"] != "native"
+                    or p["wan"] is not None
+                    or any(key in p for key in ("client_stage", "client_mlp", "client_metadata"))):
+                raise ValueError("concurrent responses require a cold native scenario without adapters or WAN")
         if "client_metadata" in p:
             if (p["client_metadata"] is not True or p["backend"] != "native"
                     or "client_stage" in p or "client_mlp" in p):

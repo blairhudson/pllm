@@ -64,6 +64,8 @@ def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]:
     warm_ledgers = accounting.get("warmups", [])
     if type(ledgers) is not list or type(warm_ledgers) is not list:
         raise ValueError("invalid communication accounting windows")
+    from pllm.runtime.topology_accounting import accounting_coverage_identity, body_coverage_identity
+    coverage = accounting_coverage_identity(accounting)
     aligned = len(ledgers) == len(records)
     runs = []
     for index, record in enumerate(records):
@@ -89,6 +91,7 @@ def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]:
                 "generated_output_tokens": tokens,
                 "online_body_bytes": online,
                 "covered_body_bytes": covered,
+                "body_counter_coverage": body_coverage_identity(ledger) if ledger is not None else None,
                 "online_mb_per_output_token": _mb(online, tokens),
                 "covered_mb_per_output_token": _mb(covered, tokens),
                 "decode_output_tokens": decode_tokens,
@@ -98,7 +101,7 @@ def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]:
         )
     tokens = _sum([item["generated_output_tokens"] for item in runs])
     online = _sum([item["online_body_bytes"] for item in runs])
-    covered = _sum([item["covered_body_bytes"] for item in runs])
+    covered = _sum([item["covered_body_bytes"] for item in runs]) if coverage is not None else None
     setup = (
         _sum(
             [
@@ -110,7 +113,7 @@ def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]:
                 )
             ]
         )
-        if aligned and len(warm_ledgers) == len(warmups) and records
+        if aligned and len(warm_ledgers) == len(warmups) and records and coverage is not None
         else None
     )
     decode_tokens = _sum([item["decode_output_tokens"] for item in runs])
@@ -124,7 +127,7 @@ def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]:
                 _body(first_ledger, "all_link_serialized_body_bytes"),
             ]
         )
-        if aligned and len(warm_ledgers) == len(warmups)
+        if aligned and len(warm_ledgers) == len(warmups) and coverage is not None
         else None
     )
     return {
@@ -132,6 +135,7 @@ def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]:
         "byte_unit": "decimal MB (1000000 bytes)",
         "denominator": "authoritative generated output tokens, not input tokens or output cap",
         "scope": "covered application bodies; no full wire or checkpoint download",
+        "body_counter_coverage": coverage,
         "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
         "decode_scope": "online bodies after first output through completion, divided by N-1",
         "runs": runs,
