@@ -189,3 +189,15 @@ performance and protocol promotion.
 
 These are follow-up gates, not uncompleted work in the five-probe screen. No probe
 activates a new Pipeline component or changes an existing numeric default.
+
+## All-link traffic follow-up
+
+The separate [five-idea all-link screen](../research/all-link-frontier-reference.md)
+reconciles a 493.58 MB maintained cold/repeat body ledger before proposing cuts.
+Durable exact histories, byte-budgeted stage placement, role-specific publisher
+artifacts and matrix-aware compact correlations retain explicit workload, memory,
+setup and numeric/privacy gates. Nine fresh public-weight codec workers reject
+bit-plane and zigzag-bit-plane replacements for the existing zlib control: bytes
+and CPU increase, despite 1.225 billion exact decoded weight values and zero
+observed swap growth. Projections and this isolated codec result remain separate
+from complete serving measurements.
