@@ -10,6 +10,7 @@ from pllm.components._model_capabilities import PendingModelCapability, model_ca
 from .public_prefix import PublicPrefixCapsule
 
 if TYPE_CHECKING:
+    from .checkpoint import CheckpointHead, CheckpointSession
     from pllm.runtime.semantic_hybrid import (
         BoundedDepthwiseCausalConvolution, BoundedGatedDeltaRecurrence, OwnedGatedDeltaRecurrence,
         HybridStateError, bounded_gated_delta_decay,
@@ -17,6 +18,9 @@ if TYPE_CHECKING:
 
 
 def __getattr__(name: str) -> object:
+    if name in {"CheckpointHead", "CheckpointSession"}:
+        from .checkpoint import CheckpointHead, CheckpointSession
+        return {"CheckpointHead": CheckpointHead, "CheckpointSession": CheckpointSession}[name]
     if name in {
         "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "OwnedGatedDeltaRecurrence",
         "HybridStateError", "bounded_gated_delta_decay",
@@ -165,6 +169,7 @@ class LongRopeCacheRerotation(PendingModelCapability):
 
 
 __all__ = [
+    "CheckpointHead", "CheckpointSession",
     "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "OwnedGatedDeltaRecurrence", "HybridStateError",
     "bounded_gated_delta_decay",
     "ClientLocalKv", "ClientPrefixReuse", "PublicPrefixCapsule", "StateProtocol", "EncryptedKvState", "ProtectedKvSelection", "SpeculativePrivateDecode",
