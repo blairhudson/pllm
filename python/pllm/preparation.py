@@ -8,6 +8,8 @@ from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationE
 from pllm.components._planned import install_planned_components
 
 if TYPE_CHECKING:
+    from pllm.runtime.correction_batch import CorrectionBatch, CorrectionTicket
+    from pllm.runtime.preparation_protocol import PreparationRequest
     from pllm.runtime.preparation_server import create_preparation_app as create_preparation_app
 
 
@@ -219,6 +221,9 @@ class HEAuthenticatedPreprocessing(PreparationProvider):
 
 
 __all__ = [
+    "CorrectionBatch",
+    "CorrectionTicket",
+    "PreparationRequest",
     "BFVCorrelations",
     "HEAuthenticatedPreprocessing",
     "ModelAwareCorrections",
@@ -231,6 +236,11 @@ install_planned_components(globals())
 
 
 def __getattr__(name: str) -> Any:
+    if name in {"CorrectionBatch", "CorrectionTicket", "PreparationRequest"}:
+        module = "preparation_protocol" if name == "PreparationRequest" else "correction_batch"
+        value = getattr(import_module(f"pllm.runtime.{module}"), name)
+        globals()[name] = value
+        return value
     if name != "create_preparation_app":
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     value = import_module("pllm.runtime.preparation_server").create_preparation_app
