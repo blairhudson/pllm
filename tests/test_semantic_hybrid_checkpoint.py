@@ -80,7 +80,7 @@ def _generated_hybrid_checkpoint(root: Path):
     return root, config, upstream, plan, composition
 
 
-def test_generated_hybrid_checkpoint_binds_and_matches_torch(tmp_path: Path) -> None:
+def test_generated_hybrid_checkpoint_binds_and_matches_torch(tmp_path: Path, monkeypatch) -> None:
     torch = pytest.importorskip("torch")
     root, config, upstream, plan, composition = _generated_hybrid_checkpoint(tmp_path / "hybrid")
     model_id = "tiny-qwen35-hybrid"
@@ -98,13 +98,28 @@ def test_generated_hybrid_checkpoint_binds_and_matches_torch(tmp_path: Path) -> 
     }
     assert set(decode_ops) <= set(prefill_ops)
     compiled = compile_runtime_model(plan, bundle, composition=composition)
+    from pllm.runtime.semantic_hybrid import _GatedDeltaWorkspace
+    evaluate = _GatedDeltaWorkspace.evaluate
+    calls = []
+    def counted(workspace, *args, **kwargs):
+        calls.append(kwargs["mode"])
+        return evaluate(workspace, *args, **kwargs)
+    monkeypatch.setattr(_GatedDeltaWorkspace, "evaluate", counted)
     with pytest.raises(RuntimeExecutionError, match="text-only|multimodal"):
         compiled.session(compiled.client_linear_executor(engine)).prefill_ids(
             [config["image_token_id"]]
         )
     session = compiled.session(compiled.client_linear_executor(engine))
+    control = compiled.session(compiled.client_linear_executor(engine))
+    control._runtime._recurrent_pairs = {}
     tokens = [3, 9, 15]
     logits = session.prefill_ids(tokens)
+    assert calls == ["prefill"] * 3
+    np.testing.assert_array_equal(logits.view(np.uint32), control.prefill_ids(tokens).view(np.uint32))
+    recurrent_owners = {key: id(value) for key, value in session._runtime._hybrid_states.items()
+                        if key[1] == "recurrent"}
+    for key, value in session._runtime._hybrid_states.items():
+        np.testing.assert_array_equal(value.view(np.uint32), control._runtime._hybrid_states[key].view(np.uint32))
     with torch.no_grad():
         reference = upstream(torch.tensor(tokens, dtype=torch.long)[None], use_cache=False).logits[0, -1]
     weights = {
@@ -145,11 +160,41 @@ def test_generated_hybrid_checkpoint_binds_and_matches_torch(tmp_path: Path) -> 
     selected = session.select_next()
     assert selected == int(np.argmax(logits))
     decoded = session.decode_selected()
+    assert control.select_next() == selected
+    np.testing.assert_array_equal(decoded.view(np.uint32), control.decode_selected().view(np.uint32))
+    for key, value in session._runtime._hybrid_states.items():
+        np.testing.assert_array_equal(value.view(np.uint32), control._runtime._hybrid_states[key].view(np.uint32))
+        if key in recurrent_owners:
+            assert id(value) == recurrent_owners[key]
+    for actual, expected in zip(session._runtime.caches, control._runtime.caches):
+        if actual.length:
+            np.testing.assert_array_equal(actual.key[:actual.length], expected.key[:expected.length])
+            np.testing.assert_array_equal(actual.value[:actual.length], expected.value[:expected.length])
     with torch.no_grad():
         reference_decode = upstream(torch.tensor(tokens + [selected], dtype=torch.long)[None], use_cache=False).logits[0, -1]
     np.testing.assert_allclose(decoded, reference_decode.numpy(), atol=0.05, rtol=0.05)
     assert session.position == len(tokens) + 1
     assert config["text_config"]["layer_types"].count("linear_attention") == 3
+    assert calls == ["prefill"] * 6 + ["decode"] * 3  # includes the clear-body oracle
+    retained = list(session._runtime._hybrid_states.values())
+    session.close()
+    control.close()
+    clear.reset()
+    assert all(not np.any(array) for array in retained)
+
+    failed = compiled.session(compiled.client_linear_executor(engine))
+    failed.prefill_ids(tokens)
+    retained = list(failed._runtime._hybrid_states.values())
+    def cancelled(workspace, *args, **kwargs):
+        evaluate(workspace, *args, **kwargs)
+        raise KeyboardInterrupt()
+    monkeypatch.setattr(_GatedDeltaWorkspace, "evaluate", cancelled)
+    failed.select_next()
+    with pytest.raises(KeyboardInterrupt):
+        failed.decode_selected()
+    assert all(not np.any(array) for array in retained)
+    assert failed._runtime._recurrent_workspace is None
+    failed.close()
 
 
 def test_generated_hybrid_runs_prepared_sdk_and_gateway(tmp_path: Path) -> None:

@@ -11,24 +11,25 @@ from .public_prefix import PublicPrefixCapsule
 
 if TYPE_CHECKING:
     from pllm.runtime.semantic_hybrid import (
-        BoundedDepthwiseCausalConvolution, BoundedGatedDeltaRecurrence,
+        BoundedDepthwiseCausalConvolution, BoundedGatedDeltaRecurrence, OwnedGatedDeltaRecurrence,
         HybridStateError, bounded_gated_delta_decay,
     )
 
 
 def __getattr__(name: str) -> object:
     if name in {
-        "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence",
+        "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "OwnedGatedDeltaRecurrence",
         "HybridStateError", "bounded_gated_delta_decay",
     }:
         from pllm.runtime.semantic_hybrid import (
-            BoundedDepthwiseCausalConvolution, BoundedGatedDeltaRecurrence,
+            BoundedDepthwiseCausalConvolution, BoundedGatedDeltaRecurrence, OwnedGatedDeltaRecurrence,
             HybridStateError, bounded_gated_delta_decay,
         )
 
         return {
             "BoundedDepthwiseCausalConvolution": BoundedDepthwiseCausalConvolution,
             "BoundedGatedDeltaRecurrence": BoundedGatedDeltaRecurrence,
+            "OwnedGatedDeltaRecurrence": OwnedGatedDeltaRecurrence,
             "HybridStateError": HybridStateError,
             "bounded_gated_delta_decay": bounded_gated_delta_decay,
         }[name]
@@ -164,7 +165,7 @@ class LongRopeCacheRerotation(PendingModelCapability):
 
 
 __all__ = [
-    "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "HybridStateError",
+    "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "OwnedGatedDeltaRecurrence", "HybridStateError",
     "bounded_gated_delta_decay",
     "ClientLocalKv", "ClientPrefixReuse", "PublicPrefixCapsule", "StateProtocol", "EncryptedKvState", "ProtectedKvSelection", "SpeculativePrivateDecode",
     "GatedDeltaRecurrence", "CausalConvolutionState", "LatentAttentionState", "LongRopeCacheRerotation",

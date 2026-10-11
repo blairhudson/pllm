@@ -3,6 +3,13 @@ from pllm.components._planned import PendingComponent as PendingMethod
 from pllm.state.public_prefix import PublicPrefixCapsule as PublicPrefixCapsule
 from pllm.passes import KvCacheEviction
 from typing import Any, Mapping
+from pllm.runtime.semantic_hybrid import (
+    BoundedDepthwiseCausalConvolution as BoundedDepthwiseCausalConvolution,
+    BoundedGatedDeltaRecurrence as BoundedGatedDeltaRecurrence,
+    OwnedGatedDeltaRecurrence as OwnedGatedDeltaRecurrence,
+    HybridStateError as HybridStateError,
+    bounded_gated_delta_decay as bounded_gated_delta_decay,
+)
 
 class StateProtocol(ComponentRef): ...
 

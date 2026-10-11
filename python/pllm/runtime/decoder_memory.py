@@ -110,6 +110,8 @@ def _phase_working_bytes(graph, schedule, tiling=None):
 def decoder_memory(plan, schedule, *, initial_prefill_only=False):
     graphs = (plan.prefill, plan.decode)
     rotary = max(rotary_coefficient_bound(graph) for graph in graphs)
+    from .recurrent_execution import recurrent_workspace_bytes
+    recurrent = recurrent_workspace_bytes(graphs)
     legacy = sum(_bytes(op["output_shape"]) for graph in graphs for op in graph["operations"])
     phases = schedule.to_dict()
     retained = phases.get("retained_state")
@@ -135,7 +137,7 @@ def decoder_memory(plan, schedule, *, initial_prefill_only=False):
                 4 * shape[1] * shape[3] * shape[2])
     qualified &= bool(states) and all((layer, kind) in states for layer, _ in states for kind in ("key", "value"))
     if not qualified:
-        return {"mode": "unreleased_outputs", "working_bytes": legacy + rotary,
+        return {"mode": "unreleased_outputs", "working_bytes": legacy + rotary + recurrent,
                 "state_bytes": 0, "legacy_working_bytes": legacy,
                 "rotary_coefficient_bytes": rotary}
     tiling = phases.get("mlp_tiling") if initial_prefill_only else None

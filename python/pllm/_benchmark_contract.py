@@ -308,9 +308,18 @@ class BenchmarkTarget:
 
     @classmethod
     def state(cls, experiment, *, operation="roundtrip", storage="memory",
-              tokens=16, seed=7, config=None):
-        return cls("state", dict(model=_model(experiment, config), operation=operation,
-                                 storage=storage, tokens=tokens, seed=seed))
+              tokens=16, seed=7, config=None, owner=None, layer=None):
+        parameters = dict(model=_model(experiment, config), operation=operation,
+                          storage=storage, tokens=tokens, seed=seed)
+        if owner is not None or layer is not None:
+            parameters.update(owner=owner, layer=layer)
+        return cls("state", parameters)
+
+    @classmethod
+    def recurrence(cls, experiment, *, owner="owned", layer=0, tokens=64, seed=7, config=None):
+        """Exact source-shaped local recurrence, including state and scratch owners."""
+        return cls.state(experiment, operation="recurrence", tokens=tokens, seed=seed,
+                         config=config, owner=owner, layer=layer)
 
     @classmethod
     def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None,
@@ -353,6 +362,8 @@ def _validate_target(document):
     }
     if kind == "response" and "client_stage" in p:
         fields[kind] = fields[kind] | {"client_stage"}
+    if kind == "state" and p.get("operation") == "recurrence":
+        fields[kind] = fields[kind] | {"owner", "layer"}
     if kind == "response" and "client_mlp" in p:
         fields[kind] = fields[kind] | {"client_mlp"}
     if kind == "response" and "client_metadata" in p:
@@ -407,9 +418,14 @@ def _validate_target(document):
         if p["geometry"] is not None and not isinstance(p["geometry"], dict):
             raise ValueError("operator geometry must be a mapping")
     elif kind == "state":
-        choice(p["operation"], {"roundtrip", "attention", "restart", "decoder_restart"}, "state operation")
+        choice(p["operation"], {"roundtrip", "attention", "restart", "decoder_restart", "recurrence"}, "state operation")
         choice(p["storage"], {"memory", "sealed_local", "sealed_stream"}, "state storage")
         bounded_int(p["tokens"], 1, 1 << 20, "state tokens")
+        if p["operation"] == "recurrence":
+            choice(p["owner"], {"owned", "copy_reference"}, "recurrence owner")
+            bounded_int(p["layer"], 0, 1023, "recurrence layer")
+            if p["storage"] != "memory":
+                raise ValueError("recurrence requires local memory storage")
     elif kind == "response":
         Scenario(**p["scenario"])
         if "client_metadata" in p:

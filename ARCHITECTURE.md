@@ -947,6 +947,17 @@ separate axis unless an exact schedule, binding and execution test say otherwise
 
 ## Python package
 
+Exclusive semantic gated-delta output/state pairs now execute one transition and
+retain their original state arrays, sharing one bounded scratch slab across
+layers. Complete tensor reduction layouts preserve float32 bits, including
+strided checkpoint projections. Generated checkpoint, prepared SDK and gateway
+checks cover the common executor; failure and shutdown retire its owners.
+`pllm.state.OwnedGatedDeltaRecurrence` and `BenchmarkTarget.recurrence` expose
+bounded local projected-input execution and fresh-process comparisons against the
+copying reference. Historical recurrence-probe savings remain separately scoped;
+whole-response CPU/RSS benefits need matched evidence. Contract:
+`docs/research/frontier-sdk-reference.md`.
+
 Configured ordinary `OpenAI()` / `AsyncOpenAI()` and gateway requests now own
 authenticated network discovery, native planning, fresh response admission and
 lease retirement through one shared client owner. Configuration supplies the

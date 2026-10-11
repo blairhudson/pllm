@@ -36,6 +36,7 @@ from .semantic_state import SemanticStateError, WindowedLayerCache
 from .semantic_hybrid import (
     HybridStateError, bounded_gated_delta_decay, execute_declared_causal_convolution,
     execute_declared_gated_delta, execute_declared_gated_rms_norm,
+    _bind_declared_gated_delta, _GatedDeltaWorkspace,
 )
 from . import semantic_state
 from .transformer_client import (
@@ -119,6 +120,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             self._graphs, self._window_contracts
         )
         self._hybrid_contracts = self._declared_hybrid_state(self._graphs)
+        from .recurrent_execution import recurrent_pairs
+        self._recurrent_pairs = {phase: recurrent_pairs(self._graphs[phase])
+                                 for phase in ("prefill", "decode")}
         self.reset()
 
     @staticmethod
@@ -165,7 +169,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         decode = declared(graphs["decode"]["state_inputs"])
         if prefill != decode or declared(graphs["decode"]["state_outputs"]) != prefill:
             raise TransformerClientError("semantic hybrid state differs across phases")
-        if sum(math.prod(shape) * 4 for shape in prefill.values()) > 2 << 30:
+        from .recurrent_execution import recurrent_workspace_bytes
+        if (sum(math.prod(shape) * 4 for shape in prefill.values())
+                + recurrent_workspace_bytes((graphs["prefill"], graphs["decode"]))) > 2 << 30:
             raise TransformerClientError("semantic hybrid state exceeds client memory budget")
         return prefill
 
@@ -242,6 +248,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         self._reset_state()
 
     def _reset_state(self) -> None:
+        self._clear_recurrent_work()
+        for state in getattr(self, "_hybrid_states", {}).values():
+            state.fill(0)
         if self._retained is not None:
             self._retained.reset()
         super().reset()
@@ -250,6 +259,35 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         self._hybrid_states: dict[tuple[int, str], np.ndarray] = {}
         for layer, window in getattr(self, "_window_contracts", {}).items():
             self.caches[layer] = WindowedLayerCache(window=window)
+
+    def _clear_recurrent_work(self):
+        workspace = getattr(self, "_recurrent_workspace", None)
+        if workspace is not None:
+            workspace.clear()
+        self._recurrent_workspace = None
+        self._phase_recurrent_results = {}
+        self._phase_recurrent_pairs = {}
+        self._phase_recurrent_states = []
+
+    def _owned_gated_delta(self, operation, values):
+        identity = operation["id"]
+        if identity in self._phase_recurrent_results:
+            return self._phase_recurrent_results.pop(identity)
+        rule, update = self._phase_recurrent_pairs[identity]
+        # Validate both original declarations and all inputs before mutation.
+        geometry, arrays, mode = _bind_declared_gated_delta(rule, values)
+        _bind_declared_gated_delta(update, values)
+        workspace = self._recurrent_workspace
+        if workspace is None or workspace.geometry != geometry:
+            if workspace is not None:
+                workspace.clear()
+            self._recurrent_workspace = None
+            workspace = _GatedDeltaWorkspace(geometry)
+            self._recurrent_workspace = workspace
+        self._phase_recurrent_states.append(arrays[-1])
+        output, state = workspace.evaluate(*arrays, mode=mode)
+        self._phase_recurrent_results.update({rule["id"]: output, update["id"]: state})
+        return self._phase_recurrent_results.pop(identity)
 
     def snapshot(self) -> RuntimeSnapshot:
         if self._tiered is not None:
@@ -607,6 +645,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 raise TransformerClientError(str(exc)) from exc
         if kind in {"gated_delta_rule", "gated_delta_state_update"}:
             try:
+                if operation["id"] in getattr(self, "_phase_recurrent_pairs", {}):
+                    return self._owned_gated_delta(operation, values)
                 return execute_declared_gated_delta(operation, values)
             except HybridStateError as exc:
                 raise TransformerClientError(str(exc)) from exc
@@ -1083,6 +1123,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
     def _forward(self, ids: np.ndarray, *, final_logits_only: bool = False,
                  continuation: bool = False) -> np.ndarray:
         self._phase_rotary = None
+        self._phase_recurrent_results = {}
+        self._phase_recurrent_pairs = {}
+        self._phase_recurrent_states = []
         try:
             if self._tiered is not None:
                 self._tiered.begin(self, ids, continuation)
@@ -1094,12 +1137,23 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 self._tiered.finish(self, ids, result)
             return result
         except BaseException:
+            for state in getattr(self, "_phase_recurrent_states", []):
+                state.fill(0)
+            if getattr(self, "_hybrid_contracts", {}):
+                for state in self._hybrid_states.values():
+                    state.fill(0)
+                self._hybrid_states.clear()
+                self._continuation_failed = True
+                self._clear_recurrent_work()
             if self._tiered is not None:
                 self._tiered.abort(self)
             if self._retained is not None:
                 self._retained.burn(self)
             raise
         finally:
+            self._phase_recurrent_results = {}
+            self._phase_recurrent_pairs = {}
+            self._phase_recurrent_states = []
             if self._phase_rotary is not None:
                 self._phase_rotary.clear()
                 self._phase_rotary = None
@@ -1219,6 +1273,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             for row in graph["state_outputs"] if row["kind"] in {"convolution", "recurrent"}
         }
         pending_hybrid: dict[tuple[int, str], np.ndarray] = {}
+        self._phase_recurrent_pairs = getattr(self, "_recurrent_pairs", {}).get(phase, {})
         skipped_until = 0
         for step_index, frame in enumerate(frames):
             step, operations = frame["step"], frame["operations"]
@@ -1276,7 +1331,10 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                     or not np.all(np.isfinite(tensor))
                 ):
                     raise TransformerClientError("semantic hybrid state output is malformed")
-                pending_hybrid[identity] = np.ascontiguousarray(tensor.copy())
+                pending_hybrid[identity] = (
+                    tensor if op_id in self._phase_recurrent_pairs
+                    else np.ascontiguousarray(tensor.copy())
+                )
                 del tensor
             if self._capsule is not None:
                 for input_id in frame["retire"]:
@@ -1290,6 +1348,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 self._tiered.retire_step(self, step_index, values)
         if pending_keys:
             raise TransformerClientError("semantic cache key has no matching value")
+        if self._phase_recurrent_results:
+            raise TransformerClientError("semantic recurrence pair is incomplete")
         if set(pending_hybrid) != set(self._hybrid_contracts):
             raise TransformerClientError("semantic hybrid state output is incomplete")
         if checked_remote is not None and checked_remote.verified_calls - verified_before != sum(

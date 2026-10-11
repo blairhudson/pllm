@@ -181,6 +181,29 @@ class BoundedGatedDeltaRecurrence:
         *,
         mode: Literal["prefill", "decode"],
     ) -> tuple[np.ndarray, np.ndarray]:
+        q, k, v, g, b, prior = self._inputs(query, key, value, decay, beta, state, mode=mode)
+        tokens = q.shape[1]
+        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+            q = q / np.sqrt(np.sum(q * q, axis=-1, keepdims=True) + np.float32(1e-6))
+            k = k / np.sqrt(np.sum(k * k, axis=-1, keepdims=True) + np.float32(1e-6))
+            q = np.repeat(q, self.value_heads // self.key_heads, axis=2)
+            k = np.repeat(k, self.value_heads // self.key_heads, axis=2)
+            q *= np.float32(1.0 / math.sqrt(self.key_head_dim))
+            retained = np.ascontiguousarray(prior.copy())
+            output = np.empty_like(v)
+            for token in range(tokens):
+                key_at = k[0, token]
+                query_at = q[0, token]
+                retained[0] *= np.exp(g[0, token])[:, None, None]
+                remembered = np.einsum("hkv,hk->hv", retained[0], key_at)
+                delta = (v[0, token] - remembered) * b[0, token, :, None]
+                retained[0] += key_at[:, :, None] * delta[:, None, :]
+                output[0, token] = np.einsum("hkv,hk->hv", retained[0], query_at)
+                if not np.all(np.isfinite(retained)) or not np.all(np.isfinite(output[0, token])):
+                    raise HybridStateError("gated-delta execution exceeded its finite float32 domain")
+        return np.ascontiguousarray(output), retained
+
+    def _inputs(self, query, key, value, decay, beta, state, *, mode):
         q = _finite_float32(query, "gated-delta query", 4)
         k = _finite_float32(key, "gated-delta key", 4)
         v = _finite_float32(value, "gated-delta value", 4)
@@ -203,25 +226,131 @@ class BoundedGatedDeltaRecurrence:
             or np.any(b > 1)
         ):
             raise HybridStateError("gated-delta tensor, state, or phase contract is invalid")
-        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-            q = q / np.sqrt(np.sum(q * q, axis=-1, keepdims=True) + np.float32(1e-6))
-            k = k / np.sqrt(np.sum(k * k, axis=-1, keepdims=True) + np.float32(1e-6))
-            q = np.repeat(q, self.value_heads // self.key_heads, axis=2)
-            k = np.repeat(k, self.value_heads // self.key_heads, axis=2)
-            q *= np.float32(1.0 / math.sqrt(self.key_head_dim))
-            retained = np.ascontiguousarray(prior.copy())
-            output = np.empty_like(v)
-            for token in range(tokens):
-                key_at = k[0, token]
-                query_at = q[0, token]
-                retained[0] *= np.exp(g[0, token])[:, None, None]
-                remembered = np.einsum("hkv,hk->hv", retained[0], key_at)
-                delta = (v[0, token] - remembered) * b[0, token, :, None]
-                retained[0] += key_at[:, :, None] * delta[:, None, :]
-                output[0, token] = np.einsum("hkv,hk->hv", retained[0], query_at)
-                if not np.all(np.isfinite(retained)) or not np.all(np.isfinite(output[0, token])):
-                    raise HybridStateError("gated-delta execution exceeded its finite float32 domain")
-        return np.ascontiguousarray(output), retained
+        return q, k, v, g, b, prior
+
+
+class _GatedDeltaWorkspace:
+    """One bounded scratch slab, reusable serially across decoder layers."""
+
+    def __init__(self, geometry: BoundedGatedDeltaRecurrence):
+        self.geometry = geometry
+        h = geometry
+        self.q = np.empty((h.value_heads, h.key_head_dim), np.float32)
+        self.k = np.empty_like(self.q)
+        self.delta = np.empty((h.value_heads, h.value_head_dim), np.float32)
+        self.outer = np.empty((h.value_heads, h.key_head_dim, h.value_head_dim), np.float32)
+
+    @property
+    def nbytes(self):
+        return sum(x.nbytes for x in (self.q, self.k, self.delta, self.outer))
+
+    def clear(self):
+        for array in (self.q, self.k, self.delta, self.outer):
+            array.fill(0)
+
+    def evaluate(self, query, key, value, decay, beta, state, *, mode):
+        h = self.geometry
+        q, k, v, g, b, prior = h._inputs(query, key, value, decay, beta, state, mode=mode)
+        if (not prior.flags.c_contiguous or not prior.flags.writeable
+                or any(np.shares_memory(prior, x) for x in (q, k, v, g, b))):
+            raise HybridStateError("owned recurrence requires exclusive contiguous writable state")
+        output = np.empty_like(v, order="C")
+        try:
+            with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+                # Keep the reference's complete tensor layout for reductions.
+                # Token slicing can change NumPy's reduction order for strided
+                # checkpoint projections, changing retained state by a few ULPs.
+                q = q / np.sqrt(np.sum(q * q, axis=-1, keepdims=True) + np.float32(1e-6))
+                k = k / np.sqrt(np.sum(k * k, axis=-1, keepdims=True) + np.float32(1e-6))
+                for token in range(q.shape[1]):
+                    for dst, src in ((self.q, q), (self.k, k)):
+                        dst.reshape(h.key_heads, h.value_heads // h.key_heads, h.key_head_dim)[:] = src[0, token, :, None, :]
+                    self.q *= np.float32(1.0 / math.sqrt(h.key_head_dim))
+                    prior[0] *= np.exp(g[0, token])[:, None, None]
+                    np.einsum("hkv,hk->hv", prior[0], self.k, out=self.delta)
+                    np.subtract(v[0, token], self.delta, out=self.delta)
+                    self.delta *= b[0, token, :, None]
+                    np.multiply(self.k[:, :, None], self.delta[:, None, :], out=self.outer)
+                    prior[0] += self.outer
+                    np.einsum("hkv,hk->hv", prior[0], self.q, out=output[0, token])
+                    if not np.all(np.isfinite(prior)) or not np.all(np.isfinite(output[0, token])):
+                        raise HybridStateError("gated-delta execution exceeded its finite float32 domain")
+        except BaseException:
+            prior.fill(0)
+            output.fill(0)
+            self.clear()
+            raise
+        return output, prior
+
+
+class OwnedGatedDeltaRecurrence:
+    """Local float32 recurrence with explicit state ownership and retirement.
+
+    Returned outputs and snapshots are independent arrays. Invalid inputs leave
+    state intact; a failure during arithmetic burns the owner. Instances are
+    single-threaded and cannot be copied. No private shares or role transport.
+    """
+
+    def __init__(self, key_heads: int, value_heads: int, key_head_dim: int,
+                 value_head_dim: int, *, maximum_tokens: int = 4096):
+        if type(maximum_tokens) is not int or not 1 <= maximum_tokens <= 1 << 20:
+            raise HybridStateError("owned recurrence token bound must be in [1, 1048576]")
+        self.geometry = BoundedGatedDeltaRecurrence(key_heads, value_heads, key_head_dim, value_head_dim)
+        self.maximum_tokens = maximum_tokens
+        self.position = 0
+        self._state = self.geometry.initial_state()
+        self._workspace = _GatedDeltaWorkspace(self.geometry)
+
+    @property
+    def state_bytes(self) -> int:
+        return 0 if self._state is None else self._state.nbytes
+
+    @property
+    def workspace_bytes(self) -> int:
+        return 0 if self._workspace is None else self._workspace.nbytes
+
+    def snapshot(self) -> np.ndarray:
+        if self._state is None:
+            raise HybridStateError("owned recurrence is closed")
+        return self._state.copy()
+
+    def evaluate(self, query, key, value, decay, beta, *, mode="decode") -> np.ndarray:
+        if self._state is None:
+            raise HybridStateError("owned recurrence is closed")
+        arrays = self.geometry._inputs(query, key, value, decay, beta, self._state, mode=mode)
+        tokens = arrays[0].shape[1]
+        if self.position + tokens > self.maximum_tokens:
+            raise HybridStateError("owned recurrence exceeds its token bound")
+        try:
+            output, _ = self._workspace.evaluate(*arrays, mode=mode)
+        except BaseException:
+            self.close()
+            raise
+        self.position += tokens
+        return output
+
+    def close(self) -> None:
+        if self._state is not None:
+            self._state.fill(0)
+            self._workspace.clear()
+            self._state = self._workspace = None
+
+    def __copy__(self):
+        raise TypeError("owned recurrence cannot be copied")
+
+    def __deepcopy__(self, memo):
+        raise TypeError("owned recurrence cannot be copied")
+
+    def __reduce__(self):
+        raise TypeError("owned recurrence cannot be serialized")
+
+    def __enter__(self):
+        if self._state is None:
+            raise HybridStateError("owned recurrence is closed")
+        return self
+
+    def __exit__(self, *_):
+        self.close()
 
 
 def execute_declared_causal_convolution(
@@ -284,6 +413,12 @@ def execute_declared_gated_delta(
     operation: Mapping[str, Any], values: Mapping[str, np.ndarray]
 ) -> np.ndarray:
     """Bind an exact paired recurrent operator to the bounded float32 reference."""
+    kernel, arrays, mode = _bind_declared_gated_delta(operation, values)
+    output, retained = kernel.evaluate(*arrays, mode=mode)
+    return output if operation["operator"] == "gated_delta_rule" else retained
+
+
+def _bind_declared_gated_delta(operation, values):
     kind = operation.get("operator")
     attrs = operation.get("attributes")
     inputs = operation.get("inputs")
@@ -339,14 +474,15 @@ def execute_declared_gated_delta(
     ):
         raise HybridStateError("semantic gated-delta shapes or state ownership differ")
     kernel = BoundedGatedDeltaRecurrence(key_heads, value_heads, key_dim, value_dim)
-    output, retained = kernel.evaluate(
+    mode = "prefill" if attrs["mode"] == "chunked" else "decode"
+    arrays = kernel._inputs(
         q.reshape(1, tokens, key_heads, key_dim),
         k.reshape(1, tokens, key_heads, key_dim),
         v.reshape(1, tokens, value_heads, value_dim),
         decay, beta, prior,
-        mode="prefill" if attrs["mode"] == "chunked" else "decode",
+        mode=mode,
     )
-    return output if kind == "gated_delta_rule" else retained
+    return kernel, arrays, mode
 
 
 def execute_declared_gated_rms_norm(
@@ -405,7 +541,7 @@ def execute_declared_gated_rms_norm(
 
 
 __all__ = [
-    "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "HybridStateError",
+    "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "OwnedGatedDeltaRecurrence", "HybridStateError",
     "bounded_gated_delta_decay", "execute_declared_causal_convolution", "execute_declared_gated_delta",
     "execute_declared_gated_rms_norm",
 ]
