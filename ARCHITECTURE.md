@@ -2115,6 +2115,22 @@ physical wire, checkpoint distribution and automatic selection remain outside
 the result. Exact ownership, all seven metrics and replay:
 `docs/research/all-link-frontier-reference.md`.
 
+Five further bounded traffic screens retain distinct contracts. Two fresh pinned
+Qwen2.5 decode-epoch workers preserve complete final logits/KV and output across
+fifteen comparisons. At 17 of 128 allowed outputs, four-output epochs reduce
+serialized stage bodies 55.22%, while full-cap use grows 1.00% and adds 31 idle
+boundaries. Same-generation SDK resume, authenticated admissions and complete
+response costs remain absent. Generated Qwen2/Qwen3/Llama in-flight prefix sharing
+preserves exact branches, but no-match splitting increases projected tensor
+bytes and the real eight-branch checkpoint screen remains memory-admission blocked.
+Twelve fresh lossless-weight codec workers check 1.63 billion entries, yet every
+tested predictor loses to bounded zlib. Exact residual fitting on twelve of 96
+checkpoint groups yields only 27,662 projected net bytes per fresh 150+8 request
+after raw factors/maps. Private eight-bit ingress loses its apparent savings to
+the examined exact carry-repair constructions. These separate research screens
+activate no Pipeline choice or whole-response traffic claim. Priorities, costs,
+blocked cells and replay: `docs/plans/all-link-next-five.md`.
+
 `pllm.preparation.PreparedInventory` and `pllm.protocols.ClientBundleTransport`
 bind startup/row-floor and bundle-encoding choices to ordinary prepared Pipelines.
 Omitting them preserves previous digests and defaults. Explicit conflicting SDK
