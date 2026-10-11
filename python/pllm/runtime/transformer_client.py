@@ -472,20 +472,22 @@ class ClientBundle:
         privacy = dict(value["privacy"])
         client_prefix_layers = privacy.get("client_prefix_layers", 0)
         client_linear_roles = privacy.get("client_linear_roles", [])
-        if client_linear_roles:
+        client_linear_layer_roles = privacy.get("client_linear_layer_roles", [])
+        if client_linear_roles or client_linear_layer_roles:
             from pllm.roles import ClientLinearRoles
 
             try:
-                canonical_roles = ClientLinearRoles(client_linear_roles).roles
+                selection = ClientLinearRoles(client_linear_roles, layer_roles=client_linear_layer_roles)
             except (ValueError, TypeError) as exc:
                 raise TransformerClientError("invalid client linear role placement") from exc
             if (
-                list(canonical_roles) != client_linear_roles
+                list(selection.roles) != client_linear_roles
+                or [list(pair) for pair in selection.layer_roles] != client_linear_layer_roles
                 or privacy.get("mode") != "public"
                 or value.get("runtime") != "masked_transformer"
             ):
                 raise TransformerClientError("invalid client linear role placement")
-        elif client_linear_roles != []:
+        elif client_linear_roles != [] or client_linear_layer_roles != []:
             raise TransformerClientError("invalid client linear role placement")
         if (
             type(client_prefix_layers) is not int
@@ -600,6 +602,7 @@ class ClientBundle:
                     spec,
                     client_prefix_layers=client_prefix_layers,
                     client_linear_roles=tuple(client_linear_roles),
+                    client_linear_layer_roles=tuple(tuple(pair) for pair in client_linear_layer_roles),
                 )
                 if (
                     privacy.get("mode") not in {"public", "offset_public"}

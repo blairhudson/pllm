@@ -179,9 +179,9 @@ CLIENT_LINEAR_ROLES = ("attention_output", "mlp_down", "mlp_gate_up", "qkv_proje
 
 
 class ClientLinearRoles(ClientPlacement):
-    """Own the union of semantic linear roles and an optional complete prefix."""
+    """Own selected semantic roles, layer/role pairs and an optional prefix."""
 
-    __slots__ = ("roles", "prefix_layers")
+    __slots__ = ("roles", "prefix_layers", "layer_roles")
     descriptor = ComponentDescriptor(
         component="pllm/client-owned-linear-roles/v1",
         provider="pllm",
@@ -197,10 +197,21 @@ class ClientLinearRoles(ClientPlacement):
             "properties": {
                 "roles": {
                     "type": "array",
-                    "minItems": 1,
+                    "minItems": 0,
                     "maxItems": 4,
                     "uniqueItems": True,
                     "items": {"type": "string", "enum": list(CLIENT_LINEAR_ROLES)},
+                },
+                "layer_roles": {
+                    "type": "array", "minItems": 1, "maxItems": 1024,
+                    "uniqueItems": True,
+                    "items": {
+                        "type": "array", "minItems": 2, "maxItems": 2,
+                        "prefixItems": [
+                            {"type": "integer", "minimum": 0, "maximum": 255},
+                            {"type": "string", "enum": list(CLIENT_LINEAR_ROLES)},
+                        ],
+                    },
                 },
                 "prefix_layers": {"type": "integer", "minimum": 1, "maximum": 8},
             },
@@ -209,25 +220,38 @@ class ClientLinearRoles(ClientPlacement):
         role_eligibility=("client", "preparation", "inference"),
     )
 
-    def __init__(self, roles: tuple[str, ...] | list[str], *, prefix_layers: int = 0) -> None:
+    def __init__(self, roles: tuple[str, ...] | list[str] = (), *, prefix_layers: int = 0,
+                 layer_roles: tuple[tuple[int, str], ...] | list = ()) -> None:
         if (
             not isinstance(roles, (tuple, list))
-            or not 1 <= len(roles) <= 4
+            or len(roles) > 4 or (not roles and not layer_roles)
             or any(type(role) is not str or role not in CLIENT_LINEAR_ROLES for role in roles)
             or len(set(roles)) != len(roles)
         ):
             raise ValueError("client linear roles require distinct supported semantic roles")
+        if (not isinstance(layer_roles, (tuple, list)) or len(layer_roles) > 1024
+                or any(not isinstance(pair, (tuple, list)) or len(pair) != 2
+                       or type(pair[0]) is not int or not 0 <= pair[0] <= 255
+                       or type(pair[1]) is not str or pair[1] not in CLIENT_LINEAR_ROLES
+                       for pair in layer_roles)):
+            raise ValueError("layer roles require bounded (layer, semantic role) pairs")
+        pairs = tuple(sorted(tuple(pair) for pair in layer_roles))
+        if len(set(pairs)) != len(pairs):
+            raise ValueError("layer roles must be distinct")
         if type(prefix_layers) is not int or not 0 <= prefix_layers <= 8:
             raise ValueError("client prefix_layers must be in [0, 8]")
         canonical = tuple(sorted(roles))
         super().__init__(self.descriptor.component, {
             "roles": list(canonical), **({"prefix_layers": prefix_layers} if prefix_layers else {}),
+            **({"layer_roles": [list(pair) for pair in pairs]} if pairs else {}),
         })
         object.__setattr__(self, "roles", canonical)
+        object.__setattr__(self, "layer_roles", pairs)
         object.__setattr__(self, "prefix_layers", prefix_layers)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"roles": self.roles, **({"prefix_layers": self.prefix_layers} if self.prefix_layers else {})}
+        return {"roles": self.roles, **({"prefix_layers": self.prefix_layers} if self.prefix_layers else {}),
+                **({"layer_roles": self.layer_roles} if self.layer_roles else {})}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

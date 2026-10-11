@@ -653,6 +653,7 @@ class RuntimeComposition:
     remote_output_head: bool = False
     client_prefix_layers: int = 0
     client_linear_roles: tuple[str, ...] = ()
+    client_linear_layer_roles: tuple[tuple[int, str], ...] = ()
     inventory_policy: str = "prewarm"
     prepared_inventory_rows: int = 64
     background_inventory_refill: bool = True
@@ -858,23 +859,13 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             and 1 <= placement.params["layers"] <= 8
         )
         roles = placement.params.get("roles")
-        roles_valid = (
-            placement.component == ClientLinearRoles.descriptor.component
-            and set(placement.params) in ({"roles"}, {"roles", "prefix_layers"})
-            and ("prefix_layers" not in placement.params or (
-                type(placement.params["prefix_layers"]) is int and 1 <= placement.params["prefix_layers"] <= 8))
-            and isinstance(roles, (list, tuple))
-            and 1 <= len(roles) <= 4
-            and all(
-                type(role) is str
-                and role
-                in ClientLinearRoles.descriptor.parameter_schema["properties"]["roles"]["items"][
-                    "enum"
-                ]
-                for role in roles
-            )
-            and tuple(roles) == tuple(sorted(set(roles)))
-        )
+        roles_valid = False
+        if placement.component == ClientLinearRoles.descriptor.component:
+            try:
+                canonical = ClientLinearRoles(**dict(placement.params))
+                roles_valid = canonical.params == placement.params
+            except (TypeError, ValueError):
+                pass
         if (
             not (prefix_valid or roles_valid)
             or identities.get("linear") != "pllm/masked-linear"
@@ -883,7 +874,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         placement_options = (
             {"client_prefix_layers": placement.params["layers"]}
             if prefix_valid
-            else {"client_linear_roles": tuple(roles), "client_prefix_layers": placement.params.get("prefix_layers", 0)}
+            else {"client_linear_roles": tuple(roles), "client_prefix_layers": placement.params.get("prefix_layers", 0),
+                  "client_linear_layer_roles": tuple(tuple(pair) for pair in placement.params.get("layer_roles", ()))}
         )
         del identities["placement"]
     quantization = pipeline.components.get("quantization")

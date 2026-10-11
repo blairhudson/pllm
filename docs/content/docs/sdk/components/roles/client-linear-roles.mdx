@@ -1,12 +1,12 @@
 ---
 title: "Client-owned linear roles"
-description: "Place semantic projection groups at the trusted client while keeping prepared MLP work remote."
+description: "Place semantic projection groups at the trusted client while keeping remaining body work remote."
 ---
 
 API: [`ClientLinearRoles`](/sdk/reference/python/pllm/roles/#objects-and-signatures).
 
-`ClientLinearRoles` selects
-projection groups by semantic role, across layers, rather than by checkpoint paths.
+`ClientLinearRoles` selects projection groups by semantic role across layers,
+or by explicit `(layer_index, semantic_role)` pairs.
 Supported selectors are `qkv_projection`, `attention_output`, `mlp_gate_up` and
 `mlp_down`. The native compiler places matching groups locally; the bundle binds
 their exact i8 weights, scales and declared biases before inventory reservation.
@@ -15,14 +15,21 @@ The selected roles must exist and some body work must remain remote.
 This public prepared placement supports `MaskedLinearCpu` and
 `VerifiedMaskedLinearCpu`, with native CPU or thresholded Apple Metal kernels.
 Nonlinear operations remain client-local. Added client weights/scales have a
-512 MiB bound; native kernels own
-another weight snapshot. Providers retain the public checkpoint.
+512 MiB bound. Native weights use shared resident snapshots or authenticated paged
+files; admission prices the selected storage. Providers retain the public checkpoint.
 
 `ClientLinearRoles(roles, prefix_layers=1)` selects the **union** of matching
 projection roles and all projections in the first layer. Native scheduling,
 bundle import, provider stages, GPU allocation and planner costs use the same
-predicate; overlapping stages are counted once. Omitting `prefix_layers`
-preserves previous component identities. Some body work must remain remote.
+predicate; overlapping stages are counted once. Optional `layer_roles` joins the
+same union. Omitting the optional selectors preserves previous component
+identities. Some body work must remain remote.
+
+For example, `ClientLinearRoles(layer_roles=((0, "mlp_gate_up"),
+(1, "attention_output")))` owns only those two groups. Selectors are canonical,
+distinct and bounded to 1,024 pairs with layer indices 0–255. Absent groups reject
+in both native phases. Paged delivery, preparation commitments and local memory
+admission retain this exact ownership declaration.
 
 ## Python SDK example
 
@@ -61,3 +68,13 @@ bytes are unmeasured. See the [matched evidence](https://github.com/blairhudson/
 Compare against [prefix-layer placement](/sdk/components/roles/client-prefix-layers/)
 using the [ordinary benchmark](/sdk/evaluate/benchmark/). Cold raw delivery is
 larger; compression and reuse are separately measured choices, not assumed gains.
+
+A separate three-client-per-choice **150+8 cold/repeat** cohort selects 38 groups
+with explicit `layer_roles`, preserving over 90% of body MACs remotely in both
+prefill and decode. All-link TCP streams fall **496.05 → 473.68 MB (4.51%)** after
+charging extra cold weight delivery. Client peak RSS rises **2.65%** and cold-first
+CPU **3.82%**; complete cold requests rise **2.42%** despite lower online TTFT.
+Outputs match with zero observed swap growth. This explicit traffic/resource
+tradeoff uses the paged prepared stack and shared native 100/40 Mbps caps;
+physical wire and checkpoint distribution remain unmeasured. See the
+[full placement cohort and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/all-link-frontier-reference.md#measured-sdk-follow-up).

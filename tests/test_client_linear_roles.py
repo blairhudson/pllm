@@ -18,12 +18,14 @@ from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 ATTENTION = ("attention_output", "qkv_projection")
 
 
-def experiment(root: Path, roles: tuple[str, ...] = (), *, prefix_layers: int = 0) -> Experiment:
+def experiment(root: Path, roles: tuple[str, ...] = (), *, prefix_layers: int = 0,
+               layer_roles: tuple[tuple[int, str], ...] = ()) -> Experiment:
     return Experiment(
         "attention-local" if roles else "ordinary-prepared",
         MaskedLinearCpu(
             Model.path(str(root), model_id="role-placement"),
-            placement=ClientLinearRoles(roles, prefix_layers=prefix_layers) if roles else None,
+            placement=ClientLinearRoles(roles, prefix_layers=prefix_layers, layer_roles=layer_roles)
+            if roles or layer_roles else None,
         ),
         Deployment.local(root=str(root.parent)),
         ExecutionBudget(requests=3, max_input_tokens=64, max_new_tokens=2),
@@ -73,6 +75,139 @@ def test_role_selection_is_canonical_and_native_schedule_keeps_mlp_remote(tmp_pa
     for invalid_prefix in (-1, True, 9):
         with pytest.raises(ValueError):
             ClientLinearRoles(ATTENTION, prefix_layers=invalid_prefix)
+
+
+def test_layer_role_selection_binds_exact_groups_and_rejects_unused_selectors(tmp_path: Path) -> None:
+    from pllm.configuration import ComponentRef, Pipeline
+    from pllm.runtime.semantic_stages import semantic_stage_role
+
+    root = create_tiny_llama_checkpoint(tmp_path / "stages")
+    pairs = ((0, "mlp_gate_up"), (1, "attention_output"))
+    selected = experiment(root, layer_roles=pairs)
+    assert selected.resolve().client_linear_layer_roles == pairs
+    assert ClientLinearRoles(layer_roles=list(reversed(pairs))).layer_roles == pairs
+    assert Pipeline.from_spec(selected.pipeline.to_spec()).digest() == selected.pipeline.digest()
+    # Omitted optional selectors preserve historical serialized identities.
+    assert ClientLinearRoles(ATTENTION).to_spec() == ComponentRef(
+        ClientLinearRoles.descriptor.component, {"roles": list(ATTENTION)}).to_spec()
+    plan = lower_model(json.loads((root / "config.json").read_text()), batch=1,
+                       max_input_tokens=64, max_new_tokens=2)
+    for phase in ("prefill", "decode"):
+        operations = {op["id"]: op for op in getattr(plan, phase)["operations"]}
+        owned = []
+        for step in plan.runtime_schedule(selected.pipeline).to_dict()[phase]["steps"]:
+            if step["layer"] is not None and step["weight_ids"]:
+                pair = (step["layer"], semantic_stage_role(step, operations))
+                assert (step["executor"] == "client_linear") == (pair in pairs)
+                if step["executor"] == "client_linear":
+                    owned.append(pair)
+        assert set(owned) == set(pairs)
+    with pytest.raises((ValueError, RuntimeError), match="absent|semantic"):
+        plan.runtime_schedule(experiment(root, layer_roles=((255, "mlp_down"),)).pipeline)
+    for invalid in (((True, "mlp_down"),), ((256, "mlp_down"),), ((0, "unknown"),),
+                    ((0, "mlp_down"),) * 2, ((0,),), "mlp_down"):
+        with pytest.raises(ValueError):
+            ClientLinearRoles(layer_roles=invalid)
+
+
+def test_reloaded_manifest_does_not_inherit_previous_client_placement(tmp_path: Path) -> None:
+    import asyncio
+    from pllm.model_loader import resolve_model
+    from pllm.runtime.model_binding import compile_runtime_model
+    from pllm.runtime.transformer_client import ClientBundle
+    from pllm.runtime.transformer_engine import MaskedTransformerEngine
+
+    root = create_tiny_llama_checkpoint(tmp_path / "reload")
+    source = resolve_model(Model.path(str(root), model_id="role-placement"))
+    plan = lower_model(json.loads((root / "config.json").read_text()), batch=1,
+                       max_input_tokens=64, max_new_tokens=2)
+    for roles, prefix, pairs in ((ATTENTION, 1, ()), ((), 0, ((1, "mlp_down"),)), ((), 0, ())):
+        engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8,
+            client_linear_roles=roles, client_prefix_layers=prefix, client_linear_layer_roles=pairs)
+        asyncio.run(engine.load(source.manifest))
+        try:
+            bundle = ClientBundle.unpack(engine.client_bundle(source.manifest.id))
+            compile_runtime_model(plan, bundle, composition=experiment(
+                root, roles, prefix_layers=prefix, layer_roles=pairs).pipeline)
+        finally:
+            asyncio.run(engine.unload(source.manifest.id))
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("family", ["qwen2", "qwen3"])
+@pytest.mark.parametrize("paged", [False, True])
+def test_layer_roles_exact_sdk_state_and_fresh_remote_inventory(tmp_path: Path, monkeypatch, family: str, paged: bool) -> None:
+    import numpy as np
+    from starlette.testclient import TestClient
+    from pllm.configuration import Pipeline
+    from pllm.protocols import ClientBundleTransport, MaskedLinear
+    from pllm.preparation import PreparedInventory
+    from pllm.runtime.semantic_executor import SemanticDecoderRuntime
+
+    root = create_tiny_llama_checkpoint(tmp_path / family, model_type=family,
+        qk_norm=family == "qwen3", with_qkv_bias=family == "qwen2")
+    pairs = ((0, "mlp_gate_up"), (1, "attention_output"))
+    results = []
+    observed = []
+    prepare = SemanticDecoderRuntime.prepare_ids
+    decode = SemanticDecoderRuntime.decode_step
+
+    def save(runtime, logits):
+        observed.append((logits.copy(), [(c.key[:c.length].copy(), c.value[:c.length].copy())
+                                        for c in runtime.caches]))
+
+    def prefill(runtime, *args, **kwargs):
+        result = prepare(runtime, *args, **kwargs)
+        save(runtime, result[1])
+        return result
+
+    def step(runtime, *args, **kwargs):
+        result = decode(runtime, *args, **kwargs)
+        save(runtime, result[0])
+        return result
+
+    monkeypatch.setattr(SemanticDecoderRuntime, "prepare_ids", prefill)
+    monkeypatch.setattr(SemanticDecoderRuntime, "decode_step", step)
+    for selection in ((), pairs):
+        spec = experiment(root, layer_roles=selection)
+        pipeline = Pipeline(spec.pipeline.model, {**spec.pipeline.components,
+            "linear": MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues"),
+            "delivery": ClientBundleTransport("artifacts", storage="paged" if paged else "memory"),
+            "inventory": PreparedInventory(allocation="demand", refill="on-demand"),
+        })
+        spec = Experiment(spec.name, pipeline, spec.deployment, spec.budget)
+        with build_roles(spec, engine_threads=1) as topology:
+            with topology.client(bundle_cache_mode="off", background_inventory_refill=False) as client:
+                response = client.responses.create(input="Exact stage placement", max_output_tokens=2, temperature=0)
+                results.append((response.output_text, observed.copy(), client.privacy_audit.inference_stage_calls))
+                observed.clear()
+                state = client._core._transformer_state("role-placement")
+                body = [s for s in state.bundle.stages.values() if s.layer_index is not None]
+                assert all((s.client_weight is not None) == ((s.layer_index, s.role) in selection) for s in body)
+                assert all((s.seeded_profile is None) == ((s.layer_index, s.role) in selection) for s in body)
+                assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
+                assert client.privacy_audit.preparation_requests_during_online == 0
+            if selection:
+                with TestClient(topology.gateway_app(local_api_key="stage-placement")) as gateway:
+                    reply = gateway.post("/v1/responses", headers={"Authorization": "Bearer stage-placement"},
+                        json={"model": topology.model_id, "input": "Exact stage placement",
+                              "max_output_tokens": 2, "temperature": 0})
+                    assert reply.status_code == 200, reply.text
+                    text = "".join(part["text"] for item in reply.json()["output"]
+                                   if item["type"] == "message" for part in item["content"]
+                                   if part["type"] == "output_text")
+                    assert text == results[0][0]
+                    gateway_observed = observed.copy()
+                    observed.clear()
+    assert results[0][0] == results[1][0]
+    assert results[0][2] > results[1][2]
+    assert len(results[0][1]) >= 2
+    for trajectory in (results[1][1], gateway_observed):
+        for (logits, caches), (other, others) in zip(results[0][1], trajectory, strict=True):
+            np.testing.assert_array_equal(logits.view(np.uint32), other.view(np.uint32))
+            for pair, expected in zip(caches, others, strict=True):
+                for left, right in zip(pair, expected, strict=True):
+                    np.testing.assert_array_equal(left.view(np.uint32), right.view(np.uint32))
 
 
 @pytest.mark.integration
@@ -163,9 +298,14 @@ def test_pinned_qwen_attention_placement_has_exact_w8a8_prefill_decode_logits() 
     plan = lower_model(config, batch=1, max_input_tokens=64, max_new_tokens=2)
     samples = []
     fingerprints = []
-    for roles in ((), ATTENTION):
+    record = json.loads((Path(__file__).resolve().parents[1]
+        / "docs/evidence/research-all-link-placement-sdk-confirmation.plan.json").read_bytes())
+    pairs = tuple(tuple(pair) for pair in record["selection"]["layer_roles"])
+    assert source.source_lock_digest == record["source_lock_digest"]
+    for roles, layer_roles in (((), ()), (ATTENTION, ()), ((), pairs)):
         engine = MaskedTransformerEngine(
-            threads=4, weight_bits=8, activation_bits=8, client_linear_roles=roles
+            threads=4, weight_bits=8, activation_bits=8, client_linear_roles=roles,
+            client_linear_layer_roles=layer_roles,
         )
         asyncio.run(engine.load(source.manifest))
         try:
@@ -179,14 +319,16 @@ def test_pinned_qwen_attention_placement_has_exact_w8a8_prefill_decode_logits() 
                         "Qwen/Qwen2.5-0.5B-Instruct",
                         revision="7ae557604adf67be50417f59c2c2f167def9a775",
                     ),
-                    placement=ClientLinearRoles(roles) if roles else None,
+                    placement=ClientLinearRoles(roles, layer_roles=layer_roles)
+                    if roles or layer_roles else None,
                 ),
             )
             fingerprints.append(model.manifest.metadata["body_fingerprint"])
 
             def remote(stage_id, activation):
                 stage = model.stages[stage_id]
-                assert not client_owns_linear(stage.spec, client_linear_roles=roles)
+                assert not client_owns_linear(stage.spec, client_linear_roles=roles,
+                                               client_linear_layer_roles=layer_roles)
                 values = quantize_activation_per_row(activation, bits=8)
                 result = dequantize_matmul(
                     stage.compiled_weight.clear(values.values),
@@ -199,19 +341,30 @@ def test_pinned_qwen_attention_placement_has_exact_w8a8_prefill_decode_logits() 
                 return np.ascontiguousarray(result, dtype=np.float32)
 
             observed = []
+
+            def capture(runtime, logits):
+                observed.append(logits.view(np.uint32).copy())
+                for cache in runtime.caches:
+                    observed.extend((cache.key[:cache.length].view(np.uint32).copy(),
+                                     cache.value[:cache.length].view(np.uint32).copy()))
+
             for text in (
                 "Explain why neither server can see the prompt.",
                 "What makes a river flow?",
                 "Calculate seven plus nine.",
             ):
                 runtime = compiled.runtime(remote)
-                ids = runtime.encode_prompt(text)
-                _, logits, _ = runtime.prepare_ids(ids)
-                observed.append(logits.copy())
-                observed.append(runtime.forward_ids([int(np.argmax(logits))])[-1].copy())
+                try:
+                    ids = runtime.encode_prompt(text)
+                    _, logits, _ = runtime.prepare_ids(ids)
+                    capture(runtime, logits)
+                    capture(runtime, runtime.forward_ids([int(np.argmax(logits))])[-1])
+                finally:
+                    runtime.reset()
             samples.append(observed)
         finally:
             asyncio.run(engine.unload(source.manifest.id))
-    assert fingerprints[0] == fingerprints[1]
-    for plain, placed in zip(*samples, strict=True):
-        np.testing.assert_array_equal(plain, placed)
+    assert len(set(fingerprints)) == 1
+    for placed in samples[1:]:
+        for plain, candidate in zip(samples[0], placed, strict=True):
+            np.testing.assert_array_equal(plain, candidate)

@@ -680,6 +680,7 @@ def _canonical_stage_fingerprints(
     remote_output_head: bool = False,
     client_prefix_layers: int = 0,
     client_linear_roles: tuple[str, ...] = (),
+    client_linear_layer_roles: tuple[tuple[int, str], ...] = (),
 ) -> tuple[str, str]:
     body = []
     commitment = []
@@ -690,6 +691,7 @@ def _canonical_stage_fingerprints(
             stage,
             client_prefix_layers=client_prefix_layers,
             client_linear_roles=client_linear_roles,
+            client_linear_layer_roles=client_linear_layer_roles,
         )
         scales = stage.weight_scales.astype("<f4", copy=False).tobytes()
         bias = None if stage.bias is None else stage.bias.astype("<f4", copy=False).tobytes()
@@ -1343,7 +1345,8 @@ def _compile_runtime_model(
     remote_output_head = runtime_options.remote_output_head
     client_prefix_layers = runtime_options.client_prefix_layers
     client_linear_roles = runtime_options.client_linear_roles
-    if (client_prefix_layers or client_linear_roles) and (
+    client_linear_layer_roles = runtime_options.client_linear_layer_roles
+    if (client_prefix_layers or client_linear_roles or client_linear_layer_roles) and (
         client_owned or offset_public
     ):
         raise RuntimeBindingError("client-owned prefix requires baseline prepared execution")
@@ -1432,6 +1435,8 @@ def _compile_runtime_model(
         or privacy.get("client_prefix_layers", 0) != client_prefix_layers
         or manifest_metadata.get("client_linear_roles", []) != list(client_linear_roles)
         or privacy.get("client_linear_roles", []) != list(client_linear_roles)
+        or manifest_metadata.get("client_linear_layer_roles", []) != [list(pair) for pair in client_linear_layer_roles]
+        or privacy.get("client_linear_layer_roles", []) != [list(pair) for pair in client_linear_layer_roles]
     ):
         raise RuntimeBindingError("client-owned prefix differs from the bound composition")
     if any(
@@ -1490,6 +1495,7 @@ def _compile_runtime_model(
                 if client_owned
                 or (type(layer) is int and layer < client_prefix_layers)
                 or role in client_linear_roles
+                or (layer, role) in client_linear_layer_roles
                 else "verified_remote_stage"
                 if verified_public
                 else "remote_stage"
@@ -1661,6 +1667,7 @@ def _compile_runtime_model(
                 stage,
                 client_prefix_layers=client_prefix_layers,
                 client_linear_roles=client_linear_roles,
+                client_linear_layer_roles=client_linear_layer_roles,
             )
         ):
             continue
@@ -1792,6 +1799,7 @@ def _compile_runtime_model(
             stage,
             client_prefix_layers=client_prefix_layers,
             client_linear_roles=client_linear_roles,
+            client_linear_layer_roles=client_linear_layer_roles,
         ):
             continue
         weight_shape, weight_digest = _client_weight_identity(stage.client_weight, weight_storage)
@@ -1826,6 +1834,7 @@ def _compile_runtime_model(
         remote_output_head=remote_output_head,
         client_prefix_layers=client_prefix_layers,
         client_linear_roles=client_linear_roles,
+        client_linear_layer_roles=client_linear_layer_roles,
     )
     if actual_body != body_fingerprint:
         raise RuntimeBindingError("bundle body fingerprint does not match stage metadata")
@@ -2037,6 +2046,7 @@ def _compile_runtime_model(
                 if client_owned
                 or (type(layer) is int and layer < client_prefix_layers)
                 or role in client_linear_roles
+                or (layer, role) in client_linear_layer_roles
                 else "verified_remote_stage"
                 if verified_public
                 else "remote_stage"
@@ -2284,7 +2294,8 @@ def _compile_runtime_model(
         spec["prepared_output_encoding"] = "row_residues"
         spec["prepared_residue_layout_digest"] = manifest_metadata.get("prepared_residue_layout_digest")
     canonical_bytes = _canonical_json(spec)
-    if runtime_options.client_prefix_layers or runtime_options.client_linear_roles:
+    if (runtime_options.client_prefix_layers or runtime_options.client_linear_roles
+            or runtime_options.client_linear_layer_roles):
         # Revalidation is idempotent; the bundle owns these snapshots across
         # compiled workload bounds and requests, not one GPU copy per response.
         from .native import NativeKernelError

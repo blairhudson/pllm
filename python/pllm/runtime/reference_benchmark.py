@@ -189,6 +189,7 @@ def run_reference_benchmark(
             public_equalization_digest=options.public_equalization_digest,
             client_prefix_layers=options.client_prefix_layers,
             client_linear_roles=options.client_linear_roles,
+            client_linear_layer_roles=options.client_linear_layer_roles,
             remote_output_head=options.remote_output_head,
             prepared_output_encoding=options.prepared_output_encoding,
         )

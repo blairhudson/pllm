@@ -2186,17 +2186,18 @@ fn validate_masked_linear_composition(
             .params
             .get("roles")
             .and_then(serde_json::Value::as_array);
+        let layer_roles = placement.params.get("layer_roles");
         let role_placement = placement.component == "pllm/client-owned-linear-roles/v1"
             && placement
                 .params
                 .keys()
-                .all(|key| matches!(key.as_str(), "roles" | "prefix_layers"))
+                .all(|key| matches!(key.as_str(), "roles" | "prefix_layers" | "layer_roles"))
             && placement
                 .params
                 .get("prefix_layers")
                 .is_none_or(|value| matches!(value.as_u64(), Some(1..=8)))
             && roles.is_some_and(|roles| {
-                !roles.is_empty()
+                (!roles.is_empty() || layer_roles.is_some())
                     && roles.len() <= 4
                     && roles.iter().all(|role| {
                         matches!(
@@ -2209,6 +2210,16 @@ fn validate_masked_linear_composition(
                     && roles
                         .windows(2)
                         .all(|pair| pair[0].as_str() < pair[1].as_str())
+            })
+            && layer_roles.is_none_or(|rows| {
+                rows.as_array().is_some_and(|rows| {
+                    !rows.is_empty()
+                        && rows.len() <= 1024
+                        && rows.iter().all(|row| linear_layer_role_pair(row).is_some())
+                        && rows.windows(2).all(|pair| {
+                            linear_layer_role_pair(&pair[0]) < linear_layer_role_pair(&pair[1])
+                        })
+                })
             });
         if !(prefix || role_placement) {
             return Err(
@@ -2284,6 +2295,21 @@ fn valid_baseline_quantization(quantization: &ExperimentComponent) -> bool {
                     == Some("prefix_f32")))
         && matches!(bits("weight_bits"), Some(4 | 8))
         && matches!(bits("activation_bits"), Some(4 | 8))
+}
+
+fn linear_layer_role_pair(value: &serde_json::Value) -> Option<(u64, &str)> {
+    let pair = value.as_array()?;
+    if pair.len() != 2 {
+        return None;
+    }
+    let layer = pair[0].as_u64()?;
+    let role = pair[1].as_str()?;
+    (layer <= 255
+        && matches!(
+            role,
+            "attention_output" | "mlp_down" | "mlp_gate_up" | "qkv_projection"
+        ))
+    .then_some((layer, role))
 }
 
 fn valid_public_equalization(quantization: &ExperimentComponent) -> bool {

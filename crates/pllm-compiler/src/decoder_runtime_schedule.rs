@@ -1423,9 +1423,11 @@ fn lower_phase(
     linear_executor: DecoderRuntimeExecutor,
     client_prefix_layers: u64,
     client_linear_roles: &BTreeSet<&str>,
+    client_linear_layer_roles: &BTreeSet<(u64, &str)>,
 ) -> Result<DecoderRuntimePhaseSchedule, String> {
     let (leaders, remote_members) = classify_remote_groups(graph)?;
     let mut selected_roles = BTreeSet::new();
+    let mut selected_layer_roles = BTreeSet::new();
     let mut scheduled = BTreeSet::new();
     let mut steps = Vec::new();
     for operation in &graph.operations {
@@ -1435,10 +1437,16 @@ fn lower_phase(
             };
             let input_ids = group.operations[0].inputs.clone();
             let layer = group.operations[0].layer;
-            let selected =
-                linear_role(graph, group).filter(|role| client_linear_roles.contains(role));
+            let role = linear_role(graph, group);
+            let selected = role.filter(|role| client_linear_roles.contains(role));
             if let Some(role) = selected {
                 selected_roles.insert(role);
+            }
+            let selected_layer = layer
+                .zip(role)
+                .filter(|pair| client_linear_layer_roles.contains(pair));
+            if let Some(pair) = selected_layer {
+                selected_layer_roles.insert(pair);
             }
             if group
                 .operations
@@ -1482,6 +1490,7 @@ fn lower_phase(
                 input_ids,
                 executor: if layer.is_some_and(|index| index < client_prefix_layers)
                     || selected.is_some()
+                    || selected_layer.is_some()
                 {
                     DecoderRuntimeExecutor::ClientLinear
                 } else {
@@ -1543,10 +1552,11 @@ fn lower_phase(
     if scheduled != expected {
         return Err("decoder runtime schedule does not cover every operation".into());
     }
-    if selected_roles != *client_linear_roles {
+    if selected_roles != *client_linear_roles || selected_layer_roles != *client_linear_layer_roles
+    {
         return Err("client linear role is absent or has no executable semantic stage".into());
     }
-    if !client_linear_roles.is_empty()
+    if (!client_linear_roles.is_empty() || !client_linear_layer_roles.is_empty())
         && !steps.iter().any(|step| {
             step.layer.is_some()
                 && matches!(
@@ -1673,6 +1683,15 @@ pub fn lower_decoder_runtime_schedule(
         .flatten()
         .filter_map(serde_json::Value::as_str)
         .collect();
+    let client_linear_layer_roles: BTreeSet<_> = composition
+        .components
+        .get("placement")
+        .and_then(|component| component.params.get("layer_roles"))
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(super::linear_layer_role_pair)
+        .collect();
     plan.validate().map_err(|error| error.to_string())?;
     if composition
         .components
@@ -1746,12 +1765,14 @@ pub fn lower_decoder_runtime_schedule(
         linear_executor,
         client_prefix_layers,
         &client_linear_roles,
+        &client_linear_layer_roles,
     )?;
     let mut decode = lower_phase(
         &plan.decode,
         linear_executor,
         client_prefix_layers,
         &client_linear_roles,
+        &client_linear_layer_roles,
     )?;
     let nonlinear = composition
         .components

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import os
 import re
@@ -61,6 +62,7 @@ async def load_role_adapter(
         remote_output_head=options.remote_output_head,
         client_prefix_layers=options.client_prefix_layers,
         client_linear_roles=options.client_linear_roles,
+        client_linear_layer_roles=options.client_linear_layer_roles,
         prepared_output_encoding=options.prepared_output_encoding,
         weight_residency="provider" if role_id == "preparation" else "provider_and_bundle",
         weight_storage=options.preparation_storage if role_id == "preparation" else "resident",
@@ -220,6 +222,7 @@ class LocalTopology:
         "_remote_output_head",
         "_client_prefix_layers",
         "_client_linear_roles",
+        "_client_linear_layer_roles",
         "_weight_bits",
     )
 
@@ -247,6 +250,7 @@ class LocalTopology:
         remote_output_head: bool,
         client_prefix_layers: int,
         client_linear_roles: tuple[str, ...],
+        client_linear_layer_roles: tuple[tuple[int, str], ...],
         tenseal_path: str | None,
         hf_cache_dir: str | None,
         reserved_ports: tuple[int, ...],
@@ -283,6 +287,7 @@ class LocalTopology:
         self._remote_output_head = remote_output_head
         self._client_prefix_layers = client_prefix_layers
         self._client_linear_roles = client_linear_roles
+        self._client_linear_layer_roles = client_linear_layer_roles
         self._tenseal_path = tenseal_path
         self._hf_cache_dir = hf_cache_dir
         self._reserved_ports = reserved_ports
@@ -479,6 +484,8 @@ class LocalTopology:
             options.extend(("--client-prefix-layers", str(self._client_prefix_layers)))
         if self._client_linear_roles:
             options.extend(("--client-linear-roles", ",".join(self._client_linear_roles)))
+        if self._client_linear_layer_roles:
+            options.extend(("--client-linear-layer-roles", json.dumps(self._client_linear_layer_roles)))
         if self._experiment is not None:
             from pllm.profiles import resolve_runtime_composition
             selected = resolve_runtime_composition(self._experiment.pipeline)
@@ -1170,6 +1177,7 @@ def build_roles(
         remote_output_head=runtime_options.remote_output_head,
         client_prefix_layers=runtime_options.client_prefix_layers,
         client_linear_roles=runtime_options.client_linear_roles,
+        client_linear_layer_roles=runtime_options.client_linear_layer_roles,
         tenseal_path=tenseal_path,
         hf_cache_dir=hf_cache_dir,
         reserved_ports=reserved,

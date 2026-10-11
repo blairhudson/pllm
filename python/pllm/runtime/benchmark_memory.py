@@ -237,7 +237,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
                 raise BenchmarkMemoryError("packed checkpoint loading has no admitted allocation estimate")
     roles = [role.id for role in graph_for_runtime(options).roles if role.id != "client"]
     ownership: dict[str, Any] = dict(client_prefix_layers=options.client_prefix_layers,
-                     client_linear_roles=options.client_linear_roles)
+                     client_linear_roles=options.client_linear_roles,
+                     client_linear_layer_roles=options.client_linear_layer_roles)
     remote = [s for s in stages if roles and provider_owns_linear(
         s, remote_output_head=options.remote_output_head, **ownership)]
     client_body = [s for s in stages if s.role not in {"token_lookup", "lm_head"}

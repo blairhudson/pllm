@@ -25,6 +25,7 @@ def admit_continuation(value: Any, plan: ModelPlan, engine: Any, model_id: str) 
         "remote_output_head": options.remote_output_head,
         "client_prefix_layers": options.client_prefix_layers,
         "client_linear_roles": tuple(options.client_linear_roles),
+        "client_linear_layer_roles": options.client_linear_layer_roles,
     }
     if any(getattr(engine, key, None) != item for key, item in expected.items()):
         raise ValueError("continuation numeric/placement contract differs from provider")
@@ -36,7 +37,8 @@ def admit_continuation(value: Any, plan: ModelPlan, engine: Any, model_id: str) 
         spec.id: spec for spec in specs
         if provider_owns_linear(spec, remote_output_head=options.remote_output_head,
                                 client_prefix_layers=options.client_prefix_layers,
-                                client_linear_roles=tuple(options.client_linear_roles))
+                                client_linear_roles=tuple(options.client_linear_roles),
+                                client_linear_layer_roles=options.client_linear_layer_roles)
     }
     if set(remote) != set(engine.seeded_stage_ids(model_id)):
         raise ValueError("continuation stages differ from provider")

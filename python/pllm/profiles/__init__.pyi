@@ -45,6 +45,7 @@ class RuntimeComposition:
     remote_output_head: bool
     client_prefix_layers: int
     client_linear_roles: tuple[str, ...]
+    client_linear_layer_roles: tuple[tuple[int, str], ...]
     inventory_policy: str
     prepared_inventory_rows: int
     background_inventory_refill: bool

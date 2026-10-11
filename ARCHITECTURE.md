@@ -2076,7 +2076,8 @@ or disk optimization; full-wire, independent operators and matched generation
 quality remain separate gates.
 
 `pllm.roles.ClientLinearRoles` selects grouped semantic projection roles and can
-union them with complete prefixes using `prefix_layers`. Native scheduling binds
+union them with complete prefixes using `prefix_layers` and bounded explicit
+`layer_roles` pairs. Native scheduling binds
 matching groups to trusted-client CPU or selected Metal kernels; checkpoint import,
 live bundle admission and provider stage tables
 share that ownership declaration. Added matrices/scales retain the 512 MiB bound
@@ -2088,6 +2089,15 @@ linear MACs remotely, adds 44.04 MB i8 weights, 0.20 MB scales and a 44.04 MB na
 weight snapshot at the client; these storage counts are not peak-memory samples.
 The raw cold bundle grows; representative quality, full wire and independent
 deployment remain separate claims.
+A separate six-client Qwen2.5 150+8 cold/repeat cohort selects 38 layer/role groups
+while retaining 90.07%/90.45% of prefill/decode body MACs remotely. All-link TCP
+streams fall 496.05 to 473.68 MB (4.51%) after charging extra client weight
+delivery. Outputs match with zero observed swap growth, while client peak RSS
+rises 2.65% and cold-first CPU 3.82%. Online cold TTFT improves 8.32%, but complete
+cold requests rise 2.42%. Explicit placement retains a traffic/resource tradeoff;
+physical wire, checkpoint distribution and automatic selection remain outside
+the result. Exact ownership, all seven metrics and replay:
+`docs/research/all-link-frontier-reference.md`.
 
 `pllm.preparation.PreparedInventory` and `pllm.protocols.ClientBundleTransport`
 bind startup/row-floor and bundle-encoding choices to ordinary prepared Pipelines.

@@ -11,7 +11,8 @@ from .models import StageSpec
 
 
 def client_owns_linear(
-    stage: Any, *, client_prefix_layers: int = 0, client_linear_roles: tuple[str, ...] = ()
+    stage: Any, *, client_prefix_layers: int = 0, client_linear_roles: tuple[str, ...] = (),
+    client_linear_layer_roles: tuple[tuple[int, str], ...] = (),
 ) -> bool:
     """Shared ownership rule for compiled body stages and validated bundle specs."""
     get = stage.get if isinstance(stage, dict) else lambda key: getattr(stage, key, None)
@@ -19,19 +20,22 @@ def client_owns_linear(
     return get("op") == "linear" and (
         (type(layer) is int and 0 <= layer < client_prefix_layers)
         or get("role") in client_linear_roles
+        or (layer, get("role")) in client_linear_layer_roles
     )
 
 
 def provider_owns_linear(
     stage: Any, *, remote_output_head: bool = False,
     client_prefix_layers: int = 0, client_linear_roles: tuple[str, ...] = (),
+    client_linear_layer_roles: tuple[tuple[int, str], ...] = (),
 ) -> bool:
     """One ownership rule for provider material, commitments and GPU snapshots."""
     get = stage.get if isinstance(stage, dict) else lambda key: getattr(stage, key, None)
     return (get("op") in {"linear", "lm_head"} and get("id") != "token_lookup"
             and (get("id") != "lm_head" or remote_output_head)
             and not client_owns_linear(stage, client_prefix_layers=client_prefix_layers,
-                                       client_linear_roles=client_linear_roles))
+                                       client_linear_roles=client_linear_roles,
+                                       client_linear_layer_roles=client_linear_layer_roles))
 
 
 def _graph_consumers(operations: dict[str, dict[str, Any]]) -> dict[str, list[str]]:

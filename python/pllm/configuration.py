@@ -724,6 +724,7 @@ class ExperimentProfile:
     remote_output_head: bool
     client_prefix_layers: int
     client_linear_roles: tuple[str, ...]
+    client_linear_layer_roles: tuple[tuple[int, str], ...]
     inventory_policy: str
     prepared_inventory_rows: int
     background_inventory_refill: bool
@@ -773,6 +774,7 @@ class ExperimentProfile:
             object.__setattr__(self, "remote_output_head", runtime_options.remote_output_head)
             object.__setattr__(self, "client_prefix_layers", runtime_options.client_prefix_layers)
             object.__setattr__(self, "client_linear_roles", runtime_options.client_linear_roles)
+            object.__setattr__(self, "client_linear_layer_roles", runtime_options.client_linear_layer_roles)
             object.__setattr__(self, "inventory_policy", runtime_options.inventory_policy)
             object.__setattr__(self, "prepared_inventory_rows", runtime_options.prepared_inventory_rows)
             object.__setattr__(self, "background_inventory_refill", runtime_options.background_inventory_refill)
@@ -814,6 +816,7 @@ class ExperimentProfile:
         object.__setattr__(self, "remote_output_head", runtime_options.remote_output_head)
         object.__setattr__(self, "client_prefix_layers", runtime_options.client_prefix_layers)
         object.__setattr__(self, "client_linear_roles", runtime_options.client_linear_roles)
+        object.__setattr__(self, "client_linear_layer_roles", runtime_options.client_linear_layer_roles)
         object.__setattr__(self, "inventory_policy", runtime_options.inventory_policy)
         object.__setattr__(self, "prepared_inventory_rows", runtime_options.prepared_inventory_rows)
         object.__setattr__(self, "background_inventory_refill", runtime_options.background_inventory_refill)

@@ -163,6 +163,7 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--remote-output-head", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--client-prefix-layers", type=int, default=0, help=argparse.SUPPRESS)
     parser.add_argument("--client-linear-roles", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--client-linear-layer-roles", default="[]", help=argparse.SUPPRESS)
     parser.add_argument("--prepared-output-encoding", choices=("raw", "row_residues"), default=None, help=argparse.SUPPRESS)
     parser.add_argument("--guard-max-rows-per-request", type=int)
     parser.add_argument("--guard-max-rows-per-stage", type=int)
@@ -1671,6 +1672,13 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
         ):
             raise ValueError("client linear roles conflict with Experiment")
         args.client_linear_roles = ",".join(runtime_options.client_linear_roles)
+        from pllm.roles import ClientLinearRoles
+        supplied = json.loads(args.client_linear_layer_roles)
+        if supplied:
+            selection = ClientLinearRoles((), layer_roles=supplied)
+            if selection.layer_roles != runtime_options.client_linear_layer_roles:
+                raise ValueError("client linear layer roles conflict with Experiment")
+        args.client_linear_layer_roles = json.dumps(runtime_options.client_linear_layer_roles)
         if getattr(args, "prepared_output_encoding", None) not in (None, runtime_options.prepared_output_encoding):
             raise ResolutionError("SERVE_EXPERIMENT_CONFLICT", "prepared output encoding differs from its Experiment")
         args.prepared_output_encoding = runtime_options.prepared_output_encoding

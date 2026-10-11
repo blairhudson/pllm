@@ -1,0 +1,639 @@
+{
+  "suite": {
+    "schema": "pllm.benchmark_suite.v1",
+    "name": "all-link-stage-placement-v1",
+    "cases": [
+      {
+        "name": "control",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 256,
+                  "max_new_tokens": 8,
+                  "requests": 2
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": ".pllm/prepared-sdk"
+                },
+                "name": "prepared-sdk",
+                "pipeline": {
+                  "components": {
+                    "cache": {
+                      "component": "pllm/client-prefix-reuse/v1",
+                      "params": {
+                        "fixed_input_tokens": 256,
+                        "max_bytes": 33554432
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "provider_cache_bytes": 536870912,
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "kernel": "digit8",
+                        "min_rows": 64,
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "scenario": {
+              "count": 2,
+              "kind": "repeat",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "e1f9a9b8010fafc76670e3072ba2673e3db52a43125ea8f166a7a3d572e3a9c7"
+        },
+        "budgets": []
+      },
+      {
+        "name": "selected",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 256,
+                  "max_new_tokens": 8,
+                  "requests": 2
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": ".pllm/prepared-sdk"
+                },
+                "name": "byte-aware-placement",
+                "pipeline": {
+                  "components": {
+                    "cache": {
+                      "component": "pllm/client-prefix-reuse/v1",
+                      "params": {
+                        "fixed_input_tokens": 256,
+                        "max_bytes": 33554432
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "provider_cache_bytes": 536870912,
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "placement": {
+                      "component": "pllm/client-owned-linear-roles/v1",
+                      "params": {
+                        "layer_roles": [
+                          [
+                            0,
+                            "attention_output"
+                          ],
+                          [
+                            0,
+                            "qkv_projection"
+                          ],
+                          [
+                            1,
+                            "attention_output"
+                          ],
+                          [
+                            1,
+                            "qkv_projection"
+                          ],
+                          [
+                            2,
+                            "attention_output"
+                          ],
+                          [
+                            3,
+                            "attention_output"
+                          ],
+                          [
+                            3,
+                            "qkv_projection"
+                          ],
+                          [
+                            4,
+                            "attention_output"
+                          ],
+                          [
+                            4,
+                            "qkv_projection"
+                          ],
+                          [
+                            5,
+                            "attention_output"
+                          ],
+                          [
+                            5,
+                            "qkv_projection"
+                          ],
+                          [
+                            6,
+                            "attention_output"
+                          ],
+                          [
+                            6,
+                            "qkv_projection"
+                          ],
+                          [
+                            7,
+                            "attention_output"
+                          ],
+                          [
+                            7,
+                            "qkv_projection"
+                          ],
+                          [
+                            8,
+                            "attention_output"
+                          ],
+                          [
+                            8,
+                            "qkv_projection"
+                          ],
+                          [
+                            9,
+                            "attention_output"
+                          ],
+                          [
+                            10,
+                            "attention_output"
+                          ],
+                          [
+                            10,
+                            "qkv_projection"
+                          ],
+                          [
+                            11,
+                            "attention_output"
+                          ],
+                          [
+                            12,
+                            "attention_output"
+                          ],
+                          [
+                            12,
+                            "qkv_projection"
+                          ],
+                          [
+                            13,
+                            "attention_output"
+                          ],
+                          [
+                            13,
+                            "qkv_projection"
+                          ],
+                          [
+                            14,
+                            "attention_output"
+                          ],
+                          [
+                            14,
+                            "qkv_projection"
+                          ],
+                          [
+                            15,
+                            "attention_output"
+                          ],
+                          [
+                            15,
+                            "qkv_projection"
+                          ],
+                          [
+                            17,
+                            "attention_output"
+                          ],
+                          [
+                            17,
+                            "qkv_projection"
+                          ],
+                          [
+                            18,
+                            "attention_output"
+                          ],
+                          [
+                            19,
+                            "attention_output"
+                          ],
+                          [
+                            19,
+                            "qkv_projection"
+                          ],
+                          [
+                            20,
+                            "attention_output"
+                          ],
+                          [
+                            21,
+                            "attention_output"
+                          ],
+                          [
+                            22,
+                            "attention_output"
+                          ],
+                          [
+                            23,
+                            "qkv_projection"
+                          ]
+                        ],
+                        "roles": []
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "kernel": "digit8",
+                        "min_rows": 64,
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "scenario": {
+              "count": 2,
+              "kind": "repeat",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "e1f9a9b8010fafc76670e3072ba2673e3db52a43125ea8f166a7a3d572e3a9c7"
+        },
+        "budgets": []
+      }
+    ],
+    "sampling": {
+      "processes": 3,
+      "repetitions": 1,
+      "warmups": 0,
+      "timeout_seconds": 900,
+      "order": "balanced",
+      "threads": 1,
+      "memory_bytes": 8589934592
+    }
+  },
+  "selection": {
+    "horizon_pairs": 1,
+    "saved_body_bytes_estimate": 17990741,
+    "selected": [
+      "layers.0.self_attn.qkv_proj",
+      "layers.0.self_attn.o_proj",
+      "layers.1.self_attn.qkv_proj",
+      "layers.1.self_attn.o_proj",
+      "layers.2.self_attn.o_proj",
+      "layers.3.self_attn.qkv_proj",
+      "layers.3.self_attn.o_proj",
+      "layers.4.self_attn.qkv_proj",
+      "layers.4.self_attn.o_proj",
+      "layers.5.self_attn.qkv_proj",
+      "layers.5.self_attn.o_proj",
+      "layers.6.self_attn.qkv_proj",
+      "layers.6.self_attn.o_proj",
+      "layers.7.self_attn.qkv_proj",
+      "layers.7.self_attn.o_proj",
+      "layers.8.self_attn.qkv_proj",
+      "layers.8.self_attn.o_proj",
+      "layers.9.self_attn.o_proj",
+      "layers.10.self_attn.qkv_proj",
+      "layers.10.self_attn.o_proj",
+      "layers.11.self_attn.o_proj",
+      "layers.12.self_attn.qkv_proj",
+      "layers.12.self_attn.o_proj",
+      "layers.13.self_attn.qkv_proj",
+      "layers.13.self_attn.o_proj",
+      "layers.14.self_attn.qkv_proj",
+      "layers.14.self_attn.o_proj",
+      "layers.15.self_attn.qkv_proj",
+      "layers.15.self_attn.o_proj",
+      "layers.17.self_attn.qkv_proj",
+      "layers.17.self_attn.o_proj",
+      "layers.18.self_attn.o_proj",
+      "layers.19.self_attn.qkv_proj",
+      "layers.19.self_attn.o_proj",
+      "layers.20.self_attn.o_proj",
+      "layers.21.self_attn.o_proj",
+      "layers.22.self_attn.o_proj",
+      "layers.23.self_attn.qkv_proj"
+    ],
+    "extra_public_payload_bytes": 34329600,
+    "removed_stage_bytes_per_pair": 52320341,
+    "layer_roles": [
+      [
+        0,
+        "attention_output"
+      ],
+      [
+        0,
+        "qkv_projection"
+      ],
+      [
+        1,
+        "attention_output"
+      ],
+      [
+        1,
+        "qkv_projection"
+      ],
+      [
+        2,
+        "attention_output"
+      ],
+      [
+        3,
+        "attention_output"
+      ],
+      [
+        3,
+        "qkv_projection"
+      ],
+      [
+        4,
+        "attention_output"
+      ],
+      [
+        4,
+        "qkv_projection"
+      ],
+      [
+        5,
+        "attention_output"
+      ],
+      [
+        5,
+        "qkv_projection"
+      ],
+      [
+        6,
+        "attention_output"
+      ],
+      [
+        6,
+        "qkv_projection"
+      ],
+      [
+        7,
+        "attention_output"
+      ],
+      [
+        7,
+        "qkv_projection"
+      ],
+      [
+        8,
+        "attention_output"
+      ],
+      [
+        8,
+        "qkv_projection"
+      ],
+      [
+        9,
+        "attention_output"
+      ],
+      [
+        10,
+        "attention_output"
+      ],
+      [
+        10,
+        "qkv_projection"
+      ],
+      [
+        11,
+        "attention_output"
+      ],
+      [
+        12,
+        "attention_output"
+      ],
+      [
+        12,
+        "qkv_projection"
+      ],
+      [
+        13,
+        "attention_output"
+      ],
+      [
+        13,
+        "qkv_projection"
+      ],
+      [
+        14,
+        "attention_output"
+      ],
+      [
+        14,
+        "qkv_projection"
+      ],
+      [
+        15,
+        "attention_output"
+      ],
+      [
+        15,
+        "qkv_projection"
+      ],
+      [
+        17,
+        "attention_output"
+      ],
+      [
+        17,
+        "qkv_projection"
+      ],
+      [
+        18,
+        "attention_output"
+      ],
+      [
+        19,
+        "attention_output"
+      ],
+      [
+        19,
+        "qkv_projection"
+      ],
+      [
+        20,
+        "attention_output"
+      ],
+      [
+        21,
+        "attention_output"
+      ],
+      [
+        22,
+        "attention_output"
+      ],
+      [
+        23,
+        "qkv_projection"
+      ]
+    ],
+    "prefill_client_macs": 5126553600,
+    "prefill_body_macs": 51606274048,
+    "decode_client_macs": 34177024,
+    "decode_body_macs": 357826560,
+    "pair_client_macs": 5605031936,
+    "pair_body_macs": 56615845888,
+    "scope": "prior-byte estimate; actual pruned prefill and decode each keep >=90% body MACs remote",
+    "planning_cpu_seconds": 0.2476069999999999
+  },
+  "frozen_sources": {
+    "/Users/blairhudson/workspace/pllm/scripts/benchmark_all_link_placement.py": "1336f2c380d6c2ff27da5eada3eed8106d1115a993248328d3f1b57476f3b1c2",
+    "/Users/blairhudson/workspace/pllm/scripts/probe_all_link_frontier.py": "06c206b66f93b767f2b1638e949f6cda21e6d61ff313e605865be4d3d4d3bf3f",
+    "examples/prepared_sdk.py": "6a7d1dd38eeb3e7b9428b547c96902de27fb079c0b8e615bece40ea31f42c0bb",
+    "docs/evidence/research-all-link-frontier.json": "401c5a8c12f90b8df76949a8d320411988b77afeb58e9d9c14e43aed3551190c"
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "prior_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+}

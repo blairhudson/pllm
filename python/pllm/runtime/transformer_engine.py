@@ -356,12 +356,14 @@ def _seeded_stage_commitment(
     remote_output_head: bool = False,
     client_prefix_layers: int = 0,
     client_linear_roles: tuple[str, ...] = (),
+    client_linear_layer_roles: tuple[tuple[int, str], ...] = (),
 ) -> str:
     body = []
     for stage_id, runtime in sorted(stages.items()):
         if not provider_owns_linear(runtime.spec, remote_output_head=remote_output_head,
                                     client_prefix_layers=client_prefix_layers,
-                                    client_linear_roles=client_linear_roles):
+                                    client_linear_roles=client_linear_roles,
+                                    client_linear_layer_roles=client_linear_layer_roles):
             continue
         row = {
             "id": stage_id,
@@ -501,6 +503,7 @@ class MaskedTransformerEngine:
         remote_output_head: bool = False,
         client_prefix_layers: int = 0,
         client_linear_roles: tuple[str, ...] = (),
+        client_linear_layer_roles: tuple[tuple[int, str], ...] = (),
         prepared_output_encoding: str = "raw",
         weight_residency: str = "all",
         weight_storage: str = "resident",
@@ -592,17 +595,21 @@ class MaskedTransformerEngine:
         ):
             raise ValueError("client-owned prefix requires bounded prepared public execution")
         self.client_prefix_layers = client_prefix_layers
-        if client_linear_roles:
+        if client_linear_roles or client_linear_layer_roles:
             from pllm.roles import ClientLinearRoles
 
             if (
                 type(self) is not MaskedTransformerEngine
             ):
                 raise ValueError("client linear roles require baseline prepared execution")
-            client_linear_roles = ClientLinearRoles(client_linear_roles).roles
-        elif not isinstance(client_linear_roles, (tuple, list)):
+            selection = ClientLinearRoles(client_linear_roles, layer_roles=client_linear_layer_roles)
+            client_linear_roles = selection.roles
+            client_linear_layer_roles = selection.layer_roles
+        elif (not isinstance(client_linear_roles, (tuple, list))
+              or not isinstance(client_linear_layer_roles, (tuple, list))):
             raise ValueError("client linear roles must be a sequence")
         self.client_linear_roles = tuple(client_linear_roles)
+        self.client_linear_layer_roles = tuple(client_linear_layer_roles)
         if public_equalization_digest is not None:
             if (self.weight_bits, self.activation_bits) != (
                 8,
@@ -658,8 +665,9 @@ class MaskedTransformerEngine:
             ),
             boundary=OutputHeadAtInference() if self.remote_output_head else None,
             placement=(
-                ClientLinearRoles(self.client_linear_roles, prefix_layers=self.client_prefix_layers)
-                if self.client_linear_roles
+                ClientLinearRoles(self.client_linear_roles, prefix_layers=self.client_prefix_layers,
+                                  layer_roles=self.client_linear_layer_roles)
+                if self.client_linear_roles or self.client_linear_layer_roles
                 else ClientPrefixLayers(self.client_prefix_layers)
                 if self.client_prefix_layers
                 else None
@@ -787,6 +795,11 @@ class MaskedTransformerEngine:
                 raise TransformerEngineError("calibration profile does not cover exact body stages")
             self._public_equalization_profile = profile_record
         manifest.stages = stages
+        # A caller may reload this mutable source manifest with another placement.
+        # Optional ownership fields describe this load, never a prior engine.
+        for key in ("remote_output_head", "client_prefix_layers", "client_linear_roles",
+                    "client_linear_layer_roles"):
+            manifest.metadata.pop(key, None)
         manifest.metadata.update(
             {
                 "client_runtime": "masked_transformer_v1",
@@ -836,6 +849,8 @@ class MaskedTransformerEngine:
                     if self.client_linear_roles
                     else {}
                 ),
+                **({"client_linear_layer_roles": [list(pair) for pair in self.client_linear_layer_roles]}
+                   if self.client_linear_layer_roles else {}),
                 **(
                     {"public_equalization_digest": self.public_equalization_digest}
                     if self.public_equalization_digest is not None
@@ -844,7 +859,7 @@ class MaskedTransformerEngine:
             }
         )
 
-        if self.client_prefix_layers or self.client_linear_roles:
+        if self.client_prefix_layers or self.client_linear_roles or self.client_linear_layer_roles:
             if profile.stage_plan != "semantic":
                 raise TransformerEngineError(
                     "client placement requires a complete semantic schedule"
@@ -905,6 +920,7 @@ class MaskedTransformerEngine:
                     remote_output_head=self.remote_output_head,
                     client_prefix_layers=self.client_prefix_layers,
                     client_linear_roles=self.client_linear_roles,
+                    client_linear_layer_roles=self.client_linear_layer_roles,
                 ),
             }
         )
@@ -1733,6 +1749,7 @@ class MaskedTransformerEngine:
             stage,
             client_prefix_layers=self.client_prefix_layers,
             client_linear_roles=self.client_linear_roles,
+            client_linear_layer_roles=self.client_linear_layer_roles,
         )
 
     def seeded_stage_ids(self, model_id: str) -> tuple[str, ...]:
@@ -1745,7 +1762,8 @@ class MaskedTransformerEngine:
 
     def _provider_owns_stage(self, stage: StageSpec) -> bool:
         return provider_owns_linear(stage, remote_output_head=self.remote_output_head,
-            client_prefix_layers=self.client_prefix_layers, client_linear_roles=self.client_linear_roles)
+            client_prefix_layers=self.client_prefix_layers, client_linear_roles=self.client_linear_roles,
+            client_linear_layer_roles=self.client_linear_layer_roles)
 
     def validate_seeded_correction(self, correction: CorrectionPush) -> None:
         model = self._model(correction.model)
@@ -2043,7 +2061,7 @@ class MaskedTransformerEngine:
             raise TransformerEngineError("non-prepared execution cannot claim remote verification")
         if self.remote_output_head and (placement != "prepared" or not include_local_weights):
             raise TransformerEngineError("remote output head requires prepared client token lookup")
-        if (self.client_prefix_layers or self.client_linear_roles) and (
+        if (self.client_prefix_layers or self.client_linear_roles or self.client_linear_layer_roles) and (
             placement != "prepared" or not include_local_weights
         ):
             raise TransformerEngineError("client-owned prefix requires prepared client weights")
@@ -2053,7 +2071,7 @@ class MaskedTransformerEngine:
             if include_local_weights
             else set()
         )
-        if self.client_prefix_layers or self.client_linear_roles:
+        if self.client_prefix_layers or self.client_linear_roles or self.client_linear_layer_roles:
             local_stage_ids.update(
                 sid
                 for sid, runtime in model.stages.items()
@@ -2232,6 +2250,8 @@ class MaskedTransformerEngine:
                         if self.client_linear_roles
                         else {}
                     ),
+                    **({"client_linear_layer_roles": [list(pair) for pair in self.client_linear_layer_roles]}
+                       if self.client_linear_layer_roles else {}),
                     **(
                         {"public_equalization_digest": self.public_equalization_digest}
                         if self.public_equalization_digest is not None

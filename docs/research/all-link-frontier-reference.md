@@ -84,6 +84,88 @@ as if they were one measured configuration.
 memory and executed MAC limits; matched installed SDK requests including new
 artifact delivery. Preserve full logits/KV and predominantly remote computation.
 
+### Measured SDK follow-up
+
+The installed `ClientLinearRoles(layer_roles=...)` now binds explicit semantic
+layer/role pairs through native scheduling, source/weight validation, provider
+inventory, paged delivery, memory admission, SDK and gateway execution. Optional
+selectors join the existing role/prefix union; absent groups and complete body
+offload reject. Omitting them preserves historical component identities.
+
+`scripts/benchmark_all_link_placement.py` uses the frozen byte ledger, then
+rechecks the actual terminal-pruned native prefill schedule and ordinary decode.
+Each phase independently keeps at least 90% of body linear MACs remote. This
+stricter gate selects **38 of 96 groups**, with **34.33 MB** of new public weights
+and scales, rather than the earlier 35.83 MB dense-row projection. Prefill/decode
+retain **90.07% / 90.45%** remote body MACs. The 0.248-second local selection cost
+is separate from response timings; it is an explicit research selector, not an
+automatic placement default or a whole-request client-CPU bound.
+
+`docs/evidence/research-all-link-placement-sdk-confirmation.json` contains three
+fresh clients per choice, each with cold and exact-repeat **150+8-token** requests
+on pinned Qwen2.5-0.5B W8A8. The common stack uses paged client/Preparation
+weights, digit8 Preparation, demand/windowed issuance, sixteen-row duplex prefill,
+packed/residue frames, prefix reuse, compressed artifacts and the indexed
+tokenizer. Shared native 100/40 Mbps caps cover all service streams. Each client
+starts its own two provider children and cold object cache under the exclusive
+frontier lock. The companion `.plan.json` freezes the selection, factories, prior
+and installed build.
+
+All twelve outputs agree, every runtime/privacy check passes, directed stage
+ledgers reconcile, and the guard observes zero swap growth. Source, numeric,
+state, workload, output, privacy and measurement comparison identities match.
+Generated Qwen2/Qwen3 SDK and gateway checks additionally preserve complete
+logits/KV with resident and paged delivery. A separate pinned-Qwen three-prompt
+prefill/decode check preserves every logit and active KV bit for the exact 38-group
+selection and the earlier all-attention placement. A reload regression resets optional
+placement metadata when a caller reuses a mutable source manifest; this fix is
+validated separately after the frozen measurement build.
+
+Medians across the three clients per choice, in decimal MB:
+
+| Metric | Control | Selected | Change |
+| --- | ---: | ---: | ---: |
+| Cold/repeat all-link TCP streams | 496.05 MB | **473.68 MB** | **−4.51%** |
+| Covered application bodies | 493.58 MB | 471.80 MB | −4.41% |
+| Client lifetime peak RSS | 223.20 MB | 229.11 MB | +2.65% |
+| Client cold-first CPU | 33.92 s | 35.21 s | +3.82% |
+| Preparation birth-to-first-response CPU | 21.32 s | 20.87 s | −2.10% |
+| Preparation sampled peak RSS | 239.34 MB | 233.87 MB | −2.29% |
+| Cold online TTFT | 44.98 s | 41.24 s | −8.32% |
+| Repeat online TTFT | 3.80 s | 3.84 s | +1.07% |
+| Cold N−1 decode throughput | 1.97 tok/s | 2.65 tok/s | +33.99% |
+| Repeat N−1 decode throughput | 2.19 tok/s | 2.48 tok/s | +13.02% |
+| Complete cold request | 116.32 s | 119.13 s | +2.42% |
+| Complete repeat request | 16.03 s | 16.36 s | +2.05% |
+
+Placement removes **52.34 MB** of covered execution/control bodies but adds
+**30.56 MB** of cold public delivery, leaving **21.78 MB** net application-body
+savings. The newly charged client owns 34.18 MB of paged i8 weights and 0.153 MB
+of scales; cache files, page reads and transient buffers remain additional owners.
+Cold-first aggregate CPU is nearly equal, 94.82 versus 94.29 seconds. Complete
+requests remain slower despite fewer dependent online exchanges.
+
+The initial `research-all-link-placement-sdk.json` retains one control failure
+after admission (`target_execution_failed`) and five completed cells. It is
+excluded from ranking and is not pooled with the complete cohort. The successful
+rerun retains the frozen selector rather than tuning against its timings.
+
+This establishes a bounded traffic/client-resource tradeoff. Provider checkpoint
+distribution, tokenizer-index distribution, physical wire, Internet RTT and
+independent operators remain outside this measurement. Prefix hits, cold bundle
+delivery and all-link corrections are charged as recorded; the result does not
+establish a general tenfold saving or a lower-client-memory default.
+
+Replay creates a new cohort and requires the admitted artifacts in
+`target/prepared-frontier-artifacts`, as used by the prepared-serving study:
+
+```sh
+target/frontier-sdk-env/bin/python scripts/benchmark_all_link_placement.py \
+  --processes 3 --output target/all-link-placement-replay.json
+PLLM_RUN_CLIENT_LINEAR_PARITY=1 target/frontier-sdk-env/bin/python -m pytest \
+  -o pythonpath= -q tests/test_client_linear_roles.py
+```
+
 ## 3. Lossless bit-plane coding of public weights
 
 Masked tensors are not ordinary compressible activations. Public W8 artifacts
