@@ -1,0 +1,50 @@
+{
+  "scope": "pinned configuration/source audit, not model execution",
+  "models": [
+    {
+      "repo": "tiiuae/falcon-mamba-7b",
+      "revision": "080ad94b3619e2c2d0afa59bafdc6113465b7006",
+      "config_sha256": "08ec4cda33510a27a3a8cd760d27086bbab0c27a3773583f17f9b61bb8016298",
+      "source_revision": "536ecc007387a50e77603bb5d92100e9b07514cc",
+      "source_sha256": "709d013910967f45b9456935f34970e52aa48e935569a814a660a355bec2e4a1",
+      "config_url": "https://huggingface.co/tiiuae/falcon-mamba-7b/resolve/080ad94b3619e2c2d0afa59bafdc6113465b7006/config.json",
+      "source_url": "https://raw.githubusercontent.com/huggingface/transformers/536ecc007387a50e77603bb5d92100e9b07514cc/src/transformers/models/falcon_mamba/modeling_falcon_mamba.py",
+      "float32_retained_state_bytes": 41943040,
+      "float32_kv_bytes_per_token": 0,
+      "configured_context": null,
+      "cached_safetensors_files": 0,
+      "cached_safetensors_bytes": 0,
+      "full_checkpoint_import_validated": false
+    },
+    {
+      "repo": "RWKV/rwkv-4-169m-pile",
+      "revision": "46bdc280eb97b6141d5d51a935e0c4870ecaefcc",
+      "config_sha256": "2bc1d10594c235cf3e6553a48d9d25a1ee2dfa8b21c8dc860a3eabf4cd9d40ff",
+      "source_revision": "536ecc007387a50e77603bb5d92100e9b07514cc",
+      "source_sha256": "4a3e4ce930652de46a7fdffb404930bb2389533b64de98126c9e227739582338",
+      "config_url": "https://huggingface.co/RWKV/rwkv-4-169m-pile/resolve/46bdc280eb97b6141d5d51a935e0c4870ecaefcc/config.json",
+      "source_url": "https://raw.githubusercontent.com/huggingface/transformers/536ecc007387a50e77603bb5d92100e9b07514cc/src/transformers/models/rwkv/modeling_rwkv.py",
+      "float32_retained_state_bytes": 184320,
+      "float32_kv_bytes_per_token": 0,
+      "configured_context": 1024,
+      "cached_safetensors_files": 0,
+      "cached_safetensors_bytes": 0,
+      "full_checkpoint_import_validated": false
+    },
+    {
+      "repo": "Qwen/Qwen3.5-4B",
+      "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+      "config_sha256": "ddc63e1c717afa86c865bb5e01313d89d72bb53b97ad4a8a03ba8510c0621670",
+      "source_revision": "536ecc007387a50e77603bb5d92100e9b07514cc",
+      "source_sha256": "496958ed2dc0bbf3d2ca0c0368cee9129742f08a79104c0951f505ac29d5a4e0",
+      "config_url": "https://huggingface.co/Qwen/Qwen3.5-4B/resolve/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a/config.json",
+      "source_url": "https://raw.githubusercontent.com/huggingface/transformers/536ecc007387a50e77603bb5d92100e9b07514cc/src/transformers/models/qwen3_5/modeling_qwen3_5.py",
+      "float32_retained_state_bytes": 53477376,
+      "float32_kv_bytes_per_token": 65536,
+      "configured_context": 262144,
+      "cached_safetensors_files": 2,
+      "cached_safetensors_bytes": 9319828096,
+      "full_checkpoint_import_validated": false
+    }
+  ]
+}
