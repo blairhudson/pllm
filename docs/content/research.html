@@ -1,26 +1,48 @@
 <section class="research-hero" aria-labelledby="research-title">
   <h1 id="research-title">Private inference,<br>measured.</h1>
   <div class="research-copy">
-    <p><strong>Use outside compute. Keep sensitive context local.</strong> PLLM brings private inference research into a composable SDK, then measures what works: data moved, computation, memory and model behavior.</p>
+    <p><strong>Use outside compute. Keep sensitive context local.</strong> Private inference must protect the prompt without turning the user's device into the model server. PLLM studies how to make that useful: a small client, affordable Preparation, responsive generation and less data moved.</p>
     <div class="button-row">
-      <a class="button primary" href="/research/papers/">Explore the scorecard <span>→</span></a>
-      <a class="button secondary" href="/downloads/whitepaper.pdf">Download whitepaper <span>↓</span></a>
+      <a class="button primary" href="/research/problems/">Understand the problem <span>→</span></a>
+      <a class="button secondary" href="/research/sota/">SOTA by model <span>→</span></a>
     </div>
   </div>
 </section>
 
 <section class="research-section" aria-labelledby="introduction-title">
-  <p class="research-number">01 / INTRODUCTION</p>
+  <p class="research-number">01 / THE PROBLEM</p>
   <div class="section-intro">
-    <h2 id="introduction-title">The idea.<br>The trade-offs.</h2>
-    <div><p>The client keeps plaintext, model state and output decoding. Separate services prepare fresh masks and calculate on masked inputs. Those services must follow the protocol and not collude. The two-page whitepaper explains this division of work and its measured costs.</p>
-      <div class="button-row"><a class="button secondary" href="/research/whitepaper/">Read the introduction →</a><a class="button secondary" href="/downloads/whitepaper.pdf">Whitepaper PDF ↓</a></div>
+    <h2 id="introduction-title">Remote compute.<br>Private context.<br>A practical client.</h2>
+    <div><p>Ordinary APIs reveal the prompt to the provider. Local models keep it on the device but require local weights, memory and compute. Private inference must delegate useful work while protecting the prompt, intermediate activations and outputs under a stated trust model.</p>
+      <p>In PLLM's prepared topology, the client keeps plaintext and model state; Preparation supplies fresh one-use corrections; Inference calculates on masked inputs. Preparation must follow the protocol, erase masks and not collude with Inference. Every boundary adds work, storage or communication.</p>
+      <div class="button-row"><a class="button secondary" href="/research/problems/">Why this is difficult →</a><a class="button secondary" href="/research/whitepaper/">Two-page introduction →</a></div>
     </div>
   </div>
 </section>
 
+<section class="research-section" aria-labelledby="objectives-title">
+  <p class="research-number">02 / EIGHT RESEARCH OBJECTIVES</p>
+  <div class="section-intro">
+    <h2 id="objectives-title">Progress in one.<br>Pressure on another.</h2>
+    <div><p>Each objective is a research problem. Smaller memory can mean more CPU or network exchanges. Batching can save work but increase waiting and RAM. Reuse can lower traffic while retaining more private state. The useful frontier depends on the device, workload and links.</p>
+      <p>Quality, correctness and the privacy contract constrain every comparison. We measure tradeoffs rather than collapse them into one universal winner.</p>
+    </div>
+  </div>
+  <div class="market-effects">
+    <article><span>01 / LOWER MB</span><h3><a href="/research/problems/#client-memory">Client memory</a></h3><p>How small can the complete client become while substantial model compute stays remote? Paging and tiling trade memory for I/O, work or exchanges.</p></article>
+    <article><span>02 / LOWER CPU SECONDS</span><h3><a href="/research/problems/#client-cpu">Client CPU</a></h3><p>How little work must the device do to use outside compute? Compression and private boundaries can consume the capacity that offloading frees.</p></article>
+    <article><span>03 / LOWER CPU SECONDS</span><h3><a href="/research/problems/#preparation-cpu">Preparation CPU</a></h3><p>How cheaply can fresh material be issued? Batching can save work; preparing for unused output tokens wastes it.</p></article>
+    <article><span>04 / LOWER MB</span><h3><a href="/research/problems/#preparation-memory">Preparation memory</a></h3><p>Can Preparation fit on hardware the user controls? More parallel issuance can improve speed while increasing live masks, corrections and workspace.</p></article>
+    <article><span>05 / LOWER SECONDS</span><h3><a href="/research/problems/#time-to-first-token">Time to first token</a></h3><p>How quickly does the user see an answer? Loading, preparation, queueing, prefill and dependent round trips can all delay the first output.</p></article>
+    <article><span>06 / HIGHER TOKENS PER SECOND</span><h3><a href="/research/problems/#decode-throughput">Decode throughput</a></h3><p>Can generation stay fast after the first token? On-demand material reduces waste but can introduce pauses between tokens.</p></article>
+    <article><span>07 / LOWER BASE MB</span><h3><a href="/research/problems/#base-all-link-traffic">Base all-link traffic</a></h3><p>How little data must move for setup, public delivery and a stated prompt's prefill? Warm reuse can lower this base while adding retained storage.</p></article>
+    <article><span>08 / LOWER MB PER OUTPUT TOKEN</span><h3><a href="/research/problems/#per-token-all-link-traffic">Per-token all-link traffic</a></h3><p>How little communication does generation add? Count every link and output-related preparation, including prepaid material burned unused.</p></article>
+  </div>
+  <div class="button-row"><a class="button secondary" href="/research/problems/#traffic-accounting-base-plus-generation">Base plus per-token accounting →</a><a class="button secondary" href="/research/problems/#tradeoffs-already-visible-in-the-evidence">See measured tradeoffs →</a></div>
+</section>
+
 <section class="research-section" aria-labelledby="paper-title">
-  <p class="research-number">02 / TECHNICAL PAPER</p>
+  <p class="research-number">03 / TECHNICAL PAPER</p>
   <div class="section-intro">
     <h2 id="paper-title">PLLM,<br>in detail.</h2>
     <div><p>The technical manuscript covers protocol design, compiler contracts, the research process and retained evidence. Read it online, download the PDF, or inspect the standalone arXiv-ready source archive.</p>
@@ -30,12 +52,12 @@
 </section>
 
 <section class="research-section" aria-labelledby="frontier-title">
-  <p class="research-number">03 / MEASUREMENTS &amp; LITERATURE</p>
+  <p class="research-number">04 / MEASUREMENTS &amp; LITERATURE</p>
   <div class="section-intro">
     <h2 id="frontier-title">The frontier,<br>with receipts.</h2>
-    <div><p>Follow each experiment across speed, traffic, CPU and memory in one normalized chart. Compare client and total costs under native 100/40 network caps, with client-only and naive offset baselines marked. Select a paper to highlight its related experiments, or follow a line to its Python configuration and paper.</p>
-      <div class="button-row"><a class="button primary" href="/research/papers/">Scorecard and paper chronology →</a><a class="button secondary" href="/research/results/">All results and trials →</a><a class="button secondary" href="/research/scorecard/">Rerun the benchmarks →</a></div>
-      <p>Start with Qwen2.5-0.5B. Qwen3-4B joins the model selector when a matched cohort is available. To add a method, follow the <a href="/research/recipes/experiments/">experimentation workflow</a>.</p>
+    <div><p>Follow each experiment across measured speed, traffic, CPU and memory. The chart retains each cohort's measurement scope: historical all-link totals are not a measured base/per-token split. Compare matched conditions with client-only and naive offset baselines marked, then follow each result to its Python configuration and source paper.</p>
+      <div class="button-row"><a class="button primary" href="/research/sota/">SOTA metrics and combinations →</a><a class="button secondary" href="/research/papers/">Chart and paper chronology →</a><a class="button secondary" href="/research/results/">All results and trials →</a><a class="button secondary" href="/research/scorecard/">Rerun the benchmarks →</a></div>
+      <p>Model selectors include matched Qwen2.5-0.5B and Qwen3-4B cohorts. To investigate one of these objectives, follow the <a href="/research/recipes/experiments/">experimentation workflow</a>.</p>
     </div>
   </div>
 </section>

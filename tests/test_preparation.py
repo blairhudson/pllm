@@ -12,7 +12,7 @@ import httpx
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from pllm.runtime.client import OpenAI, RuntimeClient
+from pllm.runtime.client import OpenAI, PrivacyAudit, RuntimeClient
 from pllm.runtime.config import GatewayConfig
 from pllm.runtime.correction_channel import (
     CORRECTION_CHANNEL_SUBPROTOCOL,
@@ -22,6 +22,8 @@ from pllm.runtime.correction_channel import (
 from pllm.runtime.correction_rendezvous import CorrectionRendezvous, RendezvousError
 from pllm.runtime.masked_runtime import ModelError
 from pllm.runtime.preparation_protocol import (
+    PREPARATION_ACCOUNTING_CAPABILITY,
+    PREPARATION_ACCOUNTING_HEADER,
     CorrectionPush,
     PreparationAck,
     PreparationRequest,
@@ -169,6 +171,31 @@ def test_preparation_envelope_and_ack_are_small():
     assert len(authorization.pack()) < 256
     assert SessionAuthorization.unpack(authorization.pack()) == authorization
     assert len(SessionAuthorizationAck(authorization.session_id).pack()) < 64
+
+
+def test_new_client_imports_legacy_ack_without_claiming_v3_coverage():
+    from pllm.runtime.topology_accounting import body_coverage_identity, prepared_body_accounting
+
+    payload = PreparationAck(ATTEMPT, "layer.0.qkv", 100, 123).pack()
+    assert set(msgpack.unpackb(payload, raw=False)) == {"v", "a", "t", "c", "e", "p"}
+    ack = PreparationAck.unpack(payload)
+    assert ack.correction_ack_bytes is None
+    assert ack.correction_rows is None
+    assert ack.correction_row_payload_bytes is None
+    assert ack.correction_row_payload_bits_per_row is None
+    with pytest.raises(ProtocolError, match="invalid preparation phase accounting"):
+        ack.material_body_bytes_by_phase(1, 1)
+
+    # Match new-client handling: legacy ACK records its known push, but cannot
+    # advance correction_ack_accounted_push_bytes without a measured ACK count.
+    audit = PrivacyAudit()
+    audit.correction_push_bytes += ack.correction_bytes
+    ledger = prepared_body_accounting({"privacy": audit.to_dict()})
+    assert ledger["correction_ack_counter_set_present"] is False
+    assert body_coverage_identity(ledger) is None
+    assert ledger["all_link_serialized_body_bytes"] is None
+    assert ledger["traffic_attribution"]["base_all_link_body_bytes"] is None
+    assert ledger["traffic_attribution"]["output_dependent_all_link_body_bytes"] is None
 
 
 def test_large_public_residue_layout_roundtrips_bounded_correction_frame():
@@ -774,7 +801,8 @@ def test_client_activity_gate_prevents_preparation_and_online_overlap():
         core.close()
 
 
-def test_preparation_service_authorizes_once_then_computes_and_pushes_once():
+@pytest.mark.parametrize("accounting_capability", [None, "unknown-future-capability", PREPARATION_ACCOUNTING_CAPABILITY])
+def test_preparation_service_authorizes_once_then_computes_and_pushes_once(accounting_capability):
     events: list[str] = []
     value = request(rows=513)
     correction = CorrectionPush(
@@ -896,12 +924,42 @@ def test_preparation_service_authorizes_once_then_computes_and_pushes_once():
             content=compact_payload,
         )
         assert wrong_owner.status_code == 400
+        stage_headers = {"Authorization": "Bearer preparation"}
+        if accounting_capability is not None:
+            stage_headers[PREPARATION_ACCOUNTING_HEADER] = accounting_capability
         response = client.post(
             f"/v1/preparation/inventories/{value.session_id}/stages/{value.stage_id}",
-            headers={"Authorization": "Bearer preparation"},
+            headers=stage_headers,
             content=compact_payload,
         )
         assert response.status_code == 200, response.text
+        wire = msgpack.unpackb(response.content, raw=False)
+        ack = PreparationAck.unpack(response.content)
+        legacy_keys = {"v", "a", "t", "c", "e", "p"}
+        if accounting_capability == PREPARATION_ACCOUNTING_CAPABILITY:
+            assert set(wire) == legacy_keys | {"cr", "cb", "ca", "ct"}
+            assert ack.correction_rows == value.rows
+            assert ack.correction_row_payload_bytes == value.rows * value.out_features * value.wire_bits // 8
+            assert ack.correction_row_payload_bits_per_row == value.out_features * value.wire_bits
+            assert ack.correction_ack_bytes == len(PreparationAck(
+                correction.attempt_id, correction.stage_id, len(correction.pack()), correction.server_ns,
+            ).pack())
+            from pllm.runtime.topology_accounting import ACK_COVERAGE, body_coverage_identity, prepared_body_accounting
+
+            audit = PrivacyAudit()
+            audit.correction_push_bytes = ack.correction_bytes
+            audit.correction_ack_bytes = ack.correction_ack_bytes
+            audit.correction_ack_accounted_push_bytes = ack.correction_bytes
+            ledger = prepared_body_accounting({"privacy": audit.to_dict()})
+            assert body_coverage_identity(ledger) == ACK_COVERAGE
+            assert ledger["all_link_serialized_body_bytes"] == ack.correction_bytes + ack.correction_ack_bytes
+        else:
+            # This exact key set is the legacy SDK parser's admission contract.
+            assert set(wire) == legacy_keys
+            assert ack.correction_rows is None
+            assert ack.correction_row_payload_bytes is None
+            assert ack.correction_ack_bytes is None
+            assert ack.correction_row_payload_bits_per_row is None
         replayed_attempt = client.post(
             f"/v1/preparation/inventories/{value.session_id}/stages/{value.stage_id}",
             headers={"Authorization": "Bearer preparation"},

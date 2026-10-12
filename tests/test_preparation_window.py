@@ -3,7 +3,10 @@ import time
 
 import pytest
 
-from pllm.runtime.preparation_window import WINDOW_BYTES, run_preparation_window
+from pllm.runtime.preparation_window import (
+    WINDOW_BYTES, preparation_job_work_bytes, run_preparation_window,
+    validate_preparation_window,
+)
 
 
 def run(items, **kwargs):
@@ -20,6 +23,26 @@ def test_window_rejects_aggregate_work_before_issuing_any_stage():
     with pytest.raises(ValueError, match="declared work window"):
         run([1, 2], cost=lambda x: WINDOW_BYTES * x, prepare=called.append)
     assert not called
+
+
+def test_long_prefill_prices_complete_job_and_serial_has_separate_contract():
+    # Public Qwen2.5 gate/up shape: 288 prefill + seven prepaid decode rows.
+    size = preparation_job_work_bytes(rows=295, in_features=896, out_features=9728)
+    assert size == 73_107_456
+    with pytest.raises(ValueError, match="exceeds the declared work window"):
+        validate_preparation_window(width=4, max_bytes=64 << 20, job_bytes=[size])
+    validate_preparation_window(width=1, job_bytes=[size])
+    seen = []
+    run([size], width=1, cost=lambda _: pytest.fail("serial work uses topology admission"),
+        prepare=seen.append)
+    assert seen == [size]
+
+
+def test_verifier_window_work_prices_authorized_not_pruned_rows():
+    ordinary = preparation_job_work_bytes(rows=8, in_features=896, out_features=4864)
+    verified = preparation_job_work_bytes(rows=8, in_features=896, out_features=4864,
+        verification_checks=3, verification_rows=295)
+    assert verified - ordinary == 295 * 3 * 896 * 16
 
 
 @pytest.mark.parametrize("budget", [WINDOW_BYTES, 64 << 20])

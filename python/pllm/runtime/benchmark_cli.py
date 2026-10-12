@@ -410,6 +410,7 @@ def build_loopback_report(
     from pllm.metrics import communication_per_token, wan_readiness
 
     report["communication_per_token"] = communication_per_token(report)
+    report["traffic_decomposition"] = report["communication_per_token"]["traffic_decomposition"]
     report["summary"].update(report["communication_per_token"]["summary"])
     report["wan_readiness"] = wan_readiness(report, wan)
     return report
@@ -552,7 +553,8 @@ def build_comparison_report(
         raise ValueError("comparison Experiment names must be unique")
 
     keys = [_comparison_key(report) for _, report in candidates]
-    comparable = all(key is not None for key in keys) and len(set(keys)) == 1
+    comparable = all(key is not None for key in keys) and len({key[:-1] for key in keys if key is not None}) == 1
+    matched_coverage = all(key is not None for key in keys) and len({key[-1] for key in keys if key is not None}) == 1
     kernel_backends = {
         experiment.pipeline.components["kernels"].component for experiment, _ in candidates
     }
@@ -616,6 +618,10 @@ def build_comparison_report(
         and all(report.get("checks", {}).get("passed") is True for _, report in candidates)
     ):
         for metric, (summary_key, reverse) in metrics.items():
+            # Coverage constrains traffic rankings, not matched CPU/latency
+            # windows across topologies with different instrumented edges.
+            if "body_bytes" in metric and not matched_coverage:
+                continue
             values = [
                 (
                     float(record["report"]["summary"][summary_key]),
@@ -644,6 +650,7 @@ def build_comparison_report(
         ),
         "unique_configurations": len(set(digests)) == len(digests),
         "matched_workload": comparable,
+        "matched_body_coverage": matched_coverage,
         "matched_verification": matched_verification,
         "matched_numeric_contract": matched_numeric,
         ("matched_kernel_composition" if compare_kernels else "matched_kernel_backend"): kernel_admitted,
@@ -743,6 +750,7 @@ def build_comparison_report(
             "diagnostic comparison, not a canonical EvidenceReport",
             "rankings require exact matched measured workloads and the declared kernel comparison policy",
             "rankings require matching verifier contracts; mixed-assurance observations remain available without a winner",
+            "application-body rankings additionally require identical counter coverage; CPU and latency retain their own matched workload windows",
             "cross-kernel composition rankings require source, numeric and captured output identity; they are not CPU-only speedups",
             "does not establish model quality, energy, price, adversarial security, or non-collusion",
         ],

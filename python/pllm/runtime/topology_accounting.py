@@ -1,8 +1,8 @@
 """Bounded accounting of already-recorded topology application-body counters.
 
-This is deliberately *not* a wire meter: uninstrumented control frames, HTTP/TLS framing,
-transport retries, inference-to-preparation acks, and setup before the separately
-captured initial inventory are not represented by the client privacy counters.
+This is deliberately *not* a wire meter: uninstrumented control frames, HTTP/TLS
+framing, transport retries, and setup before the separately captured initial
+inventory remain outside coverage. Version 3 also counts correction acks.
 """
 
 from __future__ import annotations
@@ -14,6 +14,8 @@ from typing import Any
 ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v1"
 CONTROL_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v2"
 CONTROL_COVERAGE = "prepared_protocol_and_instrumented_lifecycle_controls_v2"
+ACK_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v3"
+ACK_COVERAGE = "prepared_protocol_lifecycle_controls_and_correction_acks_v3"
 
 # Count every serialized body once, from the sending side of one edge. Other
 # audit counters (masked_online_*, upload_bytes, and server metrics) overlap.
@@ -59,9 +61,11 @@ def body_coverage_identity(ledger: Mapping[str, Any]) -> str | None:
     if not isinstance(ledger, Mapping):
         return None
     coverage = ledger.get("body_counter_coverage")
+    if coverage == ACK_COVERAGE:
+        return coverage if ledger.get("correction_ack_counter_set_present") is True and ledger.get("control_body_counter_set_present") is True else None
     if coverage == CONTROL_COVERAGE:
         return coverage if ledger.get("control_body_counter_set_present") is True else None
-    if ledger.get("schema") == CONTROL_ACCOUNTING_SCHEMA:
+    if ledger.get("schema") in {CONTROL_ACCOUNTING_SCHEMA, ACK_ACCOUNTING_SCHEMA}:
         return None
     return coverage or ledger.get("schema", ACCOUNTING_SCHEMA)
 
@@ -171,7 +175,13 @@ def prepared_body_accounting(
     controls_present = bool(_CONTROL_REQUIRED & counters.keys())
     controls_complete = _CONTROL_REQUIRED <= counters.keys() and all(
         type(counters[key]) is int and counters[key] >= 0 for key in _CONTROL_REQUIRED)
+    acks_present = "correction_ack_bytes" in counters
+    acks_complete = (type(counters.get("correction_ack_bytes")) is int
+        and counters["correction_ack_bytes"] >= 0
+        and type(counters.get("correction_ack_accounted_push_bytes")) is int
+        and counters["correction_ack_accounted_push_bytes"] == counters.get("correction_push_bytes"))
     complete = base_complete and (not controls_present or controls_complete)
+    complete = complete and (not acks_present or acks_complete)
     control_bytes = sum(counters[key] for key in _CONTROL_REQUIRED) if controls_complete else None
     links: list[dict[str, str | int]] | None = None
     client_bytes: int | None = None
@@ -185,6 +195,9 @@ def prepared_body_accounting(
             for source, destination, phase, fields in (
                 *_PREPARED_BODY_COUNTERS, *(_CONTROL_BODY_COUNTERS if controls_complete else ()))
         ]
+        if acks_present:
+            links.append({"source": "inference", "destination": "preparation", "phase": "offline",
+                          "serialized_body_bytes": counters["correction_ack_bytes"]})
         client_bytes = sum(
             int(item["serialized_body_bytes"]) for item in links
             if "client" in (item["source"], item["destination"])
@@ -208,9 +221,10 @@ def prepared_body_accounting(
         for role in _ROLES
     ):
         cpu = {role: float(processes[role]["cpu_seconds"]) for role in _ROLES}
-    return {
-        "schema": CONTROL_ACCOUNTING_SCHEMA if controls_present else ACCOUNTING_SCHEMA,
-        "body_counter_coverage": CONTROL_COVERAGE if controls_present else ACCOUNTING_SCHEMA,
+    result = {
+        "schema": ACK_ACCOUNTING_SCHEMA if acks_present else CONTROL_ACCOUNTING_SCHEMA if controls_present else ACCOUNTING_SCHEMA,
+        "body_counter_coverage": ACK_COVERAGE if acks_present else CONTROL_COVERAGE if controls_present else ACCOUNTING_SCHEMA,
+        "correction_ack_counter_set_present": acks_complete if acks_present else None,
         "control_body_counter_set_present": controls_complete if controls_present else None,
         "lifecycle_control_serialized_body_bytes": control_bytes,
         "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
@@ -233,7 +247,7 @@ def prepared_body_accounting(
         "unmeasured": [
             ("HTTP/TLS/WebSocket framing and uninstrumented control endpoints" if controls_complete
              else "HTTP/TLS/WebSocket framing and control traffic"),
-            "inference-to-preparation correction acknowledgements",
+            *([] if acks_present and acks_complete else ["inference-to-preparation correction acknowledgements"]),
             "duplicate or failed transport attempts not represented by client audit counters",
             (
                 "model import and checkpoint distribution before initial inventory"
@@ -243,6 +257,9 @@ def prepared_body_accounting(
             "GPU work, uninstrumented client work, and cold checkpoint distribution",
         ],
     }
+    from .benchmark_communication import prepared_window_attribution
+    result["traffic_attribution"] = prepared_window_attribution(counters, result)
+    return result
 
 
 def prepared_stage_body_attribution(

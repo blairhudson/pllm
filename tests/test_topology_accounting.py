@@ -11,8 +11,8 @@ from pllm.metrics.wan import _window
 from pllm.deployment import WanConditions
 from pllm.runtime.benchmark_cli import _comparison_key, accounted_benchmark_body_totals
 from pllm.runtime.topology_accounting import (
-    ACCOUNTING_SCHEMA, CONTROL_ACCOUNTING_SCHEMA, CONTROL_COVERAGE,
-    accounting_coverage_identity, measured_decode_window, prepared_body_accounting,
+    ACCOUNTING_SCHEMA, ACK_ACCOUNTING_SCHEMA, ACK_COVERAGE, CONTROL_ACCOUNTING_SCHEMA, CONTROL_COVERAGE,
+    accounting_coverage_identity, body_coverage_identity, measured_decode_window, prepared_body_accounting,
 )
 
 
@@ -114,6 +114,33 @@ def test_wan_accepts_separate_control_phase_but_not_mixed_coverage():
     assert _window([old, new], conditions) is None
     # Arithmetic-only online floor must not absorb lifecycle controls.
     assert _window([new], conditions, online=True)["wan_body_bytes"] == 15
+
+
+def test_correction_acks_count_one_reverse_edge_with_a_distinct_coverage():
+    old = ledger({**counters(), **controls()})
+    current = ledger({**counters(), **controls(), "correction_ack_bytes": 7,
+                      "correction_ack_accounted_push_bytes": 5})
+    assert current["schema"] == ACK_ACCOUNTING_SCHEMA
+    assert body_coverage_identity(current) == ACK_COVERAGE
+    assert current["all_link_serialized_body_bytes"] == 103
+    assert current["client_serialized_body_bytes"] == old["client_serialized_body_bytes"]
+    assert current["online_all_link_serialized_body_bytes"] == 15
+    reverse = [edge for edge in current["body_bytes_by_edge"]
+               if (edge["source"], edge["destination"]) == ("inference", "preparation")]
+    assert reverse == [{"source": "inference", "destination": "preparation",
+                        "phase": "offline", "serialized_body_bytes": 7}]
+    assert _comparison_key(report([old, old])) != _comparison_key(report([current, current]))
+    assert _comparison_key(report([old, current])) is None
+    del current["body_counter_coverage"]
+    assert body_coverage_identity(current) is None
+
+
+def test_partial_correction_ack_coverage_cannot_be_reported_as_complete():
+    row = ledger({**counters(), **controls(), "correction_ack_bytes": 7,
+                  "correction_ack_accounted_push_bytes": 4})
+    assert row["tracked_body_counter_set_present"] is False
+    assert row["all_link_serialized_body_bytes"] is None
+    assert body_coverage_identity(row) is None
 
 
 def test_sdk_metrics_coverage_scope_separates_old_new_and_rejects_stale_mixed_total(tmp_path):

@@ -168,9 +168,14 @@ description: "Every confirmed experiment, every exploratory observation and ever
 
 {/* Generated from checked canonical reports by docs/scripts/research-results.mjs. */}
 
-The [interactive frontier](/research/papers/#research-frontier) uses these confirmed cohorts.
+The [SOTA tables by model](/research/sota/) and [interactive frontier](/research/papers/#research-frontier) use these confirmed cohorts.
 Every score links to its rerunnable Python configuration. Unknown values remain **Unmeasured**.
 Read the [reproduction guide](/research/scorecard/) for workload identities, commands and measurement boundaries.
+
+The [eight research objectives](/research/problems/) explain why lower memory, CPU,
+latency and traffic can conflict. Traffic totals and whole-response averages below
+retain their original meanings; they do not identify separate base and
+output-dependent per-token costs without an attributed ledger.
 
 Native 100/40 means shared per-party **100 Mbps download / 40 Mbps upload TCP-stream caps**.
 Traffic counts every directed role link once, including HTTP/WebSocket framing. Kernel headers,

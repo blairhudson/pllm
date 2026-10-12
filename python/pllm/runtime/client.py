@@ -64,6 +64,8 @@ from .protocol import (
     unpack_envelope,
 )
 from .preparation_protocol import (
+    PREPARATION_ACCOUNTING_CAPABILITY,
+    PREPARATION_ACCOUNTING_HEADER,
     PreparationAck,
     PreparationRequest,
     SessionAuthorization,
@@ -314,6 +316,17 @@ class PrivacyAudit:
     generation_decode_output_tokens: int = 0
     generation_prefill_online_body_bytes: int = 0
     generation_decode_online_body_bytes: int = 0
+    generation_requested_output_tokens: int = 0
+    generation_executed_decode_steps: int = 0
+    generation_attribution_supported_responses: int = 0
+    preparation_attributed_body_bytes: int = 0
+    preparation_decode_material_body_bytes: int = 0
+    preparation_prefill_material_body_bytes: int = 0
+    preparation_decode_rows_issued: int = 0
+    preparation_prefill_rows_issued: int = 0
+    preparation_padding_rows_issued: int = 0
+    correction_ack_bytes: int = 0
+    correction_ack_accounted_push_bytes: int = 0
     preparation_server_ns: int = 0
     inference_server_ns: int = 0
     correction_push_bytes: int = 0
@@ -2336,10 +2349,11 @@ class RuntimeClient:
         state: _TransformerCryptoState,
         rows: int,
         stage_rows: dict[str, int] | None = None,
+        phase_rows: dict[str, dict[str, int]] | None = None,
     ) -> PreparedInventory:
         self._begin_preparation()
         try:
-            return self._prepare_inventory(model_id, state, rows, stage_rows)
+            return self._prepare_inventory(model_id, state, rows, stage_rows, phase_rows)
         finally:
             self._end_preparation()
 
@@ -2349,6 +2363,7 @@ class RuntimeClient:
         state: _TransformerCryptoState,
         rows: int,
         stage_rows: dict[str, int] | None = None,
+        phase_rows: dict[str, dict[str, int]] | None = None,
     ) -> PreparedInventory:
         if self.preparation_http is None:
             raise ProtocolError("public inference requires a preparation service", 400)
@@ -2486,6 +2501,7 @@ class RuntimeClient:
                             headers={
                                 **self.preparation_headers,
                                 "Content-Type": "application/octet-stream",
+                                PREPARATION_ACCOUNTING_HEADER: PREPARATION_ACCOUNTING_CAPABILITY,
                             },
                             content=payload,
                         ),
@@ -2522,6 +2538,27 @@ class RuntimeClient:
                     raise error
                 with audit_lock:
                     self.audit.correction_push_bytes += ack.correction_bytes
+                    if ack.correction_ack_bytes is not None:
+                        self.audit.correction_ack_bytes += ack.correction_ack_bytes
+                        self.audit.correction_ack_accounted_push_bytes += ack.correction_bytes
+                    if phase_rows is not None and ack.correction_rows == request.rows:
+                        prefill_rows = phase_rows["prefill"].get(stage.id, 0)
+                        decode_rows = phase_rows["decode"].get(stage.id, 0)
+                        padding_rows = request.rows - prefill_rows - decode_rows
+                        verification_bytes = len(ack.verification_payload)
+                        if (padding_rows >= 0 and verification_bytes % request.rows == 0
+                                and ack.correction_row_payload_bytes is not None):
+                            # The serializer certifies bitstream layout and actual
+                            # length. Shared phase-boundary bytes stay residual;
+                            # never estimate from matrix dimensions.
+                            prefill_bytes, decode_bytes = ack.material_body_bytes_by_phase(prefill_rows, decode_rows)
+                            self.audit.preparation_attributed_body_bytes += (
+                                len(payload) + len(prepared_content) + ack.correction_bytes)
+                            self.audit.preparation_decode_material_body_bytes += decode_bytes
+                            self.audit.preparation_prefill_material_body_bytes += prefill_bytes
+                            self.audit.preparation_decode_rows_issued += decode_rows
+                            self.audit.preparation_prefill_rows_issued += prefill_rows
+                            self.audit.preparation_padding_rows_issued += padding_rows
                     self.audit.preparation_server_ns += ack.server_ns
                     self.audit.correction_push_ns += ack.push_ns
                 record_protocol_bytes("client", "preparation", len(payload), stage.id)
@@ -2562,13 +2599,13 @@ class RuntimeClient:
                     verification_binding=verification_binding,
                 )
 
-            from .preparation_window import run_preparation_window
+            from .preparation_window import preparation_job_work_bytes, run_preparation_window
             def work_bytes(stage):
-                # Declared transient envelopes/mask work, not a process peak sample.
-                size = 4096 + authorization.rows_for(stage.id) * (16 * stage.in_features + 24 * stage.out_features)
-                if verification_policy is not None:
-                    size += rows * verification_policy.checks * stage.in_features * 16
-                return size
+                return preparation_job_work_bytes(
+                    rows=authorization.rows_for(stage.id), in_features=stage.in_features,
+                    out_features=stage.out_features, verification_rows=rows,
+                    verification_checks=0 if verification_policy is None else verification_policy.checks,
+                )
             def accept(item):
                 prepared_stages[item[0]] = item[1]
             run_preparation_window(remote_stages, width=self.preparation_stage_window,
@@ -2936,6 +2973,7 @@ class RuntimeClient:
         *,
         stages: list[str] | None = None,
         stage_rows: dict[str, int] | None = None,
+        _phase_rows: dict[str, dict[str, int]] | None = None,
     ) -> dict[str, Any]:
         if self._local_engine is not None:
             raise ModelError("client-only topology does not use a preparation inventory")
@@ -2993,6 +3031,7 @@ class RuntimeClient:
                             state,
                             max(self.prepared_inventory_rows, target),
                             stage_rows,
+                            _phase_rows,
                         )
                         self._install_prepared_inventory_locked(state, prepared_inventory)
                         generated = prepared_inventory.capacity
@@ -3169,7 +3208,7 @@ class RuntimeClient:
             return self._prepared_rows_for_response(model, input, max_output_tokens,
                 instructions=instructions, store=store, _stage_demand=_stage_demand)
 
-    def _prepared_rows_for_response(self, model, input, max_output_tokens, *, instructions=None, store=True, _stage_demand=False):
+    def _prepared_rows_for_response(self, model, input, max_output_tokens, *, instructions=None, store=True, _stage_demand=False, _phase_demand=False):
         if self._local_engine is not None:
             raise ModelError("client-only topology does not use a preparation inventory")
         state = self._transformer_state(model)
@@ -3220,14 +3259,19 @@ class RuntimeClient:
                 raise ModelError("demand preparation requires a complete compiled schedule")
             demand = compiled.prepared_stage_rows(len(full_ids) - prefix_rows, max(0, allowance - 1),
                                                   continuation=prefix_rows > 0)
+        if _phase_demand:
+            phases = (compiled.prepared_stage_phase_rows(len(full_ids) - prefix_rows, max(0, allowance - 1),
+                continuation=prefix_rows > 0) if demand is not None and self.preparation_decode_epoch_tokens is None
+                and self._inflight_prefix_owner is None and not self.background_inventory_refill else None)
+            return required, demand, phases
         return required, demand
 
     def prepare_response(self, model: str, input, max_output_tokens: int, *, instructions=None, store=True):
         """Issue exactly the admitted response demand before online execution."""
         with self.tokenizer_scope():
-            rows, demand = self.prepared_rows_for_response(model, input, max_output_tokens,
-                instructions=instructions, store=store, _stage_demand=True)
-            return self.preprocess(model, rows, stage_rows=demand)
+            rows, demand, phases = self._prepared_rows_for_response(model, input, max_output_tokens,
+                instructions=instructions, store=store, _stage_demand=True, _phase_demand=True)
+            return self.preprocess(model, rows, stage_rows=demand, _phase_rows=phases)
 
     def _ensure_prepared_inventory(
         self,
@@ -3235,6 +3279,7 @@ class RuntimeClient:
         state: _TransformerCryptoState,
         required_rows: int,
         stage_rows: dict[str, int] | None = None,
+        phase_rows: dict[str, dict[str, int]] | None = None,
     ) -> None:
         with self._transformer_state_lock:
             candidates = (state.prepared_inventory, state.prepared_inventory_spare)
@@ -3246,7 +3291,7 @@ class RuntimeClient:
                 for inventory in candidates
             ):
                 return
-        self.preprocess(model_id, count=required_rows, stage_rows=stage_rows)
+        self.preprocess(model_id, count=required_rows, stage_rows=stage_rows, _phase_rows=phase_rows)
 
     def close(self) -> None:
         with self._activity_lock:
@@ -3883,7 +3928,11 @@ class RuntimeClient:
                 demand = compiled.prepared_stage_rows(required_input_rows, max(0, epoch_allowance - 1),
                     continuation=bool(previous_id) or required_input_rows != len(full_prefill_ids))
             if epoch_tokens is None:
-                self._ensure_prepared_inventory(model_id, state, required_rows, demand)
+                phases = (compiled.prepared_stage_phase_rows(required_input_rows, max(0, epoch_allowance - 1),
+                    continuation=bool(previous_id) or required_input_rows != len(full_prefill_ids))
+                    if demand is not None and self._inflight_prefix_owner is None
+                    and not self.background_inventory_refill else None)
+                self._ensure_prepared_inventory(model_id, state, required_rows, demand, phases)
         offset_transport = None
         if offset_execution:
             assert compiled is not None
@@ -4392,6 +4441,7 @@ class RuntimeClient:
                 )
                 cache.put(cache_key, runtime.snapshot(), np.asarray(logits))
             pending_token_ids: list[int] = []
+            executed_decode_steps = 0
             hit_token_limit = True
             for step in range(max_tokens):
                 check_epoch_cancelled()
@@ -4430,6 +4480,7 @@ class RuntimeClient:
                     logits, caches = resume_decode_epoch(token, step + 1)
                 else:
                     logits, caches = runtime.decode_step(token, caches, len(input_ids) + step)
+                executed_decode_steps += 1
 
             self.audit.token_lookup_cache_hits += runtime.token_cache_hits
             self.audit.token_lookup_cache_misses += runtime.token_cache_misses
@@ -4678,6 +4729,13 @@ class RuntimeClient:
                 self.audit.generation_decode_online_body_bytes += (
                     completed_online_bytes - first_output_online_bytes
                 )
+                self.audit.generation_requested_output_tokens += max_tokens
+                self.audit.generation_executed_decode_steps += executed_decode_steps
+                if (isinstance(remote, PreparedRemoteLinear) and compiled is not None
+                        and self.preparation_allocation == "demand" and epoch_tokens is None
+                        and not previous_id and self._inflight_prefix_owner is None
+                        and not self.background_inventory_refill and state.public_prefix_binding is None):
+                    self.audit.generation_attribution_supported_responses += 1
             if offset_transport is not None:
                 with self._activity_lock:
                     if self._active_offset_transports.get(session_id) is offset_transport:

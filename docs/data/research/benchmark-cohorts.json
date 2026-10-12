@@ -1,5 +1,71 @@
 {
   "schema": "pllm.research_cohorts.v1",
+  "historical_factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
+  "adapted_cohorts": [
+    {
+      "id": "qwen25-maintained-digit8-confirm",
+      "evidenceTier": "confirmation",
+      "title": "Maintained digit8 confirmation · native 100/40",
+      "adapter": "benchmark-suite-v1",
+      "report": "docs/evidence/research-prepared-study-qwen25-confirm.json",
+      "sha256": "9b54ee455e7307429d4cc1bf19c93f1c58ff3ef966c258ddebde2ec8c68c42db",
+      "plan": "docs/evidence/research-prepared-study-qwen25-confirm.plan.json",
+      "plan_sha256": "f5d9db14ca358862d5bade5a9db5b7fff9efd80b55bb6b8cb9ee553c4ea657d7",
+      "replay_file": "benchmarks/research/prepared_kernel_targets.py",
+      "replay_sha256": "acb30cd0189f5351dcd9faca63ff38363e6025dd347e87b8f0d736ffa71236b6",
+      "scope": "Three fresh-client replicates per arm from one private-salt confirmation. Exact original maintained Experiment parameters; windowed/serial issuance and integer/digit8 Preparation ablations. Cached checkpoint and pre-positioned tokenizer; publication, distribution, physical wire and generation quality excluded. Screen and other builds are not pooled."
+    },
+    {
+      "id": "qwen25-mlp-tiling-confirm-c",
+      "evidenceTier": "confirmation",
+      "title": "MLP tiling confirmation C · native 100/40",
+      "adapter": "benchmark-suite-v1",
+      "report": "docs/evidence/research-mlp-tiling-qwen25-confirmation-c.json",
+      "sha256": "85770d1e7ce05478278b1b450703c795887233452730afbae5f5120cb6675a9e",
+      "plan": "docs/evidence/research-mlp-tiling-qwen25-confirmation-c.plan.json",
+      "plan_sha256": "e109f9e88ae688b77860c6a025f60938cf2f531983be6341cbdf33ce89a16ea3",
+      "replay_file": "benchmarks/research/client_stage_ownership.py",
+      "replay_sha256": "fad3f6718d546a951659f286f43f71370952fa74fc9ce5502c5ef81c3699e7dd",
+      "scope": "Non-overlapping C confirmation only, three fresh clients per workload/arm. Historical compiler-bound research selector (tile_rows=0 or 64), explicitly not a Pipeline component. Medium and long workloads rank separately; A/B and missing 16-row cells are not pooled. Cached checkpoint and pre-positioned tokenizer; physical wire and quality excluded."
+    },
+    {
+      "id": "qwen25-all-link-placement-confirm",
+      "evidenceTier": "confirmation",
+      "title": "Selective all-link SDK placement · native 100/40",
+      "adapter": "benchmark-suite-v1",
+      "report": "docs/evidence/research-all-link-placement-sdk-confirmation.json",
+      "sha256": "9f81bc8c657c156d7f66fbcd90cb9ae9f708801ffba62c70f5365926a2812bf0",
+      "plan": "docs/evidence/research-all-link-placement-sdk-confirmation.plan.json",
+      "plan_sha256": "bdc613df6bf504f952857037e77872282a7bc91029cc88e3de35a1d1f921c761",
+      "replay_file": "scripts/benchmark_all_link_placement.py",
+      "replay_sha256": "1336f2c380d6c2ff27da5eada3eed8106d1115a993248328d3f1b57476f3b1c2",
+      "scope": "Three fresh clients per choice, one common private-salt cohort. Exact 38-group ClientLinearRoles SDK selection against maintained digit8 control; selection time is outside requests. Source, numeric, workload, output, privacy and measurement commitments match. Cached checkpoint and tokenizer distribution, physical wire, generation quality and independent operators excluded."
+    },
+    {
+      "id": "qwen25-epoch-prefix-confirm",
+      "evidenceTier": "confirmation",
+      "title": "Completed epoch/prefix SDK confirmation · native 100/40",
+      "adapter": "epoch-prefix-v1",
+      "report": "docs/evidence/epoch-prefix-sdk-qwen25-2026-10-06.json",
+      "sha256": "ccd5469f114bcfe7c5000a8debdc80c66586deb507c38d15399b6bfa31a05c62",
+      "replay_file": "scripts/benchmark_epoch_prefix_sdk.py",
+      "replay_sha256": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+      "scope": "Completed 36-cell independent cohort only: three fresh cells per original configuration. Early-EOS, full-cap, identical pending group and unrelated group retain separate views. Earlier incomplete attempts and historical stage-body percentages never enter these medians."
+    },
+    {
+      "id": "qwen25-sota-combinations-screen",
+      "evidenceTier": "screen",
+      "title": "Five-way prepared combinations · native 100/40",
+      "adapter": "benchmark-suite-v1",
+      "report": "docs/evidence/research-sota-combinations-qwen25.json",
+      "sha256": "5fb73b6883a0e42ac42b65b33a84cdfe0c6646d1e459f0df72639c38756ad54d",
+      "plan": "docs/evidence/research-sota-combinations-qwen25.plan.json",
+      "plan_sha256": "3f8902f7f621adfd60dc301907ef144fbacc5f35c29c11bf02c689aaaf525204",
+      "replay_file": "scripts/benchmark_sota_combinations.py",
+      "replay_sha256": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d",
+      "scope": "Completed 30-client, 60-response screen: three balanced serial replicates per choice with one private cohort salt. Installed tiling, digit8 and frozen selective placement; four-stage/64 MiB issuance at 150 inputs and serial issuance at 288, shared across each workload's five choices. Cold and exact-repeat views remain separate; lifetime client RSS covers both. Partial application-body partitions conserve known base, known output-dependent and residual bytes; complete headline splits remain unknown. Cached checkpoint, pre-positioned tokenizer, co-located roles; physical wire, cleanup CPU/time, quality and independent finalist confirmation excluded. Earlier failed/interrupted cohorts are not pooled."
+    }
+  ],
   "quality_cohorts": [
     {
       "id": "qwen25-smoothquant-prefill",
@@ -32,9 +98,18 @@
     {"title": "Offset-worker search", "file": "docs/evidence/research-search-offset-qwen25-v3.json", "sha256": "560e602833001eaa6c88837a4210f2f575282536eec8ee78522406a281c628e3"},
     {"title": "Public-prefix search", "file": "docs/evidence/research-search-public-prefix-qwen25-v2.json", "sha256": "67c98ac2d89dea093da5b9c14dff209248336b3f5fa6eee71d24991e290f0aaf"}
   ],
+  "historical_exclusions": [
+    {"report": "docs/evidence/research-sota-combinations-qwen25-interrupted.json", "sha256": "44b9191e77e87e1fbb36883b43629e74b8c4cf9c65d85160b205f90e515e0f49", "reason": "Corrected five-way screen stopped with 21 of 30 cells saved and no final summary. All saved cells completed, but the runner was absent when inspected; no exit cause was retained. Two full balanced rounds and one partial third round cannot establish the planned three-replicate frontier. Preserved independently; never pooled with a fresh-salt rerun."},
+    {"report": "docs/evidence/research-sota-combinations-qwen25-window-rejected.json", "sha256": "00a7058a3fc8eb0e6141e9df3638c444dccd64e4b7d750c154950da810fa17f3", "reason": "Original five-way screen: all 15 short-workload cells completed, but all 15 long-workload cells failed before online execution. Full 295-row stage issuance exceeds the frozen 64 MiB concurrent work window. Preserved independently; no completed matched frontier or pooling with the corrected serial-issuance cohort."},
+    {"report": "docs/evidence/research-all-link-placement-sdk.json", "reason": "Incomplete control after admission; never pooled with successful independent confirmation."},
+    {"report": "docs/evidence/research-prepared-study-window-rejected.json", "reason": "Concurrent cells fail work-window admission; no matched frontier."},
+    {"report": "docs/evidence/epoch-prefix-sdk-incomplete-2026-10-06.json", "reason": "Only two of 36 planned cells; no completed confirmation."},
+    {"report": "docs/evidence/research-prepared-runtime-response.json", "reason": "Explicit cross-build ablation; not same-build SOTA ranking."}
+  ],
   "cohorts": [
     {
       "id": "qwen25-native-wan-frontier-150-8",
+      "evidenceTier": "confirmation",
       "title": "Native 100/40 · 150 input / 8 output tokens",
       "report": "docs/evidence/research-frontier-native-wan-qwen25.json",
       "selection_report": "docs/evidence/research-frontier-native-wan-qwen25.selection.json",
@@ -73,6 +148,7 @@
     },
     {
       "id": "qwen25-masked-wire-material-30-2",
+      "evidenceTier": "observation",
       "title": "Native 100/40 · masked-wire key encoding · 30 + 2 tokens",
       "report": "docs/evidence/research-nonlinear-material-qwen25.json",
       "configuration_sources": {
@@ -91,6 +167,7 @@
     },
     {
       "id": "qwen25-masked-wire-dispatch-30-2",
+      "evidenceTier": "observation",
       "title": "Native 100/40 · masked-wire Q12 dispatch · 30 + 2 tokens",
       "report": "docs/evidence/research-nonlinear-dispatch-qwen25.json",
       "configuration_sources": {
@@ -108,6 +185,7 @@
     },
     {
       "id": "qwen25-paper-prepared-50-8",
+      "evidenceTier": "observation",
       "title": "Native 100/40 · paper prepared controls · 50 + 8 tokens",
       "report": "docs/evidence/research-paper-prepared-qwen25.json",
       "configuration_sources": {
@@ -124,6 +202,7 @@
     },
     {
       "id": "qwen25-slalom-50-8",
+      "evidenceTier": "observation",
       "title": "Native 100/40 · Slalom verified adaptation · 50 + 8 tokens",
       "report": "docs/evidence/research-slalom-qwen25.json",
       "configuration_sources": {
@@ -142,6 +221,7 @@
     },
     {
       "id": "qwen25-smoothquant-plain-50-8",
+      "evidenceTier": "observation",
       "title": "Native 100/40 · SmoothQuant plain controls · 50 + 8 tokens",
       "report": "docs/evidence/research-smoothquant-plain-qwen25.json",
       "configuration_sources": {
@@ -160,6 +240,7 @@
     },
     {
       "id": "qwen25-smoothquant-50-8",
+      "evidenceTier": "observation",
       "title": "Native 100/40 · SmoothQuant equalized adaptation · 50 + 8 tokens",
       "report": "docs/evidence/research-smoothquant-qwen25.json",
       "calibration_report": "docs/evidence/research-smoothquant-calibration-qwen25.json",
@@ -182,6 +263,7 @@
     },
     {
       "id": "qwen25-sdk-finalists-150-8",
+      "evidenceTier": "confirmation",
       "title": "Uncapped SDK finalists · 150 input / 8 output tokens",
       "report": "docs/evidence/research-finalists-qwen25.comparison.json",
       "selection_report": "docs/evidence/research-finalists-qwen25.selection.json",
@@ -219,6 +301,7 @@
     },
     {
       "id": "qwen3-sdk-tokenizer-16-8",
+      "evidenceTier": "observation",
       "title": "Qwen3-4B SDK tokenizer · 16 input / 8 output tokens · native 100/40",
       "report": "docs/evidence/research-qwen3-sdk-artifacts.json",
       "publisher_report": "docs/evidence/research-qwen3-sdk-artifacts-publisher.json",
@@ -236,6 +319,7 @@
     },
     {
       "id": "qwen3-client-memory-16-8",
+      "evidenceTier": "observation",
       "title": "Qwen3-4B client memory · 16 input / 8 output tokens · native 100/40",
       "report": "docs/evidence/research-qwen3-client-memory.json",
       "publisher_report": "docs/evidence/research-qwen3-client-memory-publisher.json",
@@ -254,6 +338,7 @@
     },
     {
       "id": "qwen25-prepared-150-8",
+      "evidenceTier": "observation",
       "title": "Uncapped prepared stacks · 150 input / 8 output tokens",
       "report": "docs/evidence/research-scorecard-qwen25.json",
       "publisher_report": "docs/evidence/research-scorecard-publisher.json",
@@ -268,6 +353,69 @@
         "prepared-exact-stack": {"file": "benchmarks/research/sota.py", "sha256": "a254c38247d5737e3794f675ae86365039d9909eed8b93a701935850162c9bc1", "label": "Exact prepared stack", "artifact_bytes": 9285336, "public_prefix_tokens": 0},
         "prepared-public-prefix": {"file": "benchmarks/research/public_prefix.py", "sha256": "65f660b7da670962ad341b6c79e9d8ed9322a40008819dd1280142d6c8e5cadf", "label": "Stack + public prefix", "artifact_bytes": 12252963, "public_prefix_tokens": 96}
       }
+    },
+    {
+      "id": "qwen25-tiling-a-medium", "title": "Historical tiling A · 150+8 · overlapping host · 3 clients/arm",
+      "evidenceTier": "observation",
+      "adapter": "pllm.benchmark_run.v1", "report": "docs/evidence/research-mlp-tiling-qwen25-confirmation.json",
+      "sha256": "e865f74276cd9d275377a5bc9c3ed9c6bb3f179a44975717d209a638066c9658",
+      "factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
+      "cases": ["medium", "medium/tile64"], "replicates": 3, "baseline": "medium",
+      "scope": "Historical A overlapped B on same host. Separate private salt and per-graph caps; not exclusive-host latency evidence, not pooled. Serial integer prepared composition with internal 64-row MLP selector; prefer later non-overlapping C."
+    },
+    {
+      "id": "qwen25-tiling-a-long", "title": "Historical tiling A · 288+8 · overlapping host · 3 clients/arm",
+      "evidenceTier": "observation",
+      "adapter": "pllm.benchmark_run.v1", "report": "docs/evidence/research-mlp-tiling-qwen25-confirmation.json",
+      "sha256": "e865f74276cd9d275377a5bc9c3ed9c6bb3f179a44975717d209a638066c9658",
+      "factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
+      "cases": ["long", "long/tile64"], "replicates": 3, "baseline": "long",
+      "scope": "Historical A longer workload, host overlap with B. Independent cohort, not pooled with medium or C; timings cannot establish uncontended latency."
+    },
+    {
+      "id": "qwen25-tiling-b-medium", "title": "Historical tiling B · 150+8 · overlapping host · 3 clients/arm",
+      "evidenceTier": "observation",
+      "adapter": "pllm.benchmark_run.v1", "report": "docs/evidence/research-mlp-tiling-qwen25-confirmation-b.json",
+      "sha256": "a9ed73f0dea58a9e4a0360ad2e4e1509f4fc71b355c9b6fa7b3bf2aee1e7feaa",
+      "factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
+      "cases": ["medium", "medium/tile64"], "replicates": 3, "baseline": "medium",
+      "scope": "Historical B overlapped A; independent salt, same serial integer composition, internal tiling selector. Preserve observations, prefer C; do not claim exclusive-host timing."
+    },
+    {
+      "id": "qwen25-tiling-b-long", "title": "Historical tiling B · 288+8 · overlapping host · 3 clients/arm",
+      "evidenceTier": "observation",
+      "adapter": "pllm.benchmark_run.v1", "report": "docs/evidence/research-mlp-tiling-qwen25-confirmation-b.json",
+      "sha256": "a9ed73f0dea58a9e4a0360ad2e4e1509f4fc71b355c9b6fa7b3bf2aee1e7feaa",
+      "factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
+      "cases": ["long", "long/tile64"], "replicates": 3, "baseline": "long",
+      "scope": "Historical B longer workload. Separate overlapping-host cohort; no transfer of exploratory tile16 measurements into confirmation."
+    },
+    {
+      "id": "qwen25-tiling-screen-medium", "title": "Exploratory tiling screen · 150+8 · 1 client/arm",
+      "evidenceTier": "screen",
+      "adapter": "pllm.benchmark_run.v1", "report": "docs/evidence/research-mlp-tiling-qwen25-screen.json",
+      "sha256": "22b2008ca6a215c2fe8e7b0e5f0ad86c3f90e002d0097dd9b6e28ba8532d0c00",
+      "factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
+      "cases": ["medium", "medium/tile16", "medium/tile64"], "replicates": 1, "baseline": "medium",
+      "scope": "Initial single-client exploratory screen, serial integer prepared stack; internal full/16/64-row MLP selector. Not confirmation, not pooled with any later salt."
+    },
+    {
+      "id": "qwen25-tiling-screen-long", "title": "Exploratory tiling screen · 288+8 · 1 client/arm",
+      "evidenceTier": "screen",
+      "adapter": "pllm.benchmark_run.v1", "report": "docs/evidence/research-mlp-tiling-qwen25-screen.json",
+      "sha256": "22b2008ca6a215c2fe8e7b0e5f0ad86c3f90e002d0097dd9b6e28ba8532d0c00",
+      "factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
+      "cases": ["long", "long/tile16", "long/tile64"], "replicates": 1, "baseline": "long",
+      "scope": "Initial single-client longer-workload screen; unconfirmed tile16 stays exploratory. Original build, full logits/outputs and cold/repeat windows retained."
+    },
+    {
+      "id": "qwen25-digit8-screen", "title": "Exploratory maintained digit8 screen · 150+8 · 1 client/arm",
+      "evidenceTier": "screen",
+      "adapter": "pllm.benchmark_run.v1", "report": "docs/evidence/research-prepared-study-qwen25.json",
+      "sha256": "8d630bb02d51516785d4c7bde02211a148e735349618c256c5fdc06aabb5e20b",
+      "factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
+      "cases": ["prepared", "prepared/serial-issuance", "prepared/digit8", "prepared/serial-issuance+digit8"], "replicates": 1, "baseline": "prepared",
+      "scope": "Original exploratory integer/digit8 and serial/windowed quartet. Other ablations remain in authoritative source, not imported into this matched quartet or confirmation. New measurements require new source/build/salt identities."
     }
   ]
 }

@@ -537,6 +537,9 @@ def test_client_offset_prepared_topologies_share_one_w8a8_benchmark_cohort(
     assert comparison["checks"]["matched_workload"]
     assert comparison["comparison_key"]["model_fingerprint"]
     diagnostic = comparison["compute_cap_diagnostic"]
+    assert comparison["checks"]["matched_body_coverage"] is False
+    assert comparison["rankings"]["full_seconds"]
+    assert not comparison["rankings"]["covered_all_link_serialized_body_bytes"]
     assert diagnostic["reference_configuration_digest"] == experiments[1].configuration_digest()
     assert len(diagnostic["observations"]) == 3
     assert diagnostic["full_response_compute_cap_admitted"] is False

@@ -5,6 +5,7 @@ import data from '@/data/research/scorecard.json';
 import { leaders, normalizedAxes, measuredSegments, groupedMetrics } from '@/lib/research-rankings.mjs';
 import { withBasePath } from '@/lib/paths.mjs';
 import styles from './research-scorecard.module.css';
+import { ResearchSotaTable } from './research-sota';
 
 const repository = 'https://github.com/blairhudson/pllm/blob/main/';
 const number = (value: number | null) => value === null ? 'Unmeasured' :
@@ -44,7 +45,14 @@ export function ResearchScorecard() {
   }, [cohortId]);
   const available = data.cohorts.filter((cohort) => cohort.model === model);
   const cohort = available.find((candidate) => candidate.id === cohortId) ?? available[0];
-  const groups = groupedMetrics(metricIds.map((key) => data.metrics.find((metric) => metric.id === key)!));
+  const measurement = 'measurement' in cohort ? cohort.measurement : null;
+  const definitions = data.metrics.map((metric) => {
+    const label = metric.id === 'clientPeak' ? measurement?.clientRssLabel
+      : metric.id === 'clientCpu' ? measurement?.clientCpuLabel
+        : metric.id === 'preparationCpu' ? measurement?.preparationCpuLabel : null;
+    return label ? { ...metric, shortLabel: label, label } : metric;
+  });
+  const groups = groupedMetrics(metricIds.map((key) => definitions.find((metric) => metric.id === key)!));
   const metrics = groups.flatMap((group) => group.metrics);
   const rows = cohort.rows.filter((row) => Boolean(row.reference) ||
     ((publicPrefix || row.publicPrefixTokens === 0) && (clientWeights || !row.placement.clientBody)));
@@ -70,12 +78,15 @@ export function ResearchScorecard() {
         The preferred deployment pairs Preparation under your control with one online Inference provider.</p>
     </div>
     <section className={styles.priorities} aria-labelledby={`${id}-priorities`}>
-      <h3 id={`${id}-priorities`}>Why these metrics come first</h3>
+      <h3 id={`${id}-priorities`}>Eight objectives, competing costs</h3>
       <dl>{data.priorities.map((priority) => <div key={priority.label}>
-        <dt>{priority.label}</dt><dd>{priority.why}</dd>
+        <dt><a href={withBasePath(`/research/problems/#${priority.anchor}`)}>{priority.label}</a></dt><dd>{priority.why}</dd>
       </div>)}</dl>
       <p>Quality and privacy are requirements for useful improvements. Compare matching numeric, workload and output contracts;
         inspect each deployment's trust assumptions. CPU and RAM measure resource cost, not price or energy.</p>
+      <p>The historical chart has seven default axes: six resource/responsiveness metrics and measured all-link traffic totals.
+        Base and output-dependent traffic need separate attribution; whole-response averages and decode-online counters do not establish that split.
+        {' '}<a href={withBasePath('/research/problems/')}>Read the research questions, accounting definitions and measured tradeoffs →</a></p>
     </section>
     <div className={styles.controls}>
       <label htmlFor={`${id}-model`}>Model<select id={`${id}-model`} value={model} onChange={(event) => setModel(event.target.value)}>
@@ -91,8 +102,9 @@ export function ResearchScorecard() {
         {data.papers.map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
       </select></label>
     </div>
-    <details className={styles.metricPicker}><summary>Choose metrics <span>{metrics.length} selected · client, Preparation, responsiveness and all-link traffic</span></summary>
-      <div>{groupedMetrics(data.metrics).map((group) => <fieldset key={group.label}><legend title={group.title}>{group.label}</legend>
+    <ResearchSotaTable key={cohort.id} cohort={cohort} />
+    <details className={styles.metricPicker}><summary>Choose chart metrics <span>{metrics.length} selected · client, Preparation, responsiveness and all-link traffic</span></summary>
+      <div>{groupedMetrics(definitions).map((group) => <fieldset key={group.label}><legend title={group.title}>{group.label}</legend>
         {group.metrics.map((metric) => <label key={metric.id}><input type="checkbox"
         checked={metricIds.includes(metric.id)} disabled={metricIds.length === 1 && metricIds.includes(metric.id)}
         onChange={(event) => setMetrics(event.target.checked ? [...metricIds, metric.id] : metricIds.filter((key) => key !== metric.id))} />
@@ -198,15 +210,18 @@ export function ResearchScorecard() {
       </div>
     </details>
     <details className={styles.details}><summary>Measurement scope and evidence</summary>
-      <p>Single-response observations, not confidence intervals. Native 100/40 cohorts cap each party's combined TCP traffic across peers.
+      <p>Matched observations, not confidence intervals. Native 100/40 cohorts cap each party's combined TCP traffic across peers.
         This is local bandwidth emulation; no Internet RTT is implied. Network counts each directed stream once, including HTTP/WebSocket framing,
         excluding kernel headers, retransmissions, telemetry and checkpoint distribution. Public artifacts are pre-positioned.</p>
       <p>Agg means aggregate across all roles. Client peaks require fresh processes. Aggregate RAM is the largest sampled sum of simultaneously live client/provider RSS, not summed lifetime peaks;
         it may double-count shared pages and miss short spikes. CPU includes startup and native relay overhead; GPU compute and uncharged GPU memory remain unmeasured.
         Historical shared-client runs leave incomparable memory fields empty. Client-only holds the full decoder; remote placements still keep attention and nonlinear work at the client.</p>
-      <p>Client CPU includes the benchmark/dashboard and native relay. Preparation CPU runs from that role's process birth through the first cold response;
-        its RAM is a process-lifetime peak. TTFT measures online start to first output;
-        decode throughput uses the later N−1 outputs. All-link traffic covers the recorded cold lifecycle across every directed role link.</p>
+      {'measurement' in cohort && cohort.measurement ? <p>{cohort.measurement.requestScope}; median of {cohort.measurement.sampleCount} fresh cells.
+        {' '}{cohort.measurement.cpu}. {cohort.measurement.rss}. {cohort.measurement.timing}. {cohort.measurement.traffic}.</p>
+        : <p>Client CPU includes the benchmark/dashboard and native relay. Preparation CPU runs from that role's process birth through the first cold response;
+        its RAM is the largest request-window telemetry sample, including the opening sample. TTFT measures online start to first output;
+        decode throughput uses the later N−1 outputs. All-link traffic covers the recorded cold lifecycle across every directed role link.
+        Whole-response MB/token includes that lifecycle's base cost; it is not incremental generation traffic.</p>}
       <p><a href={repository + cohort.report}>Canonical report ↗</a> · <a href={withBasePath('/research/scorecard/')}>Commands and methodology</a></p>
       <p>Report SHA-256: <code>{cohort.reportSha256}</code></p>
       {rows.map((row) => <details key={row.id}><summary>{row.label}</summary><p>Configuration: <code>{row.configurationDigest}</code><br />Python SHA-256: <code>{row.fileSha256}</code></p>

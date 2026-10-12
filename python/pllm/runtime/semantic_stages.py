@@ -265,6 +265,74 @@ def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageS
     return _scheduled_stage_specs(plan, composition)[1]
 
 
+def prepared_phase_rows(schedule, bindings, prefill_rows, decode_steps, *, continuation=False):
+    """Count admitted remote work from public steps and explicit stage ownership.
+
+    Bindings map phase-qualified operations to (stage ID, role), or None for a
+    client-owned stage. Both header-only admission and checkpoint-bound execution
+    use these rules; the authorization's one-row burn-only minimum is separate.
+    """
+    if any(type(count) is not int or count < 0 for count in (prefill_rows, decode_steps)):
+        raise ValueError("invalid prepared row demand")
+    result = {"prefill": {}, "decode": {}}
+    for phase, count in (("prefill", prefill_rows), ("decode", decode_steps)):
+        for step in schedule[phase]["steps"]:
+            if step["executor"] not in {"remote_stage", "verified_remote_stage"}:
+                continue
+            key = f"{phase}:{step['operation_ids'][0]}"
+            if key not in bindings:
+                raise ValueError("prepared demand has an unresolved stage")
+            binding = bindings[key]
+            if binding is None:
+                continue
+            stage_id, role = binding
+            rows = count
+            if phase == "prefill" and count and not continuation and (
+                step.get("terminal_row_only", False) or role == "lm_head"
+            ):
+                rows = 1
+            result[phase][stage_id] = result[phase].get(stage_id, 0) + rows
+    return result
+
+
+def scheduled_prepared_phase_rows(plan: ModelPlan, composition: Pipeline,
+                                  prefill_rows: int, decode_steps: int, *, continuation=False):
+    """Header-only counterpart to the checkpoint-bound Preparation row demand."""
+    from pllm.profiles import resolve_runtime_composition
+
+    schedule, stages = _scheduled_stage_specs(plan, composition)
+    options = resolve_runtime_composition(composition)
+    if options is None:
+        raise ValueError("prepared demand requires an admitted runtime composition")
+    by_signature = {}
+    for stage in stages:
+        signature = (stage.role, stage.layer_index, tuple(stage.weight_keys))
+        if signature in by_signature:
+            raise ValueError("prepared demand has ambiguous stage ownership")
+        by_signature[signature] = stage
+    schedule = schedule.to_dict()
+    bindings = {}
+    for phase, graph in (("prefill", plan.prefill), ("decode", plan.decode)):
+        operations = {operation["id"]: operation for operation in graph["operations"]}
+        consumers = _graph_consumers(operations)
+        for step in schedule[phase]["steps"]:
+            if step["executor"] not in {"remote_stage", "verified_remote_stage"}:
+                continue
+            role = semantic_stage_role(step, operations, _consumers=consumers)
+            signature = (role, step["layer"], tuple(step["weight_ids"]))
+            stage = by_signature.get(signature)
+            if stage is None:
+                raise ValueError("prepared demand has an unresolved stage")
+            remote = provider_owns_linear(stage, remote_output_head=options.remote_output_head,
+                client_prefix_layers=options.client_prefix_layers,
+                client_linear_roles=options.client_linear_roles,
+                client_linear_layer_roles=options.client_linear_layer_roles)
+            for operation_id in step["operation_ids"]:
+                bindings[f"{phase}:{operation_id}"] = (stage.id, stage.role) if remote else None
+    return prepared_phase_rows(schedule, bindings, prefill_rows, decode_steps,
+                               continuation=continuation)
+
+
 def _scheduled_stage_specs(plan: ModelPlan, composition: Pipeline):
     """Return the validated schedule with its stages for one-pass planning."""
     schedule = plan.runtime_schedule(composition)

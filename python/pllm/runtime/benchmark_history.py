@@ -104,6 +104,13 @@ _PRIVACY_FIELDS = frozenset(
     }
 )
 _PRIVACY_FIELDS |= _ROLE_BODY_FIELDS
+_PRIVACY_FIELDS |= frozenset({
+    "generation_requested_output_tokens", "generation_executed_decode_steps",
+    "generation_attribution_supported_responses", "preparation_attributed_body_bytes",
+    "preparation_decode_material_body_bytes", "preparation_prefill_material_body_bytes",
+    "preparation_decode_rows_issued", "preparation_prefill_rows_issued", "preparation_padding_rows_issued",
+    "correction_ack_bytes", "correction_ack_accounted_push_bytes",
+})
 _PRIVACY_FIELDS |= frozenset({"prepared_stage_rows_" + name for name in
     ("issued", "reserved", "claimed", "burned", "discarded")})
 _PROCESS_ROLES = _TOPOLOGY_ROLES

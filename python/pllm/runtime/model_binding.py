@@ -25,6 +25,7 @@ from pllm.runtime.quantization import (
 from pllm.runtime.public_equalization import equalize_activation
 from pllm.runtime.semantic_stages import (
     client_owns_linear,
+    prepared_phase_rows,
     semantic_fused_roles,
     semantic_stage_role,
 )
@@ -338,28 +339,22 @@ class CompiledRuntimeModel:
 
     def prepared_stage_rows(self, prefill_rows: int, decode_steps: int, *, continuation: bool = False) -> dict[str, int]:
         """Public shape demand from the admitted native schedule, never activations."""
-        if any(type(n) is not int or n < 0 for n in (prefill_rows, decode_steps)):
-            raise RuntimeBindingError("invalid prepared row demand")
+        phases = self.prepared_stage_phase_rows(prefill_rows, decode_steps, continuation=continuation)
+        return {stage: max(1, phases["prefill"].get(stage, 0) + phases["decode"].get(stage, 0))
+                for stage in dict.fromkeys((*phases["prefill"], *phases["decode"]))}
+
+    def prepared_stage_phase_rows(self, prefill_rows: int, decode_steps: int, *, continuation: bool = False) -> dict[str, dict[str, int]]:
+        """Exact schedule row counts before the authorization burn-only minimum."""
         composition = Pipeline.from_spec(json.loads(self._canonical_composition))
         schedule = self._plan.runtime_schedule(composition).to_dict()
-        bindings = {op: stage for stage in self._stages for op in stage.semantic_operations}
-        result = {}
-        for phase, count in (("prefill", prefill_rows), ("decode", decode_steps)):
-            for step in schedule[phase]["steps"]:
-                if step["executor"] not in {"remote_stage", "verified_remote_stage"}:
-                    continue
-                stage = bindings[f"{phase}:{step['operation_ids'][0]}"]
-                if self._bundle.stages[stage.stage_id].client_weight is not None:
-                    continue
-                rows = count
-                if phase == "prefill" and count and not continuation and (
-                    step.get("terminal_row_only", False) or stage.role == "lm_head"
-                ):
-                    rows = 1
-                result[stage.stage_id] = result.get(stage.stage_id, 0) + rows
-        # A zero-work stage still gets one burn-only row under the existing
-        # all-stage authorization contract. No zero-row mask material is minted.
-        return {stage: max(1, rows) for stage, rows in result.items()}
+        bindings = {op: ((stage.stage_id, stage.role)
+                        if self._bundle.stages[stage.stage_id].client_weight is None else None)
+                    for stage in self._stages for op in stage.semantic_operations}
+        try:
+            return prepared_phase_rows(schedule, bindings, prefill_rows, decode_steps,
+                                       continuation=continuation)
+        except ValueError as exc:
+            raise RuntimeBindingError(str(exc)) from exc
 
     def to_spec(self) -> dict[str, Any]:
         return json.loads(self._canonical)

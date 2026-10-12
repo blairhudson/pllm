@@ -4,7 +4,9 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { defaultMetrics, priorities } from '../lib/research-rankings.mjs';
+import { defaultMetrics, priorities, sotaMetrics } from '../lib/research-rankings.mjs';
+import { historicalRows } from './research-historical.mjs';
+import { adaptedCohorts } from './research-scorecard-adapters.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -17,9 +19,9 @@ export const metrics = [
   { id: 'ttft', label: 'Time to first token (TTFT)', unit: 's', direction: 'min' },
   { id: 'requestTps', label: 'Full request throughput', unit: 'tokens/s', direction: 'max' },
   { id: 'decodeTps', label: 'Decode throughput (N−1)', unit: 'tokens/s', direction: 'max' },
-  { id: 'aggregateCpu', label: 'Cold aggregate process CPU', unit: 'CPU s', direction: 'min' },
-  { id: 'clientCpu', label: 'Cold client process CPU', unit: 'CPU s', direction: 'min' },
-  { id: 'preparationCpu', label: 'Cold Preparation process CPU', unit: 'CPU s', direction: 'min' },
+  { id: 'aggregateCpu', label: 'Aggregate process CPU (selected window)', unit: 'CPU s', direction: 'min' },
+  { id: 'clientCpu', label: 'Client process CPU (selected window)', unit: 'CPU s', direction: 'min' },
+  { id: 'preparationCpu', label: 'Preparation process CPU (selected window)', unit: 'CPU s', direction: 'min' },
   { id: 'bodyOffload', label: 'Body-linear compute offloaded (plan)', unit: '%', direction: 'max', scoreBounds: [0, 100] },
   { id: 'providerPeak', label: 'Largest provider process peak RSS', unit: 'MB', direction: 'min' },
   { id: 'preparationPeak', label: 'Preparation sampled peak RSS', unit: 'MB', direction: 'min' },
@@ -27,9 +29,11 @@ export const metrics = [
   { id: 'artifactBytes', label: 'Pre-positioned public artifacts', unit: 'MB', direction: 'min' },
   { id: 'clientPeak', label: 'Isolated client peak RSS', unit: 'MB', direction: 'min' },
   { id: 'totalPeak', label: 'Sampled aggregate live-process peak RSS', unit: 'MB', direction: 'min' },
-  { id: 'clientNetwork', label: 'Cold client TCP-stream traffic', unit: 'MB', direction: 'min' },
-  { id: 'totalNetwork', label: 'Cold all-link TCP-stream traffic', unit: 'MB', direction: 'min' },
-  { id: 'networkPerToken', label: 'Cold all-link TCP traffic / output token', unit: 'MB/token', direction: 'min' },
+  { id: 'clientNetwork', label: 'Client TCP-stream traffic (selected window)', unit: 'MB', direction: 'min' },
+  { id: 'totalNetwork', label: 'All-link TCP-stream traffic (selected window)', unit: 'MB', direction: 'min' },
+  { id: 'baseNetwork', label: 'Base covered application bodies (setup, delivery and prefill)', unit: 'MB/request', direction: 'min' },
+  { id: 'tokenNetwork', label: 'Output-dependent covered application bodies / generated token', unit: 'MB/token', direction: 'min' },
+  { id: 'networkPerToken', label: 'Selected-window all-link TCP traffic / output token (whole-response average)', unit: 'MB/token', direction: 'min' },
   { id: 'wire', label: 'Full physical wire / output', unit: 'MB/token', direction: 'min' },
   { id: 'quality', label: 'Representative generation quality', unit: 'score', direction: 'max' },
   { id: 'energy', label: 'Whole-response energy', unit: 'J', direction: 'min' },
@@ -42,19 +46,23 @@ const shortLabels = {
   clientCpu: 'Client CPU', preparationCpu: 'Prep CPU', bodyOffload: 'Body offload', preparationPeak: 'Prep RAM', inferencePeak: 'Inference RAM',
   artifactBytes: 'Public artifacts', clientPeak: 'Client RAM', wire: 'Physical wire',
   quality: 'Quality', energy: 'Energy',
-  totalPeak: 'Agg RAM', clientNetwork: 'Client network', totalNetwork: 'All-link traffic', networkPerToken: 'MB / token',
+  totalPeak: 'Agg RAM', clientNetwork: 'Client network', totalNetwork: 'All-link traffic', networkPerToken: 'Avg MB / token',
+  baseNetwork: 'Base traffic', tokenNetwork: 'Per-token traffic',
 };
 const metricGroups = {
   clientCpu: 'Client', bodyOffload: 'Client', clientPeak: 'Client', clientNetwork: 'Client',
   aggregateCpu: 'Agg', totalPeak: 'Agg', energy: 'Agg',
   preparationCpu: 'Preparation', preparationPeak: 'Preparation',
-  totalNetwork: 'Network', networkPerToken: 'Network', covered: 'Network', online: 'Network',
+  totalNetwork: 'Network', baseNetwork: 'Network', tokenNetwork: 'Network', networkPerToken: 'Network', covered: 'Network', online: 'Network',
   decodeBytes: 'Network', wire: 'Network', artifactBytes: 'Network',
   providerPeak: 'Providers', inferencePeak: 'Providers',
 };
 for (const metric of metrics) {
   metric.shortLabel = shortLabels[metric.id];
   metric.group = metricGroups[metric.id] ?? 'Performance';
+  metric.accountingPlane = ['baseNetwork', 'tokenNetwork', 'covered', 'online', 'decodeBytes'].includes(metric.id)
+    ? 'covered_application_bodies' : ['clientNetwork', 'totalNetwork', 'networkPerToken'].includes(metric.id)
+      ? 'tcp_stream_payload' : null;
 }
 
 export function baselineKind(spec, pipeline, placement, isBaseline) {
@@ -177,6 +185,9 @@ export function reportMetrics(report, artifactBytes = null) {
       ? null : run.processes.preparation.rss_peak_bytes / 1e6,
     inferencePeak: run.processes?.inference?.rss_peak_bytes == null ? null : run.processes.inference.rss_peak_bytes / 1e6,
     artifactBytes: artifactBytes === null ? null : artifactBytes / 1e6,
+    // Historical reports do not attribute prepaid generation material separately
+    // from fixed setup/prefill. Online decode counters cannot establish this split.
+    baseNetwork: null, tokenNetwork: null,
     ...clientAndTotalResources(report), wire: null, quality: null, energy: null,
   };
   for (const value of Object.values(values)) {
@@ -196,6 +207,7 @@ function nonlinearNumericContract(component) {
 }
 
 export function cohortRows(cohort, document, read = (file) => fs.readFileSync(path.join(root, file))) {
+  if (cohort.adapter) return historicalRows(cohort, document, read, metrics, executionPlacement);
   if (!Array.isArray(document.candidates) || document.candidates.length < 2) {
     throw new Error('Require a canonical multi-Experiment cohort with its shared salt');
   }
@@ -329,7 +341,7 @@ export function cohortRows(cohort, document, read = (file) => fs.readFileSync(pa
     identity: JSON.parse([...identities][0]), rows };
 }
 
-export function buildScorecard() {
+export function buildScorecard({ trafficAttributionConsumer = null } = {}) {
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'docs/data/research/benchmark-cohorts.json')));
   const implementations = JSON.parse(fs.readFileSync(path.join(root, 'docs/data/research/implementations.json'))).papers;
   const library = JSON.parse(fs.readFileSync(path.join(root, 'docs/data/research/paper-library.json'))).papers;
@@ -338,9 +350,14 @@ export function buildScorecard() {
     slug: paper.registry_id ? registry.find((item) => item.id === paper.registry_id).slug.replaceAll('_', '-') : paper.id,
     status: implementations[paper.id]?.status ?? 'Not implemented',
   }));
-  const cohorts = manifest.cohorts.map((cohort) => {
+  const read = (file) => fs.readFileSync(path.join(root, file));
+  const cohorts = [...manifest.cohorts.map((cohort) => {
       const raw = fs.readFileSync(path.join(root, cohort.report));
       const value = cohortRows(cohort, JSON.parse(raw));
+      return { ...value, reportSha256: hash(raw) };
+    }), ...(manifest.adapted_cohorts ?? []).flatMap((spec) => adaptedCohorts({ ...spec, frozen_factory: manifest.historical_factory }, read,
+      { metrics, executionPlacement, providerPeak, trafficAttributionConsumer }).map((value) => ({ ...value, reportSha256: spec.sha256 })))];
+  for (const value of cohorts) {
       for (const row of value.rows) {
         if (row.paper && !implementations[row.paper]) throw new Error('Scored paper has no implementation record');
         row.papers = papers.flatMap((paper) => {
@@ -350,9 +367,8 @@ export function buildScorecard() {
             .map((link) => ({ id: paper.id, kind: 'related', scope: link.scope }));
         });
       }
-      return { ...value, reportSha256: hash(raw) };
-    });
-  return { schema: 'pllm.research_scorecard.v1', metrics, defaultMetrics, priorities, papers, cohorts };
+  }
+  return { schema: 'pllm.research_scorecard.v1', metrics, defaultMetrics, sotaMetrics, priorities, papers, cohorts };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

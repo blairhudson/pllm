@@ -1,6 +1,7 @@
 """Ordinary benchmark sampling controls: SDK omission, validation and cohort isolation."""
 
 import hashlib
+from contextlib import nullcontext
 import json
 from types import SimpleNamespace
 
@@ -412,6 +413,7 @@ def test_completed_run_archive_contains_neither_text_nor_output_fingerprint(
         history,
     )
     runtime._client = SimpleNamespace(
+        tokenizer_scope=nullcontext,
         privacy_audit=None,
         responses=SimpleNamespace(
             create=lambda **_kwargs: [

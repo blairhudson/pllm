@@ -81,7 +81,15 @@ function researchDocument(name: string, url: string): Folder {
 }
 
 function researchFolders(): Folder[] {
+  const children = getAreaRoot('Research').children;
+  const problem = children.find((node) =>
+    node.type === 'page' && node.url === '/research/problems');
+  const sota = children.find((node) => node.type === 'page' && node.url === '/research/sota');
+  if (!problem) throw new Error('Missing private inference problem guide');
+  if (!sota) throw new Error('Missing measured SOTA table');
   return [
+    { type: 'folder', name: 'The problem', root: true, children: [problem] },
+    { type: 'folder', name: 'Measured SOTA', root: true, children: [sota] },
     researchDocument('PLLM Whitepaper', '/research/whitepaper'),
     researchDocument('PLLM Research Paper', '/research/paper'),
     researchPapers(),

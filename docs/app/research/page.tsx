@@ -6,7 +6,7 @@ import styles from './research.module.css';
 
 export const metadata = {
   title: 'PLLM research',
-  description: 'PLLM original research, technical paper, tracked papers, and reimplementation backlog.',
+  description: 'Private inference as eight competing research problems: client resources, Preparation, responsiveness, and base plus per-token traffic.',
   alternates: { canonical: '/research/', types: { 'text/markdown': markdownPathForRoute('/research/') } },
 };
 export default function Research() {

@@ -7,25 +7,95 @@ export function leaders(rows, metric) {
   return measured.filter((row) => row.metrics[metric.id] === best).map((row) => row.id);
 }
 
+/** Sort numeric observations without mutating the cohort; unknowns stay last. */
+export function sortMetricRows(rows, metricId, direction) {
+  return [...rows].sort((a, b) => {
+    const left = a.metrics[metricId];
+    const right = b.metrics[metricId];
+    if (!Number.isFinite(left)) return Number.isFinite(right) ? 1 : 0;
+    if (!Number.isFinite(right)) return -1;
+    return direction === 'ascending' ? left - right : right - left;
+  });
+}
+
 export function improvement(value, baseline, direction) {
   if (!Number.isFinite(value) || !Number.isFinite(baseline) || value < 0 || baseline <= 0) return null;
   return (direction === 'min' ? 1 - value / baseline : value / baseline - 1) * 100;
 }
 
-// One source for the chart's default axes and their visible rationale.
+// Research objectives and their available chart metrics. An empty list means the
+// objective needs attribution absent from the historical reports, not zero cost.
 export const priorities = [
-  { label: 'Client memory', metrics: ['clientPeak'],
-    why: 'Peak RSS shows the client memory footprint, helping assess device capacity and swap pressure.' },
-  { label: 'Client CPU', metrics: ['clientCpu'],
-    why: 'Less local computation leaves more device capacity for the application using the model.' },
-  { label: 'Preparation cost', metrics: ['preparationCpu', 'preparationPeak'],
-    why: 'Low offline CPU and RAM make Preparation easier to run under your control, separate from online Inference.' },
-  { label: 'WAN responsiveness', metrics: ['ttft', 'decodeTps'],
-    why: 'Short TTFT and fast decode make inference responsive on constrained links. TTFT measures online start to first token; decode speed covers later tokens.' },
-  { label: 'All-link traffic', metrics: ['totalNetwork'],
-    why: 'Every link consumes bandwidth. Including correction delivery and setup keeps work shifted away from the client visible.' },
+  { label: 'Client memory', anchor: 'client-memory', metrics: ['clientPeak'],
+    why: 'Fit the complete client on an ordinary device while keeping substantial work remote. Paging and tiling can trade RAM for CPU, I/O or exchanges.' },
+  { label: 'Client CPU', anchor: 'client-cpu', metrics: ['clientCpu'],
+    why: 'Leave device capacity for the application. Compression, verification and low-memory storage can increase local work.' },
+  { label: 'Preparation CPU', anchor: 'preparation-cpu', metrics: ['preparationCpu'],
+    why: 'Produce fresh material affordably, including unused reservations. Batching may save CPU while increasing memory and waiting.' },
+  { label: 'Preparation memory', anchor: 'preparation-memory', metrics: ['preparationPeak'],
+    why: 'Make Preparation practical on hardware under your control. More concurrent issuance can require larger live workspaces.' },
+  { label: 'Time to first token', anchor: 'time-to-first-token', metrics: ['ttft'],
+    why: 'Reduce the wait for an answer. This chart measures online TTFT; cold setup, admission and queueing need separate lifecycle accounting.' },
+  { label: 'Decode throughput', anchor: 'decode-throughput', metrics: ['decodeTps'],
+    why: 'Keep later tokens responsive. Count epoch pauses in N−1 decode speed; lower material waste can mean slower generation.' },
+  { label: 'Base all-link traffic', anchor: 'base-all-link-traffic', metrics: [],
+    why: 'Reduce fixed setup, public delivery and prompt-prefill bytes for stated cold or warm conditions. Retained caches can lower this base but cost storage.' },
+  { label: 'Per-token all-link traffic', anchor: 'per-token-all-link-traffic', metrics: [],
+    why: 'Reduce output-dependent bytes across every link, including prepaid and unused output material. Whole-response MB/token mixes this cost with the base.' },
 ];
-export const defaultMetrics = priorities.flatMap((priority) => priority.metrics);
+// Keep the measured total visible until a reconciled base/generation split exists.
+export const defaultMetrics = [...priorities.flatMap((priority) => priority.metrics), 'totalNetwork'];
+
+// Always show the eight objectives, even when attribution is unavailable.
+// The measured total is a separate reconciliation column, never a proxy split.
+export const sotaMetrics = [...priorities.flatMap((priority) => priority.metrics),
+  'baseNetwork', 'tokenNetwork', 'totalNetwork'];
+
+// Extra decimals prevent nearby observations from looking like a tied result.
+function metricPrecision(rows, metric) {
+  const values = [...new Set(rows.map((row) => row.metrics[metric.id]).filter(Number.isFinite))];
+  for (let digits = 2; digits < 9; digits++) {
+    if (new Set(values.map((value) => value.toLocaleString('en', { maximumFractionDigits: digits }))).size === values.length) return digits;
+  }
+  return 9;
+}
+
+/** A table compares one checked cohort and one execution topology at a time. */
+export function sotaTable(cohort, topology, metrics) {
+  const rows = cohort.rows.filter((row) => row.placement.topology === topology);
+  return { rows, leaders: Object.fromEntries(metrics.map((metric) => [metric.id, leaders(rows, metric)])),
+    precision: Object.fromEntries(metrics.map((metric) => [metric.id, metricPrecision(rows, metric)])) };
+}
+
+const componentNames = {
+  'pllm/apple-metal-int8/v1': 'AppleMetal',
+  'pllm/cleartext-linear': 'CleartextLinear',
+  'pllm/client-bundle-transport/v1': 'ClientBundleTransport',
+  'pllm/client-only/v1': 'ClientOnlyRoles',
+  'pllm/client-owned-linear-roles/v1': 'ClientLinearRoles',
+  'pllm/client-prefix-reuse/v1': 'ClientPrefixReuse',
+  'pllm/cpu': 'Cpu',
+  'pllm/freivalds-verify/v1': 'FreivaldsVerify',
+  'pllm/indexed-tokenizer/v1': 'IndexedTokenizer',
+  'pllm/inference': 'Inference',
+  'pllm/masked-linear': 'MaskedLinear',
+  'pllm/masked-wire-gated-multiply-q12/v1': 'MaskedWireGatedMultiplyQ12',
+  'pllm/mlp-prefill-tiling/v1': 'MlpPrefillTiling',
+  'pllm/model-aware-corrections': 'ModelAwareCorrections',
+  'pllm/prepared-inventory-policy/v1': 'PreparedInventory',
+  'pllm/public-per-channel-equalized/v1': 'PublicPerChannelEqualized',
+  'pllm/public-prefix-capsule/v1': 'PublicPrefixCapsule',
+  'pllm/symmetric-per-row-quantization/v1': 'SymmetricPerRow',
+  'pllm/two-online-offset-linear/v1': 'TwoOnlineOffsetLinear',
+  'pllm/two-online-offset-workers/v1': 'TwoOnlineOffsetRoles',
+};
+
+/** Names improve readability; immutable component IDs and every parameter survive. */
+export function componentCombination(pipeline) {
+  return Object.entries(pipeline.components).filter(([, component]) => component !== undefined).map(([slot, component]) => ({
+    slot, name: componentNames[component.component] ?? component.component, ...component,
+  }));
+}
 
 export function groupedMetrics(metrics) {
   return ['Client', 'Preparation', 'Performance', 'Network', 'Agg', 'Providers'].map((label) => ({

@@ -12,6 +12,11 @@ from .protocol import ProtocolError
 from .stage_protocol import RingKind, pack_residues, unpack_residues
 
 
+# Optional ACK extension; absent/unknown capability preserves the legacy schema.
+PREPARATION_ACCOUNTING_HEADER = "X-PLLM-Preparation-Accounting"
+PREPARATION_ACCOUNTING_CAPABILITY = "row-payload-and-correction-ack-v1"
+
+
 PREPARATION_PROTOCOL_VERSION = 3
 PREPARATION_SEED_BYTES = 32
 _ATTEMPT_RE = re.compile(r"[0-9a-f]{32}")
@@ -547,7 +552,7 @@ class CorrectionPush:
         ):
             raise ProtocolError("invalid correction residue layout")
 
-    def pack(self) -> bytes:
+    def pack(self, *, body_counts: dict[str, int] | None = None) -> bytes:
         self._validate()
         value = np.asarray(self.correction, dtype=np.uint32)
         if value.shape != (self.rows, self.out_features):
@@ -564,6 +569,10 @@ class CorrectionPush:
             data = _native.offset_pack_rows(value.astype("<u4", copy=False).tobytes(), self.output_residue_bits, self.rows)
         else:
             data = pack_residues(value, self.wire_bits)
+        if body_counts is not None:
+            body_counts.update(rows=self.rows, row_payload_bytes=len(data),
+                row_payload_bits_per_row=(sum(self.output_residue_bits) if self.output_residue_bits is not None
+                                          else self.out_features * self.wire_bits))
         return msgpack.packb(
             {
                 "v": PREPARATION_PROTOCOL_VERSION,
@@ -761,6 +770,41 @@ class PreparationAck:
     verification_material_id: bytes = b""
     verification_tag: bytes = b""
     verification_payload: bytes = b""
+    correction_rows: int | None = None
+    correction_row_payload_bytes: int | None = None
+    correction_ack_bytes: int | None = None
+    correction_row_payload_bits_per_row: int | None = None
+
+    def _validate_body_counts(self) -> None:
+        counts = (self.correction_rows, self.correction_row_payload_bytes, self.correction_ack_bytes,
+                  self.correction_row_payload_bits_per_row)
+        if all(value is None for value in counts):
+            return
+        if (any(type(value) is not int or value < 0 for value in counts)
+                or not self.correction_rows
+                or self.correction_row_payload_bytes > self.correction_bytes
+                or not self.correction_row_payload_bits_per_row
+                or (self.correction_rows * self.correction_row_payload_bits_per_row + 7) // 8
+                   != self.correction_row_payload_bytes):
+            raise ProtocolError("invalid correction body accounting")
+
+    def material_body_bytes_by_phase(self, prefill_rows: int, decode_rows: int) -> tuple[int, int]:
+        """Measured whole-cohort payload bytes; shared boundary bytes are residual."""
+        self._validate_body_counts()
+        if (self.correction_rows is None
+                or any(type(value) is not int or value < 0 for value in (prefill_rows, decode_rows))
+                or prefill_rows + decode_rows > self.correction_rows
+                or len(self.verification_payload) % self.correction_rows):
+            raise ProtocolError("invalid preparation phase accounting")
+        bits = self.correction_row_payload_bits_per_row
+        prefix_bits = prefill_rows * bits
+        end_bits = (prefill_rows + decode_rows) * bits
+        prefix_bytes = ((prefix_bits + 7) // 8 if prefill_rows == self.correction_rows else prefix_bits // 8)
+        end_bytes = (end_bits + 7) // 8 if prefill_rows + decode_rows == self.correction_rows else end_bits // 8
+        decode_bytes = max(0, end_bytes - (prefix_bits + 7) // 8) if decode_rows else 0
+        verification_row_bytes = len(self.verification_payload) // self.correction_rows
+        return (prefix_bytes + prefill_rows * verification_row_bytes,
+                decode_bytes + decode_rows * verification_row_bytes)
 
     def _validate_verification(self) -> None:
         fields = (
@@ -786,6 +830,7 @@ class PreparationAck:
     def pack(self) -> bytes:
         validate_attempt_id(self.attempt_id)
         self._validate_verification()
+        self._validate_body_counts()
         value = {
             "v": PREPARATION_PROTOCOL_VERSION,
             "a": self.attempt_id,
@@ -805,6 +850,9 @@ class PreparationAck:
                     "vp": self.verification_payload,
                 }
             )
+        if self.correction_rows is not None:
+            value.update(cr=self.correction_rows, cb=self.correction_row_payload_bytes,
+                         ca=self.correction_ack_bytes, ct=self.correction_row_payload_bits_per_row)
         return msgpack.packb(value, use_bin_type=True)
 
     @classmethod
@@ -815,9 +863,11 @@ class PreparationAck:
             raise ProtocolError("invalid preparation acknowledgement") from exc
         base_keys = {"v", "a", "t", "c", "e", "p"}
         verification_keys = {"vc", "vk", "vl", "vi", "vt", "vp"}
+        accounting_keys = {"cr", "cb", "ca", "ct"}
         if (
             not isinstance(value, dict)
-            or set(value) not in {frozenset(base_keys), frozenset(base_keys | verification_keys)}
+            or set(value) not in {frozenset(base_keys | extra) for extra in (
+                set(), verification_keys, accounting_keys, verification_keys | accounting_keys)}
             or int(value["v"]) != PREPARATION_PROTOCOL_VERSION
         ):
             raise ProtocolError("invalid preparation acknowledgement schema")
@@ -833,9 +883,11 @@ class PreparationAck:
             bytes(value.get("vi", b"")),
             bytes(value.get("vt", b"")),
             bytes(value.get("vp", b"")),
+            value.get("cr"), value.get("cb"), value.get("ca"), value.get("ct"),
         )
         validate_attempt_id(result.attempt_id)
         if result.correction_bytes <= 0 or result.server_ns < 0 or result.push_ns < 0:
             raise ProtocolError("invalid preparation acknowledgement")
         result._validate_verification()
+        result._validate_body_counts()
         return result

@@ -96,6 +96,10 @@
   line-height: 1.75;
 }
 
+.researchPage :global(.section-intro p + p) {
+  margin-top: 1rem;
+}
+
 .researchPage :global(.problem-grid) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

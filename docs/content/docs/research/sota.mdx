@@ -1,0 +1,53 @@
+---
+title: "Measured SOTA by model"
+description: "All eight priority metrics, measured leaders and exact SDK component combinations for each model and matched cohort."
+---
+
+Choose a model, matched workload and execution topology. Each row shows the full
+measured combination, all eight research objectives and the recorded traffic total.
+**Scoped SOTA** highlights leaders in independent confirmation cohorts;
+**Screen best** identifies exploratory leaders, including ties. Client-only
+results are labelled **Control best**. Component details retain every serialized
+parameter, original build and evidence links for replay.
+
+<ResearchSota />
+
+## Latest combination screen
+
+Thirty fresh Qwen2.5 clients completed all sixty cold/repeat responses at 150/288
+input tokens plus eight outputs. Compared with the matched maintained control:
+
+| Combination | Client lifetime RAM | Preparation cold CPU | Cold online TTFT | Cold + repeat TCP traffic |
+| --- | --- | --- | --- | --- |
+| 64-row tiling + digit8 | −8.79% / −13.54% | −24.84% / −34.75% | +3.75% / +4.21% | Essentially unchanged |
+| Above + selective placement | −8.93% / −13.59% | −28.72% / −39.14% | −4.84% / −4.26% | −4.51% / −8.26% |
+
+Each pair is **150 / 288 input tokens**, within its own workload. Selective
+placement keeps at least 90% of body linear MACs remote. Its client cold CPU rises
+5.54% / 1.31%, and complete cold requests change +1.79% / −5.59%. Tiling alone has
+the lowest observed client RAM. Outputs match and observed swap growth is zero.
+These are **screen leaders**, pending independent finalist confirmation. Select
+“Five-way prepared combinations” above for all choices and separate cold/repeat
+timings; the [full analysis](https://github.com/blairhudson/pllm/blob/main/docs/research/sota-combinations-reference.md)
+retains all seven measured priority metrics and traffic reconciliation.
+
+## Reading the table
+
+Comparisons use one checked cohort at a time: matching source, numeric contract,
+workload, output identity and measurement lifecycle. Separate invocations, changed
+numerics and different topologies keep their own leaders. Sample counts and
+measurement windows remain explicit; these observations are not confidence intervals or an exhaustive search
+of every possible combination. Quality and privacy depend on the linked contracts.
+
+Base and output-dependent traffic require an attributed ledger, including prepaid
+and unused output material. Complete headline rates stay **Unattributed** when
+evidence is missing or partial. The new screen's expandable **application-body
+traffic** details show known base, known output-dependent, residual and total bytes
+for each replicate. TCP totals and whole-response averages cannot fill those gaps.
+Available public artifact sizes appear beside the combination; their distribution
+remains outside response counters.
+
+Read the [eight research problems](/research/problems/), explore the
+[interactive chart and papers](/research/papers/), inspect
+[every metric and search trial](/research/results/), or follow the
+[reproduction guide](/research/scorecard/).

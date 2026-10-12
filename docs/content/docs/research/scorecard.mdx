@@ -3,11 +3,16 @@ title: "Reproduce the research scorecard"
 description: "Pinned Python configurations, matched Qwen cohorts, implementation coverage and measurement boundaries."
 ---
 
-The [interactive scorecard and chronology](/research/papers/) connect measured
+The [SOTA tables by model](/research/sota/) and
+[interactive scorecard and chronology](/research/papers/) connect measured
 SDK configurations to their evidence. **SOTA means the highest-performing measured
 combination of compatible SDK capabilities for a selected metric, model and workload.**
 The search scope and matched comparison determine what the measurements establish.
 Original-paper performance is never substituted for a PLLM measurement.
+
+Start with [the private inference problem](/research/problems/) for the eight
+research objectives and why improving one often increases another cost. The
+scorecard compares available measurements under those objectives.
 
 The [complete research data](/research/results/) records every confirmed result,
 all 108 exploratory attempts, all 72 measurements and the rejected trials, with
@@ -15,7 +20,14 @@ canonical reports and rerunnable Python files. Separate cohorts remain separate.
 
 ## Reading the frontier
 
-One line follows each experiment across seven priority axes: **client peak RSS,
+The SOTA table lists all eight objectives beside each exact component combination,
+with a separate measured traffic-total column. Highlighted cells identify leaders
+within the selected model, cohort and topology; ties share the highlight. Expand
+component details for every parameter and follow the Python and canonical-report
+links to reproduce the row. Unattributed traffic and missing measurements receive
+no highlight. Client-only results use **Control best** labels.
+
+One line follows each experiment across seven historical measured axes: **client peak RSS,
 client CPU, Preparation CPU, Preparation peak RSS, TTFT (time to first token),
 decode tokens/s and all-link TCP-stream bytes**. Latency, speed and cost axes map their
 observed range to 0–100, with the best at 100; lower-cost axes are inverted.
@@ -26,6 +38,12 @@ and costs appear in line details and the results table.
 Priority axes are grouped as **Client → Preparation → Performance → Network**.
 Additional aggregate and provider metrics remain selectable. Missing measurements
 and topologies without Preparation leave gaps rather than receiving a zero cost.
+
+The research agenda has **eight objectives**: the first six above, **base all-link
+traffic** and **per-token all-link traffic**. The historical chart retains its
+measured traffic total until the base and output-dependent portions have a
+reconciled attribution. A whole-response MB/token average is not an incremental
+token cost. See [traffic accounting](/research/problems/#traffic-accounting-base-plus-generation).
 
 ### Why these metrics come first
 
@@ -38,19 +56,32 @@ deployment and the goal of keeping private inference usable on ordinary devices:
   buffer savings alone do not establish a smaller complete client.
 - **Client CPU:** less local computation leaves more capacity for the application.
   CPU seconds are a resource measurement, not measured battery use or energy.
-- **Preparation cost:** CPU and RAM determine how practical it is to self-host
-  Preparation or choose a separate trusted operator. Its CPU covers process birth
-  through the first cold response; its RSS is the largest telemetry sample in the
-  request window, including the opening sample. It can miss short or earlier
-  startup peaks. Moving work offline does not make that work free or establish
-  non-collusion.
-- **WAN responsiveness:** TTFT measures online start to first output;
-  N−1 decode tokens/s exposes later-token responsiveness. Use matched capped
-  cohorts to evaluate constrained links. Local bandwidth caps do not imply Internet RTT.
-- **All-link traffic:** counting client and provider-peer streams includes correction
-  delivery and prevents a client-only byte saving from hiding traffic elsewhere.
-  These covered TCP-stream bytes exclude physical headers, retransmissions,
-  checkpoint distribution and delivery of pre-positioned public artifacts.
+- **Preparation CPU:** compute cost determines how practical it is to issue fresh
+  material. This chart covers process birth through the first cold response.
+  Moving work offline does not make it free; batching can trade CPU for waiting
+  and memory.
+- **Preparation memory:** capacity determines whether Preparation fits on hardware
+  under the user's control. This chart uses the largest telemetry sample in the
+  request window, including the opening sample; it can miss short or earlier
+  startup peaks. Lower memory does not establish non-collusion.
+- **Time to first token:** TTFT measures online start to first output here.
+  Cold setup and queueing also affect user-visible delay. Use matched capped
+  cohorts; local bandwidth caps do not imply Internet RTT.
+- **Decode throughput:** N−1 decode tokens/s exposes later-token responsiveness,
+  including epoch pauses. Group throughput and complete latency remain separate.
+- **Base all-link traffic:** fixed setup, public delivery and prefill bytes for a
+  stated prompt and cache state. Cold and warm bases differ; reuse can lower the
+  base while increasing retained storage.
+- **Per-token all-link traffic:** output-dependent bytes across every directed
+  link, including associated Preparation and material burned unused. Sending that
+  material upfront does not turn it into fixed overhead. Keep output allowance and
+  actual output count explicit. This decomposition is a research objective, not
+  a measured field in the historical chart.
+
+The chart's total includes client and provider-peer streams, so a client-only
+byte saving cannot hide correction delivery elsewhere. Covered TCP-stream bytes
+exclude physical headers, retransmissions, checkpoint distribution and delivery
+of pre-positioned public artifacts.
 
 Numeric quality and the deployment's privacy contract remain requirements for
 useful improvements. Comparisons retain source, numeric, workload and output
@@ -112,7 +143,9 @@ execution, without an added Internet RTT.
 Client and total network count TCP-stream bytes from role startup through the
 response, including HTTP/WebSocket framing. Each directed link is counted once;
 client network includes both client upload and download, while total adds
-provider-peer links. MB/token divides total bytes by authoritative output tokens.
+provider-peer links. Whole-response average MB/token divides total bytes by
+authoritative output tokens, including setup and prefill in the numerator. It
+does not measure the output-dependent traffic objective separately.
 Kernel headers, ACKs, retransmissions, telemetry, upstream checkpoint downloads
 and pre-positioned public artifact distribution remain outside this scope.
 

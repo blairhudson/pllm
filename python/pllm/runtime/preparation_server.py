@@ -24,6 +24,8 @@ from .correction_channel import (
     CorrectionWebSocketClient,
 )
 from .preparation_protocol import (
+    PREPARATION_ACCOUNTING_CAPABILITY,
+    PREPARATION_ACCOUNTING_HEADER,
     PREPARATION_PROTOCOL_VERSION,
     PreparationAck,
     PreparationRequest,
@@ -508,7 +510,8 @@ def create_preparation_app(
                 owner,
             )
             correction = await engine.prepare_seeded_stage(value)
-            correction_payload = correction.pack()
+            body_counts = {}
+            correction_payload = correction.pack(body_counts=body_counts)
             metrics.correction_compute_ns += correction.server_ns
             metrics.correction_push_attempts += 1
             metrics.correction_push_bytes += len(correction_payload)
@@ -571,12 +574,21 @@ def create_preparation_app(
                     "verification_tag": material.authentication_tag(value.seed),
                     "verification_payload": material.payload(),
                 }
+            accounting = {}
+            if request.headers.get(PREPARATION_ACCOUNTING_HEADER) == PREPARATION_ACCOUNTING_CAPABILITY:
+                accounting = {
+                    "correction_rows": body_counts["rows"],
+                    "correction_row_payload_bytes": body_counts["row_payload_bytes"],
+                    "correction_ack_bytes": len(pushed_content),
+                    "correction_row_payload_bits_per_row": body_counts["row_payload_bits_per_row"],
+                }
             result = PreparationAck(
                 value.attempt_id,
                 value.stage_id,
                 len(correction_payload),
                 correction.server_ns,
                 correction_push_ns,
+                **accounting,
                 **verification,
             ).pack()
         except (

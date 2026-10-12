@@ -1124,6 +1124,20 @@ swap growth. Its small whole-client result stays separate from import-only and
 digit8 measurements.
 Contracts and replay: `docs/research/prepared-maintained-reference.md`.
 
+A separate completed five-way Qwen2.5 screen runs 30 fresh clients and 60
+cold/repeat responses at 150/288 inputs plus eight outputs under shared native
+100/40 caps. Combining installed 64-row MLP tiling and digit8 lowers client
+lifetime peak RSS 8.79%/13.54% and Preparation cold CPU 24.84%/34.75%, while online
+cold TTFT rises 3.75%/4.21%. Adding frozen selective placement retains at least
+90% remote body MACs and reduces complete-pair TCP streams 4.51%/8.26%; client
+cold CPU rises 5.54%/1.31%. Outputs match with zero observed swap growth. Every
+choice remains nondominated on the measured priority subset, and independent
+finalist confirmation remains open. Cold/repeat timing and scenario-lifetime RSS
+retain distinct windows. Partial application-body partitions reconcile known
+base, output-dependent and residual bytes without filling complete headline
+rates. Original failed/interrupted attempts remain excluded. All metrics,
+frozen recipes and replay: `docs/research/sota-combinations-reference.md`.
+
 `pllm.search.BeamSearch` complements grid and random search with bounded,
 feedback-guided exploration of immutable `SearchSpace` component combinations.
 The shared `pllm.benchmark_search` facade runs all three through ordinary SDK
@@ -1155,6 +1169,22 @@ rates. Decode-only uses transport counters sampled inside execution after the
 first output, an `N-1` output denominator, and phase-counter conservation.
 Unknown measurements or zero denominators remain null; startup and warmups are
 charged once rather than averaged into per-run ratios. No full-wire claim follows.
+
+The separate `pllm.benchmark_traffic_decomposition.v1` report reconciles known
+base, output-dependent and unattributed application bodies for startup, each
+request, cold-first and the complete covered lifecycle. Serializer-certified
+correction payloads bind public prefill/decode row demand, including prepaid
+decode material later burned unused. Version-three directed accounting also
+charges Inference-to-Preparation acknowledgements. Mixed envelopes, padding,
+shared packed boundary bytes and unclassified controls remain residual; complete
+base/per-output headline rates stay unknown until attribution is complete.
+Executed decode steps and actual generated outputs remain separate, and no
+row-ratio estimate supplies unused-material bytes. Historical coverage, TCP
+streams and physical wire retain their original distinct identities.
+Preparation negotiates its optional accounting ACK fields, preserving the legacy
+schema for callers without that capability. Cached partitions are reconciled with
+raw counters and directed ledgers before use; startup retains its own bounded
+counter evidence. Missing evidence cannot supply complete headline rates.
 
 Network-aware planning reuses the existing Experiment, compiler, role adapters,
 SDK, gateway and benchmark driver. `pllm.deployment` owns immutable network,

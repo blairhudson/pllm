@@ -116,8 +116,33 @@ def response_metrics(report, m):
               kind="bytes", role="all-links", statistic="sum", window="setup_through_scenario", scope=body_scope)
     startup = (report.get("topology_accounting") or {}).get("startup") or {}
     m.metric("network.startup_body_bytes", startup.get("all_link_serialized_body_bytes"),
-             kind="bytes", role="all-links", statistic="sum", window="ordinary_startup",
-             scope=body_scope)
+              kind="bytes", role="all-links", statistic="sum", window="ordinary_startup",
+              scope=body_scope)
+    from .benchmark_communication import benchmark_traffic_decomposition
+    attribution = benchmark_traffic_decomposition(report)
+    m.details["traffic_decomposition"] = attribution
+    split = attribution["summary"]
+    for name, field, unit in (
+        ("network.base_body_bytes_per_request", "base_all_link_mb_per_request", "requests"),
+        ("network.output_dependent_body_bytes_per_generated_token", "incremental_all_link_mb_per_generated_output", "generated_tokens"),
+    ):
+        m.metric(name, split[field] * 1e6 if split[field] is not None else None,
+            kind="bytes", role="all-links", statistic="measurement", detail=f"bytes_per_{unit}",
+            window="measured_request_windows", scope=f"covered_application_bodies:{attribution['schema']}",
+            denominator={"value": split["measured_requests"] if unit == "requests" else split["generated_output_tokens"], "unit": unit})
+    m.metric("network.unattributed_body_bytes", attribution["covered_lifecycle"]["unattributed_all_link_body_bytes"], kind="bytes",
+        role="all-links", statistic="sum", window="setup_through_scenario",
+        scope=f"covered_application_bodies:{attribution['schema']}")
+    cold = attribution.get("cold_first_request") or {}
+    for name, field in (("base_body_bytes_per_request", "base_all_link_mb_per_request"),
+                        ("output_dependent_body_bytes_per_generated_token", "incremental_all_link_mb_per_generated_output")):
+        value = cold.get(field)
+        m.metric(f"network.cold_first_request.{name}", value * 1e6 if value is not None else None,
+            kind="bytes", role="all-links", statistic="measurement", window="startup_through_first_response",
+            scope=f"covered_application_bodies:{attribution['schema']}",
+            detail="bytes_per_request" if name == "base_body_bytes_per_request" else "bytes_per_generated_token",
+            denominator={"value": 1 if name == "base_body_bytes_per_request" else cold.get("generated_output_tokens"),
+                         "unit": "requests" if name == "base_body_bytes_per_request" else "generated_tokens"})
 
 
 def execute_response(p, m):

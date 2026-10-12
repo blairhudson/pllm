@@ -130,8 +130,10 @@ def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]:
         if aligned and len(warm_ledgers) == len(warmups) and coverage is not None
         else None
     )
+    from pllm.runtime.benchmark_communication import benchmark_traffic_decomposition
     return {
         "schema": "pllm.communication_per_generated_token.v1",
+        "traffic_decomposition": benchmark_traffic_decomposition(report),
         "byte_unit": "decimal MB (1000000 bytes)",
         "denominator": "authoritative generated output tokens, not input tokens or output cap",
         "scope": "covered application bodies; no full wire or checkpoint download",

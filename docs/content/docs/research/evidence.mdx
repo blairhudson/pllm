@@ -9,6 +9,14 @@ compiler coverage, runtime support, generation quality,
 [assurance](/sdk/evaluate/assurance/), and deployment observations separately.
 Missing evidence is unknown; it is not a zero result.
 
+Every comparison should name its [research objective](/research/problems/) and
+retain the costs that move in the opposite direction. Measure client and
+Preparation CPU/RSS, first-token delay, decode throughput, and base plus
+output-dependent all-link traffic under stated lifecycle boundaries. When the
+traffic split is unavailable, preserve the measured total and mark attribution
+unknown. A whole-response average or an online-only decode counter is a different
+quantity.
+
 Accepted records live under [`docs/evidence/`](https://github.com/blairhudson/pllm/tree/main/docs/evidence).
 Each record keeps its environment, workload, software revision, and limitations. Canonical full benchmark records use `pllm.benchmark_result.v1`; `EvidenceRegistry` retains positive, negative, and explicitly unavailable results and queries only exact recorded cohorts.
 A result does not apply to a changed component, plan, model, parameter, or

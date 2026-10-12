@@ -1,0 +1,238 @@
+---
+title: "The private inference problem"
+description: "Eight competing research objectives: a small client, affordable Preparation, responsive generation, and lower base and per-token traffic."
+---
+
+**How can a device use someone else's model compute without revealing its private
+context—or doing most of the work itself?** Private inference has to answer both
+halves of that question.
+
+An ordinary remote API receives the prompt in plaintext at the provider, even
+when the connection is encrypted. Running the model locally keeps that context
+on the device, but requires local model storage, memory and compute. Private
+inference seeks a useful middle ground: delegate substantial work while protecting
+the prompt, intermediate activations and outputs under an explicit trust model.
+
+## Why this is difficult
+
+A language model repeatedly combines large matrix products with normalization,
+nonlinear functions, attention over earlier tokens and selection of the next
+token. Each generated token changes the state used to produce the next one.
+Protecting one matrix multiply therefore solves only part of a dependent,
+stateful computation.
+
+Cryptographic methods move these costs around. Masked linear operations need fresh
+correlated material. Secret-sharing protocols can require communication between
+parties. Homomorphic encryption can increase arithmetic and message sizes.
+Garbled circuits can need substantial one-use material. Converting between
+representations also costs work and traffic. Moving a difficult operation back
+to the client reduces some protocol costs but increases the client's workload.
+
+PLLM's practical [prepared topology](/sdk/inference/prepared-protocol/) gives
+these tradeoffs a concrete setting:
+
+- **Client:** keeps plaintext, masks, private activation scales, attention state,
+  local nonlinear computation and output decoding.
+- **Preparation:** uses fresh client seeds and public weights to prepare one-use
+  corrections before online execution. Self-hosting keeps this trust under the
+  client's control.
+- **Inference:** consumes corrections to evaluate masked linear stages. The
+  client reconstructs each result before continuing the decoder.
+
+Preparation must follow the protocol, erase masks and remain non-colluding with
+Inference. Two processes on one operator's machine do not establish that
+separation. Other topologies have their own trust and execution contracts.
+
+## Eight objectives, one constrained frontier
+
+Each objective below is a research problem in its own right. A useful result can
+improve one while worsening another. A **Pareto frontier** contains the measured
+choices for which no compatible alternative is at least as good on every selected
+objective and better on one. Device limits, workloads and network conditions
+determine which of those choices is useful.
+
+Quality, correctness and privacy are requirements for this comparison. Exact
+optimizations must preserve their declared numeric and state contracts; changed
+approximations need separate held-out quality evidence. Savings cannot assume
+reused one-use masks or undisclosed changes in trust. Predominantly remote body
+computation also remains part of the small-client objective: a fully local model
+is a valuable control, but solves a different placement problem.
+
+### Client memory
+
+**Question:** how small can the complete client become while substantial model
+computation stays remote?
+
+Weights at the token boundary, tokenization, masks, intermediate tensors and
+attention state all occupy memory. Paging, tiled execution and tighter ownership
+can reduce the working set; caches and concurrent requests can grow it again.
+Paging can increase I/O and CPU, while smaller tiles can add dependent exchanges.
+
+**Measure:** fresh-client peak resident memory (RSS, decimal MB), including setup
+and execution. Keep device/GPU memory, filesystem cache and disk separately
+visible. A smaller buffer is a mechanism; a smaller process peak is the result
+this objective needs.
+
+### Client CPU
+
+**Question:** how much local work must the device perform to use remote compute?
+
+Tokenization, packing, cryptographic boundaries, attention and decoding can
+dominate even when body matrix products are remote. Native kernels and fused
+boundaries can help. Compression, lower-memory storage and verification can add
+client work; placing more weights locally can reduce communication while
+increasing local compute and memory.
+
+**Measure:** client CPU seconds over the declared complete lifecycle, with cold
+and warm requests separate. Record thread limits and any benchmark or relay
+overhead. CPU time does not measure battery use or energy.
+
+### Preparation CPU
+
+**Question:** can fresh private material be produced cheaply enough for repeated
+use, including responses that stop early?
+
+Exact kernels, shared immutable weights and batching can lower issuance cost.
+Demand allocation and short decode epochs can avoid preparing unused work.
+Larger batches can instead increase individual waiting time and memory; shorter
+epochs can interrupt generation. Moving computation before the response does
+not remove it from the cost.
+
+**Measure:** Preparation CPU seconds including loading, issuance and retirement
+within the stated lifecycle. Charge discarded material and repeated issuance.
+GPU work and hypothetical reuse horizons need their own accounting.
+
+### Preparation memory
+
+**Question:** can Preparation fit on hardware the user can practically control?
+
+Weights, masks, corrections and concurrent issuance workspaces all matter.
+Paged weights and bounded correction streams can reduce resident ownership.
+Batching and wider preparation windows may accelerate issuance by keeping more
+work live, pushing in the opposite direction.
+
+**Measure:** Preparation peak RSS in decimal MB, stating whether it is a
+process-lifetime peak or a sampled window peak. Samples can miss short spikes.
+Keep private snapshot disk and GPU snapshots separate. Lower memory can make
+self-hosting more feasible; it does not prove operator independence.
+
+### Time to first token
+
+**Question:** how soon does the user see a useful response after submitting input?
+
+Discovery, admission, public delivery, preparation, queueing and prompt prefill
+can all precede the first output. Reuse and overlapping independent work can
+reduce that wait. Cold artifact construction, larger batches or waiting for a
+shared prefix can increase it. Fewer bytes also need not mean fewer sequential
+network round trips.
+
+**Measure:** submission-to-first-output seconds, alongside the benchmark's
+explicit online TTFT window and cold setup time. Historical chart TTFT starts at
+online execution, so it is narrower than the user-visible measure. Preserve that
+distinction when comparing results under bandwidth and round-trip delay.
+
+### Decode throughput
+
+**Question:** after the first token, can generation remain fast and steady?
+
+Each subsequent token depends on earlier state. Reducing dependent exchanges,
+reusing connections and overlapping independent work can help. On-demand
+preparation, paging and epoch boundaries can introduce pauses. Batching multiple
+requests can raise aggregate throughput without improving one user's stream.
+
+**Measure:** the later `N−1` output tokens divided by elapsed generation time
+after the first output, including intervening waits and epoch pauses. Keep
+per-response speed, group throughput and complete request latency separate.
+There is no decode-rate observation when fewer than two tokens are produced.
+
+### Base all-link traffic
+
+**Question:** how little data must move to make a request possible before its
+output-dependent costs are counted?
+
+The base includes fixed setup and control traffic, public-artifact delivery and
+prompt-prefill traffic for the stated input length. Content-addressed delivery,
+exact prefix reuse and smaller public artifacts target different parts of that
+cost. Retaining artifacts or state can reduce a later base while increasing
+memory or disk; moving weights to the client can increase the cold base.
+
+**Measure:** decimal MB across every directed role link, with cold and warm bases
+separate. State prompt length, cache state, public-prefix assumptions and how
+shared setup is charged. The base is fixed only for that workload and lifecycle,
+not for every prompt. Distribution of pre-positioned artifacts is an additional
+cost when it lies outside the measured links.
+
+### Per-token all-link traffic
+
+**Question:** how little additional communication can generation require without
+shifting the same cost to another party or lifecycle phase?
+
+Count output-dependent online exchanges **and their preparation**, even when
+material is sent before the first token. Exact codecs and better placement can
+reduce bytes. Shorter issuance epochs can reduce unused material but add control
+traffic and pauses. More client-owned computation can reduce ongoing traffic
+while increasing the base, local memory and CPU.
+
+**Measure:** output-dependent all-link MB per authoritative generated token,
+retaining the total output allowance, actual outputs, unused material and epoch
+geometry. This workload-specific average describes the variable part of the
+bill; it is not a constant prediction for an arbitrary next token.
+
+## Traffic accounting: base plus generation
+
+Within one declared coverage and lifecycle, the intended decomposition is:
+
+```text
+total bytes = base bytes + output-dependent bytes
+output-dependent bytes per token = output-dependent bytes / actual output tokens
+```
+
+Assign each directed transfer once. Output-related preparation, including
+material burned unused, belongs to the output-dependent term even if issued
+upfront. Charge output-related epoch controls there too. Keep fixed setup,
+prefill and shared-cost attribution explicit. With zero outputs, retain byte
+totals and leave the per-token rate undefined.
+
+This separates two research questions: reducing the cost of starting a request,
+and reducing the cost of generating its answer. **Total bytes divided by outputs
+mixes both.** A longer answer can lower that ratio without any protocol
+improvement. Epoch thresholds, output allowances and early stopping also mean
+that costs need not grow smoothly with actual output count.
+
+The current [scorecard](/research/scorecard/) preserves measured all-link totals,
+whole-response averages and narrower decode-online counters. Those observations
+do not by themselves identify this base/generation split. An unmeasured term
+stays unknown until an attributed ledger reconciles it to the measured total.
+Serialized application bodies, TCP-stream bytes and physical wire bytes retain
+their distinct coverage; subtracting one from another does not produce a base.
+
+## Tradeoffs already visible in the evidence
+
+These examples illustrate different research problems. Each comparison belongs
+to its own matched workload; their percentage improvements cannot be multiplied.
+
+| Measured choice | Improvement | Opposing cost or condition |
+| --- | --- | --- |
+| [Paged client weights, Qwen3-4B 16+8](https://github.com/blairhudson/pllm/blob/main/docs/research/qwen3-client-memory.md) | Client peak RSS falls from 1,020.46 to 261.05 MB | Request time rises from 142.665 to 155.460 seconds; disk and filesystem cache remain separate owners. |
+| [Four-output epochs, Qwen2.5 early completion](https://github.com/blairhudson/pllm/blob/main/docs/research/epoch-prefix-sdk-reference.md#completed-real-checkpoint-confirmation) | At three outputs against allowance 64, TCP traffic falls 19.81% | At full eight-output use in its separate matched cell, epochs save no material rows and decode throughput falls 39.70%. |
+| [Two identical pending prompts, Qwen2.5](https://github.com/blairhudson/pllm/blob/main/docs/research/epoch-prefix-sdk-reference.md#completed-real-checkpoint-confirmation) | Sharing reduces TCP traffic 30.15% and complete-cell time 23.98% | Client peak RSS rises 7.81%; unrelated prompts save no material. |
+
+## Turn an objective into an experiment
+
+Start with a question such as: “Can smaller prefill tiles lower client peak RSS
+within an acceptable first-token delay?” Name the primary objective and the
+resource or latency budgets that must still hold. Then identify the mechanism,
+compare against a matched control, and retain all eight objectives—even when
+some remain unmeasured.
+
+Use complete-request evidence to decide whether an isolated operator gain
+survives loading, transport, state and cleanup. Preserve rejected and negative
+results: they tell us which constraint becomes binding next. A good result is a
+better feasible choice for a stated use case, rather than one number labelled
+“faster private inference.”
+
+Continue with the [experimentation workflow](/research/recipes/experiments/),
+[SOTA tables and component combinations](/research/sota/),
+[scorecard and paper chronology](/research/papers/),
+[reproduction methodology](/research/scorecard/) and
+[evidence requirements](/research/evidence/).

@@ -9,9 +9,18 @@ assurance evidence, and proposed claim separate. Citing a paper does not mean it
 was reproduced. Passing a unit test does not mean a complete model is supported.
 A benchmark does not prove privacy.
 
+The [private inference research problems](/research/problems/) explain what the
+measurements are trying to improve: client RAM and CPU, Preparation CPU and RAM,
+first-token delay, decode speed, base traffic and output-dependent per-token
+traffic. These objectives often conflict. A smaller working set can need more
+compute or exchanges; reuse can save traffic while retaining more state.
+
 Compare results only when the model, model-body fingerprint, plan, numeric policy,
 workload, environment, cold or warm mode, and metric definitions match. Keep
 limitations and failed attempts in the record. Missing evidence is not a pass.
+Keep privacy and numeric-quality requirements fixed, and report the other costs
+alongside a winning metric. Whole-response average MB/token includes the base;
+it cannot stand in for an attributed incremental generation cost.
 
 Continue with [method implementation records](/research/methods/),
 [research evidence boundaries](/research/evidence/), and the

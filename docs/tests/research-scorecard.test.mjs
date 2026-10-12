@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { cohortRows, buildScorecard, executionPlacement, providerPeak, metrics, clientAndTotalResources, baselineKind, reportMetrics } from '../scripts/research-scorecard.mjs';
-import { leaders, improvement, normalizedAxes, measuredSegments, defaultMetrics } from '../lib/research-rankings.mjs';
+import { leaders, improvement, normalizedAxes, measuredSegments, defaultMetrics, sotaMetrics, sotaTable, componentCombination } from '../lib/research-rankings.mjs';
 import { buildResults, qualityResults } from '../scripts/research-results.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -83,6 +83,57 @@ test('zero, unknown, ties and metric direction retain their meaning', () => {
   assert.equal(improvement(null, 2, 'min'), null);
   assert.equal(improvement(2, 0, 'min'), null);
   assert.equal(improvement(3, 2, 'max'), 50);
+});
+
+test('SOTA leaders stay inside one model cohort and topology, including ties and missing attribution', () => {
+  const card = buildScorecard();
+  const axes = sotaMetrics.map((id) => card.metrics.find((metric) => metric.id === id));
+  assert.equal(axes.length, 9);
+  assert.ok(axes.every(Boolean));
+  const qwen25 = card.cohorts[0];
+  const prepared = sotaTable(qwen25, 'Prepared', axes);
+  assert.ok(prepared.rows.every((row) => row.placement.topology === 'Prepared'));
+  assert.equal(prepared.rows.length, 12);
+  assert.ok(!prepared.leaders.totalNetwork.includes('searched-client-ee35d158335a'));
+  const client = sotaTable(qwen25, 'Client-only', axes);
+  assert.deepEqual(client.leaders.totalNetwork, ['searched-client-ee35d158335a']);
+  assert.deepEqual(client.leaders.preparationCpu, []);
+  assert.deepEqual(client.leaders.preparationPeak, []);
+  for (const cohort of card.cohorts) {
+    for (const topology of new Set(cohort.rows.map((row) => row.placement.topology))) {
+      const table = sotaTable(cohort, topology, axes);
+      for (const metric of axes) {
+        const values = table.rows.map((row) => row.metrics[metric.id]).filter(Number.isFinite);
+        const displayed = values.map((value) => value.toLocaleString('en', { maximumFractionDigits: table.precision[metric.id] }));
+        assert.equal(new Set(displayed).size, new Set(values).size, `${cohort.id}: ${metric.id} rounding hides distinct values`);
+      }
+      for (const key of ['baseNetwork', 'tokenNetwork']) {
+        assert.deepEqual(table.leaders[key], []);
+        assert.ok(table.rows.every((row) => row.metrics[key] === null));
+      }
+      assert.ok(Object.values(table.leaders).flat().every((id) => table.rows.some((row) => row.id === id)));
+    }
+  }
+  const qwen3 = card.cohorts.find((cohort) => cohort.id === 'qwen3-sdk-tokenizer-16-8');
+  const table = sotaTable(qwen3, 'Prepared', axes);
+  assert.equal(table.rows.length, 2);
+  assert.deepEqual(table.leaders.clientPeak, [qwen3.rows[1].id]);
+  const tied = structuredClone(qwen3);
+  tied.rows[0].metrics.clientPeak = tied.rows[1].metrics.clientPeak;
+  assert.deepEqual(sotaTable(tied, 'Prepared', axes).leaders.clientPeak, tied.rows.map((row) => row.id));
+  assert.deepEqual(sotaTable(qwen3, 'Two workers', axes).rows, []);
+});
+
+test('component combinations retain exact serialized parameters and unfamiliar components', () => {
+  for (const cohort of buildScorecard().cohorts) for (const row of cohort.rows) {
+    const combination = componentCombination(row.pipeline);
+    assert.deepEqual(Object.fromEntries(combination.map(({ slot, name, ...component }) => [slot, component])), row.pipeline.components);
+    assert.ok(combination.every((component) => component.name.length > 0));
+  }
+  const pipeline = { components: { future: { component: 'external/new-method/v2', params: { zero: 0, enabled: false, nested: { rows: [1, 2] } } } } };
+  const [component] = componentCombination(pipeline);
+  assert.equal(component.name, 'external/new-method/v2');
+  assert.deepEqual(component.params, pipeline.components.future.params);
 });
 
 test('masked-wire dispatch retains numeric identity and complete response tradeoffs', () => {

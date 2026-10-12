@@ -1,0 +1,54 @@
+.explorer, .sota { min-width: 0; color: var(--text); }
+.sota { margin-block: 2rem; font-size: .85rem; }
+.heading { display: flex; align-items: end; gap: 1.5rem; justify-content: space-between; }
+.heading h2 { margin: 0 0 .65rem; font-size: 1.4rem; letter-spacing: -.025em; font-weight: 550; }
+.heading p, .note { color: var(--muted); line-height: 1.65; font-size: .8rem; }
+.heading p { margin: 0; max-width: 46rem; }
+.controls { display: grid; grid-template-columns: 1fr 1.6fr; gap: 1rem; margin-block: 1.5rem; }
+.controls label, .heading label { display: grid; gap: .5rem; font-size: .75rem; font-weight: 600; min-width: 0; }
+.heading label { flex: 0 0 12rem; }
+.controls select, .heading select { width: 100%; min-width: 0; font: inherit; font-weight: 400; padding: .75rem .6rem; border: 1px solid var(--line); border-radius: 4px; color: var(--text); background: var(--panel); }
+.conditions { font-size: .78rem; line-height: 1.7; margin-block: 1.3rem .5rem; }
+.sota a { color: var(--accent); text-underline-offset: 3px; }
+.conditions a, .replay { text-decoration: underline; }
+.tableWrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; max-height: 44rem; }
+.tableWrap:focus-visible, .sota summary:focus-visible, .sota select:focus-visible, .controls select:focus-visible, .sortButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.tableWrap table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .8rem; line-height: 1.5; margin: 0; overflow: visible; }
+.tableWrap caption { text-align: left; padding: .8rem; color: var(--muted); font-size: .75rem; }
+.tableWrap th, .tableWrap td { padding: 1rem .8rem; vertical-align: top; border-top: 1px solid var(--line); text-align: left; }
+.tableWrap thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); min-width: 7.8rem; font-weight: 550; }
+.tableWrap thead th:first-child { left: 0; z-index: 3; }
+.tableWrap th small { display: block; color: var(--muted); font-size: .67rem; font-weight: 400; margin-top: .3rem; }
+.tableWrap th small a { color: inherit; text-decoration: underline; }
+.sortButton { display: flex; align-items: center; justify-content: space-between; gap: .4rem; width: 100%; min-height: 2.75rem; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.sortButton:hover, .tableWrap thead th[aria-sort] .sortButton { color: var(--accent); }
+.sortIcon { flex-shrink: 0; color: var(--muted); }
+.tableWrap thead th[aria-sort] .sortIcon { color: var(--accent); }
+.tableWrap tbody th { position: sticky; left: 0; z-index: 1; background: var(--panel); min-width: 17rem; max-width: 20rem; font-weight: 400; border-right: 1px solid var(--line); }
+.placement { display: block; color: var(--muted); font-size: .7rem; margin-top: .3rem; }
+.value { display: block; font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.leading { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.leading .value { font-weight: 650; color: var(--accent); }
+.badge { display: inline-block; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); padding: .12rem .35rem; border-radius: 3px; font-size: .61rem; font-weight: 650; margin-top: .45rem; white-space: nowrap; }
+.unknown { color: var(--muted); font-size: .7rem; }
+.combination { margin: .65rem 0; font-size: .72rem; }
+.combination summary { cursor: pointer; }
+.combination summary > span { color: var(--accent); }
+.combination summary small { font-size: .65rem; overflow-wrap: anywhere; line-height: 1.6; }
+.combination dl { margin: .75rem 0; }
+.combination dl > div { padding-block: .5rem; border-top: 1px solid var(--line); }
+.combination dt { font-weight: 600; overflow-wrap: anywhere; }
+.combination dt span { color: var(--muted); font-weight: 400; }
+.combination dd { margin: .3rem 0 0; }
+.combination pre { margin: .35rem 0; font-size: .65rem; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 12rem; overflow-y: auto; }
+.combination code { font-size: .65rem; white-space: normal; overflow-wrap: anywhere; }
+.replay { font-size: .7rem; }
+.note { margin-block: .8rem; }
+@media (max-width: 760px) {
+  .heading { display: grid; gap: 1rem; }
+  .heading label { width: 100%; }
+  .controls { grid-template-columns: 1fr; }
+  :global(#nd-page) .tableWrap table { display: table; width: 100% !important; min-width: 0 !important; max-width: none !important; overflow: visible; }
+  .tableWrap tbody th { min-width: 12rem; max-width: 12rem; }
+  .tableWrap th, .tableWrap td { padding: .75rem .6rem; }
+}
