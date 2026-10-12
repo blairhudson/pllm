@@ -1846,6 +1846,19 @@ queued and retained state, setup, cleanup, aggregate CPU and directed bodies.
 Versioned body coverage includes instrumented lifecycle controls without rewriting
 historical totals. Stage-probe savings remain separate from installed SDK response
 measurements. Contract and replay: `docs/research/epoch-prefix-sdk-reference.md`.
+A separate 36-cell pinned Qwen2.5 cohort now measures these installed contracts
+with three alternating replicates under shared native 100/40 caps. All 60 final
+logit/KV/history/pending/output states match exactly and observed swap growth is
+zero. At three of 64 allowed outputs, four-output epochs reduce all-link TCP
+streams 19.81% and complete-cell time 16.00%; client peak RSS rises 1.39%.
+Full eight-output execution saves no stage rows and lowers charged N−1 decode
+throughput 39.70% through an added epoch pause. Sharing two identical pending
+54+8 requests lowers traffic 30.15%, complete-cell time 23.98% and aggregate CPU
+15.60%, while client peak RSS rises 7.81%. Unrelated prompts save no material and
+increase client costs; combined execution retains full-cap pause overhead.
+These workload-dependent results charge fresh client/provider setup and cleanup,
+but exclude checkpoint/tokenizer distribution, physical wire and Internet RTT.
+They establish neither universal selection nor a client-memory improvement.
 
 The optional `pllm.protocols.MaskedLinear(output_encoding="row_residues")` uses
 public per-output weight-row bounds to encode both corrections and online outputs

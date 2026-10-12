@@ -116,9 +116,9 @@ outputs, fewer issued rows, and empty private owners after client shutdown.
 Benchmarks keep
 private prompts on stdin and archive only salted commitments and bounded counters.
 
-These functionality and accounting checks establish benchmark availability. Matched
-real-checkpoint whole-response traffic, latency and CPU/RSS gains require their own
-cohort; historical research percentages cannot fill those measurements.
+These functionality and accounting checks establish benchmark availability. The
+separate whole-response cohort below measures the installed contracts; historical
+research percentages cannot fill those measurements.
 
 ## Whole-response measurement driver
 
@@ -213,7 +213,120 @@ the cohort observes zero swap growth.
 This one completed pair records 19.81% fewer TCP-stream bytes after charging cold
 client-bundle delivery. It finishes within the first epoch, so it does not exercise
 an epoch transition. The intended three-replicate confirmation, full-cap overhead,
-pending-prefix sharing and combined workload measurements remain blocked. CPU,
+pending-prefix sharing and combined workload measurements were blocked in this
+attempt. CPU,
 latency and separate RSS samples remain in the incomplete raw report; they are
 not a completed confirmation cohort. Earlier interrupted attempts retain their own
 private cohort identities and are not pooled with this pair.
+
+### Completed real-checkpoint confirmation
+
+After host memory was freed, a [new independent cohort](../evidence/epoch-prefix-sdk-qwen25-2026-10-06.json)
+completed all 36 cells: three alternating replicates of twelve configurations.
+No workload, output allowance, memory estimate, reserve or swap guard changed.
+Each cell has a fresh installed SDK client, two fresh provider processes and empty
+bundle cache under shared native 100/40 Mbps caps. The 60 final response states
+match their workload controls exactly, including full logits, active KV, executed
+history, pending selection and output. Every cell passes row conservation, private
+boundary, idle-only Preparation and shutdown checks. Observed swap growth is zero;
+minimum available host memory is 14.228 GB before the unchanged 4 GiB reserve.
+
+The raw report's SHA-256 is
+`ccd5469f114bcfe7c5000a8debdc80c66586deb507c38d15399b6bfa31a05c62`.
+Its installed build digest is
+`010b3fd6008c72488d1633b013e45735f391103818e0e3ac6224600737e55d44`;
+source lock and all five frozen measurement-file hashes match. Earlier incomplete
+attempts retain their own evidence and private cohort salts.
+
+#### Workloads and actual material
+
+* **Early:** 36 input tokens, three natural-EOS outputs, allowance 64. Four-output
+  epochs complete within the first epoch. Fresh issued stage rows fall from 9,399
+  to 3,639; unused reserved rows burned fall from 5,760 to zero. Correction bodies
+  fall from 85.755 to 33.135 MB. This cell exercises early completion, not an epoch
+  transition.
+* **Full:** 54 input tokens and all eight allowed outputs. Both layouts issue
+  5,697 stage rows. Epochs execute two sessions and one approximately 1.11-second
+  pause per response; correction bodies rise from 51.830 to 51.928 MB.
+* **Shared:** two simultaneous identical 54+8 requests in one client. Sharing
+  records one genuine pending join per cell, one producer and two exact independent
+  final states. Issued rows fall from 11,394 to 6,369; correction bodies fall from
+  103.659 to 58.067 MB. Combining sharing with epochs retains the same row count,
+  adds two pauses across the group and uses 58.263 MB of correction bodies.
+* **Unrelated:** simultaneous 54+8 and 51+8 requests. Every option records zero
+  joins and issues 11,115 stage rows. Sharing alone leaves correction bodies at
+  101.128 MB; epochs raise them to 101.325 MB. No unrelated-prefix saving is claimed.
+
+#### Measured resource and traffic medians
+
+Each row is the median of three fresh cells. MB is decimal. Client RSS is the
+process-lifetime peak; Preparation RSS is the 50 ms sampled peak after startup.
+Preparation CPU is cumulative from process birth through client exit. All-link
+TCP streams charge cold client-bundle delivery, arithmetic, controls and shutdown;
+covered application bodies retain their narrower versioned scope.
+
+| Workload / option | TCP streams MB | Covered bodies MB | Client RSS MB | Client CPU s | Preparation RSS MB | Preparation CPU s |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Early / control | 266.096 | 265.313 | 130.43 | 6.27 | 166.07 | 6.30 |
+| Early / epochs | 213.389 | 212.693 | 132.25 | 6.47 | 140.07 | 5.26 |
+| Full / control | 263.413 | 262.318 | 132.83 | 7.00 | 147.55 | 5.62 |
+| Full / epochs | 263.564 | 262.449 | 137.71 | 7.20 | 143.05 | 5.74 |
+| Shared / control | 401.882 | 399.731 | 140.48 | 10.79 | 147.03 | 7.14 |
+| Shared / epochs | 402.183 | 399.992 | 148.36 | 11.36 | 145.24 | 7.43 |
+| Shared / sharing | 280.726 | 278.821 | 151.45 | 10.98 | 149.90 | 5.95 |
+| Shared / combined | 281.027 | 279.083 | 152.42 | 11.45 | 143.47 | 6.13 |
+| Unrelated / control | 395.173 | 393.022 | 149.67 | 10.73 | 158.32 | 7.09 |
+| Unrelated / epochs | 395.474 | 393.283 | 161.04 | 11.27 | 154.12 | 7.39 |
+| Unrelated / sharing | 395.173 | 393.022 | 161.61 | 12.44 | 156.86 | 7.11 |
+| Unrelated / combined | 395.474 | 393.283 | 164.33 | 12.83 | 153.89 | 7.34 |
+
+#### Measured time and complete CPU medians
+
+First-text delay includes queue/prefix waiting and request setup. For grouped
+cells, first-text delay and N−1 text-delta throughput first take the median of
+both responses, then the median across three cells. They are neither summed
+throughput nor a group-tail latency. Group time includes both responses and their
+state audits after client initialization. Complete-cell time additionally charges
+provider startup, client loading/setup and cleanup. Aggregate CPU charges launcher,
+relays and all reaped client/provider children through cleanup. Separately sampled
+Inference CPU/RSS and individual response timings remain in the raw report.
+
+| Workload / option | First text s | N−1 decode tokens/s | Group time s | Complete cell s | Aggregate CPU s |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Early / control | 28.549 | 4.558 | 29.198 | 65.533 | 25.826 |
+| Early / epochs | 18.096 | 4.935 | 18.708 | 55.048 | 23.199 |
+| Full / control | 26.185 | 5.014 | 27.587 | 63.945 | 25.718 |
+| Full / epochs | 25.577 | 3.023 | 27.907 | 64.178 | 26.320 |
+| Shared / control | 40.374 | 4.950 | 55.264 | 92.275 | 36.737 |
+| Shared / epochs | 39.885 | 3.009 | 55.795 | 92.882 | 37.840 |
+| Shared / sharing | 30.120 | 4.969 | 33.129 | 70.144 | 31.008 |
+| Shared / combined | 29.624 | 3.015 | 33.664 | 70.638 | 31.850 |
+| Unrelated / control | 39.277 | 4.987 | 54.145 | 91.139 | 36.478 |
+| Unrelated / epochs | 38.744 | 3.021 | 54.663 | 91.682 | 37.439 |
+| Unrelated / sharing | 40.861 | 4.970 | 55.717 | 92.708 | 38.218 |
+| Unrelated / combined | 40.310 | 3.010 | 56.199 | 93.197 | 39.035 |
+
+#### Decision
+
+For this early-EOS workload, epochs reduce TCP-stream traffic **19.81%**, complete
+cell time **16.00%**, aggregate CPU **10.17%** and Preparation sampled RSS
+**15.66%**. Client peak RSS instead rises **1.39%**. Full-cap execution saves no
+material rows: TCP streams grow **0.057%**, aggregate CPU **2.34%** and client RSS
+**3.68%**. Its charged epoch pause lowers N−1 decode throughput **39.70%** despite
+the nearly unchanged complete-cell time.
+
+For two identical pending prompts, sharing reduces TCP streams **30.15%**,
+complete-cell time **23.98%**, first-text delay **25.40%** and aggregate CPU
+**15.60%**. Client peak RSS rises **7.81%** and client CPU **1.80%**. Combining
+epochs and sharing saves **30.07%** traffic against the grouped control but keeps
+the full-cap pause penalty. Unrelated sharing saves no material and raises client
+CPU **15.92%**, peak RSS **7.98%** and complete-cell time **1.72%**.
+
+These measurements support explicit workload-dependent selection: bound unused
+output material when early completion warrants the pause tradeoff, and share
+genuine same-client pending prefixes when the extra state fits. They do not
+justify enabling either option universally or a client-memory improvement.
+This three-replicate, one-host cohort retains the measurement boundaries above:
+cached checkpoint and pre-positioned tokenizer distribution, physical wire,
+Internet RTT, independent operators and representative generation quality remain
+outside the result.

@@ -125,3 +125,17 @@ The four-target installed-wheel example completes, including genuine pending joi
 and cleanup audits. Historical probe percentages remain separate from complete
 SDK traffic and resource measurements. Contracts, gates and replay:
 [epoch and prefix SDK reference](../research/epoch-prefix-sdk-reference.md).
+
+A separate completed 36-cell pinned Qwen2.5 SDK cohort now supplies three
+alternating replicates per configuration under shared native 100/40 Mbps caps.
+All 60 final response states match exactly, with clean retirement and zero
+observed swap growth. Natural early EOS at three of 64 allowed outputs reduces
+TCP-stream traffic 19.81% and complete-cell time 16.00% with four-output epochs;
+using the full eight-output allowance adds traffic and lowers charged N−1 decode
+throughput 39.70%. Two identical pending 54+8 requests save 30.15% traffic and
+23.98% complete-cell time through sharing, while client peak RSS rises 7.81%.
+Unrelated prompts gain no material saving and incur client overhead. Combined
+execution preserves exact state but retains the full-cap epoch pause penalty.
+These are workload-specific choices, not universal defaults or a client-memory
+improvement. The original eight-branch probe remains a separate blocked workload;
+its evidence is not pooled with this two-caller installed SDK measurement.
