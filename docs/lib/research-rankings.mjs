@@ -69,6 +69,19 @@ export function memoryBudgetRows(rows, maxBytes = null) {
     overBudgetCount: maxBytes === null ? 0 : rows.filter((row) => known(row) && row.clientMemory.maxPeakBytes > maxBytes).length };
 }
 
+/** Open the newest registered matching report, cold-first, without pooling cohorts. */
+export function defaultResearchCohort(cohorts, maxBytes = null) {
+  const eligible = cohorts.filter((cohort) => {
+    const topologies = cohort.rows.map((row) => row.placement.topology);
+    const topology = topologies.includes('Prepared') ? 'Prepared' : topologies[0];
+    return memoryBudgetRows(cohort.rows.filter((row) => row.placement.topology === topology), maxBytes).rows.length > 0;
+  });
+  const choices = eligible.length ? eligible : cohorts;
+  const report = choices.at(-1)?.report;
+  return choices.find((cohort) => cohort.report === report && cohort.identity.warm === false) ??
+    choices.find((cohort) => cohort.report === report);
+}
+
 /** A table compares one checked cohort, topology and optional maximum at a time. */
 export function sotaTable(cohort, topology, metrics, maxBytes = null) {
   const budget = memoryBudgetRows(cohort.rows.filter((row) => row.placement.topology === topology), maxBytes);

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState, type CSSProperties } from 'react';
 import data from '@/data/research/scorecard.json';
-import { leaders, normalizedAxes, measuredSegments, groupedMetrics, memoryBudgetRows } from '@/lib/research-rankings.mjs';
+import { leaders, normalizedAxes, measuredSegments, groupedMetrics, memoryBudgetRows, defaultResearchCohort } from '@/lib/research-rankings.mjs';
 import { withBasePath } from '@/lib/paths.mjs';
 import styles from './research-scorecard.module.css';
 import { ResearchSotaTable } from './research-sota';
@@ -23,7 +23,10 @@ export function ResearchScorecard() {
   const id = useId();
   const models = [...new Set(data.cohorts.map((cohort) => cohort.model))];
   const [model, setModel] = useState(models[0]);
-  const [cohortId, setCohort] = useState(data.cohorts[0].id);
+  const [cohortId, setCohort] = useState(() => defaultResearchCohort(
+    data.cohorts.filter((cohort) => cohort.model === models[0]),
+    data.clientMemoryTiers.find((tier) => tier.id === 'low')!.maxBytes,
+  )!.id);
   const [memoryTier, setMemoryTier] = useState<string | null>('low');
   const [metricIds, setMetrics] = useState(data.defaultMetrics);
   const [publicPrefix, setPublicPrefix] = useState(true);
@@ -91,7 +94,11 @@ export function ResearchScorecard() {
         {' '}<a href={withBasePath('/research/problems/')}>Read the research questions, accounting definitions and measured tradeoffs →</a></p>
     </section>
     <div className={styles.controls}>
-      <label htmlFor={`${id}-model`}>Model<select id={`${id}-model`} value={model} onChange={(event) => setModel(event.target.value)}>
+      <label htmlFor={`${id}-model`}>Model<select id={`${id}-model`} value={model} onChange={(event) => {
+        setModel(event.target.value);
+        setCohort(defaultResearchCohort(data.cohorts.filter((cohort) => cohort.model === event.target.value), maxBytes)!.id);
+        setSelected(null);
+      }}>
         {models.map((value) => <option key={value}>{value}</option>)}
       </select></label>
       <label htmlFor={`${id}-cohort`}>Matched conditions<select id={`${id}-cohort`} value={cohort.id}

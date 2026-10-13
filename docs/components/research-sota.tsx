@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import data from '@/data/research/scorecard.json';
-import { componentCombination, memoryBudgetRows, sortMetricRows, sotaMetrics, sotaTable } from '@/lib/research-rankings.mjs';
+import { componentCombination, defaultResearchCohort, memoryBudgetRows, sortMetricRows, sotaMetrics, sotaTable } from '@/lib/research-rankings.mjs';
 import { withBasePath } from '@/lib/paths.mjs';
 import styles from './research-sota.module.css';
 
@@ -102,13 +102,13 @@ export function ResearchSotaTable({ cohort, memoryTier, onMemoryTierChange }: {
         return <button type="button" key={value.id} aria-pressed={memoryTier === value.id}
           onClick={() => onMemoryTierChange(value.id)} data-memory-tier={value.id}>
           <span>{value.label}<strong>Max {value.limit}</strong></span>
-          <small>{value.description}</small><small>{count} measured {count === 1 ? 'combination' : 'combinations'}</small>
+          <small>{value.description}</small><small>{count} measured {count === 1 ? 'combination' : 'combinations'} in this cohort</small>
         </button>;
       })}</div>
       <p className={styles.note}>Choose a ceiling, even on a larger machine. Higher tiers include lower-RAM choices; High does not require a GPU.
         Eligibility uses the largest recorded client-process peak across all replicates. Unknown RAM is excluded from capped views.
         {' '}<a href={withBasePath('/sdk/run/deployment/#maximum-client-ram')}>Use the same maximum in the SDK →</a></p>
-      <p className={styles.note} role="status">{tier ? `${tier.label} · max ${tier.limit}: ${table.rows.length} eligible; ${table.overBudgetCount} over budget; ${table.unknownCount} with unknown RAM.`
+      <p className={styles.note} role="status">Selected cohort · {tier ? `${tier.label} · max ${tier.limit}: ${table.rows.length} eligible; ${table.overBudgetCount} over budget; ${table.unknownCount} with unknown RAM.`
         : `All ${table.rows.length} combinations, including ${table.unknownCount} with unknown RAM. No memory ceiling selected.`}
         {' '}Observed RSS qualifies only this workload and lifecycle; SDK admission separately prices allocations and live headroom. GPU memory and container-charged file cache need separate capacity checks.</p>
     </div>
@@ -186,13 +186,20 @@ export function ResearchSota() {
   const id = useId();
   const models = [...new Set(data.cohorts.map((cohort) => cohort.model))];
   const [model, setModel] = useState(models[0]);
-  const [cohortId, setCohort] = useState(data.cohorts[0].id);
+  const [cohortId, setCohort] = useState(() => defaultResearchCohort(
+    data.cohorts.filter((cohort) => cohort.model === models[0]),
+    data.clientMemoryTiers.find((tier) => tier.id === 'low')!.maxBytes,
+  )!.id);
   const [memoryTier, setMemoryTier] = useState<string | null>('low');
   const available = data.cohorts.filter((cohort) => cohort.model === model);
   const cohort = available.find((item) => item.id === cohortId) ?? available[0];
   return <div className={styles.explorer}>
     <div className={styles.controls}>
-      <label htmlFor={`${id}-model`}>Model<select id={`${id}-model`} value={model} onChange={(event) => setModel(event.target.value)}>
+      <label htmlFor={`${id}-model`}>Model<select id={`${id}-model`} value={model} onChange={(event) => {
+        setModel(event.target.value);
+        setCohort(defaultResearchCohort(data.cohorts.filter((cohort) => cohort.model === event.target.value),
+          data.clientMemoryTiers.find((tier) => tier.id === memoryTier)?.maxBytes ?? null)!.id);
+      }}>
         {models.map((value) => <option key={value}>{value}</option>)}</select></label>
       <label htmlFor={`${id}-cohort`}>Matched conditions<select id={`${id}-cohort`} value={cohort.id}
         onChange={(event) => setCohort(event.target.value)}>{available.map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}</select></label>

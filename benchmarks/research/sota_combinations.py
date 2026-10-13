@@ -249,10 +249,11 @@ def preflight(suite, *, tiny=False, placement_record=None, input_counts=None, ch
             rows = (input_counts or {}).get(workload, 8 if tiny else int(workload))
             record["preparation_work_window"] = preparation_window_check(plan, exp, rows=rows)
             if "scheduler" in exp.pipeline.components:
+                tile_rows = exp.pipeline.components["scheduler"].params["tile_rows"]
                 tiling = schedule["mlp_tiling"]
-                if tiling["tile_rows"] != 64 or len(tiling["regions"]) != (1 if tiny else 23):
+                if tiling["tile_rows"] != tile_rows or len(tiling["regions"]) != (1 if tiny else 23):
                     raise Rejected("unexpected_tiled_regions")
-                record["tiling"] = {"tile_rows": 64, "regions": len(tiling["regions"]),
+                record["tiling"] = {"tile_rows": tile_rows, "regions": len(tiling["regions"]),
                     "layers": [region["layer"] for region in tiling["regions"]]}
             if "placement" in exp.pipeline.components:
                 record["placement"] = native_placement_check(exp, config,
@@ -269,7 +270,7 @@ def preflight(suite, *, tiny=False, placement_record=None, input_counts=None, ch
     return records
 
 
-def audit(run, *, tiny=False, placement_record=None):
+def audit(run, *, tiny=False, placement_record=None, variants=VARIANTS):
     """Keep natural EOS counts; compare every request and every matched replicate."""
     document = run.to_dict()
     if not document["complete"] or any(r["status"] != "completed" for r in document["results"]):
@@ -306,7 +307,7 @@ def audit(run, *, tiny=False, placement_record=None):
                        "output_tokens": [count for count, _ in outputs]})
     comparisons = []
     for workload in dict.fromkeys(c["name"].split("/")[0] for c in document["suite"]["cases"]):
-        for variant in VARIANTS[1:]:
+        for variant in variants[1:]:
             comparisons.append({"workload": workload, "variant": variant,
                 "metrics": {metric: run.compare(workload, f"{workload}/{variant}", metric)
                             for metric in OBJECTIVES + DIAGNOSTICS}})

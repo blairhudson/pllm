@@ -8,6 +8,9 @@ export const sotaMetrics: string[];
 export function memoryBudgetRows<R extends Row>(rows: R[], maxBytes?: number | null): {
   rows: R[]; unknownCount: number; overBudgetCount: number;
 };
+export function defaultResearchCohort<C extends {
+  report: string; identity: { warm: boolean }; rows: Array<Row & { placement: { topology: string } }>;
+}>(cohorts: C[], maxBytes?: number | null): C | undefined;
 export function sotaTable<R extends Row & { placement: { topology: string } }>(
   cohort: { rows: R[] }, topology: string, metrics: Metric[], maxBytes?: number | null,
 ): { rows: R[]; unknownCount: number; overBudgetCount: number; leaders: Record<string, string[]>; precision: Record<string, number> };

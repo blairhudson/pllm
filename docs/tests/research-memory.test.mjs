@@ -3,7 +3,47 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { clientMemoryEvidence } from '../scripts/research-memory.mjs';
 import { buildScorecard } from '../scripts/research-scorecard.mjs';
-import { memoryBudgetRows, sotaTable } from '../lib/research-rankings.mjs';
+import { defaultResearchCohort, memoryBudgetRows, sotaTable } from '../lib/research-rankings.mjs';
+
+test('default view finds newly registered Low evidence and preserves one cold cohort', () => {
+  const card = JSON.parse(fs.readFileSync(new URL('../data/research/scorecard.json', import.meta.url)));
+  const cap = card.clientMemoryTiers.find((tier) => tier.id === 'low').maxBytes;
+  const cohorts = card.cohorts.filter((cohort) => [
+    'docs/evidence/research-frontier-native-wan-qwen25.json',
+    'docs/evidence/research-sota-combinations-qwen25.json',
+  ].includes(cohort.report));
+  const selected = defaultResearchCohort(cohorts, cap);
+  assert.equal(selected.id, 'qwen25-sota-combinations-screen-0-cold');
+  assert.equal(selected.evidenceTier, 'screen');
+  assert.equal(sotaTable(selected, 'Prepared', [], cap).rows.length, 5);
+  assert.equal(sotaTable(cohorts[0], 'Prepared', [], cap).rows.length, 1);
+  const qwen3 = defaultResearchCohort(card.cohorts.filter((cohort) => [
+    'qwen3-sdk-tokenizer-16-8', 'qwen3-client-memory-16-8',
+  ].includes(cohort.id)), cap);
+  assert.equal(qwen3.id, 'qwen3-client-memory-16-8');
+  assert.equal(sotaTable(qwen3, 'Prepared', [], cap).rows.length, 1);
+});
+
+test('cohort defaults respect peak bounds, missing evidence, topology and empty tiers', () => {
+  const cap = 256 * 2 ** 20;
+  const row = (id, peak, topology = 'Prepared') => ({ id, metrics: { clientPeak: 1 },
+    clientMemory: { maxPeakBytes: peak }, placement: { topology } });
+  const cohort = (id, report, warm, rows) => ({ id, report, identity: { warm }, rows });
+  const old = cohort('old', 'old.json', false, [row('old', cap)]);
+  const cold = cohort('cold', 'new.json', false, [row('bounded', cap)]);
+  const repeat = cohort('repeat', 'new.json', true, [row('bounded', cap)]);
+  const over = cohort('over', 'over.json', false, [row('outlier', cap + 1), row('local', 1, 'Client-only')]);
+  const unknown = cohort('unknown', 'unknown.json', false, [row('unknown', null)]);
+  const cohorts = [old, repeat, cold, over, unknown];
+  assert.equal(defaultResearchCohort(cohorts, cap), cold);
+  assert.equal(defaultResearchCohort(cohorts), unknown);
+  assert.equal(defaultResearchCohort([over], cap), over);
+  assert.equal(sotaTable(defaultResearchCohort([over], cap), 'Prepared', [], cap).rows.length, 0);
+  const local = cohort('local', 'local.json', false, [row('local', cap, 'Client-only')]);
+  assert.equal(defaultResearchCohort([...cohorts, local], cap), local);
+  assert.equal(defaultResearchCohort([], cap), undefined);
+  assert.deepEqual(cohorts.map((value) => value.id), ['old', 'repeat', 'cold', 'over', 'unknown']);
+});
 
 test('RAM ceilings are inclusive, nested and independent of median or unknown RSS', () => {
   const cap = 256 * 2 ** 20;

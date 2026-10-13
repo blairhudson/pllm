@@ -32,11 +32,15 @@ pytestmark = [
 ]
 
 _VARIANTS = (
-    ("control", False, False, False),
-    ("tiling", True, False, False),
-    ("digit8", False, True, False),
-    ("both", True, True, False),
-    ("both-placement", True, True, True),
+    ("control", 0, False, False),
+    ("tiling", 64, False, False),
+    ("digit8", 0, True, False),
+    ("both", 64, True, False),
+    ("both-placement", 64, True, True),
+    ("tile32-digit8", 32, True, False),
+    ("tile16-digit8", 16, True, False),
+    ("tile32-digit8-placement", 32, True, True),
+    ("tile16-digit8-placement", 16, True, True),
 )
 _PROMPT = "abcde " * 14
 
@@ -66,7 +70,7 @@ def _experiment(source, root, variant):
         cache=ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=128),
     )
     if tiled:
-        pipeline = pipeline.with_params(scheduler=MlpPrefillTiling(tile_rows=64))
+        pipeline = pipeline.with_params(scheduler=MlpPrefillTiling(tile_rows=tiled))
     if placed:
         # A local gate/up group removes one tiled region; an independent local
         # attention group exercises mixed ownership inside the remaining layer.
@@ -88,7 +92,7 @@ def _state_words(runtime, logits):
 
 
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
-def test_five_way_cold_repeat_state_and_gateway(tmp_path, monkeypatch, family):
+def test_combined_cold_repeat_state_and_gateway(tmp_path, monkeypatch, family):
     from starlette.testclient import TestClient
 
     source = Model.path(str(create_tiny_llama_checkpoint(
@@ -144,7 +148,8 @@ def test_five_way_cold_repeat_state_and_gateway(tmp_path, monkeypatch, family):
                     pair.append((response.output_text, tuple(observed)))
                     if tiled and not warm:
                         region_count = 1 if placed else 2
-                        assert max(tiles) == (region_count, region_count * 2, 64)
+                        count = (response.usage.input_tokens + tiled - 1) // tiled
+                        assert max(tiles) == (region_count, region_count * count, tiled)
                     if tiled and warm:
                         assert all(value == (0, 0, 0) for value in tiles)
                 audit = client.privacy_audit
