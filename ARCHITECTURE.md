@@ -1304,7 +1304,14 @@ OT adapter needs terabytes and its public-matrix bypass adds dense client work.
 The matrix-triple toy checks 3,024 outputs, but explicit fresh matrix openings
 alone cost 2.10 GB for prefill or 31.55 GB including decode; short seeds do not
 establish a compact chosen-weight consumer. These reject specific adaptations,
-not the underlying paper constructions, whose full PDFs remain access-blocked.
+not the underlying paper constructions. A subsequent full-text review of eight
+supplied PDFs confirms exact-ring PCGs and corrects matrix-mask reuse scope:
+fresh columns within one triple can be consumed sequentially, while reuse across
+independent triples remains outside the matrix paper's present proof. Published
+matrix-PCG working sets and expansion estimates do not establish Low-tier
+admission; an asymmetric fixed-weight generator with cheap client expansion
+remains missing. Source hashes and page-pinned costs are in
+`docs/research/compact-setup-fulltext-review.md`.
 An independent audit of twelve existing Low-tier control samples bounds free
 correction removal at 25.67–31.84% on the first cold/repeat pair and 37.71–38.28%
 under optimistic complete public-delivery reuse. Additional keys, expansion,

@@ -1,0 +1,106 @@
+{
+  "schema": "pllm.compact_setup_fulltext_review.v1",
+  "scope": "Source-pinned construction and cost review; no cryptographic implementation or PLLM performance measurement",
+  "review": "docs/research/compact-setup-fulltext-review.md",
+  "provenance": "User-supplied PDFs; full-file hashes identify reviewed revisions, not latest-version certification",
+  "page_numbering": "1-based PDF pages",
+  "papers": [
+    {
+      "id": "2025/1223",
+      "title": "Efficient Pseudorandom Correlation Generators over Z/p^k Z",
+      "url": "https://eprint.iacr.org/2025/1223",
+      "path": "papers/2025-1223.pdf",
+      "sha256": "130178519ec48cbbe64b201e42bb581b513f77503f671e1a56e4b0909b4aa375",
+      "bytes": 1220637,
+      "pages": 56,
+      "reviewed_pages": [7, 33, 34, 35, 36],
+      "finding": "Exact-ring construction exists; 109k/s targets 128 bits while roughly 115 MB per billion triples uses an 80-bit parameter point; fixed-W asymmetric expansion remains unspecified"
+    },
+    {
+      "id": "2026/2030",
+      "title": "New Pseudorandom Correlation Functions and Exponent VRFs from DCR",
+      "url": "https://eprint.iacr.org/2026/2030",
+      "path": "papers/2026-2030.pdf",
+      "sha256": "9848639354d583747228f82be06fc984925104626f3a5fe43533eb9c50445304",
+      "bytes": 1000347,
+      "pages": 52,
+      "reviewed_pages": [4, 6, 14, 15, 17, 18, 21],
+      "finding": "Arbitrary-modulus VOLE does not supply a fixed-matrix generator; formal assumptions and receiver expansion need explicit costing"
+    },
+    {
+      "id": "2025/1637",
+      "title": "Pseudorandom Correlation Functions from Ring-LWR",
+      "url": "https://eprint.iacr.org/2025/1637",
+      "path": "papers/2025-1637.pdf",
+      "sha256": "81775c10aa2375daf7374dbb9640e945d98cce710eeae40404b1a5f569c49e52",
+      "bytes": 840618,
+      "pages": 40,
+      "reviewed_pages": [22, 23, 24],
+      "finding": "Generic ring-circuit correlations require both-party FHE expansion; approximately nine triples/s is a paper estimate"
+    },
+    {
+      "id": "2026/2298",
+      "title": "Pseudorandom Correlation Generators for Matrix Triples",
+      "url": "https://eprint.iacr.org/2026/2298",
+      "path": "papers/2026-2298.pdf",
+      "sha256": "744e311e462746192951d27046242561db6b085bac64664076b331cfebc148cb",
+      "bytes": 808543,
+      "pages": 84,
+      "reviewed_pages": [4, 6, 42, 67, 68, 70, 71, 72, 74, 75],
+      "finding": "One triple supports at most n fresh sequential columns; not indefinite mask reuse, exact-ring or Low-memory admission"
+    },
+    {
+      "id": "2025/1660",
+      "title": "Dory: Streaming PCG with Small Memory",
+      "url": "https://eprint.iacr.org/2025/1660",
+      "path": "papers/2025-1660.pdf",
+      "sha256": "4f05f4b6b8bfea36a65913ac6ed532d734e231bc803311a7933bf76083c7bee8",
+      "bytes": 779776,
+      "pages": 47,
+      "reviewed_pages": [1, 2, 21, 22],
+      "finding": "Revision includes the regular-noise attack and replacement parameters; COT memory is not exact-ring matrix-generator or whole-client memory"
+    },
+    {
+      "id": "2025/787",
+      "title": "Preprocessing for Life: Dishonest-Majority MPC with a Trusted or Untrusted Dealer",
+      "url": "https://eprint.iacr.org/2025/787",
+      "path": "papers/2025-787.pdf",
+      "sha256": "8730eeb740fb6fa01b43f23a0bfd9cf3cc08ff130e1c9025b89b242de2fef6cc",
+      "bytes": 791671,
+      "pages": 61,
+      "reviewed_pages": [1, 2, 3],
+      "finding": "Dealer/correlation savings retain online circuit work and openings; not a drop-in prepared linear consumer"
+    },
+    {
+      "id": "2026/112",
+      "title": "PETCHA: Post-quantum Efficient Transciphering with ChaCha",
+      "url": "https://eprint.iacr.org/2026/112",
+      "path": "papers/2026-112.pdf",
+      "sha256": "7762803550323c998af913cb96437328bb081fa8bbaebd674b4603a8619ac911",
+      "bytes": 755236,
+      "pages": 32,
+      "reviewed_pages": [1, 2, 9, 18, 19, 20, 21],
+      "finding": "64-bit counter/nonce variant and costly cipher expansion; full exact W8A8 conversion/projection/reply consumer remains absent"
+    },
+    {
+      "id": "2026/1917",
+      "title": "Coral: General and Efficient Framework for Homomorphic Evaluation of Symmetric Ciphers",
+      "url": "https://eprint.iacr.org/2026/1917",
+      "path": "papers/2026-1917.pdf",
+      "sha256": "799cb20de9f6881262ae950a5d9001b1133d03b2f8b1daed34027bdf93735191",
+      "bytes": 537647,
+      "pages": 20,
+      "reviewed_pages": [1, 2, 12, 13],
+      "finding": "ChaCha20 improves its multithread comparator but regresses single-thread; arithmetic conversion and reply costs remain separate"
+    }
+  ],
+  "historical_evidence": [
+    "docs/evidence/research-transciphered-linear.json",
+    "docs/evidence/research-streaming-matrix-correlation.json",
+    "docs/evidence/research-matrix-triple-prefill.json"
+  ],
+  "candidate_client_peak_rss_bytes": null,
+  "candidate_all_link_saving_fraction": null,
+  "cryptographic_implementation": false,
+  "next_gate": "Specify concrete Gen, Client expansion and Inference expansion for fixed-W exact-ring correlations, with bounded setup lifetime and client work/memory priced"
+}

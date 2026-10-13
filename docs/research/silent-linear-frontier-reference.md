@@ -12,6 +12,12 @@ and [matrix-triple prefill](matrix-triple-prefill-reference.md). Their complete
 consumers, additional links and client work must be charged alongside setup.
 Compact primitive seeds alone do not establish compact private inference.
 
+**Full-text follow-up:** all eight supplied PDFs have now been reviewed at the
+construction/cost level. The [source-pinned review](compact-setup-fulltext-review.md)
+confirms exact-ring PCGs and corrects matrix-mask reuse: fresh columns within
+one triple can be consumed sequentially. Cross-instance reuse, a client-light
+fixed-weight generator and Low-tier qualification remain unresolved.
+
 ## Findings
 
 **Encrypted byte ingress needs a different reply representation.** Independent
@@ -32,8 +38,8 @@ that adapter, not a communication lower bound. Bypassing its OT with public
 matrix data moves matrix-dependent expansion back to the client. Dory's streaming
 COT memory figure does not supply arbitrary chosen matrix correlations. The DCR
 abstract promises arbitrary-modulus COT/VOLE, while its general quadratic/OLE
-extension is specifically over `F2`. These paper claims were checked at abstract
-level; full algorithm/parameter verification remains open.
+extension is specifically over `F2`. The original screen checked abstracts;
+the full-text follow-up now records concrete costs and formal assumptions.
 
 **Fresh matrix triples lose even when limited to prefill.** The explicit
 random-to-fixed adaptation opens `D=W-A` to both endpoints. One such opening per
@@ -41,11 +47,14 @@ stage costs **2.103 GB** in optimistically packed rings, before inputs, replies,
 keys or any decode work. Adding the fourteen sequential decode uses brings the
 pair's opening payload to **31.546 GB**. The field31 versions cost 2.773 GB and
 41.597 GB respectively. These figures reject the specified dense-opening layout,
-not every matrix PCG. Disclosable A-only generation keys could change that cost,
-but require a source-supported interface that keeps B/C shares private. They
-would still leave dense client adaptation: **56.616 billion additional MACs**
-for the complete historical pair, before PCG expansion. Original online body
-computation stays remote; the extra client work remains separately charged.
+not every matrix PCG. Section 7.2 of the full matrix paper permits a different
+bounded-column schedule that amortizes an opening across fresh columns; this
+has not been costed as a complete PLLM consumer. Disclosable A-only keys could
+also change cost, but require a source-supported interface that keeps B/C shares
+private. They would still leave dense client adaptation: **56.616 billion
+additional MACs** for the complete historical pair, before PCG expansion.
+Original online body computation stays remote; the extra client work remains
+separately charged.
 
 The prefill-only check uses the matrix report's one-opening-per-stage count
 (also reported as the unsupported reusable-A setup). It needs no reusable-A
@@ -65,8 +74,12 @@ asymmetric expansion**: the client cheaply derives independent fresh `(r,s)`,
 while Inference derives `W*r-s` without learning either mask. The complete
 construction must price both endpoint expansion, setup delivery and renewal.
 Generic COT/VOLE seeds and random matrix triples do not yet supply this contract.
-Full primary papers and concrete parameter sets are prerequisites to selecting
-an implementation; the blocked PDFs prevent a paper-level algorithm audit.
+Full-text access is resolved. Start with **2025/1223** under one non-broken
+parameter set and specify explicit party keys and expansions before native
+implementation. Retain a separately costed bounded-column matrix-triple control;
+renewal after column exhaustion, exact-ring compatibility and dense client
+adaptation remain gates. See the [full-text review](compact-setup-fulltext-review.md)
+for the target functionality, lifecycle requirements and page-pinned costs.
 
 Encrypted ingress remains a secondary lead only with a genuinely compact reply.
 The existing control demonstrates signed integer correctness and serialization
