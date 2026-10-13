@@ -79,6 +79,57 @@ def test_dependent_exchanges_count_both_directed_delays_and_missing_reverse(choi
                 snapshot=incomplete).status == "infeasible"
 
 
+def test_named_maximum_selects_tiling_on_roomy_host_and_rechecks_headroom(choices):
+    req, snap, full, tiled = choices
+    snap = replace(snap, offers=tuple(replace(row, max_memory_bytes=64 << 30)
+        if row.party_id == "client" else row for row in snap.offers))
+    small = plan(replace(req, candidates=(tiled,)), snapshot=snap)
+    limit = 2 << 30
+    incremental = small.costs["client_incremental_memory_bytes"]
+    resources = replace(req.client_resources, available_memory_bytes=64 << 30,
+                        process_memory_bytes=limit - incremental)
+    req = replace(req, client_resources=resources, policy=replace(req.policy, max_client_memory="medium"))
+    selected = plan(req, snapshot=snap)
+    assert selected.experiment == tiled
+    assert selected.costs["client_peak_memory_bytes"] == limit
+    assert PlanningResult.from_spec(selected.to_spec()).digest == selected.digest
+    assert plan(replace(req, policy=replace(req.policy, max_client_memory="high")), snapshot=snap).experiment == full
+    assert plan(replace(req, policy=replace(req.policy, max_client_memory="low")), snapshot=snap).status == "infeasible"
+    assert plan(replace(req, client_resources=replace(resources,
+        available_memory_bytes=resources.reserve_bytes + incremental - 1)), snapshot=snap).status == "infeasible"
+    assert plan(replace(req, policy=replace(req.policy,
+        max_client_peak_memory_bytes=limit - 1)), snapshot=snap).status == "infeasible"
+
+
+def test_named_maximum_replay_validation_and_explicit_byte_intersection():
+    for tier, limit in (("low", 256 << 20), ("medium", 2 << 30), ("high", 16 << 30)):
+        policy = PlanningPolicy(max_client_memory=tier)
+        assert policy.client_peak_memory_limit_bytes == limit
+        assert PlanningPolicy.from_spec(policy.to_spec()) == policy
+        assert replace(policy, max_client_peak_memory_bytes=limit + 1).client_peak_memory_limit_bytes == limit
+        assert replace(policy, max_client_peak_memory_bytes=0).client_peak_memory_limit_bytes == 0
+    for invalid in ("auto", "LOW", "", 256, True, [], {}):
+        with pytest.raises(NetworkError, match="max_client_memory"):
+            PlanningPolicy(max_client_memory=invalid)
+    policy = PlanningPolicy()
+    assert policy.client_peak_memory_limit_bytes is None
+    assert "max_client_memory" not in policy.to_spec()
+    assert PlanningPolicy.from_spec(policy.to_spec()) == policy
+
+
+def test_named_maximum_rechecked_at_reservation_even_with_host_capacity(monkeypatch):
+    capacity = _ClientCapacity()
+    result = SimpleNamespace(costs={"client_incremental_memory_bytes": 100 << 20},
+        request=SimpleNamespace(policy=PlanningPolicy(max_client_memory="low")))
+    monkeypatch.setattr(capacity, "observe", lambda: ClientResources(
+        100, 64 << 30, 100 << 20, 1 << 30, sum(capacity._owners.values())))
+    with capacity.hold(lambda: result):
+        with pytest.raises(NetworkError, match="CAPACITY_CHANGED"):
+            with capacity.hold(lambda: result):
+                pytest.fail("concurrent requests exceeded named maximum")
+    assert not capacity._owners
+
+
 def test_paged_peak_does_not_turn_legacy_payload_budget_negative(choices):
     from pllm.protocols import ClientBundleTransport
 

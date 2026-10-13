@@ -73,6 +73,13 @@ and execution. Keep device/GPU memory, filesystem cache and disk separately
 visible. A smaller buffer is a mechanism; a smaller process peak is the result
 this objective needs.
 
+We compare this frontier under three **maximum client RAM** budgets: **Low,
+256 MiB**; **Medium, 2 GiB**; and **High, 16 GiB**. They are user-selected ceilings,
+so a large machine can still choose Low. The
+[per-model tables](/research/sota/) recompute leaders within each budget using
+the largest recorded peak across replicates. Larger budgets include smaller
+configurations; GPU capacity remains a separate constraint.
+
 ### Client CPU
 
 **Question:** how much local work must the device perform to use remote compute?

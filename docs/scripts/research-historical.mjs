@@ -1,6 +1,7 @@
 /** Schema-specific historical adapters. No invented canonical observations. */
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
+import { clientMemoryEvidence } from './research-memory.mjs';
 
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const require = (condition, message) => { if (!condition) throw new Error(message); };
@@ -73,12 +74,13 @@ function resultObservation(record, document) {
     ttft: null, decodeTps: null,
     ...network,
   };
+  const clientPeakBytes = observedMetric(record, 'client.peak_rss', 'bytes', 'process_birth_through_scenario', 'process_lifetime_high_water');
   const identity = { ...comparison, build: execution.build.digest, environment: record.environment.digest,
     cohort: document.cohort, source: pipeline.model, quantization: pipeline.components.quantization,
     workload: report.runs.map((run) => ({ inputs: run.tokens.input_tokens, outputs: run.tokens.output_tokens,
       cap: run.max_output_tokens, warm: run.warm, sampling: run.sampling, output: run.generation.output_text_digest })),
     wan: wan.conditions_digest, lifecycle: 'fresh-client-cold-exact-repeat', window: 'benchmark-result-v2-response' };
-  return { identity, pipeline, values, configurationDigest: record.configuration_digest,
+  return { identity, pipeline, values, clientPeakBytes, configurationDigest: record.configuration_digest,
     selector: parameters.client_mlp ?? null, sourceLock: comparison.source_digest,
     target: execution.case.target, recordedCase: execution.case, report, replicate: execution.replicate,
     scopedTimings: { coldRepeatOnlineTtftSummary: observedMetric(record, 'response.ttft', 'seconds', 'online_to_first_token', 'target'),
@@ -116,6 +118,7 @@ export function historicalRows(cohort, document, read, metricDefinitions, placem
       fileSha256: cohort.factory.sha256, configurationDigest: first.configurationDigest, pipeline: first.pipeline,
       sourceLock: first.sourceLock, paper: null, papers: [], reference: null, publicPrefixTokens: 0, placement: graph,
       metrics, researchSelector: first.selector ? { selection: first.selector, pipeline_component: false } : null,
+      clientMemory: clientMemoryEvidence(records.map((record) => record.clientPeakBytes), 'process_birth_through_scenario'),
       recordedCase: first.recordedCase, samplingContract: document.suite.sampling,
       scopedTimings: Object.fromEntries(Object.keys(first.scopedTimings).map((key) => [key, median(records.map((record) => record.scopedTimings[key]))])),
       factory: { source: cohort.report.replace(/^.*\//, '').replace(/\.json$/, ''), case: name, callable: 'case' },

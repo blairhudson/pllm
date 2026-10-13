@@ -984,7 +984,17 @@ Prepared and two-offset HTTP controls plus real CLI gateways exercise the path.
 The SDK additionally observes process RSS, post-reserve host memory and concurrent
 request ownership, intersecting Linux cgroup v1/v2 ancestor headroom where present.
 Shared native allocation-owner pricing plus margin admits explicit memory limits;
-one process-wide reservation owner prevents concurrent headroom reuse. Bounded
+one process-wide reservation owner prevents concurrent headroom reuse.
+`max_client_memory="low"`, `"medium"` and `"high"` shortcuts bind optional
+256 MiB, 2 GiB and 16 GiB whole-client maxima through ordinary network-configured
+SDK calls, PlanningPolicy and gateway configuration. Explicit byte caps intersect
+the selected tier; current process RSS, concurrent owners and live host/cgroup
+headroom are rechecked before reservation. Omission retains automatic admission,
+and no tier enables GPU execution. Research tables share these byte maxima and
+qualify only the largest recorded process peak across all replicates, preserving
+original cohort, topology and evidence classifications. Observed RSS eligibility
+does not certify conservative runtime admission or container/device memory.
+Bounded
 installed Pipeline alternatives now advertise compatible execution choices
 under an exact source/workload. Separate HTTP-role controls select full, tiled and
 full again as available memory changes, preserving outputs and retiring leases.

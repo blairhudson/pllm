@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import data from '@/data/research/scorecard.json';
-import { componentCombination, sortMetricRows, sotaMetrics, sotaTable } from '@/lib/research-rankings.mjs';
+import { componentCombination, memoryBudgetRows, sortMetricRows, sotaMetrics, sotaTable } from '@/lib/research-rankings.mjs';
 import { withBasePath } from '@/lib/paths.mjs';
 import styles from './research-sota.module.css';
 
@@ -56,7 +56,9 @@ function Combination({ row }: { row: Row }) {
   </details>;
 }
 
-export function ResearchSotaTable({ cohort }: { cohort: Cohort }) {
+export function ResearchSotaTable({ cohort, memoryTier, onMemoryTierChange }: {
+  cohort: Cohort; memoryTier: string | null; onMemoryTierChange: (tier: string | null) => void;
+}) {
   const id = useId();
   const measurement = 'measurement' in cohort ? cohort.measurement : null;
   const metrics = metricDefinitions.map((metric) => {
@@ -69,7 +71,8 @@ export function ResearchSotaTable({ cohort }: { cohort: Cohort }) {
   const [selected, setTopology] = useState('Prepared');
   const [sort, setSort] = useState<MetricSort | null>(null);
   const topology = topologies.includes(selected) ? selected : topologies[0];
-  const table = sotaTable<Row>(cohort, topology, metrics);
+  const tier = data.clientMemoryTiers.find((value) => value.id === memoryTier);
+  const table = sotaTable<Row>(cohort, topology, metrics, tier?.maxBytes ?? null);
   const rows = sort ? sortMetricRows(table.rows, sort.id, sort.direction) : table.rows;
   const control = topology === 'Client-only';
   // Repetition is not confirmation; only an explicitly classified cohort earns SOTA.
@@ -84,12 +87,30 @@ export function ResearchSotaTable({ cohort }: { cohort: Cohort }) {
   return <section className={styles.sota} aria-labelledby={`${id}-title`}>
     <div className={styles.heading}>
       <div><h2 id={`${id}-title`}>Measured leaders by model</h2>
-        <p>Each row is one measured combination. Highlighted cells are the best recorded values within this model, matched cohort and topology; ties share the highlight.
+        <p>Each row is one measured combination. Highlighted cells lead within this model, matched cohort, topology and selected maximum RAM budget; ties share the highlight.
           {' '}Only explicitly classified confirmations receive scoped SOTA badges; screens and unclassified observations are not confirmation.
           {' '}No badge implies a cross-cohort or universal ranking. Click metric headers to sort; unknown values stay last.</p></div>
       <label htmlFor={`${id}-topology`}>Execution topology<select id={`${id}-topology`} value={topology}
         onChange={(event) => setTopology(event.target.value)}>{topologies.map((value) => <option key={value} value={value}>
           {value === 'Client-only' ? 'Client-only control' : value}</option>)}</select></label>
+    </div>
+    <div className={styles.budgets} role="group" aria-labelledby={`${id}-budgets`}>
+      <div className={styles.budgetHeading}><h3 id={`${id}-budgets`}>Maximum client RAM</h3>
+        <button type="button" aria-pressed={!tier} onClick={() => onMemoryTierChange(null)}>Show all evidence</button></div>
+      <div className={styles.tiers}>{data.clientMemoryTiers.map((value) => {
+        const count = memoryBudgetRows(cohort.rows.filter((row) => row.placement.topology === topology), value.maxBytes).rows.length;
+        return <button type="button" key={value.id} aria-pressed={memoryTier === value.id}
+          onClick={() => onMemoryTierChange(value.id)} data-memory-tier={value.id}>
+          <span>{value.label}<strong>Max {value.limit}</strong></span>
+          <small>{value.description}</small><small>{count} measured {count === 1 ? 'combination' : 'combinations'}</small>
+        </button>;
+      })}</div>
+      <p className={styles.note}>Choose a ceiling, even on a larger machine. Higher tiers include lower-RAM choices; High does not require a GPU.
+        Eligibility uses the largest recorded client-process peak across all replicates. Unknown RAM is excluded from capped views.
+        {' '}<a href={withBasePath('/sdk/run/deployment/#maximum-client-ram')}>Use the same maximum in the SDK →</a></p>
+      <p className={styles.note} role="status">{tier ? `${tier.label} · max ${tier.limit}: ${table.rows.length} eligible; ${table.overBudgetCount} over budget; ${table.unknownCount} with unknown RAM.`
+        : `All ${table.rows.length} combinations, including ${table.unknownCount} with unknown RAM. No memory ceiling selected.`}
+        {' '}Observed RSS qualifies only this workload and lifecycle; SDK admission separately prices allocations and live headroom. GPU memory and container-charged file cache need separate capacity checks.</p>
     </div>
     <p className={styles.conditions}><strong>{cohort.model}</strong> · {cohort.identity.inputs} input tokens · {cohort.identity.outputs} generated
       {' '}of {cohort.identity.cap} allowed · {scenario ? 'Cold + repeat scenario totals'
@@ -98,7 +119,7 @@ export function ResearchSotaTable({ cohort }: { cohort: Cohort }) {
       {' '}· <a href={repository + cohort.report}>Matched evidence ↗</a></p>
     <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="SOTA metrics and component combinations">
       <table>
-        <caption>Eight objectives + measured traffic total · {table.rows.length} {topology.toLowerCase()} combinations · decimal MB</caption>
+        <caption>Eight objectives + measured traffic total · {table.rows.length} {topology.toLowerCase()} combinations · {tier ? `max ${tier.limit}` : 'all RAM budgets'} · decimal MB</caption>
         <thead><tr><th scope="col">Measured combination</th>{metrics.map((metric) => {
           const direction = sort?.id === metric.id ? sort.direction : undefined;
           const nextDirection = direction ? (direction === 'ascending' ? 'descending' : 'ascending')
@@ -116,11 +137,15 @@ export function ResearchSotaTable({ cohort }: { cohort: Cohort }) {
             {metric.id === 'baseNetwork' || metric.id === 'tokenNetwork' ? <small>Covered application bodies</small> : null}
           </th>;
         })}</tr></thead>
-        <tbody>{rows.map((row) => <tr key={row.id} data-configuration={row.id}>
+        <tbody>{rows.length === 0 && <tr><td colSpan={metrics.length + 1} className={styles.empty}>
+          No measured combination qualifies for this maximum under these conditions. Choose a larger maximum or show all evidence.
+        </td></tr>}{rows.map((row) => <tr key={row.id} data-configuration={row.id}>
           <th scope="row"><strong>{row.label}</strong>
             <span className={styles.placement}>{row.placement.kernel}
               {row.metrics.bodyOffload !== null && ` · ${number(row.metrics.bodyOffload)}% body-linear offload`}
               {row.publicPrefixTokens > 0 && ` · ${row.publicPrefixTokens} public prefix tokens`}</span>
+            {row.clientMemory.maxPeakBytes !== null && <span className={styles.placement} data-memory-peak-bytes={row.clientMemory.maxPeakBytes}>
+              Largest observed client peak: {number(row.clientMemory.maxPeakBytes / (1 << 20))} MiB · {row.clientMemory.sampleCount} {row.clientMemory.sampleCount === 1 ? 'sample' : 'samples'}</span>}
             {row.metrics.artifactBytes !== null && row.metrics.artifactBytes > 0 && <span className={styles.placement}>
               {number(row.metrics.artifactBytes)} MB pre-positioned artifacts</span>}
             <Combination row={row} />
@@ -149,10 +174,10 @@ export function ResearchSotaTable({ cohort }: { cohort: Cohort }) {
         : 'Base and per-token traffic are unattributed in these reports.'} The separate total counts measured all-link TCP streams;
        checkpoint/tokenizer distribution and physical wire overhead are outside it; cold client-bundle delivery remains charged.
        Whole-response averages do not establish incremental token cost.</p>
-    <p className={styles.note}>{measurement
+      <p className={styles.note}>{measurement
       ? `${measurement.cpu}. ${measurement.rss}. ${measurement.timing}. ${measurement.traffic}.`
       : 'Client CPU covers the cold lifecycle; Preparation RAM is a sampled peak; TTFT starts online; decode uses N−1 later outputs.'}
-      Body-linear offload and public-prefix reuse are shown beside each combination. These observations identify metric leaders within the selected evidence.</p>
+       Body-linear offload and public-prefix reuse are shown beside each combination. Metric columns retain their original summaries; RAM-budget eligibility uses the maximum peak shown beside each combination.</p>
   </section>;
 }
 
@@ -162,6 +187,7 @@ export function ResearchSota() {
   const models = [...new Set(data.cohorts.map((cohort) => cohort.model))];
   const [model, setModel] = useState(models[0]);
   const [cohortId, setCohort] = useState(data.cohorts[0].id);
+  const [memoryTier, setMemoryTier] = useState<string | null>('low');
   const available = data.cohorts.filter((cohort) => cohort.model === model);
   const cohort = available.find((item) => item.id === cohortId) ?? available[0];
   return <div className={styles.explorer}>
@@ -172,6 +198,6 @@ export function ResearchSota() {
         onChange={(event) => setCohort(event.target.value)}>{available.map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}</select></label>
     </div>
     <p className={styles.note}>{cohort.scope}</p>
-    <ResearchSotaTable key={cohort.id} cohort={cohort} />
+    <ResearchSotaTable key={cohort.id} cohort={cohort} memoryTier={memoryTier} onMemoryTierChange={setMemoryTier} />
   </div>;
 }

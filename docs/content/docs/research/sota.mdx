@@ -1,9 +1,12 @@
 ---
 title: "Measured SOTA by model"
-description: "All eight priority metrics, measured leaders and exact SDK component combinations for each model and matched cohort."
+description: "Measured leaders under Low (256 MiB), Medium (2 GiB) and High (16 GiB) client RAM maxima, with exact SDK combinations."
 ---
 
-Choose a model, matched workload and execution topology. Each row shows the full
+Choose a model, matched workload, execution topology and **maximum client RAM**.
+Low is **256 MiB**, Medium **2 GiB**, and High **16 GiB**. These are nested ceilings:
+a larger machine can choose Low, and a low-memory combination can lead in any tier.
+Each row shows the full
 measured combination, all eight research objectives and the recorded traffic total.
 **Scoped SOTA** highlights leaders in independent confirmation cohorts;
 **Screen best** identifies exploratory leaders, including ties. Client-only
@@ -11,6 +14,32 @@ results are labelled **Control best**. Component details retain every serialized
 parameter, original build and evidence links for replay.
 
 <ResearchSota />
+
+## What the tiers mean
+
+| Maximum | Intended client | Tradeoff to explore |
+| --- | --- | --- |
+| **Low · 256 MiB** | Minimal client worker | Paging, indexed tokenization, tiled prefill and bounded caches |
+| **Medium · 2 GiB** | Application worker, including ECS tasks, Kubernetes pods and ordinary instances | Selective residency, prefix reuse and fewer exchanges |
+| **High · 16 GiB** | Compute-rich worker, optionally GPU-enabled | Larger working sets, concurrency and supported device acceleration |
+
+The ceiling covers the **whole client process**, not just model tensors. Tier
+eligibility requires every recorded fresh-client peak to fit; metric columns
+retain their original single-sample or median summaries. Unknown RAM cannot
+qualify. Cold/repeat scenarios retain their complete process-lifetime peak.
+An empty tier means no qualifying measurement under those selected conditions.
+It does not prove the workload impossible.
+
+GPU memory has its own capacity requirements; High does not select a GPU.
+Process RSS also excludes some container-charged file cache and device memory.
+Measurements qualify only their recorded model, workload, concurrency and
+lifecycle, rather than guaranteeing deployment admission.
+
+The network-configured SDK accepts `OpenAI(max_client_memory="low")`,
+`"medium"` or `"high"`. The same values work in `PlanningPolicy` and
+`[client.planning]`. Live memory checks can tighten a chosen maximum; omitting
+the maximum keeps automatic headroom-based admission. See
+[maximum client RAM in the SDK](/sdk/run/deployment/#maximum-client-ram).
 
 ## Latest combination screen
 

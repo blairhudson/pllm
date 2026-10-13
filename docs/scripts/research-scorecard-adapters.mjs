@@ -1,5 +1,6 @@
 /** Strict readers for original SDK evidence; never rewrite it as legacy comparisons. */
 import { createHash } from 'node:crypto';
+import { clientMemoryEvidence } from './research-memory.mjs';
 import { isDeepStrictEqual } from 'node:util';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -257,6 +258,8 @@ export function benchmarkSuiteCohorts(spec, document, plan, helpers) {
         const placement = helpers.executionPlacement(firstSample.pipeline, firstSample.report.configuration.roles, firstSample.report.client_body_placement);
         return { ...rowBase(spec, name, firstSample.pipeline, [...configs][0], firstSample.report.configuration.source_lock_digest, placement),
           researchSelector: firstSample.selector, sampleCount: samples.length, metrics: aggregate(values, Object.keys(empty(helpers))),
+          clientMemory: clientMemoryEvidence(samples.map(({ report }) => report.client_process_memory?.after?.lifetime_peak_rss_bytes),
+            'process_birth_through_scenario'),
           measurementContracts: firstSample.result.metrics.map(({ value, ...contract }) => contract),
           experimentBindings: samples.map(({ result, report }) => ({ replicate: result.execution.replicate, ...report.experiment })),
           frozenSources: plan.frozen_sources ?? {},
@@ -556,6 +559,7 @@ export function epochPrefixCohorts(spec, document, helpers) {
       row.replay.case = `${workload}/${variant}`;
       return { ...row,
         sampleCount: 3, researchSelector: null, measurementContracts: [], metrics: aggregate(values, Object.keys(empty(helpers))),
+        clientMemory: clientMemoryEvidence(samples.map((cell) => cell.client.client_peak_rss_bytes), 'complete_cell_process_lifetime'),
         experiment, frozenSources: document.frozen_sources, buildDigest: document.build.expected_digest,
         scopedTimings: { firstTextSeconds: median(samples.map((cell) => median(cell.client.responses.map((response) => response.first_text_seconds)))),
           textDeltaDecodeTps: median(samples.map((cell) => median(cell.client.responses.map((response) => response.decode_tps)))),

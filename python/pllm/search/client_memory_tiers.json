@@ -1,0 +1,5 @@
+[
+  {"id": "low", "label": "Low", "maxBytes": 268435456, "limit": "256 MiB", "description": "Minimal client"},
+  {"id": "medium", "label": "Medium", "maxBytes": 2147483648, "limit": "2 GiB", "description": "Application worker"},
+  {"id": "high", "label": "High", "maxBytes": 17179869184, "limit": "16 GiB", "description": "Compute-rich worker"}
+]

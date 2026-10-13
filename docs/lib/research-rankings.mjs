@@ -60,10 +60,20 @@ function metricPrecision(rows, metric) {
   return 9;
 }
 
-/** A table compares one checked cohort and one execution topology at a time. */
-export function sotaTable(cohort, topology, metrics) {
-  const rows = cohort.rows.filter((row) => row.placement.topology === topology);
-  return { rows, leaders: Object.fromEntries(metrics.map((metric) => [metric.id, leaders(rows, metric)])),
+/** Nested maximum budgets use all observed process peaks, never median RSS. */
+export function memoryBudgetRows(rows, maxBytes = null) {
+  if (maxBytes !== null && (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)) throw new Error('Invalid client memory maximum');
+  const known = (row) => Number.isSafeInteger(row.clientMemory?.maxPeakBytes) && row.clientMemory.maxPeakBytes > 0;
+  return { rows: maxBytes === null ? rows : rows.filter((row) => known(row) && row.clientMemory.maxPeakBytes <= maxBytes),
+    unknownCount: rows.filter((row) => !known(row)).length,
+    overBudgetCount: maxBytes === null ? 0 : rows.filter((row) => known(row) && row.clientMemory.maxPeakBytes > maxBytes).length };
+}
+
+/** A table compares one checked cohort, topology and optional maximum at a time. */
+export function sotaTable(cohort, topology, metrics, maxBytes = null) {
+  const budget = memoryBudgetRows(cohort.rows.filter((row) => row.placement.topology === topology), maxBytes);
+  const { rows } = budget;
+  return { ...budget, leaders: Object.fromEntries(metrics.map((metric) => [metric.id, leaders(rows, metric)])),
     precision: Object.fromEntries(metrics.map((metric) => [metric.id, metricPrecision(rows, metric)])) };
 }
 

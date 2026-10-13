@@ -33,6 +33,8 @@ test('original SDK suites yield independent workload and cold/repeat medians', (
       assert.equal(row.metrics.ttft, median(reports.map((report) => report.runs[request].durations.ttft_seconds)));
       assert.equal(row.metrics.decodeTps, median(reports.map((report) => 7 / report.runs[request].durations.generation_seconds)));
       assert.equal(row.metrics.clientPeak, median(reports.map((report) => report.client_process_memory.after.lifetime_peak_rss_bytes / 1e6)));
+      assert.equal(row.clientMemory.maxPeakBytes, Math.max(...reports.map((report) => report.client_process_memory.after.lifetime_peak_rss_bytes)));
+      assert.equal(row.clientMemory.sampleCount, reports.length);
       assert.equal(row.metrics.totalNetwork, median(reports.map((report) => {
         const sample = report.native_network_accounting.samples.runs[request];
         return (sample.after.wan_emulation.total_stream_bytes - (request === 0 ? 0 : sample.before.wan_emulation.total_stream_bytes)) / 1e6;
@@ -208,6 +210,7 @@ test('epoch views retain 36 original cells, exact final states and grouped timin
     assert.deepEqual(row.experiment, document.experiments[`${workload}/${row.id}`]);
     assert.equal(row.metrics.preparationCpu, median(samples.map((cell) => cell.provider_birth_cpu_seconds.preparation)));
     assert.equal(row.metrics.aggregateCpu, median(samples.map((cell) => cell.aggregate_cleanup_cpu_seconds)));
+    assert.equal(row.clientMemory.maxPeakBytes, Math.max(...samples.map((cell) => cell.client.client_peak_rss_bytes)));
     assert.equal(row.metrics.ttft, null, 'Queue/setup-inclusive first text is not online TTFT');
     assert.equal(row.metrics.decodeTps, null, 'Text deltas are not authoritative ordinary token intervals');
     assert.equal(row.scopedTimings.firstTextSeconds, median(samples.map((cell) => median(cell.client.responses.map((response) => response.first_text_seconds)))));

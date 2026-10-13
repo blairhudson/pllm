@@ -4947,6 +4947,7 @@ class OpenAI:
         network: Any | None = None,
         planning: Any | None = None,
         performance_prior: Any | None = None,
+        max_client_memory: str | None = None,
         _automatic: bool = True,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
@@ -4984,6 +4985,7 @@ class OpenAI:
                 network,
                 planning,
                 performance_prior,
+                max_client_memory,
             )
             if (
                 any(value is not None for value in overrides)
@@ -5032,6 +5034,14 @@ class OpenAI:
                 network = NetworkSpec.from_spec(strict_load(Path(network).expanduser().read_bytes()))
             if not isinstance(experiment, Experiment):
                 raise ValueError("automatic network planning requires a configured Experiment")
+            if max_client_memory is not None:
+                from dataclasses import replace
+                from pllm.search import PlanningPolicy
+
+                if planning is not None and not isinstance(planning, PlanningPolicy):
+                    raise TypeError("planning must be a PlanningPolicy")
+                planning = replace(planning or SelectedClientFactory.default_policy(),
+                                   max_client_memory=max_client_memory)
             factory = SelectedClientFactory(network, experiment=experiment, policy=planning,
                                             performance_prior=performance_prior)
             requested_model = default_model or model or settings_base.model
@@ -5043,7 +5053,7 @@ class OpenAI:
             self.models = ModelsResource(self._core)
             self.runtime = RuntimeResource(self._core)
             return
-        if planning is not None or performance_prior is not None:
+        if planning is not None or performance_prior is not None or max_client_memory is not None:
             raise ValueError("resource planning requires a configured network")
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment

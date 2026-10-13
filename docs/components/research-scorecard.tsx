@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState, type CSSProperties } from 'react';
 import data from '@/data/research/scorecard.json';
-import { leaders, normalizedAxes, measuredSegments, groupedMetrics } from '@/lib/research-rankings.mjs';
+import { leaders, normalizedAxes, measuredSegments, groupedMetrics, memoryBudgetRows } from '@/lib/research-rankings.mjs';
 import { withBasePath } from '@/lib/paths.mjs';
 import styles from './research-scorecard.module.css';
 import { ResearchSotaTable } from './research-sota';
@@ -24,6 +24,7 @@ export function ResearchScorecard() {
   const models = [...new Set(data.cohorts.map((cohort) => cohort.model))];
   const [model, setModel] = useState(models[0]);
   const [cohortId, setCohort] = useState(data.cohorts[0].id);
+  const [memoryTier, setMemoryTier] = useState<string | null>('low');
   const [metricIds, setMetrics] = useState(data.defaultMetrics);
   const [publicPrefix, setPublicPrefix] = useState(true);
   const [clientWeights, setClientWeights] = useState(true);
@@ -54,7 +55,8 @@ export function ResearchScorecard() {
   });
   const groups = groupedMetrics(metricIds.map((key) => definitions.find((metric) => metric.id === key)!));
   const metrics = groups.flatMap((group) => group.metrics);
-  const rows = cohort.rows.filter((row) => Boolean(row.reference) ||
+  const maxBytes = data.clientMemoryTiers.find((tier) => tier.id === memoryTier)?.maxBytes ?? null;
+  const rows = memoryBudgetRows<Row>(cohort.rows, maxBytes).rows.filter((row) => Boolean(row.reference) ||
     ((publicPrefix || row.publicPrefixTokens === 0) && (clientWeights || !row.placement.clientBody)));
   const axes = normalizedAxes(rows, metrics);
   const active = rows.find((row) => row.id === (hovered ?? selected));
@@ -102,7 +104,7 @@ export function ResearchScorecard() {
         {data.papers.map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
       </select></label>
     </div>
-    <ResearchSotaTable key={cohort.id} cohort={cohort} />
+    <ResearchSotaTable key={cohort.id} cohort={cohort} memoryTier={memoryTier} onMemoryTierChange={setMemoryTier} />
     <details className={styles.metricPicker}><summary>Choose chart metrics <span>{metrics.length} selected · client, Preparation, responsiveness and all-link traffic</span></summary>
       <div>{groupedMetrics(definitions).map((group) => <fieldset key={group.label}><legend title={group.title}>{group.label}</legend>
         {group.metrics.map((metric) => <label key={metric.id}><input type="checkbox"
@@ -116,7 +118,7 @@ export function ResearchScorecard() {
         onChange={(event) => setPublicPrefix(event.target.checked)} /> Public-prefix configurations</label>}
       {cohort.rows.some((row) => row.placement.clientBody) && <label><input type="checkbox" checked={clientWeights}
          onChange={(event) => setClientWeights(event.target.checked)} /> Client-owned decoder candidates</label>}
-      <span>Baselines stay visible.</span>
+       <span>Baselines within the RAM maximum stay visible. Chart includes all topologies.</span>
     </div>
     <p className={styles.scope}>{cohort.scope}</p>
     {paper && <div className={styles.paperNotice} aria-live="polite"><strong>{paper.title}</strong>

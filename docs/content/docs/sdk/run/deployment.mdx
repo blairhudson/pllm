@@ -81,6 +81,55 @@ include loading, masks, attention, KV, full outputs and selected MLP intermediat
 with the benchmark's 25% margin. These are conservative admission estimates, not
 an OS-enforced peak-RSS guarantee.
 
+### Maximum client RAM
+
+Choose an optional maximum without replacing the automatic scheduling policy:
+
+```python
+from pllm import OpenAI
+
+# Uses the network and Experiment configured above, even on a large machine.
+with OpenAI(max_client_memory="medium") as client:
+    response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+    decision = client.planning(response.id)
+    assert decision.request.policy.client_peak_memory_limit_bytes == 2 << 30
+```
+
+| `max_client_memory` | Maximum whole-client memory | Intended use |
+| --- | --- | --- |
+| `"low"` | 256 MiB (268,435,456 bytes) | Minimal client worker |
+| `"medium"` | 2 GiB (2,147,483,648 bytes) | Application worker |
+| `"high"` | 16 GiB (17,179,869,184 bytes) | Compute-rich worker |
+
+`AsyncOpenAI` accepts the same shorthand. The argument selects a maximum, not a
+hardware class or a minimum allocation. Omitting it leaves admission based on
+current host/container headroom and any configured limits; the SDK does not
+automatically assign or upgrade a tier. High does not enable GPU execution or
+set a VRAM budget. The shorthand requires network-configured planning.
+
+The same contract is available as `PlanningPolicy(max_client_memory="low")` and
+in configuration, including configured gateways:
+
+```toml
+[client.planning]
+max_client_memory = "low"
+```
+
+An explicit SDK argument overrides the configured tier while preserving ranking
+objectives and other policy fields. If `max_client_peak_memory_bytes` is also
+set, **the smaller limit wins**. Inspect the resolved byte ceiling through
+`policy.client_peak_memory_limit_bytes`. Current process RSS, conservative
+incremental allocations and concurrent reservations must fit that ceiling;
+host/container headroom is checked independently before reservation. A large
+machine cannot silently widen Low. A small machine cannot assume High is usable.
+Insufficient capacity rejects before issuing material.
+
+The [research tiers](/research/sota/) use the same byte maxima with measured
+process peaks. Conservative SDK estimates and observed RSS remain different
+quantities; a historical result under 256 MiB need not pass 256 MiB admission.
+
+### Installed scheduling choices
+
 Hosts can advertise up to 32 compatible installed Pipelines through
 `PartySpec(alternatives=(... ,))`. The SDK considers only installed, compatible
 combinations across MLP tiling, client paging, raw/compressed/artifact delivery,

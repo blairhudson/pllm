@@ -1,13 +1,16 @@
-type Row = { id: string; metrics: Record<string, number | null> };
+type Row = { id: string; metrics: Record<string, number | null>; clientMemory?: { maxPeakBytes: number | null } };
 type Metric = { id: string; direction: string; scoreBounds?: number[] };
 export function leaders(rows: Row[], metric: Metric): string[];
 export function sortMetricRows<R extends Row>(rows: R[], metricId: string, direction: 'ascending' | 'descending'): R[];
 export function improvement(value: number | null, baseline: number | null, direction: string): number | null;
 export const defaultMetrics: string[];
 export const sotaMetrics: string[];
+export function memoryBudgetRows<R extends Row>(rows: R[], maxBytes?: number | null): {
+  rows: R[]; unknownCount: number; overBudgetCount: number;
+};
 export function sotaTable<R extends Row & { placement: { topology: string } }>(
-  cohort: { rows: R[] }, topology: string, metrics: Metric[],
-): { rows: R[]; leaders: Record<string, string[]>; precision: Record<string, number> };
+  cohort: { rows: R[] }, topology: string, metrics: Metric[], maxBytes?: number | null,
+): { rows: R[]; unknownCount: number; overBudgetCount: number; leaders: Record<string, string[]>; precision: Record<string, number> };
 type Component = { component: string; params?: Record<string, unknown> };
 export function componentCombination(pipeline: { components: Record<string, Component | undefined> }): Array<
   Component & { slot: string; name: string }

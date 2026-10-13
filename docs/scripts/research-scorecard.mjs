@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { defaultMetrics, priorities, sotaMetrics } from '../lib/research-rankings.mjs';
 import { historicalRows } from './research-historical.mjs';
 import { adaptedCohorts } from './research-scorecard-adapters.mjs';
+import { clientMemoryEvidence } from './research-memory.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -331,7 +332,9 @@ export function cohortRows(cohort, document, read = (file) => fs.readFileSync(pa
       configurationDigest: candidate.configuration_digest, pipeline: candidate.pipeline,
       sourceLock: config.source_lock_digest, paper: spec.paper ?? null,
       reference: baselineKind(spec, candidate.pipeline, placement, candidate.name === cohort.baseline),
-      publicPrefixTokens, placement, metrics: metricValues };
+      publicPrefixTokens, placement, metrics: metricValues,
+      clientMemory: clientMemoryEvidence([config.client_process_isolated === true
+        ? report.client_process_memory?.after?.lifetime_peak_rss_bytes : null], 'process_birth_through_response') };
   });
   if (identities.size !== 1) throw new Error('Cohort identity, numeric contract, or outputs differ');
   if (!names.has(cohort.baseline) || names.size !== Object.keys(cohort.candidates).length) {
@@ -368,7 +371,8 @@ export function buildScorecard({ trafficAttributionConsumer = null } = {}) {
         });
       }
   }
-  return { schema: 'pllm.research_scorecard.v1', metrics, defaultMetrics, sotaMetrics, priorities, papers, cohorts };
+  const clientMemoryTiers = JSON.parse(fs.readFileSync(path.join(root, 'python/pllm/search/client_memory_tiers.json')));
+  return { schema: 'pllm.research_scorecard.v1', clientMemoryTiers, metrics, defaultMetrics, sotaMetrics, priorities, papers, cohorts };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

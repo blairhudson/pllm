@@ -176,7 +176,7 @@ class _ClientCapacity:
             resources = self.observe()
             if amount > resources.headroom_bytes:
                 raise NetworkError("CLIENT_MEMORY_CAPACITY_CHANGED")
-            limit = result.request.policy.max_client_peak_memory_bytes
+            limit = result.request.policy.client_peak_memory_limit_bytes
             if limit is not None and (
                     amount + resources.process_memory_bytes + resources.reserved_memory_bytes > limit):
                 raise NetworkError("CLIENT_MEMORY_CAPACITY_CHANGED")

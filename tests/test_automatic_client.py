@@ -178,6 +178,42 @@ def test_unpriced_resource_requirement_rejects_before_capacity(configured):
     released(configured)
 
 
+def test_sdk_memory_shorthand_preserves_ranking_and_stricter_configured_cap(configured):
+    settings = ClientSettings.load()
+    settings.planning = {"max_client_memory": "high", "max_client_peak_memory_bytes": 1}
+    settings.save(Path(os.environ["PLLM_CONFIG"]))
+    with OpenAI(max_client_memory="low") as client:
+        with pytest.raises(ValueError, match="NO_FEASIBLE_PLACEMENT") as caught:
+            client.responses.create(input="Hi", max_output_tokens=2)
+        policy = caught.value.planning_result.request.policy
+        assert policy.max_client_memory == "low"
+        assert policy.client_peak_memory_limit_bytes == 1
+        assert policy.objectives[0] == "prefill_dependent_exchanges"
+    assert attempts(configured) == 0
+    released(configured)
+
+
+def test_sync_memory_shorthand_executes_and_retires(configured):
+    with OpenAI(max_client_memory="medium") as client:
+        response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+        result = client.planning(response.id)
+        assert result.request.policy.client_peak_memory_limit_bytes == 2 << 30
+        assert result.costs["client_peak_memory_bytes"] <= 2 << 30
+        assert response.usage.output_tokens == 2
+    released(configured)
+
+
+@pytest.mark.asyncio
+async def test_async_memory_shorthand_executes_and_retires(configured):
+    async with AsyncOpenAI(max_client_memory="high") as client:
+        response = await client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+        result = await client.planning(response.id)
+        assert result.request.policy.client_peak_memory_limit_bytes == 16 << 30
+        assert result.costs["client_peak_memory_bytes"] <= 16 << 30
+        assert response.usage.output_tokens == 2
+    released(configured)
+
+
 @pytest.mark.parametrize("mode", ("experiment", "configured"))
 def test_real_cli_automatic_gateway(configured, mode):
     result = _fixture_module.gateway_cli_probe(configured, mode)
@@ -277,12 +313,14 @@ def test_client_settings_policy_roundtrip_and_unknown_rejection(tmp_path, monkey
     monkeypatch.delenv("PLLM_EXPERIMENT", raising=False)
     path = tmp_path / "client.toml"
     ClientSettings(network="network.json", experiment="experiment.json", planning={
+        "max_client_memory": "low",
         "max_client_peak_memory_bytes": 512 << 20,
         "objectives": ("client_weight_bytes",),
     }).save(path)
     settings = ClientSettings.load(path)
     assert settings.network == str(tmp_path / "network.json")
     assert settings.planning["max_client_peak_memory_bytes"] == 512 << 20
+    assert settings.planning["max_client_memory"] == "low"
     path.write_text('[client.planning]\npretend_memory = 1\n')
     with pytest.raises(TypeError, match="pretend_memory"):
         ClientSettings.load(path)

@@ -5,8 +5,10 @@ from __future__ import annotations
 import itertools
 import math
 import hashlib
+import json
 from collections import Counter
 from dataclasses import dataclass
+from importlib.resources import files
 from typing import Any, Mapping
 
 from pllm.configuration import Experiment
@@ -28,6 +30,8 @@ from pllm.deployment.resources import ClientResources
 from .performance import PlanningPrior, assignment_context
 
 PRIOR_OBJECTIVES = ("forecast_ttft_ms", "forecast_decode_ms_per_token")
+_CLIENT_MEMORY_TIERS = {tier["id"]: tier["maxBytes"] for tier in json.loads(
+    files(__package__).joinpath("client_memory_tiers.json").read_text(encoding="utf-8"))}
 
 OBJECTIVES = frozenset(
     {
@@ -119,9 +123,13 @@ class PlanningPolicy(PublicRecord):
     candidate_selection: str = "installed"
     max_client_native_threads: int | None = None
     prior_objectives: tuple[str, ...] = PRIOR_OBJECTIVES
+    max_client_memory: str | None = None
 
     def __post_init__(self) -> None:
         identity(self.client_party_id, "client_party_id")
+        if self.max_client_memory is not None and (
+                type(self.max_client_memory) is not str or self.max_client_memory not in _CLIENT_MEMORY_TIERS):
+            raise NetworkError("max_client_memory must be low, medium or high")
         integer(self.evaluated_at_ms, "evaluated_at_ms")
         integer(self.max_candidates, "max_candidates", minimum=1, maximum=1024)
         integer(self.max_assignments, "max_assignments", minimum=1, maximum=1_000_000)
@@ -170,7 +178,7 @@ class PlanningPolicy(PublicRecord):
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningPolicy:
-        data = cls._fields({"prior_objectives": list(PRIOR_OBJECTIVES), "max_client_native_threads": None, "candidate_selection": "installed", "allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
+        data = cls._fields({"max_client_memory": None, "prior_objectives": list(PRIOR_OBJECTIVES), "max_client_native_threads": None, "candidate_selection": "installed", "allocation_model": "payload", "reuse_horizon": 1, "incumbent_configuration_digest": None,
                            "switch_body_bytes": 0, "minimum_switch_improvement_fraction": 0.0, **value})
         if type(data["objectives"]) is not list:
             raise NetworkError("objectives must be an array")
@@ -187,10 +195,18 @@ class PlanningPolicy(PublicRecord):
         for name, default in (("incumbent_configuration_digest", None), ("switch_body_bytes", 0),
                                ("minimum_switch_improvement_fraction", 0.0), ("allocation_model", "payload"),
                                ("candidate_selection", "installed"), ("max_client_native_threads", None),
-                               ("prior_objectives", PRIOR_OBJECTIVES)):
+                               ("prior_objectives", PRIOR_OBJECTIVES), ("max_client_memory", None)):
             if getattr(self, name) == default:
                 value.pop(name)
         return value
+
+    @property
+    def client_peak_memory_limit_bytes(self) -> int | None:
+        """Tighter of the named maximum and explicit byte cap; live headroom is additional."""
+        limits = [value for value in (
+            self.max_client_peak_memory_bytes, _CLIENT_MEMORY_TIERS.get(self.max_client_memory)
+        ) if value is not None]
+        return min(limits) if limits else None
 
 
 @dataclass(frozen=True, slots=True)
@@ -823,7 +839,7 @@ def _policy_rejection(costs: dict, policy: PlanningPolicy) -> str | None:
         ("max_client_weight_bytes", "client_weight_bytes"),
         ("max_client_payload_bytes", "client_payload_bytes"),
         ("max_client_cpu_ns", "client_cpu_ns"),
-        ("max_client_peak_memory_bytes", "client_peak_memory_bytes"),
+        ("client_peak_memory_limit_bytes", "client_peak_memory_bytes"),
         ("max_full_wire_bytes", "full_wire_bytes"),
     ):
         limit = getattr(policy, bound)

@@ -44,10 +44,24 @@
 .combination code { font-size: .65rem; white-space: normal; overflow-wrap: anywhere; }
 .replay { font-size: .7rem; }
 .note { margin-block: .8rem; }
+.budgets { margin-block: 1.5rem; }
+.budgetHeading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
+.budgetHeading h3 { margin: 0; font-size: 1rem; font-weight: 550; }
+.budgetHeading button { padding: .5rem; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: .75rem; text-decoration: underline; cursor: pointer; }
+.budgetHeading button[aria-pressed="true"] { font-weight: 650; }
+.tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.tiers button { display: grid; gap: .45rem; padding: 1rem; text-align: left; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+.tiers button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.tiers button > span { display: flex; flex-wrap: wrap; gap: .3rem 1rem; justify-content: space-between; }
+.tiers strong { font-weight: 600; }
+.tiers small { color: var(--muted); font-size: .72rem; }
+.tiers button:focus-visible, .budgetHeading button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.tableWrap .empty { color: var(--muted); padding: 1.5rem; }
 @media (max-width: 760px) {
   .heading { display: grid; gap: 1rem; }
   .heading label { width: 100%; }
   .controls { grid-template-columns: 1fr; }
+  .tiers { grid-template-columns: 1fr; }
   :global(#nd-page) .tableWrap table { display: table; width: 100% !important; min-width: 0 !important; max-width: none !important; overflow: visible; }
   .tableWrap tbody th { min-width: 12rem; max-width: 12rem; }
   .tableWrap th, .tableWrap td { padding: .75rem .6rem; }
