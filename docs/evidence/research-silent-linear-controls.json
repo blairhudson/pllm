@@ -1,0 +1,1277 @@
+{
+  "schema": "pllm.silent_linear_control_budgets.v1",
+  "complete": true,
+  "scope": "historical measured control reconciliation and conditional byte ceilings only",
+  "horizon_unit": "one new-prefix eight-output request and its exact repeat",
+  "candidate_implemented": false,
+  "candidate_client_peak_bytes": null,
+  "candidate_low_tier_qualified": null,
+  "complete_base_bytes_per_request": null,
+  "complete_bytes_per_generated_token": null,
+  "sources": {
+    "scripts/probe_silent_linear_controls.py": "9dc7990be19215f8b53620ffac73ec2acaea514343d3c7414b4babff2122fea8",
+    "docs/evidence/research-sota-combinations-qwen25.json": "5fb73b6883a0e42ac42b65b33a84cdfe0c6646d1e459f0df72639c38756ad54d"
+  },
+  "cases": [
+    {
+      "case": "150/both",
+      "samples": [
+        {
+          "replicate": 0,
+          "result_id": "150/both/37f068a8b43dfd39/0",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "27c2b8383142f0c7373b5b90af63a305fcd52ace2331f17f6d4dec73032b9c80",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+          },
+          "client_peak_bytes": 202489856,
+          "covered_pair_bytes": 493618268,
+          "public_delivery_bytes": 124905091,
+          "correction_bytes": 139060689,
+          "known_base_bytes": 460596630,
+          "known_output_dependent_bytes": 32745103,
+          "unattributed_bytes": 276535,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 493618268,
+              "correction_only_first_pair_ceiling": "139060689/493618268",
+              "correction_only_recurring_ceiling": "139060689/493618268",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "2": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "4": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "16": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "64": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "4096": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 124905091,
+              "control_recurring_pair_bytes": 368713177,
+              "correction_only_first_pair_ceiling": "139060689/493618268",
+              "correction_only_recurring_ceiling": "3758397/9965221",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "2": {
+                  "20": "105655089/2",
+                  "35": "-94778511/8",
+                  "50": "-306088689/4"
+                },
+                "4": {
+                  "20": "1181455981/20",
+                  "35": "-73449473/80",
+                  "50": "-487272287/8"
+                },
+                "16": {
+                  "20": "5100539197/80",
+                  "35": "2329209019/320",
+                  "50": "-1574373875/32"
+                },
+                "64": {
+                  "20": "20776872061/320",
+                  "35": "11939842987/1280",
+                  "50": "-5922780227/128"
+                },
+                "4096": {
+                  "20": "1337588832637/20480",
+                  "35": "819233096299/81920",
+                  "50": "-371188913795/8192"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "replicate": 1,
+          "result_id": "150/both/37f068a8b43dfd39/1",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "27c2b8383142f0c7373b5b90af63a305fcd52ace2331f17f6d4dec73032b9c80",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+          },
+          "client_peak_bytes": 201588736,
+          "covered_pair_bytes": 493618268,
+          "public_delivery_bytes": 124905091,
+          "correction_bytes": 139060689,
+          "known_base_bytes": 460596630,
+          "known_output_dependent_bytes": 32745103,
+          "unattributed_bytes": 276535,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 493618268,
+              "correction_only_first_pair_ceiling": "139060689/493618268",
+              "correction_only_recurring_ceiling": "139060689/493618268",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "2": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "4": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "16": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "64": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "4096": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 124905091,
+              "control_recurring_pair_bytes": 368713177,
+              "correction_only_first_pair_ceiling": "139060689/493618268",
+              "correction_only_recurring_ceiling": "3758397/9965221",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "201685177/5",
+                  "35": "-168528524/5",
+                  "50": "-107748445"
+                },
+                "2": {
+                  "20": "105655089/2",
+                  "35": "-94778511/8",
+                  "50": "-306088689/4"
+                },
+                "4": {
+                  "20": "1181455981/20",
+                  "35": "-73449473/80",
+                  "50": "-487272287/8"
+                },
+                "16": {
+                  "20": "5100539197/80",
+                  "35": "2329209019/320",
+                  "50": "-1574373875/32"
+                },
+                "64": {
+                  "20": "20776872061/320",
+                  "35": "11939842987/1280",
+                  "50": "-5922780227/128"
+                },
+                "4096": {
+                  "20": "1337588832637/20480",
+                  "35": "819233096299/81920",
+                  "50": "-371188913795/8192"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "replicate": 2,
+          "result_id": "150/both/37f068a8b43dfd39/2",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "27c2b8383142f0c7373b5b90af63a305fcd52ace2331f17f6d4dec73032b9c80",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+          },
+          "client_peak_bytes": 202702848,
+          "covered_pair_bytes": 493618270,
+          "public_delivery_bytes": 124905091,
+          "correction_bytes": 139060689,
+          "known_base_bytes": 460596630,
+          "known_output_dependent_bytes": 32745103,
+          "unattributed_bytes": 276537,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 493618270,
+              "correction_only_first_pair_ceiling": "139060689/493618270",
+              "correction_only_recurring_ceiling": "139060689/493618270",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "40337035",
+                  "35": "-67411411/2",
+                  "50": "-107748446"
+                },
+                "2": {
+                  "20": "40337035",
+                  "35": "-67411411/2",
+                  "50": "-107748446"
+                },
+                "4": {
+                  "20": "40337035",
+                  "35": "-67411411/2",
+                  "50": "-107748446"
+                },
+                "16": {
+                  "20": "40337035",
+                  "35": "-67411411/2",
+                  "50": "-107748446"
+                },
+                "64": {
+                  "20": "40337035",
+                  "35": "-67411411/2",
+                  "50": "-107748446"
+                },
+                "4096": {
+                  "20": "40337035",
+                  "35": "-67411411/2",
+                  "50": "-107748446"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 124905091,
+              "control_recurring_pair_bytes": 368713179,
+              "correction_only_first_pair_ceiling": "139060689/493618270",
+              "correction_only_recurring_ceiling": "46353563/122904393",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "40337035",
+                  "35": "-67411411/2",
+                  "50": "-107748446"
+                },
+                "2": {
+                  "20": "528275441/10",
+                  "35": "-473892583/40",
+                  "50": "-306088693/4"
+                },
+                "4": {
+                  "20": "1181455973/20",
+                  "35": "-73449529/80",
+                  "50": "-487272295/8"
+                },
+                "16": {
+                  "20": "1020107833/16",
+                  "35": "465841759/64",
+                  "50": "-1574373907/32"
+                },
+                "64": {
+                  "20": "20776871933/320",
+                  "35": "11939842091/1280",
+                  "50": "-5922780355/128"
+                },
+                "4096": {
+                  "20": "267517764889/4096",
+                  "35": "163846607791/16384",
+                  "50": "-371188921987/8192"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "maximum_control_client_peak_bytes": 202702848,
+      "measured_control_fits_low": true
+    },
+    {
+      "case": "150/both-placement",
+      "samples": [
+        {
+          "replicate": 0,
+          "result_id": "150/both-placement/37f068a8b43dfd39/0",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "e51268cc0d609e6e0702014077b2afb118b666a733fcbfb76d0dda4246302e74",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+          },
+          "client_peak_bytes": 202178560,
+          "covered_pair_bytes": 471829943,
+          "public_delivery_bytes": 155464774,
+          "correction_bytes": 121105112,
+          "known_base_bytes": 443418176,
+          "known_output_dependent_bytes": 28212416,
+          "unattributed_bytes": 199351,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 471829943,
+              "correction_only_first_pair_ceiling": "121105112/471829943",
+              "correction_only_recurring_ceiling": "121105112/471829943",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "2": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "4": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "16": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "64": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "4096": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 155464774,
+              "control_recurring_pair_bytes": 316365169,
+              "correction_only_first_pair_ceiling": "121105112/471829943",
+              "correction_only_recurring_ceiling": "121105112/316365169",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "2": {
+                  "20": "211428004/5",
+                  "35": "-84145163/5",
+                  "50": "-75943666"
+                },
+                "4": {
+                  "20": "100117679/2",
+                  "35": "-25806919/8",
+                  "50": "-226042277/4"
+                },
+                "16": {
+                  "20": "2235550741/40",
+                  "35": "1116241747/160",
+                  "50": "-670971947/16"
+                },
+                "64": {
+                  "20": "1835080025/32",
+                  "35": "1219469423/128",
+                  "50": "-2450690627/64"
+                },
+                "4096": {
+                  "20": "592122748381/10240",
+                  "35": "424510198027/40960",
+                  "50": "-151947059747/4096"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "replicate": 1,
+          "result_id": "150/both-placement/37f068a8b43dfd39/1",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "e51268cc0d609e6e0702014077b2afb118b666a733fcbfb76d0dda4246302e74",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+          },
+          "client_peak_bytes": 200179712,
+          "covered_pair_bytes": 471829944,
+          "public_delivery_bytes": 155464774,
+          "correction_bytes": 121105112,
+          "known_base_bytes": 443418176,
+          "known_output_dependent_bytes": 28212416,
+          "unattributed_bytes": 199352,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 471829944,
+              "correction_only_first_pair_ceiling": "15138139/58978743",
+              "correction_only_recurring_ceiling": "15138139/58978743",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "133695616/5",
+                  "35": "-220176842/5",
+                  "50": "-114809860"
+                },
+                "2": {
+                  "20": "133695616/5",
+                  "35": "-220176842/5",
+                  "50": "-114809860"
+                },
+                "4": {
+                  "20": "133695616/5",
+                  "35": "-220176842/5",
+                  "50": "-114809860"
+                },
+                "16": {
+                  "20": "133695616/5",
+                  "35": "-220176842/5",
+                  "50": "-114809860"
+                },
+                "64": {
+                  "20": "133695616/5",
+                  "35": "-220176842/5",
+                  "50": "-114809860"
+                },
+                "4096": {
+                  "20": "133695616/5",
+                  "35": "-220176842/5",
+                  "50": "-114809860"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 155464774,
+              "control_recurring_pair_bytes": 316365170,
+              "correction_only_first_pair_ceiling": "15138139/58978743",
+              "correction_only_recurring_ceiling": "60552556/158182585",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "133695616/5",
+                  "35": "-220176842/5",
+                  "50": "-114809860"
+                },
+                "2": {
+                  "20": "211428003/5",
+                  "35": "-336580659/20",
+                  "50": "-151887333/2"
+                },
+                "4": {
+                  "20": "500588393/10",
+                  "35": "-129034609/40",
+                  "50": "-226042279/4"
+                },
+                "16": {
+                  "20": "2235550733/40",
+                  "35": "1116241691/160",
+                  "50": "-670971955/16"
+                },
+                "64": {
+                  "20": "9175400093/160",
+                  "35": "6097346891/640",
+                  "50": "-2450690659/64"
+                },
+                "4096": {
+                  "20": "592122746333/10240",
+                  "35": "424510183691/40960",
+                  "50": "-151947061795/4096"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "replicate": 2,
+          "result_id": "150/both-placement/37f068a8b43dfd39/2",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "e51268cc0d609e6e0702014077b2afb118b666a733fcbfb76d0dda4246302e74",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+          },
+          "client_peak_bytes": 202293248,
+          "covered_pair_bytes": 471829943,
+          "public_delivery_bytes": 155464774,
+          "correction_bytes": 121105112,
+          "known_base_bytes": 443418176,
+          "known_output_dependent_bytes": 28212416,
+          "unattributed_bytes": 199351,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 471829943,
+              "correction_only_first_pair_ceiling": "121105112/471829943",
+              "correction_only_recurring_ceiling": "121105112/471829943",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "2": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "4": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "16": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "64": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "4096": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 155464774,
+              "control_recurring_pair_bytes": 316365169,
+              "correction_only_first_pair_ceiling": "121105112/471829943",
+              "correction_only_recurring_ceiling": "121105112/316365169",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "133695617/5",
+                  "35": "-880707361/20",
+                  "50": "-229619719/2"
+                },
+                "2": {
+                  "20": "211428004/5",
+                  "35": "-84145163/5",
+                  "50": "-75943666"
+                },
+                "4": {
+                  "20": "100117679/2",
+                  "35": "-25806919/8",
+                  "50": "-226042277/4"
+                },
+                "16": {
+                  "20": "2235550741/40",
+                  "35": "1116241747/160",
+                  "50": "-670971947/16"
+                },
+                "64": {
+                  "20": "1835080025/32",
+                  "35": "1219469423/128",
+                  "50": "-2450690627/64"
+                },
+                "4096": {
+                  "20": "592122748381/10240",
+                  "35": "424510198027/40960",
+                  "50": "-151947059747/4096"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "maximum_control_client_peak_bytes": 202293248,
+      "measured_control_fits_low": true
+    },
+    {
+      "case": "288/both",
+      "samples": [
+        {
+          "replicate": 0,
+          "result_id": "288/both/37f068a8b43dfd39/0",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "09083c9d9ca928475b64c860e918a74e6b8aaad9e02ecd9893eeb3c2b7bdab0b",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+          },
+          "client_peak_bytes": 241795072,
+          "covered_pair_bytes": 802350878,
+          "public_delivery_bytes": 124905091,
+          "correction_bytes": 255489418,
+          "known_base_bytes": 769329086,
+          "known_output_dependent_bytes": 32745137,
+          "unattributed_bytes": 276655,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 802350878,
+              "correction_only_first_pair_ceiling": "127744709/401175439",
+              "correction_only_recurring_ceiling": "127744709/401175439",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "2": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "4": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "16": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "64": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "4096": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 124905091,
+              "control_recurring_pair_bytes": 677445787,
+              "correction_only_first_pair_ceiling": "127744709/401175439",
+              "correction_only_recurring_ceiling": "255489418/677445787",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "2": {
+                  "20": "215019503/2",
+                  "35": "-27799987/8",
+                  "50": "-457838993/4"
+                },
+                "4": {
+                  "20": "2275100121/20",
+                  "35": "596335767/80",
+                  "50": "-790772895/8"
+                },
+                "16": {
+                  "20": "9475115757/80",
+                  "35": "5008349979/320",
+                  "50": "-2788376307/32"
+                },
+                "64": {
+                  "20": "38275178301/320",
+                  "35": "22656406827/1280",
+                  "50": "-10778789955/128"
+                },
+                "4096": {
+                  "20": "2457480431997/20480",
+                  "35": "1505093182059/81920",
+                  "50": "-681973536387/8192"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "replicate": 1,
+          "result_id": "288/both/37f068a8b43dfd39/1",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "09083c9d9ca928475b64c860e918a74e6b8aaad9e02ecd9893eeb3c2b7bdab0b",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+          },
+          "client_peak_bytes": 242483200,
+          "covered_pair_bytes": 802350879,
+          "public_delivery_bytes": 124905091,
+          "correction_bytes": 255489418,
+          "known_base_bytes": 769329086,
+          "known_output_dependent_bytes": 32745137,
+          "unattributed_bytes": 276656,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 802350879,
+              "correction_only_first_pair_ceiling": "255489418/802350879",
+              "correction_only_recurring_ceiling": "255489418/802350879",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "475096211/5",
+                  "35": "-506667793/20",
+                  "50": "-291372043/2"
+                },
+                "2": {
+                  "20": "475096211/5",
+                  "35": "-506667793/20",
+                  "50": "-291372043/2"
+                },
+                "4": {
+                  "20": "475096211/5",
+                  "35": "-506667793/20",
+                  "50": "-291372043/2"
+                },
+                "16": {
+                  "20": "475096211/5",
+                  "35": "-506667793/20",
+                  "50": "-291372043/2"
+                },
+                "64": {
+                  "20": "475096211/5",
+                  "35": "-506667793/20",
+                  "50": "-291372043/2"
+                },
+                "4096": {
+                  "20": "475096211/5",
+                  "35": "-506667793/20",
+                  "50": "-291372043/2"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 124905091,
+              "control_recurring_pair_bytes": 677445788,
+              "correction_only_first_pair_ceiling": "255489418/802350879",
+              "correction_only_recurring_ceiling": "127744709/338722894",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "475096211/5",
+                  "35": "-506667793/20",
+                  "50": "-291372043/2"
+                },
+                "2": {
+                  "20": "1075097513/10",
+                  "35": "-138999949/40",
+                  "50": "-457838995/4"
+                },
+                "4": {
+                  "20": "2275100117/20",
+                  "35": "596335739/80",
+                  "50": "-790772899/8"
+                },
+                "16": {
+                  "20": "9475115741/80",
+                  "35": "5008349867/320",
+                  "50": "-2788376323/32"
+                },
+                "64": {
+                  "20": "38275178237/320",
+                  "35": "22656406379/1280",
+                  "50": "-10778790019/128"
+                },
+                "4096": {
+                  "20": "2457480427901/20480",
+                  "35": "1505093153387/81920",
+                  "50": "-681973540483/8192"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "replicate": 2,
+          "result_id": "288/both/37f068a8b43dfd39/2",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "09083c9d9ca928475b64c860e918a74e6b8aaad9e02ecd9893eeb3c2b7bdab0b",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+          },
+          "client_peak_bytes": 242302976,
+          "covered_pair_bytes": 802350878,
+          "public_delivery_bytes": 124905091,
+          "correction_bytes": 255489418,
+          "known_base_bytes": 769329086,
+          "known_output_dependent_bytes": 32745137,
+          "unattributed_bytes": 276655,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 802350878,
+              "correction_only_first_pair_ceiling": "127744709/401175439",
+              "correction_only_recurring_ceiling": "127744709/401175439",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "2": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "4": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "16": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "64": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "4096": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 124905091,
+              "control_recurring_pair_bytes": 677445787,
+              "correction_only_first_pair_ceiling": "127744709/401175439",
+              "correction_only_recurring_ceiling": "255489418/677445787",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "475096212/5",
+                  "35": "-253333893/10",
+                  "50": "-145686021"
+                },
+                "2": {
+                  "20": "215019503/2",
+                  "35": "-27799987/8",
+                  "50": "-457838993/4"
+                },
+                "4": {
+                  "20": "2275100121/20",
+                  "35": "596335767/80",
+                  "50": "-790772895/8"
+                },
+                "16": {
+                  "20": "9475115757/80",
+                  "35": "5008349979/320",
+                  "50": "-2788376307/32"
+                },
+                "64": {
+                  "20": "38275178301/320",
+                  "35": "22656406827/1280",
+                  "50": "-10778789955/128"
+                },
+                "4096": {
+                  "20": "2457480431997/20480",
+                  "35": "1505093182059/81920",
+                  "50": "-681973536387/8192"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "maximum_control_client_peak_bytes": 242483200,
+      "measured_control_fits_low": true
+    },
+    {
+      "case": "288/both-placement",
+      "samples": [
+        {
+          "replicate": 0,
+          "result_id": "288/both-placement/37f068a8b43dfd39/0",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "d01646f3d24b65d8598fa781f4ab2e75b4bbd067cf14643837479e9c45f5f122",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+          },
+          "client_peak_bytes": 243499008,
+          "covered_pair_bytes": 736652404,
+          "public_delivery_bytes": 155464774,
+          "correction_bytes": 222468360,
+          "known_base_bytes": 708240581,
+          "known_output_dependent_bytes": 28212437,
+          "unattributed_bytes": 199386,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 736652404,
+              "correction_only_first_pair_ceiling": "55617090/184163101",
+              "correction_only_recurring_ceiling": "55617090/184163101",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "2": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "4": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "16": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "64": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "4096": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 155464774,
+              "control_recurring_pair_bytes": 581187630,
+              "correction_only_first_pair_ceiling": "55617090/184163101",
+              "correction_only_recurring_ceiling": "7415612/19372921",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "2": {
+                  "20": "453421783/5",
+                  "35": "-163072919/20",
+                  "50": "-213983297/2"
+                },
+                "4": {
+                  "20": "984575953/10",
+                  "35": "217980871/40",
+                  "50": "-350234207/4"
+                },
+                "16": {
+                  "20": "4171500973/40",
+                  "35": "2504303611/160",
+                  "50": "-1167739667/16"
+                },
+                "64": {
+                  "20": "16919201053/160",
+                  "35": "11649594571/640",
+                  "50": "-4437761507/64"
+                },
+                "4096": {
+                  "20": "1087726007773/10240",
+                  "35": "779854035211/40960",
+                  "50": "-279119596067/4096"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "replicate": 1,
+          "result_id": "288/both-placement/37f068a8b43dfd39/1",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "d01646f3d24b65d8598fa781f4ab2e75b4bbd067cf14643837479e9c45f5f122",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+          },
+          "client_peak_bytes": 242155520,
+          "covered_pair_bytes": 736652403,
+          "public_delivery_bytes": 155464774,
+          "correction_bytes": 222468360,
+          "known_base_bytes": 708240581,
+          "known_output_dependent_bytes": 28212437,
+          "unattributed_bytes": 199385,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 736652403,
+              "correction_only_first_pair_ceiling": "74156120/245550801",
+              "correction_only_recurring_ceiling": "74156120/245550801",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "375689397/5",
+                  "35": "-707199621/20",
+                  "50": "-291715683/2"
+                },
+                "2": {
+                  "20": "375689397/5",
+                  "35": "-707199621/20",
+                  "50": "-291715683/2"
+                },
+                "4": {
+                  "20": "375689397/5",
+                  "35": "-707199621/20",
+                  "50": "-291715683/2"
+                },
+                "16": {
+                  "20": "375689397/5",
+                  "35": "-707199621/20",
+                  "50": "-291715683/2"
+                },
+                "64": {
+                  "20": "375689397/5",
+                  "35": "-707199621/20",
+                  "50": "-291715683/2"
+                },
+                "4096": {
+                  "20": "375689397/5",
+                  "35": "-707199621/20",
+                  "50": "-291715683/2"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 155464774,
+              "control_recurring_pair_bytes": 581187629,
+              "correction_only_first_pair_ceiling": "74156120/245550801",
+              "correction_only_recurring_ceiling": "222468360/581187629",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "375689397/5",
+                  "35": "-707199621/20",
+                  "50": "-291715683/2"
+                },
+                "2": {
+                  "20": "453421784/5",
+                  "35": "-40768228/5",
+                  "50": "-106991648"
+                },
+                "4": {
+                  "20": "196915191/2",
+                  "35": "43596177/8",
+                  "50": "-350234205/4"
+                },
+                "16": {
+                  "20": "4171500981/40",
+                  "35": "2504303667/160",
+                  "50": "-1167739659/16"
+                },
+                "64": {
+                  "20": "3383840217/32",
+                  "35": "2329918959/128",
+                  "50": "-4437761475/64"
+                },
+                "4096": {
+                  "20": "1087726009821/10240",
+                  "35": "779854049547/40960",
+                  "50": "-279119594019/4096"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "replicate": 2,
+          "result_id": "288/both-placement/37f068a8b43dfd39/2",
+          "build_digest": "ccc5bdd1c48b0fc5a691f1b6fef7a0bda2e6ae3fa3fa92cd8acd94ad1d4380eb",
+          "configuration_digest": "d01646f3d24b65d8598fa781f4ab2e75b4bbd067cf14643837479e9c45f5f122",
+          "comparison": {
+            "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+            "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+            "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+            "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+            "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+            "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+          },
+          "client_peak_bytes": 240910336,
+          "covered_pair_bytes": 736652404,
+          "public_delivery_bytes": 155464774,
+          "correction_bytes": 222468360,
+          "known_base_bytes": 708240581,
+          "known_output_dependent_bytes": 28212437,
+          "unattributed_bytes": 199386,
+          "sensitivity": [
+            {
+              "public_reuse_assumption": "all_recurs",
+              "common_public_bytes": 0,
+              "control_recurring_pair_bytes": 736652404,
+              "correction_only_first_pair_ceiling": "55617090/184163101",
+              "correction_only_recurring_ceiling": "55617090/184163101",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "2": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "4": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "16": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "64": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "4096": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                }
+              }
+            },
+            {
+              "public_reuse_assumption": "all_reused",
+              "common_public_bytes": 155464774,
+              "control_recurring_pair_bytes": 581187630,
+              "correction_only_first_pair_ceiling": "55617090/184163101",
+              "correction_only_recurring_ceiling": "7415612/19372921",
+              "helper_plus_amortized_bootstrap_budget_bytes_per_pair": {
+                "1": {
+                  "20": "375689396/5",
+                  "35": "-176799907/5",
+                  "50": "-145857842"
+                },
+                "2": {
+                  "20": "453421783/5",
+                  "35": "-163072919/20",
+                  "50": "-213983297/2"
+                },
+                "4": {
+                  "20": "984575953/10",
+                  "35": "217980871/40",
+                  "50": "-350234207/4"
+                },
+                "16": {
+                  "20": "4171500973/40",
+                  "35": "2504303611/160",
+                  "50": "-1167739667/16"
+                },
+                "64": {
+                  "20": "16919201053/160",
+                  "35": "11649594571/640",
+                  "50": "-4437761507/64"
+                },
+                "4096": {
+                  "20": "1087726007773/10240",
+                  "35": "779854035211/40960",
+                  "50": "-279119596067/4096"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "maximum_control_client_peak_bytes": 243499008,
+      "measured_control_fits_low": true
+    }
+  ],
+  "limitations": [
+    "Public reuse endpoints are assumptions; the aggregate includes unclassified repeated metadata.",
+    "The hypothetical saving removes correction bodies only; ACKs and other controls stay charged.",
+    "Helper budgets jointly bound extra setup, renewal, frames, failure and recurring traffic.",
+    "Missing provider/checkpoint distribution and physical wire are not priced by these bodies.",
+    "Observed control eligibility does not qualify a candidate or certify runtime admission.",
+    "Separate workloads and source cohorts are not pooled or ranked."
+  ]
+}

@@ -1,0 +1,2109 @@
+{
+  "20_percent_max_expansion": {
+    "first_pair": "1202904413/694320295",
+    "recurring_no_public_reuse": "1202904413/694320295",
+    "recurring_reusable_public": "1327809504/694320295"
+  },
+  "algebra": {
+    "batching_congruence_checked": true,
+    "contract": "bounded integer lift then ring reduction; no CKKS",
+    "outputs_checked": 4608,
+    "plaintext_prime": 268369921,
+    "prime_independently_trial_divided": true,
+    "rings": [
+      16,
+      24,
+      32
+    ],
+    "signed_bytes": 256
+  },
+  "complete": true,
+  "full_decoder_executed": false,
+  "geometry": {
+    "body_macs": 56615845888,
+    "executed_rows": 15297,
+    "fixed_ciphertext_frame_assumption_bytes": 96,
+    "layouts": [
+      {
+        "20_percent_max_reply_bytes_per_ciphertext_before_new_costs": {
+          "first_pair": "1202904413/63910",
+          "recurring": "94843536/4565"
+        },
+        "ciphertexts": 12782,
+        "implemented_toy_layout": true,
+        "impossible_cross_dependency_pooling_floor": 11758,
+        "measured_serialization_projection": [
+          {
+            "ciphertext_bytes": 370224,
+            "coefficient_storage_only_uncompressed_bytes": 393216,
+            "data_primes": 3,
+            "expansion": "4733430240/138864059",
+            "full_width_noise_certified": false,
+            "hypothetical_output_bytes": 4733430240,
+            "optimistic_first_pair_saving_fraction": "-4394134308/493575247",
+            "optimistic_recurring_saving_fraction": "-366177859/30722513",
+            "public_padding_certified": false,
+            "toy_exact": true,
+            "toy_noise_bits": 55
+          },
+          {
+            "ciphertext_bytes": 246913,
+            "coefficient_storage_only_uncompressed_bytes": 262144,
+            "data_primes": 2,
+            "expansion": "3157269038/138864059",
+            "full_width_noise_certified": false,
+            "hypothetical_output_bytes": 3157269038,
+            "optimistic_first_pair_saving_fraction": "-2817973106/493575247",
+            "optimistic_recurring_saving_fraction": "-1408986553/184335078",
+            "public_padding_certified": false,
+            "toy_exact": true,
+            "toy_noise_bits": 55
+          },
+          {
+            "ciphertext_bytes": 123517,
+            "coefficient_storage_only_uncompressed_bytes": 131072,
+            "data_primes": 1,
+            "expansion": "1580021366/138864059",
+            "full_width_noise_certified": false,
+            "hypothetical_output_bytes": 1580021366,
+            "optimistic_first_pair_saving_fraction": "-1240725434/493575247",
+            "optimistic_recurring_saving_fraction": "-620362717/184335078",
+            "public_padding_certified": false,
+            "toy_exact": true,
+            "toy_noise_bits": 19
+          }
+        ],
+        "output_values": 48160512,
+        "slots": 4096,
+        "stages": [
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.0.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.0.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.0.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.0.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.1.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.1.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.1.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.1.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.2.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.2.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.2.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.2.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.3.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.3.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.3.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.3.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.4.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.4.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.4.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.4.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.5.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.5.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.5.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.5.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.6.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.6.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.6.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.6.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.7.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.7.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.7.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.7.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.8.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.8.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.8.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.8.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.9.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.9.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.9.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.9.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.10.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.10.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.10.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.10.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.11.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.11.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.11.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.11.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.12.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.12.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.12.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.12.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.13.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.13.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.13.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.13.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.14.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.14.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.14.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.14.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.15.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.15.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.15.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.15.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.16.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.16.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.16.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.16.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.17.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.17.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.17.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.17.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.18.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.18.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.18.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.18.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.19.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.19.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.19.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.19.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.20.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.20.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.20.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.20.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.21.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.21.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.21.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.21.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.22.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.22.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 399,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.22.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 47,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.22.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 57,
+            "decode_rows": 14,
+            "decode_utilization": "9/32",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.23.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 15,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 1,
+            "stage": "layers.23.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 45,
+            "decode_rows": 14,
+            "decode_utilization": "19/24",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 1,
+            "stage": "layers.23.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 15,
+            "decode_rows": 14,
+            "decode_utilization": "7/32",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 1,
+            "stage": "layers.23.mlp.down_proj"
+          }
+        ],
+        "utilization": "188127/204512"
+      },
+      {
+        "20_percent_max_reply_bytes_per_ciphertext_before_new_costs": {
+          "first_pair": "1202904413/35555",
+          "recurring": "1327809504/35555"
+        },
+        "ciphertexts": 7111,
+        "implemented_toy_layout": false,
+        "impossible_cross_dependency_pooling_floor": 5879,
+        "measured_serialization_projection": [
+          {
+            "ciphertext_bytes": 370224,
+            "coefficient_storage_only_uncompressed_bytes": 393216,
+            "data_primes": 3,
+            "expansion": "2633345520/138864059",
+            "full_width_noise_certified": false,
+            "hypothetical_output_bytes": 2633345520,
+            "optimistic_first_pair_saving_fraction": "-2294049588/493575247",
+            "optimistic_recurring_saving_fraction": "-191170799/30722513",
+            "public_padding_certified": false,
+            "toy_exact": true,
+            "toy_noise_bits": 55
+          },
+          {
+            "ciphertext_bytes": 246913,
+            "coefficient_storage_only_uncompressed_bytes": 262144,
+            "data_primes": 2,
+            "expansion": "1756480999/138864059",
+            "full_width_noise_certified": false,
+            "hypothetical_output_bytes": 1756480999,
+            "optimistic_first_pair_saving_fraction": "-1417185067/493575247",
+            "optimistic_recurring_saving_fraction": "-1417185067/368670156",
+            "public_padding_certified": false,
+            "toy_exact": true,
+            "toy_noise_bits": 55
+          },
+          {
+            "ciphertext_bytes": 123517,
+            "coefficient_storage_only_uncompressed_bytes": 131072,
+            "data_primes": 1,
+            "expansion": "879012043/138864059",
+            "full_width_noise_certified": false,
+            "hypothetical_output_bytes": 879012043,
+            "optimistic_first_pair_saving_fraction": "-49065101/44870477",
+            "optimistic_recurring_saving_fraction": "-539716111/368670156",
+            "public_padding_certified": false,
+            "toy_exact": true,
+            "toy_noise_bits": 19
+          }
+        ],
+        "output_values": 48160512,
+        "slots": 8192,
+        "stages": [
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.0.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.0.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.0.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.0.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.1.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.1.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.1.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.1.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.2.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.2.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.2.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.2.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.3.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.3.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.3.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.3.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.4.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.4.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.4.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.4.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.5.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.5.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.5.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.5.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.6.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.6.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.6.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.6.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.7.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.7.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.7.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.7.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.8.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.8.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.8.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.8.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.9.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.9.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.9.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.9.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.10.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.10.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.10.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.10.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.11.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.11.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.11.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.11.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.12.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.12.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.12.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.12.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.13.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.13.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.13.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.13.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.14.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.14.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.14.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.14.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.15.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.15.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.15.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.15.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.16.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.16.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.16.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.16.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.17.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.17.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.17.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.17.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.18.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.18.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.18.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.18.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.19.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.19.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.19.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.19.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.20.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.20.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.20.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.20.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.21.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.21.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.21.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.21.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.22.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.22.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 207,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 150,
+            "stage": "layers.22.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 31,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 150,
+            "stage": "layers.22.mlp.down_proj"
+          },
+          {
+            "ciphertexts": 36,
+            "decode_rows": 14,
+            "decode_utilization": "9/64",
+            "input_width": 896,
+            "output_width": 1152,
+            "prefill_rows": 150,
+            "stage": "layers.23.self_attn.qkv_proj"
+          },
+          {
+            "ciphertexts": 15,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 896,
+            "output_width": 896,
+            "prefill_rows": 1,
+            "stage": "layers.23.self_attn.o_proj"
+          },
+          {
+            "ciphertexts": 30,
+            "decode_rows": 14,
+            "decode_utilization": "19/32",
+            "input_width": 896,
+            "output_width": 9728,
+            "prefill_rows": 1,
+            "stage": "layers.23.mlp.gate_up_proj"
+          },
+          {
+            "ciphertexts": 15,
+            "decode_rows": 14,
+            "decode_utilization": "7/64",
+            "input_width": 4864,
+            "output_width": 896,
+            "prefill_rows": 1,
+            "stage": "layers.23.mlp.down_proj"
+          }
+        ],
+        "utilization": "188127/227552"
+      }
+    ],
+    "output_values": 48160512,
+    "packed_full_width_validity": null,
+    "setup_context_lifecycle_projection": {
+      "one_context_per_stage": 1753164576,
+      "one_context_per_stage_row": 279355817907,
+      "one_reused_context": 18262131,
+      "scope": "BFV public matvec setup ONLY; excludes encrypted cipher key, TFHE, conversion and renewals"
+    },
+    "rejected_modulus_levels": [],
+    "stage_count": 96,
+    "stage_identity_sets_and_ring_contracts_validated": true,
+    "transcipher_to_BFV_conversion_cost": null
+  },
+  "historical_ledger": {
+    "byte_input": 28732928,
+    "common_public": 124905091,
+    "first_pair": 493575247,
+    "old_input": 90104112,
+    "output_payload": 138864059,
+    "recurring": 368670156,
+    "removed_before_output_expansion": 200431873
+  },
+  "hypothetical_r_1_5_sensitivity": [
+    {
+      "20_percent_extra_budget_total": "322847941/10",
+      "candidate": "725150807/2",
+      "control": "493575247",
+      "issuances": "1",
+      "pairs": 1,
+      "public_reuse": true,
+      "saving": "261999687/2",
+      "saving_fraction": "261999687/987150494"
+    },
+    {
+      "20_percent_extra_budget_total": "447753032/5",
+      "candidate": "600245716",
+      "control": "862245403",
+      "issuances": "2",
+      "pairs": 2,
+      "public_reuse": true,
+      "saving": "261999687",
+      "saving_fraction": "261999687/862245403"
+    },
+    {
+      "20_percent_extra_budget_total": "204082231",
+      "candidate": "1075586341",
+      "control": "1599585715",
+      "issuances": "4",
+      "pairs": 4,
+      "public_reuse": true,
+      "saving": "523999374",
+      "saving_fraction": "523999374/1599585715"
+    },
+    {
+      "20_percent_extra_budget_total": "4456359893/5",
+      "candidate": "3927630091",
+      "control": "6023627587",
+      "issuances": "16",
+      "pairs": 16,
+      "public_reuse": true,
+      "saving": "2095997496",
+      "saving_fraction": "2095997496/6023627587"
+    },
+    {
+      "20_percent_extra_budget_total": "58615210777",
+      "candidate": "243499305091",
+      "control": "377643144835",
+      "issuances": "1024",
+      "pairs": 1024,
+      "public_reuse": true,
+      "saving": "134143839744",
+      "saving_fraction": "134143839744/377643144835"
+    },
+    {
+      "20_percent_extra_budget_total": "322847941/10",
+      "candidate": "725150807/2",
+      "control": "493575247",
+      "issuances": "1",
+      "pairs": 1,
+      "public_reuse": false,
+      "saving": "261999687/2",
+      "saving_fraction": "261999687/987150494"
+    },
+    {
+      "20_percent_extra_budget_total": "322847941/5",
+      "candidate": "725150807",
+      "control": "987150494",
+      "issuances": "2",
+      "pairs": 2,
+      "public_reuse": false,
+      "saving": "261999687",
+      "saving_fraction": "261999687/987150494"
+    },
+    {
+      "20_percent_extra_budget_total": "645695882/5",
+      "candidate": "1450301614",
+      "control": "1974300988",
+      "issuances": "4",
+      "pairs": 4,
+      "public_reuse": false,
+      "saving": "523999374",
+      "saving_fraction": "261999687/987150494"
+    },
+    {
+      "20_percent_extra_budget_total": "2582783528/5",
+      "candidate": "5801206456",
+      "control": "7897203952",
+      "issuances": "16",
+      "pairs": 16,
+      "public_reuse": false,
+      "saving": "2095997496",
+      "saving_fraction": "261999687/987150494"
+    },
+    {
+      "20_percent_extra_budget_total": "165298145792/5",
+      "candidate": "371277213184",
+      "control": "505421052928",
+      "issuances": "1024",
+      "pairs": 1024,
+      "public_reuse": false,
+      "saving": "134143839744",
+      "saving_fraction": "261999687/987150494"
+    }
+  ],
+  "primary_access": {
+    "Coral": "2026/1917; received 2026-09-08, approved 2026-09-10; TFHE; Trivium/AES/ChaCha20/ZUC; abstract-only direct access",
+    "PETCHA": "2026/112; received 2026-01-23, revised 2026-06-08; ChaCha; abstract-only direct access"
+  },
+  "primary_snapshot_sha256": {
+    "target/transciphered-linear/bumblebee.pdf": "184bbe5104f183d4df66db2413f89c96c6c814e0b0ec6297f19745a1fa6e203b",
+    "target/transciphered-linear/coral-primary.html": "1271a0e4e63c971be0a153b706d265204244840584adecc4ff5b094bd4ae6d09",
+    "target/transciphered-linear/petcha-primary.html": "39d43aa373ae85db51220521143bcd3bf7ca5edb2a56ae134c08d0761649a31c",
+    "target/transciphered-linear/seal-serializable.h": "fa8ed0b3969da353dde16ee4dd4eda9e98b32a741edb3a721b4d745ad89fb44e"
+  },
+  "scope": "bounded falsification/cost screen only; no candidate protocol",
+  "seal_downstream_control": {
+    "TFHE_bootstrap_conversion_keys_bytes": null,
+    "bounded_process_peak_rss_bytes": 132792320,
+    "coeff_bits": [
+      55,
+      54,
+      54,
+      55
+    ],
+    "degree": 8192,
+    "executed": true,
+    "levels": [
+      {
+        "compression_mode_byte": 2,
+        "data_primes": 3,
+        "exact": true,
+        "noise_bits": 55,
+        "serialized_bytes": 370224,
+        "size_two": true
+      },
+      {
+        "compression_mode_byte": 2,
+        "data_primes": 2,
+        "exact": true,
+        "noise_bits": 55,
+        "serialized_bytes": 246913,
+        "size_two": true
+      },
+      {
+        "compression_mode_byte": 2,
+        "data_primes": 1,
+        "exact": true,
+        "noise_bits": 19,
+        "serialized_bytes": 123517,
+        "size_two": true
+      }
+    ],
+    "matrix_shape": [
+      5,
+      8
+    ],
+    "plain_prime": 268369921,
+    "provider_receives_secret_key": false,
+    "public_setup_delivery_bytes": 18262131,
+    "rotation_steps": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024,
+      2048
+    ],
+    "security_admission": "SEAL TC128 (classical), not PETCHA PQ parameter certification",
+    "seeded_evaluated_output_bytes": null,
+    "setup_serialized_bytes": {
+      "galois_keys": 17768413,
+      "parameters": 83,
+      "public_key": 493635,
+      "secret_key": 246850
+    },
+    "setup_wall_seconds": 0.18143725022673607,
+    "slot_capacity_used": 4096,
+    "source_shaped_full_width_evaluated": false,
+    "symmetric_FHE_key_bytes": null,
+    "tenseal_version": "0.3.17",
+    "transciphering_implemented": false,
+    "trials": [
+      {
+        "direct_HE_input_bytes": 370188,
+        "exact_outputs_at_initial_level": 5,
+        "wall_seconds": 0.1054512495175004
+      },
+      {
+        "direct_HE_input_bytes": 370152,
+        "exact_outputs_at_initial_level": 5,
+        "wall_seconds": 0.1036983747035265
+      }
+    ],
+    "whole_client_peak_rss_bytes": null
+  },
+  "source_checkpoint_loaded": false,
+  "source_sha256": {
+    "docs/evidence/network-algebra-qwen25-2026-10-06.json": "8c276df98557694ae5c54ee97d7d42e78b3fa146a5bf272b3f1826fb0bb23e3e",
+    "docs/evidence/research-all-link-frontier.json": "401c5a8c12f90b8df76949a8d320411988b77afeb58e9d9c14e43aed3551190c",
+    "docs/evidence/research-bootstrap-ingress.json": "c842d8d2f78a042db5432078d8065895d24172f6e64992c476ab3ca39db99b09",
+    "docs/evidence/research-narrow-ingress.json": "8c55c563422a38ddc0c6d0187379c38450b0702b4031912166e7f4bd4c7e105d",
+    "docs/research/transciphered-linear-reference.md": "820dfe120e39b039a3d70896602920ba037e4a1dd85cdd7d95ec963bc443a990",
+    "scripts/probe_transciphered_linear_budget.py": "a0fb7b96e0e27599d81ed3c22826e6aac559c9f6b9ca7d75fb03e4d6d62de5a8",
+    "tests/test_transciphered_linear_budget_probe.py": "9b7e54ebccaa0a081e79eaa923c358fa64d9aa730de42450793cb66af95ddd1f"
+  },
+  "unknown_costs": [
+    "TFHE cipher/keys/setup/renewal",
+    "TFHE-to-exact-matvec conversion",
+    "full-width packing/noise",
+    "provider/checkpoint artifacts",
+    "new frames/authentication",
+    "failures/retries",
+    "whole-client RSS/CPU",
+    "physical wire",
+    "malicious verification"
+  ],
+  "unknown_costs_are_zero": false
+}

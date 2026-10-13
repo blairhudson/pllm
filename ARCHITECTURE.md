@@ -1294,6 +1294,23 @@ The full CPU-enclave alternative projects 39.49% first-pair savings under a dist
 hardware-trust contract, with no actual attestation or model execution. Full
 budgets, negative results and replay: `docs/research/bootstrap-frontier-reference.md`.
 
+A separate compact-setup screen checks encrypted-byte ingress, streaming
+fixed-matrix correlations and matrix-triple adaptation. Tiny BFV projections
+preserve ten signed outputs, but measured reply serialization projects about
+879 MB even with unimplemented full-slot packing, exceeding the historical
+265.56 MB recurring reply allowance for 20% savings before new costs. An ideal
+exact-ring correlation consumer reconstructs `Wx`, while the explicit chosen-vector
+OT adapter needs terabytes and its public-matrix bypass adds dense client work.
+The matrix-triple toy checks 3,024 outputs, but explicit fresh matrix openings
+alone cost 2.10 GB for prefill or 31.55 GB including decode; short seeds do not
+establish a compact chosen-weight consumer. These reject specific adaptations,
+not the underlying paper constructions, whose full PDFs remain access-blocked.
+An independent audit of twelve existing Low-tier control samples bounds free
+correction removal at 25.67–31.84% on the first cold/repeat pair and 37.71–38.28%
+under optimistic complete public-delivery reuse. Additional keys, expansion,
+renewal and transport remain charged; no 20–50% serving or candidate-memory
+gain is established. Replay: `docs/research/silent-linear-frontier-reference.md`.
+
 The separate `pllm.metrics.ProjectedPolynomialCostProbe` combines mask-derived
 linear coefficients, offline projection of constant coefficients and seeded
 one-party correlation shares for a modular quadratic-gated MLP numerator.
