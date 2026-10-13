@@ -1,5 +1,9 @@
 # Low-memory prepared combinations
 
+The subsequent [ten-hypothesis all-link traffic plan](../plans/low-tier-all-link-hypotheses.md)
+uses the same Low ceiling and defines separate fresh-request, reuse and
+interrupted-transfer experiments. Its impact ranges remain unmeasured.
+
 This screen searches ordinary installed SDK recipes under the **256 MiB maximum
 client RAM** tier. The control already includes 64-row MLP tiling and digit8
 Preparation. Its five neighbors change only tile geometry and the previously
