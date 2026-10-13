@@ -1,0 +1,134 @@
+{
+  "controls": {
+    "bits": [1, 8, 32, 64],
+    "exhaustive_normal_basis_trace_bijections": [4, 16, 64],
+    "exhaustive_transform_bijection_inputs": 64,
+    "full_direct_external_roundtrip_convolution_cases": 12,
+    "ideal_cross_share_reconstructed_scalar_oles": 312,
+    "local_trace_elements": 156,
+    "n": [1, 2, 3],
+    "scope": "deterministic algebra and plaintext local record I/O only"
+  },
+  "cryptographic_implementation": false,
+  "dory_reference": {
+    "N": 51478528,
+    "capacity": 10295705,
+    "domain": "F2 into F_(2^128) COT; not exact-ring matrix correlation",
+    "ell": 7,
+    "lambda": 128,
+    "log2_N_over_t": 15,
+    "paper_base_communication_MB": "0.419",
+    "paper_memory_MB": 20,
+    "paper_silent_communication_MB": "0.389",
+    "pdf_pages": [11, 12, 14, 15, 21],
+    "security": "malicious",
+    "source": "2025/1660",
+    "t": 1571,
+    "threads": 8,
+    "whole_client_qualification": false
+  },
+  "model": {
+    "admission": "unqualified: owner costs and authenticated spill missing",
+    "approximate_seed_formula_integer_envelope_bytes": 12441160,
+    "complete_pcg_operation_count": null,
+    "count_boundary": "exact arithmetic for stated unoptimized schedule; not a full PCG cost",
+    "cross_term_accumulator_read_write_bytes": 22958251200,
+    "cross_term_forward_transforms": 50,
+    "cross_term_ingest_write_bytes": 11479125600,
+    "cross_term_public_multiplier_reads_bytes": 22958251200,
+    "cross_term_transform_gr_additions": 21523360500,
+    "cross_term_transform_gr_multiplications": 32285040750,
+    "cross_term_transform_stage_io_bytes": 344373768000,
+    "cross_term_transformed_scan_read_bytes": 11479125600,
+    "encrypted_spill_aead_metadata_and_io_bytes": null,
+    "fixed_W_specialization": "missing; this ledger is OLE expansion only",
+    "final_z_and_output_consumption_io_bytes": null,
+    "final_consumption_scope": "mapping-dependent: charge accumulator reads, public/sparse x inputs and output handling separately",
+    "ledger_owner": "one party/client expansion; not combined two-party expansion",
+    "full_x_z_output_bytes": 459165024,
+    "global_expansion_unrequested_scalar_oles": 28697813,
+    "gr_vector_bytes": 229582512,
+    "hypothetical_secret_padded_authenticated_pages_bytes": 693462972,
+    "hypothetical_spill_nonce_tag_bytes_per_page": 28,
+    "hypothetical_spill_page_payload_bytes": 4096,
+    "hypothetical_spill_scope": "page accounting only; no AEAD implementation or measured I/O",
+    "hypothetical_uncached_cross_term_transform_page_io_bytes": 88762338702000,
+    "native_process_peak_rss_bytes": null,
+    "parameters": {
+      "N": 14348907,
+      "c": 5,
+      "capacity_scalar_oles": 28697814,
+      "d": 3,
+      "k": 64,
+      "lambda": 128,
+      "m": 2,
+      "n": 15,
+      "t": 27
+    },
+    "public_a_vectors": 4,
+    "public_precompute_transform_stage_io_bytes": 27549901440,
+    "public_precomputed_transform_disk_bytes": 918330048,
+    "public_tables_resident_bytes": null,
+    "remaining_for_sdk_state_keys_buffers_outputs_overlap_bytes": 235164528,
+    "renewal_two_seed_formula_envelopes_bytes": 24882320,
+    "requested_scalar_oles": 1,
+    "scratch_hypothesis_bytes": 8388608,
+    "secret_disk_payload_peak_bytes": 688747536,
+    "secret_fss_frontier_and_serialized_key_bytes": null,
+    "secret_trace_accumulator_disk_bytes": 229582512,
+    "secret_transform_pingpong_disk_bytes": 459165024,
+    "security_label": "paper Table 3 128-bit regular-noise parameter point; not audited here",
+    "source_pages": {"2025/1223": [19, 20, 22, 28, 29, 34, 35, 36]},
+    "sparse_x_generation_and_local_trace_work": null,
+    "table3_rounded_seed_log2_bits": "26.60",
+    "table3_seed_projection_warning": "rounded log2 bits, not serialized key bound",
+    "whole_low_budget_bytes": 268435456,
+    "window_scalar_pairs": 524288
+  },
+  "process_peak_measurement": null,
+  "schema": "pllm.low_correlation_streaming.v1",
+  "scope": "source-locked algebra/storage controls and analytical schedule; no secure PCG",
+  "sources": [
+    {
+      "bytes": 1220637,
+      "path": "papers/2025-1223.pdf",
+      "sha256": "130178519ec48cbbe64b201e42bb581b513f77503f671e1a56e4b0909b4aa375"
+    },
+    {
+      "bytes": 779776,
+      "path": "papers/2025-1660.pdf",
+      "sha256": "4f05f4b6b8bfea36a65913ac6ed532d734e231bc803311a7933bf76083c7bee8"
+    },
+    {
+      "bytes": 195739,
+      "path": "target/compact-setup-fulltext/2025-1223.txt",
+      "sha256": "4a91404c17a157c0449f625c2c3532bcb722447ad23d03d9e58b53d2262b5821"
+    },
+    {
+      "bytes": 190698,
+      "path": "target/compact-setup-fulltext/2025-1660.txt",
+      "sha256": "fab182e60cc9ed03697a9a6381e831e419653fff49c136f4fdcf646eae763f3d"
+    }
+  ],
+  "stop_condition": "No Low admission until fixed-W specialization, complete native owner ledger, authenticated local spill and rollback-safe issuance exist",
+  "window_sensitivity": [
+    {
+      "cross_term_transform_stage_io_bytes": 344373768000,
+      "remaining_for_sdk_state_keys_buffers_outputs_overlap_bytes": 235164528,
+      "scratch_hypothesis_bytes": 8388608,
+      "window_scalar_pairs": 524288
+    },
+    {
+      "cross_term_transform_stage_io_bytes": 344373768000,
+      "remaining_for_sdk_state_keys_buffers_outputs_overlap_bytes": 226775920,
+      "scratch_hypothesis_bytes": 16777216,
+      "window_scalar_pairs": 1048576
+    },
+    {
+      "cross_term_transform_stage_io_bytes": 344373768000,
+      "remaining_for_sdk_state_keys_buffers_outputs_overlap_bytes": 176444272,
+      "scratch_hypothesis_bytes": 67108864,
+      "window_scalar_pairs": 4194304
+    }
+  ]
+}

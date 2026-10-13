@@ -1318,6 +1318,18 @@ under optimistic complete public-delivery reuse. Additional keys, expansion,
 renewal and transport remain charged; no 20–50% serving or candidate-memory
 gain is established. Replay: `docs/research/silent-linear-frontier-reference.md`.
 
+Three subsequent full-text follow-ups price Medium cartridges, Low external-memory
+expansion and selective correction replacement. An exact local W-only consumer
+adds 56.62 billion client matrix MACs per historical cold/repeat pair. The examined
+Low spill schedule projects 344.37 GB of logical transform-stage I/O per party,
+before other expansion work. Selective bulk gate/up prefill has optimistic
+free-replacement ceilings of 19.54–25.10% of first-pair application bodies across
+four separately retained workload/placement controls. A fixed-checkpoint generator
+with cheap client expansion is still missing; neither the 256 MiB Low nor 2 GiB
+Medium whole-client tier is qualified. Algebraic controls, conditional budgets,
+source locks and corrected ledgers remain separate from serving measurements.
+Details: `docs/research/correlation-cartridge-frontier-reference.md`.
+
 The separate `pllm.metrics.ProjectedPolynomialCostProbe` combines mask-derived
 linear coefficients, offline projection of constant coefficients and seeded
 one-party correlation shares for a modular quadratic-gated MLP numerator.
