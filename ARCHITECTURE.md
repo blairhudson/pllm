@@ -1280,6 +1280,20 @@ admission gates. This Python/NumPy prototype fails its amortization gate and
 establishes neither a compact private correlation generator nor production
 one-use ownership. Replay: `docs/research/correlation-compiler-reference.md`.
 
+A separate five-direction one-time-bootstrap screen compares checkpointed public
+correlations, cyclic masked replies, partial client placement, private byte ingress
+and a hardware-attested linear-executor budget. Fresh-query algebra and bounded
+codec/AEAD controls pass, but no composed serving protocol or Low-tier client peak
+is established. Source-bound prime-codec accounting retains existing reply widths
+while charging 32-bit ingress; optimistic correction elimination then caps recurring
+all-link-body savings at 30.99%, before new helper, verification and renewal costs.
+A 713.23 MB public cartridge reaches projected 20% only after nineteen matched
+cold/repeat pairs under zero additional costs. Tested row placement violates the
+90% remote-compute constraint, and complete vector-OT ingress is cost-gated.
+The full CPU-enclave alternative projects 39.49% first-pair savings under a distinct
+hardware-trust contract, with no actual attestation or model execution. Full
+budgets, negative results and replay: `docs/research/bootstrap-frontier-reference.md`.
+
 The separate `pllm.metrics.ProjectedPolynomialCostProbe` combines mask-derived
 linear coefficients, offline projection of constant coefficients and seeded
 one-party correlation shares for a modular quadratic-gated MLP numerator.

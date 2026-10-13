@@ -1,0 +1,2886 @@
+{
+  "schema": "pllm.attested_linear_bootstrap_budget.v1",
+  "complete": true,
+  "production_ready": false,
+  "actual_attestation_verified": false,
+  "source_identity": {
+    "scripts/probe_attested_linear_budget.py": "7e5b9ca3bc80d5b258b2c8c78ac67a0c9bf090176cca476197d10d9f197b5124",
+    "docs/evidence/research-all-link-frontier.json": "401c5a8c12f90b8df76949a8d320411988b77afeb58e9d9c14e43aed3551190c",
+    "docs/evidence/network-algebra-qwen25-2026-10-06.json": "8c276df98557694ae5c54ee97d7d42e78b3fa146a5bf272b3f1826fb0bb23e3e",
+    "docs/evidence/research-prepared-study-qwen25-confirm.json": "9b54ee455e7307429d4cc1bf19c93f1c58ff3ef966c258ddebde2ec8c68c42db",
+    "python/pllm/deployment/role_placement.py": "154e73a4b324bc2af21bc63770194ca52d92c532f9dfe4e1d7a3d1411989a4ac",
+    "schemas/role-deployment.schema.json": "1ba0a7a49119b783e58fe722faed0c3125d522c92fcfd802b6dc7cd600cb46ab",
+    "python/pllm/runtime/transformer_engine.py": "14d8efdec0b1b4c48b4312e81454729fe554d324de009c2d4519251c1d932f4d",
+    "python/pllm/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "tests/test_attested_linear_budget_probe.py": "7fe358d4b9a4535e7783da7f3eaf4ef1b1435175680f416a015cc96d23364217",
+    "docs/research/attested-linear-bootstrap-reference.md": "f7ee365c17a621fdf909a3ec1bb60e3b225662f6bc8198a394e7fc35fb6a9478",
+    "scripts/probe_network_algebra.py": "d280ae6735415ab4706abff3f73fa4aa27e64e116a47eade9020a1f29595894a",
+    "crates/pllm-compiler/src/decoder_runtime_schedule.rs": "fa83aaf4d6bef5ce68be72caeb18da9b686ed3e3ae76a0a394c5994847928b26",
+    "crates/pllm-compiler/tests/decoder_runtime_schedule.rs": "71ee6e9b33e99e3a9810a1cb70bb117b6cd313466aded3f4dc40fda83db2b08c"
+  },
+  "python_version": "3.13.15",
+  "frame": {
+    "header_bytes": 70,
+    "nonce_bytes": 12,
+    "tag_bytes": 16,
+    "overhead_bytes": 98,
+    "prefill_rows_per_frame": 16
+  },
+  "budget": {
+    "scope": "application-body projection, not measured TEE or physical wire",
+    "stages": [
+      {
+        "stage": "layers.0.self_attn.qkv_proj",
+        "weight_sha256": "9cfa314b1ed2abb2f154fff5b5907a8aee36e4eae33685841cfe507780438583",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4485386,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 566784,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.0.self_attn.o_proj",
+        "weight_sha256": "ec275e35e5151ff39d6bd57168e3854cf3059e5e73fd59a2b8e1f45d90823fe6",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3465068,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.0.mlp.gate_up_proj",
+        "weight_sha256": "e22126bf7d445bf7a13353f18ec29740d6ea6b3fb16b9ce531068065e67d99fa",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4453890,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.0.mlp.down_proj",
+        "weight_sha256": "1152598dbaaaf29546a9b7471c7987b345819a7adbd5bcd831f5ddffc8a1ed5f",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18993866,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.1.self_attn.qkv_proj",
+        "weight_sha256": "bd9e86f1dd2c393c50b9c3c7aadac026c6f3473374d815653f08ae4b6dc1fdf9",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4225163,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 566784,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.1.self_attn.o_proj",
+        "weight_sha256": "31892e535141db03ed87af452cd1d507930384c694f6dfeb9052077f764b1d68",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4293489,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 440832,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.1.mlp.gate_up_proj",
+        "weight_sha256": "0d3bce78b75c256d53eab9a6ebe05d3c2753ce07c4a324a83722a0020ed68064",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4294505,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.1.mlp.down_proj",
+        "weight_sha256": "a45f44974fa427403a5fd39b88b56c4a3ee8ab1fd2eca4b83488d0c43391d6bc",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 19465163,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.2.self_attn.qkv_proj",
+        "weight_sha256": "8efd12aa29644f0d26585cc4a0b58fb8f06fcd4f32128ceff155ae76ed2e86f2",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3982720,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.2.self_attn.o_proj",
+        "weight_sha256": "5250874fdefaa636829f3f782a4b706fe47e00be00637c4d236ad5e6db50c1c3",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3882390,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.2.mlp.gate_up_proj",
+        "weight_sha256": "47ca13e2305af2c4dc546b03e9feb4695a6ca6a5a4971c052c5f0df04454e2d5",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4540885,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.2.mlp.down_proj",
+        "weight_sha256": "057a11751288cf247b16f4b1a76fc4c5e4e9a9670ea2628e3f4d9e1383b0741f",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 19619214,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.3.self_attn.qkv_proj",
+        "weight_sha256": "6a5f64cceb4a1dcb72425081147c12c170a9d5feeba271b7fcb40f19b07c3666",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4221099,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 566784,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.3.self_attn.o_proj",
+        "weight_sha256": "283a3c20f43147c1eb8b162d27d7b5b104b234d06c8211139daa1c27fac7f39d",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3772916,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.3.mlp.gate_up_proj",
+        "weight_sha256": "361b4135b05ae2cfca8d98dc1e1ccb380b42c6b1c65be1da198d464953eb1449",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4342384,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.3.mlp.down_proj",
+        "weight_sha256": "df4fa5ee0baeda138d0e3e083ea4d43777fcb16eadb5c7c031cc28f74d772858",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 19620357,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.4.self_attn.qkv_proj",
+        "weight_sha256": "a2d2ce97aaa6b5106d165383cdcae3abe962bf3d086992d96dd0b1b5a7d913f7",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4070223,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.4.self_attn.o_proj",
+        "weight_sha256": "4c34fe57b62fc937739b54dd726b4a624e07ea62dcfecc66d7508c83282d7344",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3995039,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.4.mlp.gate_up_proj",
+        "weight_sha256": "f2ae24dbed7a04bd8cef9e5604c14867d3152ee97ce39ee2b0273e14822d1ce5",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4326890,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.4.mlp.down_proj",
+        "weight_sha256": "291eba04204495d49fff6bd09c0ab3c03cfaf53d4fe496666ef4de1df607236c",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18425287,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.5.self_attn.qkv_proj",
+        "weight_sha256": "099b3f9b0891f134269cfb5f2a66008a10ac203754669932f29ce51ffa34fdfe",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4220210,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 566784,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.5.self_attn.o_proj",
+        "weight_sha256": "a84dbca7d7d94039eed75adc45983936e1d357dbf7792d0d008e1d6b806c93c6",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4183126,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.5.mlp.gate_up_proj",
+        "weight_sha256": "c070f0c04dd72251ece02290ff534b66ba19cac836b83e647ef2c4182adbd8a6",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4444111,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.5.mlp.down_proj",
+        "weight_sha256": "f4e23c56a080a022eb43474858d51ee86e6fc4467b5a7adff231d5cf10d247a8",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 19099911,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.6.self_attn.qkv_proj",
+        "weight_sha256": "21a9cc94cf4412dbe495a6b2ade90f79b21f521635174df8280cfe943cacb992",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4287901,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 566784,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.6.self_attn.o_proj",
+        "weight_sha256": "9bdd3268f285e7500e9bf5464804c5946105d9a70db47bb4257dc2130bd9e77b",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3776472,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.6.mlp.gate_up_proj",
+        "weight_sha256": "c2ceedaa5e56f432b6c6e67ade09638e14ad135a71726cddd6b708580a9f613c",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4389882,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.6.mlp.down_proj",
+        "weight_sha256": "8272db0857638b9205bff1f43c272fdd43ba28c5fd55ed55276792d5c380e0c9",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 19008217,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.7.self_attn.qkv_proj",
+        "weight_sha256": "4c1a1e421e2c462f704b6e3640178c002aafd24a295fee5a2fdcf1e20023d1aa",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4117213,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.7.self_attn.o_proj",
+        "weight_sha256": "5d44c9783d71a7e1caca3d5b4981210501fb33a906fc7d12449fb108e3ffa48f",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3870198,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.7.mlp.gate_up_proj",
+        "weight_sha256": "f59224afe893aa1db4cb2748893a54f1aadf4b712ec73e63a00f5d825a819ad9",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4377182,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.7.mlp.down_proj",
+        "weight_sha256": "d49b1faedfeb847e116e80f763863db3d105dae936d3ea557f6558c0eb806d45",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18233390,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.8.self_attn.qkv_proj",
+        "weight_sha256": "4d7c8e99487821af137f8d98447c8c7408005a57f88936e9b93a09741471d06b",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4108196,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.8.self_attn.o_proj",
+        "weight_sha256": "a6a86760f0cda211c0abdf7a27a3992b43f74c32bf89b9d7fb5c8fd9f8c0396c",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3895090,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.8.mlp.gate_up_proj",
+        "weight_sha256": "c597722a293f9dac7ad63bfe466e73175d1cfaceefeb727641cbed09d90b88c3",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4538472,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.8.mlp.down_proj",
+        "weight_sha256": "29df02f8ff9180fd3c320f0b091bcfc3872d0c18024f821a7f57842562b9737e",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18396585,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.9.self_attn.qkv_proj",
+        "weight_sha256": "d4c1269cc2538130f91d32ed1968fde50714c574981bcd92b4aa97d513cff494",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4183507,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.9.self_attn.o_proj",
+        "weight_sha256": "20bb5f622823489f860b560048074c80a69ca2d62b3ae79d04612fc0cb56ce0d",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3810381,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.9.mlp.gate_up_proj",
+        "weight_sha256": "51ee618d4969684613e3ed95caac2df6c0bbaf327d90a5d86e3e75a8497d5ef3",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4221226,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.9.mlp.down_proj",
+        "weight_sha256": "416ee29d474a8b0686509347d0c8284cfb86ceb528affa4269858629dd4a0f5a",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18053050,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.10.self_attn.qkv_proj",
+        "weight_sha256": "8c603837da393f84802186b206eff0f6cf8c30cebc34950bbc633065aa63c447",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4303014,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 566784,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.10.self_attn.o_proj",
+        "weight_sha256": "8ae48c97b94da70eabe41b1dddce5ef354c9b8c70849279968c0ab3700d968c5",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3718306,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.10.mlp.gate_up_proj",
+        "weight_sha256": "6e4aee7bdd4cf60d47b566446c7fa7399746ae81b9d0017f69742127fd10420d",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4408678,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.10.mlp.down_proj",
+        "weight_sha256": "965a27f3ffc2ca46f6d969e207261eb7de249aac5adb3add6204e4f936c957b3",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18484723,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.11.self_attn.qkv_proj",
+        "weight_sha256": "123a5e97567529c59ada1648007db5500d26a108b3eb45415a291b4a86907aa5",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3835019,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.11.self_attn.o_proj",
+        "weight_sha256": "a1f6af189040069663f49c511d3a2534b35618097138b584a47016bae27258f7",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3705606,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.11.mlp.gate_up_proj",
+        "weight_sha256": "39813cf73807cea040c69aa463070d6b25f3b375e063b43610e97c7b8a4977a1",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4315968,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.11.mlp.down_proj",
+        "weight_sha256": "8b36a986e12d54eae55f2e9cafbdbb18f6668688d061a56d57076df8eb1ec717",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18796889,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.12.self_attn.qkv_proj",
+        "weight_sha256": "82c18973925ef578703b6bbc3d559933e7fb502f4e37e2b77fb69821b102aab7",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4226687,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 566784,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.12.self_attn.o_proj",
+        "weight_sha256": "686ae6d67c3993e85fe6bfbdcc313a67416e0c5ebef7fbd7a8cddce112531d0a",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3854704,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.12.mlp.gate_up_proj",
+        "weight_sha256": "f369b91cc47e9e7e33b49e25ac2c0734f7047ffe93a2bc60b70c426f0f12ce18",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4339590,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.12.mlp.down_proj",
+        "weight_sha256": "4599769c6722654bbfdc7cfc83cbf116342c9d97b5277704dc90227bed36259d",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 17455007,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.13.self_attn.qkv_proj",
+        "weight_sha256": "0a0e27b62af7f2651c2fba00e75888e4333b2992ba1ce9a56bdea2147e11fe44",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3995420,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.13.self_attn.o_proj",
+        "weight_sha256": "a5ed6c69c26e658801684f28ae0f1e6f7e1a6295dc58f41d998433473f78cbfe",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3985514,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.13.mlp.gate_up_proj",
+        "weight_sha256": "6ad0b4ca68fd565001a6d90581d221e3dd054d08c9aee5c6b02dfd77a8732234",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4287012,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.13.mlp.down_proj",
+        "weight_sha256": "f0a31af20d0b02834f10864b1513917a048a129682080ac6a4405d08bf49470c",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 17097883,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.14.self_attn.qkv_proj",
+        "weight_sha256": "dbec973d9f0b09ff762ce17ecd9af0ce95a8cd8f44eaad0bbdc7cd9f6560fd8a",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3864483,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.14.self_attn.o_proj",
+        "weight_sha256": "fdcfe976eb8534a403a7a1d1e918c1b41b365f383b4eb267e41a1dfe9a090966",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4014978,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.14.mlp.gate_up_proj",
+        "weight_sha256": "ffdb570abfbb5a8e91b2e479445179fefdcb51cfe6a5851e82b9a79fde935d4d",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4194937,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.14.mlp.down_proj",
+        "weight_sha256": "7896e916c54586bd334d9148d80fc3e6de80d93a399f1fe85b92bc3ec8629864",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 17845024,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.15.self_attn.qkv_proj",
+        "weight_sha256": "d86f00614b2bd93246ef1d89dff6eb9a0712a9097cf4655f20da4be0f902869c",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4250309,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 566784,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.15.self_attn.o_proj",
+        "weight_sha256": "9d703c4f41ea191962179b3119dcbbf987e8816c25b421a5004a414de3f95fe3",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4057396,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.15.mlp.gate_up_proj",
+        "weight_sha256": "06747e710c8983a680660961bef851114b9d61cf7d69a959bf3e12990d903819",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4322318,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.15.mlp.down_proj",
+        "weight_sha256": "4d29e0bbf21096c95a4ce46e79f29809e3ad3572d9792a5a4f3e102a9d07cd43",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18502376,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.16.self_attn.qkv_proj",
+        "weight_sha256": "3d4542b33e5e0fa232c6006835ead67404e6826b45f52a0100b94a552697ec5a",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3924046,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.16.self_attn.o_proj",
+        "weight_sha256": "a4ca3c98e4ad9809a41cd074e6c3b2564b51bc03beee62d8cb33bf7571ad303e",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3527806,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.16.mlp.gate_up_proj",
+        "weight_sha256": "3d5fe311218f03cce03ec59873fdca11361737533a604bada250f3a59a62abb0",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4379595,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.16.mlp.down_proj",
+        "weight_sha256": "77a3d9dc3156012ddc66737b1269ae41e0bcd299827fdf07b16fa437abb88e77",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18168112,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.17.self_attn.qkv_proj",
+        "weight_sha256": "ec57a841a8003152614d4b2b7497f1e03e4c735d213caaa9adad01ef9c0cc0ac",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4067810,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.17.self_attn.o_proj",
+        "weight_sha256": "168cd9e7f46c52bbc3193f7f7fd5f1b1132d1e735a7d6c30ad8c04ee2f40699d",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3842639,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.17.mlp.gate_up_proj",
+        "weight_sha256": "df7fc3bb02764fcacd9e9e332213e2c1955bba9afce4370170f2d388ee2b491f",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4570730,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.17.mlp.down_proj",
+        "weight_sha256": "f1f069668e286b6ae7d4279cd0f442fff788dc5eb9de53cb087dce49d1f4d1d5",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18994120,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.18.self_attn.qkv_proj",
+        "weight_sha256": "a1a96c3860f2a5f5b103137ffd9222c2b8fb79a91c80ddfc3605eec0f0177990",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4102989,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.18.self_attn.o_proj",
+        "weight_sha256": "24cdb26fc080c1e454488398c58a9fbe408455e7e80818cb6d1f14fa10b8800c",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3826129,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.18.mlp.gate_up_proj",
+        "weight_sha256": "0e861ffd8b10c26774a2e0e5b44253253e2aae2ee682a6bc80b930fe6f47a9d7",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4353687,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.18.mlp.down_proj",
+        "weight_sha256": "26c53a97e6567e4eeca644ef29c5a2360fd6b5c4909941431b24430df0a716e1",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18969609,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.19.self_attn.qkv_proj",
+        "weight_sha256": "ca12ffd8b5a7af2eb963f157b7754ca119cf028f5896dd0ccee5becc3e512886",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4111752,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.19.self_attn.o_proj",
+        "weight_sha256": "2d5236f4ecbbe12c07597bd3fd41d92d795385db2825223de7f27bd64594cc14",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3995039,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.19.mlp.gate_up_proj",
+        "weight_sha256": "33838e676f6df987772c673d30455b5959b14c6b961c442525fcff5e30c7f2c3",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4212336,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.19.mlp.down_proj",
+        "weight_sha256": "0459b979f8e5d31920f85fdc213820aafbdc16102b13416a93cce8efeaaf60f2",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18327751,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.20.self_attn.qkv_proj",
+        "weight_sha256": "8c2b10447e4616f50621d8c33e3ca65f112806ffcd941293dd86479b92db4df9",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3933571,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.20.self_attn.o_proj",
+        "weight_sha256": "ac14c0691412270e0356816691fa711d8219ed10ffb2921f6eb9ea0778019012",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3953891,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.20.mlp.gate_up_proj",
+        "weight_sha256": "2d5ee5213f9de45394d336121df319a0959cd180f3cca02fd4f2e067fa18edfd",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4276725,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.20.mlp.down_proj",
+        "weight_sha256": "62546c89ff0b765c5ea6ba587128fd7ef43405ce37ec674e298a0df2171d7c36",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18454624,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.21.self_attn.qkv_proj",
+        "weight_sha256": "8bb1314393b07955f2fb0f3890cb06955dbbca6296f8927ca183671e44bec547",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3952748,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.21.self_attn.o_proj",
+        "weight_sha256": "259a15a5685d5d7dcb61c4925971c1b3c005bf57d805a1dbc51405cb4cbe6717",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3983863,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.21.mlp.gate_up_proj",
+        "weight_sha256": "c6bd34f12ed29ce3f7fadb0b4db8a7b56cc272068f143c11bfc59c17af1fcaea",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4312793,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.21.mlp.down_proj",
+        "weight_sha256": "9ea4a53d6e241a369854689dd6062cc3e9e87d71ee20d830aa37e28b09a821d8",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 18998438,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.22.self_attn.qkv_proj",
+        "weight_sha256": "c555e21a8e842231f6b83f1e552a4fe5ccd82608777715380c6c9b8327dc7a2b",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3927602,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.22.self_attn.o_proj",
+        "weight_sha256": "d570980e65d84fe31d705d37eddf68776837c9cce60bad627163479d6e1a73ed",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4013581,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 422464,
+        "output_fanin_packed_bytes": 459200,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 131661824
+      },
+      {
+        "stage": "layers.22.mlp.gate_up_proj",
+        "weight_sha256": "411afd65e57c83677c79c89252f7c8feb19553c7f38e7e3c2bdba43ef8165677",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 4379849,
+        "public_output_bits": 24,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 4786176,
+        "output_fanin_packed_bytes": 4985600,
+        "output_int32_bytes": 6381568,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 1429471232
+      },
+      {
+        "stage": "layers.22.mlp.down_proj",
+        "weight_sha256": "2b69e79d687412ccccd605ec1c746e5241c8772bbf68ddbac44bba4419845e75",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 19279362,
+        "public_output_bits": 26,
+        "input_payload_bytes": 797696,
+        "output_packed_bytes": 477568,
+        "output_fanin_packed_bytes": 514304,
+        "output_int32_bytes": 587776,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 714735616
+      },
+      {
+        "stage": "layers.23.self_attn.qkv_proj",
+        "weight_sha256": "37c1f2b6bdde31b6253112155b5898f5d9a76ac117d287e74877119c432dc0f4",
+        "shape": [
+          1152,
+          896
+        ],
+        "terminal_prefill": false,
+        "pair_rows": 164,
+        "frames_each_direction": 24,
+        "public_signed_bound": 3971798,
+        "public_output_bits": 23,
+        "input_payload_bytes": 146944,
+        "output_packed_bytes": 543168,
+        "output_fanin_packed_bytes": 590400,
+        "output_int32_bytes": 755712,
+        "aead_overhead_bytes": 4704,
+        "pair_linear_macs": 169279488
+      },
+      {
+        "stage": "layers.23.self_attn.o_proj",
+        "weight_sha256": "c25df373380d30a4febb42387538733558a90fa8d9ab643a51cca2fee09a00cc",
+        "shape": [
+          896,
+          896
+        ],
+        "terminal_prefill": true,
+        "pair_rows": 15,
+        "frames_each_direction": 15,
+        "public_signed_bound": 3781425,
+        "public_output_bits": 23,
+        "input_payload_bytes": 13440,
+        "output_packed_bytes": 38640,
+        "output_fanin_packed_bytes": 42000,
+        "output_int32_bytes": 53760,
+        "aead_overhead_bytes": 2940,
+        "pair_linear_macs": 12042240
+      },
+      {
+        "stage": "layers.23.mlp.gate_up_proj",
+        "weight_sha256": "2d36426542a56bb27b508c85bba17d1c63e3efb784af878327ed5168d9d67f72",
+        "shape": [
+          9728,
+          896
+        ],
+        "terminal_prefill": true,
+        "pair_rows": 15,
+        "frames_each_direction": 15,
+        "public_signed_bound": 4507357,
+        "public_output_bits": 24,
+        "input_payload_bytes": 13440,
+        "output_packed_bytes": 437760,
+        "output_fanin_packed_bytes": 456000,
+        "output_int32_bytes": 583680,
+        "aead_overhead_bytes": 2940,
+        "pair_linear_macs": 130744320
+      },
+      {
+        "stage": "layers.23.mlp.down_proj",
+        "weight_sha256": "a2eafb084e2f7904a548c673367427532f5777e775226ac3ebd883d6c3aa2474",
+        "shape": [
+          896,
+          4864
+        ],
+        "terminal_prefill": true,
+        "pair_rows": 15,
+        "frames_each_direction": 15,
+        "public_signed_bound": 18888456,
+        "public_output_bits": 26,
+        "input_payload_bytes": 72960,
+        "output_packed_bytes": 43680,
+        "output_fanin_packed_bytes": 47040,
+        "output_int32_bytes": 53760,
+        "aead_overhead_bytes": 2940,
+        "pair_linear_macs": 65372160
+      }
+    ],
+    "model_legal_signed_input_range": [
+      -127,
+      127
+    ],
+    "totals": {
+      "pair_rows": 15297,
+      "frames_each_direction": 2277,
+      "input_payload_bytes": 28732928,
+      "output_packed_bytes": 144546192,
+      "output_fanin_packed_bytes": 151774032,
+      "output_int32_bytes": 192642048,
+      "aead_overhead_bytes": 446292,
+      "pair_linear_macs": 56615845888
+    },
+    "baseline": {
+      "scope": "first complete digit8 cold/exact-repeat pair; application bodies, not wire",
+      "evidence_sha256": "9b54ee455e7307429d4cc1bf19c93f1c58ff3ef966c258ddebde2ec8c68c42db",
+      "configuration_digest": "148a7a0b5572a17bbe73e1a03ec69339a9e8c39048e5068c21fe129104f5b46d",
+      "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "pair_bytes": 493575247,
+      "replicate_pair_bytes": [
+        493575247,
+        493575247,
+        493575247
+      ],
+      "classes": {
+        "corrections": 139060689,
+        "outputs": 139123150,
+        "inputs": 90443518,
+        "public_bundle": 124905091,
+        "control_and_seeds": 42799
+      },
+      "directed_counters": {
+        "client->preparation/offline": 25707,
+        "preparation->client/offline": 17092,
+        "preparation->inference/offline": 139060689,
+        "inference->client/cold": 124905091,
+        "client->inference/online": 90443518,
+        "inference->client/online": 139123150
+      },
+      "stages": {
+        "layers.0.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 462660,
+          "preparation->client": 170,
+          "preparation->inference": 461587
+        },
+        "layers.0.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4582029,
+          "preparation->client": 178,
+          "preparation->inference": 4582514
+        },
+        "layers.0.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 420163,
+          "preparation->client": 176,
+          "preparation->inference": 418967
+        },
+        "layers.0.self_attn.qkv_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 541500,
+          "preparation->client": 180,
+          "preparation->inference": 540333
+        },
+        "layers.1.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 463626,
+          "preparation->client": 170,
+          "preparation->inference": 462600
+        },
+        "layers.1.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4582596,
+          "preparation->client": 178,
+          "preparation->inference": 4583055
+        },
+        "layers.1.self_attn.o_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 424225,
+          "preparation->client": 176,
+          "preparation->inference": 422776
+        },
+        "layers.1.self_attn.qkv_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 544780,
+          "preparation->client": 180,
+          "preparation->inference": 543267
+        },
+        "layers.10.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 458711,
+          "preparation->client": 172,
+          "preparation->inference": 457621
+        },
+        "layers.10.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4576496,
+          "preparation->client": 180,
+          "preparation->inference": 4577673
+        },
+        "layers.10.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 422576,
+          "preparation->client": 178,
+          "preparation->inference": 421245
+        },
+        "layers.10.self_attn.qkv_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 544017,
+          "preparation->client": 182,
+          "preparation->inference": 542590
+        },
+        "layers.11.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 458781,
+          "preparation->client": 172,
+          "preparation->inference": 457618
+        },
+        "layers.11.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4575967,
+          "preparation->client": 180,
+          "preparation->inference": 4577251
+        },
+        "layers.11.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423359,
+          "preparation->client": 178,
+          "preparation->inference": 421961
+        },
+        "layers.11.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 541885,
+          "preparation->client": 182,
+          "preparation->inference": 540548
+        },
+        "layers.12.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 459985,
+          "preparation->client": 172,
+          "preparation->inference": 458746
+        },
+        "layers.12.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4575367,
+          "preparation->client": 180,
+          "preparation->inference": 4576801
+        },
+        "layers.12.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423321,
+          "preparation->client": 178,
+          "preparation->inference": 421936
+        },
+        "layers.12.self_attn.qkv_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 544383,
+          "preparation->client": 182,
+          "preparation->inference": 542911
+        },
+        "layers.13.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 458711,
+          "preparation->client": 172,
+          "preparation->inference": 457533
+        },
+        "layers.13.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4575784,
+          "preparation->client": 180,
+          "preparation->inference": 4577187
+        },
+        "layers.13.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423977,
+          "preparation->client": 178,
+          "preparation->inference": 422528
+        },
+        "layers.13.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 543436,
+          "preparation->client": 182,
+          "preparation->inference": 542017
+        },
+        "layers.14.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 457108,
+          "preparation->client": 172,
+          "preparation->inference": 456037
+        },
+        "layers.14.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4573469,
+          "preparation->client": 180,
+          "preparation->inference": 4575174
+        },
+        "layers.14.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423668,
+          "preparation->client": 178,
+          "preparation->inference": 422253
+        },
+        "layers.14.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 543108,
+          "preparation->client": 182,
+          "preparation->inference": 541779
+        },
+        "layers.15.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 457816,
+          "preparation->client": 172,
+          "preparation->inference": 456711
+        },
+        "layers.15.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4566366,
+          "preparation->client": 180,
+          "preparation->inference": 4568690
+        },
+        "layers.15.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423776,
+          "preparation->client": 178,
+          "preparation->inference": 422323
+        },
+        "layers.15.self_attn.qkv_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 543436,
+          "preparation->client": 182,
+          "preparation->inference": 542049
+        },
+        "layers.16.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 457689,
+          "preparation->client": 172,
+          "preparation->inference": 456700
+        },
+        "layers.16.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4565691,
+          "preparation->client": 180,
+          "preparation->inference": 4568125
+        },
+        "layers.16.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 419329,
+          "preparation->client": 178,
+          "preparation->inference": 418156
+        },
+        "layers.16.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 541159,
+          "preparation->client": 182,
+          "preparation->inference": 539773
+        },
+        "layers.17.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 460295,
+          "preparation->client": 172,
+          "preparation->inference": 459247
+        },
+        "layers.17.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4580085,
+          "preparation->client": 180,
+          "preparation->inference": 4580940
+        },
+        "layers.17.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 424015,
+          "preparation->client": 178,
+          "preparation->inference": 422553
+        },
+        "layers.17.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 542672,
+          "preparation->client": 182,
+          "preparation->inference": 541289
+        },
+        "layers.18.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 462099,
+          "preparation->client": 172,
+          "preparation->inference": 461043
+        },
+        "layers.18.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4583440,
+          "preparation->client": 180,
+          "preparation->inference": 4583693
+        },
+        "layers.18.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 424198,
+          "preparation->client": 178,
+          "preparation->inference": 422738
+        },
+        "layers.18.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 541449,
+          "preparation->client": 182,
+          "preparation->inference": 540134
+        },
+        "layers.19.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 458711,
+          "preparation->client": 172,
+          "preparation->inference": 457725
+        },
+        "layers.19.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4573361,
+          "preparation->client": 180,
+          "preparation->inference": 4574888
+        },
+        "layers.19.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 424015,
+          "preparation->client": 178,
+          "preparation->inference": 422561
+        },
+        "layers.19.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 543474,
+          "preparation->client": 182,
+          "preparation->inference": 542034
+        },
+        "layers.2.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 462951,
+          "preparation->client": 170,
+          "preparation->inference": 461931
+        },
+        "layers.2.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4580024,
+          "preparation->client": 178,
+          "preparation->inference": 4581001
+        },
+        "layers.2.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 421840,
+          "preparation->client": 176,
+          "preparation->inference": 420601
+        },
+        "layers.2.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 542648,
+          "preparation->client": 180,
+          "preparation->inference": 541295
+        },
+        "layers.20.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 459367,
+          "preparation->client": 172,
+          "preparation->inference": 458349
+        },
+        "layers.20.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4575165,
+          "preparation->client": 180,
+          "preparation->inference": 4576604
+        },
+        "layers.20.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 422520,
+          "preparation->client": 178,
+          "preparation->inference": 421201
+        },
+        "layers.20.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 540194,
+          "preparation->client": 182,
+          "preparation->inference": 538908
+        },
+        "layers.21.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 462553,
+          "preparation->client": 172,
+          "preparation->inference": 461486
+        },
+        "layers.21.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4583075,
+          "preparation->client": 180,
+          "preparation->inference": 4583373
+        },
+        "layers.21.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423378,
+          "preparation->client": 178,
+          "preparation->inference": 421982
+        },
+        "layers.21.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 537860,
+          "preparation->client": 182,
+          "preparation->inference": 536683
+        },
+        "layers.22.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 462919,
+          "preparation->client": 172,
+          "preparation->inference": 461863
+        },
+        "layers.22.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4579884,
+          "preparation->client": 180,
+          "preparation->inference": 4580807
+        },
+        "layers.22.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 424615,
+          "preparation->client": 178,
+          "preparation->inference": 423051
+        },
+        "layers.22.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 538933,
+          "preparation->client": 182,
+          "preparation->inference": 537756
+        },
+        "layers.23.mlp.down_proj": {
+          "client->inference": 237975,
+          "client->preparation": 206,
+          "inference->client": 43710,
+          "preparation->client": 170,
+          "preparation->inference": 43514
+        },
+        "layers.23.mlp.gate_up_proj": {
+          "client->inference": 41175,
+          "client->preparation": 206,
+          "inference->client": 420810,
+          "preparation->client": 180,
+          "preparation->inference": 421965
+        },
+        "layers.23.self_attn.o_proj": {
+          "client->inference": 39495,
+          "client->preparation": 206,
+          "inference->client": 40170,
+          "preparation->client": 176,
+          "preparation->inference": 39833
+        },
+        "layers.23.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 542869,
+          "preparation->client": 182,
+          "preparation->inference": 541450
+        },
+        "layers.3.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 462604,
+          "preparation->client": 170,
+          "preparation->inference": 461503
+        },
+        "layers.3.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4581228,
+          "preparation->client": 178,
+          "preparation->inference": 4581907
+        },
+        "layers.3.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423588,
+          "preparation->client": 176,
+          "preparation->inference": 422197
+        },
+        "layers.3.self_attn.qkv_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 543267,
+          "preparation->client": 180,
+          "preparation->inference": 541945
+        },
+        "layers.4.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 459451,
+          "preparation->client": 170,
+          "preparation->inference": 458473
+        },
+        "layers.4.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4576617,
+          "preparation->client": 178,
+          "preparation->inference": 4577862
+        },
+        "layers.4.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423279,
+          "preparation->client": 176,
+          "preparation->inference": 421913
+        },
+        "layers.4.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 543960,
+          "preparation->client": 180,
+          "preparation->inference": 542567
+        },
+        "layers.5.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 461091,
+          "preparation->client": 170,
+          "preparation->inference": 460017
+        },
+        "layers.5.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4582887,
+          "preparation->client": 178,
+          "preparation->inference": 4583335
+        },
+        "layers.5.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423827,
+          "preparation->client": 176,
+          "preparation->inference": 422411
+        },
+        "layers.5.self_attn.qkv_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 543904,
+          "preparation->client": 180,
+          "preparation->inference": 542507
+        },
+        "layers.6.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 460472,
+          "preparation->client": 170,
+          "preparation->inference": 459451
+        },
+        "layers.6.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4576744,
+          "preparation->client": 178,
+          "preparation->inference": 4577993
+        },
+        "layers.6.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423588,
+          "preparation->client": 176,
+          "preparation->inference": 422181
+        },
+        "layers.6.self_attn.qkv_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 543614,
+          "preparation->client": 180,
+          "preparation->inference": 542252
+        },
+        "layers.7.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 458232,
+          "preparation->client": 170,
+          "preparation->inference": 457167
+        },
+        "layers.7.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4578004,
+          "preparation->client": 178,
+          "preparation->inference": 4579167
+        },
+        "layers.7.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423044,
+          "preparation->client": 176,
+          "preparation->inference": 421727
+        },
+        "layers.7.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 542901,
+          "preparation->client": 180,
+          "preparation->inference": 541542
+        },
+        "layers.8.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 460200,
+          "preparation->client": 170,
+          "preparation->inference": 459071
+        },
+        "layers.8.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4575708,
+          "preparation->client": 178,
+          "preparation->inference": 4576943
+        },
+        "layers.8.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423625,
+          "preparation->client": 176,
+          "preparation->inference": 422222
+        },
+        "layers.8.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 543412,
+          "preparation->client": 180,
+          "preparation->inference": 542023
+        },
+        "layers.9.mlp.down_proj": {
+          "client->inference": 2596149,
+          "client->preparation": 207,
+          "inference->client": 458631,
+          "preparation->client": 170,
+          "preparation->inference": 457517
+        },
+        "layers.9.mlp.gate_up_proj": {
+          "client->inference": 444449,
+          "client->preparation": 207,
+          "inference->client": 4579368,
+          "preparation->client": 178,
+          "preparation->inference": 4580305
+        },
+        "layers.9.self_attn.o_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 423044,
+          "preparation->client": 176,
+          "preparation->inference": 421695
+        },
+        "layers.9.self_attn.qkv_proj": {
+          "client->inference": 426081,
+          "client->preparation": 207,
+          "inference->client": 542611,
+          "preparation->client": 180,
+          "preparation->inference": 541263
+        }
+      }
+    },
+    "alternatives": {
+      "recorded_public_bound": {
+        "recurring_pair_bytes": 173768211,
+        "asymptotic_saving_fraction_before_extra_costs": 0.5286621166048493,
+        "horizons": [
+          {
+            "pairs": 1,
+            "baseline_body_bytes": 493575247,
+            "candidate_body_bytes_before_extra_setup": 298673302,
+            "saving_fraction_before_extra_setup": 0.3948778756322032,
+            "max_extra_setup_bytes_by_target": {
+              "20": 96186895,
+              "35": 22150608,
+              "50": -51885679
+            }
+          },
+          {
+            "pairs": 2,
+            "baseline_body_bytes": 862245403,
+            "candidate_body_bytes_before_extra_setup": 472441513,
+            "saving_fraction_before_extra_setup": 0.4520799863284397,
+            "max_extra_setup_bytes_by_target": {
+              "20": 217354809,
+              "35": 88017998,
+              "50": -41318812
+            }
+          },
+          {
+            "pairs": 4,
+            "baseline_body_bytes": 1599585715,
+            "candidate_body_bytes_before_extra_setup": 819977935,
+            "saving_fraction_before_extra_setup": 0.4873810591638098,
+            "max_extra_setup_bytes_by_target": {
+              "20": 459690637,
+              "35": 219752779,
+              "50": -20185078
+            }
+          },
+          {
+            "pairs": 8,
+            "baseline_body_bytes": 3074266339,
+            "candidate_body_bytes_before_extra_setup": 1515050779,
+            "saving_fraction_before_extra_setup": 0.5071829789826158,
+            "max_extra_setup_bytes_by_target": {
+              "20": 944362292,
+              "35": 483222341,
+              "50": 22082390
+            }
+          },
+          {
+            "pairs": 16,
+            "baseline_body_bytes": 6023627587,
+            "candidate_body_bytes_before_extra_setup": 2905196467,
+            "saving_fraction_before_extra_setup": 0.5176998536114845,
+            "max_extra_setup_bytes_by_target": {
+              "20": 1913705602,
+              "35": 1010161464,
+              "50": 106617326
+            }
+          },
+          {
+            "pairs": 64,
+            "baseline_body_bytes": 23719795075,
+            "candidate_body_bytes_before_extra_setup": 11246070595,
+            "saving_fraction_before_extra_setup": 0.5258782565599378,
+            "max_extra_setup_bytes_by_target": {
+              "20": 7729765465,
+              "35": 4171796203,
+              "50": 613826942
+            }
+          }
+        ],
+        "minimum_pairs_by_extra_setup_sensitivity": {
+          "0": {
+            "20": 1,
+            "35": 1,
+            "50": 6
+          },
+          "65536": {
+            "20": 1,
+            "35": 1,
+            "50": 6
+          },
+          "357826560": {
+            "20": 4,
+            "35": 7,
+            "50": 40
+          },
+          "988097824": {
+            "20": 9,
+            "35": 16,
+            "50": 100
+          }
+        }
+      },
+      "conservative_fanin": {
+        "recurring_pair_bytes": 180996051,
+        "asymptotic_saving_fraction_before_extra_costs": 0.5090569495405536,
+        "horizons": [
+          {
+            "pairs": 1,
+            "baseline_body_bytes": 493575247,
+            "candidate_body_bytes_before_extra_setup": 305901142,
+            "saving_fraction_before_extra_setup": 0.3802340294427285,
+            "max_extra_setup_bytes_by_target": {
+              "20": 88959055,
+              "35": 14922768,
+              "50": -59113519
+            }
+          },
+          {
+            "pairs": 2,
+            "baseline_body_bytes": 862245403,
+            "candidate_body_bytes_before_extra_setup": 486897193,
+            "saving_fraction_before_extra_setup": 0.4353148288109806,
+            "max_extra_setup_bytes_by_target": {
+              "20": 202899129,
+              "35": 73562318,
+              "50": -55774492
+            }
+          },
+          {
+            "pairs": 4,
+            "baseline_body_bytes": 1599585715,
+            "candidate_body_bytes_before_extra_setup": 848889295,
+            "saving_fraction_before_extra_setup": 0.46930677922439434,
+            "max_extra_setup_bytes_by_target": {
+              "20": 430779277,
+              "35": 190841419,
+              "50": -49096438
+            }
+          },
+          {
+            "pairs": 8,
+            "baseline_body_bytes": 3074266339,
+            "candidate_body_bytes_before_extra_setup": 1572873499,
+            "saving_fraction_before_extra_setup": 0.4883743548675013,
+            "max_extra_setup_bytes_by_target": {
+              "20": 886539572,
+              "35": 425399621,
+              "50": -35740330
+            }
+          },
+          {
+            "pairs": 16,
+            "baseline_body_bytes": 6023627587,
+            "candidate_body_bytes_before_extra_setup": 3020841907,
+            "saving_fraction_before_extra_setup": 0.49850121652283347,
+            "max_extra_setup_bytes_by_target": {
+              "20": 1798060162,
+              "35": 894516024,
+              "50": -9028114
+            }
+          },
+          {
+            "pairs": 64,
+            "baseline_body_bytes": 23719795075,
+            "candidate_body_bytes_before_extra_setup": 11708652355,
+            "saving_fraction_before_extra_setup": 0.5063763275366324,
+            "max_extra_setup_bytes_by_target": {
+              "20": 7267183705,
+              "35": 3709214443,
+              "50": 151245182
+            }
+          }
+        ],
+        "minimum_pairs_by_extra_setup_sensitivity": {
+          "0": {
+            "20": 1,
+            "35": 1,
+            "50": 19
+          },
+          "65536": {
+            "20": 1,
+            "35": 1,
+            "50": 19
+          },
+          "357826560": {
+            "20": 4,
+            "35": 7,
+            "50": 126
+          },
+          "988097824": {
+            "20": 9,
+            "35": 18,
+            "50": 315
+          }
+        }
+      },
+      "int32": {
+        "recurring_pair_bytes": 221864067,
+        "asymptotic_saving_fraction_before_extra_costs": 0.39820442911034004,
+        "horizons": [
+          {
+            "pairs": 1,
+            "baseline_body_bytes": 493575247,
+            "candidate_body_bytes_before_extra_setup": 346769158,
+            "saving_fraction_before_extra_setup": 0.29743405872215467,
+            "max_extra_setup_bytes_by_target": {
+              "20": 48091039,
+              "35": -25945248,
+              "50": -99981535
+            }
+          },
+          {
+            "pairs": 2,
+            "baseline_body_bytes": 862245403,
+            "candidate_body_bytes_before_extra_setup": 568633225,
+            "saving_fraction_before_extra_setup": 0.3405204330210851,
+            "max_extra_setup_bytes_by_target": {
+              "20": 121163097,
+              "35": -8173714,
+              "50": -137510524
+            }
+          },
+          {
+            "pairs": 4,
+            "baseline_body_bytes": 1599585715,
+            "candidate_body_bytes_before_extra_setup": 1012361359,
+            "saving_fraction_before_extra_setup": 0.36711027767586685,
+            "max_extra_setup_bytes_by_target": {
+              "20": 267307213,
+              "35": 27369355,
+              "50": -212568502
+            }
+          },
+          {
+            "pairs": 8,
+            "baseline_body_bytes": 3074266339,
+            "candidate_body_bytes_before_extra_setup": 1899817627,
+            "saving_fraction_before_extra_setup": 0.38202568759284067,
+            "max_extra_setup_bytes_by_target": {
+              "20": 559595444,
+              "35": 98455493,
+              "50": -362684458
+            }
+          },
+          {
+            "pairs": 16,
+            "baseline_body_bytes": 6023627587,
+            "candidate_body_bytes_before_extra_setup": 3674730163,
+            "saving_fraction_before_extra_setup": 0.3899473183019009,
+            "max_extra_setup_bytes_by_target": {
+              "20": 1144171906,
+              "35": 240627768,
+              "50": -662916370
+            }
+          },
+          {
+            "pairs": 64,
+            "baseline_body_bytes": 23719795075,
+            "candidate_body_bytes_before_extra_setup": 14324205379,
+            "saving_fraction_before_extra_setup": 0.39610754082368477,
+            "max_extra_setup_bytes_by_target": {
+              "20": 4651630681,
+              "35": 1093661419,
+              "50": -2464307842
+            }
+          }
+        ],
+        "minimum_pairs_by_extra_setup_sensitivity": {
+          "0": {
+            "20": 1,
+            "35": 3,
+            "50": null
+          },
+          "65536": {
+            "20": 1,
+            "35": 3,
+            "50": null
+          },
+          "357826560": {
+            "20": 6,
+            "35": 23,
+            "50": null
+          },
+          "988097824": {
+            "20": 14,
+            "35": 59,
+            "50": null
+          }
+        }
+      }
+    },
+    "raw_body_i8_weight_bytes": 357826560,
+    "separate_cold_distribution_payload_scenarios": {
+      "two_original_provider_checkpoints_baseline": 1976195648,
+      "one_original_checkpoint_candidate": 988097824,
+      "role_artifacts_baseline": 855114752,
+      "one_inference_artifact_candidate_conservative": 496071680,
+      "scope": "raw payload scenarios outside serving ledger; not measured new bootstrap; publisher retention/publication/manifests still extra"
+    },
+    "extra_setup_sensitivities_are_not_measured": true,
+    "retained_control_bytes_per_pair": 42799
+  },
+  "software_transport_control": {
+    "executed": true,
+    "tee_proof": false,
+    "cryptography_version": "46.0.7",
+    "trials": 32,
+    "exact_output_integers": 672,
+    "serialized_aead_bytes": 8866,
+    "tamper_rejected": true,
+    "replay_rejected": true,
+    "scope": "public tiny Python integer + AES-256-GCM software control; no model execution"
+  },
+  "unpriced": [
+    "actual attestation/endorsement/revocation bodies and verification CPU",
+    "persistent key establishment, renewal, failure and shutdown bodies",
+    "source/quantizer/manifests and provider/client artifact distribution",
+    "host-enclave IPC, copies, paging, device transfers and public-weight validation",
+    "TCP/TLS/HTTP/ACK/retransmission bytes and failed attempts",
+    "client/enclave/host/device/cache peak resources and full decoder parity"
+  ]
+}
