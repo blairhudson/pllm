@@ -1,0 +1,391 @@
+{
+  "accounting": {
+    "hit_formula": "manifest + request + authenticated-patch-offer + patch",
+    "hit_rate_gate": "h > (patch + request + offer + per-update-extra-setup)/full",
+    "miss_formula": "manifest + request + offer + attempted patch + full; worst complete attempt",
+    "scope": "single publisher-to-client application bodies; other links unchanged, unmeasured",
+    "setup": "No learned tables. Calibration local public synthetic inputs; CPU/scratch unmeasured. No free real-base assumption.",
+    "transport_exclusions": "TLS, headers, retries outside explicit miss, TCP framing, checkpoint distribution",
+    "unchanged_objects": "existing object/snapshot reuse; zero delta opportunity counted",
+    "updates_gate": "U*(h*full-patch-request-offer-extra-setup) > extra-base-first-delivery+one-time-distribution"
+  },
+  "actual_pair_search": {
+    "credible_authenticated_pair_found": false,
+    "roots": [
+      "target/prepared-frontier-artifacts",
+      "target/qwen3-memory-artifacts"
+    ],
+    "scope": "directory entries only; not exhaustive cache scan"
+  },
+  "authentication": "externally trusted old/new manifest rows and patch commitment required",
+  "bounds": {
+    "client_explicit_live_buffers_conservative_bytes": 589824,
+    "excluded": "Python/runtime/zlib state, filesystem cache, native import and full client",
+    "header_bytes": 16384,
+    "object_bytes": 8388608,
+    "patch_bytes": 9437184
+  },
+  "cases": [
+    {
+      "authenticated_patch_offer_bytes": 248,
+      "base": {
+        "content_sha256": "bc181bd93c9fc13ecd251ea6e74e316272aacd54ce8cb6d182892e7c3e773251",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "e895af2ea1396b2f1d6b13863269fd97d02fddcca0b26f3b3f0811206ac61992",
+        "size": 262144
+      },
+      "base_first_delivery_bytes": 262547,
+      "break_even_hit_rate": 0.005956421266178052,
+      "case": "sparse",
+      "cold_base_then_delta_bytes": 264418,
+      "cold_base_then_full_bytes": 525094,
+      "delta_hit_bytes": 1871,
+      "delta_miss_then_full_bytes": 264109,
+      "delta_request_bytes": 148,
+      "disk_payload_owners": {
+        "base_cache": 262144,
+        "existing_destination_if_any": 262144,
+        "new_native_import_if_copied": 262144,
+        "new_pending_or_cache": 262144,
+        "old_native_snapshot_if_live": 262144,
+        "patch_spool_optional": 1166
+      },
+      "exact_reconstruction": {
+        "content_sha256": "9d7202d3b34b5ebdc0039f8a58f9309413b3e83f65f99348c4070ea3ee58a8d4",
+        "object_sha256": "aac298895db935984ce5e62b2b11b652b067cd1d58404e69e6b9b911100056a6",
+        "wire_bytes": 1166
+      },
+      "extra_base_amortization_updates": 2,
+      "full_bytes": 262547,
+      "full_controls_bytes": {
+        "zlib-1-1048576": 262238,
+        "zlib-1-65536": 262280,
+        "zlib-6-1048576": 262238,
+        "zlib-6-65536": 262280,
+        "zlib-9-1048576": 262238,
+        "zlib-9-65536": 262280
+      },
+      "net_hit_saving_bytes": 260676,
+      "new": {
+        "content_sha256": "9d7202d3b34b5ebdc0039f8a58f9309413b3e83f65f99348c4070ea3ee58a8d4",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "aac298895db935984ce5e62b2b11b652b067cd1d58404e69e6b9b911100056a6",
+        "size": 262144
+      },
+      "new_manifest_bytes_common": 309,
+      "patch_bytes_including_table": 1166,
+      "patch_sha256": "e655f4a1d7c99b3106dfcc5067b61d469f4f55ed20da10caf077be034fcb0599",
+      "production_zlib1_1MiB_bytes": 262238,
+      "publisher_payloads": {
+        "new_source": 262144,
+        "old_source": 262144,
+        "patch": 1166
+      },
+      "strongest_full_bytes": 262238,
+      "synthetic": true
+    },
+    {
+      "authenticated_patch_offer_bytes": 250,
+      "base": {
+        "content_sha256": "bc181bd93c9fc13ecd251ea6e74e316272aacd54ce8cb6d182892e7c3e773251",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "e895af2ea1396b2f1d6b13863269fd97d02fddcca0b26f3b3f0811206ac61992",
+        "size": 262144
+      },
+      "base_first_delivery_bytes": 262547,
+      "break_even_hit_rate": 1.004309062759783,
+      "case": "dense",
+      "cold_base_then_delta_bytes": 526224,
+      "cold_base_then_full_bytes": 525094,
+      "delta_hit_bytes": 263677,
+      "delta_miss_then_full_bytes": 525915,
+      "delta_request_bytes": 148,
+      "disk_payload_owners": {
+        "base_cache": 262144,
+        "existing_destination_if_any": 262144,
+        "new_native_import_if_copied": 262144,
+        "new_pending_or_cache": 262144,
+        "old_native_snapshot_if_live": 262144,
+        "patch_spool_optional": 262970
+      },
+      "exact_reconstruction": {
+        "content_sha256": "3c122d2306779db06b496a4dbd639210ac740ad3355f3ffad3778aeb88fab2da",
+        "object_sha256": "5a52078c7e847cfaf2e376b4c138969170f64d404c188f28886674a118282fa9",
+        "wire_bytes": 262970
+      },
+      "extra_base_amortization_updates": null,
+      "full_bytes": 262547,
+      "full_controls_bytes": {
+        "zlib-1-1048576": 262238,
+        "zlib-1-65536": 262280,
+        "zlib-6-1048576": 262238,
+        "zlib-6-65536": 262280,
+        "zlib-9-1048576": 262238,
+        "zlib-9-65536": 262280
+      },
+      "net_hit_saving_bytes": -1130,
+      "new": {
+        "content_sha256": "3c122d2306779db06b496a4dbd639210ac740ad3355f3ffad3778aeb88fab2da",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "5a52078c7e847cfaf2e376b4c138969170f64d404c188f28886674a118282fa9",
+        "size": 262144
+      },
+      "new_manifest_bytes_common": 309,
+      "patch_bytes_including_table": 262970,
+      "patch_sha256": "953a0def22dbd59a5deea22830402962c00076418fc7fd3d7ff8b62f2caf81ae",
+      "production_zlib1_1MiB_bytes": 262238,
+      "publisher_payloads": {
+        "new_source": 262144,
+        "old_source": 262144,
+        "patch": 262970
+      },
+      "strongest_full_bytes": 262238,
+      "synthetic": true
+    },
+    {
+      "authenticated_patch_offer_bytes": 248,
+      "base": {
+        "content_sha256": "bc181bd93c9fc13ecd251ea6e74e316272aacd54ce8cb6d182892e7c3e773251",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "e895af2ea1396b2f1d6b13863269fd97d02fddcca0b26f3b3f0811206ac61992",
+        "size": 262144
+      },
+      "base_first_delivery_bytes": 262547,
+      "break_even_hit_rate": 5.101754385964912,
+      "case": "dense_low_entropy",
+      "cold_base_then_delta_bytes": 264310,
+      "cold_base_then_full_bytes": 263141,
+      "delta_hit_bytes": 1763,
+      "delta_miss_then_full_bytes": 2048,
+      "delta_request_bytes": 148,
+      "disk_payload_owners": {
+        "base_cache": 262144,
+        "existing_destination_if_any": 262144,
+        "new_native_import_if_copied": 262144,
+        "new_pending_or_cache": 262144,
+        "old_native_snapshot_if_live": 262144,
+        "patch_spool_optional": 1058
+      },
+      "exact_reconstruction": {
+        "content_sha256": "8a39d2abd3999ab73c34db2476849cddf303ce389b35826850f9a700589b4a90",
+        "object_sha256": "1a03c490bb2a8632c71a5802f4578ed297315a03a5393899e818f40de9c599c4",
+        "wire_bytes": 1058
+      },
+      "extra_base_amortization_updates": null,
+      "full_bytes": 594,
+      "full_controls_bytes": {
+        "zlib-1-1048576": 1175,
+        "zlib-1-65536": 1260,
+        "zlib-6-1048576": 285,
+        "zlib-6-65536": 368,
+        "zlib-9-1048576": 285,
+        "zlib-9-65536": 368
+      },
+      "net_hit_saving_bytes": -1169,
+      "new": {
+        "content_sha256": "8a39d2abd3999ab73c34db2476849cddf303ce389b35826850f9a700589b4a90",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "1a03c490bb2a8632c71a5802f4578ed297315a03a5393899e818f40de9c599c4",
+        "size": 262144
+      },
+      "new_manifest_bytes_common": 309,
+      "patch_bytes_including_table": 1058,
+      "patch_sha256": "16218a728104d150c921513469731be33ffcb6db465d8247b2d440cbaa14af4e",
+      "production_zlib1_1MiB_bytes": 1175,
+      "publisher_payloads": {
+        "new_source": 262144,
+        "old_source": 262144,
+        "patch": 1058
+      },
+      "strongest_full_bytes": 285,
+      "synthetic": true
+    },
+    {
+      "authenticated_patch_offer_bytes": 250,
+      "base": {
+        "content_sha256": "bc181bd93c9fc13ecd251ea6e74e316272aacd54ce8cb6d182892e7c3e773251",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "e895af2ea1396b2f1d6b13863269fd97d02fddcca0b26f3b3f0811206ac61992",
+        "size": 262144
+      },
+      "base_first_delivery_bytes": 262547,
+      "break_even_hit_rate": 1.004309062759783,
+      "case": "shifted",
+      "cold_base_then_delta_bytes": 526224,
+      "cold_base_then_full_bytes": 525094,
+      "delta_hit_bytes": 263677,
+      "delta_miss_then_full_bytes": 525915,
+      "delta_request_bytes": 148,
+      "disk_payload_owners": {
+        "base_cache": 262144,
+        "existing_destination_if_any": 262144,
+        "new_native_import_if_copied": 262144,
+        "new_pending_or_cache": 262144,
+        "old_native_snapshot_if_live": 262144,
+        "patch_spool_optional": 262970
+      },
+      "exact_reconstruction": {
+        "content_sha256": "285864598ef0ca9ae1653616c7f13bb70babaee3f69e9e108f836c60de65ebd4",
+        "object_sha256": "c995f72a5f20629eae28bdc1d3453821c776609037ed5a7e17ab185ed9d2b987",
+        "wire_bytes": 262970
+      },
+      "extra_base_amortization_updates": null,
+      "full_bytes": 262547,
+      "full_controls_bytes": {
+        "zlib-1-1048576": 262238,
+        "zlib-1-65536": 262280,
+        "zlib-6-1048576": 262238,
+        "zlib-6-65536": 262280,
+        "zlib-9-1048576": 262238,
+        "zlib-9-65536": 262280
+      },
+      "net_hit_saving_bytes": -1130,
+      "new": {
+        "content_sha256": "285864598ef0ca9ae1653616c7f13bb70babaee3f69e9e108f836c60de65ebd4",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "c995f72a5f20629eae28bdc1d3453821c776609037ed5a7e17ab185ed9d2b987",
+        "size": 262144
+      },
+      "new_manifest_bytes_common": 309,
+      "patch_bytes_including_table": 262970,
+      "patch_sha256": "19f48e3e566fe950f8314402cacdebb2274bf6a32bbaf8bfb1a2d1511c68594b",
+      "production_zlib1_1MiB_bytes": 262238,
+      "publisher_payloads": {
+        "new_source": 262144,
+        "old_source": 262144,
+        "patch": 262970
+      },
+      "strongest_full_bytes": 262238,
+      "synthetic": true
+    },
+    {
+      "authenticated_patch_offer_bytes": 247,
+      "base": {
+        "content_sha256": "bc181bd93c9fc13ecd251ea6e74e316272aacd54ce8cb6d182892e7c3e773251",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "e895af2ea1396b2f1d6b13863269fd97d02fddcca0b26f3b3f0811206ac61992",
+        "size": 262144
+      },
+      "base_first_delivery_bytes": 262547,
+      "break_even_hit_rate": 0.004399659922300634,
+      "case": "append",
+      "cold_base_then_delta_bytes": 264010,
+      "cold_base_then_full_bytes": 525149,
+      "delta_hit_bytes": 1463,
+      "delta_miss_then_full_bytes": 263756,
+      "delta_request_bytes": 148,
+      "disk_payload_owners": {
+        "base_cache": 262144,
+        "existing_destination_if_any": 262624,
+        "new_native_import_if_copied": 262624,
+        "new_pending_or_cache": 262624,
+        "old_native_snapshot_if_live": 262144,
+        "patch_spool_optional": 759
+      },
+      "exact_reconstruction": {
+        "content_sha256": "c46908b4940bcf0cca0f280fcd6bb80ae15fb3c645bdd0820b4a6acf8a97b653",
+        "object_sha256": "78b46cccd2ba6b2b0859b6aefc4e2af7fb9eb5aa07ddd5ca33e12ff4697f6099",
+        "wire_bytes": 759
+      },
+      "extra_base_amortization_updates": 2,
+      "full_bytes": 262602,
+      "full_controls_bytes": {
+        "zlib-1-1048576": 262304,
+        "zlib-1-65536": 262317,
+        "zlib-6-1048576": 262293,
+        "zlib-6-65536": 262316,
+        "zlib-9-1048576": 262293,
+        "zlib-9-65536": 262316
+      },
+      "net_hit_saving_bytes": 261139,
+      "new": {
+        "content_sha256": "c46908b4940bcf0cca0f280fcd6bb80ae15fb3c645bdd0820b4a6acf8a97b653",
+        "domain_hash": "d8bc3174220ba403f5172281f3cb27914cef328f8fc6edcb0c2c5b33a215f71d",
+        "metadata": {
+          "dtype": "u1",
+          "scope": "synthetic-public"
+        },
+        "sha256": "78b46cccd2ba6b2b0859b6aefc4e2af7fb9eb5aa07ddd5ca33e12ff4697f6099",
+        "size": 262624
+      },
+      "new_manifest_bytes_common": 309,
+      "patch_bytes_including_table": 759,
+      "patch_sha256": "f11e54a65257e737e6a2852bcb27af97f2e9718fd4bb3da0c78ef408dd9dbf30",
+      "production_zlib1_1MiB_bytes": 262304,
+      "publisher_payloads": {
+        "new_source": 262624,
+        "old_source": 262144,
+        "patch": 759
+      },
+      "strongest_full_bytes": 262293,
+      "synthetic": true
+    }
+  ],
+  "freeze": {
+    "block": 65536,
+    "calibration_patch_bytes": {
+      "replace": 134694,
+      "xor": 69227
+    },
+    "held_out_object_bytes": 262144,
+    "held_out_seed": 9108,
+    "selected_codec": "xor",
+    "training_object_bytes": 32768,
+    "training_seed": 8108,
+    "zlib_level": 9
+  },
+  "runtime": {
+    "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+    "zlib": "1.2.12"
+  },
+  "schema": 1,
+  "source_and_own_code_sha256": {
+    "docs/plans/low-tier-all-link-hypotheses.md": "3a8fc515170b72be48454102a4510346b319cbaadaed6323d387a6684638aebe",
+    "docs/research/artifact-update-delta-reference.md": "10b9edbf3ef8474ac2965a4ff6bd71bd749d706490f320d9a1384657a688bd6c",
+    "docs/research/native-snapshot-reference.md": "a7bc51b9b567c4e7942ccfae33f5476d43a7ebcbcd7ae27783b7098f16234b98",
+    "docs/research/qwen3-sdk-artifacts.md": "5cec5a32677e7d5317b0e99c26a8306b67375a214d11f575980973454acf7676",
+    "python/pllm/runtime/bundle_artifacts.py": "9b563142aa9184932f88de312ba6b89470622139d1250dbe166b7530f2b9191f",
+    "python/pllm/runtime/bundle_compression.py": "35635ace1b0cb469998d6b1cda990eafbe60b926ba8f74bc3f11d1e81e75574c",
+    "scripts/probe_artifact_update_delta.py": "dca07fd7b71ec80908fa728c1d959e93fc5726489688f6206ca3f4d063eaf94c",
+    "tests/test_artifact_update_delta_probe.py": "2a4c491c7301bd8cfd4e46545fcf107b0407490b1b566c49dad1440fe5a7727f"
+  },
+  "status": "synthetic-only; actual-pair evidence missing",
+  "timing_rss_or_model_quality_claim": false,
+  "whole_client_low_eligibility": "unknown"
+}

@@ -1,0 +1,1154 @@
+{
+  "admission_example": {
+    "export_copy_bytes": 192,
+    "live_hidden_and_partial_kv_bytes": 192,
+    "owned_bound_fits": true,
+    "required_owned_bytes": 219152768,
+    "rss_and_source_native_admission": "unknown; allocation bound alone insufficient",
+    "source_digest": "3219265f523d1efd427a89b1570aa37f3cb7209839ec025a83347bf9ec11452e",
+    "whole_client_low_qualified": false
+  },
+  "bounded_cancellation_traces": [
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 0,
+        "client_to_inference": 0,
+        "inference_to_client": 0,
+        "preparation_to_inference": 1152,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [
+        {
+          "bytes": {
+            "claimed_burn_correction": 0,
+            "correction_acked": 0,
+            "correction_inflight_upper": 1152,
+            "correction_issued": 1152,
+            "discarded_correction": 0,
+            "online_acked_reply": 0,
+            "online_inflight_reply_upper": 0,
+            "reserved_correction": 0,
+            "unused_burn_correction": 0
+          },
+          "rows": {
+            "active": false,
+            "blocked": false,
+            "burned_unused": 0,
+            "claimed": 0,
+            "correction_acked": 0,
+            "correction_inflight": 12,
+            "discarded": 0,
+            "generation": 0,
+            "issued": 12,
+            "online_acked": 0,
+            "online_inflight": 0,
+            "reserved": 0
+          }
+        }
+      ],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 0,
+        "correction_acked": 0,
+        "correction_inflight_upper": 0,
+        "correction_issued": 1152,
+        "discarded_correction": 1152,
+        "online_acked_reply": 0,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 0,
+        "unused_burn_correction": 0
+      },
+      "pause_seconds": null,
+      "pauses": 0,
+      "physical_wire_upper_bound": null,
+      "point": "preparing",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 0,
+        "burn_total_reserved": 0,
+        "burned_unused": 0,
+        "claimed": 0,
+        "correction_acked": 0,
+        "correction_inflight": 0,
+        "discarded": 12,
+        "generation": 1,
+        "issued": 12,
+        "online_acked": 0,
+        "online_inflight": 0,
+        "reserved": 0
+      },
+      "sessions": 0,
+      "stop": 5,
+      "total_body_upper_bound": 5248
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 1536,
+        "client_to_inference": 768,
+        "inference_to_client": 1152,
+        "preparation_to_inference": 3456,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [
+        {
+          "bytes": {
+            "claimed_burn_correction": 1152,
+            "correction_acked": 1152,
+            "correction_inflight_upper": 2304,
+            "correction_issued": 3456,
+            "discarded_correction": 0,
+            "online_acked_reply": 1152,
+            "online_inflight_reply_upper": 0,
+            "reserved_correction": 1152,
+            "unused_burn_correction": 0
+          },
+          "rows": {
+            "active": false,
+            "blocked": false,
+            "burned_unused": 0,
+            "claimed": 12,
+            "correction_acked": 12,
+            "correction_inflight": 24,
+            "discarded": 0,
+            "generation": 1,
+            "issued": 36,
+            "online_acked": 12,
+            "online_inflight": 0,
+            "reserved": 12
+          }
+        }
+      ],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 1152,
+        "correction_acked": 1152,
+        "correction_inflight_upper": 0,
+        "correction_issued": 3456,
+        "discarded_correction": 2304,
+        "online_acked_reply": 1152,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 1152,
+        "unused_burn_correction": 0
+      },
+      "pause_seconds": null,
+      "pauses": 1,
+      "physical_wire_upper_bound": null,
+      "point": "preparing",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 12,
+        "burn_total_reserved": 12,
+        "burned_unused": 0,
+        "claimed": 12,
+        "correction_acked": 12,
+        "correction_inflight": 0,
+        "discarded": 24,
+        "generation": 2,
+        "issued": 36,
+        "online_acked": 12,
+        "online_inflight": 0,
+        "reserved": 12
+      },
+      "sessions": 1,
+      "stop": 10,
+      "total_body_upper_bound": 11008
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 1024,
+        "client_to_inference": 0,
+        "inference_to_client": 0,
+        "preparation_to_inference": 1152,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 0,
+        "correction_acked": 1152,
+        "correction_inflight_upper": 0,
+        "correction_issued": 1152,
+        "discarded_correction": 0,
+        "online_acked_reply": 0,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 1152,
+        "unused_burn_correction": 1152
+      },
+      "pause_seconds": null,
+      "pauses": 0,
+      "physical_wire_upper_bound": null,
+      "point": "sealed",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 0,
+        "burn_total_reserved": 12,
+        "burned_unused": 12,
+        "claimed": 0,
+        "correction_acked": 12,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 1,
+        "issued": 12,
+        "online_acked": 0,
+        "online_inflight": 0,
+        "reserved": 12
+      },
+      "sessions": 1,
+      "stop": 5,
+      "total_body_upper_bound": 6272
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 2560,
+        "client_to_inference": 768,
+        "inference_to_client": 1152,
+        "preparation_to_inference": 3456,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 1152,
+        "correction_acked": 3456,
+        "correction_inflight_upper": 0,
+        "correction_issued": 3456,
+        "discarded_correction": 0,
+        "online_acked_reply": 1152,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 3456,
+        "unused_burn_correction": 2304
+      },
+      "pause_seconds": null,
+      "pauses": 1,
+      "physical_wire_upper_bound": null,
+      "point": "sealed",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 12,
+        "burn_total_reserved": 36,
+        "burned_unused": 24,
+        "claimed": 12,
+        "correction_acked": 36,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 2,
+        "issued": 36,
+        "online_acked": 12,
+        "online_inflight": 0,
+        "reserved": 36
+      },
+      "sessions": 2,
+      "stop": 10,
+      "total_body_upper_bound": 12032
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 1024,
+        "client_to_inference": 256,
+        "inference_to_client": 384,
+        "preparation_to_inference": 1152,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [
+        {
+          "bytes": {
+            "claimed_burn_correction": 384,
+            "correction_acked": 1152,
+            "correction_inflight_upper": 0,
+            "correction_issued": 1152,
+            "discarded_correction": 0,
+            "online_acked_reply": 0,
+            "online_inflight_reply_upper": 384,
+            "reserved_correction": 1152,
+            "unused_burn_correction": 0
+          },
+          "rows": {
+            "active": true,
+            "blocked": false,
+            "burned_unused": 0,
+            "claimed": 4,
+            "correction_acked": 12,
+            "correction_inflight": 0,
+            "discarded": 0,
+            "generation": 0,
+            "issued": 12,
+            "online_acked": 0,
+            "online_inflight": 4,
+            "reserved": 12
+          }
+        }
+      ],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 384,
+        "correction_acked": 1152,
+        "correction_inflight_upper": 0,
+        "correction_issued": 1152,
+        "discarded_correction": 0,
+        "online_acked_reply": 0,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 1152,
+        "unused_burn_correction": 768
+      },
+      "pause_seconds": null,
+      "pauses": 0,
+      "physical_wire_upper_bound": null,
+      "point": "online_inflight",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 4,
+        "burn_total_reserved": 12,
+        "burned_unused": 8,
+        "claimed": 4,
+        "correction_acked": 12,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 1,
+        "issued": 12,
+        "online_acked": 0,
+        "online_inflight": 0,
+        "reserved": 12
+      },
+      "sessions": 1,
+      "stop": 1,
+      "total_body_upper_bound": 6912
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 1024,
+        "client_to_inference": 512,
+        "inference_to_client": 768,
+        "preparation_to_inference": 1152,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [
+        {
+          "bytes": {
+            "claimed_burn_correction": 768,
+            "correction_acked": 1152,
+            "correction_inflight_upper": 0,
+            "correction_issued": 1152,
+            "discarded_correction": 0,
+            "online_acked_reply": 384,
+            "online_inflight_reply_upper": 384,
+            "reserved_correction": 1152,
+            "unused_burn_correction": 0
+          },
+          "rows": {
+            "active": true,
+            "blocked": false,
+            "burned_unused": 0,
+            "claimed": 8,
+            "correction_acked": 12,
+            "correction_inflight": 0,
+            "discarded": 0,
+            "generation": 0,
+            "issued": 12,
+            "online_acked": 4,
+            "online_inflight": 4,
+            "reserved": 12
+          }
+        }
+      ],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 768,
+        "correction_acked": 1152,
+        "correction_inflight_upper": 0,
+        "correction_issued": 1152,
+        "discarded_correction": 0,
+        "online_acked_reply": 384,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 1152,
+        "unused_burn_correction": 384
+      },
+      "pause_seconds": null,
+      "pauses": 0,
+      "physical_wire_upper_bound": null,
+      "point": "online_inflight",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 8,
+        "burn_total_reserved": 12,
+        "burned_unused": 4,
+        "claimed": 8,
+        "correction_acked": 12,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 1,
+        "issued": 12,
+        "online_acked": 4,
+        "online_inflight": 0,
+        "reserved": 12
+      },
+      "sessions": 1,
+      "stop": 3,
+      "total_body_upper_bound": 7552
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 1024,
+        "client_to_inference": 768,
+        "inference_to_client": 1152,
+        "preparation_to_inference": 1152,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [
+        {
+          "bytes": {
+            "claimed_burn_correction": 1152,
+            "correction_acked": 1152,
+            "correction_inflight_upper": 0,
+            "correction_issued": 1152,
+            "discarded_correction": 0,
+            "online_acked_reply": 768,
+            "online_inflight_reply_upper": 384,
+            "reserved_correction": 1152,
+            "unused_burn_correction": 0
+          },
+          "rows": {
+            "active": true,
+            "blocked": false,
+            "burned_unused": 0,
+            "claimed": 12,
+            "correction_acked": 12,
+            "correction_inflight": 0,
+            "discarded": 0,
+            "generation": 0,
+            "issued": 12,
+            "online_acked": 8,
+            "online_inflight": 4,
+            "reserved": 12
+          }
+        }
+      ],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 1152,
+        "correction_acked": 1152,
+        "correction_inflight_upper": 0,
+        "correction_issued": 1152,
+        "discarded_correction": 0,
+        "online_acked_reply": 768,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 1152,
+        "unused_burn_correction": 0
+      },
+      "pause_seconds": null,
+      "pauses": 0,
+      "physical_wire_upper_bound": null,
+      "point": "online_inflight",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 12,
+        "burn_total_reserved": 12,
+        "burned_unused": 0,
+        "claimed": 12,
+        "correction_acked": 12,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 1,
+        "issued": 12,
+        "online_acked": 8,
+        "online_inflight": 0,
+        "reserved": 12
+      },
+      "sessions": 1,
+      "stop": 4,
+      "total_body_upper_bound": 8192
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 2560,
+        "client_to_inference": 1024,
+        "inference_to_client": 1536,
+        "preparation_to_inference": 3456,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [
+        {
+          "bytes": {
+            "claimed_burn_correction": 1536,
+            "correction_acked": 3456,
+            "correction_inflight_upper": 0,
+            "correction_issued": 3456,
+            "discarded_correction": 0,
+            "online_acked_reply": 1152,
+            "online_inflight_reply_upper": 384,
+            "reserved_correction": 3456,
+            "unused_burn_correction": 0
+          },
+          "rows": {
+            "active": true,
+            "blocked": false,
+            "burned_unused": 0,
+            "claimed": 16,
+            "correction_acked": 36,
+            "correction_inflight": 0,
+            "discarded": 0,
+            "generation": 1,
+            "issued": 36,
+            "online_acked": 12,
+            "online_inflight": 4,
+            "reserved": 36
+          }
+        }
+      ],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 1536,
+        "correction_acked": 3456,
+        "correction_inflight_upper": 0,
+        "correction_issued": 3456,
+        "discarded_correction": 0,
+        "online_acked_reply": 1152,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 3456,
+        "unused_burn_correction": 1920
+      },
+      "pause_seconds": null,
+      "pauses": 1,
+      "physical_wire_upper_bound": null,
+      "point": "online_inflight",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 16,
+        "burn_total_reserved": 36,
+        "burned_unused": 20,
+        "claimed": 16,
+        "correction_acked": 36,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 2,
+        "issued": 36,
+        "online_acked": 12,
+        "online_inflight": 0,
+        "reserved": 36
+      },
+      "sessions": 2,
+      "stop": 6,
+      "total_body_upper_bound": 12672
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 2560,
+        "client_to_inference": 1280,
+        "inference_to_client": 1920,
+        "preparation_to_inference": 3456,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [
+        {
+          "bytes": {
+            "claimed_burn_correction": 1920,
+            "correction_acked": 3456,
+            "correction_inflight_upper": 0,
+            "correction_issued": 3456,
+            "discarded_correction": 0,
+            "online_acked_reply": 1536,
+            "online_inflight_reply_upper": 384,
+            "reserved_correction": 3456,
+            "unused_burn_correction": 0
+          },
+          "rows": {
+            "active": true,
+            "blocked": false,
+            "burned_unused": 0,
+            "claimed": 20,
+            "correction_acked": 36,
+            "correction_inflight": 0,
+            "discarded": 0,
+            "generation": 1,
+            "issued": 36,
+            "online_acked": 16,
+            "online_inflight": 4,
+            "reserved": 36
+          }
+        }
+      ],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 1920,
+        "correction_acked": 3456,
+        "correction_inflight_upper": 0,
+        "correction_issued": 3456,
+        "discarded_correction": 0,
+        "online_acked_reply": 1536,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 3456,
+        "unused_burn_correction": 1536
+      },
+      "pause_seconds": null,
+      "pauses": 1,
+      "physical_wire_upper_bound": null,
+      "point": "online_inflight",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 20,
+        "burn_total_reserved": 36,
+        "burned_unused": 16,
+        "claimed": 20,
+        "correction_acked": 36,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 2,
+        "issued": 36,
+        "online_acked": 16,
+        "online_inflight": 0,
+        "reserved": 36
+      },
+      "sessions": 2,
+      "stop": 8,
+      "total_body_upper_bound": 13312
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 2560,
+        "client_to_inference": 1536,
+        "inference_to_client": 2304,
+        "preparation_to_inference": 3456,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [
+        {
+          "bytes": {
+            "claimed_burn_correction": 2304,
+            "correction_acked": 3456,
+            "correction_inflight_upper": 0,
+            "correction_issued": 3456,
+            "discarded_correction": 0,
+            "online_acked_reply": 1920,
+            "online_inflight_reply_upper": 384,
+            "reserved_correction": 3456,
+            "unused_burn_correction": 0
+          },
+          "rows": {
+            "active": true,
+            "blocked": false,
+            "burned_unused": 0,
+            "claimed": 24,
+            "correction_acked": 36,
+            "correction_inflight": 0,
+            "discarded": 0,
+            "generation": 1,
+            "issued": 36,
+            "online_acked": 20,
+            "online_inflight": 4,
+            "reserved": 36
+          }
+        }
+      ],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 2304,
+        "correction_acked": 3456,
+        "correction_inflight_upper": 0,
+        "correction_issued": 3456,
+        "discarded_correction": 0,
+        "online_acked_reply": 1920,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 3456,
+        "unused_burn_correction": 1152
+      },
+      "pause_seconds": null,
+      "pauses": 1,
+      "physical_wire_upper_bound": null,
+      "point": "online_inflight",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 24,
+        "burn_total_reserved": 36,
+        "burned_unused": 12,
+        "claimed": 24,
+        "correction_acked": 36,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 2,
+        "issued": 36,
+        "online_acked": 20,
+        "online_inflight": 0,
+        "reserved": 36
+      },
+      "sessions": 2,
+      "stop": 9,
+      "total_body_upper_bound": 13952
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 1536,
+        "client_to_inference": 768,
+        "inference_to_client": 1152,
+        "preparation_to_inference": 1152,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 1152,
+        "correction_acked": 1152,
+        "correction_inflight_upper": 0,
+        "correction_issued": 1152,
+        "discarded_correction": 0,
+        "online_acked_reply": 1152,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 1152,
+        "unused_burn_correction": 0
+      },
+      "pause_seconds": null,
+      "pauses": 0,
+      "physical_wire_upper_bound": null,
+      "point": "cut",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 12,
+        "burn_total_reserved": 12,
+        "burned_unused": 0,
+        "claimed": 12,
+        "correction_acked": 12,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 1,
+        "issued": 12,
+        "online_acked": 12,
+        "online_inflight": 0,
+        "reserved": 12
+      },
+      "sessions": 1,
+      "stop": 5,
+      "total_body_upper_bound": 8704
+    },
+    {
+      "cpu_seconds": null,
+      "cuts": [
+        5,
+        10
+      ],
+      "directed_body_upper_bounds": {
+        "aggregate_controls": 2560,
+        "client_to_inference": 1536,
+        "inference_to_client": 2304,
+        "preparation_to_inference": 3456,
+        "publisher_to_client": 4096
+      },
+      "inflight_observations": [],
+      "material_byte_gauges": {
+        "claimed_burn_correction": 2304,
+        "correction_acked": 3456,
+        "correction_inflight_upper": 0,
+        "correction_issued": 3456,
+        "discarded_correction": 0,
+        "online_acked_reply": 2304,
+        "online_inflight_reply_upper": 0,
+        "reserved_correction": 3456,
+        "unused_burn_correction": 1152
+      },
+      "pause_seconds": null,
+      "pauses": 1,
+      "physical_wire_upper_bound": null,
+      "point": "cut",
+      "rows": {
+        "active": false,
+        "blocked": false,
+        "burn_on_claim": 24,
+        "burn_total_reserved": 36,
+        "burned_unused": 12,
+        "claimed": 24,
+        "correction_acked": 36,
+        "correction_inflight": 0,
+        "discarded": 0,
+        "generation": 2,
+        "issued": 36,
+        "online_acked": 24,
+        "online_inflight": 0,
+        "reserved": 36
+      },
+      "sessions": 2,
+      "stop": 10,
+      "total_body_upper_bound": 13952
+    }
+  ],
+  "break_even": {
+    "canceled_body_saving": 1792,
+    "cancellation_fraction_strictly_greater_than": "1536/3328",
+    "deployment_cancellation_fraction": null,
+    "equation": "p*S > (1-p)*H; identical common cold/online bytes remain in denominator",
+    "successful_body_penalty": 1536
+  },
+  "canceled_staged": {
+    "cpu_seconds": null,
+    "cuts": [
+      5,
+      10
+    ],
+    "directed_body_upper_bounds": {
+      "aggregate_controls": 1536,
+      "client_to_inference": 768,
+      "inference_to_client": 1152,
+      "preparation_to_inference": 1152,
+      "publisher_to_client": 4096
+    },
+    "inflight_observations": [],
+    "material_byte_gauges": {
+      "claimed_burn_correction": 1152,
+      "correction_acked": 1152,
+      "correction_inflight_upper": 0,
+      "correction_issued": 1152,
+      "discarded_correction": 0,
+      "online_acked_reply": 1152,
+      "online_inflight_reply_upper": 0,
+      "reserved_correction": 1152,
+      "unused_burn_correction": 0
+    },
+    "pause_seconds": null,
+    "pauses": 0,
+    "physical_wire_upper_bound": null,
+    "point": "cut",
+    "rows": {
+      "active": false,
+      "blocked": false,
+      "burn_on_claim": 12,
+      "burn_total_reserved": 12,
+      "burned_unused": 0,
+      "claimed": 12,
+      "correction_acked": 12,
+      "correction_inflight": 0,
+      "discarded": 0,
+      "generation": 1,
+      "issued": 12,
+      "online_acked": 12,
+      "online_inflight": 0,
+      "reserved": 12
+    },
+    "sessions": 1,
+    "stop": 5,
+    "total_body_upper_bound": 8704
+  },
+  "canceled_whole_prefill_fixed_epoch": {
+    "cpu_seconds": null,
+    "cuts": [
+      10
+    ],
+    "directed_body_upper_bounds": {
+      "aggregate_controls": 1024,
+      "client_to_inference": 768,
+      "inference_to_client": 1152,
+      "preparation_to_inference": 3456,
+      "publisher_to_client": 4096
+    },
+    "inflight_observations": [],
+    "material_byte_gauges": {
+      "claimed_burn_correction": 1152,
+      "correction_acked": 3456,
+      "correction_inflight_upper": 0,
+      "correction_issued": 3456,
+      "discarded_correction": 0,
+      "online_acked_reply": 1152,
+      "online_inflight_reply_upper": 0,
+      "reserved_correction": 3456,
+      "unused_burn_correction": 2304
+    },
+    "pause_seconds": null,
+    "pauses": 0,
+    "physical_wire_upper_bound": null,
+    "point": "acknowledged",
+    "rows": {
+      "active": false,
+      "blocked": false,
+      "burn_on_claim": 12,
+      "burn_total_reserved": 36,
+      "burned_unused": 24,
+      "claimed": 12,
+      "correction_acked": 36,
+      "correction_inflight": 0,
+      "discarded": 0,
+      "generation": 1,
+      "issued": 36,
+      "online_acked": 12,
+      "online_inflight": 0,
+      "reserved": 36
+    },
+    "sessions": 1,
+    "stop": 5,
+    "total_body_upper_bound": 10496
+  },
+  "deterministic": true,
+  "measured_latency_cpu_rss": null,
+  "oracle": [
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.kv",
+        "input"
+      ],
+      "payload_bytes": 32,
+      "pc": 1
+    },
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.kv",
+        "0.mix",
+        "input"
+      ],
+      "payload_bytes": 48,
+      "pc": 2
+    },
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.kv",
+        "0.up",
+        "input"
+      ],
+      "payload_bytes": 48,
+      "pc": 3
+    },
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.down",
+        "0.kv",
+        "input"
+      ],
+      "payload_bytes": 48,
+      "pc": 4
+    },
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.kv",
+        "0.out"
+      ],
+      "payload_bytes": 32,
+      "pc": 5
+    },
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.kv",
+        "0.out",
+        "1.kv"
+      ],
+      "payload_bytes": 48,
+      "pc": 6
+    },
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.kv",
+        "0.out",
+        "1.kv",
+        "1.mix"
+      ],
+      "payload_bytes": 64,
+      "pc": 7
+    },
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.kv",
+        "0.out",
+        "1.kv",
+        "1.up"
+      ],
+      "payload_bytes": 64,
+      "pc": 8
+    },
+    {
+      "exact_toy_final_bits": true,
+      "live": [
+        "0.kv",
+        "0.out",
+        "1.down",
+        "1.kv"
+      ],
+      "payload_bytes": 64,
+      "pc": 9
+    }
+  ],
+  "remote_body_mac_fraction": {
+    "source_decode": null,
+    "source_prefill": null,
+    "toy": 1.0
+  },
+  "schema": "pllm.prefill_cancellation_cuts_screen.v1",
+  "scope": "toy graph and explicitly supplied bounded bodies; not deployment or model execution",
+  "sdk_promotion": false,
+  "source_and_own_file_sha256": {
+    "crates/pllm-compiler/src/decoder_continuation.rs": "3219265f523d1efd427a89b1570aa37f3cb7209839ec025a83347bf9ec11452e",
+    "crates/pllm-compiler/src/decoder_runtime_schedule.rs": "fa83aaf4d6bef5ce68be72caeb18da9b686ed3e3ae76a0a394c5994847928b26",
+    "crates/pllm-core/src/prepared_stage.rs": "44c7f6cba9312fddd76aa9109e915cca1fca9309d06449bb7f7510fb4f5f4b27",
+    "docs/plans/low-tier-all-link-hypotheses.md": "3a8fc515170b72be48454102a4510346b319cbaadaed6323d387a6684638aebe",
+    "docs/research/epoch-prefix-sdk-reference.md": "0e4d5a30d7a6349449b9ee431c7343d6f9c4f597e5c40cbae2055736d762e652",
+    "docs/research/prefill-cancellation-cuts-reference.md": "3b4f721f75d8709c93d327e9868982e73750784165effa58aa051bdd73f8c209",
+    "docs/research/prepared-frontier.md": "13db2304aafff9f475f99d52d2adea5dc3508ae12f9393febfceb2bc4e11df2f",
+    "python/pllm/runtime/client.py": "42b6aca6faa1817023f6b5cbdbd593607fda870928c9d8c0b1eb35229598c582",
+    "python/pllm/runtime/prepared_accounting.py": "67e2f560dd9d5b6b1705a92ee4848dc223d392fb4b11156476591b1dc8ff10d6",
+    "python/pllm/runtime/transformer_client.py": "d8fd3762b6bf04b6ce1c9de299455ba3faee42de17a15b9b76b378a85eb1062c",
+    "scripts/probe_prefill_cancellation_cuts.py": "aa6a77940d2b0ce257605793fc77aa19c2ae9ab8a9ede5043df03f0f0b18385b",
+    "tests/test_prefill_cancellation_cuts_probe.py": "809a418a32155495f94472c1d987a7a74ada5120cf98c34762496eaa7a21d433"
+  },
+  "successful_staged_fixed_epoch": {
+    "cpu_seconds": null,
+    "cuts": [
+      5,
+      10
+    ],
+    "directed_body_upper_bounds": {
+      "aggregate_controls": 2560,
+      "client_to_inference": 2304,
+      "inference_to_client": 3456,
+      "preparation_to_inference": 3456,
+      "publisher_to_client": 4096
+    },
+    "inflight_observations": [],
+    "material_byte_gauges": {
+      "claimed_burn_correction": 3456,
+      "correction_acked": 3456,
+      "correction_inflight_upper": 0,
+      "correction_issued": 3456,
+      "discarded_correction": 0,
+      "online_acked_reply": 3456,
+      "online_inflight_reply_upper": 0,
+      "reserved_correction": 3456,
+      "unused_burn_correction": 0
+    },
+    "pause_seconds": null,
+    "pauses": 1,
+    "physical_wire_upper_bound": null,
+    "point": "cut",
+    "rows": {
+      "active": false,
+      "blocked": false,
+      "burn_on_claim": 36,
+      "burn_total_reserved": 36,
+      "burned_unused": 0,
+      "claimed": 36,
+      "correction_acked": 36,
+      "correction_inflight": 0,
+      "discarded": 0,
+      "generation": 2,
+      "issued": 36,
+      "online_acked": 36,
+      "online_inflight": 0,
+      "reserved": 36
+    },
+    "sessions": 2,
+    "stop": null,
+    "total_body_upper_bound": 15872
+  },
+  "successful_whole_prefill_fixed_epoch": {
+    "cpu_seconds": null,
+    "cuts": [
+      10
+    ],
+    "directed_body_upper_bounds": {
+      "aggregate_controls": 1024,
+      "client_to_inference": 2304,
+      "inference_to_client": 3456,
+      "preparation_to_inference": 3456,
+      "publisher_to_client": 4096
+    },
+    "inflight_observations": [],
+    "material_byte_gauges": {
+      "claimed_burn_correction": 3456,
+      "correction_acked": 3456,
+      "correction_inflight_upper": 0,
+      "correction_issued": 3456,
+      "discarded_correction": 0,
+      "online_acked_reply": 3456,
+      "online_inflight_reply_upper": 0,
+      "reserved_correction": 3456,
+      "unused_burn_correction": 0
+    },
+    "pause_seconds": null,
+    "pauses": 0,
+    "physical_wire_upper_bound": null,
+    "point": "cut",
+    "rows": {
+      "active": false,
+      "blocked": false,
+      "burn_on_claim": 36,
+      "burn_total_reserved": 36,
+      "burned_unused": 0,
+      "claimed": 36,
+      "correction_acked": 36,
+      "correction_inflight": 0,
+      "discarded": 0,
+      "generation": 1,
+      "issued": 36,
+      "online_acked": 36,
+      "online_inflight": 0,
+      "reserved": 36
+    },
+    "sessions": 1,
+    "stop": null,
+    "total_body_upper_bound": 14336
+  },
+  "synthetic_prices": {
+    "cold_public": 4096,
+    "correction": 96,
+    "cut_control": 512,
+    "epoch_rows": 12,
+    "ingress": 64,
+    "reply": 96,
+    "rows": 4,
+    "session_control": 1024
+  },
+  "verdict": "current contract cannot express stage cuts; extension-only conditional cost win"
+}

@@ -1330,6 +1330,20 @@ Medium whole-client tier is qualified. Algebraic controls, conditional budgets,
 source locks and corrected ledgers remain separate from serving measurements.
 Details: `docs/research/correlation-cartridge-frontier-reference.md`.
 
+A separate ten-idea Low-tier traffic screen favors public growing correction
+epochs and exact decode-branch reuse for further implementation gates. Their
+bounded row/state controls establish no new whole-response traffic saving or
+256 MiB whole-client qualification. A fresh source-column scan checks 3,456
+integer outputs across all 96 pinned Qwen2.5 stages; its tested L1 selectors
+lose cold bytes, and choosing profitable tested slices saves only 19,210 modeled
+bytes at 150+8 geometry. Context-conditioned weight coding loses after complete
+table/frame charges in both held-out gates. Sub-tensor demand removes only
+earlier-row final Q, with zero input/decode savings; one-bit correlation replacement
+has a 1.386% free warm-traffic ceiling. Cache value, public-prefix atlas and update
+deltas retain workload-specific conditions, while prefill cuts require partial-KV
+continuation contracts. Probes, corrected ledgers and next gates are linked from
+`docs/research/low-traffic-frontier-reference.md`.
+
 The separate `pllm.metrics.ProjectedPolynomialCostProbe` combines mask-derived
 linear coefficients, offline projection of constant coefficients and seeded
 one-party correlation shares for a modular quadratic-gated MLP numerator.

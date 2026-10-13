@@ -1,0 +1,421 @@
+{
+  "admission_required": [
+    "public dense last-valid row contract and all consumer/state roots",
+    "query-axis-only transfer; full K/V and key-axis reductions",
+    "same input quantization domain, weight scales, biases and f32 order",
+    "new authenticated output-slice frame namespace and phase bindings",
+    "per-slice one-use material admission, cancellation/burn ledger",
+    "new public offset/width/row-demand/numeric metadata digest"
+  ],
+  "checkpoint_tensors_loaded": false,
+  "client_rss_measured": false,
+  "decision": "reject production promotion: small incremental payload upper bound",
+  "forbidden_consumers": [
+    "all-row logits/hidden export",
+    "retained Q/attention outputs",
+    "unknown layout/state/custom operator",
+    "query-axis softmax/norm/reduction",
+    "uncertified continuation/reuse/verification consumers"
+  ],
+  "full_compiled_execution_performed": false,
+  "loaded_native_sha256": {
+    "pllm._native": {
+      "filename": "_native.abi3.so",
+      "sha256": "9747602e9e0fdda5ea3a772e9515ce448441ae499029281022bb25eb50d075d9"
+    }
+  },
+  "outputs": 8,
+  "results": [
+    {
+      "accounting": "one prepared response; one u32 body per directed input/reply/correction link; excludes unchanged head/lookup and all framing/setup",
+      "candidates": [
+        {
+          "layer": 23,
+          "order": 577,
+          "saved_correction_bytes": 136192,
+          "saved_input_bytes": 0,
+          "saved_integer_macs": 30507008,
+          "saved_output_lanes": 34048,
+          "saved_reply_bytes": 136192,
+          "slices": [
+            {
+              "demanded_rows": 1,
+              "offset": 0,
+              "operation_id": "layer.23.q_linear",
+              "width": 896
+            },
+            {
+              "demanded_rows": 39,
+              "offset": 896,
+              "operation_id": "layer.23.k_linear",
+              "width": 128
+            },
+            {
+              "demanded_rows": 39,
+              "offset": 1024,
+              "operation_id": "layer.23.v_linear",
+              "width": 128
+            }
+          ]
+        }
+      ],
+      "client_rss_gate": "unmeasured; <=256 MiB not established",
+      "compiler_comparator_matches_independent_liveness": true,
+      "continuation_admitted_saved_lanes": 0,
+      "continuation_reason": "all-row logits/reuse consumers; separate certification required",
+      "decode_saved_lanes": 0,
+      "directed_link_multiplicity": {
+        "Client->Inference": 1,
+        "Inference->Client": 1,
+        "Preparation->Inference": 1
+      },
+      "family": "qwen2",
+      "graph_digest": "78379027f146436c5ca0d72c2517eb936596b051eae57164dab6c32352078b47",
+      "incremental_arithmetic_upper_bound_bytes": 272384,
+      "incremental_fraction_of_included_bodies": 0.001935164707251775,
+      "independent_array_oracle": {
+        "config": {
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "head_dim": 4,
+          "hidden_act": "silu",
+          "hidden_size": 16,
+          "intermediate_size": 32,
+          "max_position_embeddings": 4096,
+          "max_window_layers": 2,
+          "model_type": "qwen2",
+          "num_attention_heads": 4,
+          "num_hidden_layers": 2,
+          "num_key_value_heads": 2,
+          "rms_norm_eps": 1e-06,
+          "rope_theta": 10000,
+          "tie_word_embeddings": false,
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 64
+        },
+        "numeric_contract": "synthetic NumPy f32; not production exactness",
+        "samples": [
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "24e4d2c9d928324c6589db38adc17e397d49fb6c5f709edf158a5585e117b812",
+            "logits_equal": true,
+            "logits_sha256": "301eb493bf579968a7c65e49625e6962ea644b29b30fe770dcdde09832960e74",
+            "seed": 7
+          },
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "ae5639204914c190f4d0d343ece245a350a18ba4c026e19a7d74894da86387a3",
+            "logits_equal": true,
+            "logits_sha256": "58127e599a265250189b607ca96d5220c42b72593dca25afac3cc15927b4b936",
+            "seed": 19
+          },
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "13a79bbd32e5d5bcf6dccaf9869e0d61049265809ffa1ffeac41cd5c1e76282b",
+            "logits_equal": true,
+            "logits_sha256": "5cd489eb0c01e20ca681a07212483da7d3af38c913c18424dfc6217c4580a47c",
+            "seed": 41
+          }
+        ]
+      },
+      "new_client_weights_bytes": 0,
+      "prepared_response_executions": 1,
+      "remote_body_mac_retention": 0.9980852564748564,
+      "representative_config": {
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "head_dim": 64,
+        "hidden_act": "silu",
+        "hidden_size": 896,
+        "intermediate_size": 4864,
+        "max_position_embeddings": 4096,
+        "max_window_layers": 24,
+        "model_type": "qwen2",
+        "num_attention_heads": 14,
+        "num_hidden_layers": 24,
+        "num_key_value_heads": 2,
+        "rms_norm_eps": 1e-06,
+        "rope_theta": 10000,
+        "tie_word_embeddings": false,
+        "use_cache": true,
+        "use_sliding_window": false,
+        "vocab_size": 151936
+      },
+      "saved_integer_macs": 30507008,
+      "schedule_digest": "7dff932d4bd2d42a6cf034b58692c0108768f38c41a31cfc1e9e1190f95baa99",
+      "terminal_comparator_body_bytes": 140754944,
+      "terminal_comparator_directed_body_bytes": {
+        "Client->Inference": 32337920,
+        "Inference->Client": 54208512,
+        "Preparation->Inference": 54208512
+      }
+    },
+    {
+      "accounting": "one prepared response; one u32 body per directed input/reply/correction link; excludes unchanged head/lookup and all framing/setup",
+      "candidates": [
+        {
+          "layer": 27,
+          "order": 731,
+          "saved_correction_bytes": 311296,
+          "saved_input_bytes": 0,
+          "saved_integer_macs": 79691776,
+          "saved_output_lanes": 77824,
+          "saved_reply_bytes": 311296,
+          "slices": [
+            {
+              "demanded_rows": 1,
+              "offset": 0,
+              "operation_id": "layer.27.q_linear",
+              "width": 2048
+            },
+            {
+              "demanded_rows": 39,
+              "offset": 2048,
+              "operation_id": "layer.27.k_linear",
+              "width": 1024
+            },
+            {
+              "demanded_rows": 39,
+              "offset": 3072,
+              "operation_id": "layer.27.v_linear",
+              "width": 1024
+            }
+          ]
+        }
+      ],
+      "client_rss_gate": "unmeasured; <=256 MiB not established",
+      "compiler_comparator_matches_independent_liveness": true,
+      "continuation_admitted_saved_lanes": 0,
+      "continuation_reason": "all-row logits/reuse consumers; separate certification required",
+      "decode_saved_lanes": 0,
+      "directed_link_multiplicity": {
+        "Client->Inference": 1,
+        "Inference->Client": 1,
+        "Preparation->Inference": 1
+      },
+      "family": "qwen3",
+      "graph_digest": "d35536a4d8557dabfb34731166c941e5d41ce96e40c6c6e0372cfa757eef28ed",
+      "incremental_arithmetic_upper_bound_bytes": 622592,
+      "incremental_fraction_of_included_bodies": 0.0038882635833418604,
+      "independent_array_oracle": {
+        "config": {
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "head_dim": 4,
+          "hidden_act": "silu",
+          "hidden_size": 16,
+          "intermediate_size": 32,
+          "max_position_embeddings": 4096,
+          "max_window_layers": 2,
+          "model_type": "qwen3",
+          "num_attention_heads": 4,
+          "num_hidden_layers": 2,
+          "num_key_value_heads": 2,
+          "rms_norm_eps": 1e-06,
+          "rope_theta": 10000,
+          "tie_word_embeddings": false,
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 64
+        },
+        "numeric_contract": "synthetic NumPy f32; not production exactness",
+        "samples": [
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "e7a8eb6eb18a2dfe9e7ebe3b26594f899793b1c6e9b484d9947100a04eb4b830",
+            "logits_equal": true,
+            "logits_sha256": "c6027828264b5a469949e38bfd089fa9e60b6a58051213e0e6a122d9728ade9f",
+            "seed": 7
+          },
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "e89849116cd60d6afdfd993ceaf07efcb6eea9e6bbff101b64ab5b3061b32202",
+            "logits_equal": true,
+            "logits_sha256": "3ad6a7511b5f722aaaa230c7e9c0d4043e51701c3a54758912dd2bc14fcd8ab4",
+            "seed": 19
+          },
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "0901b4aee6e4f283eaa4e4d355f5b19958d8218e597530f5629ce7b88b373951",
+            "logits_equal": true,
+            "logits_sha256": "254fc6c2662e8899affae2831cab43574fd4ac40b0bd7763d4f3f7fac97a6721",
+            "seed": 41
+          }
+        ]
+      },
+      "new_client_weights_bytes": 0,
+      "prepared_response_executions": 1,
+      "remote_body_mac_retention": 0.9959792614538144,
+      "representative_config": {
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "head_dim": 128,
+        "hidden_act": "silu",
+        "hidden_size": 1024,
+        "intermediate_size": 3072,
+        "max_position_embeddings": 4096,
+        "max_window_layers": 28,
+        "model_type": "qwen3",
+        "num_attention_heads": 16,
+        "num_hidden_layers": 28,
+        "num_key_value_heads": 8,
+        "rms_norm_eps": 1e-06,
+        "rope_theta": 10000,
+        "tie_word_embeddings": false,
+        "use_cache": true,
+        "use_sliding_window": false,
+        "vocab_size": 151936
+      },
+      "saved_integer_macs": 79691776,
+      "schedule_digest": "0f3a51b7e071a9f7efc7c63ddc05144faad64477de9fbaf935e8a2f8b0ca40fc",
+      "terminal_comparator_body_bytes": 160120832,
+      "terminal_comparator_directed_body_bytes": {
+        "Client->Inference": 35995648,
+        "Inference->Client": 62062592,
+        "Preparation->Inference": 62062592
+      }
+    },
+    {
+      "accounting": "one prepared response; one u32 body per directed input/reply/correction link; excludes unchanged head/lookup and all framing/setup",
+      "candidates": [
+        {
+          "layer": 15,
+          "order": 377,
+          "saved_correction_bytes": 311296,
+          "saved_input_bytes": 0,
+          "saved_integer_macs": 159383552,
+          "saved_output_lanes": 77824,
+          "saved_reply_bytes": 311296,
+          "slices": [
+            {
+              "demanded_rows": 1,
+              "offset": 0,
+              "operation_id": "layer.15.q_linear",
+              "width": 2048
+            },
+            {
+              "demanded_rows": 39,
+              "offset": 2048,
+              "operation_id": "layer.15.k_linear",
+              "width": 512
+            },
+            {
+              "demanded_rows": 39,
+              "offset": 2560,
+              "operation_id": "layer.15.v_linear",
+              "width": 512
+            }
+          ]
+        }
+      ],
+      "client_rss_gate": "unmeasured; <=256 MiB not established",
+      "compiler_comparator_matches_independent_liveness": true,
+      "continuation_admitted_saved_lanes": 0,
+      "continuation_reason": "all-row logits/reuse consumers; separate certification required",
+      "decode_saved_lanes": 0,
+      "directed_link_multiplicity": {
+        "Client->Inference": 1,
+        "Inference->Client": 1,
+        "Preparation->Inference": 1
+      },
+      "family": "llama",
+      "graph_digest": "97117537ea9141272570078fb9197e18d5f2abef000d096caa0118ab787e7171",
+      "incremental_arithmetic_upper_bound_bytes": 622592,
+      "incremental_fraction_of_included_bodies": 0.003603261900246539,
+      "independent_array_oracle": {
+        "config": {
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "head_dim": 4,
+          "hidden_act": "silu",
+          "hidden_size": 16,
+          "intermediate_size": 32,
+          "max_position_embeddings": 4096,
+          "max_window_layers": 2,
+          "model_type": "llama",
+          "num_attention_heads": 4,
+          "num_hidden_layers": 2,
+          "num_key_value_heads": 2,
+          "rms_norm_eps": 1e-06,
+          "rope_theta": 10000,
+          "tie_word_embeddings": false,
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 64
+        },
+        "numeric_contract": "synthetic NumPy f32; not production exactness",
+        "samples": [
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "b4db87bb19123e41eebb6de431aae7e49e7e809bb98c1ec1caa0f17b946442d2",
+            "logits_equal": true,
+            "logits_sha256": "8082629166a3acfbef0ef75b1329166c250bbc19572504a12071e7a277853c68",
+            "seed": 7
+          },
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "fface8a0192e02fb7f898713a7efcbb8bf5dfd72cc2710ad47edd948f58fab88",
+            "logits_equal": true,
+            "logits_sha256": "22e4811b640136e1ffec0429fa13148f9f32fc0d4fdb0de70d3e50411d036dc0",
+            "seed": 19
+          },
+          {
+            "all_active_kv_equal": true,
+            "kv_sha256": "3327082d69aae149dfa8d143f32b9641914e586075ba89a0fed99c08984f8ed8",
+            "logits_equal": true,
+            "logits_sha256": "34fbb77f1621acb4114c31f9abad363e36c3ae0dbf265260b53a9e9e5f266c8e",
+            "seed": 41
+          }
+        ]
+      },
+      "new_client_weights_bytes": 0,
+      "prepared_response_executions": 1,
+      "remote_body_mac_retention": 0.9962664570642562,
+      "representative_config": {
+        "attention_bias": false,
+        "attention_dropout": 0.0,
+        "head_dim": 64,
+        "hidden_act": "silu",
+        "hidden_size": 2048,
+        "intermediate_size": 8192,
+        "max_position_embeddings": 4096,
+        "max_window_layers": 16,
+        "model_type": "llama",
+        "num_attention_heads": 32,
+        "num_hidden_layers": 16,
+        "num_key_value_heads": 8,
+        "rms_norm_eps": 1e-06,
+        "rope_theta": 10000,
+        "tie_word_embeddings": false,
+        "use_cache": true,
+        "use_sliding_window": false,
+        "vocab_size": 151936
+      },
+      "saved_integer_macs": 159383552,
+      "schedule_digest": "80da31b8db8092c5bbf4450d9ab2a948d821b478f780fb9f436618c39afb4b07",
+      "terminal_comparator_body_bytes": 172785664,
+      "terminal_comparator_directed_body_bytes": {
+        "Client->Inference": 40337408,
+        "Inference->Client": 66224128,
+        "Preparation->Inference": 66224128
+      }
+    }
+  ],
+  "rows": 39,
+  "schema": "pllm.research.subtensor_demand_pruning.v1",
+  "source_sha256": {
+    "crates/pllm-compiler/src/decoder_continuation.rs": "3219265f523d1efd427a89b1570aa37f3cb7209839ec025a83347bf9ec11452e",
+    "crates/pllm-compiler/src/decoder_runtime_schedule.rs": "fa83aaf4d6bef5ce68be72caeb18da9b686ed3e3ae76a0a394c5994847928b26",
+    "crates/pllm-models/src/lib.rs": "a9d181e27644a099f8f83eb6f44710dde59a9b380113f91c369f529ea76d9ae1",
+    "docs/research/aggregate-network.md": "df5767be9b726d5825cc86dd5b15b63dc45413aee74e1f07018cb76d7c43bc69",
+    "docs/research/subtensor-demand-pruning-reference.md": "18cd8854e67fe34a6a4c068a58216c204c9e3c6e1fa6eb30ba5f0ecb41c706ff",
+    "python/pllm/modeling.py": "4a4d6bca300658c3ffe0c4ee84ce08ca1b7cb514eb93480c4855ee0f1239645e",
+    "python/pllm/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "python/pllm/runtime/semantic_executor.py": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94",
+    "python/pllm/runtime/semantic_stages.py": "8d25fb10cab10299103fc3e1b2c7adb51a2ac9d4ecb0e6e0c2f8c29e926beb79",
+    "scripts/probe_subtensor_demand_pruning.py": "f96364fc997efb0d1dabd492a3794341134cbe4c8a8be3d1b2a795784cb801e0",
+    "tests/test_subtensor_demand_pruning_probe.py": "ebfc0bd7f5545c0c11d13512f909a484ad3f44c150d657816a33bdb6ad4c4c07"
+  },
+  "whole_response_traffic_measured": false
+}

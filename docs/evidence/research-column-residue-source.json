@@ -1,0 +1,3656 @@
+{
+  "best_nonempty_cold_ingress_only": {
+    "columns": 1,
+    "executed_rows": 157,
+    "net_bytes": -493,
+    "scope": "coordinate removal only, original request width and correction/reply/frame costs fixed",
+    "stage": "layers.0.mlp.down_proj"
+  },
+  "best_optimistic_threshold_break_even": [
+    {
+      "columns": 1,
+      "delivery_bytes": 964,
+      "optimistic_rows_break_even_lower": 2,
+      "saving_per_row_upper": 787,
+      "stage": "layers.0.mlp.down_proj"
+    },
+    {
+      "columns": 1,
+      "delivery_bytes": 964,
+      "optimistic_rows_break_even_lower": 2,
+      "saving_per_row_upper": 787,
+      "stage": "layers.1.mlp.down_proj"
+    },
+    {
+      "columns": 1,
+      "delivery_bytes": 964,
+      "optimistic_rows_break_even_lower": 2,
+      "saving_per_row_upper": 787,
+      "stage": "layers.10.mlp.down_proj"
+    },
+    {
+      "columns": 1,
+      "delivery_bytes": 964,
+      "optimistic_rows_break_even_lower": 2,
+      "saving_per_row_upper": 787,
+      "stage": "layers.11.mlp.down_proj"
+    }
+  ],
+  "body_macs_per_executed_row": 357826560,
+  "checks": {
+    "activation_endpoints": [
+      -127,
+      127
+    ],
+    "all_column_subsets": true,
+    "float_partial_outputs_added": false,
+    "independent_integer_outputs": 3000,
+    "protected_protocol_executed": false,
+    "weight_endpoints": [
+      -128,
+      127
+    ]
+  },
+  "client_limit_bytes": 268435456,
+  "comparisons": [
+    {
+      "horizon": 1,
+      "initial_cache": "empty",
+      "phases": {
+        "combined": {
+          "additional_saving_over_group_upper": 263306572,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 280949398,
+          "executed_rows_each_stage": 157,
+          "unplaced_bytes": 367545164,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 17642826,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "decode": {
+          "additional_saving_over_group_upper": 349416,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 349416,
+          "executed_rows_each_stage": 7,
+          "unplaced_bytes": 16387364,
+          "whole_group": {
+            "delivery_bytes": 0,
+            "macs_per_row": 0,
+            "net_saving": 0,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "prefill": {
+          "additional_saving_over_group_upper": 250469020,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 265729704,
+          "executed_rows_each_stage": 150,
+          "unplaced_bytes": 351157800,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 15260684,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        }
+      }
+    },
+    {
+      "horizon": 1,
+      "initial_cache": "same selected artifacts preowned; historical delivery excluded",
+      "phases": {
+        "combined": {
+          "additional_saving_over_group_upper": 314117122,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 367545164,
+          "executed_rows_each_stage": 157,
+          "unplaced_bytes": 367545164,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 53428042,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "decode": {
+          "additional_saving_over_group_upper": 14005222,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 16387364,
+          "executed_rows_each_stage": 7,
+          "unplaced_bytes": 16387364,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 2382142,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "prefill": {
+          "additional_saving_over_group_upper": 300111900,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 351157800,
+          "executed_rows_each_stage": 150,
+          "unplaced_bytes": 351157800,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 51045900,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        }
+      }
+    },
+    {
+      "horizon": 4,
+      "initial_cache": "empty",
+      "phases": {
+        "combined": {
+          "additional_saving_over_group_upper": 1128270980,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 1306197932,
+          "executed_rows_each_stage": 628,
+          "unplaced_bytes": 1470180656,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 177926952,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "decode": {
+          "additional_saving_over_group_upper": 10218828,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 10218828,
+          "executed_rows_each_stage": 28,
+          "unplaced_bytes": 65549456,
+          "whole_group": {
+            "delivery_bytes": 0,
+            "macs_per_row": 0,
+            "net_saving": 0,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "prefill": {
+          "additional_saving_over_group_upper": 1075866052,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 1244264436,
+          "executed_rows_each_stage": 600,
+          "unplaced_bytes": 1404631200,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 168398384,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        }
+      }
+    },
+    {
+      "horizon": 4,
+      "initial_cache": "same selected artifacts preowned; historical delivery excluded",
+      "phases": {
+        "combined": {
+          "additional_saving_over_group_upper": 1256468488,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 1470180656,
+          "executed_rows_each_stage": 628,
+          "unplaced_bytes": 1470180656,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 213712168,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "decode": {
+          "additional_saving_over_group_upper": 56020888,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 65549456,
+          "executed_rows_each_stage": 28,
+          "unplaced_bytes": 65549456,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 9528568,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "prefill": {
+          "additional_saving_over_group_upper": 1200447600,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 1404631200,
+          "executed_rows_each_stage": 600,
+          "unplaced_bytes": 1404631200,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 204183600,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        }
+      }
+    },
+    {
+      "horizon": 16,
+      "initial_cache": "empty",
+      "phases": {
+        "combined": {
+          "additional_saving_over_group_upper": 4729257536,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 5548320992,
+          "executed_rows_each_stage": 2512,
+          "unplaced_bytes": 5880722624,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 819063456,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "decode": {
+          "additional_saving_over_group_upper": 180779452,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 183108508,
+          "executed_rows_each_stage": 112,
+          "unplaced_bytes": 262197824,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 2329056,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "prefill": {
+          "additional_saving_over_group_upper": 4507708768,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 5288657952,
+          "executed_rows_each_stage": 2400,
+          "unplaced_bytes": 5618524800,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 780949184,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        }
+      }
+    },
+    {
+      "horizon": 16,
+      "initial_cache": "same selected artifacts preowned; historical delivery excluded",
+      "phases": {
+        "combined": {
+          "additional_saving_over_group_upper": 5025873952,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 5880722624,
+          "executed_rows_each_stage": 2512,
+          "unplaced_bytes": 5880722624,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 854848672,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "decode": {
+          "additional_saving_over_group_upper": 224083552,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 262197824,
+          "executed_rows_each_stage": 112,
+          "unplaced_bytes": 262197824,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 38114272,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "prefill": {
+          "additional_saving_over_group_upper": 4801790400,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 5618524800,
+          "executed_rows_each_stage": 2400,
+          "unplaced_bytes": 5618524800,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 816734400,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        }
+      }
+    },
+    {
+      "horizon": 64,
+      "initial_cache": "empty",
+      "phases": {
+        "combined": {
+          "additional_saving_over_group_upper": 19781448320,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 23165057792,
+          "executed_rows_each_stage": 10048,
+          "unplaced_bytes": 23522890496,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 3383609472,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "decode": {
+          "additional_saving_over_group_upper": 796981948,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 913653820,
+          "executed_rows_each_stage": 448,
+          "unplaced_bytes": 1048791296,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 116671872,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "prefill": {
+          "additional_saving_over_group_upper": 18885114112,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 22116266496,
+          "executed_rows_each_stage": 9600,
+          "unplaced_bytes": 22474099200,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 3231152384,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        }
+      }
+    },
+    {
+      "horizon": 64,
+      "initial_cache": "same selected artifacts preowned; historical delivery excluded",
+      "phases": {
+        "combined": {
+          "additional_saving_over_group_upper": 20103495808,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 23522890496,
+          "executed_rows_each_stage": 10048,
+          "unplaced_bytes": 23522890496,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 3419394688,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "decode": {
+          "additional_saving_over_group_upper": 896334208,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 1048791296,
+          "executed_rows_each_stage": 448,
+          "unplaced_bytes": 1048791296,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 152457088,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        },
+        "prefill": {
+          "additional_saving_over_group_upper": 19207161600,
+          "classification": "unresolved optimistic ceiling",
+          "column_net_saving_upper": 22474099200,
+          "executed_rows_each_stage": 9600,
+          "unplaced_bytes": 22474099200,
+          "whole_group": {
+            "delivery_bytes": 35785216,
+            "macs_per_row": 35782656,
+            "net_saving": 3266937600,
+            "optimal_for": "all layer/semantic groups; raw i8 artifacts; modeled frames",
+            "recipe_sha256": "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716"
+          }
+        }
+      }
+    }
+  ],
+  "decision": "screen only: histogram ceiling cannot identify columns; source scan and exact matched serving gate remain",
+  "frame_model": {
+    "artifact_header_bytes": 64,
+    "bytes_per_edge_row": 64,
+    "column_map_binding_extra_per_edge_row": 16,
+    "column_map_bytes_per_column": 4
+  },
+  "fresh_worker_build": {
+    "expected_digest": "8d9f4c48cf4429a35e9b87e9e04705089f263bb1841354ca1ec054cb08f71d77",
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+  },
+  "full_wire_bytes": null,
+  "group_recipe_source_stage_indices": {
+    "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945": [],
+    "90c8a0a6d4ff9bd406bff17411314c6f148890a7966f6ccbde93e1113971a716": [
+      0,
+      1,
+      4,
+      5,
+      8,
+      9,
+      12,
+      13,
+      16,
+      17,
+      20,
+      21,
+      24,
+      25,
+      28,
+      29,
+      32,
+      33,
+      37,
+      40,
+      41,
+      45,
+      48,
+      49,
+      52,
+      53,
+      56,
+      57,
+      60,
+      61,
+      65,
+      69,
+      73,
+      76,
+      77,
+      81,
+      85,
+      89,
+      92,
+      93
+    ]
+  },
+  "held_out_source_column_validation": {
+    "lock": {
+      "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72",
+      "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+    },
+    "selection_rule": "descending public column L1; index tie break",
+    "stages": [
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26279,
+            "request_bits": 24,
+            "selected_column_sha256": "776a2ae20b45549ad6a35c2ad284af29d663a79d54f73db4751043e8ba6a4106"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26252,
+            "request_bits": 24,
+            "selected_column_sha256": "8d68bc9bc9bb834597ad168819c02d5f0b6f669a23b3e8069ad2779dbe34831c"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26169,
+            "request_bits": 24,
+            "selected_column_sha256": "fab1e2977eaf6ee133e86aa41d3a0ae9198d93f29fe0f37cfae819831e1c8bf3"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26078,
+            "request_bits": 23,
+            "selected_column_sha256": "d33f0e0505f9ba337aac93dc06de21e77f15b4a7847c3b2f4a9f7f5290271d67"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.0.self_attn.qkv_proj",
+        "weight_sha256": "9cfa314b1ed2abb2f154fff5b5907a8aee36e4eae33685841cfe507780438583"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20356,
+            "request_bits": 23,
+            "selected_column_sha256": "423e19787bed8b876811d36427fc196b8ba79d8efdc3c32e4404d0308907ea83"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20318,
+            "request_bits": 23,
+            "selected_column_sha256": "fa036a7c0a391c3dc5926036938b5551634dcd86e3aef47df6129c26d55d8626"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20187,
+            "request_bits": 23,
+            "selected_column_sha256": "2c40eafda73ec3d3e1fa5e7a5c2fb16bc200b9b8a34f85166d74d30b08760d94"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20017,
+            "request_bits": 23,
+            "selected_column_sha256": "b1915cb92e61b1a00fd6a45f928f72265002788ad5d101c9748757aaa600881f"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.0.self_attn.o_proj",
+        "weight_sha256": "ec275e35e5151ff39d6bd57168e3854cf3059e5e73fd59a2b8e1f45d90823fe6"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223378,
+            "request_bits": 24,
+            "selected_column_sha256": "d1a8f22afc93fbba8b972464d102006b9fe265c03042882ce458c8ea85206b75"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223360,
+            "request_bits": 24,
+            "selected_column_sha256": "c62f471f4f1d05470e276e402962e8bcfbf06ea7d493b232bb04874beaa0e968"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223313,
+            "request_bits": 24,
+            "selected_column_sha256": "6552b30c297ca7386607131c71e90fac3188269cf2a4052f5e7586ac1dff7197"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223232,
+            "request_bits": 23,
+            "selected_column_sha256": "937515d3fce449d2b23128cf8dce3e9d33408c0b9462529f19873e8e931121da"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.0.mlp.gate_up_proj",
+        "weight_sha256": "e22126bf7d445bf7a13353f18ec29740d6ea6b3fb16b9ce531068065e67d99fa"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22438,
+            "request_bits": 26,
+            "selected_column_sha256": "6110ee74dff84102ffac6462543ec4d689ba93da5e257a2846a86d5c3284d9a7"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22414,
+            "request_bits": 26,
+            "selected_column_sha256": "9d2e20f4ba5ecb68a471c8b970c738c9e0aadb41677fae18232b39fea4e908d9"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22331,
+            "request_bits": 26,
+            "selected_column_sha256": "df2c7bcec7c45cf1aa74ba63b5b7e0f832f4fe4688201e6c122ae37216421fd4"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22302,
+            "request_bits": 26,
+            "selected_column_sha256": "7055b6d299e50194e69665c3f6d31d95117badd71455d78e7b98c9349cdb9041"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.0.mlp.down_proj",
+        "weight_sha256": "1152598dbaaaf29546a9b7471c7987b345819a7adbd5bcd831f5ddffc8a1ed5f"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26440,
+            "request_bits": 24,
+            "selected_column_sha256": "a426a47da33ca0ceda8130af50afea0cde5fcd26115ac92523b4970584f52631"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26436,
+            "request_bits": 23,
+            "selected_column_sha256": "8f04977ad42572de9a292e3f09ae4bb35d2c1327fd2f836310f4f530e97672f7"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26426,
+            "request_bits": 23,
+            "selected_column_sha256": "9b4951de50f10da638f716ec577b2d5cb444d8d9192237f2ba709a68044b2d79"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26398,
+            "request_bits": 23,
+            "selected_column_sha256": "7d1099e48e4fce6457b2d5a1712cee16486ceef7af547f7ff008945fa28aa722"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.1.self_attn.qkv_proj",
+        "weight_sha256": "bd9e86f1dd2c393c50b9c3c7aadac026c6f3473374d815653f08ae4b6dc1fdf9"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20560,
+            "request_bits": 24,
+            "selected_column_sha256": "d1a8f22afc93fbba8b972464d102006b9fe265c03042882ce458c8ea85206b75"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20555,
+            "request_bits": 24,
+            "selected_column_sha256": "6ec1ce667b8780074ec7042770436daa6144c31261be7d051ccb880927d52edd"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20531,
+            "request_bits": 23,
+            "selected_column_sha256": "7fe2adcfdf4123ac31993561fa60d60e10868dfef4ecfdc0f24f95368769d36a"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20503,
+            "request_bits": 23,
+            "selected_column_sha256": "ebf1c77dc17bc0bc7e6deb828709423c3770e8dc8180d59570c5a578b2e68b0c"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.1.self_attn.o_proj",
+        "weight_sha256": "31892e535141db03ed87af452cd1d507930384c694f6dfeb9052077f764b1d68"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223406,
+            "request_bits": 24,
+            "selected_column_sha256": "c673ab496215bde04857cc576e60deddd1280b1611ef5020157a4143611dd0b7"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223384,
+            "request_bits": 24,
+            "selected_column_sha256": "d7055fb5137472fccf9c7b737cfe17603e7edbc76750104b0830d6e8e4f64bd1"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223330,
+            "request_bits": 23,
+            "selected_column_sha256": "77b6285f178ef95ff659f0bd77dbfee5fc6f4fe11c76393a7c2177e85d140b0e"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223225,
+            "request_bits": 23,
+            "selected_column_sha256": "0ab5c6a8feba0fccc1fce9a64581f94a7f29af78a5f4f81d6ade938c23749976"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.1.mlp.gate_up_proj",
+        "weight_sha256": "0d3bce78b75c256d53eab9a6ebe05d3c2753ce07c4a324a83722a0020ed68064"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22484,
+            "request_bits": 26,
+            "selected_column_sha256": "673cd66bd55e156fa7a8b504ebb814ff1c1b20dacc859fc5bbb62986838bd866"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22445,
+            "request_bits": 26,
+            "selected_column_sha256": "4f1e1cdd1d7e1f61d4b287ad4b0e2b84bcd65a4f078eaf935afa5f6aa30e4227"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22364,
+            "request_bits": 26,
+            "selected_column_sha256": "fa0178f3dae859bf14f71a5bc2d22269559f1b5779cf99f8eb6fa9e8839bc43d"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22318,
+            "request_bits": 26,
+            "selected_column_sha256": "f51363e7d870db9286a33170889eb7e267df3fd6acf75568d427577959ed955d"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.1.mlp.down_proj",
+        "weight_sha256": "a45f44974fa427403a5fd39b88b56c4a3ee8ab1fd2eca4b83488d0c43391d6bc"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26333,
+            "request_bits": 23,
+            "selected_column_sha256": "3384246e9de7f012e91f718e85b00e46b4e5a2e39dbe6099cf396e9c140d9d36"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26326,
+            "request_bits": 23,
+            "selected_column_sha256": "6550c26a899faca15bca6acf3ec89418399e83a161d24964edd67bf38c72d29f"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26287,
+            "request_bits": 23,
+            "selected_column_sha256": "3ff0f6b6c4b54b6d63021371d891ba136cad17fe85fca1bbcee11b855b9ac157"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26236,
+            "request_bits": 23,
+            "selected_column_sha256": "04b4c18fc7867ca4c2c2dac5b345984716598042006edac890eee07548de8605"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.2.self_attn.qkv_proj",
+        "weight_sha256": "8efd12aa29644f0d26585cc4a0b58fb8f06fcd4f32128ceff155ae76ed2e86f2"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20444,
+            "request_bits": 23,
+            "selected_column_sha256": "37b2bc0db85b37bd0134e908c2f9ff3176ea26ea98181340e1ff36a8d984a9e5"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20442,
+            "request_bits": 23,
+            "selected_column_sha256": "621c589086b1acc208cc04b22a3058d8a865df791169b026b26649f1e62b4234"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20418,
+            "request_bits": 23,
+            "selected_column_sha256": "ddd43d23e96df7d279748a67a1471279b64b5e4ae553f5d0e92edf4090f7b7cb"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20389,
+            "request_bits": 23,
+            "selected_column_sha256": "79f538890e140d342ca68225de78b0ffbc894f40fec76162d7715b0c0c4b678b"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.2.self_attn.o_proj",
+        "weight_sha256": "5250874fdefaa636829f3f782a4b706fe47e00be00637c4d236ad5e6db50c1c3"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223280,
+            "request_bits": 24,
+            "selected_column_sha256": "b01ed6e5325a84d9753bafb181ed78f7913b753a561dc77077953526ba746ee6"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223266,
+            "request_bits": 24,
+            "selected_column_sha256": "4e5c087c7b051d7ce8c4b1d2de9ccb454c06990a9745c92c66d080aeac18b487"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223180,
+            "request_bits": 24,
+            "selected_column_sha256": "72334dd9967c801037f23b990e35ce40b1f98dc03bb42dba60628c50bec73587"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223089,
+            "request_bits": 23,
+            "selected_column_sha256": "87e2ade152ff76bfaf05a297672f8e9af2ab2992f0ba0028a7f0b2c76234f06e"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.2.mlp.gate_up_proj",
+        "weight_sha256": "47ca13e2305af2c4dc546b03e9feb4695a6ca6a5a4971c052c5f0df04454e2d5"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22451,
+            "request_bits": 26,
+            "selected_column_sha256": "7714845d157ce2ddcee57a84f93f1c28acc1051850c61ae014d5a70258ac2a21"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22421,
+            "request_bits": 26,
+            "selected_column_sha256": "58b093179ffaa25688bfe4e214773e5aac334e88ffe075bea55990733a6e0377"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22324,
+            "request_bits": 26,
+            "selected_column_sha256": "000f7646a5396c9ff03033ad53a8b0eef371ddc5b1bed8ac96cf7bc772028230"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22264,
+            "request_bits": 26,
+            "selected_column_sha256": "509c8c61d12eddc1b368dcb7073bab9406811543cc48f662fda62bdc78fa4e7e"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.2.mlp.down_proj",
+        "weight_sha256": "057a11751288cf247b16f4b1a76fc4c5e4e9a9670ea2628e3f4d9e1383b0741f"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26364,
+            "request_bits": 24,
+            "selected_column_sha256": "3384246e9de7f012e91f718e85b00e46b4e5a2e39dbe6099cf396e9c140d9d36"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26357,
+            "request_bits": 23,
+            "selected_column_sha256": "487ea4470f034114fd0a9fc5b6f953dcb28eba35b5f71a177642d4402a28aa56"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26324,
+            "request_bits": 23,
+            "selected_column_sha256": "fecaa43302b96964ce691502ca74e0d8a23fd37ddd496c3378b7ba63c8467b61"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26274,
+            "request_bits": 23,
+            "selected_column_sha256": "b9520646ae1f40caca59b5807c868477f9b78757e73fb37b94af97e00c960944"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.3.self_attn.qkv_proj",
+        "weight_sha256": "6a5f64cceb4a1dcb72425081147c12c170a9d5feeba271b7fcb40f19b07c3666"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20530,
+            "request_bits": 23,
+            "selected_column_sha256": "840d60afcf8aeb607ff32e9b4fba7e3132722c2148136c5f4e4816fec59f4ff3"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20525,
+            "request_bits": 23,
+            "selected_column_sha256": "c2b2d0d0fd15b8efcb83127a0fcf24d3176ae4ac49e54481cc51ef5ce9bae28a"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20476,
+            "request_bits": 23,
+            "selected_column_sha256": "6aa9397c3bd5eff6d7f4f00aff1734cc3cdc91e1729771a5fa8063b20197d9af"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20362,
+            "request_bits": 23,
+            "selected_column_sha256": "42758986cb27e08f512ae8f1bc7d1308a4beb3d66df28784a63e557bccee2aa8"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.3.self_attn.o_proj",
+        "weight_sha256": "283a3c20f43147c1eb8b162d27d7b5b104b234d06c8211139daa1c27fac7f39d"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223337,
+            "request_bits": 24,
+            "selected_column_sha256": "8e4e01a0ad408a616a33dd47445ca5c5eba49bef77a380c5f36317e5cf2b2c59"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223316,
+            "request_bits": 24,
+            "selected_column_sha256": "6f65a64b8a0f8bbaacdbc6d84f8966e19dacec5216c8dd67ae4e443bb05bad38"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223255,
+            "request_bits": 23,
+            "selected_column_sha256": "c8c22327366ddc6c5228193d3cf00c36d4611793d0f6e95eb3b3edc72e5d21bf"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223165,
+            "request_bits": 23,
+            "selected_column_sha256": "5e67c952f9ee182a061910863838bdb4ef445caa6818a5948740fd57cd22c62e"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.3.mlp.gate_up_proj",
+        "weight_sha256": "361b4135b05ae2cfca8d98dc1e1ccb380b42c6b1c65be1da198d464953eb1449"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22437,
+            "request_bits": 26,
+            "selected_column_sha256": "47c005aac610f863e0c0a392b281183dd67f578cb74037ff4105254c493c9b9b"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22407,
+            "request_bits": 26,
+            "selected_column_sha256": "f15ed1c4f41999d73cc35dfda6a45b24a0290dcb140ff8d60df97db2a9f2908f"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22330,
+            "request_bits": 26,
+            "selected_column_sha256": "273a121f1f3538adc413781d05d9efdd8cfd7e487b765ec8ba43e12b11a91311"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22298,
+            "request_bits": 26,
+            "selected_column_sha256": "745f39bd5faead0814c745bc3964b68b074fbe3d3c832b6e96c441f9ac451931"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.3.mlp.down_proj",
+        "weight_sha256": "df4fa5ee0baeda138d0e3e083ea4d43777fcb16eadb5c7c031cc28f74d772858"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26399,
+            "request_bits": 23,
+            "selected_column_sha256": "ec7c4835a28430d010cbfb006d5ce84c6199eeb9c7dffeae783c20c62f784fb1"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26394,
+            "request_bits": 23,
+            "selected_column_sha256": "3c56cf14f7d47cefde298da10176549af0f76f21e3ca28efb476467d82b3e275"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26372,
+            "request_bits": 23,
+            "selected_column_sha256": "349b502812a1974bc1d10ad8354ffc45251a0f772b22748a65a70c882bb2c84e"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26339,
+            "request_bits": 23,
+            "selected_column_sha256": "5c3109d6c53ff42d7e77cf07d4b2696d9679975b7ea607d4aee0dd9bc1fcaaf0"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.4.self_attn.qkv_proj",
+        "weight_sha256": "a2d2ce97aaa6b5106d165383cdcae3abe962bf3d086992d96dd0b1b5a7d913f7"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20515,
+            "request_bits": 23,
+            "selected_column_sha256": "8c407b6ed0efe8729af52bebd022e8b6728a7a84ee72820c40a5dd4e62ebe98a"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20505,
+            "request_bits": 23,
+            "selected_column_sha256": "35da28b0f67fdf791cf492feb3ef651ee8dc4ca3e4c8aa37b4959fc0e44f5905"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20455,
+            "request_bits": 23,
+            "selected_column_sha256": "15713705790aeae28f9c8ba3446c51c66a9f063170ee6eca884411ff25159022"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20366,
+            "request_bits": 23,
+            "selected_column_sha256": "42ee665b67a33b591791859c37452808876e2fe9ab0edbfb4fe3cc7be9543602"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.4.self_attn.o_proj",
+        "weight_sha256": "4c34fe57b62fc937739b54dd726b4a624e07ea62dcfecc66d7508c83282d7344"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223112,
+            "request_bits": 24,
+            "selected_column_sha256": "3a828918d365a53a62496fa0e824b0044bf8973e1ba4605cd10f38bc5ec67d11"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223102,
+            "request_bits": 24,
+            "selected_column_sha256": "d87d161c8bbd8991669c11f599ceed424b8431705ac286d705b99bf7cbb77ae3"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223037,
+            "request_bits": 23,
+            "selected_column_sha256": "ec0edefa183f7afa6d9daa102cc0939d78efbd85e2976a9e58cf89f32bb74028"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222899,
+            "request_bits": 23,
+            "selected_column_sha256": "e7e828fb4a8dcf6ab08852da0d0268de44ea97e07978597d4d6908678545c4a6"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.4.mlp.gate_up_proj",
+        "weight_sha256": "f2ae24dbed7a04bd8cef9e5604c14867d3152ee97ce39ee2b0273e14822d1ce5"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22282,
+            "request_bits": 26,
+            "selected_column_sha256": "1a2a860f0081d1963e6e20af5923f8e96308f9fcf1fe56d764d1b9c01f5f9634"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22252,
+            "request_bits": 26,
+            "selected_column_sha256": "6fe35be6afcc43f761c16c841cdc26a8a28ca678289e2c5e8144b1ca0153c6ba"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22200,
+            "request_bits": 26,
+            "selected_column_sha256": "81d9a57e71c3961355e286af0b99b64c4408d5801518285aebeb301cd2d1420d"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22176,
+            "request_bits": 25,
+            "selected_column_sha256": "898490ee9ebf7708924dcee24c0034d04f684fc02f7efd0314f91bf5d23f7b68"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.4.mlp.down_proj",
+        "weight_sha256": "291eba04204495d49fff6bd09c0ab3c03cfaf53d4fe496666ef4de1df607236c"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26397,
+            "request_bits": 24,
+            "selected_column_sha256": "b77c0a8e1248932efa27094610e16438d542aae37d4a5b50414687e86655569b"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26387,
+            "request_bits": 23,
+            "selected_column_sha256": "8abac5bd838001f7cd656dfff0f42633a4df5edaffa3a8529a59882b480f5484"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26358,
+            "request_bits": 23,
+            "selected_column_sha256": "9d86ec9f14ec6628ace701a0d848ef48742f60e741dadc2a59e579eff36db450"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26315,
+            "request_bits": 23,
+            "selected_column_sha256": "faf889342e4eb856ed46d4c17fc9328c8308c7b026d77216ad5e8127f816ad42"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.5.self_attn.qkv_proj",
+        "weight_sha256": "099b3f9b0891f134269cfb5f2a66008a10ac203754669932f29ce51ffa34fdfe"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20541,
+            "request_bits": 23,
+            "selected_column_sha256": "40957487610d92ca4dd2d37ec155c40d20091a504bf65270a3cd28e6863ef633"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20536,
+            "request_bits": 23,
+            "selected_column_sha256": "48e18c3092026164d999045ad7b64d3ba41a82f2eb1aff4a4053cf4344231ac3"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20509,
+            "request_bits": 23,
+            "selected_column_sha256": "316c59599cfe4925ad8770eb00385093849989ab2e2fad349b1720e952aaa6a4"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20443,
+            "request_bits": 23,
+            "selected_column_sha256": "cab03705b1878d3763d294adcff645888b690d6902d84fbc4e95d299e32beb93"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.5.self_attn.o_proj",
+        "weight_sha256": "a84dbca7d7d94039eed75adc45983936e1d357dbf7792d0d008e1d6b806c93c6"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223421,
+            "request_bits": 24,
+            "selected_column_sha256": "670478636782144cd37fc954aa00fccd2c85242bb197e7b161d71279cb0157f6"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223405,
+            "request_bits": 24,
+            "selected_column_sha256": "5fb7785f21c315975f45a0beaec53b43dc71abd01e3eeb2871c469c651cd7a37"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223332,
+            "request_bits": 24,
+            "selected_column_sha256": "2115e14ce176420efbb1279f8bf773bc1d061b2c4c643e8b127b87f284892ab2"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223259,
+            "request_bits": 23,
+            "selected_column_sha256": "384d0ebf2a3244ae68d567beecf02fcb1571d4b9fb07d4d1f23292e9a1910bfc"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.5.mlp.gate_up_proj",
+        "weight_sha256": "c070f0c04dd72251ece02290ff534b66ba19cac836b83e647ef2c4182adbd8a6"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22363,
+            "request_bits": 26,
+            "selected_column_sha256": "1e024bfba15cd7153e8339409dc6c8337f5544ac8eb29170631a039bdf826127"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22337,
+            "request_bits": 26,
+            "selected_column_sha256": "9079865a284ccee34e9522e2a3a20b225ebb6d0b492fb55e0e87df6e4e524dfb"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22289,
+            "request_bits": 26,
+            "selected_column_sha256": "3484293648eb7822e7b32466e0377c7b30b16eeabecd5f49a60bd4fab46a7390"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22246,
+            "request_bits": 26,
+            "selected_column_sha256": "3acb41a5c262da2cad3e57b257088075588931a28a5a34fae8b955fb1363fe82"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.5.mlp.down_proj",
+        "weight_sha256": "f4e23c56a080a022eb43474858d51ee86e6fc4467b5a7adff231d5cf10d247a8"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26382,
+            "request_bits": 24,
+            "selected_column_sha256": "d5045f252cfa3251849895134feafdfe849e5a8ea3d1fa1c8ea07aeabf699733"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26374,
+            "request_bits": 24,
+            "selected_column_sha256": "e9023e34dcd18f5d88daf482adfb574edb007da3db4c5d77f25646e4b5e96ce4"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26341,
+            "request_bits": 23,
+            "selected_column_sha256": "3eb7078c56cd84f43e9bb3f2d809cd267ce63ed3a134791108e88c5b53b2f8fb"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26300,
+            "request_bits": 23,
+            "selected_column_sha256": "423119ea7f56d2bf83a0e53f14f8e8f53cbc491ba649029c9cf64bc59832d342"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.6.self_attn.qkv_proj",
+        "weight_sha256": "21a9cc94cf4412dbe495a6b2ade90f79b21f521635174df8280cfe943cacb992"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20529,
+            "request_bits": 23,
+            "selected_column_sha256": "e87650f29ec3d13018aa0256220e5c901440b0afadd298a2b8c138b2a72a53bd"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20524,
+            "request_bits": 23,
+            "selected_column_sha256": "7a58c339da2482f7ba5e69e9534f2cf8bfd19f660812462fec863efaf63d525f"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20474,
+            "request_bits": 23,
+            "selected_column_sha256": "5502ae518d3485c3f10addb5cd4cdf1aa5d88c81899be38c8dbe3d03d4230f6f"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20374,
+            "request_bits": 23,
+            "selected_column_sha256": "2abf879c92405ec3074d9941fa1c3de0403e5ae40f6c40f41430dad64e4f0e89"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.6.self_attn.o_proj",
+        "weight_sha256": "9bdd3268f285e7500e9bf5464804c5946105d9a70db47bb4257dc2130bd9e77b"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223119,
+            "request_bits": 24,
+            "selected_column_sha256": "6d8c2eee56c8ae1181a0aa86608c03890323fdd0713d9ee40eb9e4f6fc46e53c"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223098,
+            "request_bits": 24,
+            "selected_column_sha256": "b7bc33dc3485c32e084c3e352b902e5f83d8e056650e8eef2ef8b275d95aef8c"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223032,
+            "request_bits": 23,
+            "selected_column_sha256": "b2018596af498fb343276f01a8cfea3e9a92585227869ad67d930597a4f642d2"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222931,
+            "request_bits": 23,
+            "selected_column_sha256": "b5ae0bb067d5e456ad09cc156055836fa382f67f9d113ef228dcfd1580144541"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.6.mlp.gate_up_proj",
+        "weight_sha256": "c2ceedaa5e56f432b6c6e67ade09638e14ad135a71726cddd6b708580a9f613c"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22333,
+            "request_bits": 26,
+            "selected_column_sha256": "2fe744bf9218cc6212c81062e898b6b6af064ccfa006d74f59d74afb35d386ea"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22306,
+            "request_bits": 26,
+            "selected_column_sha256": "44d58897041baff14cba535e02dd67360e9e956ccf589906c0378aa2a77593f4"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22244,
+            "request_bits": 26,
+            "selected_column_sha256": "f7bab5e7066b0d8e20a67e697157e8f965da01d4922df5b7cc041198f50bf8ed"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22217,
+            "request_bits": 26,
+            "selected_column_sha256": "c11d35c9a504cb199f2b19bde1aa2e9d93e58c8f46dbc1299b9423e14cce6dbc"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.6.mlp.down_proj",
+        "weight_sha256": "8272db0857638b9205bff1f43c272fdd43ba28c5fd55ed55276792d5c380e0c9"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26347,
+            "request_bits": 23,
+            "selected_column_sha256": "d5045f252cfa3251849895134feafdfe849e5a8ea3d1fa1c8ea07aeabf699733"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26339,
+            "request_bits": 23,
+            "selected_column_sha256": "48aa8c98e591c57d563c3e528b63791bb5d3c136585ea7dc02e3ea9edcc9098c"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26314,
+            "request_bits": 23,
+            "selected_column_sha256": "8e3c5fc788a6d21dbb4d7ced162008ac8ec361b098674badd060850ff9cdc39a"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26267,
+            "request_bits": 23,
+            "selected_column_sha256": "d12ede993d141944f704606c6675ed1096a982e20f31660d077772b42bde2e63"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.7.self_attn.qkv_proj",
+        "weight_sha256": "4c1a1e421e2c462f704b6e3640178c002aafd24a295fee5a2fdcf1e20023d1aa"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20500,
+            "request_bits": 23,
+            "selected_column_sha256": "5e73ef822c9d4d2b63f345559c1a1ed14b8f7ffa4acbe21b45e192156cf71b02"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20489,
+            "request_bits": 23,
+            "selected_column_sha256": "292b1cb8c0ce0e299015be7d1b5000c53e534d2fa36bb902ba62b0de344ee377"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20418,
+            "request_bits": 23,
+            "selected_column_sha256": "704c9290835e6c6c8fd541eda79aa30251274cada3c385097b0d101a6ac98d07"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20312,
+            "request_bits": 23,
+            "selected_column_sha256": "0e0ffb4ad49b61ac9337cfab2a9922cd1170557724de1f5ad2022e9e4fde10ba"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.7.self_attn.o_proj",
+        "weight_sha256": "5d44c9783d71a7e1caca3d5b4981210501fb33a906fc7d12449fb108e3ffa48f"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223179,
+            "request_bits": 24,
+            "selected_column_sha256": "ecb663bc37a643e4b4cc7e440cc16ceade6142b5f17519d9b585e140dac724e3"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223162,
+            "request_bits": 24,
+            "selected_column_sha256": "e4c531f3c8a838de55661e538cdf7ef9a85805ccd3b21a70a220e22f86280a36"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223078,
+            "request_bits": 23,
+            "selected_column_sha256": "19ecf93b10228af126469e2b4371bd159cc43870af5d842c64f4a742ac81b497"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222937,
+            "request_bits": 23,
+            "selected_column_sha256": "7b046c46014436752cc0e6028d0873f1a31ee5703cc5df50d0e3679464529717"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.7.mlp.gate_up_proj",
+        "weight_sha256": "f59224afe893aa1db4cb2748893a54f1aadf4b712ec73e63a00f5d825a819ad9"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22223,
+            "request_bits": 26,
+            "selected_column_sha256": "f8ce046bd6342ed21f4a0070eb9e83f03e248f401d9d102bc93ff5e3d5947e77"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22205,
+            "request_bits": 26,
+            "selected_column_sha256": "f53516853922669d5e939930291343435b9fe368e32c236a02d1a0fdf6c8bdbb"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22170,
+            "request_bits": 26,
+            "selected_column_sha256": "907bb5007e5850a64b41433b55d16c11127f5ebda44695cc69d7512f2051d92a"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22126,
+            "request_bits": 25,
+            "selected_column_sha256": "33bfce6d9885c883bf7eb550c49cc539348d8ca930bf79400c54756ff0f7cbc6"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.7.mlp.down_proj",
+        "weight_sha256": "d49b1faedfeb847e116e80f763863db3d105dae936d3ea557f6558c0eb806d45"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26373,
+            "request_bits": 23,
+            "selected_column_sha256": "b495b5f3baf55dc76b89d779934ccdba89dfd45a06f4e9179388eb323b5c2f4e"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26369,
+            "request_bits": 23,
+            "selected_column_sha256": "fedc34beb2af657a7bb82959f5ef3eeb7c16b146b8d02695df85507028434d11"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26345,
+            "request_bits": 23,
+            "selected_column_sha256": "7f441d3839e7a11809c26bb9a764c4b61e4b17442f2936b7bce1834f94f97ee2"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26311,
+            "request_bits": 23,
+            "selected_column_sha256": "fa14126411187ee4ee7382e69b33d7275f3b35c5ef08229aaffab2acf35b7b85"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.8.self_attn.qkv_proj",
+        "weight_sha256": "4d7c8e99487821af137f8d98447c8c7408005a57f88936e9b93a09741471d06b"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20532,
+            "request_bits": 23,
+            "selected_column_sha256": "602c65b3e0f64280337995c251ef1ae1547d0921a37d91bf02e821d1cb698c71"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20528,
+            "request_bits": 23,
+            "selected_column_sha256": "033530d49b83998fb2f47ee1275c2d0e969713df8353404e125d5db6ff9e11b5"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20502,
+            "request_bits": 23,
+            "selected_column_sha256": "b6f1c5fe791c0a2fa810482847f88df67c37ed24bad78cb73940efcde2a048de"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20432,
+            "request_bits": 23,
+            "selected_column_sha256": "5a50d8c0582ccb653dfe222fdb4ed368d9d0d447c8fc5957304a339d787b1587"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.8.self_attn.o_proj",
+        "weight_sha256": "a6a86760f0cda211c0abdf7a27a3992b43f74c32bf89b9d7fb5c8fd9f8c0396c"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223069,
+            "request_bits": 24,
+            "selected_column_sha256": "6d8c2eee56c8ae1181a0aa86608c03890323fdd0713d9ee40eb9e4f6fc46e53c"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223057,
+            "request_bits": 24,
+            "selected_column_sha256": "699bf6139c7b8f0282391915ed5a2a5382059645a36c782d33c88e3eb71ba5d9"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222976,
+            "request_bits": 24,
+            "selected_column_sha256": "1cde335648e7aba410eb9e7598151bc1c4a7e3bc0e85e7fe076565d28e61c7c5"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222802,
+            "request_bits": 23,
+            "selected_column_sha256": "ff87b30065cacc8c344037c5c6398f928a01f1b3a4294ffaeae2f150ac5833de"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.8.mlp.gate_up_proj",
+        "weight_sha256": "c597722a293f9dac7ad63bfe466e73175d1cfaceefeb727641cbed09d90b88c3"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22320,
+            "request_bits": 26,
+            "selected_column_sha256": "086486ea4bcbc59d0ae41cc9e12062e9e6a6513047cc32bc52a162df3da77574"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22305,
+            "request_bits": 26,
+            "selected_column_sha256": "6b3545c44ad761c5f4343f0b81a06debeee1336e51bcbabd6da2f71cfd4d134e"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22262,
+            "request_bits": 26,
+            "selected_column_sha256": "4f6d9ac490e3514632e17070da79386189559c926a7bb0030d9f35baf5d2b283"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22240,
+            "request_bits": 25,
+            "selected_column_sha256": "ac156940b40c8d2e860e953e59fbfdefa221bbf9b99b716fc9b96b6be59a938e"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.8.mlp.down_proj",
+        "weight_sha256": "29df02f8ff9180fd3c320f0b091bcfc3872d0c18024f821a7f57842562b9737e"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26333,
+            "request_bits": 23,
+            "selected_column_sha256": "4b0bd4012b04510be4ba412b0523bfd054693022e12fe3216b559243ff2e781a"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26329,
+            "request_bits": 23,
+            "selected_column_sha256": "fe64edf8cfec12a1e2c2c14bebfec208286a0d5a3ede1c2c7f2e0b0d7ad64230"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26314,
+            "request_bits": 23,
+            "selected_column_sha256": "161a9b68a476b2f11e9cb18333c808d05ce8fa69f00ed00a568de5312f76d25b"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26269,
+            "request_bits": 23,
+            "selected_column_sha256": "bf6dfd544130c64cf2907f05092fd0bd5f5f02c528435350598f277b63c0f02d"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.9.self_attn.qkv_proj",
+        "weight_sha256": "d4c1269cc2538130f91d32ed1968fde50714c574981bcd92b4aa97d513cff494"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20503,
+            "request_bits": 23,
+            "selected_column_sha256": "91b13cc40d45f95ee98caf0e216908851fc11c5f9e2075956c43e8f9e2a5a26b"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20496,
+            "request_bits": 23,
+            "selected_column_sha256": "b0f7fc8a4db4c246afcca67cb79ba350ab1c0294f457c88a45d4f9d3ca509356"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20436,
+            "request_bits": 23,
+            "selected_column_sha256": "db03a9353fd0761a2afe1712d722a2c860da3cb8e2169de19a39990db1b37431"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20338,
+            "request_bits": 23,
+            "selected_column_sha256": "b9baa70fdcb044ee0f668a75c12832a7f37a5f2ff2b9259d4289a0b88a53e4d1"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.9.self_attn.o_proj",
+        "weight_sha256": "20bb5f622823489f860b560048074c80a69ca2d62b3ae79d04612fc0cb56ce0d"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223249,
+            "request_bits": 24,
+            "selected_column_sha256": "fc92a54efc2fbe08ceb99b01e56cc95714e29c587bb9eb8c8c14edd4126eb679"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223226,
+            "request_bits": 24,
+            "selected_column_sha256": "e87172e9183834d02813c5e5b49e44e6dc31c45536ecc5e4f329cd4af40e2f2c"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223132,
+            "request_bits": 23,
+            "selected_column_sha256": "64c0781dc94d0ccf1522e1cd3c79b6b744bfaec6c55c935674c2d5b17f396e97"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222975,
+            "request_bits": 23,
+            "selected_column_sha256": "1105f4f41fafed2c54e48d035b5789bdfb53628a5595c4108945c7e758bc9e75"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.9.mlp.gate_up_proj",
+        "weight_sha256": "51ee618d4969684613e3ed95caac2df6c0bbaf327d90a5d86e3e75a8497d5ef3"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22243,
+            "request_bits": 26,
+            "selected_column_sha256": "bedb23cb006696543e4d8fe4ea67791d7aba332ecfcd9cbeeea2b5c53d4820b5"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22232,
+            "request_bits": 26,
+            "selected_column_sha256": "dc8bc414bd77c05ffe25bc91adc1c1f1495ad85fb34a28612da0990b1db199e3"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22172,
+            "request_bits": 26,
+            "selected_column_sha256": "b8dc91528409027a8a62862e4d9f9d3b2629b6a3374c9c65d1315e95da3a8ad3"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22112,
+            "request_bits": 25,
+            "selected_column_sha256": "4ccbbe7a03359378dfe4386a955cf5c98755e14761262939cd313908d6dc9565"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.9.mlp.down_proj",
+        "weight_sha256": "416ee29d474a8b0686509347d0c8284cfb86ceb528affa4269858629dd4a0f5a"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26400,
+            "request_bits": 24,
+            "selected_column_sha256": "d5045f252cfa3251849895134feafdfe849e5a8ea3d1fa1c8ea07aeabf699733"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26396,
+            "request_bits": 24,
+            "selected_column_sha256": "6b09ea0fa83c9791da485933d00d2236c055b37e5dd5c2008211fb8de795d243"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26362,
+            "request_bits": 23,
+            "selected_column_sha256": "5458fdffdef0e13e29033ada819744ffa0b714845a7e03bf5318165b515a8f56"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26301,
+            "request_bits": 23,
+            "selected_column_sha256": "5187b9690b8a7497fb15fdff8350a60edd9588229fcaab175d2636762d07993b"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.10.self_attn.qkv_proj",
+        "weight_sha256": "8c603837da393f84802186b206eff0f6cf8c30cebc34950bbc633065aa63c447"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20479,
+            "request_bits": 23,
+            "selected_column_sha256": "f6bf29e45ddf4f4534c7fdb67eafc8732d77aceea35f2999b514bf2f4dea781a"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20472,
+            "request_bits": 23,
+            "selected_column_sha256": "d94253e69d5dfe56780f65eb63003fbd475db03ced8984a7f37410564989ff4c"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20417,
+            "request_bits": 23,
+            "selected_column_sha256": "dc1e498dfff6c807393651733902f76cd44c26a27f8b34066a71e4a3971f5b1c"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20301,
+            "request_bits": 23,
+            "selected_column_sha256": "c7b34e8d9f353f1d256282073575618575f34beffa1a0a9d6b6dc0a3773eda07"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.10.self_attn.o_proj",
+        "weight_sha256": "8ae48c97b94da70eabe41b1dddce5ef354c9b8c70849279968c0ab3700d968c5"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223108,
+            "request_bits": 24,
+            "selected_column_sha256": "f103fb247b1b619a66e1fca1c8bc70f0b428470bc44faef2f062844d04d9bbf5"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223094,
+            "request_bits": 24,
+            "selected_column_sha256": "2fba9f083022f751f7738f9d328ce0f2eaa194eb6d79ca33a430f15a39565e53"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222977,
+            "request_bits": 23,
+            "selected_column_sha256": "d0b988e253eae134b2ec34efbee089e10eddf5575d8c31f31ea8d81ff5dc64a2"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222823,
+            "request_bits": 23,
+            "selected_column_sha256": "427c4c18a67f0ffc944df4bf0d3ed327e537d31311321f3edc6e443b667aa1bb"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.10.mlp.gate_up_proj",
+        "weight_sha256": "6e4aee7bdd4cf60d47b566446c7fa7399746ae81b9d0017f69742127fd10420d"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22245,
+            "request_bits": 26,
+            "selected_column_sha256": "2cfbe78249415758db9144ed8349199fcb79c6e5e4dd773426faf67c22fccaea"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22220,
+            "request_bits": 26,
+            "selected_column_sha256": "3716f2d1c1c242542e9f3ecd423710b592e9986e7b7e9a9181a88d75d19b13c3"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22176,
+            "request_bits": 26,
+            "selected_column_sha256": "5e70e4716defa4531933dbca316da0c9a0c33d91162bb05da18ad86e245a4c02"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22141,
+            "request_bits": 25,
+            "selected_column_sha256": "00db35de1e9fd192fe6565fdf20c815526cca9aff96bc16f9dca5ab5fc1e5fa6"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.10.mlp.down_proj",
+        "weight_sha256": "965a27f3ffc2ca46f6d969e207261eb7de249aac5adb3add6204e4f936c957b3"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26297,
+            "request_bits": 23,
+            "selected_column_sha256": "82edebe161f88bf1b0b8388ed1650400ffb98169a17dbb4e57606f5d5fcb870d"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26286,
+            "request_bits": 23,
+            "selected_column_sha256": "99ec1e8b800593b36aee807535112a86a23d23d2d781f2b7c160e06a2fcd46d4"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26251,
+            "request_bits": 23,
+            "selected_column_sha256": "28098bc0de55ee6240814d66b543d96aa91481c72caf7b2354f5bd600f72be17"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26171,
+            "request_bits": 23,
+            "selected_column_sha256": "e40fbb6efe056c330acfe05e898f3c5b7ecaf137dc359afede9ec7164e4893fe"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.11.self_attn.qkv_proj",
+        "weight_sha256": "123a5e97567529c59ada1648007db5500d26a108b3eb45415a291b4a86907aa5"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20514,
+            "request_bits": 23,
+            "selected_column_sha256": "991a26ff4edaa7d5244848d1b20fa4c667589de6f83f6e38b45c763f8bee10eb"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20500,
+            "request_bits": 23,
+            "selected_column_sha256": "3a4a848757171a07b771b0bd24533e97f4d0aadc9856b8e35bc67c5cec012a90"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20436,
+            "request_bits": 23,
+            "selected_column_sha256": "64f6647cd3c0969fc013d711fe0fd4b25c1148ab625aab4aa112d7eb5b5c00ee"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20295,
+            "request_bits": 23,
+            "selected_column_sha256": "5994aa1f13e07a898994197f529503f33eac36038a98567f1bf55fe6551082cf"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.11.self_attn.o_proj",
+        "weight_sha256": "a1f6af189040069663f49c511d3a2534b35618097138b584a47016bae27258f7"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223083,
+            "request_bits": 24,
+            "selected_column_sha256": "983472db17b52f05015db8586e39cf7796e335dceb4fe6ea66553c086f648049"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223067,
+            "request_bits": 24,
+            "selected_column_sha256": "02a1c90ae96e9bd59205ba8edba9cad62c478dbf2b9b6148559467197e3315d5"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222956,
+            "request_bits": 23,
+            "selected_column_sha256": "044ca0e6191c32b9525d484cb096b9b4c6d34886186007842703f606df73ed84"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222757,
+            "request_bits": 23,
+            "selected_column_sha256": "c71ec1fbc38ca31cef9a8372603d9823efccc29f8307302ad480419d457a0bbd"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.11.mlp.gate_up_proj",
+        "weight_sha256": "39813cf73807cea040c69aa463070d6b25f3b375e063b43610e97c7b8a4977a1"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22249,
+            "request_bits": 26,
+            "selected_column_sha256": "e2443f80ad59a1a927d44f4086ce41859150c22d3d98452d3285cca1a33464f0"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22235,
+            "request_bits": 26,
+            "selected_column_sha256": "aa6f13a20e4cbe388ba1db821a2674b322bf134b9b953991b571441d58b71770"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22202,
+            "request_bits": 26,
+            "selected_column_sha256": "3d8638337d3cbdb5b30e6bfb152d9e5f1d06c9ee7cdc40185e9f8ab37cc97851"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22166,
+            "request_bits": 25,
+            "selected_column_sha256": "2c708a37276af8f59de7a285f893f0f3461535c16307b80febe6f4ba5ceeabd4"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.11.mlp.down_proj",
+        "weight_sha256": "8b36a986e12d54eae55f2e9cafbdbb18f6668688d061a56d57076df8eb1ec717"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26418,
+            "request_bits": 24,
+            "selected_column_sha256": "ce7bcd4272dda5a58cd28b14f81876c64db2b42b526be49ec891afe1b84ccb1e"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26409,
+            "request_bits": 23,
+            "selected_column_sha256": "80722eac2a3f67401cd534963142ed8926b5eed8c72e2dbd75f857d7cb0dcfde"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26386,
+            "request_bits": 23,
+            "selected_column_sha256": "f47a6cb792c37f5d5cf99093e5463b3234388ddcba224eca35d14754b22deef9"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26334,
+            "request_bits": 23,
+            "selected_column_sha256": "c59fd75492b5c8a8347390ef4ffa279358e7d0a0f346d652c0ff5e92e178ce8c"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.12.self_attn.qkv_proj",
+        "weight_sha256": "82c18973925ef578703b6bbc3d559933e7fb502f4e37e2b77fb69821b102aab7"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20515,
+            "request_bits": 23,
+            "selected_column_sha256": "b603af9760dd1338905211cbbd764b6784126a118c251d56ddf94c695855ccb2"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20501,
+            "request_bits": 23,
+            "selected_column_sha256": "094aa14a903611d9876dd9fe0efb8b3175598ebff412982a4e757acb0aeea756"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20446,
+            "request_bits": 23,
+            "selected_column_sha256": "03736cafb17c30c220b4d8feed12e2a210bc199e52ed7f580737c43dbe01f9c5"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20362,
+            "request_bits": 23,
+            "selected_column_sha256": "9951d605d2504a385e17cac71e90783860cbf26a865323d636dd4a7d08dcaaa7"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.12.self_attn.o_proj",
+        "weight_sha256": "686ae6d67c3993e85fe6bfbdcc313a67416e0c5ebef7fbd7a8cddce112531d0a"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223052,
+            "request_bits": 24,
+            "selected_column_sha256": "4d21137bcccc1d99184d939566e5f9f54efd31e5ee9a2fc201d061d0ae686144"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223038,
+            "request_bits": 24,
+            "selected_column_sha256": "fa11ee90c5f887f555ba04d8316a27cce04829848f73877a12795ae95d4e82ab"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222910,
+            "request_bits": 23,
+            "selected_column_sha256": "1767d3a67831e54aa1644735ea50de81d3a5f0ab41c137f417509766d319088b"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222698,
+            "request_bits": 23,
+            "selected_column_sha256": "d8fdf80c44bc954726969d0e3f8ef00ed5ac1f891339d6158e83964117e1be9e"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.12.mlp.gate_up_proj",
+        "weight_sha256": "f369b91cc47e9e7e33b49e25ac2c0734f7047ffe93a2bc60b70c426f0f12ce18"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22307,
+            "request_bits": 26,
+            "selected_column_sha256": "b9027b20702222922cec6baedaab5758eeb9a8c1ba5dbd19a62a503bf0685982"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22304,
+            "request_bits": 26,
+            "selected_column_sha256": "07b47d902f330d6c1d3611818e32320349d3d85b8e565a98206d4c33849dd906"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22275,
+            "request_bits": 25,
+            "selected_column_sha256": "28bf408c68466086e0c226c02a5262120fd390ee41e5a8f691928cbf1f5d86c4"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22245,
+            "request_bits": 25,
+            "selected_column_sha256": "ed510d2b35d0a563083f664ea8fc7b7726768dbaaab16a19afe5f7eb4ab2fa2a"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.12.mlp.down_proj",
+        "weight_sha256": "4599769c6722654bbfdc7cfc83cbf116342c9d97b5277704dc90227bed36259d"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26373,
+            "request_bits": 23,
+            "selected_column_sha256": "b5aba837ba8e78bff58de5490edf7c9d495dc882e3201f35679eb92f0402c96a"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26369,
+            "request_bits": 23,
+            "selected_column_sha256": "dcd67c45f0c11677da4c12860cfa323526898e4b4dadb48f4322e941ed4bae46"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26342,
+            "request_bits": 23,
+            "selected_column_sha256": "c771c425dbb644b906c6cb7028490498c9b9ee1c860bccf5c2802d2f101b5166"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26288,
+            "request_bits": 23,
+            "selected_column_sha256": "a1fcab34c3eae5382f156b2e19e5426d81de81339ea159cd8699c48acd048cd2"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.13.self_attn.qkv_proj",
+        "weight_sha256": "0a0e27b62af7f2651c2fba00e75888e4333b2992ba1ce9a56bdea2147e11fe44"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20547,
+            "request_bits": 23,
+            "selected_column_sha256": "9cca27961ffd96fbeb36ea55448df99301428f2138b252aef0910c4fc49b157b"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20539,
+            "request_bits": 23,
+            "selected_column_sha256": "923f007801069e3b20901e3e29d46cd8aa006ff1701cd7cbb016d03924e1d4de"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20481,
+            "request_bits": 23,
+            "selected_column_sha256": "e4c6ab3ccdf4ee03351db4d1fca59cec59cd6c53333bd60796795011c0dfcc2b"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20355,
+            "request_bits": 23,
+            "selected_column_sha256": "d06d0673c09b0ab6cf0dbb26b07d4978cb9abd75bbd9c2dd7da58407e7c4af2b"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.13.self_attn.o_proj",
+        "weight_sha256": "a5ed6c69c26e658801684f28ae0f1e6f7e1a6295dc58f41d998433473f78cbfe"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223071,
+            "request_bits": 24,
+            "selected_column_sha256": "d41a7d8e5d5989378e70d4af6667c21ec2a97e545cd925a0c12e311f6372bd1c"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223056,
+            "request_bits": 24,
+            "selected_column_sha256": "7ad0ff6b731fdf1b50ca90e2886ede252074f3f86616481e4b6e98995e703726"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222932,
+            "request_bits": 23,
+            "selected_column_sha256": "d2a0c638a9a9625aa02b320f19644d1e22c521e41c5199acd60c5a36608db61c"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222713,
+            "request_bits": 23,
+            "selected_column_sha256": "a7b3f396f9e72ea76ada58521ff378ac092df3aa12f32e25a9b5706b308db252"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.13.mlp.gate_up_proj",
+        "weight_sha256": "6ad0b4ca68fd565001a6d90581d221e3dd054d08c9aee5c6b02dfd77a8732234"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22246,
+            "request_bits": 26,
+            "selected_column_sha256": "26e0e1a78506e7679b8245f8f3c43f07a3678ac2db3f804b3ea57eb9c17c14d6"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22235,
+            "request_bits": 26,
+            "selected_column_sha256": "007ef5733fd3bfce37ac7fb2cc51b6b1f158f3e03b05238cb27eac0f3bbd2d63"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22199,
+            "request_bits": 25,
+            "selected_column_sha256": "69523998ddf2c4d0a5625ecd1d0eb5bb98cfa1b146196ea9bc04b49a19e56fca"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22154,
+            "request_bits": 25,
+            "selected_column_sha256": "10c338336b7cb17ba2efaef94f87ff28943d09fd0f59efc5d97817b3f75dfe27"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.13.mlp.down_proj",
+        "weight_sha256": "f0a31af20d0b02834f10864b1513917a048a129682080ac6a4405d08bf49470c"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26357,
+            "request_bits": 23,
+            "selected_column_sha256": "b77c0a8e1248932efa27094610e16438d542aae37d4a5b50414687e86655569b"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26344,
+            "request_bits": 23,
+            "selected_column_sha256": "010ee60503b6005bca8f8b9f61b37a5cfe32b6a985c20880b7b2f59b4c461b73"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26286,
+            "request_bits": 23,
+            "selected_column_sha256": "12d3b395f2ec3d584160311dab964d61ba0ba7dea07df0e6fb058eb0cdd47fc8"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26204,
+            "request_bits": 23,
+            "selected_column_sha256": "bab4f79923211f695d0ee8a2b60237994eae2b0e6fc20fd55caf5029946bf0ee"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.14.self_attn.qkv_proj",
+        "weight_sha256": "dbec973d9f0b09ff762ce17ecd9af0ce95a8cd8f44eaad0bbdc7cd9f6560fd8a"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20531,
+            "request_bits": 23,
+            "selected_column_sha256": "89c1f224985c1269fdb30d2981bcb81cb97d20d51799fdd803733052bec6fc45"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20520,
+            "request_bits": 23,
+            "selected_column_sha256": "c732a8a55722d0ea236beba2220e0d49183c66d539f9510caf85c46edc589b1e"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20459,
+            "request_bits": 23,
+            "selected_column_sha256": "9fd05be00a848f82618681c724b4e72f44d8aa9f0720528fd76302ae57719c09"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20377,
+            "request_bits": 23,
+            "selected_column_sha256": "151673815fe92c7d0129a109ba79c89b7ae96f155a0ac4c3e5ce4db9ed758ba2"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.14.self_attn.o_proj",
+        "weight_sha256": "fdcfe976eb8534a403a7a1d1e918c1b41b365f383b4eb267e41a1dfe9a090966"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 222957,
+            "request_bits": 23,
+            "selected_column_sha256": "74b05b5903a2ec19ee447133e97ddbaa4db06ed832d73977dbc57ac7789d5e6b"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 222939,
+            "request_bits": 23,
+            "selected_column_sha256": "bd982033b338480f1052b15592ff81aa9aa9aa209ddc23822f0a9720403619fa"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222802,
+            "request_bits": 23,
+            "selected_column_sha256": "c640f217761e5a0f53b08deac19e055d242dd6eb4905bef9dec061c3cca7afd8"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222576,
+            "request_bits": 23,
+            "selected_column_sha256": "43555246b7248d2ef7528620d64a1d0b3edf4f34be956ff65b3054e52ab26388"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.14.mlp.gate_up_proj",
+        "weight_sha256": "ffdb570abfbb5a8e91b2e479445179fefdcb51cfe6a5851e82b9a79fde935d4d"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22168,
+            "request_bits": 26,
+            "selected_column_sha256": "f1146de7db507408772d326a1bd728f500b56bc646f17e76fc0b3916eabebc71"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22160,
+            "request_bits": 26,
+            "selected_column_sha256": "95ad873c69fb5ae16b389cb93bd206639621ccbe5b41261604d7d7d0efe285b4"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22141,
+            "request_bits": 26,
+            "selected_column_sha256": "d6f3cbcdb80cdd0281c08043c805d5c2aaea778dd51de244eea498187168f35d"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22109,
+            "request_bits": 25,
+            "selected_column_sha256": "c8049bad3b440ea35b7238f3a1fc400d7f92d592cae3e9f2c07e2b296f486b4d"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.14.mlp.down_proj",
+        "weight_sha256": "7896e916c54586bd334d9148d80fc3e6de80d93a399f1fe85b92bc3ec8629864"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26372,
+            "request_bits": 24,
+            "selected_column_sha256": "cbacec60bc382722c359f28b74c8436870255a19be94817942083ce6d3658fab"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26363,
+            "request_bits": 24,
+            "selected_column_sha256": "7a816cb7a820fec404617c899c99bdb5e61ad109629cc955dc9d0c31fcadc187"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26325,
+            "request_bits": 23,
+            "selected_column_sha256": "47bfb926a52c8000b50fbfe989da51ff34ad17b0960644bdecff4b3d027c458c"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26268,
+            "request_bits": 23,
+            "selected_column_sha256": "b966a17be0fae8e8256421200e5d8ced2d87ae4b207c6dc84bd3aa2c4d1422c5"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.15.self_attn.qkv_proj",
+        "weight_sha256": "d86f00614b2bd93246ef1d89dff6eb9a0712a9097cf4655f20da4be0f902869c"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20538,
+            "request_bits": 23,
+            "selected_column_sha256": "f3c6f64cef28cbd0825864439cb82fbe3869e01a21798c1484589f6f25b7d861"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20527,
+            "request_bits": 23,
+            "selected_column_sha256": "992970e2fd5b96ebe990d30a4b57246a7ea8a655ad16657c521d98331bc44cd7"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20491,
+            "request_bits": 23,
+            "selected_column_sha256": "fdc97826ee833ca12c1cbfa7931e4b8c4b8c7b4318d0c4bb9ed4b3a81d8e0aef"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20416,
+            "request_bits": 23,
+            "selected_column_sha256": "816da93fddb1dc46afa5a82e3b9e42f19b0562a12ba3f0ca7ed32101945afc7f"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.15.self_attn.o_proj",
+        "weight_sha256": "9d703c4f41ea191962179b3119dcbbf987e8816c25b421a5004a414de3f95fe3"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 222609,
+            "request_bits": 24,
+            "selected_column_sha256": "51ef4440bfe6aa87ed4aa6cfd394bd1e5139f7bcb57324c29c6ff8fd888538d9"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 222584,
+            "request_bits": 24,
+            "selected_column_sha256": "39db0d5f37772f88f41c69610061f1669beb3638d283dd861f49422da3aa0635"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222442,
+            "request_bits": 23,
+            "selected_column_sha256": "8ccd5fa519002269079d52fe969666dff69c931441fe37e731ee573865b7b84e"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222244,
+            "request_bits": 23,
+            "selected_column_sha256": "56f1a961a249b16f99734f43ef79220269036330e6b98e0054055675caaf7a6d"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.15.mlp.gate_up_proj",
+        "weight_sha256": "06747e710c8983a680660961bef851114b9d61cf7d69a959bf3e12990d903819"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22202,
+            "request_bits": 26,
+            "selected_column_sha256": "e3c2cecadfed91648375d66289d3878ae00600f70642659cf6b0edfa7aadc6a1"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22181,
+            "request_bits": 26,
+            "selected_column_sha256": "c451dc52cc5391bd23051ff108bd5d9828ac404dd5407b1c5ea85a06245908d1"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22147,
+            "request_bits": 26,
+            "selected_column_sha256": "d7222cb0cde4b581462bf7614b514ef5d4592aed73224a1c6a3a09a48718f6c6"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22115,
+            "request_bits": 25,
+            "selected_column_sha256": "440f2a52303402bbf35e5cedc9dff203052ca7d2be23e2c7556756c8e764d0dd"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.15.mlp.down_proj",
+        "weight_sha256": "4d29e0bbf21096c95a4ce46e79f29809e3ad3572d9792a5a4f3e102a9d07cd43"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26259,
+            "request_bits": 23,
+            "selected_column_sha256": "13f34c6df82b690bfb66665953bd57f3d1ea0ffd937a0138e1cf907e85321c2e"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26253,
+            "request_bits": 23,
+            "selected_column_sha256": "c6036d9ee166946a5375d495e286e9b5b2215bd96d04486f580aa9d7c4614b91"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26215,
+            "request_bits": 23,
+            "selected_column_sha256": "3d0252947dfb5eb96b5870f2f61d62ba0331aab019066bc2350e6dc468e69dfd"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26152,
+            "request_bits": 23,
+            "selected_column_sha256": "d6ecb6bedd680e8ae15a9598aaf9ffbefe1987da5e14c92476e5c0119e28eb63"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.16.self_attn.qkv_proj",
+        "weight_sha256": "3d4542b33e5e0fa232c6006835ead67404e6826b45f52a0100b94a552697ec5a"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20319,
+            "request_bits": 23,
+            "selected_column_sha256": "0cf76bcde8a712ad441c177324dd1684f26ee47bec9d68452971f89f4c48bace"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20303,
+            "request_bits": 23,
+            "selected_column_sha256": "ded40294db54b73e57449289a7626a10b032f48d151b12aba08d68dc207dc3c5"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20170,
+            "request_bits": 23,
+            "selected_column_sha256": "52f6e2c8d3e5c83ea9152432b96d3a0ddaf62a500fcb418fa638a7704f1f8887"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 19993,
+            "request_bits": 23,
+            "selected_column_sha256": "a37ddf4c26655e8545479f2cc8c1d3a92d4d31ef204e5a270455381071cc42de"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.16.self_attn.o_proj",
+        "weight_sha256": "a4ca3c98e4ad9809a41cd074e6c3b2564b51bc03beee62d8cb33bf7571ad303e"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 222579,
+            "request_bits": 24,
+            "selected_column_sha256": "e9c139b7ba8de74cf7fbe4bdfdcfde0c39582a69a45ea21333c7b9fde08fbae1"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 222544,
+            "request_bits": 24,
+            "selected_column_sha256": "45c5487ef685c253d2cc7c6d22eea4e9ab9027bf04d9c59a244cdaa69fd3c7e3"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222373,
+            "request_bits": 23,
+            "selected_column_sha256": "85af3d905a2dbc3bd5d673333d352f84f1ef85dd523f0d8d0e4e92f676143621"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222066,
+            "request_bits": 23,
+            "selected_column_sha256": "d2549ec9ead4cc009160cbb399aae9108d96ae4edcb476780e638a05a4a4d87f"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.16.mlp.gate_up_proj",
+        "weight_sha256": "3d5fe311218f03cce03ec59873fdca11361737533a604bada250f3a59a62abb0"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22196,
+            "request_bits": 26,
+            "selected_column_sha256": "5eb9985b326693f4369162fcac0ec72ee27b83b4b0717fa75d6ab4c3424f38cb"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22172,
+            "request_bits": 26,
+            "selected_column_sha256": "6ba22fc6396dded5fe1c87fafb115bf074f6682668f5bf33bee8beb2c68ce919"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22120,
+            "request_bits": 26,
+            "selected_column_sha256": "f6db0d6cce6bae4ae74ae5d0ff2e0d6d20c26e09ea12f31e86f7fb1b570b3af8"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22093,
+            "request_bits": 25,
+            "selected_column_sha256": "6f74942df64106ea0e5f57bf11d74ff51552b2be047d7826d08d43270e44ee6c"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.16.mlp.down_proj",
+        "weight_sha256": "77a3d9dc3156012ddc66737b1269ae41e0bcd299827fdf07b16fa437abb88e77"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26336,
+            "request_bits": 23,
+            "selected_column_sha256": "3384246e9de7f012e91f718e85b00e46b4e5a2e39dbe6099cf396e9c140d9d36"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26329,
+            "request_bits": 23,
+            "selected_column_sha256": "6c40fda808b24bddce9f0d6290f6423977b927af1e95f667e8b5fc24b86a7132"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26294,
+            "request_bits": 23,
+            "selected_column_sha256": "89963c456cbcf1936064fe6daa86cb263bc3966f908445cbdb4dcef158780bc3"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26244,
+            "request_bits": 23,
+            "selected_column_sha256": "f1a90eabeff5d3a74fa625fe1b6136169815b1f54cb0ae322f27e51a51001139"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.17.self_attn.qkv_proj",
+        "weight_sha256": "ec57a841a8003152614d4b2b7497f1e03e4c735d213caaa9adad01ef9c0cc0ac"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20550,
+            "request_bits": 23,
+            "selected_column_sha256": "699e158395f73701048741cd76de46f2ab9e5c042cd79eef343896aeb7169b30"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20541,
+            "request_bits": 23,
+            "selected_column_sha256": "584f58592170a298fe454bfd7cfb0e5c6f856fc3604e8f74479aa7ff024250ca"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20505,
+            "request_bits": 23,
+            "selected_column_sha256": "7299840ded38066f38fc44190e65a3ce48b8efeeb4bfe3794c95e25afaca2f5d"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20437,
+            "request_bits": 23,
+            "selected_column_sha256": "1308ad25a1fab0f902fd2b9e6058e79e35a6ae7fed3fe25cf8187f0768cd6b78"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.17.self_attn.o_proj",
+        "weight_sha256": "168cd9e7f46c52bbc3193f7f7fd5f1b1132d1e735a7d6c30ad8c04ee2f40699d"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223281,
+            "request_bits": 24,
+            "selected_column_sha256": "6859824d386b7443af1d03ac0c8e3a762309e56663f6411e9b0d5cf3afbb4034"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223261,
+            "request_bits": 24,
+            "selected_column_sha256": "8f740a65d07dd1738929e5b8e7b521fcc2ddeac137cd9030d844fb1db805edc9"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223166,
+            "request_bits": 24,
+            "selected_column_sha256": "95985c214b6b17b91e95442574d9fb2af1a873e898438a28d0a146b974ee6e40"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222985,
+            "request_bits": 23,
+            "selected_column_sha256": "a04118904bdb51eca5414f2eb9fc6db8c24d8fdc1044bd2f2f5d4d8b356ff0e9"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.17.mlp.gate_up_proj",
+        "weight_sha256": "df7fc3bb02764fcacd9e9e332213e2c1955bba9afce4370170f2d388ee2b491f"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22323,
+            "request_bits": 26,
+            "selected_column_sha256": "8acc5db1134beb7443967a28f1432cef35400d6a957e541f688f282475576f99"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22312,
+            "request_bits": 26,
+            "selected_column_sha256": "3526f61300f65879e1eb6bce664675d80fe45f0a4c1be36d4efb84a9f6cb488f"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22239,
+            "request_bits": 26,
+            "selected_column_sha256": "4243b268fcf5e2f6055ace36969d5a73dca8ac8b818aaa0aab814b03d7321911"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22190,
+            "request_bits": 25,
+            "selected_column_sha256": "625c0f92e1b85d18383802129a5302012e2ef86daa9aa6bf7b62d60dceae9b2f"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.17.mlp.down_proj",
+        "weight_sha256": "f1f069668e286b6ae7d4279cd0f442fff788dc5eb9de53cb087dce49d1f4d1d5"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26274,
+            "request_bits": 23,
+            "selected_column_sha256": "d5045f252cfa3251849895134feafdfe849e5a8ea3d1fa1c8ea07aeabf699733"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26260,
+            "request_bits": 23,
+            "selected_column_sha256": "0dc83f4bc5a782fadfbfa00285d8ffa09a8a8486e4c349f4acea173c90cddf3b"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26230,
+            "request_bits": 23,
+            "selected_column_sha256": "e9393019ef57f18986d433a03f8578c1e23849906e5db8c6cdc3041ee93415ca"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26183,
+            "request_bits": 23,
+            "selected_column_sha256": "3d4e365c17e604b533f4a091108bcd1727d8e25d4969eaeaced0301ccbdfff2c"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.18.self_attn.qkv_proj",
+        "weight_sha256": "a1a96c3860f2a5f5b103137ffd9222c2b8fb79a91c80ddfc3605eec0f0177990"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20559,
+            "request_bits": 23,
+            "selected_column_sha256": "37ce5969ac0554d87a29df8d896866a9b9a71bce1c91d9639a10b819ae16ac25"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20552,
+            "request_bits": 23,
+            "selected_column_sha256": "f5a62ecaecfa7e3ae92c84f295d9ae2dedb212a7ba547df6af312b8cdc242eb6"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20536,
+            "request_bits": 23,
+            "selected_column_sha256": "126b6f765728ad27f6887991dd26ac61ac6613ab28cc74dea6f232e74b3b3df8"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20477,
+            "request_bits": 23,
+            "selected_column_sha256": "464742ceb1006ff40269ddb2951f98cfcac46c23dda9f91f1645905c0179bdf7"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.18.self_attn.o_proj",
+        "weight_sha256": "24cdb26fc080c1e454488398c58a9fbe408455e7e80818cb6d1f14fa10b8800c"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223447,
+            "request_bits": 24,
+            "selected_column_sha256": "e0de8036d20e4c6338cefa9610d60de2949cfeba6d4ac61b7b76f6b3d7cabdda"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223435,
+            "request_bits": 24,
+            "selected_column_sha256": "367f5665265bbc50f8c8236d6efa24ff4821164ca9f7074cc0144d6a2edc50aa"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223358,
+            "request_bits": 23,
+            "selected_column_sha256": "d89db9994bdfc0009658f47221325d16247c6c776b3c2eff477e4984b8a0f368"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223260,
+            "request_bits": 23,
+            "selected_column_sha256": "b3ad2b5afe549aeec4c9c3b62ee4736cd684dee300ad17060e58e1f7ee43b28a"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.18.mlp.gate_up_proj",
+        "weight_sha256": "0e861ffd8b10c26774a2e0e5b44253253e2aae2ee682a6bc80b930fe6f47a9d7"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22409,
+            "request_bits": 26,
+            "selected_column_sha256": "e45314d0e36895b2b2f096b35563cd78d1466e58b1958962ae53c49a8cfd9d5b"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22374,
+            "request_bits": 26,
+            "selected_column_sha256": "37684f53a44465c8455fbc4725876570d4734ba5363a9efc4b569e579c2d4650"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22284,
+            "request_bits": 26,
+            "selected_column_sha256": "75be75266160a01cb1fd4c6d2a55e60cf1a8bb2dd3eb66ec9076ebb62c96049a"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22251,
+            "request_bits": 25,
+            "selected_column_sha256": "693bb415d4d313b1289e6ab6da01038859916859cb074e5a5dcab2e2152504f7"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.18.mlp.down_proj",
+        "weight_sha256": "26c53a97e6567e4eeca644ef29c5a2360fd6b5c4909941431b24430df0a716e1"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26374,
+            "request_bits": 23,
+            "selected_column_sha256": "b77c0a8e1248932efa27094610e16438d542aae37d4a5b50414687e86655569b"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26369,
+            "request_bits": 23,
+            "selected_column_sha256": "176f8c01efa60a28ba590b5e646c243705e05f1442784b453c99d6f290f82769"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26348,
+            "request_bits": 23,
+            "selected_column_sha256": "7062d3e240d2b87c7d746d57c6670dde7e3a7f8ae75b84e0a2f5a1d582f37820"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26311,
+            "request_bits": 23,
+            "selected_column_sha256": "2dd910d8503311ef9c9c4e2ddce9f4881cae172e5fb689fb4e5499b1f9f7c2fa"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.19.self_attn.qkv_proj",
+        "weight_sha256": "ca12ffd8b5a7af2eb963f157b7754ca119cf028f5896dd0ccee5becc3e512886"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20550,
+            "request_bits": 23,
+            "selected_column_sha256": "b6b754bab56dac1c09a508bdca7f483f09633b197665c368d23a69d5ae19817c"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20535,
+            "request_bits": 23,
+            "selected_column_sha256": "fb09d38d129368142a08d7c8664562a86cdd95329418b2d63071ee8963f5a9c4"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20501,
+            "request_bits": 23,
+            "selected_column_sha256": "b11d7ef624ac7a9442a98035a78d68351c3690df6cdee29d4249fe95a3a3fcda"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20440,
+            "request_bits": 23,
+            "selected_column_sha256": "722120f9e0b33743d1d3fdfa783d7ff752a3f1b4bfef82ac1eefb7c824dd0597"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.19.self_attn.o_proj",
+        "weight_sha256": "2d5236f4ecbbe12c07597bd3fd41d92d795385db2825223de7f27bd64594cc14"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 222950,
+            "request_bits": 24,
+            "selected_column_sha256": "9e1f38a671c1d3012952b1b28a4f763be05596b49b8b0b5c1fb666277f2d7869"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 222936,
+            "request_bits": 23,
+            "selected_column_sha256": "1cf3078713db6cebe516439ec66621d87819aff9d16412effaf2003f72a02b93"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222837,
+            "request_bits": 23,
+            "selected_column_sha256": "3104fde369d64d7346daa39874cb55c12cfd7bebb82deaadbc6ff38c0b7e473b"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222673,
+            "request_bits": 23,
+            "selected_column_sha256": "511c63485d88972ca71de556ff932e7512aa902c42af6fca29f560e49d0a5987"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.19.mlp.gate_up_proj",
+        "weight_sha256": "33838e676f6df987772c673d30455b5959b14c6b961c442525fcff5e30c7f2c3"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22246,
+            "request_bits": 26,
+            "selected_column_sha256": "71895daec3d4245977b3f43981b0cf080a4deb18fc33c0aa809b5b78094fedf5"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22222,
+            "request_bits": 26,
+            "selected_column_sha256": "5b6b7ceb1d59a1f3c5a8ef49fbf9dcda9c51137b19594f15c115c86b14963784"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22168,
+            "request_bits": 26,
+            "selected_column_sha256": "d92fafbf2f5318813c6cc13150912e06033974f95fc876517baa74ba8cc42218"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22135,
+            "request_bits": 25,
+            "selected_column_sha256": "84cf12c1528acf949f1b4ccbd79d34a0efe10fa2d34ef85557c6469259f9ce7f"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.19.mlp.down_proj",
+        "weight_sha256": "0459b979f8e5d31920f85fdc213820aafbdc16102b13416a93cce8efeaaf60f2"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26214,
+            "request_bits": 23,
+            "selected_column_sha256": "a426a47da33ca0ceda8130af50afea0cde5fcd26115ac92523b4970584f52631"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26197,
+            "request_bits": 23,
+            "selected_column_sha256": "21e5b001f2df0437ddc9eef79b28d2f8c10d3aae720a97a22df8105e44c30238"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26154,
+            "request_bits": 23,
+            "selected_column_sha256": "e07aed168a42cddccdff450681c057a4b4a7dd3b3bb3db800c3e1d6304637340"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26091,
+            "request_bits": 23,
+            "selected_column_sha256": "9815cb56e1a8ae7fdad5d9717ce23f8fbc9ff2ffdb3108ed220adde7d46507d5"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.20.self_attn.qkv_proj",
+        "weight_sha256": "8c2b10447e4616f50621d8c33e3ca65f112806ffcd941293dd86479b92db4df9"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20476,
+            "request_bits": 23,
+            "selected_column_sha256": "a426a47da33ca0ceda8130af50afea0cde5fcd26115ac92523b4970584f52631"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20466,
+            "request_bits": 23,
+            "selected_column_sha256": "f6b7a4396fbbe7f210fec9b2a72c58339817ddbb5acad4f3187bb4e98b50d963"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20413,
+            "request_bits": 23,
+            "selected_column_sha256": "e793c03623e0f0c85ab4b2a1b9f3ac75ce9c4d14ec0d7df71179f3a1456b4b19"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20338,
+            "request_bits": 23,
+            "selected_column_sha256": "a986b67bda04e535ad18c3e536c52f7d538e302593e666372c0ca98bc8f3601b"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.20.self_attn.o_proj",
+        "weight_sha256": "ac14c0691412270e0356816691fa711d8219ed10ffb2921f6eb9ea0778019012"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223042,
+            "request_bits": 24,
+            "selected_column_sha256": "4595056ae8b00d586f5cce473e088d0af383ca702e006b9318dd2068ad380e37"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223021,
+            "request_bits": 24,
+            "selected_column_sha256": "0b1c32a914ac54a6a50dac841767d641575d705b6adafd2b404ccf095f2a4b63"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 222938,
+            "request_bits": 23,
+            "selected_column_sha256": "182b580799715c78748066ada2b294a9717602ee3045a98aa63146dac52700e2"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 222777,
+            "request_bits": 23,
+            "selected_column_sha256": "46c8f2afc42acb221c7399b2f6a7e8fc888b8410772f3ebad0a1b5a8e55255bd"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.20.mlp.gate_up_proj",
+        "weight_sha256": "2d5ee5213f9de45394d336121df319a0959cd180f3cca02fd4f2e067fa18edfd"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22278,
+            "request_bits": 26,
+            "selected_column_sha256": "dce5913b0269efea722d321504a58f24afa8cae74ba7df275dee789826a21657"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22250,
+            "request_bits": 26,
+            "selected_column_sha256": "43dca35def9910f32a6e5a5f0c9e33a15fdf47b3379614b9b9af8510be0cdbe4"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22189,
+            "request_bits": 26,
+            "selected_column_sha256": "f402ed87b26c9e85a20e79fdb9dd6bd5515bf9645724beab4183c82c9a879a15"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22165,
+            "request_bits": 25,
+            "selected_column_sha256": "d596aafea03efbc01f690c5000f958fb1a5c9cf3f80269b13d0c76073066780c"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.20.mlp.down_proj",
+        "weight_sha256": "62546c89ff0b765c5ea6ba587128fd7ef43405ce37ec674e298a0df2171d7c36"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26101,
+            "request_bits": 23,
+            "selected_column_sha256": "3384246e9de7f012e91f718e85b00e46b4e5a2e39dbe6099cf396e9c140d9d36"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26079,
+            "request_bits": 23,
+            "selected_column_sha256": "46e026409a9e4410c2a2aa4b143eb9393153c49101baa2fc1469459f23a538cb"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26016,
+            "request_bits": 23,
+            "selected_column_sha256": "a805b4d02c1a72482e0113384c520a26f02f9f88c3675e45fe50391631fd3c11"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 25926,
+            "request_bits": 23,
+            "selected_column_sha256": "06143b8b04632fe4e8e822a18cc39a2ca35d3ad99cf31a4b2f294c7592a869a1"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.21.self_attn.qkv_proj",
+        "weight_sha256": "8bb1314393b07955f2fb0f3890cb06955dbbca6296f8927ca183671e44bec547"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20519,
+            "request_bits": 23,
+            "selected_column_sha256": "3384246e9de7f012e91f718e85b00e46b4e5a2e39dbe6099cf396e9c140d9d36"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20515,
+            "request_bits": 23,
+            "selected_column_sha256": "486c0cc2978adf47d3b48de1ba9d063e19cc19d1a929412cb777b2b7e65ab072"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20488,
+            "request_bits": 23,
+            "selected_column_sha256": "bb643ce55d0362b5dc0bd5e80fe68742d679904951442d7317f5abd220e6e4c3"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20441,
+            "request_bits": 23,
+            "selected_column_sha256": "d0fdfadf4f6f68c8de9abe24261ffb7eadd6509c39fb3aca402f815d4506c3b7"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.21.self_attn.o_proj",
+        "weight_sha256": "259a15a5685d5d7dcb61c4925971c1b3c005bf57d805a1dbc51405cb4cbe6717"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223428,
+            "request_bits": 24,
+            "selected_column_sha256": "f658aaa7bd66127bab160560569b8d19fa144965670c00f480187bd3df80632c"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223421,
+            "request_bits": 24,
+            "selected_column_sha256": "ba08483dec861315b799173e8671138037b6bbf02c917317fd4138f1fc669f5c"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223359,
+            "request_bits": 23,
+            "selected_column_sha256": "01a8b8bc2e787bb45b5fe6e4bc9db3ac134b1ce8ed76f0a400ee8f4246a6d25c"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223264,
+            "request_bits": 23,
+            "selected_column_sha256": "113b6831a9bf36df271b47fb14df31e8c25736c8db8f054d108b0da2008d49f1"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.21.mlp.gate_up_proj",
+        "weight_sha256": "c6bd34f12ed29ce3f7fadb0b4db8a7b56cc272068f143c11bfc59c17af1fcaea"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22433,
+            "request_bits": 26,
+            "selected_column_sha256": "ebd98300b527c1a48dc239878759f831b2739125645c7cbda34b258e0f1a3cf2"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22396,
+            "request_bits": 26,
+            "selected_column_sha256": "215de8e318028388a62f5bcca2dbd4e3ce9b93d1d0ae750651c7d8cee0e00766"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22309,
+            "request_bits": 26,
+            "selected_column_sha256": "2cc73ebc218d898e5968fb19ccafd93380985219380c4ef8996919b36d6dca82"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22265,
+            "request_bits": 25,
+            "selected_column_sha256": "0ddd364204e56f40aa207fac728bacdd86645ccc6c5bc71f524904f480e11264"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.21.mlp.down_proj",
+        "weight_sha256": "9ea4a53d6e241a369854689dd6062cc3e9e87d71ee20d830aa37e28b09a821d8"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26152,
+            "request_bits": 23,
+            "selected_column_sha256": "ec7c4835a28430d010cbfb006d5ce84c6199eeb9c7dffeae783c20c62f784fb1"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26136,
+            "request_bits": 23,
+            "selected_column_sha256": "896d88e258190f7a101c498f3daa3565f2ed096df24f83f745a90b882831c037"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26068,
+            "request_bits": 23,
+            "selected_column_sha256": "a1c66076af0e8e1ff476836590a9eeb5a1f5b55a03eea20e52adf248d627b77c"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 25990,
+            "request_bits": 23,
+            "selected_column_sha256": "01e05e3295d3f6a85224a08d5132ee8b41b93b007ab5ed60881a877ca17db11b"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.22.self_attn.qkv_proj",
+        "weight_sha256": "c555e21a8e842231f6b83f1e552a4fe5ccd82608777715380c6c9b8327dc7a2b"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20578,
+            "request_bits": 23,
+            "selected_column_sha256": "7411f78c45a462cdc72330cf5a76b4d910754de0712c4f72d4e2696cd7cd7c22"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20577,
+            "request_bits": 23,
+            "selected_column_sha256": "a4d3fd02bc2ddb4219bb8239cfdee7517f4a903f2cbbc07e5e932de045057369"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20563,
+            "request_bits": 23,
+            "selected_column_sha256": "5e1b31d2d159211c8268143e50ce2b2329fe52c7fe3cf9d8df5d1cc826409da6"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20529,
+            "request_bits": 23,
+            "selected_column_sha256": "6a8a9f70f84043d3c9c4f46ff246a893b42146d32baf23f587be4c322949f4dd"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.22.self_attn.o_proj",
+        "weight_sha256": "d570980e65d84fe31d705d37eddf68776837c9cce60bad627163479d6e1a73ed"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223267,
+            "request_bits": 24,
+            "selected_column_sha256": "3384246e9de7f012e91f718e85b00e46b4e5a2e39dbe6099cf396e9c140d9d36"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223249,
+            "request_bits": 24,
+            "selected_column_sha256": "cf2b5951aa3c84076b978d905a3a3eb30a0c3e3bc6e72753bcea25fb6f662e28"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223159,
+            "request_bits": 23,
+            "selected_column_sha256": "4d755d6ce0b7294535c3a17e823e81d0456c018cfc21d5a63dd61f01d23afec8"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223022,
+            "request_bits": 23,
+            "selected_column_sha256": "fbdb7c5850d4d1c5b72438355524e72bd88d1887ddf5a9b6d4eac37e5cb14dde"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.22.mlp.gate_up_proj",
+        "weight_sha256": "411afd65e57c83677c79c89252f7c8feb19553c7f38e7e3c2bdba43ef8165677"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22450,
+            "request_bits": 26,
+            "selected_column_sha256": "4f5d05e64039e73ff0d869b67ed90c4903557c44a5c7d1adc6aad862701e813b"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22410,
+            "request_bits": 26,
+            "selected_column_sha256": "e44b29d43a97cf438259d9c0d28a4140508252f90b91f8bbacdbfb1f85c6011c"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22328,
+            "request_bits": 26,
+            "selected_column_sha256": "0ea8dedf8228be74681e8f9504b45ab0c1fe599ee0749cd2136f96f7b26ca4f8"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22274,
+            "request_bits": 26,
+            "selected_column_sha256": "45f607e8f461ddfc51fab5b5c4e54ea61d89a8c5ff486ae912d2b95cc1924dfe"
+          }
+        ],
+        "split": "calibration",
+        "stage": "layers.22.mlp.down_proj",
+        "weight_sha256": "2b69e79d687412ccccd605ec1c746e5241c8772bbf68ddbac44bba4419845e75"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 26340,
+            "request_bits": 23,
+            "selected_column_sha256": "b77c0a8e1248932efa27094610e16438d542aae37d4a5b50414687e86655569b"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 26332,
+            "request_bits": 23,
+            "selected_column_sha256": "d3bba6321b622a5817368fad270bcc81ce87b11349a8db07d1d9f775290d14b3"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 26276,
+            "request_bits": 23,
+            "selected_column_sha256": "e1d1b5cd0b119c434b0fd667c329aed9be7eb72a333f1a6345447ae5051dee70"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 26208,
+            "request_bits": 23,
+            "selected_column_sha256": "20859388ba21cba4a865514b4f9bf74578609020e881d8060b8edc089369d7f2"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.23.self_attn.qkv_proj",
+        "weight_sha256": "37c1f2b6bdde31b6253112155b5898f5d9a76ac117d287e74877119c432dc0f4"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 20505,
+            "request_bits": 23,
+            "selected_column_sha256": "d0bca111f8628137adc4c16f123496dcdd1d590d06cb5d9acd68b39fe656fb97"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 20504,
+            "request_bits": 23,
+            "selected_column_sha256": "1f76278da97bbe76739e1d7671c18acc9f779780d969607455e18e6136eaae72"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 20482,
+            "request_bits": 23,
+            "selected_column_sha256": "20691386359ef08fa74b971ba91b476389f4d29c845465dc8ff2f0032de98aad"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 20429,
+            "request_bits": 23,
+            "selected_column_sha256": "3b05e1a783c7307ae863bb66d09118eb76217f8486c96391d788e8070c964b43"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.23.self_attn.o_proj",
+        "weight_sha256": "c25df373380d30a4febb42387538733558a90fa8d9ab643a51cca2fee09a00cc"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 223512,
+            "request_bits": 24,
+            "selected_column_sha256": "3384246e9de7f012e91f718e85b00e46b4e5a2e39dbe6099cf396e9c140d9d36"
+          },
+          {
+            "columns": 8,
+            "remote_bits_sum": 223499,
+            "request_bits": 24,
+            "selected_column_sha256": "e744fbd3c7a6e27019dfc61ff1c246c76533939a1ac51d69e1e1253432cc79a9"
+          },
+          {
+            "columns": 44,
+            "remote_bits_sum": 223445,
+            "request_bits": 24,
+            "selected_column_sha256": "d2759b4da391e21a1c7ba58895d9a817046503a7e3aaab78ad5e86218ad93405"
+          },
+          {
+            "columns": 89,
+            "remote_bits_sum": 223341,
+            "request_bits": 23,
+            "selected_column_sha256": "8f92ccece7a3c8bd8dc1271792bfc6d89f3ebc2eadd93deb7c22dceaa68509c5"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.23.mlp.gate_up_proj",
+        "weight_sha256": "2d36426542a56bb27b508c85bba17d1c63e3efb784af878327ed5168d9d67f72"
+      },
+      {
+        "independent_integer_outputs": 36,
+        "points": [
+          {
+            "columns": 1,
+            "remote_bits_sum": 22419,
+            "request_bits": 26,
+            "selected_column_sha256": "0ae1e00b82b2654863cd8575261f2371e12153c53d173f20ccef11556ceae464"
+          },
+          {
+            "columns": 48,
+            "remote_bits_sum": 22393,
+            "request_bits": 26,
+            "selected_column_sha256": "b757f457e008364d4e22237d2545bb11d61567e21c5eb4eea1f90dae1ce95791"
+          },
+          {
+            "columns": 243,
+            "remote_bits_sum": 22345,
+            "request_bits": 26,
+            "selected_column_sha256": "4598a331eb03ba7d088b44da985677b3ce08accc87a64c48a262de62b8288bb4"
+          },
+          {
+            "columns": 486,
+            "remote_bits_sum": 22322,
+            "request_bits": 25,
+            "selected_column_sha256": "3c3b4e57ef9f3c912c513c78a0e6d89dac50f1557d7e620f60f4194f07602c71"
+          }
+        ],
+        "split": "held_out",
+        "stage": "layers.23.mlp.down_proj",
+        "weight_sha256": "a2eafb084e2f7904a548c673367427532f5777e775226ac3ebd883d6c3aa2474"
+      }
+    ]
+  },
+  "identities": {
+    "crates/pllm-core/src/offset_transport.rs": "5b379541fa4de7390cc048a564a44616cae7cf6b82c3c869993df2ec76c660c2",
+    "docs/evidence/research-narrow-ingress.json": "8c55c563422a38ddc0c6d0187379c38450b0702b4031912166e7f4bd4c7e105d",
+    "docs/research/column-residue-placement-reference.md": "6c9b57eb0c033ad83e2bc7f421f83c8d8794c1ac8e8ec0910a50dd3eb28a19aa",
+    "python/pllm/roles/__init__.py": "39aa97f2a015718b2fe1160d5332b4feee60af88292124f20d132aec426719df",
+    "scripts/decoder_probe_support.py": "6b102bd674403a431e898ef1d6d411e74a663f063555e021ac56a1159a8a0d3e",
+    "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+    "scripts/network_algebra_hypotheses.py": "743d0db0130baf42d27de061a9b7ea48a0fe98eda9601db8f2d062bec3ef399f",
+    "scripts/probe_column_residue_placement.py": "9d8245b0d7abfb8ebcb67f91f23896bf7378e25523db17c133f60c8d47549ab4",
+    "tests/test_column_residue_placement_probe.py": "582c4afad2f79a46b8c51156f4ff6c82c79a44f94ddf80c042001c66166f55d0"
+  },
+  "ingress_only_break_even": [
+    {
+      "output_rows": 896,
+      "raw_rows_break_even": 312,
+      "request_bits": 23,
+      "stages": 23
+    },
+    {
+      "output_rows": 896,
+      "raw_rows_break_even": 299,
+      "request_bits": 24,
+      "stages": 1
+    },
+    {
+      "output_rows": 896,
+      "raw_rows_break_even": 276,
+      "request_bits": 26,
+      "stages": 24
+    },
+    {
+      "output_rows": 1152,
+      "raw_rows_break_even": 401,
+      "request_bits": 23,
+      "stages": 16
+    },
+    {
+      "output_rows": 1152,
+      "raw_rows_break_even": 384,
+      "request_bits": 24,
+      "stages": 8
+    },
+    {
+      "output_rows": 9728,
+      "raw_rows_break_even": 3243,
+      "request_bits": 24,
+      "stages": 24
+    }
+  ],
+  "local_macs_per_row_limit": 35782656,
+  "native_scratch_bytes": null,
+  "original_scale_bias_delivery": "retained common client bundle, cancels; no free new coefficients",
+  "ownership": "raw selected file + native i8 coefficients; file cache/page/scratch/full-client peak unknown",
+  "schema": "pllm.column_residue_placement.v1",
+  "scope": "optimistic raw-layout histogram certificate, not measured all-link traffic",
+  "selected_artifact_limit_bytes": 268435456,
+  "source_lock": {
+    "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "threshold_break_even_scope": "best four of all stages at one column and floor(input_columns/10); lower bound, not achievable repayment",
+  "whole_client_cpu_seconds": null,
+  "whole_client_peak_rss_bytes": null
+}
