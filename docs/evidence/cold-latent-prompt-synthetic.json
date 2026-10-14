@@ -1,0 +1,1279 @@
+{
+  "claim": "hypothesis screen only; no protected runtime integration, real model quality, RSS or timings",
+  "cold_capacity_sweep": [
+    {
+      "baseline_bytes": 268302080,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 35848319,
+      "encoder_weight_bytes": 16777216,
+      "field_word_bytes": 4,
+      "latent_bytes": 249230976,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 16777216,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 19071104,
+      "output_tokens": 8,
+      "prompt_tokens": 32,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 268302080,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 35848319,
+      "encoder_weight_bytes": 134217728,
+      "field_word_bytes": 4,
+      "latent_bytes": 366671488,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 134217728,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": -98369408,
+      "output_tokens": 8,
+      "prompt_tokens": 32,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 3,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 268302080,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 35848319,
+      "encoder_weight_bytes": 1073741824,
+      "field_word_bytes": 4,
+      "latent_bytes": 1306195584,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 1073741824,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": -1037893504,
+      "output_tokens": 8,
+      "prompt_tokens": 32,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 22,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 268302080,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": -1,
+      "encoder_weight_bytes": 16777216,
+      "field_word_bytes": 4,
+      "latent_bytes": 299759360,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 16777216,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": -31457280,
+      "output_tokens": 8,
+      "prompt_tokens": 32,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": null,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 268302080,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": -1,
+      "encoder_weight_bytes": 134217728,
+      "field_word_bytes": 4,
+      "latent_bytes": 417199872,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 134217728,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": -148897792,
+      "output_tokens": 8,
+      "prompt_tokens": 32,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": null,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 268302080,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": -1,
+      "encoder_weight_bytes": 1073741824,
+      "field_word_bytes": 4,
+      "latent_bytes": 1356723968,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 1073741824,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": -1088421888,
+      "output_tokens": 8,
+      "prompt_tokens": 32,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": null,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 640948912,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 5296,
+        "Client->Inference:masked_stage_inputs": 113823744,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 190992384,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 190992384,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 408495151,
+      "encoder_weight_bytes": 16777216,
+      "field_word_bytes": 4,
+      "latent_bytes": 249230976,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 16777216,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 391717936,
+      "output_tokens": 8,
+      "prompt_tokens": 150,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 640948912,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 5296,
+        "Client->Inference:masked_stage_inputs": 113823744,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 190992384,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 190992384,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 408495151,
+      "encoder_weight_bytes": 134217728,
+      "field_word_bytes": 4,
+      "latent_bytes": 366671488,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 134217728,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 274277424,
+      "output_tokens": 8,
+      "prompt_tokens": 150,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 640948912,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 5296,
+        "Client->Inference:masked_stage_inputs": 113823744,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 190992384,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 190992384,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 408495151,
+      "encoder_weight_bytes": 1073741824,
+      "field_word_bytes": 4,
+      "latent_bytes": 1306195584,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 1073741824,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": -665246672,
+      "output_tokens": 8,
+      "prompt_tokens": 150,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 3,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 640948912,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 5296,
+        "Client->Inference:masked_stage_inputs": 113823744,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 190992384,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 190992384,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 357966767,
+      "encoder_weight_bytes": 16777216,
+      "field_word_bytes": 4,
+      "latent_bytes": 299759360,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 16777216,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 341189552,
+      "output_tokens": 8,
+      "prompt_tokens": 150,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 640948912,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 5296,
+        "Client->Inference:masked_stage_inputs": 113823744,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 190992384,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 190992384,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 357966767,
+      "encoder_weight_bytes": 134217728,
+      "field_word_bytes": 4,
+      "latent_bytes": 417199872,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 134217728,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 223749040,
+      "output_tokens": 8,
+      "prompt_tokens": 150,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 640948912,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 5296,
+        "Client->Inference:masked_stage_inputs": 113823744,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 190992384,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 190992384,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 357966767,
+      "encoder_weight_bytes": 1073741824,
+      "field_word_bytes": 4,
+      "latent_bytes": 1356723968,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 1073741824,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": -715775056,
+      "output_tokens": 8,
+      "prompt_tokens": 150,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 3,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 1784153600,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 8192,
+        "Client->Inference:masked_stage_inputs": 376270848,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 631369728,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 631369728,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 1551699839,
+      "encoder_weight_bytes": 16777216,
+      "field_word_bytes": 4,
+      "latent_bytes": 249230976,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 16777216,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 1534922624,
+      "output_tokens": 8,
+      "prompt_tokens": 512,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 1784153600,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 8192,
+        "Client->Inference:masked_stage_inputs": 376270848,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 631369728,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 631369728,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 1551699839,
+      "encoder_weight_bytes": 134217728,
+      "field_word_bytes": 4,
+      "latent_bytes": 366671488,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 134217728,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 1417482112,
+      "output_tokens": 8,
+      "prompt_tokens": 512,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 1784153600,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 8192,
+        "Client->Inference:masked_stage_inputs": 376270848,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 631369728,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 631369728,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 1551699839,
+      "encoder_weight_bytes": 1073741824,
+      "field_word_bytes": 4,
+      "latent_bytes": 1306195584,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4224,
+        "Client->Inference:masked_stage_inputs": 16674816,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 1073741824,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 27979776,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 27979776,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 477958016,
+      "output_tokens": 8,
+      "prompt_tokens": 512,
+      "soft_slots": 16,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 1784153600,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 8192,
+        "Client->Inference:masked_stage_inputs": 376270848,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 631369728,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 631369728,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 1501171455,
+      "encoder_weight_bytes": 16777216,
+      "field_word_bytes": 4,
+      "latent_bytes": 299759360,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 16777216,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 1484394240,
+      "output_tokens": 8,
+      "prompt_tokens": 512,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 1784153600,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 8192,
+        "Client->Inference:masked_stage_inputs": 376270848,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 631369728,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 631369728,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 1501171455,
+      "encoder_weight_bytes": 134217728,
+      "field_word_bytes": 4,
+      "latent_bytes": 417199872,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 134217728,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 1366953728,
+      "output_tokens": 8,
+      "prompt_tokens": 512,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    },
+    {
+      "baseline_bytes": 1784153600,
+      "baseline_links": {
+        "Client->Inference:admission_position_controls": 8192,
+        "Client->Inference:masked_stage_inputs": 376270848,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 0,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 0,
+        "Inference->Client:masked_stage_outputs": 631369728,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 0,
+        "Preparation->Inference:fresh_stage_corrections": 631369728,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "byte_scope": "directed application bodies; excludes TCP/TLS framing; no timing claim",
+      "dense_schedule_projection_only": true,
+      "encoder_bytes_strict_break_even_ceiling": 1501171455,
+      "encoder_weight_bytes": 1073741824,
+      "field_word_bytes": 4,
+      "latent_bytes": 1356723968,
+      "latent_links": {
+        "Client->Inference:admission_position_controls": 4352,
+        "Client->Inference:masked_stage_inputs": 28274688,
+        "Client->Preparation:setup_seeds_control": 1048576,
+        "Inference->Client:encoder_weights": 1073741824,
+        "Inference->Client:final_control": 4096,
+        "Inference->Client:fitting_scales_manifest": 12582912,
+        "Inference->Client:masked_stage_outputs": 47443968,
+        "Inference->Client:tokenizer_tied_embedding_head_boundary": 143033856,
+        "Inference->Preparation:decoder_adapter": 2097152,
+        "Preparation->Inference:fresh_stage_corrections": 47443968,
+        "Preparation->Inference:setup_control": 1048576
+      },
+      "net_saved_bytes": 427429632,
+      "output_tokens": 8,
+      "prompt_tokens": 512,
+      "soft_slots": 32,
+      "stage_input_words_per_row": 181248,
+      "stage_output_words_per_row": 304128,
+      "strict_positive_saving_requests": 1,
+      "unrelated_requests": 1
+    }
+  ],
+  "memory_sweep": [
+    {
+      "excludes": [
+        "Python/runtime/native allocator",
+        "mapping/page copies",
+        "transport buffers",
+        "training optimizer",
+        "disk artifacts"
+      ],
+      "fitting_artifacts_disk_bytes": 12582912,
+      "logical_owners": {
+        "client_active_KV_float32": 958464,
+        "client_boundary_scales_and_metadata": 2704896,
+        "client_encoder_and_decoder_workspace_allowance": 33554432,
+        "client_encoder_weights": 16777216,
+        "client_logits_float32": 607744,
+        "client_one_window_masks_and_corrections_allowance": 4194304,
+        "client_soft_boundary_int32": 114688,
+        "client_tied_embedding_head": 136134656,
+        "client_tokenizer": 4194304
+      },
+      "logical_total_bytes": 199240704,
+      "not_RSS": true,
+      "preparation_adapter_copy_bytes": 2097152,
+      "provider_decoder_adapter_bytes": 2097152,
+      "tiers": {
+        "Low256MiB": {
+          "admitted_logical": true,
+          "budget_bytes": 268435456,
+          "remaining_bytes": 69194752
+        },
+        "Medium2GiB": {
+          "admitted_logical": true,
+          "budget_bytes": 2147483648,
+          "remaining_bytes": 1948242944
+        }
+      }
+    },
+    {
+      "excludes": [
+        "Python/runtime/native allocator",
+        "mapping/page copies",
+        "transport buffers",
+        "training optimizer",
+        "disk artifacts"
+      ],
+      "fitting_artifacts_disk_bytes": 12582912,
+      "logical_owners": {
+        "client_active_KV_float32": 958464,
+        "client_boundary_scales_and_metadata": 2704896,
+        "client_encoder_and_decoder_workspace_allowance": 33554432,
+        "client_encoder_weights": 16777216,
+        "client_logits_float32": 607744,
+        "client_one_window_masks_and_corrections_allowance": 4194304,
+        "client_soft_boundary_int32": 114688,
+        "client_tied_embedding_head": 272269312,
+        "client_tokenizer": 4194304
+      },
+      "logical_total_bytes": 335375360,
+      "not_RSS": true,
+      "preparation_adapter_copy_bytes": 2097152,
+      "provider_decoder_adapter_bytes": 2097152,
+      "tiers": {
+        "Low256MiB": {
+          "admitted_logical": false,
+          "budget_bytes": 268435456,
+          "remaining_bytes": -66939904
+        },
+        "Medium2GiB": {
+          "admitted_logical": true,
+          "budget_bytes": 2147483648,
+          "remaining_bytes": 1812108288
+        }
+      }
+    },
+    {
+      "excludes": [
+        "Python/runtime/native allocator",
+        "mapping/page copies",
+        "transport buffers",
+        "training optimizer",
+        "disk artifacts"
+      ],
+      "fitting_artifacts_disk_bytes": 12582912,
+      "logical_owners": {
+        "client_active_KV_float32": 958464,
+        "client_boundary_scales_and_metadata": 2704896,
+        "client_encoder_and_decoder_workspace_allowance": 33554432,
+        "client_encoder_weights": 134217728,
+        "client_logits_float32": 607744,
+        "client_one_window_masks_and_corrections_allowance": 4194304,
+        "client_soft_boundary_int32": 114688,
+        "client_tied_embedding_head": 136134656,
+        "client_tokenizer": 4194304
+      },
+      "logical_total_bytes": 316681216,
+      "not_RSS": true,
+      "preparation_adapter_copy_bytes": 2097152,
+      "provider_decoder_adapter_bytes": 2097152,
+      "tiers": {
+        "Low256MiB": {
+          "admitted_logical": false,
+          "budget_bytes": 268435456,
+          "remaining_bytes": -48245760
+        },
+        "Medium2GiB": {
+          "admitted_logical": true,
+          "budget_bytes": 2147483648,
+          "remaining_bytes": 1830802432
+        }
+      }
+    },
+    {
+      "excludes": [
+        "Python/runtime/native allocator",
+        "mapping/page copies",
+        "transport buffers",
+        "training optimizer",
+        "disk artifacts"
+      ],
+      "fitting_artifacts_disk_bytes": 12582912,
+      "logical_owners": {
+        "client_active_KV_float32": 958464,
+        "client_boundary_scales_and_metadata": 2704896,
+        "client_encoder_and_decoder_workspace_allowance": 33554432,
+        "client_encoder_weights": 134217728,
+        "client_logits_float32": 607744,
+        "client_one_window_masks_and_corrections_allowance": 4194304,
+        "client_soft_boundary_int32": 114688,
+        "client_tied_embedding_head": 272269312,
+        "client_tokenizer": 4194304
+      },
+      "logical_total_bytes": 452815872,
+      "not_RSS": true,
+      "preparation_adapter_copy_bytes": 2097152,
+      "provider_decoder_adapter_bytes": 2097152,
+      "tiers": {
+        "Low256MiB": {
+          "admitted_logical": false,
+          "budget_bytes": 268435456,
+          "remaining_bytes": -184380416
+        },
+        "Medium2GiB": {
+          "admitted_logical": true,
+          "budget_bytes": 2147483648,
+          "remaining_bytes": 1694667776
+        }
+      }
+    },
+    {
+      "excludes": [
+        "Python/runtime/native allocator",
+        "mapping/page copies",
+        "transport buffers",
+        "training optimizer",
+        "disk artifacts"
+      ],
+      "fitting_artifacts_disk_bytes": 12582912,
+      "logical_owners": {
+        "client_active_KV_float32": 958464,
+        "client_boundary_scales_and_metadata": 2704896,
+        "client_encoder_and_decoder_workspace_allowance": 33554432,
+        "client_encoder_weights": 1073741824,
+        "client_logits_float32": 607744,
+        "client_one_window_masks_and_corrections_allowance": 4194304,
+        "client_soft_boundary_int32": 114688,
+        "client_tied_embedding_head": 136134656,
+        "client_tokenizer": 4194304
+      },
+      "logical_total_bytes": 1256205312,
+      "not_RSS": true,
+      "preparation_adapter_copy_bytes": 2097152,
+      "provider_decoder_adapter_bytes": 2097152,
+      "tiers": {
+        "Low256MiB": {
+          "admitted_logical": false,
+          "budget_bytes": 268435456,
+          "remaining_bytes": -987769856
+        },
+        "Medium2GiB": {
+          "admitted_logical": true,
+          "budget_bytes": 2147483648,
+          "remaining_bytes": 891278336
+        }
+      }
+    },
+    {
+      "excludes": [
+        "Python/runtime/native allocator",
+        "mapping/page copies",
+        "transport buffers",
+        "training optimizer",
+        "disk artifacts"
+      ],
+      "fitting_artifacts_disk_bytes": 12582912,
+      "logical_owners": {
+        "client_active_KV_float32": 958464,
+        "client_boundary_scales_and_metadata": 2704896,
+        "client_encoder_and_decoder_workspace_allowance": 33554432,
+        "client_encoder_weights": 1073741824,
+        "client_logits_float32": 607744,
+        "client_one_window_masks_and_corrections_allowance": 4194304,
+        "client_soft_boundary_int32": 114688,
+        "client_tied_embedding_head": 272269312,
+        "client_tokenizer": 4194304
+      },
+      "logical_total_bytes": 1392339968,
+      "not_RSS": true,
+      "preparation_adapter_copy_bytes": 2097152,
+      "provider_decoder_adapter_bytes": 2097152,
+      "tiers": {
+        "Low256MiB": {
+          "admitted_logical": false,
+          "budget_bytes": 268435456,
+          "remaining_bytes": -1123904512
+        },
+        "Medium2GiB": {
+          "admitted_logical": true,
+          "budget_bytes": 2147483648,
+          "remaining_bytes": 755143680
+        }
+      }
+    }
+  ],
+  "quality": {
+    "added_arrays_conservative_ceiling_bytes": 8454144,
+    "capacity_note": "finite precision only: k*d*b bits; pooling loses order even when bit capacity is ample",
+    "exact_copy_input_bits": 32,
+    "full_prompt_oracle_exact_copy": 128,
+    "heldout_common_prompts": 128,
+    "heldout_rare_prompts": 128,
+    "results": [
+      {
+        "collision_different_copy_answer": true,
+        "collision_pair": [
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1,
+            0
+          ]
+        ],
+        "collision_same_representation": true,
+        "latent_boundary_bytes": 16,
+        "learned_embedding_parameters": 128,
+        "slots": 1,
+        "splits": {
+          "heldout_common": {
+            "exact_copy": 0,
+            "first_position_correct": 39,
+            "majority_correct": 128,
+            "prompts": 128,
+            "rare_token_correct": 0,
+            "rare_token_total": 0,
+            "token_correct": 338,
+            "token_total": 1024
+          },
+          "heldout_rare": {
+            "exact_copy": 0,
+            "first_position_correct": 42,
+            "majority_correct": 128,
+            "prompts": 128,
+            "rare_token_correct": 0,
+            "rare_token_total": 128,
+            "token_correct": 307,
+            "token_total": 1024
+          },
+          "train": {
+            "exact_copy": 0,
+            "first_position_correct": 73,
+            "majority_correct": 256,
+            "prompts": 256,
+            "rare_token_correct": 0,
+            "rare_token_total": 0,
+            "token_correct": 654,
+            "token_total": 2048
+          }
+        },
+        "width": 8
+      },
+      {
+        "collision_different_copy_answer": true,
+        "collision_pair": [
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            3,
+            2,
+            1,
+            0,
+            7,
+            6,
+            5,
+            4
+          ]
+        ],
+        "collision_same_representation": true,
+        "latent_boundary_bytes": 32,
+        "learned_embedding_parameters": 128,
+        "slots": 2,
+        "splits": {
+          "heldout_common": {
+            "exact_copy": 0,
+            "first_position_correct": 61,
+            "majority_correct": 128,
+            "prompts": 128,
+            "rare_token_correct": 0,
+            "rare_token_total": 0,
+            "token_correct": 427,
+            "token_total": 1024
+          },
+          "heldout_rare": {
+            "exact_copy": 0,
+            "first_position_correct": 53,
+            "majority_correct": 128,
+            "prompts": 128,
+            "rare_token_correct": 0,
+            "rare_token_total": 128,
+            "token_correct": 390,
+            "token_total": 1024
+          },
+          "train": {
+            "exact_copy": 0,
+            "first_position_correct": 89,
+            "majority_correct": 256,
+            "prompts": 256,
+            "rare_token_correct": 0,
+            "rare_token_total": 0,
+            "token_correct": 827,
+            "token_total": 2048
+          }
+        },
+        "width": 8
+      },
+      {
+        "collision_different_copy_answer": true,
+        "collision_pair": [
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            1,
+            0,
+            3,
+            2,
+            5,
+            4,
+            7,
+            6
+          ]
+        ],
+        "collision_same_representation": true,
+        "latent_boundary_bytes": 64,
+        "learned_embedding_parameters": 128,
+        "slots": 4,
+        "splits": {
+          "heldout_common": {
+            "exact_copy": 0,
+            "first_position_correct": 72,
+            "majority_correct": 128,
+            "prompts": 128,
+            "rare_token_correct": 0,
+            "rare_token_total": 0,
+            "token_correct": 573,
+            "token_total": 1024
+          },
+          "heldout_rare": {
+            "exact_copy": 0,
+            "first_position_correct": 70,
+            "majority_correct": 128,
+            "prompts": 128,
+            "rare_token_correct": 0,
+            "rare_token_total": 128,
+            "token_correct": 559,
+            "token_total": 1024
+          },
+          "train": {
+            "exact_copy": 0,
+            "first_position_correct": 128,
+            "majority_correct": 256,
+            "prompts": 256,
+            "rare_token_correct": 0,
+            "rare_token_total": 0,
+            "token_correct": 1135,
+            "token_total": 2048
+          }
+        },
+        "width": 8
+      },
+      {
+        "collision_different_copy_answer": false,
+        "collision_pair": [
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        ],
+        "collision_same_representation": true,
+        "latent_boundary_bytes": 128,
+        "learned_embedding_parameters": 128,
+        "slots": 8,
+        "splits": {
+          "heldout_common": {
+            "exact_copy": 128,
+            "first_position_correct": 128,
+            "majority_correct": 128,
+            "prompts": 128,
+            "rare_token_correct": 0,
+            "rare_token_total": 0,
+            "token_correct": 1024,
+            "token_total": 1024
+          },
+          "heldout_rare": {
+            "exact_copy": 0,
+            "first_position_correct": 112,
+            "majority_correct": 128,
+            "prompts": 128,
+            "rare_token_correct": 0,
+            "rare_token_total": 128,
+            "token_correct": 896,
+            "token_total": 1024
+          },
+          "train": {
+            "exact_copy": 256,
+            "first_position_correct": 256,
+            "majority_correct": 256,
+            "prompts": 256,
+            "rare_token_correct": 0,
+            "rare_token_total": 0,
+            "token_correct": 2048,
+            "token_total": 2048
+          }
+        },
+        "width": 8
+      }
+    ],
+    "seed": 4,
+    "smallest_latent_bits": 128,
+    "train_prompts": 256,
+    "train_test_overlap": 0,
+    "training": "uncentered PCA; tied linear decoder; common token IDs 0..7 only; no checkpoint"
+  },
+  "schema": "cold-latent-prompt-synthetic.v1",
+  "source_sha256": {
+    "crates/pllm-core/src/kv_cache.rs": "53cea6bf0ca925e86bf8eb5aa43cc55fb65122f181f8250961e355c9565dfde3",
+    "crates/pllm-core/src/prepared_stage.rs": "44c7f6cba9312fddd76aa9109e915cca1fca9309d06449bb7f7510fb4f5f4b27",
+    "crates/pllm-core/src/rms_norm.rs": "d7d31a155dabbf279f31e7f6bf2751e15b89135b06a84015bc64eadcf408cb94",
+    "crates/pllm-models/src/dense_gated_source.rs": "4dc4f016fa30faaeafcdcccafcd897d05dfc7664b41cf463943a5e836c3d21e4",
+    "crates/pllm-python/src/packed_embedding.rs": "7e9fdfa41046cc5f7a866445c0b56558e718a7cff11af88e6f26e2ff87e86a13",
+    "docs/research/cold-latent-prompt-reference.md": "5b879c6d0bdd9fcec4ff3a497aee3ddada93c4598c66dc69b59ebfbe29b618d3",
+    "python/pllm/runtime/masked_runtime.py": "c3ea422b023baf8af234b2a4d1ef04ad8955807d9ed96d92cbc4e38c3be6dd6d",
+    "scripts/probe_cold_latent_prompt.py": "647e6cc2aed7cbe87fffbfa63e661901369d15308b7fccfd461c185c5c318988",
+    "tests/test_cold_latent_prompt.py": "31014650ffee48ddefb3d6454004a760ad6a710511123717fe6ed7a474aa833a"
+  },
+  "synthetic_only": true
+}

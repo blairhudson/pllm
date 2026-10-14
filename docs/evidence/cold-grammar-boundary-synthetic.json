@@ -1,0 +1,790 @@
+{
+  "clear_toy_generation_not_transformer": [
+    {
+      "cache_ids": [
+        0,
+        1,
+        10,
+        5,
+        7
+      ],
+      "emitted": [
+        5,
+        7
+      ],
+      "eos_selected": true,
+      "hidden": [
+        -3.875,
+        -7.125,
+        -1.875,
+        3.375
+      ],
+      "prompt_ids": [
+        0,
+        1,
+        10
+      ],
+      "steps": [
+        {
+          "activation": [
+            -5,
+            -2,
+            0,
+            3
+          ],
+          "distribution": {
+            "2": 4.061084004305005e-08,
+            "5": 0.9999999593891599
+          },
+          "position": 3,
+          "selected": 5,
+          "state": 0
+        },
+        {
+          "activation": [
+            -7,
+            -4,
+            0,
+            4
+          ],
+          "distribution": {
+            "7": 0.999999999986112,
+            "9": 1.3887943864771146e-11
+          },
+          "position": 4,
+          "selected": 7,
+          "state": 1
+        },
+        {
+          "activation": [
+            -4,
+            -7,
+            -2,
+            3
+          ],
+          "distribution": {
+            "11": 1.0
+          },
+          "position": 5,
+          "selected": 11,
+          "state": 2
+        }
+      ]
+    },
+    {
+      "cache_ids": [
+        0,
+        1,
+        10,
+        5,
+        7
+      ],
+      "emitted": [
+        5,
+        7
+      ],
+      "eos_selected": true,
+      "hidden": [
+        -3.875,
+        -7.125,
+        -1.875,
+        3.375
+      ],
+      "prompt_ids": [
+        0,
+        1,
+        10
+      ],
+      "steps": [
+        {
+          "activation": [
+            -5,
+            -2,
+            0,
+            3
+          ],
+          "distribution": {
+            "2": 4.061084004305005e-08,
+            "5": 0.9999999593891599
+          },
+          "position": 3,
+          "selected": 5,
+          "state": 0
+        },
+        {
+          "activation": [
+            -7,
+            -4,
+            0,
+            4
+          ],
+          "distribution": {
+            "7": 0.999999999986112,
+            "9": 1.3887943864771146e-11
+          },
+          "position": 4,
+          "selected": 7,
+          "state": 1
+        },
+        {
+          "activation": [
+            -4,
+            -7,
+            -2,
+            3
+          ],
+          "distribution": {
+            "11": 1.0
+          },
+          "position": 5,
+          "selected": 11,
+          "state": 2
+        }
+      ]
+    },
+    {
+      "cache_ids": [
+        4,
+        6,
+        8,
+        5,
+        9
+      ],
+      "emitted": [
+        5,
+        9
+      ],
+      "eos_selected": true,
+      "hidden": [
+        -0.875,
+        6.0625,
+        -2.9375,
+        -3.4375
+      ],
+      "prompt_ids": [
+        4,
+        6,
+        8
+      ],
+      "steps": [
+        {
+          "activation": [
+            -1,
+            3,
+            2,
+            -2
+          ],
+          "distribution": {
+            "2": 0.11719855440740903,
+            "5": 0.8828014455925909
+          },
+          "position": 3,
+          "selected": 5,
+          "state": 0
+        },
+        {
+          "activation": [
+            -3,
+            2,
+            1,
+            -1
+          ],
+          "distribution": {
+            "7": 7.26798829133352e-07,
+            "9": 0.9999992732011709
+          },
+          "position": 4,
+          "selected": 9,
+          "state": 1
+        },
+        {
+          "activation": [
+            -1,
+            6,
+            -3,
+            -3
+          ],
+          "distribution": {
+            "11": 1.0
+          },
+          "position": 5,
+          "selected": 11,
+          "state": 2
+        }
+      ]
+    },
+    {
+      "cache_ids": [
+        4,
+        6,
+        8,
+        5,
+        9
+      ],
+      "emitted": [
+        5,
+        9
+      ],
+      "eos_selected": true,
+      "hidden": [
+        -0.875,
+        6.0625,
+        -2.9375,
+        -3.4375
+      ],
+      "prompt_ids": [
+        4,
+        6,
+        8
+      ],
+      "steps": [
+        {
+          "activation": [
+            -1,
+            3,
+            2,
+            -2
+          ],
+          "distribution": {
+            "2": 0.11719855440740903,
+            "5": 0.8828014455925909
+          },
+          "position": 3,
+          "selected": 5,
+          "state": 0
+        },
+        {
+          "activation": [
+            -3,
+            2,
+            1,
+            -1
+          ],
+          "distribution": {
+            "7": 7.26798829133352e-07,
+            "9": 0.9999992732011709
+          },
+          "position": 4,
+          "selected": 9,
+          "state": 1
+        },
+        {
+          "activation": [
+            -1,
+            6,
+            -3,
+            -3
+          ],
+          "distribution": {
+            "11": 1.0
+          },
+          "position": 5,
+          "selected": 11,
+          "state": 2
+        }
+      ]
+    }
+  ],
+  "cold_workers": {
+    "additional_public_bytes": 0,
+    "client_boundary_total_bytes": 296464,
+    "cryptographic_key_setup_bytes": 0,
+    "depth": 18,
+    "descriptor_setup_bytes": 96,
+    "excluded_common_costs": [
+      "tokenizer/chat-template",
+      "body bundle/setup/transport",
+      "TLS/framing/authentication",
+      "hidden/cache transport"
+    ],
+    "fixed_lookup_slots": 24,
+    "full_tied_raw_i8_and_f32_bytes": 136742400,
+    "global_total_bytes": 273781264,
+    "head_payload_bytes": 230400,
+    "hidden": 896,
+    "lookup_online_bytes": 64944,
+    "net_saved_bytes": -137038864,
+    "prompt_batch_limit": 64,
+    "query_bytes_each_worker_each_slot": 388,
+    "replicated_table_bytes_each_worker": 136742400,
+    "reply_bytes_each_worker_each_slot": 965,
+    "status": "source-priced proposal; no private provider consumer",
+    "strict_saving_max_lookup_slots": -1,
+    "token_id_map_bytes": 1024,
+    "two_worker_masked_xor_byte_operations": 6563635200,
+    "two_worker_prompt_batched_plus_serial_decode_table_bytes": 2461363200,
+    "two_worker_unbatched_table_traversal_bytes": 6563635200,
+    "union": 256,
+    "vocabulary": 151936,
+    "worker_cold": true,
+    "worker_cold_distribution_bytes": 273484800
+  },
+  "embedding_clear_recovered_rows": 12,
+  "embedding_record_sha256": "edee62b787d8b9175c03b1632b6e50a37ac21fb4d42e03e4472e419747288f08",
+  "fixture_identity": "ec51900f4489658772ee3294c82268ed3af19cf151c16ee2a330dbf895c68c74",
+  "negative_full_union": {
+    "additional_public_bytes": 0,
+    "client_boundary_total_bytes": 137415184,
+    "cryptographic_key_setup_bytes": 0,
+    "depth": 18,
+    "descriptor_setup_bytes": 96,
+    "excluded_common_costs": [
+      "tokenizer/chat-template",
+      "body bundle/setup/transport",
+      "TLS/framing/authentication",
+      "hidden/cache transport"
+    ],
+    "fixed_lookup_slots": 24,
+    "full_tied_raw_i8_and_f32_bytes": 136742400,
+    "global_total_bytes": 137415184,
+    "head_payload_bytes": 136742400,
+    "hidden": 896,
+    "lookup_online_bytes": 64944,
+    "net_saved_bytes": -672784,
+    "prompt_batch_limit": 64,
+    "query_bytes_each_worker_each_slot": 388,
+    "replicated_table_bytes_each_worker": 136742400,
+    "reply_bytes_each_worker_each_slot": 965,
+    "status": "source-priced proposal; no private provider consumer",
+    "strict_saving_max_lookup_slots": -1,
+    "token_id_map_bytes": 607744,
+    "two_worker_masked_xor_byte_operations": 6563635200,
+    "two_worker_prompt_batched_plus_serial_decode_table_bytes": 2461363200,
+    "two_worker_unbatched_table_traversal_bytes": 6563635200,
+    "union": 151936,
+    "vocabulary": 151936,
+    "worker_cold": false,
+    "worker_cold_distribution_bytes": 0
+  },
+  "negative_json": "arbitrary JSON strings: lexical union may approach full vocabulary; no 256-row claim",
+  "negative_private_union": {
+    "decision": "reject publication; reveals prompt-derived task data",
+    "ids": [
+      2,
+      5
+    ],
+    "visibility": "PRIVATE"
+  },
+  "numeric_cases": [
+    {
+      "distribution": {
+        "2": 0.0,
+        "5": 1.0
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "state": 0,
+      "temperature": 0,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "2": 0.029824613496008956,
+        "5": 0.9701753865039912
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        2,
+        5,
+        5,
+        5
+      ],
+      "state": 0,
+      "temperature": 0.7,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "2": 0.0,
+        "5": 1.0
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "state": 0,
+      "temperature": 1.3,
+      "top_p": 0.8
+    },
+    {
+      "distribution": {
+        "7": 1.0,
+        "9": 0.0
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "state": 1,
+      "temperature": 0,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "7": 1.0,
+        "9": 1.6752921603670087e-20
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "state": 1,
+      "temperature": 0.7,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "7": 1.0,
+        "9": 0.0
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "state": 1,
+      "temperature": 1.3,
+      "top_p": 0.8
+    },
+    {
+      "distribution": {
+        "11": 1.0
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        11,
+        11,
+        11,
+        11
+      ],
+      "state": 2,
+      "temperature": 0,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "11": 1.0
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        11,
+        11,
+        11,
+        11
+      ],
+      "state": 2,
+      "temperature": 0.7,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "11": 1.0
+      },
+      "hidden": [
+        1,
+        -2,
+        3,
+        4
+      ],
+      "selections": [
+        11,
+        11,
+        11,
+        11
+      ],
+      "state": 2,
+      "temperature": 1.3,
+      "top_p": 0.8
+    },
+    {
+      "distribution": {
+        "2": 1.0,
+        "5": 0.0
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "state": 0,
+      "temperature": 0,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "2": 0.5,
+        "5": 0.5
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        2,
+        2,
+        5,
+        5
+      ],
+      "state": 0,
+      "temperature": 0.7,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "2": 1.0,
+        "5": 0.0
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "state": 0,
+      "temperature": 1.3,
+      "top_p": 0.8
+    },
+    {
+      "distribution": {
+        "7": 1.0,
+        "9": 0.0
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "state": 1,
+      "temperature": 0,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "7": 0.5,
+        "9": 0.5
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        7,
+        7,
+        9,
+        9
+      ],
+      "state": 1,
+      "temperature": 0.7,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "7": 1.0,
+        "9": 0.0
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "state": 1,
+      "temperature": 1.3,
+      "top_p": 0.8
+    },
+    {
+      "distribution": {
+        "11": 1.0
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        11,
+        11,
+        11,
+        11
+      ],
+      "state": 2,
+      "temperature": 0,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "11": 1.0
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        11,
+        11,
+        11,
+        11
+      ],
+      "state": 2,
+      "temperature": 0.7,
+      "top_p": 1
+    },
+    {
+      "distribution": {
+        "11": 1.0
+      },
+      "hidden": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "selections": [
+        11,
+        11,
+        11,
+        11
+      ],
+      "state": 2,
+      "temperature": 1.3,
+      "top_p": 0.8
+    }
+  ],
+  "privacy_execution": false,
+  "qwen_geometry_note": "896 width is Qwen2.5-0.5B, not Qwen3-0.6B (1024)",
+  "sampling_contract": "mask first; SDK cumulative<=top_p; global-ID ascending ties and inverse CDF; binary64 oracle, not SDK RNG/float32 parity",
+  "schema": "cold-grammar-boundary-synthetic/v1",
+  "scope": "clear synthetic oracle + source-format accounting, not private execution",
+  "source_sha256": {
+    "crates/pllm-garble/src/private_pages.rs": "de9bc8eda0929c2a8feada35e6ec53d1452434cd1e31dcfd5a39426f7a40ec67",
+    "docs/research/cold-grammar-boundary-reference.md": "60c1df9fdbed3bd12745a6d9f286163d3ea69db8583458cd2206f979743cbe45",
+    "python/pllm/protocols/__init__.py": "4be9bbbe50883696ebb8a58652356dbffc5ee1eb294a73ee44910552ed2267ff",
+    "python/pllm/runtime/transformer_client.py": "d8fd3762b6bf04b6ce1c9de299455ba3faee42de17a15b9b76b378a85eb1062c",
+    "python/pllm/runtime/transformer_engine.py": "14d8efdec0b1b4c48b4312e81454729fe554d324de009c2d4519251c1d932f4d",
+    "scripts/probe_cold_grammar_boundary.py": "3fb7698c0842d5924b8c3e1d8a77ec2a246967a6dab6e8b6abfc6e075098e0ef",
+    "tests/test_cold_grammar_boundary.py": "3335d75d9b6629cba2863d78ecf83a80c19a4924dc8b62dd8a09f4884e013408"
+  },
+  "warm_workers": {
+    "additional_public_bytes": 0,
+    "client_boundary_total_bytes": 296464,
+    "cryptographic_key_setup_bytes": 0,
+    "depth": 18,
+    "descriptor_setup_bytes": 96,
+    "excluded_common_costs": [
+      "tokenizer/chat-template",
+      "body bundle/setup/transport",
+      "TLS/framing/authentication",
+      "hidden/cache transport"
+    ],
+    "fixed_lookup_slots": 24,
+    "full_tied_raw_i8_and_f32_bytes": 136742400,
+    "global_total_bytes": 296464,
+    "head_payload_bytes": 230400,
+    "hidden": 896,
+    "lookup_online_bytes": 64944,
+    "net_saved_bytes": 136445936,
+    "prompt_batch_limit": 64,
+    "query_bytes_each_worker_each_slot": 388,
+    "replicated_table_bytes_each_worker": 136742400,
+    "reply_bytes_each_worker_each_slot": 965,
+    "status": "source-priced proposal; no private provider consumer",
+    "strict_saving_max_lookup_slots": 50447,
+    "token_id_map_bytes": 1024,
+    "two_worker_masked_xor_byte_operations": 6563635200,
+    "two_worker_prompt_batched_plus_serial_decode_table_bytes": 2461363200,
+    "two_worker_unbatched_table_traversal_bytes": 6563635200,
+    "union": 256,
+    "vocabulary": 151936,
+    "worker_cold": false,
+    "worker_cold_distribution_bytes": 0
+  }
+}

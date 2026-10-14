@@ -1,0 +1,108 @@
+{
+  "array_bound_bytes": 1048576,
+  "both_role_delivery_bytes": 9292,
+  "checks": [
+    "exact_weight_and_scale_bytes",
+    "independent_integer_outputs",
+    "complete_payload_bytes",
+    "publisher_signature_and_external_binding",
+    "cold_import_no_source_or_quantization",
+    "bytes_like_preflight_before_copy",
+    "unsupported_expected_role_rejected",
+    "installed_only_executor_and_success_failure_owner_retirement",
+    "tests_cover_tamper_mismatch_truncation_order_source_substitution_mutation_retirement",
+    "dishonest_trusted_publisher_not_detected_without_derivation_proof"
+  ],
+  "delivery_plus_fixture_trust_bytes": 10448,
+  "parity": "exact W8A8 values/scales and independent int64 dot products",
+  "publisher_source_verification_bytes": 328,
+  "replay_locks": {
+    "docs/research/cold-provider-artifacts-reference.md": "324f8345de4c822abb3630568cc284d88cac8b681e8f334f9b095a297f0c795c",
+    "python/pllm/model_loader.py": "9a11733dd60df26af7f5033f0f28f9d39886c6301ee1266253e58351ec5ef11d",
+    "python/pllm/runtime/benchmark_memory.py": "97c547da021c1df28cd2af9ba8cd679112b56d4e2012cf0925e87a93f38f5765",
+    "python/pllm/runtime/bundle_artifacts.py": "9b563142aa9184932f88de312ba6b89470622139d1250dbe166b7530f2b9191f",
+    "python/pllm/runtime/execution_capsule.py": "7f6a53991b6bbdf9b6ee28c755a2750778df9227d3bc1318136103acdd003030",
+    "python/pllm/runtime/model_binding.py": "749a6888a5dc24f7bbc93bf7c883de0122fcbf6be30e1bc748d8149131a0c274",
+    "python/pllm/runtime/party.py": "c86c5e9bec7a307ef7d25f5833c009a7c93629357f941d9f4010a7a3a15b690f",
+    "python/pllm/runtime/safetensors_store.py": "a102349dcb57108c3119d95c1aeaa38872493f615ab985d4cdc715a623c9b8dd",
+    "python/pllm/runtime/servers.py": "87afe483ffd24b1fb871c35c264848e3ed249e3a1f43337850a59a4b73e1532e",
+    "python/pllm/runtime/transformer_engine.py": "14d8efdec0b1b4c48b4312e81454729fe554d324de009c2d4519251c1d932f4d",
+    "scripts/probe_cold_provider_artifacts.py": "0041b3f21454ee75fd9c6fbd5cf34e93da35ba467d24e352f994bc0dc3ff3fbd",
+    "tests/test_cold_provider_artifacts.py": "31ee773962ead69cbffdb40c35fc114b1c07a6a9ac7530321b6d1ae95f309890"
+  },
+  "samples": [
+    {
+      "artifact_bytes": 5373,
+      "artifact_sha256": "d10bd9dcb0bbcee2e5355724ee18d37b7f98debb8cbb6dd5a5fca6faebf823f0",
+      "binding": {
+        "compiler": "installed-per-row-quantizer/no-portable-machine-code",
+        "composition": "research-w8a8-client-boundaries-v1",
+        "execution": {
+          "native": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "native_wrapper": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f",
+          "quantizer": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412"
+        },
+        "model_plan": "b808337afec9adb791ce20f9ed476eb22c4403a418686abf9d24233b693850cf",
+        "role": "inference",
+        "source_witness_digest": "2cca826f2cc1cde1319ec548af959061432079396fa73718decf7e25dd01149c"
+      },
+      "framing_and_signature_bytes": 93,
+      "integer_outputs_sha256": {
+        "layers.0.down": "dff449b921b17e7049a7bc2c84883ff13084d5b5bcdc0d3ccd10a470c5177a45",
+        "layers.0.qkv": "cd8891e43848a97d9df2b34f446ae4222bd28a75a862b1b162c84a4f01cee0c3",
+        "lm_head": "9d047cf4a74b68d0b0acb78f12ca626a704504c9845c4943e2b4f2a382cd9868",
+        "token_lookup": "cb10c4bc9c653e7b3933a93f69a6571f5c83c1abe18cbf05fb2b8890ab284d04"
+      },
+      "manifest_bytes": 4960,
+      "object_count": 12,
+      "payload_bytes": 320,
+      "retained_stage_ids": [
+        "token_lookup",
+        "layers.0.qkv",
+        "layers.0.down",
+        "lm_head"
+      ],
+      "role": "inference"
+    },
+    {
+      "artifact_bytes": 3919,
+      "artifact_sha256": "5e8549d8f64a6e19ea8296e92cec177f38f391870222de1afc6af39ded33de32",
+      "binding": {
+        "compiler": "installed-per-row-quantizer/no-portable-machine-code",
+        "composition": "research-w8a8-client-boundaries-v1",
+        "execution": {
+          "native": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "native_wrapper": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f",
+          "quantizer": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412"
+        },
+        "model_plan": "b808337afec9adb791ce20f9ed476eb22c4403a418686abf9d24233b693850cf",
+        "role": "preparation",
+        "source_witness_digest": "2cca826f2cc1cde1319ec548af959061432079396fa73718decf7e25dd01149c"
+      },
+      "framing_and_signature_bytes": 93,
+      "integer_outputs_sha256": {
+        "layers.0.down": "dff449b921b17e7049a7bc2c84883ff13084d5b5bcdc0d3ccd10a470c5177a45",
+        "layers.0.qkv": "cd8891e43848a97d9df2b34f446ae4222bd28a75a862b1b162c84a4f01cee0c3"
+      },
+      "manifest_bytes": 3738,
+      "object_count": 4,
+      "payload_bytes": 88,
+      "retained_stage_ids": [
+        "layers.0.qkv",
+        "layers.0.down"
+      ],
+      "role": "preparation"
+    }
+  ],
+  "schema": "pllm.cold-provider-artifacts-synthetic.v1",
+  "source_assurance": "publisher attestation; cold importer does not rehash absent BF16",
+  "source_bytes": 328,
+  "source_witness_bytes": 1020,
+  "synthetic": true,
+  "timing_claim": null,
+  "trust_bootstrap": {
+    "external_expected_bindings_bytes": 1124,
+    "public_key_bytes_once": 32,
+    "scope": "out-of-band fixture trust configuration; no production attestation chain"
+  }
+}

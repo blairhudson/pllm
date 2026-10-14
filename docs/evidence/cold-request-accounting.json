@@ -1,0 +1,2182 @@
+{
+  "case_medians": {
+    "150": {
+      "covered_body_bytes": 477104957,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "native_tcp_stream_bytes": 478654302,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "unattributed_body_bytes": 138710
+    },
+    "150/both": {
+      "covered_body_bytes": 477105070,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "native_tcp_stream_bytes": 478654415,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "unattributed_body_bytes": 138823
+    },
+    "150/both-placement": {
+      "covered_body_bytes": 457622466,
+      "known_decode_body_bytes": 14106196,
+      "known_prefill_body_bytes": 287949670,
+      "native_tcp_stream_bytes": 458775109,
+      "other_known_setup_body_bytes": 1894,
+      "public_delivery_body_bytes": 155464774,
+      "unattributed_body_bytes": 99932
+    },
+    "150/digit8": {
+      "covered_body_bytes": 477104989,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "native_tcp_stream_bytes": 478654333,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "unattributed_body_bytes": 138742
+    },
+    "150/tiling": {
+      "covered_body_bytes": 477105039,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "native_tcp_stream_bytes": 478654383,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "unattributed_body_bytes": 138792
+    },
+    "288": {
+      "covered_body_bytes": 785837614,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "native_tcp_stream_bytes": 787876988,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "unattributed_body_bytes": 138877
+    },
+    "288/both": {
+      "covered_body_bytes": 785837727,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "native_tcp_stream_bytes": 787877102,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "unattributed_body_bytes": 138990
+    },
+    "288/both-placement": {
+      "covered_body_bytes": 722444973,
+      "known_decode_body_bytes": 14106217,
+      "known_prefill_body_bytes": 552772019,
+      "native_tcp_stream_bytes": 723888286,
+      "other_known_setup_body_bytes": 1950,
+      "public_delivery_body_bytes": 155464774,
+      "unattributed_body_bytes": 100013
+    },
+    "288/digit8": {
+      "covered_body_bytes": 785837646,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "native_tcp_stream_bytes": 787876988,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "unattributed_body_bytes": 138909
+    },
+    "288/tiling": {
+      "covered_body_bytes": 785837695,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "native_tcp_stream_bytes": 787877069,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "unattributed_body_bytes": 138958
+    }
+  },
+  "cases": [
+    {
+      "case": "150",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477104957,
+      "directed_body_bytes": {
+        "client/inference/control": 5962,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654310,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 0,
+      "unattributed_body_bytes": 138710,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484099,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.2617979318123077
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048459,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431641771854406
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264621,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035886089106385
+        }
+      }
+    },
+    {
+      "case": "150",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477104957,
+      "directed_body_bytes": {
+        "client/inference/control": 5962,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654301,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 1,
+      "unattributed_body_bytes": 138710,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484099,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.2617979318123077
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048459,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431641771854406
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264621,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035886089106385
+        }
+      }
+    },
+    {
+      "case": "150",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477104958,
+      "directed_body_bytes": {
+        "client/inference/control": 5962,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5672,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654302,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 2,
+      "unattributed_body_bytes": 138711,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484099,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.2617979312635858
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048459,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.034316417646617706
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264621,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035886074359344
+        }
+      }
+    },
+    {
+      "case": "150/both",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477105070,
+      "directed_body_bytes": {
+        "client/inference/control": 6075,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654414,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 0,
+      "unattributed_body_bytes": 138823,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484077,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.2617978698067493
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048481,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431640959086853
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264599,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035884422691211
+        }
+      }
+    },
+    {
+      "case": "150/both",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477105070,
+      "directed_body_bytes": {
+        "client/inference/control": 6075,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654423,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 1,
+      "unattributed_body_bytes": 138823,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484077,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.2617978698067493
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048481,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431640959086853
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264599,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035884422691211
+        }
+      }
+    },
+    {
+      "case": "150/both",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477105071,
+      "directed_body_bytes": {
+        "client/inference/control": 6075,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5672,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654415,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 2,
+      "unattributed_body_bytes": 138824,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484076,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.26179786925802767
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048482,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.034316409518942215
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264598,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035884407944178
+        }
+      }
+    },
+    {
+      "case": "150/both-placement",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 5374746,
+        "decode_online": 8731450,
+        "prefill_material": 110210666,
+        "prefill_online": 177739004,
+        "setup_and_delivery": 155466668
+      },
+      "covered_body_bytes": 457622466,
+      "directed_body_bytes": {
+        "client/inference/control": 5769,
+        "client/inference/online": 70776338,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 7879,
+        "inference/client/cold": 155464774,
+        "inference/client/control": 4402,
+        "inference/client/online": 115694116,
+        "inference/preparation/offline": 4674,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 6557,
+        "preparation/inference/offline": 115657957
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 14106196,
+      "known_prefill_body_bytes": 287949670,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 458775101,
+      "other_known_setup_body_bytes": 1894,
+      "public_delivery_body_bytes": 155464774,
+      "replicate": 0,
+      "unattributed_body_bytes": 99932,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 63940280,
+          "removed_known_body_bytes": 155464774,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.33972277488666824
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -77418298,
+          "removed_known_body_bytes": 14106196,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03082496391250162
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 196425176,
+          "removed_known_body_bytes": 287949670,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.6292297502719195
+        }
+      }
+    },
+    {
+      "case": "150/both-placement",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 5374746,
+        "decode_online": 8731450,
+        "prefill_material": 110210666,
+        "prefill_online": 177739004,
+        "setup_and_delivery": 155466668
+      },
+      "covered_body_bytes": 457622466,
+      "directed_body_bytes": {
+        "client/inference/control": 5769,
+        "client/inference/online": 70776338,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 7879,
+        "inference/client/cold": 155464774,
+        "inference/client/control": 4402,
+        "inference/client/online": 115694116,
+        "inference/preparation/offline": 4674,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 6557,
+        "preparation/inference/offline": 115657957
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 14106196,
+      "known_prefill_body_bytes": 287949670,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 458775110,
+      "other_known_setup_body_bytes": 1894,
+      "public_delivery_body_bytes": 155464774,
+      "replicate": 1,
+      "unattributed_body_bytes": 99932,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 63940280,
+          "removed_known_body_bytes": 155464774,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.33972277488666824
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -77418298,
+          "removed_known_body_bytes": 14106196,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03082496391250162
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 196425176,
+          "removed_known_body_bytes": 287949670,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.6292297502719195
+        }
+      }
+    },
+    {
+      "case": "150/both-placement",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 5374746,
+        "decode_online": 8731450,
+        "prefill_material": 110210666,
+        "prefill_online": 177739004,
+        "setup_and_delivery": 155466668
+      },
+      "covered_body_bytes": 457622465,
+      "directed_body_bytes": {
+        "client/inference/control": 5769,
+        "client/inference/online": 70776338,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 7879,
+        "inference/client/cold": 155464774,
+        "inference/client/control": 4401,
+        "inference/client/online": 115694116,
+        "inference/preparation/offline": 4674,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 6557,
+        "preparation/inference/offline": 115657957
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 14106196,
+      "known_prefill_body_bytes": 287949670,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 458775109,
+      "other_known_setup_body_bytes": 1894,
+      "public_delivery_body_bytes": 155464774,
+      "replicate": 2,
+      "unattributed_body_bytes": 99931,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 63940281,
+          "removed_known_body_bytes": 155464774,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.33972277562903297
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -77418297,
+          "removed_known_body_bytes": 14106196,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03082496397986056
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 196425177,
+          "removed_known_body_bytes": 287949670,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.6292297516469171
+        }
+      }
+    },
+    {
+      "case": "150/digit8",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477104989,
+      "directed_body_bytes": {
+        "client/inference/control": 5994,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654333,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 0,
+      "unattributed_body_bytes": 138742,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484093,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.26179791425320853
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048465,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431641541690104
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264615,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035885617201123
+        }
+      }
+    },
+    {
+      "case": "150/digit8",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477104989,
+      "directed_body_bytes": {
+        "client/inference/control": 5994,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654333,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 1,
+      "unattributed_body_bytes": 138742,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484093,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.26179791425320853
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048465,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431641541690104
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264615,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035885617201123
+        }
+      }
+    },
+    {
+      "case": "150/digit8",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477104989,
+      "directed_body_bytes": {
+        "client/inference/control": 5994,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654324,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 2,
+      "unattributed_body_bytes": 138742,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484093,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.26179791425320853
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048465,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431641541690104
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264615,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035885617201123
+        }
+      }
+    },
+    {
+      "case": "150/tiling",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477105038,
+      "directed_body_bytes": {
+        "client/inference/control": 6043,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654391,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 0,
+      "unattributed_body_bytes": 138791,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484083,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.2617978873658425
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048475,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.034316411892510765
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264605,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035884894596314
+        }
+      }
+    },
+    {
+      "case": "150/tiling",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477105039,
+      "directed_body_bytes": {
+        "client/inference/control": 6043,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5672,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654383,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 1,
+      "unattributed_body_bytes": 138792,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484083,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.2617978868171208
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048475,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431641182058444
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264605,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035884879849278
+        }
+      }
+    },
+    {
+      "case": "150/tiling",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "08e78a6fa1a4c590da7c9591a10f6101c4a576953c77d0be85c1e332db99fca5",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "09274e4af24e36f2a98f7fca359a5af371c2cf87ec2c0b4863fef19a1280f4bd"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138939,
+        "decode_online": 10233594,
+        "prefill_material": 126586133,
+        "prefill_online": 209099480,
+        "setup_and_delivery": 124908101
+      },
+      "covered_body_bytes": 477105039,
+      "directed_body_bytes": {
+        "client/inference/control": 6043,
+        "client/inference/online": 86425294,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 12947,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5672,
+        "inference/client/online": 132907780,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10865,
+        "preparation/inference/offline": 132823543
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 150,
+      "known_decode_body_bytes": 16372533,
+      "known_prefill_body_bytes": 335685613,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 478654383,
+      "other_known_setup_body_bytes": 3010,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 2,
+      "unattributed_body_bytes": 138792,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 29484083,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.2617978868171208
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -79048475,
+          "removed_known_body_bytes": 16372533,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.03431641182058444
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 240264605,
+          "removed_known_body_bytes": 335685613,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7035884879849278
+        }
+      }
+    },
+    {
+      "case": "288",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837614,
+      "directed_body_bytes": {
+        "client/inference/control": 5915,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787876988,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 0,
+      "unattributed_body_bytes": 138877,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262432,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.1589451672645438
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794956,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083454228751132
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250452,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.820039615716333
+        }
+      }
+    },
+    {
+      "case": "288",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837615,
+      "directed_body_bytes": {
+        "client/inference/control": 5915,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5672,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787876998,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 1,
+      "unattributed_body_bytes": 138878,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262432,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894516706228168
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794956,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.020834542260998793
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250452,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.82003961467281
+        }
+      }
+    },
+    {
+      "case": "288",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837614,
+      "directed_body_bytes": {
+        "client/inference/control": 5915,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787876979,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 2,
+      "unattributed_body_bytes": 138877,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262432,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.1589451672645438
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794956,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083454228751132
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250452,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.820039615716333
+        }
+      }
+    },
+    {
+      "case": "288/both",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837726,
+      "directed_body_bytes": {
+        "client/inference/control": 6028,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5670,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787877100,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 0,
+      "unattributed_body_bytes": 138989,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262455,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894514461119166
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794979,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083453931810853
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250429,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200394988417748
+        }
+      }
+    },
+    {
+      "case": "288/both",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837728,
+      "directed_body_bytes": {
+        "client/inference/control": 6028,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5672,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787877102,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 1,
+      "unattributed_body_bytes": 138991,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262455,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894514420666755
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794979,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083453926508349
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250429,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200394967547295
+        }
+      }
+    },
+    {
+      "case": "288/both",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837727,
+      "directed_body_bytes": {
+        "client/inference/control": 6028,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787877110,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 2,
+      "unattributed_body_bytes": 138990,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262455,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.1589451444089296
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794979,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083453929159601
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250429,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200394977982521
+        }
+      }
+    },
+    {
+      "case": "288/both-placement",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 5374767,
+        "decode_online": 8731450,
+        "prefill_material": 211573876,
+        "prefill_online": 341198143,
+        "setup_and_delivery": 155466724
+      },
+      "covered_body_bytes": 722444973,
+      "directed_body_bytes": {
+        "client/inference/control": 5722,
+        "client/inference/online": 132822377,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 7990,
+        "inference/client/cold": 155464774,
+        "inference/client/control": 4403,
+        "inference/client/online": 217107216,
+        "inference/preparation/offline": 4674,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 6612,
+        "preparation/inference/offline": 217021205
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 14106217,
+      "known_prefill_body_bytes": 552772019,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 723888286,
+      "other_known_setup_body_bytes": 1950,
+      "public_delivery_body_bytes": 155464774,
+      "replicate": 0,
+      "unattributed_body_bytes": 100013,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 10975779,
+          "removed_known_body_bytes": 155464774,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.21519254726684908
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -130382778,
+          "removed_known_body_bytes": 14106217,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.019525662890867677
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 408283024,
+          "removed_known_body_bytes": 552772019,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7651406538335758
+        }
+      }
+    },
+    {
+      "case": "288/both-placement",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 5374767,
+        "decode_online": 8731450,
+        "prefill_material": 211573876,
+        "prefill_online": 341198143,
+        "setup_and_delivery": 155466724
+      },
+      "covered_body_bytes": 722444973,
+      "directed_body_bytes": {
+        "client/inference/control": 5722,
+        "client/inference/online": 132822377,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 7990,
+        "inference/client/cold": 155464774,
+        "inference/client/control": 4403,
+        "inference/client/online": 217107216,
+        "inference/preparation/offline": 4674,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 6612,
+        "preparation/inference/offline": 217021205
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 14106217,
+      "known_prefill_body_bytes": 552772019,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 723888286,
+      "other_known_setup_body_bytes": 1950,
+      "public_delivery_body_bytes": 155464774,
+      "replicate": 1,
+      "unattributed_body_bytes": 100013,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 10975779,
+          "removed_known_body_bytes": 155464774,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.21519254726684908
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -130382778,
+          "removed_known_body_bytes": 14106217,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.019525662890867677
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 408283024,
+          "removed_known_body_bytes": 552772019,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.7651406538335758
+        }
+      }
+    },
+    {
+      "case": "288/both-placement",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 5374767,
+        "decode_online": 8731450,
+        "prefill_material": 211573876,
+        "prefill_online": 341198143,
+        "setup_and_delivery": 155466724
+      },
+      "covered_body_bytes": 722444974,
+      "directed_body_bytes": {
+        "client/inference/control": 5722,
+        "client/inference/online": 132822377,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 7990,
+        "inference/client/cold": 155464774,
+        "inference/client/control": 4404,
+        "inference/client/online": 217107216,
+        "inference/preparation/offline": 4674,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 6612,
+        "preparation/inference/offline": 217021205
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 14106217,
+      "known_prefill_body_bytes": 552772019,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 723888287,
+      "other_known_setup_body_bytes": 1950,
+      "public_delivery_body_bytes": 155464774,
+      "replicate": 2,
+      "unattributed_body_bytes": 100014,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": 10975779,
+          "removed_known_body_bytes": 155464774,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.21519254696898202
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -130382778,
+          "removed_known_body_bytes": 14106217,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.019525662863840478
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 408283024,
+          "removed_known_body_bytes": 552772019,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.765140652774477
+        }
+      }
+    },
+    {
+      "case": "288/digit8",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837646,
+      "directed_body_bytes": {
+        "client/inference/control": 5947,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787876988,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 0,
+      "unattributed_body_bytes": 138909,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262439,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894516079215681
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794963,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083454143911044
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250445,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200395823235986
+        }
+      }
+    },
+    {
+      "case": "288/digit8",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837646,
+      "directed_body_bytes": {
+        "client/inference/control": 5947,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787876988,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 1,
+      "unattributed_body_bytes": 138909,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262439,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894516079215681
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794963,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083454143911044
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250445,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200395823235986
+        }
+      }
+    },
+    {
+      "case": "288/digit8",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837647,
+      "directed_body_bytes": {
+        "client/inference/control": 5947,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5672,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787876989,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 2,
+      "unattributed_body_bytes": 138910,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262439,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894516058989472
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794963,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.020834541412597912
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250445,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200395812800758
+        }
+      }
+    },
+    {
+      "case": "288/tiling",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837695,
+      "directed_body_bytes": {
+        "client/inference/control": 5996,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787877069,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 0,
+      "unattributed_body_bytes": 138958,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262448,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894515088131525
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794972,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083454013999672
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250436,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200395311909796
+        }
+      }
+    },
+    {
+      "case": "288/tiling",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837695,
+      "directed_body_bytes": {
+        "client/inference/control": 5996,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787877069,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 1,
+      "unattributed_body_bytes": 138958,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262448,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894515088131525
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794972,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083454013999672
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250436,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200395311909796
+        }
+      }
+    },
+    {
+      "case": "288/tiling",
+      "comparison_identity": {
+        "measurement_digest": "23672f705c77193dd95297afcfec378e11403b4caa1c738eb551fd50f4ed110e",
+        "numeric_digest": "1f46543e2b259b22314e3caeeb74b5a5a8be6bdc6855621fc49357145b973854",
+        "output_digest": "46ace09eda406d398bc5fab232e41dd88be6d624a42809dbcbf2913ec77c991c",
+        "privacy_digest": "3a6726f46b52aee9ca02596fc7ef4a41f953fb25ad0285adfa6525aedd54bbd2",
+        "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+        "state_digest": "77d5c17ce596cfeb7b9398a1a9d3a41c969e6e6224a246f81308b96df0278698",
+        "workload_digest": "887f4193d34c8cdcf017f4fa0b6ad959fd6d551b401d60ae50bca7c6606769a4"
+      },
+      "complete_cold_wire_bytes": null,
+      "components_body_bytes": {
+        "decode_material": 6138973,
+        "decode_online": 10233594,
+        "prefill_material": 243014800,
+        "prefill_online": 401403175,
+        "setup_and_delivery": 124908195
+      },
+      "covered_body_bytes": 785837695,
+      "directed_body_bytes": {
+        "client/inference/control": 5996,
+        "client/inference/online": 162215691,
+        "client/preparation/control": 0,
+        "client/preparation/offline": 13134,
+        "inference/client/cold": 124905091,
+        "inference/client/control": 5671,
+        "inference/client/online": 249421078,
+        "inference/preparation/offline": 7804,
+        "preparation/client/control": 0,
+        "preparation/client/offline": 10958,
+        "preparation/inference/offline": 249252272
+      },
+      "first_request_only_client_peak_rss_bytes": null,
+      "generated_output_tokens": 8,
+      "input_tokens": 288,
+      "known_decode_body_bytes": 16372567,
+      "known_prefill_body_bytes": 644417975,
+      "missing_checkpoint_distribution_bytes": null,
+      "missing_tokenizer_distribution_bytes": null,
+      "native_tcp_stream_bytes": 787877078,
+      "other_known_setup_body_bytes": 3104,
+      "public_delivery_body_bytes": 124905091,
+      "replicate": 2,
+      "unattributed_body_bytes": 138958,
+      "zero_cost_sensitivities": {
+        "entire_public_delivery": {
+          "maximum_additional_body_bytes": -32262448,
+          "removed_known_body_bytes": 124905091,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.15894515088131525
+        },
+        "known_decode_only": {
+          "maximum_additional_body_bytes": -140794972,
+          "removed_known_body_bytes": 16372567,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.02083454013999672
+        },
+        "known_prefill": {
+          "maximum_additional_body_bytes": 487250436,
+          "removed_known_body_bytes": 644417975,
+          "scope": "hypothetical free deletion within original covered bodies only",
+          "target_fraction": "1/5",
+          "zero_replacement_ceiling_fraction": 0.8200395311909796
+        }
+      }
+    }
+  ],
+  "complete": true,
+  "limitations": [
+    "Historical source is cached and client tokenizer is pre-positioned; distribution is unknown.",
+    "Only first-request traffic is extracted; original process peak includes its later repeat.",
+    "Known prefill/decode subsets exclude residual attribution; complete marginal rates stay unknown.",
+    "Free deletion is an optimistic budget, not a candidate implementation or achieved saving.",
+    "Raw vocabulary representations cannot replace compressed public delivery counters byte-for-byte.",
+    "No candidate quality, process RSS, privacy proof, serving timing or physical wire is measured."
+  ],
+  "probe_sha256": "3e72db1636680147cc04a64a32cf6d04fb77641f05ba02ef979dedd025a41aeb",
+  "schema": "pllm.cold_request_accounting_screen.v1",
+  "scope": "read-only historical first-request extraction and conditional body sensitivities",
+  "source": {
+    "path": "docs/evidence/research-sota-combinations-qwen25.json",
+    "sha256": "5fb73b6883a0e42ac42b65b33a84cdfe0c6646d1e459f0df72639c38756ad54d"
+  }
+}

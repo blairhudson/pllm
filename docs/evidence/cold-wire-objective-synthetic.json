@@ -1,0 +1,889 @@
+{
+  "candidates": [
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 0.0,
+        "relative_mse": 0.0
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3239,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 1,
+      "heldout": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 0.0,
+        "relative_mse": 0.0
+      },
+      "integer_weights_sha256": "49584bc66097ba838aea8ec5689bd7d2f3e8056cca576a54e09d9111fb634580",
+      "max_input_width": 19,
+      "name": "unchanged_W8A8",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        948,
+        966,
+        857,
+        949,
+        1048,
+        820,
+        833,
+        770
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1512,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2695,
+        "inference_to_client": 387,
+        "input_tensor_bytes": 1216,
+        "output_tensor_bytes": 290,
+        "preparation_to_inference": 716
+      },
+      "train": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 0.0,
+        "relative_mse": 0.0
+      },
+      "training_integer_edits": 0,
+      "whole_request_bytes": null,
+      "widths": [
+        18,
+        18,
+        18,
+        18,
+        19,
+        18,
+        18,
+        18
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 2032.0,
+        "relative_mse": 3.61998555237909e-05
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3167,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 1,
+      "heldout": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 746.0,
+        "relative_mse": 4.252322056846637e-05
+      },
+      "integer_weights_sha256": "a25d763cb327e3bd9ebe2a75e520cd1d1ab4ead704ccd28bdf1c7da209c473af",
+      "max_input_width": 18,
+      "name": "integer_trained_width_minus_1",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        948,
+        966,
+        857,
+        949,
+        1032,
+        820,
+        833,
+        770
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1448,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2623,
+        "inference_to_client": 385,
+        "input_tensor_bytes": 1152,
+        "output_tensor_bytes": 288,
+        "preparation_to_inference": 710
+      },
+      "train": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 618.0,
+        "relative_mse": 3.210334143454228e-05
+      },
+      "training_integer_edits": 16,
+      "whole_request_bytes": null,
+      "widths": [
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 2032.0,
+        "relative_mse": 0.00023476037257839395
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3167,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 1,
+      "heldout": {
+        "argmax_agreement": 0.9791666666666666,
+        "max_absolute_integer_teacher_error": 979.0,
+        "relative_mse": 0.00034974605428017704
+      },
+      "integer_weights_sha256": "4f1a26472dc90fdf07ade81b5998f5f97c8c48cc38e64f45aa6d0b22fb514a5d",
+      "max_input_width": 18,
+      "name": "naive_shrink_width_minus_1",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        933,
+        951,
+        846,
+        934,
+        1032,
+        812,
+        821,
+        761
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1448,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2623,
+        "inference_to_client": 385,
+        "input_tensor_bytes": 1152,
+        "output_tensor_bytes": 288,
+        "preparation_to_inference": 710
+      },
+      "train": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 838.0,
+        "relative_mse": 0.0003290888602120003
+      },
+      "training_integer_edits": 0,
+      "whole_request_bytes": null,
+      "widths": [
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 67564.0,
+        "relative_mse": 0.16437233921634856
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3069,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 1,
+      "heldout": {
+        "argmax_agreement": 0.7708333333333334,
+        "max_absolute_integer_teacher_error": 19044.0,
+        "relative_mse": 0.14621142250737273
+      },
+      "integer_weights_sha256": "f627ba836631ea645fcc1e85e918f0a7856d097ac8bd608da3ebe47db3dde7dc",
+      "max_input_width": 17,
+      "name": "integer_trained_width_minus_2",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        516,
+        516,
+        516,
+        516,
+        516,
+        516,
+        516,
+        516
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1384,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2525,
+        "inference_to_client": 369,
+        "input_tensor_bytes": 1088,
+        "output_tensor_bytes": 272,
+        "preparation_to_inference": 692
+      },
+      "train": {
+        "argmax_agreement": 0.7578125,
+        "max_absolute_integer_teacher_error": 18978.0,
+        "relative_mse": 0.1076188021240957
+      },
+      "training_integer_edits": 3063,
+      "whole_request_bytes": null,
+      "widths": [
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 67437.0,
+        "relative_mse": 0.2583723747697781
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3143,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 1,
+      "heldout": {
+        "argmax_agreement": 0.9895833333333334,
+        "max_absolute_integer_teacher_error": 24634.0,
+        "relative_mse": 0.25634443808099344
+      },
+      "integer_weights_sha256": "ac1d9b2f6f00401609b808cfd486c9162d860aa6cc5e31d6807b4cf59fc8d067",
+      "max_input_width": 18,
+      "name": "naive_shrink_width_minus_2",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        463,
+        474,
+        419,
+        467,
+        517,
+        402,
+        411,
+        375
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1448,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2599,
+        "inference_to_client": 371,
+        "input_tensor_bytes": 1152,
+        "output_tensor_bytes": 274,
+        "preparation_to_inference": 700
+      },
+      "train": {
+        "argmax_agreement": 0.984375,
+        "max_absolute_integer_teacher_error": 22050.0,
+        "relative_mse": 0.2563732197207317
+      },
+      "training_integer_edits": 0,
+      "whole_request_bytes": null,
+      "widths": [
+        17,
+        17,
+        17,
+        17,
+        18,
+        17,
+        17,
+        17
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 1778.0,
+        "relative_mse": 0.00013197863993048766
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3143,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 2,
+      "heldout": {
+        "argmax_agreement": 0.9791666666666666,
+        "max_absolute_integer_teacher_error": 950.0,
+        "relative_mse": 0.00040809202055711047
+      },
+      "integer_weights_sha256": "ad0370d5b73bb495eb21f2fcb4db8a37cb842611d566e07d88bb10d0d82276cd",
+      "max_input_width": 18,
+      "name": "coarser_fixed_scale_2",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        475,
+        483,
+        428,
+        475,
+        524,
+        414,
+        418,
+        383
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1448,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2599,
+        "inference_to_client": 371,
+        "input_tensor_bytes": 1152,
+        "output_tensor_bytes": 274,
+        "preparation_to_inference": 700
+      },
+      "train": {
+        "argmax_agreement": 0.9921875,
+        "max_absolute_integer_teacher_error": 985.0,
+        "relative_mse": 0.00042135710351343667
+      },
+      "training_integer_edits": 0,
+      "whole_request_bytes": null,
+      "widths": [
+        17,
+        17,
+        17,
+        17,
+        18,
+        17,
+        17,
+        17
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 1778.0,
+        "relative_mse": 0.0001418905051334304
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3143,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 2,
+      "heldout": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 915.0,
+        "relative_mse": 0.0004262047695812708
+      },
+      "integer_weights_sha256": "ac62853bc5256bb1801a7d11b4a5060b4f39232b40b28e1b109c40ac0b2f8b49",
+      "max_input_width": 18,
+      "name": "coarser_scale_2_integer_trained",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        473,
+        485,
+        429,
+        476,
+        526,
+        412,
+        417,
+        382
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1448,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2599,
+        "inference_to_client": 371,
+        "input_tensor_bytes": 1152,
+        "output_tensor_bytes": 274,
+        "preparation_to_inference": 700
+      },
+      "train": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 797.0,
+        "relative_mse": 0.0002717616325615805
+      },
+      "training_integer_edits": 50,
+      "whole_request_bytes": null,
+      "widths": [
+        17,
+        17,
+        17,
+        17,
+        18,
+        17,
+        17,
+        17
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 2540.0,
+        "relative_mse": 0.0004039085070199169
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3045,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 4,
+      "heldout": {
+        "argmax_agreement": 0.9479166666666666,
+        "max_absolute_integer_teacher_error": 1892.0,
+        "relative_mse": 0.0011644922494990864
+      },
+      "integer_weights_sha256": "22da4e0119852c0df4912166176f1c414cf9719c02989b13f2844a98bf806f56",
+      "max_input_width": 17,
+      "name": "coarser_fixed_scale_4",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        237,
+        242,
+        213,
+        234,
+        263,
+        208,
+        208,
+        190
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1384,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2501,
+        "inference_to_client": 355,
+        "input_tensor_bytes": 1088,
+        "output_tensor_bytes": 258,
+        "preparation_to_inference": 682
+      },
+      "train": {
+        "argmax_agreement": 0.9765625,
+        "max_absolute_integer_teacher_error": 1608.0,
+        "relative_mse": 0.0011029828209361033
+      },
+      "training_integer_edits": 0,
+      "whole_request_bytes": null,
+      "widths": [
+        16,
+        16,
+        16,
+        16,
+        17,
+        16,
+        16,
+        16
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 3302.0,
+        "relative_mse": 0.000406494210985902
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 3045,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 4,
+      "heldout": {
+        "argmax_agreement": 0.96875,
+        "max_absolute_integer_teacher_error": 2017.0,
+        "relative_mse": 0.001316422575022966
+      },
+      "integer_weights_sha256": "4446f5916e79f7694fb6924f300e87870c4a4c57b48d4f0280fad73ec9a2d2a5",
+      "max_input_width": 17,
+      "name": "coarser_scale_4_integer_trained",
+      "public_activation_bound": 127,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        239,
+        244,
+        215,
+        234,
+        263,
+        208,
+        208,
+        192
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1384,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2501,
+        "inference_to_client": 355,
+        "input_tensor_bytes": 1088,
+        "output_tensor_bytes": 258,
+        "preparation_to_inference": 682
+      },
+      "train": {
+        "argmax_agreement": 0.96875,
+        "max_absolute_integer_teacher_error": 1430.0,
+        "relative_mse": 0.0009212733076959088
+      },
+      "training_integer_edits": 26,
+      "whole_request_bytes": null,
+      "widths": [
+        16,
+        16,
+        16,
+        16,
+        17,
+        16,
+        16,
+        16
+      ]
+    },
+    {
+      "adverse_sign_aligned": {
+        "argmax_agreement": 1.0,
+        "max_absolute_integer_teacher_error": 0.0,
+        "relative_mse": 0.0
+      },
+      "cold_known_raw_payload_plus_stage_bodies": 2779,
+      "delivery_axis_scales_bytes": 0,
+      "delivery_fp32_weight_scales_client_bytes": 32,
+      "delivery_raw_weight_bytes_per_provider": 256,
+      "fixed_weight_scale": 1,
+      "heldout": {
+        "argmax_agreement": 0.9270833333333334,
+        "max_absolute_integer_teacher_error": 2914.0,
+        "relative_mse": 0.005034969947027356
+      },
+      "integer_weights_sha256": "49584bc66097ba838aea8ec5689bd7d2f3e8056cca576a54e09d9111fb634580",
+      "max_input_width": 14,
+      "name": "public_A4_changed_numeric_identity",
+      "public_activation_bound": 7,
+      "publisher_new_fp32_checkpoint_bytes": 1024,
+      "row_l1": [
+        948,
+        966,
+        857,
+        949,
+        1048,
+        820,
+        833,
+        770
+      ],
+      "stage_16_rows": {
+        "client_to_inference": 1192,
+        "client_to_preparation": 80,
+        "covered_stage_bodies": 2235,
+        "inference_to_client": 320,
+        "input_tensor_bytes": 896,
+        "output_tensor_bytes": 224,
+        "preparation_to_inference": 643
+      },
+      "train": {
+        "argmax_agreement": 0.9609375,
+        "max_absolute_integer_teacher_error": 3582.7142857142826,
+        "relative_mse": 0.005453569525658382
+      },
+      "training_integer_edits": 0,
+      "whole_request_bytes": null,
+      "widths": [
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14
+      ]
+    }
+  ],
+  "data_shapes": {
+    "adverse": [
+      8,
+      32
+    ],
+    "heldout": [
+      96,
+      32
+    ],
+    "teacher": [
+      8,
+      32
+    ],
+    "train": [
+      128,
+      32
+    ]
+  },
+  "exact_divisible_weight_reparameterization": {
+    "after_stage": {
+      "client_to_inference": 1512,
+      "client_to_preparation": 80,
+      "covered_stage_bodies": 2715,
+      "inference_to_client": 395,
+      "input_tensor_bytes": 1216,
+      "output_tensor_bytes": 298,
+      "preparation_to_inference": 728
+    },
+    "after_widths": [
+      19,
+      19,
+      18,
+      19,
+      19,
+      19,
+      18,
+      18
+    ],
+    "before_stage": {
+      "client_to_inference": 1576,
+      "client_to_preparation": 80,
+      "covered_stage_bodies": 2811,
+      "inference_to_client": 411,
+      "input_tensor_bytes": 1280,
+      "output_tensor_bytes": 314,
+      "preparation_to_inference": 744
+    },
+    "before_widths": [
+      20,
+      20,
+      19,
+      20,
+      20,
+      20,
+      19,
+      19
+    ],
+    "extra_axis_scale_bytes": 0,
+    "importer_must_preserve_fixed_quantized_values_and_scales": true,
+    "integer_product_times_public_scale_exact": true,
+    "row_scale_bytes_unchanged": 32,
+    "scope": "constructed divisible integer weights only; not Qwen"
+  },
+  "extra_array_design_upper_bound_bytes": 8388608,
+  "full_transport": null,
+  "hypothetical_geometry": {
+    "body_parameters": 357826560,
+    "fp32_publisher_checkpoint_bytes": 1431306240,
+    "output_scale_count": 304128,
+    "records": [
+      {
+        "correction_tensor_bytes": 41969664,
+        "covered_hypothetical_total": 835171046,
+        "delivery": {
+          "new_training_checkpoint_inference_delivery_extra": 0,
+          "publisher_to_client_axis_scales": 0,
+          "publisher_to_client_fp32_weight_scales": 1216512,
+          "publisher_to_inference_raw_signed_i8_weights": 357826560,
+          "publisher_to_preparation_raw_signed_i8_weights": 357826560
+        },
+        "full_request_bytes": null,
+        "input_tensor_bytes": 33914880,
+        "online_two_directed_bodies": 76243060,
+        "preparation_two_directed_bodies": 42058354,
+        "response_tensor_bytes": 41969664,
+        "uniform_width": 24
+      },
+      {
+        "correction_tensor_bytes": 40220928,
+        "covered_hypothetical_total": 830260454,
+        "delivery": {
+          "new_training_checkpoint_inference_delivery_extra": 0,
+          "publisher_to_client_axis_scales": 0,
+          "publisher_to_client_fp32_weight_scales": 1216512,
+          "publisher_to_inference_raw_signed_i8_weights": 357826560,
+          "publisher_to_preparation_raw_signed_i8_weights": 357826560
+        },
+        "full_request_bytes": null,
+        "input_tensor_bytes": 32501760,
+        "online_two_directed_bodies": 73081204,
+        "preparation_two_directed_bodies": 40309618,
+        "response_tensor_bytes": 40220928,
+        "uniform_width": 23
+      },
+      {
+        "correction_tensor_bytes": 38472192,
+        "covered_hypothetical_total": 825349862,
+        "delivery": {
+          "new_training_checkpoint_inference_delivery_extra": 0,
+          "publisher_to_client_axis_scales": 0,
+          "publisher_to_client_fp32_weight_scales": 1216512,
+          "publisher_to_inference_raw_signed_i8_weights": 357826560,
+          "publisher_to_preparation_raw_signed_i8_weights": 357826560
+        },
+        "full_request_bytes": null,
+        "input_tensor_bytes": 31088640,
+        "online_two_directed_bodies": 69919348,
+        "preparation_two_directed_bodies": 38560882,
+        "response_tensor_bytes": 38472192,
+        "uniform_width": 22
+      },
+      {
+        "correction_tensor_bytes": 34974720,
+        "covered_hypothetical_total": 815528678,
+        "delivery": {
+          "new_training_checkpoint_inference_delivery_extra": 0,
+          "publisher_to_client_axis_scales": 0,
+          "publisher_to_client_fp32_weight_scales": 1216512,
+          "publisher_to_inference_raw_signed_i8_weights": 357826560,
+          "publisher_to_preparation_raw_signed_i8_weights": 357826560
+        },
+        "full_request_bytes": null,
+        "input_tensor_bytes": 28262400,
+        "online_two_directed_bodies": 63595636,
+        "preparation_two_directed_bodies": 35063410,
+        "response_tensor_bytes": 34974720,
+        "uniform_width": 20
+      },
+      {
+        "correction_tensor_bytes": 27979776,
+        "covered_hypothetical_total": 795885974,
+        "delivery": {
+          "new_training_checkpoint_inference_delivery_extra": 0,
+          "publisher_to_client_axis_scales": 0,
+          "publisher_to_client_fp32_weight_scales": 1216512,
+          "publisher_to_inference_raw_signed_i8_weights": 357826560,
+          "publisher_to_preparation_raw_signed_i8_weights": 357826560
+        },
+        "full_request_bytes": null,
+        "input_tensor_bytes": 22609920,
+        "online_two_directed_bodies": 50948212,
+        "preparation_two_directed_bodies": 28068130,
+        "response_tensor_bytes": 27979776,
+        "uniform_width": 16
+      }
+    ],
+    "scope": "hypothetical body only, 24 layers, h896/i4864, GQA k/v128; 39+7 rows; lm_head/client embeddings excluded",
+    "training_fp32_master_plus_gradient_plus_two_adam_slots_bytes": 5725224960
+  },
+  "installed_checks": [
+    {
+      "all_four_body_sizes": true,
+      "exact_request_bytes": true,
+      "native_widths_and_packing": true,
+      "packed_input_matmul_and_native_unmask_exact": true,
+      "rows": 1
+    },
+    {
+      "all_four_body_sizes": true,
+      "exact_request_bytes": true,
+      "native_widths_and_packing": true,
+      "packed_input_matmul_and_native_unmask_exact": true,
+      "rows": 3
+    },
+    {
+      "all_four_body_sizes": true,
+      "exact_request_bytes": true,
+      "native_widths_and_packing": true,
+      "packed_input_matmul_and_native_unmask_exact": true,
+      "rows": 16
+    }
+  ],
+  "installed_native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+  "installed_serializer_hashes": {
+    "preparation_protocol.py": "dc879c9816840e722c4eee5675783b7d4d7b67250012d9276ab5c54a9c3a6503",
+    "residue_codec.py": "22cdf38e6ebf2402ccccb186fee3e9709061695e811142576a25d9776d613ce7",
+    "stage_protocol.py": "bf22cc5031abb1c28da8f4f0678d490f20e373406f6ffbca7427f3ad434a4d12"
+  },
+  "installed_serializer_matches_checkout": {
+    "preparation_protocol.py": true,
+    "residue_codec.py": true,
+    "stage_protocol.py": true
+  },
+  "latency": null,
+  "msgpack_version": "1.2.2",
+  "numpy_version": "2.5.3",
+  "real_quality": null,
+  "rss": null,
+  "scalar_max_normalized_requantization_same_integers": true,
+  "schema": "pllm.cold_wire_objective.synthetic.v1",
+  "scope": "public synthetic constrained integer distillation; no real checkpoint/transport/timing",
+  "seed": 6103,
+  "source_hashes": {
+    "crates/pllm-core/src/offset_transport.rs": "5b379541fa4de7390cc048a564a44616cae7cf6b82c3c869993df2ec76c660c2",
+    "python/pllm/runtime/preparation_protocol.py": "dc879c9816840e722c4eee5675783b7d4d7b67250012d9276ab5c54a9c3a6503",
+    "python/pllm/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "python/pllm/runtime/residue_codec.py": "22cdf38e6ebf2402ccccb186fee3e9709061695e811142576a25d9776d613ce7",
+    "python/pllm/runtime/stage_protocol.py": "bf22cc5031abb1c28da8f4f0678d490f20e373406f6ffbca7427f3ad434a4d12",
+    "scripts/probe_cold_wire_objective.py": "1167725747bf9d226511190dd49493d0cfb61aa296978eeafd48d3de549be9a7"
+  },
+  "synthetic_data_sha256": "9f958c899ea78c7f30db0bc28d8ff129314f7608135299102daad43d34c3fdaa",
+  "thresholds": [
+    {
+      "activation_bound": 7,
+      "cap_width": 16,
+      "next_l1_width": 17,
+      "row_l1_cap": 4681,
+      "width": 16
+    },
+    {
+      "activation_bound": 7,
+      "cap_width": 20,
+      "next_l1_width": 21,
+      "row_l1_cap": 74898,
+      "width": 20
+    },
+    {
+      "activation_bound": 7,
+      "cap_width": 21,
+      "next_l1_width": 22,
+      "row_l1_cap": 149796,
+      "width": 21
+    },
+    {
+      "activation_bound": 7,
+      "cap_width": 22,
+      "next_l1_width": 23,
+      "row_l1_cap": 299593,
+      "width": 22
+    },
+    {
+      "activation_bound": 7,
+      "cap_width": 23,
+      "next_l1_width": 24,
+      "row_l1_cap": 599186,
+      "width": 23
+    },
+    {
+      "activation_bound": 7,
+      "cap_width": 24,
+      "next_l1_width": 25,
+      "row_l1_cap": 1198372,
+      "width": 24
+    },
+    {
+      "activation_bound": 127,
+      "cap_width": 16,
+      "next_l1_width": 17,
+      "row_l1_cap": 258,
+      "width": 16
+    },
+    {
+      "activation_bound": 127,
+      "cap_width": 20,
+      "next_l1_width": 21,
+      "row_l1_cap": 4128,
+      "width": 20
+    },
+    {
+      "activation_bound": 127,
+      "cap_width": 21,
+      "next_l1_width": 22,
+      "row_l1_cap": 8256,
+      "width": 21
+    },
+    {
+      "activation_bound": 127,
+      "cap_width": 22,
+      "next_l1_width": 23,
+      "row_l1_cap": 16513,
+      "width": 22
+    },
+    {
+      "activation_bound": 127,
+      "cap_width": 23,
+      "next_l1_width": 24,
+      "row_l1_cap": 33026,
+      "width": 23
+    },
+    {
+      "activation_bound": 127,
+      "cap_width": 24,
+      "next_l1_width": 25,
+      "row_l1_cap": 66052,
+      "width": 24
+    }
+  ],
+  "unpriced": [
+    "client manifest and embeddings/head/nonlinear artifacts",
+    "publisher/provider scales and wrappers",
+    "registration, reservations, inventories, ticket issue/ACK, refill/lifecycle controls",
+    "transport authentication, HTTP/TLS framing/retries",
+    "compression/checkpoint architecture metadata",
+    "new model source license/task quality"
+  ]
+}

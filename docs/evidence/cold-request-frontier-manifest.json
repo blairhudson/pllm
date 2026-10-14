@@ -1,0 +1,14 @@
+{
+  "schema": "pllm.cold_request_frontier_evidence_manifest.v1",
+  "scope": "seven separate bounded references and one historical first-request audit; no serving or whole-client tier qualification",
+  "sha256": {
+    "cold-block-decoder-synthetic.json": "4fb2c9d06eed5ce8553794cfc8a93559a8cd756c166a6ae6c08c71f6976af733",
+    "cold-compositional-vocabulary-synthetic.json": "7adddb486f7da6daddf3e48b4494e9fcadfc4190347634750e199362f6f00470",
+    "cold-grammar-boundary-synthetic.json": "ae56a3465f94ab5c557b962782f819affcfad281de5a79e9c65d7b794a3a84c9",
+    "cold-latent-prompt-synthetic.json": "87f3181af5bd94ac8b82e41b7222180da7c3ddf1fcf9723d9a4bf4c77d992dba",
+    "cold-provider-artifacts-synthetic.json": "31fb2b437cfa6aa0df8269c8ce503c7f33493da09d3748de38e3847a650c827d",
+    "cold-request-accounting.json": "6fc876d225050f7fc311457ee298e68e5d2e11cabcdf9186a358347affd5a77a",
+    "cold-shared-core-synthetic.json": "8a6589f5191c747ea56b85e7ea526e511e82b5535f49285e2eded84d45a967d2",
+    "cold-wire-objective-synthetic.json": "047575bb164ed07ffbc8730a841327da84e26d553f1d380e11663fdfeddebcd5"
+  }
+}

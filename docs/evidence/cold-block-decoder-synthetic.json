@@ -1,0 +1,3810 @@
+{
+  "conclusion": "Public hierarchy can use prepared masked global linears with client-owned global nonlinear/KV and decoded latents; no extra latent permission flow. Trained architecture, pinned patch/numeric schedule, quality, full bytes and admission remain missing. Provider-resident secure nonlinear alternative is separate and uncosted.",
+  "decoder_download_sensitivity": [
+    {
+      "all_link_bytes": 4289792,
+      "decoder_download_bytes": 1048576
+    },
+    {
+      "all_link_bytes": 36795648,
+      "decoder_download_bytes": 33554432
+    },
+    {
+      "all_link_bytes": 137458944,
+      "decoder_download_bytes": 134217728
+    }
+  ],
+  "independent_head_failure": {
+    "autoregressive_joint": {
+      "00": 0.5,
+      "01": 0.0,
+      "10": 0.0,
+      "11": 0.5
+    },
+    "impossible_sequence_mass": 0.5,
+    "independent_exact_marginals_joint": {
+      "00": 0.25,
+      "01": 0.25,
+      "10": 0.25,
+      "11": 0.25
+    },
+    "total_variation": 0.5
+  },
+  "protected_serving_ready": false,
+  "provider_resident_alternative": {
+    "fixture": "public_weight_affine_additive_share_oracle",
+    "nonlinear_cost_in_old_scenarios": "absent for affine fixture; unknown and must be added for Transformer alternative",
+    "promotion_blocked_by_missing_costs": true,
+    "real_transformer_attention_and_kv_protocol_bytes": null,
+    "real_transformer_nonlinear_bytes": null
+  },
+  "public_prepared_placement": {
+    "client_owns": [
+      "global_patch_kv",
+      "global_attention_softmax_norm_activation_rescale",
+      "local_encoder_decoder_weights_and_state",
+      "decoded_latents",
+      "sampling"
+    ],
+    "composition": "public_weights_prepared_linears_client_global_kv_and_nonlinear",
+    "decode_rows": 8,
+    "direct_blt_or_megabyte_support": false,
+    "global_rows": 18,
+    "kv_geometry": {
+      "current_client_latent_bytes": 128,
+      "full_token_global_kv_bytes": 18176,
+      "full_token_global_kv_slots": 71,
+      "global_kv_bytes_per_slot": 256,
+      "local_decoder_window_kv_bytes": 2048,
+      "local_encoder_window_kv_bytes": 2048,
+      "not_included": [
+        "weights",
+        "attention_scratch",
+        "cross_attention_cache",
+        "allocator_overhead",
+        "prepared_masks_and_correlations",
+        "startup_peak"
+      ],
+      "patch_global_kv_bytes": 4608,
+      "patch_global_kv_slots": 18,
+      "patch_global_plus_local_window_kv_bytes": 8704
+    },
+    "latent_release_permission_required": false,
+    "ledger_bytes": {
+      "close_down": 256,
+      "close_up": 256,
+      "offline_output_corrections_including_unused": 36864,
+      "online_masked_stage_inputs": 36864,
+      "online_masked_stage_outputs": 36864,
+      "public_local_artifact_download": 5427200,
+      "setup_close_headers": 256,
+      "setup_down": 2048,
+      "setup_up": 1024,
+      "stage_headers": 48384
+    },
+    "measured_peak_rss_bytes": null,
+    "measured_wire_bytes": null,
+    "prefill_rows": 10,
+    "preparation_owns": [
+      "offline_stage_correlations_and_output_corrections"
+    ],
+    "projected_cold_bytes": 5590016,
+    "provider_owns": [
+      "global_body_matrices",
+      "masked_linear_execution"
+    ],
+    "provider_resident_matrix_bytes_not_client_download": 73728,
+    "reserved_preparation_rows": 18,
+    "scope": "bounded hypothetical prepared-stage body/header and KV geometry; no measured admission or trained quality",
+    "shape": {
+      "block_size": 4,
+      "head_dim": 8,
+      "hidden": 32,
+      "kv_element_bytes": 4,
+      "kv_heads": 2,
+      "layers": 2,
+      "local_window": 8,
+      "output_tokens": 32,
+      "prompt_tokens": 39
+    },
+    "stage_shapes_per_layer": [
+      {
+        "in": 32,
+        "name": "q",
+        "out": 32
+      },
+      {
+        "in": 32,
+        "name": "k",
+        "out": 16
+      },
+      {
+        "in": 32,
+        "name": "v",
+        "out": 16
+      },
+      {
+        "in": 32,
+        "name": "o",
+        "out": 32
+      },
+      {
+        "in": 32,
+        "name": "gate",
+        "out": 64
+      },
+      {
+        "in": 32,
+        "name": "up",
+        "out": 64
+      },
+      {
+        "in": 64,
+        "name": "down",
+        "out": 32
+      }
+    ],
+    "unmeasured_local_work": [
+      "patch_global_attention_and_nonlinear_cpu",
+      "local_encoder_decoder_cpu",
+      "cold_import_load_and_issuance"
+    ],
+    "unused_preparation_correction_bytes": 0
+  },
+  "resource_contract": {
+    "additional_numeric_arrays_bytes": 0,
+    "checkpoint_loads": 0,
+    "max_block_size": 16,
+    "max_prompt_tokens": 64,
+    "max_tokens": 64,
+    "timing_runs": 0
+  },
+  "same_original_checkpoint_execution": false,
+  "scenarios": {
+    "cancel_before_local": {
+      "cost": {
+        "all_link_bytes": 7103104,
+        "bytes_per_emitted_original_token": null,
+        "dependent_rounds": 101,
+        "global_rows_including_prefill_and_overissue": 11,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 40960,
+          "feedback_up_including_prefill_and_final": 81920,
+          "frames_and_ack_headers": 9344,
+          "global_forward_down": 90112,
+          "global_forward_peer": 180224,
+          "global_forward_up": 90112,
+          "preparation_download_including_unused": 1179648,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 780000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 163840,
+        "provider_macs": 11040960,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 4.638130240000001,
+        "unused_forward_body_bytes": 32768,
+        "unused_preparation_bytes": 458752
+      },
+      "execution": {
+        "block_size": 4,
+        "blocks": [
+          {
+            "capacity": 4,
+            "client_state_after": [
+              246,
+              176
+            ],
+            "committed": false,
+            "latent": [
+              165,
+              22
+            ],
+            "rows": [],
+            "tokens": []
+          }
+        ],
+        "emitted_original_tokens": 0,
+        "feedback_commits": 0,
+        "final_state": [
+          246,
+          176
+        ],
+        "local_decoder_rows": 0,
+        "prefill_global_rows": 10,
+        "provider_kv_rows_per_party": 10,
+        "remote_decode_steps": 1,
+        "requested_original_tokens": 32,
+        "reserved_preparation_blocks": 8,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "cancel",
+        "tokens": [],
+        "unused_capacity_tokens": 4,
+        "unused_issued_forwards": 1,
+        "unused_preparation_blocks": 7
+      }
+    },
+    "cancel_boundary_overissue": {
+      "cost": {
+        "all_link_bytes": 7148800,
+        "bytes_per_emitted_original_token": 1787200.0,
+        "dependent_rounds": 110,
+        "global_rows_including_prefill_and_overissue": 12,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 45056,
+          "feedback_up_including_prefill_and_final": 90112,
+          "frames_and_ack_headers": 9984,
+          "global_forward_down": 98304,
+          "global_forward_peer": 196608,
+          "global_forward_up": 98304,
+          "preparation_download_including_unused": 1179648,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 1260000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 180224,
+        "provider_macs": 12045056,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 5.008594112,
+        "unused_forward_body_bytes": 32768,
+        "unused_preparation_bytes": 393216
+      },
+      "execution": {
+        "block_size": 4,
+        "blocks": [
+          {
+            "capacity": 4,
+            "client_state_after": [
+              27,
+              145
+            ],
+            "committed": true,
+            "latent": [
+              165,
+              22
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5219839097124932
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8066907771186791
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9604947743238768
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.2896253777644655
+              }
+            ],
+            "tokens": [
+              1,
+              1,
+              2,
+              1
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              27,
+              145
+            ],
+            "committed": false,
+            "latent": [
+              210,
+              224
+            ],
+            "rows": [],
+            "tokens": []
+          }
+        ],
+        "emitted_original_tokens": 4,
+        "feedback_commits": 1,
+        "final_state": [
+          27,
+          145
+        ],
+        "local_decoder_rows": 4,
+        "prefill_global_rows": 10,
+        "provider_kv_rows_per_party": 11,
+        "remote_decode_steps": 2,
+        "requested_original_tokens": 32,
+        "reserved_preparation_blocks": 8,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "cancel",
+        "tokens": [
+          1,
+          1,
+          2,
+          1
+        ],
+        "unused_capacity_tokens": 4,
+        "unused_issued_forwards": 1,
+        "unused_preparation_blocks": 6
+      }
+    },
+    "eos_first": {
+      "cost": {
+        "all_link_bytes": 7115648,
+        "bytes_per_emitted_original_token": 7115648.0,
+        "dependent_rounds": 102,
+        "global_rows_including_prefill_and_overissue": 11,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 45056,
+          "feedback_up_including_prefill_and_final": 90112,
+          "frames_and_ack_headers": 9600,
+          "global_forward_down": 90112,
+          "global_forward_peer": 180224,
+          "global_forward_up": 90112,
+          "preparation_download_including_unused": 1179648,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 900000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 180224,
+        "provider_macs": 11045056,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 4.680341952,
+        "unused_forward_body_bytes": 0,
+        "unused_preparation_bytes": 458752
+      },
+      "execution": {
+        "block_size": 4,
+        "blocks": [
+          {
+            "capacity": 4,
+            "client_state_after": [
+              228,
+              25
+            ],
+            "committed": true,
+            "latent": [
+              165,
+              22
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0
+                ],
+                "token": 3,
+                "uniform": 0.5219839097124932
+              }
+            ],
+            "tokens": [
+              3
+            ]
+          }
+        ],
+        "emitted_original_tokens": 1,
+        "feedback_commits": 1,
+        "final_state": [
+          228,
+          25
+        ],
+        "local_decoder_rows": 1,
+        "prefill_global_rows": 10,
+        "provider_kv_rows_per_party": 11,
+        "remote_decode_steps": 1,
+        "requested_original_tokens": 32,
+        "reserved_preparation_blocks": 8,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "eos",
+        "tokens": [
+          3
+        ],
+        "unused_capacity_tokens": 3,
+        "unused_issued_forwards": 0,
+        "unused_preparation_blocks": 7
+      }
+    },
+    "eos_middle": {
+      "cost": {
+        "all_link_bytes": 7115648,
+        "bytes_per_emitted_original_token": 2371882.6666666665,
+        "dependent_rounds": 102,
+        "global_rows_including_prefill_and_overissue": 11,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 45056,
+          "feedback_up_including_prefill_and_final": 90112,
+          "frames_and_ack_headers": 9600,
+          "global_forward_down": 90112,
+          "global_forward_peer": 180224,
+          "global_forward_up": 90112,
+          "preparation_download_including_unused": 1179648,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 1140000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 180224,
+        "provider_macs": 11045056,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 4.682741952,
+        "unused_forward_body_bytes": 0,
+        "unused_preparation_bytes": 458752
+      },
+      "execution": {
+        "block_size": 4,
+        "blocks": [
+          {
+            "capacity": 4,
+            "client_state_after": [
+              31,
+              131
+            ],
+            "committed": true,
+            "latent": [
+              165,
+              22
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5219839097124932
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8066907771186791
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.0
+                ],
+                "token": 3,
+                "uniform": 0.9604947743238768
+              }
+            ],
+            "tokens": [
+              1,
+              1,
+              3
+            ]
+          }
+        ],
+        "emitted_original_tokens": 3,
+        "feedback_commits": 1,
+        "final_state": [
+          31,
+          131
+        ],
+        "local_decoder_rows": 3,
+        "prefill_global_rows": 10,
+        "provider_kv_rows_per_party": 11,
+        "remote_decode_steps": 1,
+        "requested_original_tokens": 32,
+        "reserved_preparation_blocks": 8,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "eos",
+        "tokens": [
+          1,
+          1,
+          3
+        ],
+        "unused_capacity_tokens": 1,
+        "unused_issued_forwards": 0,
+        "unused_preparation_blocks": 7
+      }
+    },
+    "final_partial_k4": {
+      "cost": {
+        "all_link_bytes": 6878720,
+        "bytes_per_emitted_original_token": 687872.0,
+        "dependent_rounds": 120,
+        "global_rows_including_prefill_and_overissue": 13,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 53248,
+          "feedback_up_including_prefill_and_final": 106496,
+          "frames_and_ack_headers": 10240,
+          "global_forward_down": 106496,
+          "global_forward_peer": 212992,
+          "global_forward_up": 106496,
+          "preparation_download_including_unused": 851968,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 1980000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 212992,
+        "provider_macs": 13053248,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 5.396204096,
+        "unused_forward_body_bytes": 0,
+        "unused_preparation_bytes": 0
+      },
+      "execution": {
+        "block_size": 4,
+        "blocks": [
+          {
+            "capacity": 4,
+            "client_state_after": [
+              27,
+              145
+            ],
+            "committed": true,
+            "latent": [
+              165,
+              22
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5219839097124932
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8066907771186791
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9604947743238768
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.2896253777644655
+              }
+            ],
+            "tokens": [
+              1,
+              1,
+              2,
+              1
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              3,
+              130
+            ],
+            "committed": true,
+            "latent": [
+              210,
+              224
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.7661074377979527
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.7042198668434126
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.6613830572238304
+              },
+              {
+                "position": 3,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.11016204891721182
+              }
+            ],
+            "tokens": [
+              2,
+              1,
+              1,
+              0
+            ]
+          },
+          {
+            "capacity": 2,
+            "client_state_after": [
+              17,
+              241
+            ],
+            "committed": true,
+            "latent": [
+              147,
+              155
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.026936778790526805
+              },
+              {
+                "position": 1,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.3841711045442975
+              }
+            ],
+            "tokens": [
+              0,
+              2
+            ]
+          }
+        ],
+        "emitted_original_tokens": 10,
+        "feedback_commits": 3,
+        "final_state": [
+          17,
+          241
+        ],
+        "local_decoder_rows": 10,
+        "prefill_global_rows": 10,
+        "provider_kv_rows_per_party": 13,
+        "remote_decode_steps": 3,
+        "requested_original_tokens": 10,
+        "reserved_preparation_blocks": 3,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "length",
+        "tokens": [
+          1,
+          1,
+          2,
+          1,
+          2,
+          1,
+          1,
+          0,
+          0,
+          2
+        ],
+        "unused_capacity_tokens": 0,
+        "unused_issued_forwards": 0,
+        "unused_preparation_blocks": 0
+      }
+    },
+    "hierarchy_k4": {
+      "cost": {
+        "all_link_bytes": 7435520,
+        "bytes_per_emitted_original_token": 232360.0,
+        "dependent_rounds": 165,
+        "global_rows_including_prefill_and_overissue": 18,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 73728,
+          "feedback_up_including_prefill_and_final": 147456,
+          "frames_and_ack_headers": 14080,
+          "global_forward_down": 147456,
+          "global_forward_peer": 294912,
+          "global_forward_up": 147456,
+          "preparation_download_including_unused": 1179648,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 4620000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 294912,
+        "provider_macs": 18073728,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 7.277189055999999,
+        "unused_forward_body_bytes": 0,
+        "unused_preparation_bytes": 0
+      },
+      "execution": {
+        "block_size": 4,
+        "blocks": [
+          {
+            "capacity": 4,
+            "client_state_after": [
+              27,
+              145
+            ],
+            "committed": true,
+            "latent": [
+              165,
+              22
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5219839097124932
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8066907771186791
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9604947743238768
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.2896253777644655
+              }
+            ],
+            "tokens": [
+              1,
+              1,
+              2,
+              1
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              3,
+              130
+            ],
+            "committed": true,
+            "latent": [
+              210,
+              224
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.7661074377979527
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.7042198668434126
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.6613830572238304
+              },
+              {
+                "position": 3,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.11016204891721182
+              }
+            ],
+            "tokens": [
+              2,
+              1,
+              1,
+              0
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              225,
+              226
+            ],
+            "committed": true,
+            "latent": [
+              147,
+              155
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.026936778790526805
+              },
+              {
+                "position": 1,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.3841711045442975
+              },
+              {
+                "position": 2,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.7463951961663844
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.252383767513222
+              }
+            ],
+            "tokens": [
+              0,
+              2,
+              2,
+              0
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              192,
+              240
+            ],
+            "committed": true,
+            "latent": [
+              173,
+              151
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5016026705680338
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.3174350905457497
+              },
+              {
+                "position": 2,
+                "previous": 0,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8463278091284241
+              },
+              {
+                "position": 3,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9451939145048893
+              }
+            ],
+            "tokens": [
+              1,
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              5,
+              201
+            ],
+            "committed": true,
+            "latent": [
+              121,
+              160
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.4015909369106695
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.998447005087021
+              },
+              {
+                "position": 2,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.0621927912524467
+              },
+              {
+                "position": 3,
+                "previous": 0,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8126090004416155
+              }
+            ],
+            "tokens": [
+              2,
+              2,
+              0,
+              1
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              196,
+              43
+            ],
+            "committed": true,
+            "latent": [
+              222,
+              113
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.8753165021282806
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.1509154802769801
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.7055686155919507
+              },
+              {
+                "position": 3,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.5588918686046748
+              }
+            ],
+            "tokens": [
+              2,
+              1,
+              1,
+              2
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              235,
+              41
+            ],
+            "committed": true,
+            "latent": [
+              189,
+              87
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9551878622608687
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.2100100094902223
+              },
+              {
+                "position": 2,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.5399633506201237
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.8824561068087002
+              }
+            ],
+            "tokens": [
+              2,
+              0,
+              2,
+              2
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              242,
+              241
+            ],
+            "committed": true,
+            "latent": [
+              8,
+              120
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.6387731810597964
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.3091995299583252
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.08186385413474262
+              },
+              {
+                "position": 3,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.939776047011715
+              }
+            ],
+            "tokens": [
+              1,
+              1,
+              0,
+              2
+            ]
+          }
+        ],
+        "emitted_original_tokens": 32,
+        "feedback_commits": 8,
+        "final_state": [
+          242,
+          241
+        ],
+        "local_decoder_rows": 32,
+        "prefill_global_rows": 10,
+        "provider_kv_rows_per_party": 18,
+        "remote_decode_steps": 8,
+        "requested_original_tokens": 32,
+        "reserved_preparation_blocks": 8,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "length",
+        "tokens": [
+          1,
+          1,
+          2,
+          1,
+          2,
+          1,
+          1,
+          0,
+          0,
+          2,
+          2,
+          0,
+          1,
+          0,
+          1,
+          2,
+          2,
+          2,
+          0,
+          1,
+          2,
+          1,
+          1,
+          2,
+          2,
+          0,
+          2,
+          2,
+          1,
+          1,
+          0,
+          2
+        ],
+        "unused_capacity_tokens": 0,
+        "unused_issued_forwards": 0,
+        "unused_preparation_blocks": 0
+      }
+    },
+    "sampled_eos": {
+      "cost": {
+        "all_link_bytes": 7298432,
+        "bytes_per_emitted_original_token": 405468.44444444444,
+        "dependent_rounds": 138,
+        "global_rows_including_prefill_and_overissue": 15,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 61440,
+          "feedback_up_including_prefill_and_final": 122880,
+          "frames_and_ack_headers": 12160,
+          "global_forward_down": 122880,
+          "global_forward_peer": 245760,
+          "global_forward_up": 122880,
+          "preparation_download_including_unused": 1179648,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 2940000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 245760,
+        "provider_macs": 15061440,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 6.16339744,
+        "unused_forward_body_bytes": 0,
+        "unused_preparation_bytes": 196608
+      },
+      "execution": {
+        "block_size": 4,
+        "blocks": [
+          {
+            "capacity": 4,
+            "client_state_after": [
+              46,
+              186
+            ],
+            "committed": true,
+            "latent": [
+              165,
+              22
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 1,
+                "uniform": 0.13436424411240122
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 2,
+                "uniform": 0.8474337369372327
+              },
+              {
+                "position": 2,
+                "previous": 2,
+                "probabilities": [
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 1,
+                "uniform": 0.763774618976614
+              },
+              {
+                "position": 3,
+                "previous": 1,
+                "probabilities": [
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 0,
+                "uniform": 0.2550690257394217
+              }
+            ],
+            "tokens": [
+              1,
+              2,
+              1,
+              0
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              164,
+              113
+            ],
+            "committed": true,
+            "latent": [
+              32,
+              109
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 1,
+                "uniform": 0.49543508709194095
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 0,
+                "uniform": 0.4494910647887381
+              },
+              {
+                "position": 2,
+                "previous": 0,
+                "probabilities": [
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 0,
+                "uniform": 0.651592972722763
+              },
+              {
+                "position": 3,
+                "previous": 0,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 2,
+                "uniform": 0.7887233511355132
+              }
+            ],
+            "tokens": [
+              1,
+              0,
+              0,
+              2
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              144,
+              77
+            ],
+            "committed": true,
+            "latent": [
+              195,
+              8
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 0,
+                "uniform": 0.0938595867742349
+              },
+              {
+                "position": 1,
+                "previous": 0,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111
+                ],
+                "token": 0,
+                "uniform": 0.02834747652200631
+              },
+              {
+                "position": 2,
+                "previous": 0,
+                "probabilities": [
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 2,
+                "uniform": 0.8357651039198697
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 0,
+                "uniform": 0.43276706790505337
+              }
+            ],
+            "tokens": [
+              0,
+              0,
+              2,
+              0
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              211,
+              57
+            ],
+            "committed": true,
+            "latent": [
+              119,
+              137
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 1,
+                "uniform": 0.762280082457942
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111
+                ],
+                "token": 0,
+                "uniform": 0.0021060533511106927
+              },
+              {
+                "position": 2,
+                "previous": 0,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111
+                ],
+                "token": 2,
+                "uniform": 0.4453871940548014
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111
+                ],
+                "token": 2,
+                "uniform": 0.7215400323407826
+              }
+            ],
+            "tokens": [
+              1,
+              0,
+              2,
+              2
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              133,
+              30
+            ],
+            "committed": true,
+            "latent": [
+              233,
+              144
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 1,
+                "uniform": 0.22876222127045265
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.1111111111111111,
+                  0.6666666666666666,
+                  0.1111111111111111,
+                  0.1111111111111111
+                ],
+                "token": 3,
+                "uniform": 0.9452706955539223
+              }
+            ],
+            "tokens": [
+              1,
+              3
+            ]
+          }
+        ],
+        "emitted_original_tokens": 18,
+        "feedback_commits": 5,
+        "final_state": [
+          133,
+          30
+        ],
+        "local_decoder_rows": 18,
+        "prefill_global_rows": 10,
+        "provider_kv_rows_per_party": 15,
+        "remote_decode_steps": 5,
+        "requested_original_tokens": 32,
+        "reserved_preparation_blocks": 8,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "eos",
+        "tokens": [
+          1,
+          2,
+          1,
+          0,
+          1,
+          0,
+          0,
+          2,
+          0,
+          0,
+          2,
+          0,
+          1,
+          0,
+          2,
+          2,
+          1,
+          3
+        ],
+        "unused_capacity_tokens": 2,
+        "unused_issued_forwards": 0,
+        "unused_preparation_blocks": 3
+      }
+    },
+    "serial_new_model_k1": {
+      "cost": {
+        "all_link_bytes": 13337600,
+        "bytes_per_emitted_original_token": 416800.0,
+        "dependent_rounds": 642,
+        "global_rows_including_prefill_and_overissue": 71,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 290816,
+          "feedback_up_including_prefill_and_final": 581632,
+          "frames_and_ack_headers": 54784,
+          "global_forward_down": 581632,
+          "global_forward_peer": 1163264,
+          "global_forward_up": 581632,
+          "preparation_download_including_unused": 4653056,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 4620000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 1163264,
+        "provider_macs": 71290816,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 26.935789632000002,
+        "unused_forward_body_bytes": 0,
+        "unused_preparation_bytes": 0
+      },
+      "execution": {
+        "block_size": 1,
+        "blocks": [
+          {
+            "capacity": 1,
+            "client_state_after": [
+              95,
+              101
+            ],
+            "committed": true,
+            "latent": [
+              18,
+              142
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5219839097124932
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              30,
+              55
+            ],
+            "committed": true,
+            "latent": [
+              45,
+              160
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8066907771186791
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              93,
+              175
+            ],
+            "committed": true,
+            "latent": [
+              126,
+              214
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9604947743238768
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              23,
+              19
+            ],
+            "committed": true,
+            "latent": [
+              115,
+              123
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.2896253777644655
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              71,
+              66
+            ],
+            "committed": true,
+            "latent": [
+              76,
+              99
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.7661074377979527
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              214,
+              206
+            ],
+            "committed": true,
+            "latent": [
+              219,
+              31
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.7042198668434126
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              129,
+              112
+            ],
+            "committed": true,
+            "latent": [
+              131,
+              80
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.6613830572238304
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              131,
+              87
+            ],
+            "committed": true,
+            "latent": [
+              124,
+              227
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.11016204891721182
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              137,
+              12
+            ],
+            "committed": true,
+            "latent": [
+              103,
+              154
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.026936778790526805
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              156,
+              45
+            ],
+            "committed": true,
+            "latent": [
+              40,
+              192
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.3841711045442975
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              214,
+              145
+            ],
+            "committed": true,
+            "latent": [
+              111,
+              53
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.7463951961663844
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              131,
+              188
+            ],
+            "committed": true,
+            "latent": [
+              70,
+              154
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.252383767513222
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              137,
+              58
+            ],
+            "committed": true,
+            "latent": [
+              204,
+              200
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.5016026705680338
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              156,
+              183
+            ],
+            "committed": true,
+            "latent": [
+              86,
+              73
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.3174350905457497
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              213,
+              44
+            ],
+            "committed": true,
+            "latent": [
+              249,
+              210
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8463278091284241
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              128,
+              142
+            ],
+            "committed": true,
+            "latent": [
+              224,
+              107
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9451939145048893
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              130,
+              179
+            ],
+            "committed": true,
+            "latent": [
+              152,
+              59
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.4015909369106695
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              136,
+              33
+            ],
+            "committed": true,
+            "latent": [
+              193,
+              172
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.998447005087021
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              152,
+              107
+            ],
+            "committed": true,
+            "latent": [
+              59,
+              254
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.0621927912524467
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              202,
+              74
+            ],
+            "committed": true,
+            "latent": [
+              165,
+              235
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.8126090004416155
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              95,
+              232
+            ],
+            "committed": true,
+            "latent": [
+              232,
+              186
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.8753165021282806
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              30,
+              191
+            ],
+            "committed": true,
+            "latent": [
+              176,
+              39
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.1509154802769801
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              91,
+              67
+            ],
+            "committed": true,
+            "latent": [
+              5,
+              108
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.7055686155919507
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              17,
+              209
+            ],
+            "committed": true,
+            "latent": [
+              3,
+              54
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.5588918686046748
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              54,
+              123
+            ],
+            "committed": true,
+            "latent": [
+              254,
+              149
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9551878622608687
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              164,
+              121
+            ],
+            "committed": true,
+            "latent": [
+              242,
+              185
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.2100100094902223
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              237,
+              115
+            ],
+            "committed": true,
+            "latent": [
+              203,
+              32
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5399633506201237
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              200,
+              98
+            ],
+            "committed": true,
+            "latent": [
+              86,
+              87
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.8824561068087002
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              88,
+              46
+            ],
+            "committed": true,
+            "latent": [
+              252,
+              256
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.6387731810597964
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              9,
+              147
+            ],
+            "committed": true,
+            "latent": [
+              233,
+              245
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.3091995299583252
+              }
+            ],
+            "tokens": [
+              1
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              28,
+              192
+            ],
+            "committed": true,
+            "latent": [
+              176,
+              212
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.08186385413474262
+              }
+            ],
+            "tokens": [
+              0
+            ]
+          },
+          {
+            "capacity": 1,
+            "client_state_after": [
+              87,
+              72
+            ],
+            "committed": true,
+            "latent": [
+              2,
+              109
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.939776047011715
+              }
+            ],
+            "tokens": [
+              2
+            ]
+          }
+        ],
+        "emitted_original_tokens": 32,
+        "feedback_commits": 32,
+        "final_state": [
+          87,
+          72
+        ],
+        "local_decoder_rows": 32,
+        "prefill_global_rows": 39,
+        "provider_kv_rows_per_party": 71,
+        "remote_decode_steps": 32,
+        "requested_original_tokens": 32,
+        "reserved_preparation_blocks": 32,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "length",
+        "tokens": [
+          1,
+          1,
+          2,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          2,
+          2,
+          0,
+          1,
+          1,
+          2,
+          2,
+          2,
+          0,
+          2,
+          2,
+          1,
+          0,
+          0,
+          2,
+          1,
+          1,
+          2,
+          1,
+          1,
+          0,
+          2
+        ],
+        "unused_capacity_tokens": 0,
+        "unused_issued_forwards": 0,
+        "unused_preparation_blocks": 0
+      }
+    },
+    "unused_extra_preparation": {
+      "cost": {
+        "all_link_bytes": 7632512,
+        "bytes_per_emitted_original_token": 238516.0,
+        "dependent_rounds": 165,
+        "global_rows_including_prefill_and_overissue": 18,
+        "inputs": {
+          "close_down": 256,
+          "close_up": 256,
+          "commit_macs_per_row": 4096,
+          "decoder_weights": 4194304,
+          "dependent_rounds_per_global_row": 8,
+          "encoder_weights": 1048576,
+          "feedback_payload_per_commit": 8192,
+          "feedback_peer_per_commit": 4096,
+          "frame_header": 64,
+          "global_macs_per_row": 1000000,
+          "global_row_down": 8192,
+          "global_row_peer": 16384,
+          "global_row_up": 8192,
+          "kv_bytes_per_row_per_party": 8192,
+          "link_bytes_per_second": 12500000,
+          "local_decoder_macs_per_token": 100000,
+          "local_encoder_macs_per_token": 20000,
+          "local_macs_per_second": 100000000,
+          "manifest": 4096,
+          "numeric_tables": 16384,
+          "preparation_per_global_row": 65536,
+          "provider_macs_per_second": 500000000,
+          "provider_provisioning": 0,
+          "round_trip_ms": 40,
+          "setup_down": 2048,
+          "setup_rounds": 2,
+          "setup_up": 1024,
+          "tokenizer": 32768,
+          "vocab_embedding_and_head": 131072
+        },
+        "ledger_bytes": {
+          "client_artifact_download": 5427200,
+          "close_down": 256,
+          "close_up": 256,
+          "feedback_peer": 73728,
+          "feedback_up_including_prefill_and_final": 147456,
+          "frames_and_ack_headers": 14464,
+          "global_forward_down": 147456,
+          "global_forward_peer": 294912,
+          "global_forward_up": 147456,
+          "preparation_download_including_unused": 1376256,
+          "provider_provisioning_all_links": 0,
+          "setup_down": 2048,
+          "setup_up": 1024
+        },
+        "local_macs": 4620000,
+        "measured_latency_seconds": null,
+        "measured_wire_bytes": null,
+        "provider_kv_bytes_two_parties": 294912,
+        "provider_macs": 18073728,
+        "real_masked_transformer_compatibility": false,
+        "scope": "hypothetical all-link geometry, one cold request; not a WAN measurement",
+        "serial_no_overlap_estimate_seconds": 7.292948416,
+        "unused_forward_body_bytes": 0,
+        "unused_preparation_bytes": 196608
+      },
+      "execution": {
+        "block_size": 4,
+        "blocks": [
+          {
+            "capacity": 4,
+            "client_state_after": [
+              27,
+              145
+            ],
+            "committed": true,
+            "latent": [
+              165,
+              22
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5219839097124932
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8066907771186791
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9604947743238768
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.2896253777644655
+              }
+            ],
+            "tokens": [
+              1,
+              1,
+              2,
+              1
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              3,
+              130
+            ],
+            "committed": true,
+            "latent": [
+              210,
+              224
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.7661074377979527
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.7042198668434126
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.6613830572238304
+              },
+              {
+                "position": 3,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.11016204891721182
+              }
+            ],
+            "tokens": [
+              2,
+              1,
+              1,
+              0
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              225,
+              226
+            ],
+            "committed": true,
+            "latent": [
+              147,
+              155
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.026936778790526805
+              },
+              {
+                "position": 1,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.3841711045442975
+              },
+              {
+                "position": 2,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.7463951961663844
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.252383767513222
+              }
+            ],
+            "tokens": [
+              0,
+              2,
+              2,
+              0
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              192,
+              240
+            ],
+            "committed": true,
+            "latent": [
+              173,
+              151
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.5016026705680338
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.3174350905457497
+              },
+              {
+                "position": 2,
+                "previous": 0,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8463278091284241
+              },
+              {
+                "position": 3,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9451939145048893
+              }
+            ],
+            "tokens": [
+              1,
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              5,
+              201
+            ],
+            "committed": true,
+            "latent": [
+              121,
+              160
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.4015909369106695
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.998447005087021
+              },
+              {
+                "position": 2,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.0621927912524467
+              },
+              {
+                "position": 3,
+                "previous": 0,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.8126090004416155
+              }
+            ],
+            "tokens": [
+              2,
+              2,
+              0,
+              1
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              196,
+              43
+            ],
+            "committed": true,
+            "latent": [
+              222,
+              113
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.8753165021282806
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.1509154802769801
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.7055686155919507
+              },
+              {
+                "position": 3,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.5588918686046748
+              }
+            ],
+            "tokens": [
+              2,
+              1,
+              1,
+              2
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              235,
+              41
+            ],
+            "committed": true,
+            "latent": [
+              189,
+              87
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.9551878622608687
+              },
+              {
+                "position": 1,
+                "previous": 2,
+                "probabilities": [
+                  0.75,
+                  0.125,
+                  0.125,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.2100100094902223
+              },
+              {
+                "position": 2,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.5399633506201237
+              },
+              {
+                "position": 3,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.8824561068087002
+              }
+            ],
+            "tokens": [
+              2,
+              0,
+              2,
+              2
+            ]
+          },
+          {
+            "capacity": 4,
+            "client_state_after": [
+              242,
+              241
+            ],
+            "committed": true,
+            "latent": [
+              8,
+              120
+            ],
+            "rows": [
+              {
+                "position": 0,
+                "previous": 2,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.6387731810597964
+              },
+              {
+                "position": 1,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.75,
+                  0.125,
+                  0.0
+                ],
+                "token": 1,
+                "uniform": 0.3091995299583252
+              },
+              {
+                "position": 2,
+                "previous": 1,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 0,
+                "uniform": 0.08186385413474262
+              },
+              {
+                "position": 3,
+                "previous": 0,
+                "probabilities": [
+                  0.125,
+                  0.125,
+                  0.75,
+                  0.0
+                ],
+                "token": 2,
+                "uniform": 0.939776047011715
+              }
+            ],
+            "tokens": [
+              1,
+              1,
+              0,
+              2
+            ]
+          }
+        ],
+        "emitted_original_tokens": 32,
+        "feedback_commits": 8,
+        "final_state": [
+          242,
+          241
+        ],
+        "local_decoder_rows": 32,
+        "prefill_global_rows": 10,
+        "provider_kv_rows_per_party": 18,
+        "remote_decode_steps": 8,
+        "requested_original_tokens": 32,
+        "reserved_preparation_blocks": 11,
+        "scope": "public-weight affine share simulation; no trained quality or security claim",
+        "stop": "length",
+        "tokens": [
+          1,
+          1,
+          2,
+          1,
+          2,
+          1,
+          1,
+          0,
+          0,
+          2,
+          2,
+          0,
+          1,
+          0,
+          1,
+          2,
+          2,
+          2,
+          0,
+          1,
+          2,
+          1,
+          1,
+          2,
+          2,
+          0,
+          2,
+          2,
+          1,
+          1,
+          0,
+          2
+        ],
+        "unused_capacity_tokens": 0,
+        "unused_issued_forwards": 0,
+        "unused_preparation_blocks": 3
+      }
+    }
+  },
+  "schema": "pllm.cold_block_decoder.synthetic.v1",
+  "source_files_sha256": {
+    "docs/research/checkpoint-drafter-reference.md": "c7feffe0dbffae4740daffd0f8aad9a4b039287e056e8d0d6f457751de4f0228",
+    "docs/research/cold-block-decoder-reference.md": "826b43b761cea38c43de0140e8c405d84dcb9c14a18d55d8fe8cf25306fb9580",
+    "scripts/probe_cold_block_decoder.py": "6ad71e02cbe3bc42dcc2f9a429a65ccc93f84b5b903aa986e88e64dd8955e363",
+    "tests/test_cold_block_decoder.py": "57ab61ae0dfebb60048283dac4fed4a473ba97352ddd1013ef89a54c488d1d7d"
+  },
+  "sources": [
+    {
+      "raw_html_bytes": 326809,
+      "sha256": "2fbcb5d488a04c9cdc523fb15fc72188566d69175cfe3e75e0186a62042a9141",
+      "title": "MegaByte",
+      "url": "https://arxiv.org/html/2305.07185v2"
+    },
+    {
+      "raw_html_bytes": 457004,
+      "sha256": "b35a404107542155ee9b6ca7ecc9c54a6ac72f0d7cb58255b292cb1b2a7a4ee7",
+      "title": "Multi-token prediction",
+      "url": "https://arxiv.org/html/2404.19737v1"
+    },
+    {
+      "raw_html_bytes": 379818,
+      "sha256": "6af016f8ddd245a01bada92842839ea4e9407f05e9eca94d12d99c14a0ce9c3d",
+      "title": "Byte Latent Transformer",
+      "url": "https://arxiv.org/html/2412.09871v1"
+    },
+    {
+      "raw_html_bytes": 550040,
+      "sha256": "4af6fcd13cccdf8d39e12efd22f09158d6034d6f341f72685d6f8c971e42dce5",
+      "title": "DeepSeek-V3",
+      "url": "https://arxiv.org/html/2412.19437v1"
+    }
+  ],
+  "trained": false
+}

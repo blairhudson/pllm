@@ -1,0 +1,161 @@
+{
+  "adversarial": {
+    "artifact": {
+      "books_bytes": 4,
+      "charged_artifact_bytes": 211,
+      "descriptor_bytes": 186,
+      "frame_bytes": 25,
+      "indices_bytes": 2,
+      "payload_sha256": "05198e72abe24cb3d89cf468b455d1abca0fe088072841ddb7c8f7bf91fd8bbd",
+      "raw_bytes": 14,
+      "scales_bytes": 8
+    },
+    "factor_bit_mismatches": 0,
+    "factor_max_absolute_error": 0.0,
+    "logit_values": 2,
+    "lookup_bit_mismatches": 0,
+    "lookup_values": 4,
+    "reconstruction_rmse": 4.999999873689376e-05,
+    "source_argmax_mismatches": 1,
+    "source_logit_max_absolute_error": 9.999999747378752e-05
+  },
+  "cancellation": {
+    "artifact": {
+      "books_bytes": 12,
+      "charged_artifact_bytes": 217,
+      "descriptor_bytes": 186,
+      "frame_bytes": 31,
+      "indices_bytes": 3,
+      "payload_sha256": "8a757f4e213c61433f4f5b51f7595853e2042c4eae6a513f353fe77c7c720f1f",
+      "raw_bytes": 19,
+      "scales_bytes": 4
+    },
+    "factor_bit_mismatches": 1,
+    "factor_max_absolute_error": 139008.0,
+    "logit_values": 1,
+    "lookup_bit_mismatches": 0,
+    "lookup_values": 2
+  },
+  "contract": "fp16-centroids-f32-left-sum-scale-last-sequential-dot-v1",
+  "fit": {
+    "artifact": {
+      "books_bytes": 768,
+      "charged_artifact_bytes": 1253,
+      "descriptor_bytes": 188,
+      "frame_bytes": 1065,
+      "indices_bytes": 384,
+      "payload_sha256": "7d6da3faf395867fa8e0119cbd90a67935b8983cefd67e2fba084c011c3e599b",
+      "raw_bytes": 1536,
+      "scales_bytes": 384
+    },
+    "factor_bit_mismatches": 496,
+    "factor_max_absolute_error": 4.76837158203125e-07,
+    "logit_values": 672,
+    "lookup_bit_mismatches": 0,
+    "lookup_values": 1152,
+    "reconstruction_rmse": 0.44244238693078675,
+    "source_argmax_mismatches": 4,
+    "source_logit_max_absolute_error": 2.4125746488571167
+  },
+  "numpy_version": "2.5.3",
+  "qwen_structural_not_wire": {
+    "centroids": 256,
+    "codebook_dot_macs_per_hidden": 917504,
+    "components": 4,
+    "dense_dot_macs_per_hidden": 136134656,
+    "dense_i8_entries_bytes": 136134656,
+    "dense_i8_plus_f32_scale_bytes": 136742400,
+    "expanded_books_f32_bytes": 3670016,
+    "expanded_dense_f32_bytes": 544538624,
+    "f32_scales_bytes": 607744,
+    "fp16_books_bytes": 1835008,
+    "full_f32_logits_per_row_bytes": 607744,
+    "gather_adds_per_hidden": 607744,
+    "hidden": 896,
+    "raw_total_bytes": 3050496,
+    "uint8_indices_bytes": 607744,
+    "vocabulary": 151936
+  },
+  "random_float_order": {
+    "artifact": {
+      "books_bytes": 768,
+      "charged_artifact_bytes": 1609,
+      "descriptor_bytes": 188,
+      "frame_bytes": 1421,
+      "indices_bytes": 384,
+      "payload_sha256": "2986dca152b70622bc06798f4e8af4b74655fdac751fffdddae32172f95bcd08",
+      "raw_bytes": 1536,
+      "scales_bytes": 384
+    },
+    "factor_bit_mismatches": 523,
+    "factor_max_absolute_error": 1.9073486328125e-06,
+    "logit_values": 672,
+    "lookup_bit_mismatches": 0,
+    "lookup_values": 1152
+  },
+  "requantization": {
+    "centroid_values": [
+      0.5,
+      0.5
+    ],
+    "round_each_then_sum": 0,
+    "rule": "ties-to-even",
+    "sum_then_round": 1
+  },
+  "schema": "cold-compositional-vocabulary-synthetic-v1",
+  "scope": "synthetic correctness only",
+  "seed": 20261014,
+  "sources": {
+    "ARCHITECTURE.md": "29c4cd514213af98efe7c7de19c3d0ae3f0025d598d1f9ede317071c67c708a9",
+    "docs/research/cold-compositional-vocabulary-reference.md": "acd35a8b52e2037d09ec4a0f2ec5eaf1ee73fdc93d6303aead9326b7a4715583",
+    "docs/research/packed-embedding-reference.md": "70765858af660d81088f7494129c6f7e4584625b3b6c514a7d778c0166e951b4",
+    "docs/research/predictive-weight-codec-reference.md": "56c44f85df6dad6c62d004ce93253055ea3ffee930fbc5dea0527a8856fbc04f",
+    "scripts/probe_cold_compositional_vocabulary.py": "a0da9c3187503a9ff0350477a47a7f69f0dd57059c5d583eb92f2ae2db210313",
+    "tests/test_cold_compositional_vocabulary.py": "5f0404e99b5c5b49931b8bab94be3410fced4010216672abcd9af9896d51ef85"
+  },
+  "structured": {
+    "artifact": {
+      "books_bytes": 768,
+      "charged_artifact_bytes": 799,
+      "descriptor_bytes": 188,
+      "frame_bytes": 611,
+      "indices_bytes": 384,
+      "payload_sha256": "2c06b0776fe4b95887b26d51d75bcbf651b7a18fb79b9c0eecc71a9381bda2d2",
+      "raw_bytes": 1536,
+      "scales_bytes": 384
+    },
+    "factor_bit_mismatches": 0,
+    "factor_max_absolute_error": 0.0,
+    "logit_values": 672,
+    "lookup_bit_mismatches": 0,
+    "lookup_values": 1152
+  },
+  "synthetic_extra_array_envelope_bytes": 8388608,
+  "unmeasured": {
+    "cpu_seconds": null,
+    "gpu_seconds": null,
+    "latency": null,
+    "peak_rss": null,
+    "qwen_quality": null,
+    "training_cost": null,
+    "whole_cold_bytes": null,
+    "wire_savings": null
+  },
+  "upstream_sources": [
+    {
+      "bytes": 172496,
+      "sha256": "98e8f501a382e4476c268c936560705d38a62dafa943a12fe44c1b4f117e17db",
+      "url": "https://arxiv.org/html/1711.01068v2"
+    },
+    {
+      "bytes": 40343,
+      "sha256": "f6fc1ef5c292f1000c6b7825c74c874e8e7ba7074db730844ac943365db3ef04",
+      "url": "https://arxiv.org/abs/1608.05859v3"
+    },
+    {
+      "bytes": 659,
+      "sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/raw/7ae557604adf67be50417f59c2c2f167def9a775/config.json"
+    }
+  ]
+}

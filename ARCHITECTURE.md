@@ -147,6 +147,19 @@ setup and process RSS rise. One-row execution regresses. Separate operator scree
 find FP64 slower and only small packed-limb/attention CPU changes. These references
 establish neither native SDK integration nor Low/Medium whole-client improvement.
 Exact scope, negative results and replay: `docs/research/tier-objectives-reference.md`.
+A separate seven-direction cold-request screen examines compositional vocabulary,
+public grammar boundaries, serializer-aware training, private prompt encoders,
+hierarchical block decoding, shared local cores and signed provider artifacts.
+Bounded references preserve their declared synthetic contracts, while negative
+controls expose numeric, causal, source-assurance and cold-delivery limits.
+An independent audit of thirty historical clients isolates first-request bodies:
+at 150/288 input rows, known prefill accounts for 70.36%/82.00%, public client
+delivery 26.18%/15.89%, and known decode 3.43%/2.08%. Checkpoint and pre-positioned
+tokenizer distribution remain unknown. Public finite-grammar boundaries and small
+private prompt encoders are follow-up candidates, not admitted protocols or
+measured quality, traffic or client-memory improvements. Consumer software is
+the target; TEE-dependent designs are excluded. Contracts and replay:
+`docs/research/cold-request-frontier-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede
