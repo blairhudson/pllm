@@ -14,6 +14,11 @@ from pllm.metrics.benchmark_runner import (
     BenchmarkRun as BenchmarkRun, benchmark_target as benchmark_target,
     benchmark_suite as benchmark_suite,
 )
+from pllm.metrics.coverage import (
+    BenchmarkRequirement as BenchmarkRequirement,
+    benchmark_capabilities as benchmark_capabilities,
+    benchmark_coverage as benchmark_coverage,
+)
 
 class Metric(ComponentRef): ...
 

@@ -355,6 +355,14 @@ CLI_EXAMPLES: dict[str, tuple[CliExample, ...]] = {
             validate_resolution=True,
         ),
     ),
+    "pllm benchmark coverage": (
+        CliExample(
+            "Resolve recorded capability coverage",
+            "Read the checked-in tiny benchmark evidence and expose unmeasured capabilities "
+            "without starting a workload.",
+            "pllm benchmark coverage --evidence docs/evidence/research-client-stage-tiny.json --format json",
+        ),
+    ),
     "pllm benchmark quality": (
         CliExample(
             "Inspect two numeric candidates",

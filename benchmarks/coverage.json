@@ -1,0 +1,31 @@
+{
+  "schema": "pllm.sdk_benchmark_catalog.v1",
+  "api_bindings": {
+    "pllm.runtime.client.OpenAI": ["sdk/response"],
+    "pllm.runtime.semantic_hybrid.OwnedGatedDeltaRecurrence": ["sdk/owned-recurrence"],
+    "pllm.runtime.correction_batch.CorrectionBatch": ["sdk/preparation-batch"],
+    "pllm.state.checkpoint.CheckpointSession": ["sdk/checkpoint"],
+    "pllm.state.decode.DecodeCache": ["sdk/decode-cache"],
+    "pllm.runtime.native.CompiledMatrix": ["sdk/native-stage"],
+    "pllm.runtime.paged.PagedGEMM": ["sdk/paged-artifact"],
+    "pllm.modeling.lower_model": ["sdk/geometry"],
+    "pllm.metrics.benchmark_runner.benchmark_suite": ["sdk/benchmark-target"],
+    "pllm.metrics.benchmark_runner.benchmark_target": ["sdk/benchmark-target"]
+  },
+  "requirements": [
+    {"name":"sdk/response","component":null,"parameters":{},"present":[],"target":{"kind":"response"},"disposition":"required","reason":null},
+    {"name":"sdk/owned-recurrence","component":null,"parameters":{},"present":[],"target":{"kind":"state","parameters":{"operation":"recurrence","owner":"owned"}},"disposition":"required","reason":null},
+    {"name":"sdk/preparation-batch","component":null,"parameters":{},"present":[],"target":{"kind":"preparation","parameters":{"batch":{}}},"disposition":"required","reason":null},
+    {"name":"sdk/checkpoint","component":null,"parameters":{},"present":[],"target":{"kind":"state","parameters":{"operation":"checkpoint"}},"disposition":"required","reason":null},
+    {"name":"sdk/decode-cache","component":"pllm/client-prefix-reuse/v1","parameters":{"decode":true},"present":[],"target":{"kind":"response"},"disposition":"required","reason":null},
+    {"name":"sdk/growing-epochs","component":"pllm/prepared-inventory-policy/v1","parameters":{},"present":["decode_epoch_schedule"],"target":{"kind":"response"},"disposition":"required","reason":null},
+    {"name":"sdk/native-stage","component":null,"parameters":{},"present":[],"target":{"kind":"stage"},"disposition":"required","reason":null},
+    {"name":"sdk/paged-artifact","component":null,"parameters":{},"present":[],"target":{"kind":"artifacts","parameters":{"storage":"paged"}},"disposition":"required","reason":null},
+    {"name":"sdk/geometry","component":null,"parameters":{},"present":[],"target":{"kind":"geometry"},"disposition":"required","reason":null},
+    {"name":"sdk/benchmark-target","component":null,"parameters":{},"present":[],"target":{"schema":"pllm.benchmark_target.v1"},"disposition":"required","reason":null},
+    {"name":"interaction/tile32-digit8-placement","component":null,"parameters":{},"present":[],"target":{"kind":"response","parameters":{"model":{"experiment":{"pipeline":{"components":{"scheduler":{"component":"pllm/mlp-prefill-tiling/v1","params":{"tile_rows":32}},"preparation":{"component":"pllm/model-aware-corrections","params":{"kernel":"digit8"}},"placement":{"component":"pllm/client-owned-linear-roles/v1"}}}}}}},"disposition":"required","reason":null},
+    {"name":"interaction/tile16-digit8-placement","component":null,"parameters":{},"present":[],"target":{"kind":"response","parameters":{"model":{"experiment":{"pipeline":{"components":{"scheduler":{"component":"pllm/mlp-prefill-tiling/v1","params":{"tile_rows":16}},"preparation":{"component":"pllm/model-aware-corrections","params":{"kernel":"digit8"}},"placement":{"component":"pllm/client-owned-linear-roles/v1"}}}}}}},"disposition":"required","reason":null},
+    {"name":"interaction/growing-epochs-mlp-tiling","component":null,"parameters":{},"present":[],"target":{},"disposition":"unsupported","reason":"Current native epoch continuation rejects MlpPrefillTiling; composition requires implementation before a serving benchmark."},
+    {"name":"interaction/decode-cache-mlp-tiling","component":null,"parameters":{},"present":[],"target":{},"disposition":"unsupported","reason":"Decode reuse requires fixed one-token epochs and an exclusive full-KV continuation contract; MlpPrefillTiling composition currently rejects."}
+  ]
+}

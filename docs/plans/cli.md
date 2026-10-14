@@ -329,6 +329,7 @@ intentionally not placeholder commands. `pllm._cli` owns the sole parser; local 
 | `gateway` | **Shipped runtime facade** | Trusted local Responses and Chat Completions gateway; not yet the target-based `serve TARGET` contract |
 | `serve inference|preparation` | **Shipped role facade** | Existing authenticated runtime roles; not yet generic `party serve ROLE` over a plan lock |
 | `benchmark run` | **Shipped runtime facade** | Existing local benchmark orchestration and evidence output; `search` and `compare` are unavailable |
+| `benchmark coverage` | **Shipped read-only facade** | Registered capability/parameter requirements resolve to exact suites and evidence cells, preserving missing, partial, unsupported and stale coverage |
 | `dev dashboard` | **Shipped, non-normative** | Existing loopback dashboard, lazy runtime import |
 | `init` | **Unavailable** | Profile catalog unresolved |
 | `--set PATH=JSON_VALUE` | **Unavailable** | Typed override/schema integration incomplete |

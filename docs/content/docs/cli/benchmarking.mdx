@@ -13,6 +13,14 @@ The report contains sanitized diagnostic measurements. It is not a canonical
 research `EvidenceReport`, and a loopback run does not establish WAN, multi-host,
 energy, price, quality, or production non-collusion claims.
 
+## Inspect SDK benchmark coverage
+
+`pllm benchmark coverage --evidence RUN.json --format json` resolves registered
+components and parameter choices against saved `BenchmarkRun` evidence.
+Repeat `--suite` to include unmeasured cases and use `--current-build` to expose
+stale results. [Coverage guide](/sdk/evaluate/benchmark-coverage/) explains the
+SDK API, repository-wide inventory and CI review gate.
+
 ## Enforce consumer Internet rates
 
 `--backend native --wan` caps every party's TCP streams, including the

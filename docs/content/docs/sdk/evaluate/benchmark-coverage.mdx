@@ -1,0 +1,117 @@
+---
+title: "SDK benchmark coverage"
+description: "Resolve public capabilities and parameter choices to benchmark cases, scoped evidence, or explicit gaps."
+---
+
+Coverage is a chain: **public API → capability/option → exact benchmark case →
+recorded build and cohort → available metrics**. An SDK option appearing in a
+recipe does not mean that recipe ran or that every conditional path executed.
+
+API: [Benchmark metrics](/sdk/reference/python/pllm/metrics/#objects-and-signatures)
+
+[`benchmark_capabilities`](/sdk/reference/python/pllm/metrics/#benchmark_capabilities),
+[`benchmark_coverage`](/sdk/reference/python/pllm/metrics/#benchmark_coverage),
+[`BenchmarkRequirement`](/sdk/reference/python/pllm/metrics/#benchmarkrequirement).
+
+## Python SDK example
+
+The SDK discovers every registered component, its parameters and finite choices,
+plus the published gates for planned components. Numeric and array parameters
+require an explicitly recorded value; infinite domains and combinations are not
+implicitly enumerated. Add named requirements for important combinations.
+
+```python
+from pllm.metrics import benchmark_capabilities, benchmark_coverage
+
+requirements = benchmark_capabilities()
+report = benchmark_coverage(requirements=requirements).to_dict()
+assert report["counts"]["unmapped"] > 0
+```
+
+To resolve saved runs, register their immutable results and supply their suites:
+
+```python
+from pllm.evidence import EvidenceRegistry
+from pllm.metrics import BenchmarkRun, BenchmarkSuite, benchmark_coverage
+
+run = BenchmarkRun.load("docs/evidence/research-client-stage-tiny.json")
+report = benchmark_coverage(
+    registry=EvidenceRegistry(run.results),
+    suites=(BenchmarkSuite.from_spec(run.to_dict()["suite"]),),
+).to_dict()
+assert report["cells"]
+```
+
+The example reads checked-in tiny functionality evidence. It starts no workload.
+Use `build_digest=BuildRef.capture().expected_digest` to check the installed
+implementation; omitting it keeps each historical build identity visible.
+
+## CLI
+
+```sh
+pllm benchmark coverage --evidence docs/evidence/research-client-stage-tiny.json --format json
+```
+
+Repeat `--evidence` for more `BenchmarkRun` files and `--suite` for declared suites
+that may have no results yet. `--current-build` or `--build-digest HEX` exposes stale
+measurements. `--requirements FILE` adds a JSON array of `BenchmarkRequirement`
+specifications. `--require mapped` rejects required capabilities without cases;
+`--require measured` also rejects missing or ineligible case measurements.
+
+## Repository-wide report
+
+The repository inventory adds **every public SDK export**, aliases and public
+method signatures, best-effort static benchmark-source links, named interactions,
+and checked-in evidence files:
+
+```sh
+python scripts/benchmark_coverage.py --check --output target/sdk-benchmark-coverage.json
+```
+
+It reuses the developer-reference public inventory and component registry.
+`benchmarks/coverage.json` binds additional API contracts and named interactions.
+`benchmarks/coverage-surface.json` records the reviewed API, parameter and mapping
+surface. CI fails when these change without review, including loss of a recipe
+link or previously eligible evidence. New eligible evidence can close existing
+gaps without changing the contract lock. Known gaps remain in the report;
+acknowledging them does not turn them into measurements. CI publishes the JSON as
+the `sdk-benchmark-coverage` artifact.
+
+After changing a public contract, inspect the report, add a benchmark binding or
+retain its explicit gap, then run `python scripts/benchmark_coverage.py
+--update-surface`. Commit the catalog, review lock and implementation together.
+
+Pass `--evidence PATH` to include a local incomplete run. The inventory's external
+adapters validate the complete growing-epoch and decode-cache cohorts through
+their existing strict summarizer. Other historical formats remain **linked-only**
+until their evidence contract has an adapter. Their files and configurations stay
+discoverable; they are not silently promoted to typed or current-build evidence.
+Per-requirement `linked_sources` are component mentions in those unadapted files;
+they do not certify a parameter, interaction or execution match.
+
+## Read the gaps
+
+| Status | Meaning |
+| --- | --- |
+| `unmapped` | No matching declared case or eligible evidence. |
+| `unmeasured` | A case exists, but no matching evidence cell. |
+| `incomplete` / `partial` | Missing replicates, or some declared cases remain unmeasured despite other successful cases. |
+| `blocked` / `unsupported` / `failed` | Recorded execution outcome, or an explicit capability gate. |
+| `stale_build` / `unlocked_build` | Evidence does not match the requested implementation, or the original run had no required build lock. |
+| `measured` / `measured_external` | Eligible evidence in its recorded scope; external adapters retain their original cohort schemas. |
+
+Duplicate replicates, non-isolated samples and missing measurements have separate
+statuses. Missing metrics remain in `unmeasured_metrics`. Cells preserve source,
+numeric, state, workload, output, owner, environment and measurement identities.
+Replicates from different cohorts never fill one another's gaps.
+
+Public API rows use `resolved` for an explicit requirement binding and
+`source_reference_only` for a static recipe link. These are navigation statuses;
+follow the requirement to its actual evidence. A constructor binding does not
+prove every method or conditional branch. Parameter and interaction requirements
+make those distinctions explicit where declared.
+
+Operator, geometry, state and whole-response evidence keep their separate scopes.
+Coverage does not rank timings, qualify Low-tier memory, certify privacy or supply
+independent finalist confirmation. Use [frontier studies](/sdk/evaluate/benchmark-targets/)
+for scoped retests and [research evidence](/research/evidence/) for comparisons.

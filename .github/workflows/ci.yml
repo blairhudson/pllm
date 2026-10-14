@@ -52,6 +52,13 @@ jobs:
           enable-cache: true
       - run: bash scripts/sync_environment.sh --python 3.13 --extra he --extra sdk --extra quality
       - run: uv run --no-sync ruff check python/pllm scripts docs/scripts docs/tests tests
+      - run: uv run --no-sync python scripts/benchmark_coverage.py --check --output target/sdk-benchmark-coverage.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: sdk-benchmark-coverage
+          path: target/sdk-benchmark-coverage.json
+          if-no-files-found: error
       - run: |
           version="$(uv run --no-sync python -c 'import pllm; print(pllm.__version__)')"
           uv run --no-sync python scripts/release.py check "v$version"

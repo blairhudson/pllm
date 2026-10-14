@@ -3,7 +3,8 @@ title: "Compact piecewise activation"
 description: "Benchmark a publicly calibrated Q7 SiLU polynomial with private interval selection and complete garbled arithmetic."
 ---
 
-`pllm.nonlinear.CompactPiecewiseActivation` selects the installed, one-use
+[`CompactPiecewiseActivation`](/sdk/reference/python/pllm/nonlinear/#compactpiecewiseactivation)
+selects the installed, one-use
 half-gates implementation of the bounded [Compact profile](/sdk/components/nonlinear/compact-q7-reference/).
 It privately selects an interval, computes a Q20 Chebyshev coordinate, evaluates
 the public coefficients and rounds to signed Q7. The trusted client decodes the

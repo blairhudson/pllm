@@ -534,7 +534,7 @@ def test_reference_backlinks_point_to_the_relevant_user_guides() -> None:
         (
             "pllm.nonlinear",
             "CompactPiecewiseActivation",
-            "/sdk/components/nonlinear/compact-q7-reference/",
+            "/sdk/components/nonlinear/compact-piecewise-activation/",
         ),
     )
     for module, symbol, guide in cases:

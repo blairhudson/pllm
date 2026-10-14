@@ -1092,6 +1092,15 @@ role responses. Immutable cases, sampling, build locks and metric budgets produc
 original semantics. Private inputs and a common private cohort salt pass over
 stdin. Source/numeric/state, fixture, oracle, owner and measurement-window
 commitments gate comparison; timeouts and cancellation retire owned processes.
+`benchmark_capabilities`, `BenchmarkRequirement` and `benchmark_coverage` resolve
+registered components, parameter choices and explicit interactions to exact cases
+and evidence cells. Missing, partial, blocked, unsupported and stale-build results
+remain visible; cohorts never supply one another's missing replicates. The read-only
+`pllm benchmark coverage` CLI uses the same resolver. The repository inventory
+additionally includes all public SDK exports, recipe links and historical evidence
+adapters; CI checks reviewed API/parameter/mapping fingerprints. Static references
+and unadapted reports remain links, not measured coverage. Contract and workflow:
+`docs/content/docs/sdk/evaluate/benchmark-coverage.mdx`.
 `pllm.search.FrontierStudy` expands explicit variants, interactions and ablations,
 prioritizes affected cases and reruns controls alongside missing candidates.
 Exact-build coverage and separate confirmation preserve missing, unsupported and

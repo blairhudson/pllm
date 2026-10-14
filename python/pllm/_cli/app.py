@@ -480,6 +480,15 @@ def build_parser() -> _Parser:
     )
     benchmark_run.add_argument("--force", action="store_true", help="replace --output if it exists")
 
+    coverage = _command(benchmark_commands, "coverage", help="resolve SDK capabilities to benchmark evidence")
+    coverage.add_argument("--suite", type=Path, action="append", default=[], help="BenchmarkSuite JSON")
+    coverage.add_argument("--evidence", type=Path, action="append", default=[], help="BenchmarkRun JSON; repeatable")
+    coverage.add_argument("--requirements", type=Path, help="additional named API/interaction requirement records")
+    coverage_build = coverage.add_mutually_exclusive_group()
+    coverage_build.add_argument("--build-digest", help="require this exact implementation digest")
+    coverage_build.add_argument("--current-build", action="store_true", help="check against the installed build")
+    coverage.add_argument("--require", choices=("mapped", "measured"), help="fail when required coverage is missing")
+
     benchmark_quality = _command(
         benchmark_commands,
         "quality",
@@ -1856,7 +1865,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             else:
                 _serve(args, output_format, no_input, dry_run)
         elif args.command == "benchmark":
-            if args.benchmark_command == "quality":
+            if args.benchmark_command == "coverage":
+                from .coverage import run
+
+                run(args, output_format, dry_run)
+            elif args.benchmark_command == "quality":
                 _benchmark_quality(args, output_format, no_input, dry_run)
             else:
                 _benchmark(args, output_format, no_input, dry_run)

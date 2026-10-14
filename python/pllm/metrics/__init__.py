@@ -436,6 +436,7 @@ def measure_reference_agreement(
 
 
 _LAZY_MODULES = {
+    "coverage": ("BenchmarkRequirement", "benchmark_capabilities", "benchmark_coverage"),
     "network_probes": ("EncryptedLinearCostProbe", "EncryptedQuadraticShareCostProbe",
         "LatentResponseCostProbe", "ResidentFusedGateCostProbe", "ResidentMlpCostProbe",
         "ResidentQuadraticGateCostProbe"),
@@ -492,6 +493,7 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
 
 
 __all__ = [
+    "BenchmarkRequirement", "benchmark_capabilities", "benchmark_coverage",
     "BenchmarkTarget", "BenchmarkCase", "BenchmarkSuite", "BuildRef", "Sampling",
     "Scenario", "TargetBudget", "benchmark_target", "benchmark_suite", "BenchmarkRun",
     "CpuTime",
