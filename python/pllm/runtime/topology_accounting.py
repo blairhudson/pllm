@@ -16,6 +16,9 @@ CONTROL_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v2"
 CONTROL_COVERAGE = "prepared_protocol_and_instrumented_lifecycle_controls_v2"
 ACK_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v3"
 ACK_COVERAGE = "prepared_protocol_lifecycle_controls_and_correction_acks_v3"
+BOUNDARY_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v4"
+BOUNDARY_COVERAGE = "prepared_body_and_private_boundary_lifecycle_v4"
+BOUNDARY_ROLES = ("client", "inference", "preparation", "boundary_a", "boundary_b")
 
 # Count every serialized body once, from the sending side of one edge. Other
 # audit counters (masked_online_*, upload_bytes, and server metrics) overlap.
@@ -61,11 +64,15 @@ def body_coverage_identity(ledger: Mapping[str, Any]) -> str | None:
     if not isinstance(ledger, Mapping):
         return None
     coverage = ledger.get("body_counter_coverage")
+    if coverage == BOUNDARY_COVERAGE:
+        return coverage if all(ledger.get(key) is True for key in (
+            "tracked_body_counter_set_present", "boundary_body_counter_set_present",
+            "correction_ack_counter_set_present", "control_body_counter_set_present")) else None
     if coverage == ACK_COVERAGE:
         return coverage if ledger.get("correction_ack_counter_set_present") is True and ledger.get("control_body_counter_set_present") is True else None
     if coverage == CONTROL_COVERAGE:
         return coverage if ledger.get("control_body_counter_set_present") is True else None
-    if ledger.get("schema") in {CONTROL_ACCOUNTING_SCHEMA, ACK_ACCOUNTING_SCHEMA}:
+    if ledger.get("schema") in {CONTROL_ACCOUNTING_SCHEMA, ACK_ACCOUNTING_SCHEMA, BOUNDARY_ACCOUNTING_SCHEMA}:
         return None
     return coverage or ledger.get("schema", ACCOUNTING_SCHEMA)
 
@@ -91,6 +98,10 @@ def online_body_counter_total(counters: Mapping[str, Any], roles: tuple[str, ...
             f"role_link.{role}.online_{direction}_bytes"
             for role in ("worker_a", "worker_b") for direction in ("upload", "download")
         )
+    elif set(roles) == set(BOUNDARY_ROLES):
+        fields = ("inference_upload_bytes", "inference_download_bytes", *(
+            f"role_link.{role}.online_{direction}_bytes"
+            for role in ("boundary_a", "boundary_b") for direction in ("upload", "download")))
     elif set(roles) in ({"client"}, {"client", "preparation", "inference"}):
         fields = ("inference_upload_bytes", "inference_download_bytes")
     else:
@@ -404,6 +415,85 @@ def two_worker_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def private_boundary_body_accounting(record: Mapping[str, Any], *, initial_preparation=False) -> dict[str, Any]:
+    """Prepared body plus both boundary links; sender-side HTTP bodies once.
+
+    Native operation diagnostics are explanatory, not additional wire charges.
+    Missing/rejected-operation counters invalidate totals rather than become zero.
+    Source distribution is a separate delivery case, outside this covered ledger.
+    """
+    base = prepared_body_accounting(record, initial_preparation=initial_preparation)
+    counters = record.get("privacy")
+    counters = counters if isinstance(counters, Mapping) else {}
+    fields = tuple(f"role_link.{role}.{phase}_{direction}_bytes"
+        for role in ("boundary_a", "boundary_b") for phase in ("setup", "online", "teardown")
+        for direction in ("upload", "download"))
+    boundary_complete = (all(type(counters.get(key)) is int and counters[key] >= 0 for key in fields)
+        and type(counters.get("private_boundary_body_coverage_failures")) is int
+        and counters["private_boundary_body_coverage_failures"] == 0)
+    complete = boundary_complete and body_coverage_identity(base) == ACK_COVERAGE
+    edges = None
+    if complete:
+        edges = [*base["body_bytes_by_edge"], *(
+            {"source": "client" if direction == "upload" else role,
+             "destination": role if direction == "upload" else "client", "phase": phase,
+             "serialized_body_bytes": counters[f"role_link.{role}.{phase}_{direction}_bytes"]}
+            for role in ("boundary_a", "boundary_b") for phase in ("setup", "online", "teardown")
+            for direction in ("upload", "download"))]
+    processes = record.get("processes")
+    cpu = None
+    if isinstance(processes, Mapping) and all(isinstance(processes.get(role), Mapping)
+            and type(processes[role].get("cpu_seconds")) in (int, float)
+            and math.isfinite(processes[role]["cpu_seconds"])
+            and processes[role]["cpu_seconds"] >= 0 for role in BOUNDARY_ROLES):
+        cpu = {role: float(processes[role]["cpu_seconds"]) for role in BOUNDARY_ROLES}
+    result = {**base, "schema": BOUNDARY_ACCOUNTING_SCHEMA, "body_counter_coverage": BOUNDARY_COVERAGE,
+        "boundary_body_counter_set_present": boundary_complete, "tracked_body_counter_set_present": complete,
+        "scope": "prepared-body plus two private-boundary sender-side application bodies; not native payload plus HTTP",
+        "body_bytes_by_edge": edges, "run_window_cpu_seconds_by_role": cpu,
+        "aggregate_run_window_cpu_seconds": sum(cpu.values()) if cpu is not None else None,
+        "total_wire_bytes": None, "source_distribution_bytes": None,
+        "unknown_reasons": ([] if complete else ["prepared v3 or boundary lifecycle/failed-attempt coverage incomplete"])}
+    for key, online, client in (("all_link_serialized_body_bytes", False, False),
+            ("client_serialized_body_bytes", False, True),
+            ("online_all_link_serialized_body_bytes", True, False),
+            ("online_client_serialized_body_bytes", True, True)):
+        result[key] = sum(edge["serialized_body_bytes"] for edge in edges
+            if (not online or edge["phase"] == "online")
+            and (not client or "client" in (edge["source"], edge["destination"]))) if edges is not None else None
+    from .benchmark_communication import private_boundary_window_attribution
+    result["traffic_attribution"] = private_boundary_window_attribution(counters, result)
+    return result
+
+
+def source_delivery_accounting(case: str, measured_edges=None) -> dict[str, Any]:
+    """Keep prepositioned source and missing-worker deliveries separate.
+
+    Missing-worker evidence must include both artifact and full-source deliveries
+    to both workers. Never synthesize application bytes or TCP from file sizes.
+    """
+    if case not in {"source-present", "missing-workers"}:
+        raise ValueError("unknown source delivery case")
+    valid = isinstance(measured_edges, list) and 0 < len(measured_edges) <= 32
+    if valid:
+        valid = all(isinstance(edge, Mapping)
+            and edge.get("kind") in {"artifact", "full-source"}
+            and edge.get("destination") in {"boundary_a", "boundary_b"}
+            and type(edge.get("application_bytes")) is int and edge["application_bytes"] >= 0
+            and (edge.get("tcp_stream_bytes") is None or (
+                type(edge["tcp_stream_bytes"]) is int and edge["tcp_stream_bytes"] >= edge["application_bytes"]))
+            for edge in measured_edges)
+    if valid and case == "missing-workers":
+        valid = {(edge["destination"], edge["kind"]) for edge in measured_edges} == {
+            (role, kind) for role in ("boundary_a", "boundary_b") for kind in ("artifact", "full-source")}
+    tcp_complete = valid and all(type(edge.get("tcp_stream_bytes")) is int for edge in measured_edges)
+    return {"schema": "pllm.private_boundary_source_delivery.v1", "case": case,
+        "measured": valid, "edges": measured_edges if valid else None,
+        "application_bytes": sum(edge["application_bytes"] for edge in measured_edges) if valid else None,
+        "tcp_stream_bytes": sum(edge["tcp_stream_bytes"] for edge in measured_edges) if tcp_complete else None,
+        "physical_wire_bytes": None, "prepositioned_source_not_free": case == "source-present"}
+
+
 def cold_process_cpu_accounting(
     readings: Mapping[str, Any] | None,
     *,
@@ -461,4 +551,5 @@ __all__ = [
     "prepared_body_accounting",
     "prepared_stage_body_attribution",
     "two_worker_body_accounting",
+    "private_boundary_body_accounting", "source_delivery_accounting",
 ]

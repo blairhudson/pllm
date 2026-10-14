@@ -726,6 +726,7 @@ class ExperimentProfile:
     prefix_cache_bytes: int
     prefix_cache_bound_tokens: int | None
     remote_output_head: bool
+    private_boundary: bool
     client_prefix_layers: int
     client_linear_roles: tuple[str, ...]
     client_linear_layer_roles: tuple[tuple[int, str], ...]
@@ -786,6 +787,7 @@ class ExperimentProfile:
             object.__setattr__(self, "prefix_cache_bytes", runtime_options.prefix_cache_bytes)
             object.__setattr__(self, "prefix_cache_bound_tokens", runtime_options.prefix_cache_bound_tokens)
             object.__setattr__(self, "remote_output_head", runtime_options.remote_output_head)
+            object.__setattr__(self, "private_boundary", runtime_options.private_boundary)
             object.__setattr__(self, "client_prefix_layers", runtime_options.client_prefix_layers)
             object.__setattr__(self, "client_linear_roles", runtime_options.client_linear_roles)
             object.__setattr__(self, "client_linear_layer_roles", runtime_options.client_linear_layer_roles)
@@ -828,6 +830,7 @@ class ExperimentProfile:
         object.__setattr__(self, "prefix_cache_bytes", runtime_options.prefix_cache_bytes)
         object.__setattr__(self, "prefix_cache_bound_tokens", runtime_options.prefix_cache_bound_tokens)
         object.__setattr__(self, "remote_output_head", runtime_options.remote_output_head)
+        object.__setattr__(self, "private_boundary", runtime_options.private_boundary)
         object.__setattr__(self, "client_prefix_layers", runtime_options.client_prefix_layers)
         object.__setattr__(self, "client_linear_roles", runtime_options.client_linear_roles)
         object.__setattr__(self, "client_linear_layer_roles", runtime_options.client_linear_layer_roles)

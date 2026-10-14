@@ -130,7 +130,7 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--model-id", action="append", default=[])
     parser.add_argument(
         "--model-kind",
-        choices=("huggingface", "safetensors", "vllm", "mlx", "mlx-lm"),
+        choices=("huggingface", "safetensors", "vllm", "mlx", "mlx-lm", "tiny"),
         default=None,
     )
     parser.add_argument("--revision")
@@ -161,6 +161,7 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--verification-target-failure-bits", type=int)
     parser.add_argument("--public-equalization-digest")
     parser.add_argument("--remote-output-head", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--private-boundary", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--client-prefix-layers", type=int, default=0, help=argparse.SUPPRESS)
     parser.add_argument("--client-linear-roles", default="", help=argparse.SUPPRESS)
     parser.add_argument("--client-linear-layer-roles", default="[]", help=argparse.SUPPRESS)

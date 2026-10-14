@@ -212,6 +212,57 @@ def prepared_window_attribution(counters: Mapping[str, Any], ledger: Mapping[str
     return result
 
 
+def private_boundary_window_attribution(counters: Mapping[str, Any], ledger: Mapping[str, Any]) -> dict[str, Any]:
+    """Conserve combined HTTP bodies without adding native operation payloads.
+
+    Generation phase counters must cover *all* online roles. Without that
+    evidence, boundary online traffic remains residual, never a guessed rate.
+    """
+    from .topology_accounting import BOUNDARY_COVERAGE, body_coverage_identity, prepared_body_accounting
+    total = _ledger_total(ledger)
+    present = total is not None and body_coverage_identity(ledger) == BOUNDARY_COVERAGE
+    body = prepared_body_accounting({"privacy": dict(counters)})["traffic_attribution"]
+    components = dict(body["components_body_bytes"])
+    # Ordinary body attribution cannot classify merged generation phase counters.
+    components.pop("prefill_online", None)
+    components.pop("decode_online", None)
+    reasons = [reason for reason in body["unknown_reasons"]
+               if reason != "online phase attribution unavailable or unreconciled"]
+    if present:
+        components["boundary_setup_and_retirement"] = sum(counters[
+            f"role_link.{role}.{phase}_{direction}_bytes"]
+            for role in ("boundary_a", "boundary_b") for phase in ("setup", "teardown")
+            for direction in ("upload", "download"))
+        prefill = _count(counters.get("generation_prefill_online_body_bytes"))
+        decode = _count(counters.get("generation_decode_online_body_bytes"))
+        generated = _count(counters.get("generation_output_tokens"))
+        cap = _count(counters.get("generation_requested_output_tokens"))
+        steps = _count(counters.get("generation_executed_decode_steps"))
+        if (prefill is not None and decode is not None
+                and prefill + decode == ledger.get("online_all_link_serialized_body_bytes")
+                and _count(counters.get("generation_completed_responses")) == 1
+                and _count(counters.get("generation_attribution_supported_responses")) == 1
+                and generated is not None and generated > 0
+                and _count(counters.get("generation_decode_output_tokens")) == generated - 1
+                and cap is not None and generated <= cap
+                and steps is not None and generated - 1 <= steps <= generated):
+            components.update(prefill_online=prefill, decode_online=decode)
+        else:
+            reasons.append("combined body/boundary generation phases missing or unreconciled")
+    else:
+        reasons.append("complete v4 combined sender-side body ledger unavailable")
+    result = body_decomposition(total,
+        base_body_bytes=sum(components.get(key, 0) for key in (*_BASE, "boundary_setup_and_retirement")),
+        output_dependent_body_bytes=sum(components.get(key, 0) for key in _OUTPUT),
+        attribution_present=present, headline_eligible=body["reserved_equals_claimed_plus_burned"])
+    return {**body, **result, "source": "sdk_combined_prepared_private_boundary_phase_counters_v1",
+        "components_body_bytes": components, "unknown_reasons": reasons,
+        "audit_counters": {key: value for key, value in counters.items()
+            if (key in _ATTRIBUTION_COUNTERS or key.startswith("role_link.boundary_")
+                or key == "private_boundary_body_coverage_failures")
+            and _count(value) is not None}}
+
+
 def benchmark_traffic_decomposition(report: Mapping[str, Any]) -> dict[str, Any]:
     """Cold first request includes startup once; repeats retain their own windows.
 
@@ -248,7 +299,10 @@ def benchmark_traffic_decomposition(report: Mapping[str, Any]) -> dict[str, Any]
         if isinstance(privacy, Mapping):
             # Raw disjoint audit and directed ledger must still agree. Never
             # trust a stale cached partition after counters or edges changed.
-            attribution = prepared_window_attribution(privacy, ledger)
+            from .topology_accounting import BOUNDARY_COVERAGE
+            attribution = (private_boundary_window_attribution(privacy, ledger)
+                if ledger.get("body_counter_coverage") == BOUNDARY_COVERAGE
+                else prepared_window_attribution(privacy, ledger))
         else:
             # A cached partition alone is not measurement evidence, regardless
             # of its claimed source, validity flag or exact-looking totals.

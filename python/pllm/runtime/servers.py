@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import math
 import os
@@ -60,6 +61,7 @@ async def load_role_adapter(
         verification_target_failure_bits=options.verification_target_failure_bits,
         public_equalization_digest=options.public_equalization_digest,
         remote_output_head=options.remote_output_head,
+        **({"private_boundary": True} if getattr(options, "private_boundary", False) else {}),
         client_prefix_layers=options.client_prefix_layers,
         client_linear_roles=options.client_linear_roles,
         client_linear_layer_roles=options.client_linear_layer_roles,
@@ -98,6 +100,8 @@ def role_client(experiment, connections):
     from pllm.runtime.client import OpenAI
 
     roles = set(connections)
+    if {"boundary_a", "boundary_b"} & roles:
+        raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: private boundary supports local children only")
     if roles == {"worker_a", "worker_b"}:
         return OpenAI(default_model=experiment.resolve().model, experiment=experiment,
                        role_connections=connections, _automatic=False)
@@ -220,6 +224,7 @@ class LocalTopology:
         "_verification_target_failure_bits",
         "_public_equalization_digest",
         "_remote_output_head",
+        "_private_boundary",
         "_client_prefix_layers",
         "_client_linear_roles",
         "_client_linear_layer_roles",
@@ -262,6 +267,7 @@ class LocalTopology:
         credential_prefix: str,
         startup_timeout: float,
         progress: Callable[[str], None] | None,
+        private_boundary: bool = False,
     ) -> None:
         self._model = model
         self._model_id = model_id
@@ -285,6 +291,7 @@ class LocalTopology:
         self._verification_target_failure_bits = verification_target_failure_bits
         self._public_equalization_digest = public_equalization_digest
         self._remote_output_head = remote_output_head
+        self._private_boundary = private_boundary
         self._client_prefix_layers = client_prefix_layers
         self._client_linear_roles = client_linear_roles
         self._client_linear_layer_roles = client_linear_layer_roles
@@ -338,6 +345,25 @@ class LocalTopology:
             raise TopologyError("two-worker topology is not running")
         return {
             role: (self._role_urls[role], self._role_credentials[role]) for role in self._role_ids
+        }
+
+    def boundary_connections(self) -> dict[str, tuple[str, str]]:
+        """Local co-located children; separate credentials do not prove independence."""
+        if not self._private_boundary or not self.is_healthy():
+            raise TopologyError("private boundary topology is not running")
+        return {
+            role: (self._role_urls[role], self._role_credentials[role])
+            for role in ("boundary_a", "boundary_b")
+        }
+
+    def _boundary_options(self) -> dict[str, Any]:
+        if not self._private_boundary:
+            return {}
+        return {
+            "boundary_urls": tuple(self._role_urls[role] for role in ("boundary_a", "boundary_b")),
+            "boundary_api_keys": tuple(
+                self._role_credentials[role] for role in ("boundary_a", "boundary_b")
+            ),
         }
 
     def worker_process_metrics(self) -> dict[str, dict[str, int | None]]:
@@ -480,6 +506,8 @@ class LocalTopology:
             options.extend(("--public-equalization-digest", self._public_equalization_digest))
         if self._remote_output_head:
             options.append("--remote-output-head")
+        if self._private_boundary:
+            options.append("--private-boundary")
         if self._client_prefix_layers:
             options.extend(("--client-prefix-layers", str(self._client_prefix_layers)))
         if self._client_linear_roles:
@@ -575,7 +603,14 @@ class LocalTopology:
             *verification,
             *model,
         ]
-        return {"inference": inference, "preparation": preparation}
+        commands = {"inference": inference, "preparation": preparation}
+        if self._private_boundary:
+            for role in ("boundary_a", "boundary_b"):
+                commands[role] = [
+                    sys.executable, "-m", "pllm.runtime.private_boundary_role",
+                    "--role", role, "--host", "127.0.0.1", "--port", str(ports[role]),
+                ]
+        return commands
 
     def _environment(self, role: str) -> dict[str, str]:
         if role in {"worker_a", "worker_b"}:
@@ -599,7 +634,32 @@ class LocalTopology:
             assert self._experiment is not None
             environment["PLLM_OFFSET_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
             return environment
-        environment = os.environ.copy()
+        # Never inherit another role's credentials, including operator overrides.
+        environment = {
+            name: value for name, value in os.environ.items()
+            if not (name.startswith("PLLM_") and (
+                name.endswith(("_KEY", "_TOKEN", "_KEYS", "_KEYS_JSON"))
+                or name in {"PLLM_ROLE_EXPERIMENT_JSON", "PLLM_OFFSET_EXPERIMENT_JSON"}
+            ))
+        }
+        if role in {"boundary_a", "boundary_b"}:
+            environment = {name: value for name, value in environment.items()
+                           if name in {
+                               "HOME", "PATH", "VIRTUAL_ENV", "PYTHONPATH", "TMPDIR", "LANG",
+                               "SSL_CERT_FILE", "SSL_CERT_DIR", "DYLD_LIBRARY_PATH",
+                               "HF_HOME", "HF_HUB_CACHE", "XDG_CACHE_HOME", "PYTHONUNBUFFERED",
+                           }}
+            if self._experiment is None:
+                raise TopologyError("private boundary requires a bound Experiment")
+            environment["PLLM_BOUNDARY_API_KEY"] = self._role_credentials[role]
+            peer = "boundary_b" if role == "boundary_a" else "boundary_a"
+            environment["PLLM_BOUNDARY_PEER_CREDENTIAL_DIGEST"] = hashlib.sha256(
+                self._role_credentials[peer].encode()
+            ).hexdigest()
+            environment["PLLM_ROLE_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
+            if self._hf_cache_dir is not None:
+                environment["HF_HUB_CACHE"] = self._hf_cache_dir
+            return environment
         if self._experiment is not None:
             environment["PLLM_ROLE_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
         if role == "inference":
@@ -687,7 +747,8 @@ class LocalTopology:
                     f"local {role} service exited during startup ({returncode}){suffix}"
                 )
             try:
-                response = httpx.get(f"{url}/healthz", timeout=0.5)
+                path = "/health" if role in {"boundary_a", "boundary_b"} else "/healthz"
+                response = httpx.get(f"{url}{path}", timeout=0.5)
                 if response.status_code == 200 and response.json().get("role") == expected_role:
                     return
             except (httpx.HTTPError, ValueError):
@@ -707,10 +768,14 @@ class LocalTopology:
                 resolved = resolve_model(self._model, cache_dir=self._hf_cache_dir)
                 if resolved.path is None:
                     raise TopologyError("tiny model did not produce a local source")
-                self._model = Model.path(
-                    str(resolved.path),
-                    model_id=self._model_id,
-                )
+                if not self._private_boundary:
+                    self._model = Model.path(
+                        str(resolved.path),
+                        model_id=self._model_id,
+                    )
+                # Coupled boundary workers independently resolve the Experiment's
+                # original source. Preserve its kind at both prepared roles too:
+                # rewriting tiny -> path would change the verified source lock.
             if not self._role_ids:
                 if self._experiment is None:
                     raise TopologyError("client-only execution requires a bound Experiment")
@@ -776,7 +841,8 @@ class LocalTopology:
                 expected = (
                     "trusted-preparation"
                     if role == "preparation"
-                    else ("offset-worker" if role in {"worker_a", "worker_b"} else "inference")
+                    else (role if role in {"boundary_a", "boundary_b"}
+                          else "offset-worker" if role in {"worker_a", "worker_b"} else "inference")
                 )
                 self._wait(role, expected, self._role_urls[role])
             with self._process_lock:
@@ -810,12 +876,15 @@ class LocalTopology:
             "preparation": "trusted-preparation",
             "worker_a": "offset-worker",
             "worker_b": "offset-worker",
+            "boundary_a": "boundary_a",
+            "boundary_b": "boundary_b",
         }
         for status in self.statuses:
             if not status.running:
                 return False
             try:
-                response = httpx.get(f"{status.url}/healthz", timeout=0.5)
+                path = "/health" if status.role in {"boundary_a", "boundary_b"} else "/healthz"
+                response = httpx.get(f"{status.url}{path}", timeout=0.5)
                 if (
                     response.status_code != 200
                     or response.json().get("role") != expected_roles[status.role]
@@ -848,6 +917,8 @@ class LocalTopology:
                 "http_client",
                 "preparation_http_client",
                 "role_connections",
+                "boundary_urls",
+                "boundary_api_keys",
             },
         )
         from pllm.runtime.client import OpenAI
@@ -885,7 +956,7 @@ class LocalTopology:
                     "preparation_api_key": self._preparation_key,
                 }
             )
-        return OpenAI(**options, **overrides)
+        return OpenAI(**options, **self._boundary_options(), **overrides)
 
     def gateway_app(self, *, local_api_key: str, **overrides: Any) -> Any:
         if not self.is_healthy():
@@ -906,6 +977,8 @@ class LocalTopology:
                 "http_client",
                 "preparation_http_client",
                 "role_connections",
+                "boundary_urls",
+                "boundary_api_keys",
                 "local_api_key",
             },
         )
@@ -942,7 +1015,7 @@ class LocalTopology:
                     "preparation_api_key": self._preparation_key,
                 }
             )
-        return create_sidecar_app(**options, **overrides)
+        return create_sidecar_app(**options, **self._boundary_options(), **overrides)
 
     @staticmethod
     def _stop_all(processes: Iterable[subprocess.Popen[Any]]) -> None:
@@ -970,6 +1043,7 @@ class LocalTopology:
                 self._inference_key = ""
                 self._preparation_key = ""
                 self._push_key = ""
+                self._role_credentials.clear()
 
     def __enter__(self) -> LocalTopology:
         if self._started and not self._closed:
@@ -1053,6 +1127,10 @@ def build_roles(
     role_ids = tuple(
         role.id for role in graph_for_runtime(runtime_options).roles if role.id != "client"
     )
+    if getattr(runtime_options, "private_boundary", False) and set(role_ids) == {
+        "inference", "preparation", "boundary_a", "boundary_b",
+    }:
+        role_ids = ("inference", "preparation", "boundary_a", "boundary_b")
     if memory_limits is not None and (
         type(memory_limits) is not dict or set(memory_limits) != set(role_ids)
         or any(type(value) is not int or value < 64 << 20 for value in memory_limits.values())
@@ -1063,8 +1141,18 @@ def build_roles(
         {"inference"},
         {"inference", "preparation"},
         {"worker_a", "worker_b"},
+        {"inference", "preparation", "boundary_a", "boundary_b"},
     ):
         raise ValueError("role graph requires an unavailable local role implementation")
+    if getattr(runtime_options, "private_boundary", False):
+        if experiment is None:
+            raise TopologyError("private boundary requires a bound Experiment")
+        if set(role_ids) != {"inference", "preparation", "boundary_a", "boundary_b"}:
+            raise TopologyError("private boundary requires its exact five-role graph")
+        if docker:
+            raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: private boundary requires native children")
+    elif {"boundary_a", "boundary_b"} & set(role_ids):
+        raise TopologyError("private boundary roles require explicit coupled-boundary selection")
     if type(model) is str:
         model = Model(model)
     if not isinstance(model, Model):
@@ -1175,6 +1263,7 @@ def build_roles(
         verification_target_failure_bits=runtime_options.verification_target_failure_bits,
         public_equalization_digest=runtime_options.public_equalization_digest,
         remote_output_head=runtime_options.remote_output_head,
+        private_boundary=getattr(runtime_options, "private_boundary", False),
         client_prefix_layers=runtime_options.client_prefix_layers,
         client_linear_roles=runtime_options.client_linear_roles,
         client_linear_layer_roles=runtime_options.client_linear_layer_roles,

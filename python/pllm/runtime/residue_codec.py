@@ -64,6 +64,11 @@ def compiled_row_layout(compiled, *, namespace: str = "offset", packed_input: bo
     for binding in compiled._stages:
         if binding.client_weight_layout is not None:
             continue
+        if (namespace == "prepared" and "private_boundary" in compiled._bundle.privacy
+                and binding.role in {"token_lookup", "lm_head"}):
+            # Native-bound boundary parties use their own full-width frames;
+            # only prepared body stages belong to this residue commitment.
+            continue
         stage = compiled._bundle.stages[binding.stage_id]
         widths = stage.output_residue_bits
         if (type(widths) is not bytes or len(widths) != stage.out_features

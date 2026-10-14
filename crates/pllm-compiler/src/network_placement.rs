@@ -19,7 +19,7 @@ use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
 type RoleCapabilities = &'static [(&'static str, &'static str)];
-type OperatorSeparation = Option<(&'static str, &'static str)>;
+type OperatorSeparation = &'static [(&'static str, &'static str)];
 
 fn bounded(bytes: &[u8], maximum: usize, kind: &str) -> Result<(), String> {
     if bytes.is_empty() || bytes.len() > maximum {
@@ -38,6 +38,7 @@ fn nonzero(digest: &Digest) -> bool {
 pub struct NetworkPlacementAdmission {
     model_identity: Digest,
     requirements: NetworkPlacementRequirements,
+    private_boundary: bool,
 }
 
 /// One admission path for assignment-free inspection and placement validation.
@@ -60,6 +61,7 @@ fn admit_network_placement(
     super::validate_experiment_model(&pipeline.model)?;
     // Exact component and privacy-option admission. Pending slots cannot inject roles.
     let kind = validate_decoder_linear_composition(&pipeline)?;
+    let private_boundary = super::decoder_boundary::selected(&pipeline);
     if pipeline.components.get("cache").is_some_and(|cache| {
         cache.params.contains_key("decode") || cache.params.contains_key("decode_max_bytes")
     }) {
@@ -68,10 +70,11 @@ fn admit_network_placement(
                 .into(),
         );
     }
-    if pipeline
-        .components
-        .get("delivery")
-        .is_some_and(|delivery| delivery.params.contains_key("provider_cache_bytes"))
+    if !private_boundary
+        && pipeline
+            .components
+            .get("delivery")
+            .is_some_and(|delivery| delivery.params.contains_key("provider_cache_bytes"))
     {
         return Err("network offers do not yet price provider artifact-cache disk capacity".into());
     }
@@ -80,35 +83,51 @@ fn admit_network_placement(
             "network offers do not yet price masked-wire issuance and worker material".into(),
         );
     }
-    if pipeline
-        .components
-        .get("preparation")
-        .is_some_and(|p| p.params.contains_key("kernel"))
+    if !private_boundary
+        && pipeline
+            .components
+            .get("preparation")
+            .is_some_and(|p| p.params.contains_key("kernel"))
     {
         return Err("network offers do not yet price digit8 CPU capability and workspace".into());
     }
-    let (role_capabilities, separation): (RoleCapabilities, OperatorSeparation) = match kind {
-        DecoderCompositionKind::MaskedLinear | DecoderCompositionKind::VerifiedMaskedLinear => (
-            &[
-                ("client", "trusted_client"),
-                ("inference", "masked_linear_provider"),
-                ("preparation", "trusted_preparation"),
-            ],
-            Some(("inference", "preparation")),
-        ),
-        DecoderCompositionKind::ClientOnlyLinear => (&[("client", "trusted_client")], None),
-        DecoderCompositionKind::TwoOnlineOffsetLinear => (
-            &[
-                ("client", "trusted_client"),
-                ("worker_a", "public_linear_provider"),
-                ("worker_b", "public_linear_provider"),
-            ],
-            Some(("worker_a", "worker_b")),
-        ),
-        DecoderCompositionKind::Other => {
-            return Err("network composition has no admitted role graph".into())
-        }
-    };
+    let (role_capabilities, separation): (RoleCapabilities, OperatorSeparation) =
+        if private_boundary {
+            (
+                &[
+                    ("client", "trusted_client"),
+                    ("inference", "masked_linear_provider"),
+                    ("preparation", "trusted_preparation"),
+                    ("boundary_a", "public_linear_provider"),
+                    ("boundary_b", "public_linear_provider"),
+                ],
+                &[("inference", "preparation"), ("boundary_a", "boundary_b")],
+            )
+        } else {
+            match kind {
+                DecoderCompositionKind::MaskedLinear
+                | DecoderCompositionKind::VerifiedMaskedLinear => (
+                    &[
+                        ("client", "trusted_client"),
+                        ("inference", "masked_linear_provider"),
+                        ("preparation", "trusted_preparation"),
+                    ],
+                    &[("inference", "preparation")],
+                ),
+                DecoderCompositionKind::ClientOnlyLinear => (&[("client", "trusted_client")], &[]),
+                DecoderCompositionKind::TwoOnlineOffsetLinear => (
+                    &[
+                        ("client", "trusted_client"),
+                        ("worker_a", "public_linear_provider"),
+                        ("worker_b", "public_linear_provider"),
+                    ],
+                    &[("worker_a", "worker_b")],
+                ),
+                DecoderCompositionKind::Other => {
+                    return Err("network composition has no admitted role graph".into())
+                }
+            }
+        };
     let schedule = lower_decoder_runtime_schedule(&plan, composition)?;
     if !schedule.complete {
         return Err("network placement requires a complete native schedule".into());
@@ -117,9 +136,27 @@ fn admit_network_placement(
         &plan,
         &schedule,
         kind,
-        pipeline.components.contains_key("boundary"),
+        pipeline
+            .components
+            .get("boundary")
+            .is_some_and(|c| c.component == "pllm/output-head-at-inference/v1"),
     )?;
     let mut minimum_memory_bytes = minimum_weight_bytes.clone();
+    if let Some(boundary) = &schedule.private_boundary {
+        for role in &boundary.owners {
+            let bytes = minimum_memory_bytes
+                .get_mut(role)
+                .ok_or("private boundary owner is missing")?;
+            *bytes = bytes
+                .checked_add(boundary.scale_bytes)
+                .and_then(|n| n.checked_add(boundary.lookup_scratch_bytes))
+                .ok_or("private boundary memory floor overflow")?;
+        }
+        let client = minimum_memory_bytes.get_mut("client").unwrap();
+        *client = client
+            .checked_add(boundary.scale_bytes)
+            .ok_or("private boundary client floor overflow")?;
+    }
     if let Some(state) = &schedule.retained_state {
         let client = minimum_memory_bytes.get_mut("client").unwrap();
         *client = client
@@ -132,6 +169,7 @@ fn admit_network_placement(
     }
     Ok(NetworkPlacementAdmission {
         model_identity: plan.config_digest,
+        private_boundary,
         requirements: NetworkPlacementRequirements {
             schema: NETWORK_PLACEMENT_REQUIREMENTS_SCHEMA.to_owned(),
             roles: role_capabilities
@@ -142,8 +180,8 @@ fn admit_network_placement(
                 })
                 .collect(),
             separate_operators: separation
-                .into_iter()
-                .map(|(left, right)| [left.to_owned(), right.to_owned()])
+                .iter()
+                .map(|(left, right)| [(*left).to_owned(), (*right).to_owned()])
                 .collect(),
             minimum_memory_bytes,
             minimum_weight_bytes,
@@ -196,6 +234,12 @@ fn validate_admitted_placement(
     admitted: &NetworkPlacementAdmission,
     document: &[u8],
 ) -> Result<Vec<u8>, String> {
+    if admitted.private_boundary {
+        return Err(
+            "private boundary live network placement and automatic offer pricing are not supported"
+                .into(),
+        );
+    }
     bounded(document, NETWORK_MAX_DOCUMENT_BYTES, "placement document")?;
     let requirements = &admitted.requirements;
     let mut request: NetworkPlacementRequest = serde_json::from_slice(document)
@@ -436,6 +480,10 @@ fn owned_weight_floors(
         .chain(providers.iter().copied())
         .map(|role| (role, BTreeSet::new()))
         .collect();
+    if schedule.private_boundary.is_some() {
+        owned.insert("boundary_a", BTreeSet::new());
+        owned.insert("boundary_b", BTreeSet::new());
+    }
     let mut artifacts = BTreeMap::<&str, Vec<u64>>::new();
     for (graph, phase) in [
         (&plan.prefill, &schedule.prefill),
@@ -460,9 +508,15 @@ fn owned_weight_floors(
                 let tensors = operation_tensors(graph, op, vocabulary)?;
                 let provider_owned = op.operator == ModelOperator::Linear
                     || (op.operator == ModelOperator::OutputHead && remote_head);
-                let client_owned = providers.is_empty()
-                    || !provider_owned
-                    || step.executor == DecoderRuntimeExecutor::ClientLinear;
+                let boundary_owned = schedule.private_boundary.is_some()
+                    && matches!(
+                        op.operator,
+                        ModelOperator::TokenLookup | ModelOperator::OutputHead
+                    );
+                let client_owned = !boundary_owned
+                    && (providers.is_empty()
+                        || !provider_owned
+                        || step.executor == DecoderRuntimeExecutor::ClientLinear);
                 for (id, shape) in tensors {
                     checked_weight_elements(&shape)?;
                     if let Some(previous) = artifacts.get(id) {
@@ -486,6 +540,11 @@ fn owned_weight_floors(
                                 .get_mut(role)
                                 .expect("native provider role")
                                 .insert(id);
+                        }
+                    }
+                    if boundary_owned {
+                        for role in ["boundary_a", "boundary_b"] {
+                            owned.get_mut(role).unwrap().insert(id);
                         }
                     }
                 }

@@ -191,6 +191,7 @@ class ExperimentProfile:
     prefix_cache_bytes: int
     prefix_cache_bound_tokens: int | None
     remote_output_head: bool
+    private_boundary: bool
     client_prefix_layers: int
     client_linear_roles: tuple[str, ...]
     client_linear_layer_roles: tuple[tuple[int, str], ...]

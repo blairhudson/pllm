@@ -60,6 +60,7 @@ impl ExecutionCapsule {
         let schedule =
             lower_decoder_runtime_schedule(&plan, composition).map_err(|e| e.to_string())?;
         if schedule.nonlinear.is_some()
+            || schedule.private_boundary.is_some()
             || schedule.retained_state.is_some()
             || schedule.mlp_tiling.is_some()
         {
@@ -202,6 +203,7 @@ impl ExecutionCapsule {
         }
         let capsule: Self = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
         if capsule.schema != SCHEMA
+            || capsule.schedule.get("private_boundary").is_some()
             || capsule.build != build
             || capsule.binding != binding
             || capsule.model != model

@@ -321,6 +321,9 @@ pub(crate) fn build_contract(
     memory_bytes: u64,
 ) -> Result<Vec<u8>, String> {
     let numeric: Value = serde_json::from_slice(composition).map_err(|e| e.to_string())?;
+    if source.private_boundary.is_some() {
+        return Err("private boundary retained state is not supported".into());
+    }
     if !matches!(
         crate::classify_decoder_composition(composition)?,
         crate::DecoderCompositionKind::MaskedLinear

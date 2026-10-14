@@ -354,6 +354,24 @@ def _paged_gather_rows(matrix, ids, *, columns=False):
     return output
 
 
+def validate_private_boundary_bundle(value: Any, *, vocabulary: int, hidden: int) -> dict:
+    """Validate the static public descriptor without receiving any matrix."""
+    fields = {"schema", "lookup", "head_stage", "head_weight_digest", "head_scales_digest"}
+    if type(value) is not dict or set(value) != fields or value["schema"] != "pllm.private_boundary_bundle.v1":
+        raise TransformerClientError("invalid private boundary bundle descriptor")
+    lookup = value["lookup"]
+    if type(lookup) is not dict or set(lookup) != {"digest", "records", "record_bytes"}:
+        raise TransformerClientError("invalid private boundary lookup descriptor")
+    for digest in (lookup["digest"], value["head_weight_digest"], value["head_scales_digest"]):
+        if type(digest) is not str or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            raise TransformerClientError("invalid private boundary commitment")
+    if (type(lookup["records"]) is not int or lookup["records"] != vocabulary
+            or type(lookup["record_bytes"]) is not int or lookup["record_bytes"] != hidden + 4
+            or value["head_stage"] != "lm_head"):
+        raise TransformerClientError("private boundary geometry differs")
+    return value
+
+
 @dataclass(slots=True)
 class ClientBundle:
     model_id: str
@@ -470,6 +488,22 @@ class ClientBundle:
         if str(value.get("model", manifest.get("id", ""))) != str(manifest.get("id", "")):
             raise TransformerClientError("client bundle model descriptor mismatch")
         privacy = dict(value["privacy"])
+        private_boundary = "private_boundary" in privacy
+        if private_boundary:
+            validate_private_boundary_bundle(privacy["private_boundary"],
+                vocabulary=runtime_config.get("vocab_size"), hidden=runtime_config.get("hidden_size", 0))
+            public_stage_fields = {"id", "op", "in_features", "out_features", "weight_bits",
+                "activation_bits", "ring", "weight_digest", "modulus", "wire_bits", "weight_scales",
+                "bias", "source_keys", "role", "layer_index", "seeded_profile",
+                "input_equalization", "equalization_profile_digest", "output_residue_bits"}
+            if any(type(row) is not dict or set(row) - public_stage_fields
+                   for row in value["stages"].values()):
+                raise TransformerClientError("private boundary has unsolicited stage payloads")
+            if (version != 2 or manifest.get("tied_embeddings") is not True
+                    or value.get("runtime") != "masked_transformer" or weight_rows
+                    or any("client_weight" in row or "client_aux_weight" in row
+                           for row in value["stages"].values())):
+                raise TransformerClientError("private boundary bundle must not carry client matrices")
         client_prefix_layers = privacy.get("client_prefix_layers", 0)
         client_linear_roles = privacy.get("client_linear_roles", [])
         client_linear_layer_roles = privacy.get("client_linear_layer_roles", [])
@@ -722,7 +756,35 @@ class ClientBundle:
             stages["embed_tokens"] = stages["token_lookup"]
 
         arrays: dict[str, np.ndarray] = {}
+        if private_boundary:
+            from pllm.modeling import lower_model
+            from .semantic_source import semantic_source_config
+            from .semantic_tensors import required_client_tensors
+            try:
+                source_plan = lower_model(semantic_source_config(runtime_config), batch=1,
+                    max_input_tokens=1, max_new_tokens=1)
+                required = required_client_tensors(source_plan)
+                def tensor_key(key):
+                    return key[len("model."):] if key.startswith("model.") else key
+
+                expected = {tensor_key(key): shape for key, shape in required.items()}
+                if type(array_rows) is not dict or any(type(key) is not str for key in array_rows):
+                    raise TransformerClientError("private boundary client tensor names differ")
+                normalized = {tensor_key(key) for key in array_rows}
+                if (normalized != set(expected) or len(normalized) != len(array_rows)
+                        or len(expected) != len(required)):
+                    raise TransformerClientError("private boundary bundle has unsolicited client tensors")
+                for key, row in array_rows.items():
+                    shape = expected[tensor_key(key)]
+                    if (type(row) is not dict or row.get("shape") != list(shape)
+                            or type(row.get("data")) is not bytes
+                            or len(row["data"]) != math.prod(shape) * 4):
+                        raise TransformerClientError("private boundary client tensor shape differs")
+            except (ValueError, TypeError, KeyError) as exc:
+                raise TransformerClientError("private boundary client tensors differ from source") from exc
         for key, row in array_rows.items():
+            if private_boundary and (type(row) is not dict or set(row) != {"dtype", "shape", "data"}):
+                raise TransformerClientError("private boundary has unsolicited tensor payloads")
             if row.get("dtype") != "f4":
                 raise TransformerClientError(f"unsupported client tensor dtype for {key}")
             shape = tuple(int(item) for item in row["shape"])
@@ -732,6 +794,13 @@ class ClientBundle:
             arrays[str(key)] = array.reshape(shape)
         local_ids = {stage.id for stage in stages.values() if stage.client_weight is not None}
         advertised_ids = set(privacy.get("local_quantized_stages", []))
+        if private_boundary:
+            head = stages.get("lm_head")
+            descriptor = privacy["private_boundary"]
+            if (head is None or head.weight_digest != descriptor["head_weight_digest"]
+                    or hashlib.sha256(head.weight_scales.astype("<f4", copy=False).tobytes()).hexdigest()
+                    != descriptor["head_scales_digest"] or advertised_ids):
+                raise TransformerClientError("private boundary head commitment differs")
         if advertised_ids and advertised_ids != local_ids:
             raise TransformerClientError("local stage weight advertisement mismatch")
         tokenizer = dict(value["tokenizer"])

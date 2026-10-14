@@ -81,6 +81,7 @@ def _apply_server_defaults(args: argparse.Namespace) -> None:
         "verification_target_failure_bits": int(_env("PLLM_VERIFICATION_TARGET_FAILURE_BITS", "0")),
         "public_equalization_digest": None,
         "remote_output_head": False,
+        "private_boundary": False,
         "client_prefix_layers": 0,
         "client_linear_layer_roles": "[]",
         "client_linear_roles": "",
@@ -103,6 +104,25 @@ def _apply_server_defaults(args: argparse.Namespace) -> None:
 def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
     """Run one role from already-parsed options."""
     _apply_server_defaults(args)
+    if args.private_boundary:
+        import json
+
+        from pllm.configuration import Experiment
+        from pllm.profiles import resolve_runtime_composition
+
+        experiment = getattr(args, "resolved_experiment", None)
+        if experiment is None:
+            raw = os.environ.get("PLLM_ROLE_EXPERIMENT_JSON")
+            if raw is None:
+                raise RuntimeCLIError("private boundary requires a bound Experiment")
+            try:
+                experiment = Experiment.from_spec(json.loads(raw))
+                experiment.resolve()
+            except (TypeError, ValueError) as exc:
+                raise RuntimeCLIError("private boundary Experiment is invalid") from exc
+        selected = resolve_runtime_composition(experiment.pipeline)
+        if selected is None or not getattr(selected, "private_boundary", False):
+            raise RuntimeCLIError("private boundary differs from its Experiment")
     config = GatewayConfig.load(Path(args.config).expanduser()) if args.config else GatewayConfig()
     mode = PrivacyMode.parse(getattr(args, "privacy_mode", None) or config.privacy_mode)
     proprietary_protocol = ProprietaryProtocol.parse(
@@ -307,6 +327,8 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
             selected = resolve_runtime_composition(experiment.pipeline)
             if selected is None:
                 raise RuntimeCLIError("unsupported provider Experiment")
+            if bool(getattr(selected, "private_boundary", False)) != args.private_boundary:
+                raise RuntimeCLIError("private boundary role flag differs from its Experiment")
             if preparation:
                 engine_kwargs["weight_storage"] = selected.preparation_storage
                 engine_kwargs["preparation_kernel"] = selected.preparation_kernel
@@ -323,6 +345,10 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
         if engine_type is not MaskedTransformerEngine:
             raise RuntimeCLIError("remote output head requires public prepared roles")
         engine_kwargs["remote_output_head"] = True
+    if args.private_boundary:
+        if engine_type is not MaskedTransformerEngine:
+            raise RuntimeCLIError("private boundary requires public prepared roles")
+        engine_kwargs["private_boundary"] = True
     if args.client_prefix_layers:
         if engine_type is not MaskedTransformerEngine:
             raise RuntimeCLIError("client prefix layers require public prepared roles")

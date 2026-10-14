@@ -140,7 +140,61 @@ class TwoOnlineOffsetRoles(RoleTopology):
         return cls.descriptor
 
 
-class OutputHeadAtInference(ComponentRef):
+class BoundaryPlacement(ComponentRef, ABC):
+    """Explicit ownership and protocol selection for decoder boundaries."""
+
+    __slots__ = ()
+
+    @classmethod
+    @abstractmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+
+class PrivateLookupAndFullHead(BoundaryPlacement):
+    """Couple private token lookup with an exact two-party full-vocabulary head."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/private-lookup-full-head/v1",
+        provider="pllm", distribution="pllm.run", version="1",
+        category="pllm/boundary-placement", category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("private-packed128-token-lookup", "two-party-full-vocabulary-head"),
+        role_eligibility=("client", "boundary_a", "boundary_b"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+class PreparedBoundaryRoles(RoleTopology):
+    """Offline Preparation, prepared body provider and two online boundary parties."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/prepared-body-two-online-boundary/v1",
+        provider="pllm", distribution="pllm.run", version="1",
+        category="pllm/role-topology", category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("prepared-public-linear", "two-online-private-boundary"),
+        role_eligibility=("client", "preparation", "inference", "boundary_a", "boundary_b"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+class OutputHeadAtInference(BoundaryPlacement):
     """Move an untied public output head to the prepared Inference role."""
 
     __slots__ = ()
@@ -305,6 +359,9 @@ __all__ = [
     "RoleTopology",
     "TwoOnlineOffsetRoles",
     "OutputHeadAtInference",
+    "BoundaryPlacement",
+    "PrivateLookupAndFullHead",
+    "PreparedBoundaryRoles",
     "ClientPlacement",
     "ClientLinearRoles",
     "ClientPrefixLayers",

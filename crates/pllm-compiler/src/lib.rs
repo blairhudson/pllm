@@ -20,8 +20,10 @@ use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
 mod compact_protected;
+mod decoder_boundary;
 mod decoder_continuation;
 mod decoder_runtime_schedule;
+pub use decoder_boundary::{PrivateBoundaryContract, PrivateBoundaryPhase};
 mod execution_capsule;
 pub use execution_capsule::ExecutionCapsule;
 mod stage_kernel_plan;
@@ -473,6 +475,10 @@ pub fn decoder_coverage(
         .is_some_and(|composition| lower_decoder_runtime_schedule(plan, composition).is_ok());
     let verified_runtime_unavailable =
         composition_kind == DecoderCompositionKind::VerifiedMaskedLinear;
+    let private_boundary = canonical_composition.is_some_and(|bytes| {
+        serde_json::from_slice::<ExperimentPipeline>(bytes)
+            .is_ok_and(|pipeline| decoder_boundary::selected(&pipeline))
+    });
     let mut occurrences = BTreeMap::<ModelOperator, u64>::new();
     for operation in plan
         .prefill
@@ -592,7 +598,11 @@ pub fn decoder_coverage(
                                 }
                             }
                             ModelOperator::TokenLookup | ModelOperator::OutputHead => {
-                                "pllm/client-quantized-boundary@0.1.0-alpha.1"
+                                if private_boundary {
+                                    "pllm/private-lookup-full-head/v1@0.1.0-alpha.1"
+                                } else {
+                                    "pllm/client-quantized-boundary@0.1.0-alpha.1"
+                                }
                             }
                             _ => "pllm/client-transformer-runtime@0.1.0-alpha.1",
                         }
@@ -660,7 +670,9 @@ pub fn decoder_coverage(
                                 "scheduled by the complete model-aware prepared masked-linear runtime; this is distinct from the fixed-Q10 research composite"
                             }
                         }
-                        ModelOperator::TokenLookup | ModelOperator::OutputHead => "scheduled at the quantized client boundary by the complete model-aware runtime",
+                        ModelOperator::TokenLookup | ModelOperator::OutputHead => if private_boundary {
+                            "scheduled as coupled private lookup and complete additive full head at two committed boundary parties; operator independence needs deployment evidence"
+                        } else { "scheduled at the quantized client boundary by the complete model-aware runtime" },
                         _ => "scheduled client-local by the complete model-aware runtime; client-local execution is outside provider protection",
                     }
                     .to_owned()
@@ -2290,7 +2302,11 @@ fn validate_masked_linear_composition(
         }
     }
     if let Some(boundary) = boundary {
-        if boundary.component != "pllm/output-head-at-inference/v1" || !boundary.params.is_empty() {
+        if !matches!(
+            boundary.component.as_str(),
+            "pllm/output-head-at-inference/v1" | decoder_boundary::COMPONENT
+        ) || !boundary.params.is_empty()
+        {
             return Err("remote output head requires baseline masked-linear placement".into());
         }
     }
@@ -2406,8 +2422,17 @@ fn validate_masked_linear_composition(
         return Err("public equalization has no verified-stage contract".into());
     }
     let topology = pipeline.components.get("topology");
+    let private_boundary = decoder_boundary::selected(pipeline);
+    if private_boundary {
+        decoder_boundary::validate_composition(pipeline)?;
+    }
     if let Some(topology) = topology {
-        if topology.component != "pllm/one-online-provider-offline-preparation/v1"
+        if topology.component
+            != if private_boundary {
+                decoder_boundary::TOPOLOGY
+            } else {
+                "pllm/one-online-provider-offline-preparation/v1"
+            }
             || !topology.params.is_empty()
         {
             return Err("masked-linear topology requires the installed prepared-provider role graph with no parameters".into());

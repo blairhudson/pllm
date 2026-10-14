@@ -194,6 +194,7 @@ def build_loopback_report(
         client_owned_body_accounting,
         cold_process_cpu_accounting,
         prepared_body_accounting,
+        private_boundary_body_accounting,
         prepared_stage_body_attribution,
         two_worker_body_accounting,
     )
@@ -239,6 +240,11 @@ def build_loopback_report(
             two_worker_body_accounting(record)["tracked_body_counter_set_present"]
             for record in all_runs
         )
+    if set(roles) == {"client", "preparation", "inference", "boundary_a", "boundary_b"}:
+        checks["prepared_and_boundary_bodies_tracked"] = all(
+            private_boundary_body_accounting(record)["tracked_body_counter_set_present"]
+            for record in all_runs
+        )
     output_tokens = [
         int(record["tokens"]["output_tokens"])
         for record in runs
@@ -251,6 +257,8 @@ def build_loopback_report(
         if set(roles) == {"client", "worker_a", "worker_b"}
         else prepared_body_accounting
         if set(roles) == {"client", "preparation", "inference"}
+        else private_boundary_body_accounting
+        if set(roles) == {"client", "preparation", "inference", "boundary_a", "boundary_b"}
         else None
     )
     body_records = [account(record) for record in runs] if account is not None else []
@@ -326,9 +334,12 @@ def build_loopback_report(
         "privacy_admission": (
             {
                 "independent_operators_verified": False,
-                "reason": "loopback offset workers share one operator and host",
+                "reason": ("loopback boundary workers share one operator and host"
+                           if {"boundary_a", "boundary_b"} <= set(roles)
+                           else "loopback offset workers share one operator and host"),
             }
-            if set(roles) == {"client", "worker_a", "worker_b"}
+            if (set(roles) == {"client", "worker_a", "worker_b"}
+                or {"boundary_a", "boundary_b"} <= set(roles))
             else None
         ),
         "summary": {
@@ -376,15 +387,15 @@ def build_loopback_report(
             if roles == ("client",)
             else {
                 "startup": (
-                    prepared_body_accounting(
+                    account(
                         {"privacy": initial_preparation_audit},
                         initial_preparation=True,
                     )
                     if initial_preparation_audit is not None
                     else None
                 ),
-                "warmups": [prepared_body_accounting(run) for run in warmup_runs],
-                "runs": [prepared_body_accounting(run) for run in runs],
+                "warmups": [account(run) for run in warmup_runs],
+                "runs": [account(run) for run in runs],
                 "stages": stage_attribution,
             }
             if "preparation" in roles

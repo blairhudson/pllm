@@ -197,14 +197,30 @@ def graph_for_runtime(composition: RuntimeComposition) -> RoleGraph:
         ]
         if composition.verification_component is not None:
             channels.append(Channel("preparation", "client", "offline", "verification_projection"))
-        return RoleGraph(
-            roles=(
+        roles = (
                 Role("client", "trusted_client"),
                 Role("preparation", "trusted_preparation"),
                 Role("inference", "masked_linear_provider"),
-            ),
+        )
+        separation = (("preparation", "inference"),)
+        if composition.private_boundary:
+            roles += (Role("boundary_a", "public_linear_provider"),
+                      Role("boundary_b", "public_linear_provider"))
+            separation += (("boundary_a", "boundary_b"),)
+            for party in ("boundary_a", "boundary_b"):
+                channels.extend((
+                    Channel("client", party, "online", "boundary_session"),
+                    Channel("client", party, "online", "private_lookup_share"),
+                    Channel(party, "client", "online", "private_record_share"),
+                    Channel("client", party, "online", "head_input_share"),
+                    Channel(party, "client", "online", "head_output_share"),
+                    Channel("client", party, "online", "boundary_retirement"),
+                    Channel(party, "client", "offline", "boundary_descriptor"),
+                ))
+        return RoleGraph(
+            roles=roles,
             channels=tuple(channels),
-            separate_operators=(("preparation", "inference"),),
+            separate_operators=separation,
         )
     if composition.privacy_mode == "proprietary" and not composition.requires_preparation:
         return RoleGraph(

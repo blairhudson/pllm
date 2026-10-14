@@ -13,7 +13,7 @@ from pllm.protocols import (
     ProtocolMethod,
     TwoOnlineOffsetLinear,
 )
-from pllm.roles import ClientPlacement, ClientOnlyRoles, InferenceRole, OutputHeadAtInference, RoleTopology, PreparedProviderRoles, TwoOnlineOffsetRoles
+from pllm.roles import BoundaryPlacement, ClientPlacement, ClientOnlyRoles, InferenceRole, OutputHeadAtInference, RoleTopology, PreparedProviderRoles, TwoOnlineOffsetRoles
 from pllm.sources import ModelSource
 from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
 from pllm.schedulers import MlpPrefillTiling
@@ -43,6 +43,7 @@ class RuntimeComposition:
     prefix_cache_bytes: int
     prefix_cache_bound_tokens: int | None
     remote_output_head: bool
+    private_boundary: bool
     client_prefix_layers: int
     client_linear_roles: tuple[str, ...]
     client_linear_layer_roles: tuple[tuple[int, str], ...]
@@ -77,6 +78,7 @@ class RuntimeComposition:
         activation_bits: int = ...,
         causal_reduction: str | None = ...,
         prepared_output_encoding: str = ...,
+        private_boundary: bool = ...,
     ) -> None: ...
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None: ...
@@ -93,7 +95,8 @@ class MaskedLinearCpu(Pipeline):
         kernels: KernelBackend = ...,
         quantization: QuantizationScheme | None = ...,
         cache: ClientPrefixReuse | None = ...,
-        boundary: OutputHeadAtInference | None = ...,
+        boundary: BoundaryPlacement | None = ...,
+        topology: RoleTopology | None = ...,
         placement: ClientPlacement | None = ...,
         inventory: PreparedInventory | None = ...,
         delivery: ClientBundleTransport | None = ...,
@@ -115,7 +118,9 @@ class MaskedLinearCpu(Pipeline):
     @property
     def cache(self) -> ClientPrefixReuse | None: ...
     @property
-    def boundary(self) -> OutputHeadAtInference | None: ...
+    def boundary(self) -> BoundaryPlacement | None: ...
+    @property
+    def topology(self) -> RoleTopology | None: ...
     @property
     def placement(self) -> ClientPlacement | None: ...
     @property

@@ -35,7 +35,23 @@ class TwoOnlineOffsetRoles(RoleTopology):
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
 
-class OutputHeadAtInference(ComponentRef):
+class BoundaryPlacement(ComponentRef):
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+class PrivateLookupAndFullHead(BoundaryPlacement):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+class PreparedBoundaryRoles(RoleTopology):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+class OutputHeadAtInference(BoundaryPlacement):
     descriptor: ComponentDescriptor
     def __init__(self) -> None: ...
     @classmethod

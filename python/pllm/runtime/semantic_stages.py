@@ -327,6 +327,8 @@ def scheduled_prepared_phase_rows(plan: ModelPlan, composition: Pipeline,
                 client_prefix_layers=options.client_prefix_layers,
                 client_linear_roles=options.client_linear_roles,
                 client_linear_layer_roles=options.client_linear_layer_roles)
+            if getattr(options, "private_boundary", False) and role in {"token_lookup", "lm_head"}:
+                remote = False
             for operation_id in step["operation_ids"]:
                 bindings[f"{phase}:{operation_id}"] = (stage.id, stage.role) if remote else None
     return prepared_phase_rows(schedule, bindings, prefill_rows, decode_steps,

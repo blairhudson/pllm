@@ -21,6 +21,7 @@ from pllm.protocols import (
     TwoOnlineOffsetLinear,
 )
 from pllm.roles import (
+    BoundaryPlacement,
     ClientOnlyRoles,
     ClientPlacement,
     ClientLinearRoles,
@@ -28,6 +29,8 @@ from pllm.roles import (
     Inference,
     InferenceRole,
     OutputHeadAtInference,
+    PrivateLookupAndFullHead,
+    PreparedBoundaryRoles,
     PreparedProviderRoles,
     RoleTopology,
     TwoOnlineOffsetRoles,
@@ -107,6 +110,7 @@ class MaskedLinearCpu(_TypedPipeline):
         "quantization",
         "cache",
         "boundary",
+        "topology",
         "placement",
         "inventory",
         "delivery",
@@ -124,7 +128,8 @@ class MaskedLinearCpu(_TypedPipeline):
         kernels: KernelBackend = _DEFAULT_KERNELS,
         quantization: QuantizationScheme | None = None,
         cache: ClientPrefixReuse | None = None,
-        boundary: OutputHeadAtInference | None = None,
+        boundary: BoundaryPlacement | None = None,
+        topology: RoleTopology | None = None,
         placement: ClientPlacement | None = None,
         inventory: PreparedInventory | None = None,
         delivery: ClientBundleTransport | None = None,
@@ -155,10 +160,11 @@ class MaskedLinearCpu(_TypedPipeline):
                     {"cache": _slot("cache", cache, ClientPrefixReuse)} if cache is not None else {}
                 ),
                 **(
-                    {"boundary": _slot("boundary", boundary, OutputHeadAtInference)}
+                    {"boundary": _slot("boundary", boundary, BoundaryPlacement)}
                     if boundary is not None
                     else {}
                 ),
+                **({"topology": _slot("topology", topology, RoleTopology)} if topology is not None else {}),
                 **(
                     {"placement": _slot("placement", placement, ClientPlacement)}
                     if placement is not None
@@ -206,8 +212,12 @@ class MaskedLinearCpu(_TypedPipeline):
         return self.components.get("cache")
 
     @property
-    def boundary(self) -> OutputHeadAtInference | None:
+    def boundary(self) -> BoundaryPlacement | None:
         return self.components.get("boundary")
+
+    @property
+    def topology(self) -> RoleTopology | None:
+        return self.components.get("topology")
 
     @property
     def placement(self) -> ClientPlacement | None:
@@ -651,6 +661,7 @@ class RuntimeComposition:
     prefix_cache_bytes: int = 0
     prefix_cache_bound_tokens: int | None = None
     remote_output_head: bool = False
+    private_boundary: bool = False
     client_prefix_layers: int = 0
     client_linear_roles: tuple[str, ...] = ()
     client_linear_layer_roles: tuple[tuple[int, str], ...] = ()
@@ -678,6 +689,24 @@ class RuntimeComposition:
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    private_boundary = identities.get("boundary") == PrivateLookupAndFullHead.descriptor.component
+    if private_boundary:
+        quantization = pipeline.components.get("quantization")
+        inventory = pipeline.components.get("inventory")
+        if (identities.get("topology") != PreparedBoundaryRoles.descriptor.component
+                or identities.get("linear") != "pllm/masked-linear"
+                or identities.get("preparation") != "pllm/model-aware-corrections"
+                or identities.get("inference") != "pllm/inference"
+                or identities.get("kernels") != "pllm/cpu"
+                or pipeline.components["boundary"].params
+                or pipeline.components["topology"].params
+                or {"verification", "nonlinear", "scheduler", "state", "cache", "public_prefix", "placement"} & identities.keys()
+                or quantization is not None and (
+                    quantization.component != SymmetricPerRow.descriptor.component
+                    or quantization.params.get("weight_bits") != 8
+                    or quantization.params.get("activation_bits") != 8)
+                or inventory is not None and {"decode_epoch_tokens", "decode_epoch_schedule"} & inventory.params.keys()):
+            return None
     inventory = pipeline.components.get("inventory")
     cache = pipeline.components.get("cache")
     epochs = inventory is not None and bool({"decode_epoch_tokens", "decode_epoch_schedule"} & inventory.params.keys())
@@ -891,7 +920,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     boundary = pipeline.components.get("boundary")
     if boundary is not None:
         if (
-            boundary.component != OutputHeadAtInference.descriptor.component
+            boundary.component not in {OutputHeadAtInference.descriptor.component,
+                                       PrivateLookupAndFullHead.descriptor.component}
             or boundary.params
             or identities.get("linear") != "pllm/masked-linear"
         ):
@@ -1037,7 +1067,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         )
     if topology is not None:
         if (
-            topology.component != "pllm/one-online-provider-offline-preparation/v1"
+            topology.component != (PreparedBoundaryRoles.descriptor.component if private_boundary
+                                   else "pllm/one-online-provider-offline-preparation/v1")
             or topology.params
             or identities.get("linear") != "pllm/masked-linear"
             or identities.get("preparation") != "pllm/model-aware-corrections"
@@ -1083,7 +1114,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             verification_target_failure_bits=target_bits + extra_bits,
             **bits,
             **cache_options,
-            remote_output_head=boundary is not None,
+            remote_output_head=boundary is not None and not private_boundary,
+            private_boundary=private_boundary,
             **placement_options,
             **transport_options,
         )
@@ -1108,7 +1140,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             public_equalization_digest=equalization_digest,
             **bits,
             **cache_options,
-            remote_output_head=boundary is not None,
+            remote_output_head=boundary is not None and not private_boundary,
+            private_boundary=private_boundary,
             **placement_options,
             **transport_options,
         )

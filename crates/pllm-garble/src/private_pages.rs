@@ -7,6 +7,7 @@ use aes::{
 };
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use std::sync::Arc;
 use zeroize::Zeroize;
 
 type Block = [u8; 16];
@@ -336,12 +337,51 @@ fn issue_layout(
         },
     ))
 }
-/// One independently owned table and one party's process-local replay ledger.
+enum Table {
+    Records(Vec<u8>),
+    // The head and lookup retain the same immutable matrix, rather than a second
+    // vocabulary-sized interleaved allocation. Scales keep their original bits.
+    Vocabulary {
+        matrix: Arc<pllm_core::kernels::Matrix>,
+        scales: Vec<u8>,
+    },
+}
+impl Table {
+    fn xor_record(&self, index: usize, width: usize, mask: u8, output: &mut [u8]) {
+        match self {
+            Self::Records(data) => {
+                for (dst, &value) in output
+                    .iter_mut()
+                    .zip(&data[index * width..(index + 1) * width])
+                {
+                    *dst ^= value & mask;
+                }
+            }
+            Self::Vocabulary { matrix, scales } => {
+                let columns = width - 4;
+                let weights = &matrix.as_signed_slice()[index * columns..(index + 1) * columns];
+                for (dst, &value) in output[..columns].iter_mut().zip(weights) {
+                    *dst ^= value as u8 & mask;
+                }
+                for (dst, &value) in output[columns..]
+                    .iter_mut()
+                    .zip(&scales[index * 4..index * 4 + 4])
+                {
+                    *dst ^= value & mask;
+                }
+            }
+        }
+    }
+}
+
+/// One party's table view and process-local replay ledgers. Context-bound views
+/// share immutable public storage but never share a query-consumption ledger.
 pub struct Server {
     descriptor: Descriptor,
-    data: Vec<u8>,
+    data: Arc<Table>,
     party: u8,
     burned: BTreeSet<Block>,
+    contexts: BTreeSet<[u8; 32]>,
 }
 impl Server {
     pub fn new(data: &[u8], width: usize, party: u8) -> Result<Self, String> {
@@ -362,9 +402,86 @@ impl Server {
         descriptor.digest = hash.finalize().into();
         Ok(Self {
             descriptor,
-            data: data.to_vec(),
+            data: Arc::new(Table::Records(data.to_vec())),
             party,
             burned: BTreeSet::new(),
+            contexts: BTreeSet::new(),
+        })
+    }
+    /// Bind the existing signed-i8 head snapshot and per-token float32 scales.
+    /// The descriptor is byte-identical to explicitly interleaved records.
+    pub fn from_matrix(
+        matrix: Arc<pllm_core::kernels::Matrix>,
+        scales: &[u8],
+        party: u8,
+    ) -> Result<Self, String> {
+        let (records, columns) = matrix.shape();
+        let mut descriptor = Descriptor {
+            records,
+            width: columns
+                .checked_add(4)
+                .ok_or("private vocabulary width overflow")?,
+            digest: [0; 32],
+        }
+        .validate()?;
+        if party > 1
+            || scales.len() != records * 4
+            || scales.chunks_exact(4).any(|bytes| {
+                let scale = f32::from_le_bytes(bytes.try_into().unwrap());
+                !scale.is_finite() || scale <= 0.0
+            })
+        {
+            return Err("private vocabulary party or scales differ".into());
+        }
+        let mut hash = Sha256::new();
+        hash.update(b"pllm/public-page-table/v1\0");
+        hash.update((records as u64).to_le_bytes());
+        hash.update((descriptor.width as u64).to_le_bytes());
+        let mut row = vec![0_u8; columns];
+        for (weights, scale) in matrix
+            .as_signed_slice()
+            .chunks_exact(columns)
+            .zip(scales.chunks_exact(4))
+        {
+            for (byte, &value) in row.iter_mut().zip(weights) {
+                *byte = value as u8;
+            }
+            hash.update(&row);
+            hash.update(scale);
+        }
+        descriptor.digest = hash.finalize().into();
+        Ok(Self {
+            descriptor,
+            data: Arc::new(Table::Vocabulary {
+                matrix,
+                scales: scales.to_vec(),
+            }),
+            party,
+            burned: BTreeSet::new(),
+            contexts: BTreeSet::new(),
+        })
+    }
+    /// Mint at most 4096 unique public contexts per owner. The caller supplies a
+    /// source/plan/session/epoch commitment; authenticated transport remains its
+    /// responsibility. Repeated contexts reject even after a child retires.
+    pub fn bind_context(&mut self, context: [u8; 32]) -> Result<Self, String> {
+        if self.contexts.len() >= MAX_QUERIES || !self.contexts.insert(context) {
+            return Err("private page context replayed or ledger exhausted".into());
+        }
+        let mut hash = Sha256::new();
+        hash.update(b"pllm/private-page-context/v1\0");
+        hash.update(self.descriptor.digest);
+        hash.update(context);
+        let descriptor = Descriptor {
+            digest: hash.finalize().into(),
+            ..self.descriptor
+        };
+        Ok(Self {
+            descriptor,
+            data: Arc::clone(&self.data),
+            party: self.party,
+            burned: BTreeSet::new(),
+            contexts: BTreeSet::new(),
         })
     }
     pub fn descriptor(&self) -> Descriptor {
@@ -446,16 +563,10 @@ impl Server {
         let mut outputs = zeroize::Zeroizing::new(vec![0_u8; self.descriptor.width * count]);
         // One traversal of the table; all selections are masked XOR, including
         // zero shares. Working masks stay at the worker (at most 16 MiB).
-        for (row, selection) in self
-            .data
-            .chunks_exact(self.descriptor.width)
-            .zip(bits.chunks_exact(count))
-        {
+        for (row, selection) in bits.chunks_exact(count).enumerate() {
             for (out, &bit) in outputs.chunks_mut(self.descriptor.width).zip(selection) {
                 let mask = 0_u8.wrapping_sub(bit);
-                for (dst, &value) in out.iter_mut().zip(row) {
-                    *dst ^= value & mask;
-                }
+                self.data.xor_record(row, self.descriptor.width, mask, out);
             }
         }
         Ok(keys
@@ -500,13 +611,8 @@ impl Server {
                 .min(self.descriptor.records - first_record)
             {
                 let mask = 0_u8.wrapping_sub((word[bit / 8] >> (bit % 8)) & 1);
-                let start = (first_record + bit) * self.descriptor.width;
-                for (dst, &byte) in out
-                    .iter_mut()
-                    .zip(&self.data[start..start + self.descriptor.width])
-                {
-                    *dst ^= byte & mask;
-                }
+                self.data
+                    .xor_record(first_record + bit, self.descriptor.width, mask, out);
             }
             word.zeroize();
         } else {
@@ -590,6 +696,79 @@ fn fill_bits(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shared_vocabulary_snapshot_and_bound_contexts() {
+        let (records, columns) = (129, 19);
+        let weights: Vec<u8> = (0..records * columns).map(|i| (i * 37) as u8).collect();
+        let scales: Vec<u8> = (0..records)
+            .flat_map(|i| (0.01 + i as f32 / 10.0).to_le_bytes())
+            .collect();
+        let matrix = Arc::new(pllm_core::kernels::Matrix::new(&weights, records, columns).unwrap());
+        let mut table = Vec::new();
+        for (row, scale) in weights.chunks_exact(columns).zip(scales.chunks_exact(4)) {
+            table.extend_from_slice(row);
+            table.extend_from_slice(scale);
+        }
+        let raw = Server::new(&table, columns + 4, 0).unwrap();
+        let mut a = Server::from_matrix(Arc::clone(&matrix), &scales, 0).unwrap();
+        let mut b = Server::from_matrix(Arc::clone(&matrix), &scales, 1).unwrap();
+        assert_eq!(Arc::strong_count(&matrix), 3);
+        assert!(a.descriptor() == raw.descriptor());
+        let mut x = a.bind_context([31; 32]).unwrap();
+        let mut y = b.bind_context([31; 32]).unwrap();
+        assert_eq!(Arc::strong_count(&a.data), 2);
+        assert_eq!(Arc::strong_count(&matrix), 3);
+        assert!(a.bind_context([31; 32]).is_err());
+        let mut other = a.bind_context([32; 32]).unwrap();
+        assert!(x.descriptor() == y.descriptor());
+        assert!(x.descriptor() != other.descriptor());
+        let mut hash = Sha256::new();
+        hash.update(b"pllm/private-page-context/v1\0");
+        hash.update(raw.descriptor().digest);
+        hash.update([31; 32]);
+        assert_eq!(x.descriptor().digest, <[u8; 32]>::from(hash.finalize()));
+        // Retiring source wrappers must leave each bound view's immutable owner valid.
+        drop(matrix);
+        drop(a);
+        drop(b);
+        let indices = [0, 127, 128];
+        let queries: Vec<_> = indices
+            .iter()
+            .map(|&i| issue_packed(x.descriptor(), i).unwrap())
+            .collect();
+        assert!(other.evaluate(&queries[0].0).is_err());
+        let qa: Vec<_> = queries.iter().map(|q| q.0.as_slice()).collect();
+        let qb: Vec<_> = queries.iter().map(|q| q.1.as_slice()).collect();
+        let ra = x.evaluate_batch(&qa).unwrap();
+        let rb = y.evaluate_batch(&qb).unwrap();
+        assert!(x.evaluate_batch(&qa).is_err());
+        for ((index, (_, _, decoder)), (a, b)) in
+            indices.iter().zip(queries).zip(ra.iter().zip(rb.iter()))
+        {
+            assert_eq!(
+                decoder.decode(a, b).unwrap(),
+                table[index * (columns + 4)..(index + 1) * (columns + 4)]
+            );
+        }
+    }
+
+    #[test]
+    fn vocabulary_admission_precedes_context_or_scale_allocation() {
+        let matrix = Arc::new(pllm_core::kernels::Matrix::new(&[1, 2, 3], 1, 3).unwrap());
+        for scale in [f32::NAN, f32::INFINITY, 0.0, -0.0, -1.0] {
+            assert!(Server::from_matrix(Arc::clone(&matrix), &scale.to_le_bytes(), 0).is_err());
+        }
+        assert!(Server::from_matrix(Arc::clone(&matrix), &[0; 3], 0).is_err());
+        assert!(Server::from_matrix(Arc::clone(&matrix), &1.0_f32.to_le_bytes(), 2).is_err());
+        let mut root = Server::from_matrix(matrix, &1.0_f32.to_le_bytes(), 0).unwrap();
+        for i in 0..MAX_QUERIES {
+            let mut context = [0; 32];
+            context[..8].copy_from_slice(&(i as u64).to_le_bytes());
+            drop(root.bind_context(context).unwrap());
+        }
+        assert!(root.bind_context([255; 32]).is_err());
+    }
+
     #[test]
     fn encryption_only_schedule_preserves_scalar_prg() {
         // The original full cipher remains an independent schedule oracle.

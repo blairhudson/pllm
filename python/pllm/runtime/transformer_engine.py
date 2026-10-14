@@ -316,6 +316,7 @@ class LoadedTransformer:
     stages: dict[str, StageRuntime]
     local_tensors: dict[str, np.ndarray]
     tokenizer: dict[str, Any]
+    private_boundary: dict[str, Any] | None = None
     bfv_contexts: dict[str, bytes] = field(default_factory=dict)
     bfv_servers: dict[tuple[str, str], BFVCorrelationServer | TiledBFVServer] = field(
         default_factory=dict
@@ -501,6 +502,7 @@ class MaskedTransformerEngine:
         public_equalization_digest: str | None = None,
         metal_min_rows: int | None = None,
         remote_output_head: bool = False,
+        private_boundary: bool = False,
         client_prefix_layers: int = 0,
         client_linear_roles: tuple[str, ...] = (),
         client_linear_layer_roles: tuple[tuple[int, str], ...] = (),
@@ -583,6 +585,15 @@ class MaskedTransformerEngine:
         if type(remote_output_head) is not bool:
             raise ValueError("remote output head requires a boolean")
         self.remote_output_head = remote_output_head
+        if type(private_boundary) is not bool or (private_boundary and (
+            type(self) is not MaskedTransformerEngine or remote_output_head
+            or (self.weight_bits, self.activation_bits) != (8, 8)
+            or verification_component != "none" or public_equalization_digest is not None
+            or metal_min_rows is not None or modulus is not None
+            or client_prefix_layers or client_linear_roles or client_linear_layer_roles
+        )):
+            raise ValueError("private boundary requires unverified CPU W8A8 prepared body")
+        self.private_boundary = private_boundary
         if (
             type(client_prefix_layers) is not int
             or not 0 <= client_prefix_layers <= 8
@@ -628,6 +639,8 @@ class MaskedTransformerEngine:
     async def load(self, manifest: ModelManifest) -> None:
         if manifest.id in self.models:
             raise TransformerEngineError(f"model {manifest.id!r} is already loaded")
+        if self.private_boundary and not manifest.tied_embeddings:
+            raise TransformerEngineError("private boundary requires a tied token/head checkpoint")
         if self.remote_output_head and manifest.tied_embeddings:
             raise TransformerEngineError(
                 "remote output head requires an untied token/head checkpoint"
@@ -2061,6 +2074,8 @@ class MaskedTransformerEngine:
             raise TransformerEngineError("non-prepared execution cannot claim remote verification")
         if self.remote_output_head and (placement != "prepared" or not include_local_weights):
             raise TransformerEngineError("remote output head requires prepared client token lookup")
+        if self.private_boundary and (placement != "prepared" or not include_local_weights):
+            raise TransformerEngineError("private boundary requires its prepared thin bundle")
         if (self.client_prefix_layers or self.client_linear_roles or self.client_linear_layer_roles) and (
             placement != "prepared" or not include_local_weights
         ):
@@ -2071,6 +2086,8 @@ class MaskedTransformerEngine:
             if include_local_weights
             else set()
         )
+        if self.private_boundary:
+            local_stage_ids.clear()
         if self.client_prefix_layers or self.client_linear_roles or self.client_linear_layer_roles:
             local_stage_ids.update(
                 sid
@@ -2086,7 +2103,9 @@ class MaskedTransformerEngine:
         }
         if output_encoding == "row_residues":
             for sid, runtime in model.stages.items():
-                if sid not in local_stage_ids:
+                if sid not in local_stage_ids and not (
+                    self.private_boundary and sid in {"token_lookup", "lm_head"}
+                ):
                     stage_descriptors[sid]["output_residue_bits"] = runtime.output_residue_bits
         client_weights: dict[str, dict[str, Any]] = {}
 
@@ -2098,7 +2117,7 @@ class MaskedTransformerEngine:
                 "scales": weight.scales.astype("<f4", copy=False).tobytes(),
             }
 
-        if include_local_weights:
+        if include_local_weights and not self.private_boundary:
             token_lookup = model.stages["token_lookup"]
             lm_head = model.stages["lm_head"]
             tied = (
@@ -2240,6 +2259,8 @@ class MaskedTransformerEngine:
                     **({"prepared_output_encoding": output_encoding}
                        if placement == "prepared" and output_encoding != "raw" else {}),
                     **({"remote_output_head": True} if self.remote_output_head else {}),
+                    **({"private_boundary": self.private_boundary_bundle(model_id)}
+                       if self.private_boundary else {}),
                     **(
                         {"client_prefix_layers": self.client_prefix_layers}
                         if self.client_prefix_layers
@@ -2260,6 +2281,35 @@ class MaskedTransformerEngine:
                 },
             },
         )
+
+    def private_boundary_bundle(self, model_id: str) -> dict[str, Any]:
+        """Commit the original tied table without serializing a second weight owner."""
+        from pllm import _native
+
+        model = self._model(model_id)
+        if model.private_boundary is not None:
+            return dict(model.private_boundary)
+        token = model.stages["token_lookup"]
+        head = model.stages["lm_head"]
+        if (not self.private_boundary or not model.manifest.tied_embeddings
+                or not token.source_keys or token.source_keys != head.source_keys
+                or token.spec.out_features != head.spec.in_features
+                or token.spec.in_features != head.spec.out_features
+                or head.weight.values.dtype != np.int8 or head.weight.values.ndim != 2
+                or head.bias is not None):
+            raise TransformerEngineError("private boundary requires one tied bias-free table")
+        scales = head.weight.scales.astype("<f4", copy=False).tobytes()
+        if head.compiled_weight is None or head.compiled_weight._matrix is None:
+            raise TransformerEngineError("private boundary requires an immutable native head")
+        lookup = _native.PrivatePageServer.from_matrix(head.compiled_weight._matrix, scales, 0)
+        lookup_digest, records, record_bytes = lookup.descriptor()
+        del lookup
+        model.private_boundary = {"schema": "pllm.private_boundary_bundle.v1",
+                "lookup": {"digest": bytes(lookup_digest).hex(), "records": records,
+                           "record_bytes": record_bytes},
+                "head_stage": "lm_head", "head_weight_digest": head.weight_digest,
+                "head_scales_digest": hashlib.sha256(scales).hexdigest()}
+        return dict(model.private_boundary)
 
     def metrics(self) -> dict[str, Any]:
         return {

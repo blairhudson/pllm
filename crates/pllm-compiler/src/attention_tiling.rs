@@ -80,6 +80,7 @@ fn build_contract(
 ) -> Result<Vec<u8>, String> {
     let graph = &plan.prefill;
     if graph.batch != 1
+        || source.private_boundary.is_some()
         || source.nonlinear.is_some()
         || source.retained_state.is_some()
         || source.decode_epochs.is_some()

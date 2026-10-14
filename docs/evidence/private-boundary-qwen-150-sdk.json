@@ -1,0 +1,4136 @@
+{
+  "schema": "pllm.private_boundary_sdk_benchmark.v1",
+  "complete": true,
+  "driver_implementation": {
+    "benchmark_private_boundary.py": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+    "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+    "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+    "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+    "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+  },
+  "tiny": false,
+  "scope": "matched-sdk-response",
+  "source_delivery_scope": "prepositioned source; distribution unmeasured",
+  "network_scope": "native shared 100 Mbps down / 40 Mbps up",
+  "sampler_fixture": {
+    "seed": 42,
+    "temperature": 0,
+    "cryptographic_randomness_frozen": false,
+    "diagnostic_cost_charged_equally": true
+  },
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "expected_digest": "dacf2d9d983de6860c4439eba11eb0d24d843d1715dd15b9563f9bab327753cf"
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "cohort_commitment": "a465166f104d36eef7eb8bf1a02c50badc15fd29b67887167162c772c5453089",
+  "replicates": 3,
+  "planned_cells": 6,
+  "memory_admission": {
+    "150/baseline": {
+      "topology": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 11386732544,
+          "swap_used": 902365184,
+          "disk_free": 39872507904,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 7091765248
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "85ebc0776aa598cf87a8cb9b803c8adea15aea72c330605f7ec71434c9685e85",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 742023770,
+          "provider_peak_bytes": {
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "inference": 3587006720,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 3578563930,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 182521344,
+            "client_bundle_work_bytes": 112015360,
+            "client_paged_metadata_bytes": 2464768,
+            "client_additional_paged_disk_bytes": 270352384,
+            "client_weight_snapshot_disk_bytes": 136134656,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 3612118362,
+            "docker": null,
+            "required_disk_bytes": 3888487424
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 3578563930,
+            "docker": null,
+            "required_disk_bytes": 3888487424
+          }
+        },
+        "enforced_wan": true
+      },
+      "required_bytes": 3914108250,
+      "admitted": true
+    },
+    "150/coupled": {
+      "topology": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 11169742848,
+          "swap_used": 902365184,
+          "disk_free": 39872274432,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6874775552
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "9f2e9bf515a84b5259f8cd5d87e9c853f2442ad25b546debe8440f3d48665488",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 750497130,
+          "provider_peak_bytes": {
+            "boundary_a": 1147915520,
+            "boundary_b": 1147915520,
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 3009736320,
+            "boundary_b": 3009736320,
+            "inference": 2736165120,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 136134656,
+            "scales_bytes": 607744,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 136742400,
+            "worker_import_work_bytes": 410834944,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 2431872,
+            "worker_retained_metadata_and_source_scales_bytes": 101271040,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 18752,
+            "worker_lookup_scratch_bytes": 9723904,
+            "worker_peak_bytes": 918332416,
+            "client_work_bytes": 9243456,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 157,
+            "head_calls_bound": 8,
+            "concurrent_request_bound": 1
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 5882868330,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 136742400,
+              "boundary_b": 136742400,
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 410834944,
+              "boundary_b": 410834944,
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 46386688,
+            "client_bundle_work_bytes": 109550592,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 5916422762,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 5882868330,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          }
+        },
+        "enforced_wan": true
+      },
+      "required_bytes": 6218412650,
+      "admitted": true
+    }
+  },
+  "source_case": "source-present",
+  "wan_requested": true,
+  "results": [
+    {
+      "variant": "baseline",
+      "replicate": 0,
+      "input_tokens": 150,
+      "client": {
+        "failure": null,
+        "responses": [
+          {
+            "input_tokens": 150,
+            "output_tokens": 8,
+            "status": "incomplete",
+            "state": {
+              "position": 157,
+              "words": 1116544,
+              "bits": "d0789376ab8a7cbe4a4d5bfd9ebcbf4de1a228c8cc965bd2585a78feea15bdfb",
+              "tokens": "d2d3942279fe384508a219fc171bf2a0d4ba6a0e6968194a625cbf95c30f2b5d",
+              "pending": "61a80f6d4e7d71a6988fd990e1e02094ae429e0f7438aa6b5602a1b638ce1733",
+              "output": "db7a35d2779e9e4452bc7175357f10e8a671c064128f0c2dd4c088d8fec35e43",
+              "array_dtype_and_shape": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+              "pending_count": 1
+            },
+            "trajectory": [
+              {
+                "position": 150,
+                "logits_and_kv": "2d10de1ccab4fc4ab1b1b863c3c0d11f29b998892d0e81519401be05a8c87661",
+                "sampled_token": "35eed54e93cd2c90e6b9cfbbbdd9b834f484e7ec3b891f71ba646fc0c20cc4e6",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 151,
+                "logits_and_kv": "64f65815024de7a40f635ae2ad2311d3459ba7acd98e99e3155fc3fec031bf89",
+                "sampled_token": "886fc777d61179a639b221c9db143dc515c997ccc409a64eb22558a997443f4f",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 152,
+                "logits_and_kv": "8f70710b8f474234de5273490711484fbb23f9036ffae90df89fcbb3bf3f7494",
+                "sampled_token": "47d43c4303ecda1818a7479593dccfda2ce5dc68b9532b7b56441b92e12349d5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 153,
+                "logits_and_kv": "2fd7b3725b43d68ef690d43caadb899bcf3866e8c971bd9824176416ca16d818",
+                "sampled_token": "7231f23f89bb964ba8e3af9f9900c31ae20101854f94f7c9b073ce8ccda287bc",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 154,
+                "logits_and_kv": "8e5a26ed3655acf2ee7ffecf7ca45fcd09c276f6c038f39738c159abb71249da",
+                "sampled_token": "d68c2018f202a0ee876c614257512739b651d14f74a53ab166a69eeca5592b51",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 155,
+                "logits_and_kv": "af215b75b35a9bdd042dd0de4e18edfecbc6be7f5a2e9f1da4c6758bda86b2c6",
+                "sampled_token": "f80f0851769b5e9ccfad38fa0c68c8bdd46921f12433dcb3339f9bf5f78464a5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 156,
+                "logits_and_kv": "99161e720f974f16b27d0add17bfdaa2094578c44d68181e368b15060f992429",
+                "sampled_token": "68527efe623bf6a02824a35ca4948802c5260986c714a2b2c208f09152e0c0d1",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 157,
+                "logits_and_kv": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+                "sampled_token": "d7a043ced3314504e9e445a59713d45b0add6ef33e1447a6006623b07b5563f8",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              }
+            ],
+            "request_seconds": 98.63763966690749,
+            "client_request_cpu_seconds": 9.087955000000001,
+            "request_cpu_scope": "client child dispatch through stream drainage; per-step audits included; final state hash excluded",
+            "first_text_seconds": 96.7601186670363,
+            "worker_entry_to_first_text_seconds": 98.31730020791292,
+            "decode_tps": 3.757851394636178,
+            "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "bundle_model_fingerprint": "ca734e10cff4e615d75c9efe2a5d5271235d3b1ed0e6b60477ca74d3fb5e108f",
+            "client_boundary_storage": {
+              "scope": "known SDK stage weights and retained local native matrix bindings only",
+              "private_boundary_selected": false,
+              "tied_embeddings": true,
+              "local_quantized_stage_ids": [
+                "lm_head",
+                "token_lookup"
+              ],
+              "boundary_client_weight_stage_ids": [
+                "lm_head",
+                "token_lookup"
+              ],
+              "retained_local_matrix_ids": [
+                "lm_head"
+              ]
+            }
+          }
+        ],
+        "audit": {
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "public_context_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "masked_online_upload_bytes": 86962479,
+          "masked_online_download_bytes": 133399481,
+          "correlation_count": 0,
+          "online_steps": 14625,
+          "inference_stage_calls": 768,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "inflight_prefill_tokens_reused": 0,
+          "inflight_producer_registrations": 0,
+          "inflight_publications": 0,
+          "inflight_joins": 0,
+          "inflight_failures": 0,
+          "inflight_cancellations": 0,
+          "inflight_cancelled_producers": 0,
+          "inflight_retired": 0,
+          "inflight_copy_bytes": 0,
+          "inflight_bound_rejections": 0,
+          "inflight_cache_bypasses": 0,
+          "inflight_reserved_bytes": 0,
+          "inflight_peak_reserved_bytes": 0,
+          "inflight_requests": 0,
+          "inflight_nodes": 0,
+          "inflight_pending_nodes": 0,
+          "inflight_active_producers": 0,
+          "direct_fhe_upload_bytes": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "preparation_upload_bytes": 9981,
+          "preparation_download_bytes": 10821,
+          "inference_upload_bytes": 86425294,
+          "inference_download_bytes": 132907780,
+          "generation_completed_responses": 1,
+          "generation_output_tokens": 8,
+          "generation_decode_output_tokens": 7,
+          "generation_prefill_online_body_bytes": 209099480,
+          "generation_decode_online_body_bytes": 10233594,
+          "generation_requested_output_tokens": 8,
+          "generation_executed_decode_steps": 7,
+          "generation_attribution_supported_responses": 1,
+          "preparation_attributed_body_bytes": 132844345,
+          "preparation_decode_material_body_bytes": 6138939,
+          "preparation_prefill_material_body_bytes": 126586133,
+          "preparation_decode_rows_issued": 672,
+          "preparation_prefill_rows_issued": 13953,
+          "preparation_padding_rows_issued": 0,
+          "correction_ack_bytes": 7804,
+          "correction_ack_accounted_push_bytes": 132823543,
+          "preparation_server_ns": 5183983167,
+          "inference_server_ns": 5061247519,
+          "correction_push_bytes": 132823543,
+          "correction_push_ns": 40120602091,
+          "session_authorization_upload_bytes": 2966,
+          "session_authorization_download_bytes": 44,
+          "preparation_attempts": 96,
+          "preparation_rows": 14625,
+          "prepared_stage_rows_issued": 14625,
+          "prepared_stage_rows_reserved": 14625,
+          "prepared_stage_rows_claimed": 14625,
+          "prepared_stage_rows_burned": 0,
+          "prepared_stage_rows_discarded": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_failures": 0,
+          "inference_control_upload_bytes": 3964,
+          "inference_control_download_bytes": 5055,
+          "preparation_control_upload_bytes": 0,
+          "preparation_control_download_bytes": 65,
+          "decode_epochs_started": 0,
+          "decode_epoch_pauses": 0,
+          "decode_epoch_pause_ns": 0,
+          "generation_requested_prefill_tokens": 150,
+          "generation_requested_decode_steps": 7,
+          "generation_remote_prefill_tokens": 150,
+          "generation_remote_terminal_prefill_rows": 1,
+          "generation_remote_decode_steps": 7,
+          "decode_cache_root_hits": 0,
+          "decode_cache_branch_hits": 0,
+          "decode_cache_misses": 0,
+          "decode_cache_skipped_remote_rows": 0,
+          "decode_cache_skipped_prefill_tokens": 0,
+          "decode_cache_skipped_decode_steps": 0,
+          "decode_cache_fully_warm_responses": 0,
+          "bundle_network_bytes": 124905091,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_cache_corruptions": 0,
+          "tokenizer_artifact_local_bytes": 9285336,
+          "public_prefix_artifact_local_bytes": 0,
+          "nonlinear_elements": 0,
+          "nonlinear_chunks": 0,
+          "nonlinear_party_key_bytes": 0,
+          "nonlinear_peer_frame_bytes": 0,
+          "nonlinear_client_issuance_ns": 0,
+          "nonlinear_client_issuance_cpu_ns": 0,
+          "private_boundary_lookup_rows": 0,
+          "private_boundary_head_calls": 0,
+          "private_boundary_lookup_upload_bytes": 0,
+          "private_boundary_lookup_download_bytes": 0,
+          "private_boundary_head_upload_bytes": 0,
+          "private_boundary_head_download_bytes": 0,
+          "private_boundary_body_coverage_failures": 0,
+          "role_link.worker_a.setup_upload_bytes": 0,
+          "role_link.worker_a.setup_download_bytes": 0,
+          "role_link.worker_a.online_upload_bytes": 0,
+          "role_link.worker_a.online_download_bytes": 0,
+          "role_link.worker_a.teardown_upload_bytes": 0,
+          "role_link.worker_a.teardown_download_bytes": 0,
+          "role_link.worker_b.setup_upload_bytes": 0,
+          "role_link.worker_b.setup_download_bytes": 0,
+          "role_link.worker_b.online_upload_bytes": 0,
+          "role_link.worker_b.online_download_bytes": 0,
+          "role_link.worker_b.teardown_upload_bytes": 0,
+          "role_link.worker_b.teardown_download_bytes": 0
+        },
+        "ledger": {
+          "schema": "pllm.topology_body_accounting.v3",
+          "body_counter_coverage": "prepared_protocol_lifecycle_controls_and_correction_acks_v3",
+          "correction_ack_counter_set_present": true,
+          "control_body_counter_set_present": true,
+          "lifecycle_control_serialized_body_bytes": 9084,
+          "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
+          "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only; instrumented lifecycle control bodies included once in separate control phase",
+          "tracked_body_counter_set_present": true,
+          "body_bytes_by_edge": [
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 12947
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 10865
+            },
+            {
+              "source": "preparation",
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 132823543
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 124905091
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 86425294
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 132907780
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "control",
+              "serialized_body_bytes": 3964
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 5055
+            },
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "control",
+              "serialized_body_bytes": 0
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 65
+            },
+            {
+              "source": "inference",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 7804
+            }
+          ],
+          "client_serialized_body_bytes": 344271061,
+          "all_link_serialized_body_bytes": 477102408,
+          "online_client_serialized_body_bytes": 219333074,
+          "online_all_link_serialized_body_bytes": 219333074,
+          "run_window_cpu_seconds_by_role": null,
+          "aggregate_run_window_cpu_seconds": null,
+          "total_wire_bytes": null,
+          "full_response_compute_cap_checked": false,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and uninstrumented control endpoints",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ],
+          "traffic_attribution": {
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Partial",
+            "total_all_link_body_bytes": 477102408,
+            "base_all_link_body_bytes": null,
+            "output_dependent_all_link_body_bytes": null,
+            "known_base_all_link_body_bytes": 460593714,
+            "known_output_dependent_all_link_body_bytes": 16372533,
+            "unattributed_all_link_body_bytes": 136161,
+            "unused_output_material_body_bytes": null,
+            "conservation_checked": true,
+            "attribution_valid": true,
+            "headline_eligible": true,
+            "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+            "components_body_bytes": {
+              "setup_and_delivery": 124908101,
+              "prefill_online": 209099480,
+              "decode_online": 10233594,
+              "prefill_material": 126586133,
+              "decode_material": 6138939
+            },
+            "audit_counters": {
+              "bundle_network_bytes": 124905091,
+              "correction_ack_accounted_push_bytes": 132823543,
+              "correction_ack_bytes": 7804,
+              "correction_push_bytes": 132823543,
+              "decode_epochs_started": 0,
+              "generation_attribution_supported_responses": 1,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 10233594,
+              "generation_decode_output_tokens": 7,
+              "generation_executed_decode_steps": 7,
+              "generation_output_tokens": 8,
+              "generation_prefill_online_body_bytes": 209099480,
+              "generation_requested_output_tokens": 8,
+              "inference_control_download_bytes": 5055,
+              "inference_control_upload_bytes": 3964,
+              "inference_download_bytes": 132907780,
+              "inference_upload_bytes": 86425294,
+              "inflight_joins": 0,
+              "inflight_producer_registrations": 0,
+              "preparation_attributed_body_bytes": 132844345,
+              "preparation_control_download_bytes": 65,
+              "preparation_control_upload_bytes": 0,
+              "preparation_decode_material_body_bytes": 6138939,
+              "preparation_decode_rows_issued": 672,
+              "preparation_download_bytes": 10821,
+              "preparation_padding_rows_issued": 0,
+              "preparation_prefill_material_body_bytes": 126586133,
+              "preparation_prefill_rows_issued": 13953,
+              "preparation_upload_bytes": 9981,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 14625,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 14625,
+              "prepared_stage_rows_reserved": 14625,
+              "public_prefix_artifact_local_bytes": 0,
+              "session_authorization_download_bytes": 44,
+              "session_authorization_upload_bytes": 2966
+            },
+            "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+            "unknown_reasons": [],
+            "prepared_rows": {
+              "prefill": 13953,
+              "decode": 672,
+              "padding": 0
+            },
+            "inventory_rows": {
+              "issued": 14625,
+              "reserved": 14625,
+              "claimed": 14625,
+              "burned": 0,
+              "discarded": 0
+            },
+            "reserved_equals_claimed_plus_burned": true,
+            "executed_decode_steps": 7,
+            "generated_output_tokens": 8,
+            "output_allowance": 8
+          }
+        },
+        "driver_implementation": {
+          "benchmark_private_boundary.py": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+          "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+          "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+          "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+          "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+        },
+        "sampler_diagnostic": {
+          "seed": 42,
+          "temperature": 0,
+          "frozen_runtime_count": 1,
+          "cryptographic_randomness_frozen": false,
+          "scope": "public sampler fixture and exact-state hashing charged inside client CPU/RSS/wall"
+        },
+        "cleanup": {
+          "known_private_containers_empty": true,
+          "container_counts": {
+            "cache": 0,
+            "histories": 0,
+            "message_histories": 0,
+            "_pending_response_store": 0,
+            "_transformer_states": 0,
+            "_transformer_conversations": 0,
+            "_decode_epoch_responses": 0
+          },
+          "owner_counters_after_close": [],
+          "boundary_transports_observed": 0,
+          "boundary_transports_retired_and_owned_http_closed": true
+        },
+        "client_lifetime_cpu_seconds": 10.870664,
+        "boundary_operation_diagnostics": [],
+        "client_peak_rss_bytes": 190709760,
+        "client_setup_seconds": 1.5571813751012087,
+        "client_worker_entry_cpu_seconds": 10.648931000000001,
+        "client_cpu_scope": "child process birth through pre-serialization report sample; complete child CPU charged after reap",
+        "client_rss_scope": "OS child process lifetime high-water RSS through report sample, not a sampled request peak",
+        "client_window_seconds": 100.2178562078625
+      },
+      "provider_birth_cpu_seconds": {
+        "inference": 24.534129152000002,
+        "preparation": 15.139424
+      },
+      "provider_sampled_peak_rss_bytes": {
+        "inference": 1141522432,
+        "preparation": 188612608
+      },
+      "wan": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 117.75485629215837,
+        "parties": {
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 87053849
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 258613072
+            }
+          },
+          "inference": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 258595538
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 219827272
+            }
+          },
+          "preparation": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 132854572
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 63615
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->inference": 86998686,
+          "inference->client": 258587086,
+          "client->preparation": 55163,
+          "preparation->client": 25986,
+          "preparation->inference": 132828586,
+          "inference->preparation": 8452
+        },
+        "total_stream_bytes": 478503959,
+        "client_stream_bytes": 345666921,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "aggregate_cleanup_cpu_seconds": 56.772611000000005,
+      "cpu_accounting": {
+        "schema": "pllm.private_boundary_case_cpu.v1",
+        "parent_all_threads_cpu_seconds": 6.134919000000001,
+        "reaped_children_cpu_seconds": 50.637692,
+        "aggregate_cpu_seconds": 56.772611000000005,
+        "scope": "case admission through owned client/provider/relay cleanup; CPU only; post-return cohort verification/reporting charged separately",
+        "native_wan_cpu_location": "included in parent all-threads process CPU, not client child CPU",
+        "sampled_client_and_provider_cpu_added_again": false,
+        "synchronized_all_role_request_cpu_seconds": null
+      },
+      "provider_cpu_scope": "sampled process birth through client subprocess exit; shutdown included separately in reaped-child CPU",
+      "provider_rss_scope": "50 ms samples after role startup through client subprocess exit; startup and shutdown peaks unknown",
+      "complete_case_seconds": 119.29395254235715,
+      "source_delivery": {
+        "schema": "pllm.private_boundary_source_delivery.v1",
+        "case": "source-present",
+        "measured": false,
+        "edges": null,
+        "application_bytes": null,
+        "tcp_stream_bytes": null,
+        "physical_wire_bytes": null,
+        "prepositioned_source_not_free": true
+      },
+      "admitted_host_bytes": 3914108250,
+      "priority_metrics": {
+        "client_base_traffic_bytes": null,
+        "client_output_traffic_bytes": null,
+        "all_link_base_traffic_bytes": null,
+        "all_link_output_traffic_bytes": null,
+        "client_peak_rss_bytes": 190709760,
+        "ttft_seconds": 96.7601186670363,
+        "decode_tps": 3.757851394636178
+      },
+      "provider_processes_reaped": true,
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "source_case": "source-present",
+      "wan_requested": true,
+      "source_inclusive_all_link_application_bytes": null,
+      "source_inclusive_all_link_tcp_stream_bytes": null
+    },
+    {
+      "variant": "coupled",
+      "replicate": 0,
+      "input_tokens": 150,
+      "client": {
+        "failure": null,
+        "responses": [
+          {
+            "input_tokens": 150,
+            "output_tokens": 8,
+            "status": "incomplete",
+            "state": {
+              "position": 157,
+              "words": 1116544,
+              "bits": "d0789376ab8a7cbe4a4d5bfd9ebcbf4de1a228c8cc965bd2585a78feea15bdfb",
+              "tokens": "d2d3942279fe384508a219fc171bf2a0d4ba6a0e6968194a625cbf95c30f2b5d",
+              "pending": "61a80f6d4e7d71a6988fd990e1e02094ae429e0f7438aa6b5602a1b638ce1733",
+              "output": "db7a35d2779e9e4452bc7175357f10e8a671c064128f0c2dd4c088d8fec35e43",
+              "array_dtype_and_shape": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+              "pending_count": 1
+            },
+            "trajectory": [
+              {
+                "position": 150,
+                "logits_and_kv": "2d10de1ccab4fc4ab1b1b863c3c0d11f29b998892d0e81519401be05a8c87661",
+                "sampled_token": "35eed54e93cd2c90e6b9cfbbbdd9b834f484e7ec3b891f71ba646fc0c20cc4e6",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 151,
+                "logits_and_kv": "64f65815024de7a40f635ae2ad2311d3459ba7acd98e99e3155fc3fec031bf89",
+                "sampled_token": "886fc777d61179a639b221c9db143dc515c997ccc409a64eb22558a997443f4f",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 152,
+                "logits_and_kv": "8f70710b8f474234de5273490711484fbb23f9036ffae90df89fcbb3bf3f7494",
+                "sampled_token": "47d43c4303ecda1818a7479593dccfda2ce5dc68b9532b7b56441b92e12349d5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 153,
+                "logits_and_kv": "2fd7b3725b43d68ef690d43caadb899bcf3866e8c971bd9824176416ca16d818",
+                "sampled_token": "7231f23f89bb964ba8e3af9f9900c31ae20101854f94f7c9b073ce8ccda287bc",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 154,
+                "logits_and_kv": "8e5a26ed3655acf2ee7ffecf7ca45fcd09c276f6c038f39738c159abb71249da",
+                "sampled_token": "d68c2018f202a0ee876c614257512739b651d14f74a53ab166a69eeca5592b51",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 155,
+                "logits_and_kv": "af215b75b35a9bdd042dd0de4e18edfecbc6be7f5a2e9f1da4c6758bda86b2c6",
+                "sampled_token": "f80f0851769b5e9ccfad38fa0c68c8bdd46921f12433dcb3339f9bf5f78464a5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 156,
+                "logits_and_kv": "99161e720f974f16b27d0add17bfdaa2094578c44d68181e368b15060f992429",
+                "sampled_token": "68527efe623bf6a02824a35ca4948802c5260986c714a2b2c208f09152e0c0d1",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 157,
+                "logits_and_kv": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+                "sampled_token": "d7a043ced3314504e9e445a59713d45b0add6ef33e1447a6006623b07b5563f8",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              }
+            ],
+            "request_seconds": 82.43643212504685,
+            "client_request_cpu_seconds": 11.678842999999999,
+            "request_cpu_scope": "client child dispatch through stream drainage; per-step audits included; final state hash excluded",
+            "first_text_seconds": 78.76947250030935,
+            "worker_entry_to_first_text_seconds": 80.30373924970627,
+            "decode_tps": 1.9183719489881943,
+            "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "bundle_model_fingerprint": "ca734e10cff4e615d75c9efe2a5d5271235d3b1ed0e6b60477ca74d3fb5e108f",
+            "client_boundary_storage": {
+              "scope": "known SDK stage weights and retained local native matrix bindings only",
+              "private_boundary_selected": true,
+              "tied_embeddings": true,
+              "local_quantized_stage_ids": [],
+              "boundary_client_weight_stage_ids": [],
+              "retained_local_matrix_ids": []
+            }
+          }
+        ],
+        "audit": {
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "public_context_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "masked_online_upload_bytes": 86962479,
+          "masked_online_download_bytes": 133399481,
+          "correlation_count": 0,
+          "online_steps": 14625,
+          "inference_stage_calls": 768,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "inflight_prefill_tokens_reused": 0,
+          "inflight_producer_registrations": 0,
+          "inflight_publications": 0,
+          "inflight_joins": 0,
+          "inflight_failures": 0,
+          "inflight_cancellations": 0,
+          "inflight_cancelled_producers": 0,
+          "inflight_retired": 0,
+          "inflight_copy_bytes": 0,
+          "inflight_bound_rejections": 0,
+          "inflight_cache_bypasses": 0,
+          "inflight_reserved_bytes": 0,
+          "inflight_peak_reserved_bytes": 0,
+          "inflight_requests": 0,
+          "inflight_nodes": 0,
+          "inflight_pending_nodes": 0,
+          "inflight_active_producers": 0,
+          "direct_fhe_upload_bytes": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "preparation_upload_bytes": 9981,
+          "preparation_download_bytes": 10821,
+          "inference_upload_bytes": 86425294,
+          "inference_download_bytes": 132907780,
+          "generation_completed_responses": 1,
+          "generation_output_tokens": 8,
+          "generation_decode_output_tokens": 7,
+          "generation_prefill_online_body_bytes": 210700892,
+          "generation_decode_online_body_bytes": 18817596,
+          "generation_requested_output_tokens": 8,
+          "generation_executed_decode_steps": 7,
+          "generation_attribution_supported_responses": 1,
+          "preparation_attributed_body_bytes": 132844345,
+          "preparation_decode_material_body_bytes": 6138939,
+          "preparation_prefill_material_body_bytes": 126586133,
+          "preparation_decode_rows_issued": 672,
+          "preparation_prefill_rows_issued": 13953,
+          "preparation_padding_rows_issued": 0,
+          "correction_ack_bytes": 7804,
+          "correction_ack_accounted_push_bytes": 132823543,
+          "preparation_server_ns": 5323052784,
+          "inference_server_ns": 5076876559,
+          "correction_push_bytes": 132823543,
+          "correction_push_ns": 41098177833,
+          "session_authorization_upload_bytes": 2966,
+          "session_authorization_download_bytes": 44,
+          "preparation_attempts": 96,
+          "preparation_rows": 14625,
+          "prepared_stage_rows_issued": 14625,
+          "prepared_stage_rows_reserved": 14625,
+          "prepared_stage_rows_claimed": 14625,
+          "prepared_stage_rows_burned": 0,
+          "prepared_stage_rows_discarded": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_failures": 0,
+          "inference_control_upload_bytes": 3964,
+          "inference_control_download_bytes": 5056,
+          "preparation_control_upload_bytes": 0,
+          "preparation_control_download_bytes": 65,
+          "decode_epochs_started": 0,
+          "decode_epoch_pauses": 0,
+          "decode_epoch_pause_ns": 0,
+          "generation_requested_prefill_tokens": 150,
+          "generation_requested_decode_steps": 7,
+          "generation_remote_prefill_tokens": 150,
+          "generation_remote_terminal_prefill_rows": 1,
+          "generation_remote_decode_steps": 7,
+          "decode_cache_root_hits": 0,
+          "decode_cache_branch_hits": 0,
+          "decode_cache_misses": 0,
+          "decode_cache_skipped_remote_rows": 0,
+          "decode_cache_skipped_prefill_tokens": 0,
+          "decode_cache_skipped_decode_steps": 0,
+          "decode_cache_fully_warm_responses": 0,
+          "bundle_network_bytes": 3410184,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_cache_corruptions": 0,
+          "tokenizer_artifact_local_bytes": 9285336,
+          "public_prefix_artifact_local_bytes": 0,
+          "nonlinear_elements": 0,
+          "nonlinear_chunks": 0,
+          "nonlinear_party_key_bytes": 0,
+          "nonlinear_peer_frame_bytes": 0,
+          "nonlinear_client_issuance_ns": 0,
+          "nonlinear_client_issuance_cpu_ns": 0,
+          "private_boundary_lookup_rows": 157,
+          "private_boundary_head_calls": 8,
+          "private_boundary_lookup_upload_bytes": 92910,
+          "private_boundary_lookup_download_bytes": 306744,
+          "private_boundary_head_upload_bytes": 59584,
+          "private_boundary_head_download_bytes": 9726176,
+          "private_boundary_body_coverage_failures": 0,
+          "role_link.worker_a.setup_upload_bytes": 0,
+          "role_link.worker_a.setup_download_bytes": 0,
+          "role_link.worker_a.online_upload_bytes": 0,
+          "role_link.worker_a.online_download_bytes": 0,
+          "role_link.worker_a.teardown_upload_bytes": 0,
+          "role_link.worker_a.teardown_download_bytes": 0,
+          "role_link.worker_b.setup_upload_bytes": 0,
+          "role_link.worker_b.setup_download_bytes": 0,
+          "role_link.worker_b.online_upload_bytes": 0,
+          "role_link.worker_b.online_download_bytes": 0,
+          "role_link.worker_b.teardown_upload_bytes": 0,
+          "role_link.worker_b.teardown_download_bytes": 0,
+          "role_link.boundary_a.setup_upload_bytes": 515,
+          "role_link.boundary_a.setup_download_bytes": 600,
+          "role_link.boundary_a.online_upload_bytes": 76247,
+          "role_link.boundary_a.online_download_bytes": 5016460,
+          "role_link.boundary_a.teardown_upload_bytes": 121,
+          "role_link.boundary_a.teardown_download_bytes": 141,
+          "role_link.boundary_b.setup_upload_bytes": 515,
+          "role_link.boundary_b.setup_download_bytes": 600,
+          "role_link.boundary_b.online_upload_bytes": 76247,
+          "role_link.boundary_b.online_download_bytes": 5016460,
+          "role_link.boundary_b.teardown_upload_bytes": 121,
+          "role_link.boundary_b.teardown_download_bytes": 141
+        },
+        "ledger": {
+          "schema": "pllm.topology_body_accounting.v4",
+          "body_counter_coverage": "prepared_body_and_private_boundary_lifecycle_v4",
+          "correction_ack_counter_set_present": true,
+          "control_body_counter_set_present": true,
+          "lifecycle_control_serialized_body_bytes": 9085,
+          "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
+          "scope": "prepared-body plus two private-boundary sender-side application bodies; not native payload plus HTTP",
+          "tracked_body_counter_set_present": true,
+          "body_bytes_by_edge": [
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 12947
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 10865
+            },
+            {
+              "source": "preparation",
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 132823543
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 3410184
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 86425294
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 132907780
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "control",
+              "serialized_body_bytes": 3964
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 5056
+            },
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "control",
+              "serialized_body_bytes": 0
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 65
+            },
+            {
+              "source": "inference",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 7804
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "setup",
+              "serialized_body_bytes": 515
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "setup",
+              "serialized_body_bytes": 600
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "online",
+              "serialized_body_bytes": 76247
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 5016460
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "teardown",
+              "serialized_body_bytes": 121
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "teardown",
+              "serialized_body_bytes": 141
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "setup",
+              "serialized_body_bytes": 515
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "setup",
+              "serialized_body_bytes": 600
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "online",
+              "serialized_body_bytes": 76247
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 5016460
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "teardown",
+              "serialized_body_bytes": 121
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "teardown",
+              "serialized_body_bytes": 141
+            }
+          ],
+          "client_serialized_body_bytes": 232964323,
+          "all_link_serialized_body_bytes": 365795670,
+          "online_client_serialized_body_bytes": 229518488,
+          "online_all_link_serialized_body_bytes": 229518488,
+          "run_window_cpu_seconds_by_role": null,
+          "aggregate_run_window_cpu_seconds": null,
+          "total_wire_bytes": null,
+          "full_response_compute_cap_checked": false,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and uninstrumented control endpoints",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ],
+          "traffic_attribution": {
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Partial",
+            "total_all_link_body_bytes": 365795670,
+            "base_all_link_body_bytes": null,
+            "output_dependent_all_link_body_bytes": null,
+            "known_base_all_link_body_bytes": 340702973,
+            "known_output_dependent_all_link_body_bytes": 24956535,
+            "unattributed_all_link_body_bytes": 136162,
+            "unused_output_material_body_bytes": null,
+            "conservation_checked": true,
+            "attribution_valid": true,
+            "headline_eligible": true,
+            "source": "sdk_combined_prepared_private_boundary_phase_counters_v1",
+            "components_body_bytes": {
+              "setup_and_delivery": 3413194,
+              "prefill_material": 126586133,
+              "decode_material": 6138939,
+              "boundary_setup_and_retirement": 2754,
+              "prefill_online": 210700892,
+              "decode_online": 18817596
+            },
+            "audit_counters": {
+              "inflight_producer_registrations": 0,
+              "inflight_joins": 0,
+              "preparation_upload_bytes": 9981,
+              "preparation_download_bytes": 10821,
+              "inference_upload_bytes": 86425294,
+              "inference_download_bytes": 132907780,
+              "generation_completed_responses": 1,
+              "generation_output_tokens": 8,
+              "generation_decode_output_tokens": 7,
+              "generation_prefill_online_body_bytes": 210700892,
+              "generation_decode_online_body_bytes": 18817596,
+              "generation_requested_output_tokens": 8,
+              "generation_executed_decode_steps": 7,
+              "generation_attribution_supported_responses": 1,
+              "preparation_attributed_body_bytes": 132844345,
+              "preparation_decode_material_body_bytes": 6138939,
+              "preparation_prefill_material_body_bytes": 126586133,
+              "preparation_decode_rows_issued": 672,
+              "preparation_prefill_rows_issued": 13953,
+              "preparation_padding_rows_issued": 0,
+              "correction_ack_bytes": 7804,
+              "correction_ack_accounted_push_bytes": 132823543,
+              "correction_push_bytes": 132823543,
+              "session_authorization_upload_bytes": 2966,
+              "session_authorization_download_bytes": 44,
+              "prepared_stage_rows_issued": 14625,
+              "prepared_stage_rows_reserved": 14625,
+              "prepared_stage_rows_claimed": 14625,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_discarded": 0,
+              "inference_control_upload_bytes": 3964,
+              "inference_control_download_bytes": 5056,
+              "preparation_control_upload_bytes": 0,
+              "preparation_control_download_bytes": 65,
+              "decode_epochs_started": 0,
+              "bundle_network_bytes": 3410184,
+              "public_prefix_artifact_local_bytes": 0,
+              "private_boundary_body_coverage_failures": 0,
+              "role_link.boundary_a.setup_upload_bytes": 515,
+              "role_link.boundary_a.setup_download_bytes": 600,
+              "role_link.boundary_a.online_upload_bytes": 76247,
+              "role_link.boundary_a.online_download_bytes": 5016460,
+              "role_link.boundary_a.teardown_upload_bytes": 121,
+              "role_link.boundary_a.teardown_download_bytes": 141,
+              "role_link.boundary_b.setup_upload_bytes": 515,
+              "role_link.boundary_b.setup_download_bytes": 600,
+              "role_link.boundary_b.online_upload_bytes": 76247,
+              "role_link.boundary_b.online_download_bytes": 5016460,
+              "role_link.boundary_b.teardown_upload_bytes": 121,
+              "role_link.boundary_b.teardown_download_bytes": 141
+            },
+            "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+            "unknown_reasons": [],
+            "prepared_rows": {
+              "prefill": 13953,
+              "decode": 672,
+              "padding": 0
+            },
+            "inventory_rows": {
+              "issued": 14625,
+              "reserved": 14625,
+              "claimed": 14625,
+              "burned": 0,
+              "discarded": 0
+            },
+            "reserved_equals_claimed_plus_burned": true,
+            "executed_decode_steps": 7,
+            "generated_output_tokens": 8,
+            "output_allowance": 8
+          },
+          "boundary_body_counter_set_present": true,
+          "source_distribution_bytes": null,
+          "unknown_reasons": []
+        },
+        "driver_implementation": {
+          "benchmark_private_boundary.py": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+          "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+          "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+          "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+          "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+        },
+        "sampler_diagnostic": {
+          "seed": 42,
+          "temperature": 0,
+          "frozen_runtime_count": 1,
+          "cryptographic_randomness_frozen": false,
+          "scope": "public sampler fixture and exact-state hashing charged inside client CPU/RSS/wall"
+        },
+        "cleanup": {
+          "known_private_containers_empty": true,
+          "container_counts": {
+            "cache": 0,
+            "histories": 0,
+            "message_histories": 0,
+            "_pending_response_store": 0,
+            "_transformer_states": 0,
+            "_transformer_conversations": 0,
+            "_decode_epoch_responses": 0
+          },
+          "owner_counters_after_close": [],
+          "boundary_transports_observed": 1,
+          "boundary_transports_retired_and_owned_http_closed": true
+        },
+        "client_lifetime_cpu_seconds": 13.434014,
+        "boundary_operation_diagnostics": [
+          {
+            "lookup": {
+              "calls": 10,
+              "rows": 157,
+              "upload_bytes": 92910,
+              "download_bytes": 306744
+            },
+            "head": {
+              "calls": 8,
+              "rows": 8,
+              "upload_bytes": 59584,
+              "download_bytes": 9726176
+            }
+          }
+        ],
+        "client_peak_rss_bytes": 195788800,
+        "client_setup_seconds": 1.5342666245996952,
+        "client_worker_entry_cpu_seconds": 13.220231,
+        "client_cpu_scope": "child process birth through pre-serialization report sample; complete child CPU charged after reap",
+        "client_rss_scope": "OS child process lifetime high-water RSS through report sample, not a sampled request peak",
+        "client_window_seconds": 83.99252162501216
+      },
+      "provider_birth_cpu_seconds": {
+        "inference": 20.262490879999998,
+        "preparation": 15.21208512,
+        "boundary_a": 4.408787392000001,
+        "boundary_b": 4.343078144
+      },
+      "provider_sampled_peak_rss_bytes": {
+        "inference": 1160314880,
+        "preparation": 205537280,
+        "boundary_a": 396902400,
+        "boundary_b": 398721024
+      },
+      "wan": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 108.71063799969852,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 5020222
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 83774
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 5020222
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 83774
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 87221191
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 147157411
+            }
+          },
+          "inference": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 137099253
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 219826916
+            }
+          },
+          "preparation": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 132854752
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 63765
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->inference": 86998330,
+          "inference->client": 137090801,
+          "client->preparation": 55313,
+          "preparation->client": 26166,
+          "client->boundary_a": 83774,
+          "boundary_a->client": 5020222,
+          "client->boundary_b": 83774,
+          "boundary_b->client": 5020222,
+          "preparation->inference": 132828586,
+          "inference->preparation": 8452
+        },
+        "total_stream_bytes": 367215640,
+        "client_stream_bytes": 234378602,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "aggregate_cleanup_cpu_seconds": 63.64122400000001,
+      "cpu_accounting": {
+        "schema": "pllm.private_boundary_case_cpu.v1",
+        "parent_all_threads_cpu_seconds": 5.825165000000002,
+        "reaped_children_cpu_seconds": 57.816059,
+        "aggregate_cpu_seconds": 63.64122400000001,
+        "scope": "case admission through owned client/provider/relay cleanup; CPU only; post-return cohort verification/reporting charged separately",
+        "native_wan_cpu_location": "included in parent all-threads process CPU, not client child CPU",
+        "sampled_client_and_provider_cpu_added_again": false,
+        "synchronized_all_role_request_cpu_seconds": null
+      },
+      "provider_cpu_scope": "sampled process birth through client subprocess exit; shutdown included separately in reaped-child CPU",
+      "provider_rss_scope": "50 ms samples after role startup through client subprocess exit; startup and shutdown peaks unknown",
+      "complete_case_seconds": 110.28736125025898,
+      "source_delivery": {
+        "schema": "pllm.private_boundary_source_delivery.v1",
+        "case": "source-present",
+        "measured": false,
+        "edges": null,
+        "application_bytes": null,
+        "tcp_stream_bytes": null,
+        "physical_wire_bytes": null,
+        "prepositioned_source_not_free": true
+      },
+      "admitted_host_bytes": 6218412650,
+      "priority_metrics": {
+        "client_base_traffic_bytes": null,
+        "client_output_traffic_bytes": null,
+        "all_link_base_traffic_bytes": null,
+        "all_link_output_traffic_bytes": null,
+        "client_peak_rss_bytes": 195788800,
+        "ttft_seconds": 78.76947250030935,
+        "decode_tps": 1.9183719489881943
+      },
+      "provider_processes_reaped": true,
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "source_case": "source-present",
+      "wan_requested": true,
+      "source_inclusive_all_link_application_bytes": null,
+      "source_inclusive_all_link_tcp_stream_bytes": null
+    },
+    {
+      "variant": "coupled",
+      "replicate": 1,
+      "input_tokens": 150,
+      "client": {
+        "failure": null,
+        "responses": [
+          {
+            "input_tokens": 150,
+            "output_tokens": 8,
+            "status": "incomplete",
+            "state": {
+              "position": 157,
+              "words": 1116544,
+              "bits": "d0789376ab8a7cbe4a4d5bfd9ebcbf4de1a228c8cc965bd2585a78feea15bdfb",
+              "tokens": "d2d3942279fe384508a219fc171bf2a0d4ba6a0e6968194a625cbf95c30f2b5d",
+              "pending": "61a80f6d4e7d71a6988fd990e1e02094ae429e0f7438aa6b5602a1b638ce1733",
+              "output": "db7a35d2779e9e4452bc7175357f10e8a671c064128f0c2dd4c088d8fec35e43",
+              "array_dtype_and_shape": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+              "pending_count": 1
+            },
+            "trajectory": [
+              {
+                "position": 150,
+                "logits_and_kv": "2d10de1ccab4fc4ab1b1b863c3c0d11f29b998892d0e81519401be05a8c87661",
+                "sampled_token": "35eed54e93cd2c90e6b9cfbbbdd9b834f484e7ec3b891f71ba646fc0c20cc4e6",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 151,
+                "logits_and_kv": "64f65815024de7a40f635ae2ad2311d3459ba7acd98e99e3155fc3fec031bf89",
+                "sampled_token": "886fc777d61179a639b221c9db143dc515c997ccc409a64eb22558a997443f4f",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 152,
+                "logits_and_kv": "8f70710b8f474234de5273490711484fbb23f9036ffae90df89fcbb3bf3f7494",
+                "sampled_token": "47d43c4303ecda1818a7479593dccfda2ce5dc68b9532b7b56441b92e12349d5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 153,
+                "logits_and_kv": "2fd7b3725b43d68ef690d43caadb899bcf3866e8c971bd9824176416ca16d818",
+                "sampled_token": "7231f23f89bb964ba8e3af9f9900c31ae20101854f94f7c9b073ce8ccda287bc",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 154,
+                "logits_and_kv": "8e5a26ed3655acf2ee7ffecf7ca45fcd09c276f6c038f39738c159abb71249da",
+                "sampled_token": "d68c2018f202a0ee876c614257512739b651d14f74a53ab166a69eeca5592b51",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 155,
+                "logits_and_kv": "af215b75b35a9bdd042dd0de4e18edfecbc6be7f5a2e9f1da4c6758bda86b2c6",
+                "sampled_token": "f80f0851769b5e9ccfad38fa0c68c8bdd46921f12433dcb3339f9bf5f78464a5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 156,
+                "logits_and_kv": "99161e720f974f16b27d0add17bfdaa2094578c44d68181e368b15060f992429",
+                "sampled_token": "68527efe623bf6a02824a35ca4948802c5260986c714a2b2c208f09152e0c0d1",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 157,
+                "logits_and_kv": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+                "sampled_token": "d7a043ced3314504e9e445a59713d45b0add6ef33e1447a6006623b07b5563f8",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              }
+            ],
+            "request_seconds": 82.17959062475711,
+            "client_request_cpu_seconds": 11.607374,
+            "request_cpu_scope": "client child dispatch through stream drainage; per-step audits included; final state hash excluded",
+            "first_text_seconds": 78.52030558232218,
+            "worker_entry_to_first_text_seconds": 80.10648191627115,
+            "decode_tps": 1.9232214726462888,
+            "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "bundle_model_fingerprint": "ca734e10cff4e615d75c9efe2a5d5271235d3b1ed0e6b60477ca74d3fb5e108f",
+            "client_boundary_storage": {
+              "scope": "known SDK stage weights and retained local native matrix bindings only",
+              "private_boundary_selected": true,
+              "tied_embeddings": true,
+              "local_quantized_stage_ids": [],
+              "boundary_client_weight_stage_ids": [],
+              "retained_local_matrix_ids": []
+            }
+          }
+        ],
+        "audit": {
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "public_context_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "masked_online_upload_bytes": 86962479,
+          "masked_online_download_bytes": 133399481,
+          "correlation_count": 0,
+          "online_steps": 14625,
+          "inference_stage_calls": 768,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "inflight_prefill_tokens_reused": 0,
+          "inflight_producer_registrations": 0,
+          "inflight_publications": 0,
+          "inflight_joins": 0,
+          "inflight_failures": 0,
+          "inflight_cancellations": 0,
+          "inflight_cancelled_producers": 0,
+          "inflight_retired": 0,
+          "inflight_copy_bytes": 0,
+          "inflight_bound_rejections": 0,
+          "inflight_cache_bypasses": 0,
+          "inflight_reserved_bytes": 0,
+          "inflight_peak_reserved_bytes": 0,
+          "inflight_requests": 0,
+          "inflight_nodes": 0,
+          "inflight_pending_nodes": 0,
+          "inflight_active_producers": 0,
+          "direct_fhe_upload_bytes": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "preparation_upload_bytes": 9981,
+          "preparation_download_bytes": 10821,
+          "inference_upload_bytes": 86425294,
+          "inference_download_bytes": 132907780,
+          "generation_completed_responses": 1,
+          "generation_output_tokens": 8,
+          "generation_decode_output_tokens": 7,
+          "generation_prefill_online_body_bytes": 210700892,
+          "generation_decode_online_body_bytes": 18817596,
+          "generation_requested_output_tokens": 8,
+          "generation_executed_decode_steps": 7,
+          "generation_attribution_supported_responses": 1,
+          "preparation_attributed_body_bytes": 132844345,
+          "preparation_decode_material_body_bytes": 6138939,
+          "preparation_prefill_material_body_bytes": 126586133,
+          "preparation_decode_rows_issued": 672,
+          "preparation_prefill_rows_issued": 13953,
+          "preparation_padding_rows_issued": 0,
+          "correction_ack_bytes": 7804,
+          "correction_ack_accounted_push_bytes": 132823543,
+          "preparation_server_ns": 5361608166,
+          "inference_server_ns": 5097838338,
+          "correction_push_bytes": 132823543,
+          "correction_push_ns": 40122704996,
+          "session_authorization_upload_bytes": 2966,
+          "session_authorization_download_bytes": 44,
+          "preparation_attempts": 96,
+          "preparation_rows": 14625,
+          "prepared_stage_rows_issued": 14625,
+          "prepared_stage_rows_reserved": 14625,
+          "prepared_stage_rows_claimed": 14625,
+          "prepared_stage_rows_burned": 0,
+          "prepared_stage_rows_discarded": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_failures": 0,
+          "inference_control_upload_bytes": 3964,
+          "inference_control_download_bytes": 5055,
+          "preparation_control_upload_bytes": 0,
+          "preparation_control_download_bytes": 65,
+          "decode_epochs_started": 0,
+          "decode_epoch_pauses": 0,
+          "decode_epoch_pause_ns": 0,
+          "generation_requested_prefill_tokens": 150,
+          "generation_requested_decode_steps": 7,
+          "generation_remote_prefill_tokens": 150,
+          "generation_remote_terminal_prefill_rows": 1,
+          "generation_remote_decode_steps": 7,
+          "decode_cache_root_hits": 0,
+          "decode_cache_branch_hits": 0,
+          "decode_cache_misses": 0,
+          "decode_cache_skipped_remote_rows": 0,
+          "decode_cache_skipped_prefill_tokens": 0,
+          "decode_cache_skipped_decode_steps": 0,
+          "decode_cache_fully_warm_responses": 0,
+          "bundle_network_bytes": 3410184,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_cache_corruptions": 0,
+          "tokenizer_artifact_local_bytes": 9285336,
+          "public_prefix_artifact_local_bytes": 0,
+          "nonlinear_elements": 0,
+          "nonlinear_chunks": 0,
+          "nonlinear_party_key_bytes": 0,
+          "nonlinear_peer_frame_bytes": 0,
+          "nonlinear_client_issuance_ns": 0,
+          "nonlinear_client_issuance_cpu_ns": 0,
+          "private_boundary_lookup_rows": 157,
+          "private_boundary_head_calls": 8,
+          "private_boundary_lookup_upload_bytes": 92910,
+          "private_boundary_lookup_download_bytes": 306744,
+          "private_boundary_head_upload_bytes": 59584,
+          "private_boundary_head_download_bytes": 9726176,
+          "private_boundary_body_coverage_failures": 0,
+          "role_link.worker_a.setup_upload_bytes": 0,
+          "role_link.worker_a.setup_download_bytes": 0,
+          "role_link.worker_a.online_upload_bytes": 0,
+          "role_link.worker_a.online_download_bytes": 0,
+          "role_link.worker_a.teardown_upload_bytes": 0,
+          "role_link.worker_a.teardown_download_bytes": 0,
+          "role_link.worker_b.setup_upload_bytes": 0,
+          "role_link.worker_b.setup_download_bytes": 0,
+          "role_link.worker_b.online_upload_bytes": 0,
+          "role_link.worker_b.online_download_bytes": 0,
+          "role_link.worker_b.teardown_upload_bytes": 0,
+          "role_link.worker_b.teardown_download_bytes": 0,
+          "role_link.boundary_a.setup_upload_bytes": 515,
+          "role_link.boundary_a.setup_download_bytes": 600,
+          "role_link.boundary_a.online_upload_bytes": 76247,
+          "role_link.boundary_a.online_download_bytes": 5016460,
+          "role_link.boundary_a.teardown_upload_bytes": 121,
+          "role_link.boundary_a.teardown_download_bytes": 141,
+          "role_link.boundary_b.setup_upload_bytes": 515,
+          "role_link.boundary_b.setup_download_bytes": 600,
+          "role_link.boundary_b.online_upload_bytes": 76247,
+          "role_link.boundary_b.online_download_bytes": 5016460,
+          "role_link.boundary_b.teardown_upload_bytes": 121,
+          "role_link.boundary_b.teardown_download_bytes": 141
+        },
+        "ledger": {
+          "schema": "pllm.topology_body_accounting.v4",
+          "body_counter_coverage": "prepared_body_and_private_boundary_lifecycle_v4",
+          "correction_ack_counter_set_present": true,
+          "control_body_counter_set_present": true,
+          "lifecycle_control_serialized_body_bytes": 9084,
+          "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
+          "scope": "prepared-body plus two private-boundary sender-side application bodies; not native payload plus HTTP",
+          "tracked_body_counter_set_present": true,
+          "body_bytes_by_edge": [
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 12947
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 10865
+            },
+            {
+              "source": "preparation",
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 132823543
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 3410184
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 86425294
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 132907780
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "control",
+              "serialized_body_bytes": 3964
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 5055
+            },
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "control",
+              "serialized_body_bytes": 0
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 65
+            },
+            {
+              "source": "inference",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 7804
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "setup",
+              "serialized_body_bytes": 515
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "setup",
+              "serialized_body_bytes": 600
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "online",
+              "serialized_body_bytes": 76247
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 5016460
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "teardown",
+              "serialized_body_bytes": 121
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "teardown",
+              "serialized_body_bytes": 141
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "setup",
+              "serialized_body_bytes": 515
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "setup",
+              "serialized_body_bytes": 600
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "online",
+              "serialized_body_bytes": 76247
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 5016460
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "teardown",
+              "serialized_body_bytes": 121
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "teardown",
+              "serialized_body_bytes": 141
+            }
+          ],
+          "client_serialized_body_bytes": 232964322,
+          "all_link_serialized_body_bytes": 365795669,
+          "online_client_serialized_body_bytes": 229518488,
+          "online_all_link_serialized_body_bytes": 229518488,
+          "run_window_cpu_seconds_by_role": null,
+          "aggregate_run_window_cpu_seconds": null,
+          "total_wire_bytes": null,
+          "full_response_compute_cap_checked": false,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and uninstrumented control endpoints",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ],
+          "traffic_attribution": {
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Partial",
+            "total_all_link_body_bytes": 365795669,
+            "base_all_link_body_bytes": null,
+            "output_dependent_all_link_body_bytes": null,
+            "known_base_all_link_body_bytes": 340702973,
+            "known_output_dependent_all_link_body_bytes": 24956535,
+            "unattributed_all_link_body_bytes": 136161,
+            "unused_output_material_body_bytes": null,
+            "conservation_checked": true,
+            "attribution_valid": true,
+            "headline_eligible": true,
+            "source": "sdk_combined_prepared_private_boundary_phase_counters_v1",
+            "components_body_bytes": {
+              "setup_and_delivery": 3413194,
+              "prefill_material": 126586133,
+              "decode_material": 6138939,
+              "boundary_setup_and_retirement": 2754,
+              "prefill_online": 210700892,
+              "decode_online": 18817596
+            },
+            "audit_counters": {
+              "inflight_producer_registrations": 0,
+              "inflight_joins": 0,
+              "preparation_upload_bytes": 9981,
+              "preparation_download_bytes": 10821,
+              "inference_upload_bytes": 86425294,
+              "inference_download_bytes": 132907780,
+              "generation_completed_responses": 1,
+              "generation_output_tokens": 8,
+              "generation_decode_output_tokens": 7,
+              "generation_prefill_online_body_bytes": 210700892,
+              "generation_decode_online_body_bytes": 18817596,
+              "generation_requested_output_tokens": 8,
+              "generation_executed_decode_steps": 7,
+              "generation_attribution_supported_responses": 1,
+              "preparation_attributed_body_bytes": 132844345,
+              "preparation_decode_material_body_bytes": 6138939,
+              "preparation_prefill_material_body_bytes": 126586133,
+              "preparation_decode_rows_issued": 672,
+              "preparation_prefill_rows_issued": 13953,
+              "preparation_padding_rows_issued": 0,
+              "correction_ack_bytes": 7804,
+              "correction_ack_accounted_push_bytes": 132823543,
+              "correction_push_bytes": 132823543,
+              "session_authorization_upload_bytes": 2966,
+              "session_authorization_download_bytes": 44,
+              "prepared_stage_rows_issued": 14625,
+              "prepared_stage_rows_reserved": 14625,
+              "prepared_stage_rows_claimed": 14625,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_discarded": 0,
+              "inference_control_upload_bytes": 3964,
+              "inference_control_download_bytes": 5055,
+              "preparation_control_upload_bytes": 0,
+              "preparation_control_download_bytes": 65,
+              "decode_epochs_started": 0,
+              "bundle_network_bytes": 3410184,
+              "public_prefix_artifact_local_bytes": 0,
+              "private_boundary_body_coverage_failures": 0,
+              "role_link.boundary_a.setup_upload_bytes": 515,
+              "role_link.boundary_a.setup_download_bytes": 600,
+              "role_link.boundary_a.online_upload_bytes": 76247,
+              "role_link.boundary_a.online_download_bytes": 5016460,
+              "role_link.boundary_a.teardown_upload_bytes": 121,
+              "role_link.boundary_a.teardown_download_bytes": 141,
+              "role_link.boundary_b.setup_upload_bytes": 515,
+              "role_link.boundary_b.setup_download_bytes": 600,
+              "role_link.boundary_b.online_upload_bytes": 76247,
+              "role_link.boundary_b.online_download_bytes": 5016460,
+              "role_link.boundary_b.teardown_upload_bytes": 121,
+              "role_link.boundary_b.teardown_download_bytes": 141
+            },
+            "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+            "unknown_reasons": [],
+            "prepared_rows": {
+              "prefill": 13953,
+              "decode": 672,
+              "padding": 0
+            },
+            "inventory_rows": {
+              "issued": 14625,
+              "reserved": 14625,
+              "claimed": 14625,
+              "burned": 0,
+              "discarded": 0
+            },
+            "reserved_equals_claimed_plus_burned": true,
+            "executed_decode_steps": 7,
+            "generated_output_tokens": 8,
+            "output_allowance": 8
+          },
+          "boundary_body_counter_set_present": true,
+          "source_distribution_bytes": null,
+          "unknown_reasons": []
+        },
+        "driver_implementation": {
+          "benchmark_private_boundary.py": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+          "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+          "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+          "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+          "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+        },
+        "sampler_diagnostic": {
+          "seed": 42,
+          "temperature": 0,
+          "frozen_runtime_count": 1,
+          "cryptographic_randomness_frozen": false,
+          "scope": "public sampler fixture and exact-state hashing charged inside client CPU/RSS/wall"
+        },
+        "cleanup": {
+          "known_private_containers_empty": true,
+          "container_counts": {
+            "cache": 0,
+            "histories": 0,
+            "message_histories": 0,
+            "_pending_response_store": 0,
+            "_transformer_states": 0,
+            "_transformer_conversations": 0,
+            "_decode_epoch_responses": 0
+          },
+          "owner_counters_after_close": [],
+          "boundary_transports_observed": 1,
+          "boundary_transports_retired_and_owned_http_closed": true
+        },
+        "client_lifetime_cpu_seconds": 13.416896,
+        "boundary_operation_diagnostics": [
+          {
+            "lookup": {
+              "calls": 10,
+              "rows": 157,
+              "upload_bytes": 92910,
+              "download_bytes": 306744
+            },
+            "head": {
+              "calls": 8,
+              "rows": 8,
+              "upload_bytes": 59584,
+              "download_bytes": 9726176
+            }
+          }
+        ],
+        "client_peak_rss_bytes": 194560000,
+        "client_setup_seconds": 1.5861762091517448,
+        "client_worker_entry_cpu_seconds": 13.18876,
+        "client_cpu_scope": "child process birth through pre-serialization report sample; complete child CPU charged after reap",
+        "client_rss_scope": "OS child process lifetime high-water RSS through report sample, not a sampled request peak",
+        "client_window_seconds": 83.78835112508386
+      },
+      "provider_birth_cpu_seconds": {
+        "inference": 20.368769792,
+        "preparation": 15.524034816,
+        "boundary_a": 4.390602112,
+        "boundary_b": 4.356196767999999
+      },
+      "provider_sampled_peak_rss_bytes": {
+        "inference": 1082523648,
+        "preparation": 205389824,
+        "boundary_a": 398868480,
+        "boundary_b": 399130624
+      },
+      "wan": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 108.94525837525725,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 5020222
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 83774
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 5020222
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 83774
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 87221191
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 147157404
+            }
+          },
+          "inference": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 137099246
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 219826916
+            }
+          },
+          "preparation": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 132854752
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 63765
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->inference": 86998330,
+          "inference->client": 137090794,
+          "client->preparation": 55313,
+          "preparation->client": 26166,
+          "client->boundary_a": 83774,
+          "boundary_a->client": 5020222,
+          "client->boundary_b": 83774,
+          "boundary_b->client": 5020222,
+          "preparation->inference": 132828586,
+          "inference->preparation": 8452
+        },
+        "total_stream_bytes": 367215633,
+        "client_stream_bytes": 234378595,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "aggregate_cleanup_cpu_seconds": 64.004745,
+      "cpu_accounting": {
+        "schema": "pllm.private_boundary_case_cpu.v1",
+        "parent_all_threads_cpu_seconds": 5.789303,
+        "reaped_children_cpu_seconds": 58.215441999999996,
+        "aggregate_cpu_seconds": 64.004745,
+        "scope": "case admission through owned client/provider/relay cleanup; CPU only; post-return cohort verification/reporting charged separately",
+        "native_wan_cpu_location": "included in parent all-threads process CPU, not client child CPU",
+        "sampled_client_and_provider_cpu_added_again": false,
+        "synchronized_all_role_request_cpu_seconds": null
+      },
+      "provider_cpu_scope": "sampled process birth through client subprocess exit; shutdown included separately in reaped-child CPU",
+      "provider_rss_scope": "50 ms samples after role startup through client subprocess exit; startup and shutdown peaks unknown",
+      "complete_case_seconds": 110.54330695886165,
+      "source_delivery": {
+        "schema": "pllm.private_boundary_source_delivery.v1",
+        "case": "source-present",
+        "measured": false,
+        "edges": null,
+        "application_bytes": null,
+        "tcp_stream_bytes": null,
+        "physical_wire_bytes": null,
+        "prepositioned_source_not_free": true
+      },
+      "admitted_host_bytes": 6218412650,
+      "priority_metrics": {
+        "client_base_traffic_bytes": null,
+        "client_output_traffic_bytes": null,
+        "all_link_base_traffic_bytes": null,
+        "all_link_output_traffic_bytes": null,
+        "client_peak_rss_bytes": 194560000,
+        "ttft_seconds": 78.52030558232218,
+        "decode_tps": 1.9232214726462888
+      },
+      "provider_processes_reaped": true,
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "source_case": "source-present",
+      "wan_requested": true,
+      "source_inclusive_all_link_application_bytes": null,
+      "source_inclusive_all_link_tcp_stream_bytes": null
+    },
+    {
+      "variant": "baseline",
+      "replicate": 1,
+      "input_tokens": 150,
+      "client": {
+        "failure": null,
+        "responses": [
+          {
+            "input_tokens": 150,
+            "output_tokens": 8,
+            "status": "incomplete",
+            "state": {
+              "position": 157,
+              "words": 1116544,
+              "bits": "d0789376ab8a7cbe4a4d5bfd9ebcbf4de1a228c8cc965bd2585a78feea15bdfb",
+              "tokens": "d2d3942279fe384508a219fc171bf2a0d4ba6a0e6968194a625cbf95c30f2b5d",
+              "pending": "61a80f6d4e7d71a6988fd990e1e02094ae429e0f7438aa6b5602a1b638ce1733",
+              "output": "db7a35d2779e9e4452bc7175357f10e8a671c064128f0c2dd4c088d8fec35e43",
+              "array_dtype_and_shape": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+              "pending_count": 1
+            },
+            "trajectory": [
+              {
+                "position": 150,
+                "logits_and_kv": "2d10de1ccab4fc4ab1b1b863c3c0d11f29b998892d0e81519401be05a8c87661",
+                "sampled_token": "35eed54e93cd2c90e6b9cfbbbdd9b834f484e7ec3b891f71ba646fc0c20cc4e6",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 151,
+                "logits_and_kv": "64f65815024de7a40f635ae2ad2311d3459ba7acd98e99e3155fc3fec031bf89",
+                "sampled_token": "886fc777d61179a639b221c9db143dc515c997ccc409a64eb22558a997443f4f",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 152,
+                "logits_and_kv": "8f70710b8f474234de5273490711484fbb23f9036ffae90df89fcbb3bf3f7494",
+                "sampled_token": "47d43c4303ecda1818a7479593dccfda2ce5dc68b9532b7b56441b92e12349d5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 153,
+                "logits_and_kv": "2fd7b3725b43d68ef690d43caadb899bcf3866e8c971bd9824176416ca16d818",
+                "sampled_token": "7231f23f89bb964ba8e3af9f9900c31ae20101854f94f7c9b073ce8ccda287bc",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 154,
+                "logits_and_kv": "8e5a26ed3655acf2ee7ffecf7ca45fcd09c276f6c038f39738c159abb71249da",
+                "sampled_token": "d68c2018f202a0ee876c614257512739b651d14f74a53ab166a69eeca5592b51",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 155,
+                "logits_and_kv": "af215b75b35a9bdd042dd0de4e18edfecbc6be7f5a2e9f1da4c6758bda86b2c6",
+                "sampled_token": "f80f0851769b5e9ccfad38fa0c68c8bdd46921f12433dcb3339f9bf5f78464a5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 156,
+                "logits_and_kv": "99161e720f974f16b27d0add17bfdaa2094578c44d68181e368b15060f992429",
+                "sampled_token": "68527efe623bf6a02824a35ca4948802c5260986c714a2b2c208f09152e0c0d1",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 157,
+                "logits_and_kv": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+                "sampled_token": "d7a043ced3314504e9e445a59713d45b0add6ef33e1447a6006623b07b5563f8",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              }
+            ],
+            "request_seconds": 98.53196012508124,
+            "client_request_cpu_seconds": 9.127502,
+            "request_cpu_scope": "client child dispatch through stream drainage; per-step audits included; final state hash excluded",
+            "first_text_seconds": 96.63410916738212,
+            "worker_entry_to_first_text_seconds": 98.16611099988222,
+            "decode_tps": 3.7159361472460333,
+            "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "bundle_model_fingerprint": "ca734e10cff4e615d75c9efe2a5d5271235d3b1ed0e6b60477ca74d3fb5e108f",
+            "client_boundary_storage": {
+              "scope": "known SDK stage weights and retained local native matrix bindings only",
+              "private_boundary_selected": false,
+              "tied_embeddings": true,
+              "local_quantized_stage_ids": [
+                "lm_head",
+                "token_lookup"
+              ],
+              "boundary_client_weight_stage_ids": [
+                "lm_head",
+                "token_lookup"
+              ],
+              "retained_local_matrix_ids": [
+                "lm_head"
+              ]
+            }
+          }
+        ],
+        "audit": {
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "public_context_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "masked_online_upload_bytes": 86962479,
+          "masked_online_download_bytes": 133399481,
+          "correlation_count": 0,
+          "online_steps": 14625,
+          "inference_stage_calls": 768,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "inflight_prefill_tokens_reused": 0,
+          "inflight_producer_registrations": 0,
+          "inflight_publications": 0,
+          "inflight_joins": 0,
+          "inflight_failures": 0,
+          "inflight_cancellations": 0,
+          "inflight_cancelled_producers": 0,
+          "inflight_retired": 0,
+          "inflight_copy_bytes": 0,
+          "inflight_bound_rejections": 0,
+          "inflight_cache_bypasses": 0,
+          "inflight_reserved_bytes": 0,
+          "inflight_peak_reserved_bytes": 0,
+          "inflight_requests": 0,
+          "inflight_nodes": 0,
+          "inflight_pending_nodes": 0,
+          "inflight_active_producers": 0,
+          "direct_fhe_upload_bytes": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "preparation_upload_bytes": 9981,
+          "preparation_download_bytes": 10821,
+          "inference_upload_bytes": 86425294,
+          "inference_download_bytes": 132907780,
+          "generation_completed_responses": 1,
+          "generation_output_tokens": 8,
+          "generation_decode_output_tokens": 7,
+          "generation_prefill_online_body_bytes": 209099480,
+          "generation_decode_online_body_bytes": 10233594,
+          "generation_requested_output_tokens": 8,
+          "generation_executed_decode_steps": 7,
+          "generation_attribution_supported_responses": 1,
+          "preparation_attributed_body_bytes": 132844345,
+          "preparation_decode_material_body_bytes": 6138939,
+          "preparation_prefill_material_body_bytes": 126586133,
+          "preparation_decode_rows_issued": 672,
+          "preparation_prefill_rows_issued": 13953,
+          "preparation_padding_rows_issued": 0,
+          "correction_ack_bytes": 7804,
+          "correction_ack_accounted_push_bytes": 132823543,
+          "preparation_server_ns": 5694722002,
+          "inference_server_ns": 5132134870,
+          "correction_push_bytes": 132823543,
+          "correction_push_ns": 39289069290,
+          "session_authorization_upload_bytes": 2966,
+          "session_authorization_download_bytes": 44,
+          "preparation_attempts": 96,
+          "preparation_rows": 14625,
+          "prepared_stage_rows_issued": 14625,
+          "prepared_stage_rows_reserved": 14625,
+          "prepared_stage_rows_claimed": 14625,
+          "prepared_stage_rows_burned": 0,
+          "prepared_stage_rows_discarded": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_failures": 0,
+          "inference_control_upload_bytes": 3964,
+          "inference_control_download_bytes": 5056,
+          "preparation_control_upload_bytes": 0,
+          "preparation_control_download_bytes": 65,
+          "decode_epochs_started": 0,
+          "decode_epoch_pauses": 0,
+          "decode_epoch_pause_ns": 0,
+          "generation_requested_prefill_tokens": 150,
+          "generation_requested_decode_steps": 7,
+          "generation_remote_prefill_tokens": 150,
+          "generation_remote_terminal_prefill_rows": 1,
+          "generation_remote_decode_steps": 7,
+          "decode_cache_root_hits": 0,
+          "decode_cache_branch_hits": 0,
+          "decode_cache_misses": 0,
+          "decode_cache_skipped_remote_rows": 0,
+          "decode_cache_skipped_prefill_tokens": 0,
+          "decode_cache_skipped_decode_steps": 0,
+          "decode_cache_fully_warm_responses": 0,
+          "bundle_network_bytes": 124905091,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_cache_corruptions": 0,
+          "tokenizer_artifact_local_bytes": 9285336,
+          "public_prefix_artifact_local_bytes": 0,
+          "nonlinear_elements": 0,
+          "nonlinear_chunks": 0,
+          "nonlinear_party_key_bytes": 0,
+          "nonlinear_peer_frame_bytes": 0,
+          "nonlinear_client_issuance_ns": 0,
+          "nonlinear_client_issuance_cpu_ns": 0,
+          "private_boundary_lookup_rows": 0,
+          "private_boundary_head_calls": 0,
+          "private_boundary_lookup_upload_bytes": 0,
+          "private_boundary_lookup_download_bytes": 0,
+          "private_boundary_head_upload_bytes": 0,
+          "private_boundary_head_download_bytes": 0,
+          "private_boundary_body_coverage_failures": 0,
+          "role_link.worker_a.setup_upload_bytes": 0,
+          "role_link.worker_a.setup_download_bytes": 0,
+          "role_link.worker_a.online_upload_bytes": 0,
+          "role_link.worker_a.online_download_bytes": 0,
+          "role_link.worker_a.teardown_upload_bytes": 0,
+          "role_link.worker_a.teardown_download_bytes": 0,
+          "role_link.worker_b.setup_upload_bytes": 0,
+          "role_link.worker_b.setup_download_bytes": 0,
+          "role_link.worker_b.online_upload_bytes": 0,
+          "role_link.worker_b.online_download_bytes": 0,
+          "role_link.worker_b.teardown_upload_bytes": 0,
+          "role_link.worker_b.teardown_download_bytes": 0
+        },
+        "ledger": {
+          "schema": "pllm.topology_body_accounting.v3",
+          "body_counter_coverage": "prepared_protocol_lifecycle_controls_and_correction_acks_v3",
+          "correction_ack_counter_set_present": true,
+          "control_body_counter_set_present": true,
+          "lifecycle_control_serialized_body_bytes": 9085,
+          "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
+          "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only; instrumented lifecycle control bodies included once in separate control phase",
+          "tracked_body_counter_set_present": true,
+          "body_bytes_by_edge": [
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 12947
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 10865
+            },
+            {
+              "source": "preparation",
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 132823543
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 124905091
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 86425294
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 132907780
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "control",
+              "serialized_body_bytes": 3964
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 5056
+            },
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "control",
+              "serialized_body_bytes": 0
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 65
+            },
+            {
+              "source": "inference",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 7804
+            }
+          ],
+          "client_serialized_body_bytes": 344271062,
+          "all_link_serialized_body_bytes": 477102409,
+          "online_client_serialized_body_bytes": 219333074,
+          "online_all_link_serialized_body_bytes": 219333074,
+          "run_window_cpu_seconds_by_role": null,
+          "aggregate_run_window_cpu_seconds": null,
+          "total_wire_bytes": null,
+          "full_response_compute_cap_checked": false,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and uninstrumented control endpoints",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ],
+          "traffic_attribution": {
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Partial",
+            "total_all_link_body_bytes": 477102409,
+            "base_all_link_body_bytes": null,
+            "output_dependent_all_link_body_bytes": null,
+            "known_base_all_link_body_bytes": 460593714,
+            "known_output_dependent_all_link_body_bytes": 16372533,
+            "unattributed_all_link_body_bytes": 136162,
+            "unused_output_material_body_bytes": null,
+            "conservation_checked": true,
+            "attribution_valid": true,
+            "headline_eligible": true,
+            "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+            "components_body_bytes": {
+              "setup_and_delivery": 124908101,
+              "prefill_online": 209099480,
+              "decode_online": 10233594,
+              "prefill_material": 126586133,
+              "decode_material": 6138939
+            },
+            "audit_counters": {
+              "bundle_network_bytes": 124905091,
+              "correction_ack_accounted_push_bytes": 132823543,
+              "correction_ack_bytes": 7804,
+              "correction_push_bytes": 132823543,
+              "decode_epochs_started": 0,
+              "generation_attribution_supported_responses": 1,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 10233594,
+              "generation_decode_output_tokens": 7,
+              "generation_executed_decode_steps": 7,
+              "generation_output_tokens": 8,
+              "generation_prefill_online_body_bytes": 209099480,
+              "generation_requested_output_tokens": 8,
+              "inference_control_download_bytes": 5056,
+              "inference_control_upload_bytes": 3964,
+              "inference_download_bytes": 132907780,
+              "inference_upload_bytes": 86425294,
+              "inflight_joins": 0,
+              "inflight_producer_registrations": 0,
+              "preparation_attributed_body_bytes": 132844345,
+              "preparation_control_download_bytes": 65,
+              "preparation_control_upload_bytes": 0,
+              "preparation_decode_material_body_bytes": 6138939,
+              "preparation_decode_rows_issued": 672,
+              "preparation_download_bytes": 10821,
+              "preparation_padding_rows_issued": 0,
+              "preparation_prefill_material_body_bytes": 126586133,
+              "preparation_prefill_rows_issued": 13953,
+              "preparation_upload_bytes": 9981,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 14625,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 14625,
+              "prepared_stage_rows_reserved": 14625,
+              "public_prefix_artifact_local_bytes": 0,
+              "session_authorization_download_bytes": 44,
+              "session_authorization_upload_bytes": 2966
+            },
+            "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+            "unknown_reasons": [],
+            "prepared_rows": {
+              "prefill": 13953,
+              "decode": 672,
+              "padding": 0
+            },
+            "inventory_rows": {
+              "issued": 14625,
+              "reserved": 14625,
+              "claimed": 14625,
+              "burned": 0,
+              "discarded": 0
+            },
+            "reserved_equals_claimed_plus_burned": true,
+            "executed_decode_steps": 7,
+            "generated_output_tokens": 8,
+            "output_allowance": 8
+          }
+        },
+        "driver_implementation": {
+          "benchmark_private_boundary.py": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+          "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+          "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+          "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+          "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+        },
+        "sampler_diagnostic": {
+          "seed": 42,
+          "temperature": 0,
+          "frozen_runtime_count": 1,
+          "cryptographic_randomness_frozen": false,
+          "scope": "public sampler fixture and exact-state hashing charged inside client CPU/RSS/wall"
+        },
+        "cleanup": {
+          "known_private_containers_empty": true,
+          "container_counts": {
+            "cache": 0,
+            "histories": 0,
+            "message_histories": 0,
+            "_pending_response_store": 0,
+            "_transformer_states": 0,
+            "_transformer_conversations": 0,
+            "_decode_epoch_responses": 0
+          },
+          "owner_counters_after_close": [],
+          "boundary_transports_observed": 0,
+          "boundary_transports_retired_and_owned_http_closed": true
+        },
+        "client_lifetime_cpu_seconds": 10.884252,
+        "boundary_operation_diagnostics": [],
+        "client_peak_rss_bytes": 190087168,
+        "client_setup_seconds": 1.5320017905905843,
+        "client_worker_entry_cpu_seconds": 10.669991000000001,
+        "client_cpu_scope": "child process birth through pre-serialization report sample; complete child CPU charged after reap",
+        "client_rss_scope": "OS child process lifetime high-water RSS through report sample, not a sampled request peak",
+        "client_window_seconds": 100.08703758288175
+      },
+      "provider_birth_cpu_seconds": {
+        "inference": 24.310300672,
+        "preparation": 15.519971327999999
+      },
+      "provider_sampled_peak_rss_bytes": {
+        "inference": 1160364032,
+        "preparation": 204619776
+      },
+      "wan": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 117.47226279228926,
+        "parties": {
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 87053849
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 258613073
+            }
+          },
+          "inference": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 258595539
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 219827272
+            }
+          },
+          "preparation": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 132854572
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 63615
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->inference": 86998686,
+          "inference->client": 258587087,
+          "client->preparation": 55163,
+          "preparation->client": 25986,
+          "preparation->inference": 132828586,
+          "inference->preparation": 8452
+        },
+        "total_stream_bytes": 478503960,
+        "client_stream_bytes": 345666922,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "aggregate_cleanup_cpu_seconds": 56.943370000000016,
+      "cpu_accounting": {
+        "schema": "pllm.private_boundary_case_cpu.v1",
+        "parent_all_threads_cpu_seconds": 6.124773000000001,
+        "reaped_children_cpu_seconds": 50.81859700000001,
+        "aggregate_cpu_seconds": 56.943370000000016,
+        "scope": "case admission through owned client/provider/relay cleanup; CPU only; post-return cohort verification/reporting charged separately",
+        "native_wan_cpu_location": "included in parent all-threads process CPU, not client child CPU",
+        "sampled_client_and_provider_cpu_added_again": false,
+        "synchronized_all_role_request_cpu_seconds": null
+      },
+      "provider_cpu_scope": "sampled process birth through client subprocess exit; shutdown included separately in reaped-child CPU",
+      "provider_rss_scope": "50 ms samples after role startup through client subprocess exit; startup and shutdown peaks unknown",
+      "complete_case_seconds": 119.05408733244985,
+      "source_delivery": {
+        "schema": "pllm.private_boundary_source_delivery.v1",
+        "case": "source-present",
+        "measured": false,
+        "edges": null,
+        "application_bytes": null,
+        "tcp_stream_bytes": null,
+        "physical_wire_bytes": null,
+        "prepositioned_source_not_free": true
+      },
+      "admitted_host_bytes": 3914108250,
+      "priority_metrics": {
+        "client_base_traffic_bytes": null,
+        "client_output_traffic_bytes": null,
+        "all_link_base_traffic_bytes": null,
+        "all_link_output_traffic_bytes": null,
+        "client_peak_rss_bytes": 190087168,
+        "ttft_seconds": 96.63410916738212,
+        "decode_tps": 3.7159361472460333
+      },
+      "provider_processes_reaped": true,
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "source_case": "source-present",
+      "wan_requested": true,
+      "source_inclusive_all_link_application_bytes": null,
+      "source_inclusive_all_link_tcp_stream_bytes": null
+    },
+    {
+      "variant": "baseline",
+      "replicate": 2,
+      "input_tokens": 150,
+      "client": {
+        "failure": null,
+        "responses": [
+          {
+            "input_tokens": 150,
+            "output_tokens": 8,
+            "status": "incomplete",
+            "state": {
+              "position": 157,
+              "words": 1116544,
+              "bits": "d0789376ab8a7cbe4a4d5bfd9ebcbf4de1a228c8cc965bd2585a78feea15bdfb",
+              "tokens": "d2d3942279fe384508a219fc171bf2a0d4ba6a0e6968194a625cbf95c30f2b5d",
+              "pending": "61a80f6d4e7d71a6988fd990e1e02094ae429e0f7438aa6b5602a1b638ce1733",
+              "output": "db7a35d2779e9e4452bc7175357f10e8a671c064128f0c2dd4c088d8fec35e43",
+              "array_dtype_and_shape": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+              "pending_count": 1
+            },
+            "trajectory": [
+              {
+                "position": 150,
+                "logits_and_kv": "2d10de1ccab4fc4ab1b1b863c3c0d11f29b998892d0e81519401be05a8c87661",
+                "sampled_token": "35eed54e93cd2c90e6b9cfbbbdd9b834f484e7ec3b891f71ba646fc0c20cc4e6",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 151,
+                "logits_and_kv": "64f65815024de7a40f635ae2ad2311d3459ba7acd98e99e3155fc3fec031bf89",
+                "sampled_token": "886fc777d61179a639b221c9db143dc515c997ccc409a64eb22558a997443f4f",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 152,
+                "logits_and_kv": "8f70710b8f474234de5273490711484fbb23f9036ffae90df89fcbb3bf3f7494",
+                "sampled_token": "47d43c4303ecda1818a7479593dccfda2ce5dc68b9532b7b56441b92e12349d5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 153,
+                "logits_and_kv": "2fd7b3725b43d68ef690d43caadb899bcf3866e8c971bd9824176416ca16d818",
+                "sampled_token": "7231f23f89bb964ba8e3af9f9900c31ae20101854f94f7c9b073ce8ccda287bc",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 154,
+                "logits_and_kv": "8e5a26ed3655acf2ee7ffecf7ca45fcd09c276f6c038f39738c159abb71249da",
+                "sampled_token": "d68c2018f202a0ee876c614257512739b651d14f74a53ab166a69eeca5592b51",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 155,
+                "logits_and_kv": "af215b75b35a9bdd042dd0de4e18edfecbc6be7f5a2e9f1da4c6758bda86b2c6",
+                "sampled_token": "f80f0851769b5e9ccfad38fa0c68c8bdd46921f12433dcb3339f9bf5f78464a5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 156,
+                "logits_and_kv": "99161e720f974f16b27d0add17bfdaa2094578c44d68181e368b15060f992429",
+                "sampled_token": "68527efe623bf6a02824a35ca4948802c5260986c714a2b2c208f09152e0c0d1",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 157,
+                "logits_and_kv": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+                "sampled_token": "d7a043ced3314504e9e445a59713d45b0add6ef33e1447a6006623b07b5563f8",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              }
+            ],
+            "request_seconds": 98.49622299987823,
+            "client_request_cpu_seconds": 9.19278,
+            "request_cpu_scope": "client child dispatch through stream drainage; per-step audits included; final state hash excluded",
+            "first_text_seconds": 96.64983274973929,
+            "worker_entry_to_first_text_seconds": 98.20734541583806,
+            "decode_tps": 3.822914760090236,
+            "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "bundle_model_fingerprint": "ca734e10cff4e615d75c9efe2a5d5271235d3b1ed0e6b60477ca74d3fb5e108f",
+            "client_boundary_storage": {
+              "scope": "known SDK stage weights and retained local native matrix bindings only",
+              "private_boundary_selected": false,
+              "tied_embeddings": true,
+              "local_quantized_stage_ids": [
+                "lm_head",
+                "token_lookup"
+              ],
+              "boundary_client_weight_stage_ids": [
+                "lm_head",
+                "token_lookup"
+              ],
+              "retained_local_matrix_ids": [
+                "lm_head"
+              ]
+            }
+          }
+        ],
+        "audit": {
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "public_context_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "masked_online_upload_bytes": 86962479,
+          "masked_online_download_bytes": 133399481,
+          "correlation_count": 0,
+          "online_steps": 14625,
+          "inference_stage_calls": 768,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "inflight_prefill_tokens_reused": 0,
+          "inflight_producer_registrations": 0,
+          "inflight_publications": 0,
+          "inflight_joins": 0,
+          "inflight_failures": 0,
+          "inflight_cancellations": 0,
+          "inflight_cancelled_producers": 0,
+          "inflight_retired": 0,
+          "inflight_copy_bytes": 0,
+          "inflight_bound_rejections": 0,
+          "inflight_cache_bypasses": 0,
+          "inflight_reserved_bytes": 0,
+          "inflight_peak_reserved_bytes": 0,
+          "inflight_requests": 0,
+          "inflight_nodes": 0,
+          "inflight_pending_nodes": 0,
+          "inflight_active_producers": 0,
+          "direct_fhe_upload_bytes": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "preparation_upload_bytes": 9981,
+          "preparation_download_bytes": 10821,
+          "inference_upload_bytes": 86425294,
+          "inference_download_bytes": 132907780,
+          "generation_completed_responses": 1,
+          "generation_output_tokens": 8,
+          "generation_decode_output_tokens": 7,
+          "generation_prefill_online_body_bytes": 209099480,
+          "generation_decode_online_body_bytes": 10233594,
+          "generation_requested_output_tokens": 8,
+          "generation_executed_decode_steps": 7,
+          "generation_attribution_supported_responses": 1,
+          "preparation_attributed_body_bytes": 132844345,
+          "preparation_decode_material_body_bytes": 6138939,
+          "preparation_prefill_material_body_bytes": 126586133,
+          "preparation_decode_rows_issued": 672,
+          "preparation_prefill_rows_issued": 13953,
+          "preparation_padding_rows_issued": 0,
+          "correction_ack_bytes": 7804,
+          "correction_ack_accounted_push_bytes": 132823543,
+          "preparation_server_ns": 5265120498,
+          "inference_server_ns": 5161585688,
+          "correction_push_bytes": 132823543,
+          "correction_push_ns": 42086711835,
+          "session_authorization_upload_bytes": 2966,
+          "session_authorization_download_bytes": 44,
+          "preparation_attempts": 96,
+          "preparation_rows": 14625,
+          "prepared_stage_rows_issued": 14625,
+          "prepared_stage_rows_reserved": 14625,
+          "prepared_stage_rows_claimed": 14625,
+          "prepared_stage_rows_burned": 0,
+          "prepared_stage_rows_discarded": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_failures": 0,
+          "inference_control_upload_bytes": 3964,
+          "inference_control_download_bytes": 5055,
+          "preparation_control_upload_bytes": 0,
+          "preparation_control_download_bytes": 65,
+          "decode_epochs_started": 0,
+          "decode_epoch_pauses": 0,
+          "decode_epoch_pause_ns": 0,
+          "generation_requested_prefill_tokens": 150,
+          "generation_requested_decode_steps": 7,
+          "generation_remote_prefill_tokens": 150,
+          "generation_remote_terminal_prefill_rows": 1,
+          "generation_remote_decode_steps": 7,
+          "decode_cache_root_hits": 0,
+          "decode_cache_branch_hits": 0,
+          "decode_cache_misses": 0,
+          "decode_cache_skipped_remote_rows": 0,
+          "decode_cache_skipped_prefill_tokens": 0,
+          "decode_cache_skipped_decode_steps": 0,
+          "decode_cache_fully_warm_responses": 0,
+          "bundle_network_bytes": 124905091,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_cache_corruptions": 0,
+          "tokenizer_artifact_local_bytes": 9285336,
+          "public_prefix_artifact_local_bytes": 0,
+          "nonlinear_elements": 0,
+          "nonlinear_chunks": 0,
+          "nonlinear_party_key_bytes": 0,
+          "nonlinear_peer_frame_bytes": 0,
+          "nonlinear_client_issuance_ns": 0,
+          "nonlinear_client_issuance_cpu_ns": 0,
+          "private_boundary_lookup_rows": 0,
+          "private_boundary_head_calls": 0,
+          "private_boundary_lookup_upload_bytes": 0,
+          "private_boundary_lookup_download_bytes": 0,
+          "private_boundary_head_upload_bytes": 0,
+          "private_boundary_head_download_bytes": 0,
+          "private_boundary_body_coverage_failures": 0,
+          "role_link.worker_a.setup_upload_bytes": 0,
+          "role_link.worker_a.setup_download_bytes": 0,
+          "role_link.worker_a.online_upload_bytes": 0,
+          "role_link.worker_a.online_download_bytes": 0,
+          "role_link.worker_a.teardown_upload_bytes": 0,
+          "role_link.worker_a.teardown_download_bytes": 0,
+          "role_link.worker_b.setup_upload_bytes": 0,
+          "role_link.worker_b.setup_download_bytes": 0,
+          "role_link.worker_b.online_upload_bytes": 0,
+          "role_link.worker_b.online_download_bytes": 0,
+          "role_link.worker_b.teardown_upload_bytes": 0,
+          "role_link.worker_b.teardown_download_bytes": 0
+        },
+        "ledger": {
+          "schema": "pllm.topology_body_accounting.v3",
+          "body_counter_coverage": "prepared_protocol_lifecycle_controls_and_correction_acks_v3",
+          "correction_ack_counter_set_present": true,
+          "control_body_counter_set_present": true,
+          "lifecycle_control_serialized_body_bytes": 9084,
+          "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
+          "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only; instrumented lifecycle control bodies included once in separate control phase",
+          "tracked_body_counter_set_present": true,
+          "body_bytes_by_edge": [
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 12947
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 10865
+            },
+            {
+              "source": "preparation",
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 132823543
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 124905091
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 86425294
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 132907780
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "control",
+              "serialized_body_bytes": 3964
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 5055
+            },
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "control",
+              "serialized_body_bytes": 0
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 65
+            },
+            {
+              "source": "inference",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 7804
+            }
+          ],
+          "client_serialized_body_bytes": 344271061,
+          "all_link_serialized_body_bytes": 477102408,
+          "online_client_serialized_body_bytes": 219333074,
+          "online_all_link_serialized_body_bytes": 219333074,
+          "run_window_cpu_seconds_by_role": null,
+          "aggregate_run_window_cpu_seconds": null,
+          "total_wire_bytes": null,
+          "full_response_compute_cap_checked": false,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and uninstrumented control endpoints",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ],
+          "traffic_attribution": {
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Partial",
+            "total_all_link_body_bytes": 477102408,
+            "base_all_link_body_bytes": null,
+            "output_dependent_all_link_body_bytes": null,
+            "known_base_all_link_body_bytes": 460593714,
+            "known_output_dependent_all_link_body_bytes": 16372533,
+            "unattributed_all_link_body_bytes": 136161,
+            "unused_output_material_body_bytes": null,
+            "conservation_checked": true,
+            "attribution_valid": true,
+            "headline_eligible": true,
+            "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+            "components_body_bytes": {
+              "setup_and_delivery": 124908101,
+              "prefill_online": 209099480,
+              "decode_online": 10233594,
+              "prefill_material": 126586133,
+              "decode_material": 6138939
+            },
+            "audit_counters": {
+              "bundle_network_bytes": 124905091,
+              "correction_ack_accounted_push_bytes": 132823543,
+              "correction_ack_bytes": 7804,
+              "correction_push_bytes": 132823543,
+              "decode_epochs_started": 0,
+              "generation_attribution_supported_responses": 1,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 10233594,
+              "generation_decode_output_tokens": 7,
+              "generation_executed_decode_steps": 7,
+              "generation_output_tokens": 8,
+              "generation_prefill_online_body_bytes": 209099480,
+              "generation_requested_output_tokens": 8,
+              "inference_control_download_bytes": 5055,
+              "inference_control_upload_bytes": 3964,
+              "inference_download_bytes": 132907780,
+              "inference_upload_bytes": 86425294,
+              "inflight_joins": 0,
+              "inflight_producer_registrations": 0,
+              "preparation_attributed_body_bytes": 132844345,
+              "preparation_control_download_bytes": 65,
+              "preparation_control_upload_bytes": 0,
+              "preparation_decode_material_body_bytes": 6138939,
+              "preparation_decode_rows_issued": 672,
+              "preparation_download_bytes": 10821,
+              "preparation_padding_rows_issued": 0,
+              "preparation_prefill_material_body_bytes": 126586133,
+              "preparation_prefill_rows_issued": 13953,
+              "preparation_upload_bytes": 9981,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 14625,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 14625,
+              "prepared_stage_rows_reserved": 14625,
+              "public_prefix_artifact_local_bytes": 0,
+              "session_authorization_download_bytes": 44,
+              "session_authorization_upload_bytes": 2966
+            },
+            "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+            "unknown_reasons": [],
+            "prepared_rows": {
+              "prefill": 13953,
+              "decode": 672,
+              "padding": 0
+            },
+            "inventory_rows": {
+              "issued": 14625,
+              "reserved": 14625,
+              "claimed": 14625,
+              "burned": 0,
+              "discarded": 0
+            },
+            "reserved_equals_claimed_plus_burned": true,
+            "executed_decode_steps": 7,
+            "generated_output_tokens": 8,
+            "output_allowance": 8
+          }
+        },
+        "driver_implementation": {
+          "benchmark_private_boundary.py": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+          "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+          "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+          "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+          "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+        },
+        "sampler_diagnostic": {
+          "seed": 42,
+          "temperature": 0,
+          "frozen_runtime_count": 1,
+          "cryptographic_randomness_frozen": false,
+          "scope": "public sampler fixture and exact-state hashing charged inside client CPU/RSS/wall"
+        },
+        "cleanup": {
+          "known_private_containers_empty": true,
+          "container_counts": {
+            "cache": 0,
+            "histories": 0,
+            "message_histories": 0,
+            "_pending_response_store": 0,
+            "_transformer_states": 0,
+            "_transformer_conversations": 0,
+            "_decode_epoch_responses": 0
+          },
+          "owner_counters_after_close": [],
+          "boundary_transports_observed": 0,
+          "boundary_transports_retired_and_owned_http_closed": true
+        },
+        "client_lifetime_cpu_seconds": 10.960834,
+        "boundary_operation_diagnostics": [],
+        "client_peak_rss_bytes": 188203008,
+        "client_setup_seconds": 1.5575124993920326,
+        "client_worker_entry_cpu_seconds": 10.73362,
+        "client_cpu_scope": "child process birth through pre-serialization report sample; complete child CPU charged after reap",
+        "client_rss_scope": "OS child process lifetime high-water RSS through report sample, not a sampled request peak",
+        "client_window_seconds": 100.07763483282179
+      },
+      "provider_birth_cpu_seconds": {
+        "inference": 24.102710784,
+        "preparation": 15.192522624
+      },
+      "provider_sampled_peak_rss_bytes": {
+        "inference": 1162477568,
+        "preparation": 196771840
+      },
+      "wan": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 117.5952531248331,
+        "parties": {
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 87053849
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 258613072
+            }
+          },
+          "inference": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 258595538
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 219827272
+            }
+          },
+          "preparation": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 132854572
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 63615
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->inference": 86998686,
+          "inference->client": 258587086,
+          "client->preparation": 55163,
+          "preparation->client": 25986,
+          "preparation->inference": 132828586,
+          "inference->preparation": 8452
+        },
+        "total_stream_bytes": 478503959,
+        "client_stream_bytes": 345666921,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "aggregate_cleanup_cpu_seconds": 56.52485399999999,
+      "cpu_accounting": {
+        "schema": "pllm.private_boundary_case_cpu.v1",
+        "parent_all_threads_cpu_seconds": 6.1427939999999985,
+        "reaped_children_cpu_seconds": 50.382059999999996,
+        "aggregate_cpu_seconds": 56.52485399999999,
+        "scope": "case admission through owned client/provider/relay cleanup; CPU only; post-return cohort verification/reporting charged separately",
+        "native_wan_cpu_location": "included in parent all-threads process CPU, not client child CPU",
+        "sampled_client_and_provider_cpu_added_again": false,
+        "synchronized_all_role_request_cpu_seconds": null
+      },
+      "provider_cpu_scope": "sampled process birth through client subprocess exit; shutdown included separately in reaped-child CPU",
+      "provider_rss_scope": "50 ms samples after role startup through client subprocess exit; startup and shutdown peaks unknown",
+      "complete_case_seconds": 119.1889064591378,
+      "source_delivery": {
+        "schema": "pllm.private_boundary_source_delivery.v1",
+        "case": "source-present",
+        "measured": false,
+        "edges": null,
+        "application_bytes": null,
+        "tcp_stream_bytes": null,
+        "physical_wire_bytes": null,
+        "prepositioned_source_not_free": true
+      },
+      "admitted_host_bytes": 3914108250,
+      "priority_metrics": {
+        "client_base_traffic_bytes": null,
+        "client_output_traffic_bytes": null,
+        "all_link_base_traffic_bytes": null,
+        "all_link_output_traffic_bytes": null,
+        "client_peak_rss_bytes": 188203008,
+        "ttft_seconds": 96.64983274973929,
+        "decode_tps": 3.822914760090236
+      },
+      "provider_processes_reaped": true,
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "source_case": "source-present",
+      "wan_requested": true,
+      "source_inclusive_all_link_application_bytes": null,
+      "source_inclusive_all_link_tcp_stream_bytes": null
+    },
+    {
+      "variant": "coupled",
+      "replicate": 2,
+      "input_tokens": 150,
+      "client": {
+        "failure": null,
+        "responses": [
+          {
+            "input_tokens": 150,
+            "output_tokens": 8,
+            "status": "incomplete",
+            "state": {
+              "position": 157,
+              "words": 1116544,
+              "bits": "d0789376ab8a7cbe4a4d5bfd9ebcbf4de1a228c8cc965bd2585a78feea15bdfb",
+              "tokens": "d2d3942279fe384508a219fc171bf2a0d4ba6a0e6968194a625cbf95c30f2b5d",
+              "pending": "61a80f6d4e7d71a6988fd990e1e02094ae429e0f7438aa6b5602a1b638ce1733",
+              "output": "db7a35d2779e9e4452bc7175357f10e8a671c064128f0c2dd4c088d8fec35e43",
+              "array_dtype_and_shape": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+              "pending_count": 1
+            },
+            "trajectory": [
+              {
+                "position": 150,
+                "logits_and_kv": "2d10de1ccab4fc4ab1b1b863c3c0d11f29b998892d0e81519401be05a8c87661",
+                "sampled_token": "35eed54e93cd2c90e6b9cfbbbdd9b834f484e7ec3b891f71ba646fc0c20cc4e6",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 151,
+                "logits_and_kv": "64f65815024de7a40f635ae2ad2311d3459ba7acd98e99e3155fc3fec031bf89",
+                "sampled_token": "886fc777d61179a639b221c9db143dc515c997ccc409a64eb22558a997443f4f",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 152,
+                "logits_and_kv": "8f70710b8f474234de5273490711484fbb23f9036ffae90df89fcbb3bf3f7494",
+                "sampled_token": "47d43c4303ecda1818a7479593dccfda2ce5dc68b9532b7b56441b92e12349d5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 153,
+                "logits_and_kv": "2fd7b3725b43d68ef690d43caadb899bcf3866e8c971bd9824176416ca16d818",
+                "sampled_token": "7231f23f89bb964ba8e3af9f9900c31ae20101854f94f7c9b073ce8ccda287bc",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 154,
+                "logits_and_kv": "8e5a26ed3655acf2ee7ffecf7ca45fcd09c276f6c038f39738c159abb71249da",
+                "sampled_token": "d68c2018f202a0ee876c614257512739b651d14f74a53ab166a69eeca5592b51",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 155,
+                "logits_and_kv": "af215b75b35a9bdd042dd0de4e18edfecbc6be7f5a2e9f1da4c6758bda86b2c6",
+                "sampled_token": "f80f0851769b5e9ccfad38fa0c68c8bdd46921f12433dcb3339f9bf5f78464a5",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 156,
+                "logits_and_kv": "99161e720f974f16b27d0add17bfdaa2094578c44d68181e368b15060f992429",
+                "sampled_token": "68527efe623bf6a02824a35ca4948802c5260986c714a2b2c208f09152e0c0d1",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              },
+              {
+                "position": 157,
+                "logits_and_kv": "4084be2275f74dedd6e6c6436dd89e3aec0526721729afd00641e4af80d7bced",
+                "sampled_token": "d7a043ced3314504e9e445a59713d45b0add6ef33e1447a6006623b07b5563f8",
+                "rng_before": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8",
+                "rng_after": "567edc441676a3184fb7b52e85eae91c1c47f642e91eaa0e4b69d9116f1943c8"
+              }
+            ],
+            "request_seconds": 82.45261545851827,
+            "client_request_cpu_seconds": 11.74628,
+            "request_cpu_scope": "client child dispatch through stream drainage; per-step audits included; final state hash excluded",
+            "first_text_seconds": 78.79673762433231,
+            "worker_entry_to_first_text_seconds": 80.27878495771438,
+            "decode_tps": 1.925519638987833,
+            "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "bundle_model_fingerprint": "ca734e10cff4e615d75c9efe2a5d5271235d3b1ed0e6b60477ca74d3fb5e108f",
+            "client_boundary_storage": {
+              "scope": "known SDK stage weights and retained local native matrix bindings only",
+              "private_boundary_selected": true,
+              "tied_embeddings": true,
+              "local_quantized_stage_ids": [],
+              "boundary_client_weight_stage_ids": [],
+              "retained_local_matrix_ids": []
+            }
+          }
+        ],
+        "audit": {
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "public_context_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "masked_online_upload_bytes": 86962479,
+          "masked_online_download_bytes": 133399481,
+          "correlation_count": 0,
+          "online_steps": 14625,
+          "inference_stage_calls": 768,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "inflight_prefill_tokens_reused": 0,
+          "inflight_producer_registrations": 0,
+          "inflight_publications": 0,
+          "inflight_joins": 0,
+          "inflight_failures": 0,
+          "inflight_cancellations": 0,
+          "inflight_cancelled_producers": 0,
+          "inflight_retired": 0,
+          "inflight_copy_bytes": 0,
+          "inflight_bound_rejections": 0,
+          "inflight_cache_bypasses": 0,
+          "inflight_reserved_bytes": 0,
+          "inflight_peak_reserved_bytes": 0,
+          "inflight_requests": 0,
+          "inflight_nodes": 0,
+          "inflight_pending_nodes": 0,
+          "inflight_active_producers": 0,
+          "direct_fhe_upload_bytes": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "preparation_upload_bytes": 9981,
+          "preparation_download_bytes": 10821,
+          "inference_upload_bytes": 86425294,
+          "inference_download_bytes": 132907780,
+          "generation_completed_responses": 1,
+          "generation_output_tokens": 8,
+          "generation_decode_output_tokens": 7,
+          "generation_prefill_online_body_bytes": 210700892,
+          "generation_decode_online_body_bytes": 18817596,
+          "generation_requested_output_tokens": 8,
+          "generation_executed_decode_steps": 7,
+          "generation_attribution_supported_responses": 1,
+          "preparation_attributed_body_bytes": 132844345,
+          "preparation_decode_material_body_bytes": 6138939,
+          "preparation_prefill_material_body_bytes": 126586133,
+          "preparation_decode_rows_issued": 672,
+          "preparation_prefill_rows_issued": 13953,
+          "preparation_padding_rows_issued": 0,
+          "correction_ack_bytes": 7804,
+          "correction_ack_accounted_push_bytes": 132823543,
+          "preparation_server_ns": 5101217288,
+          "inference_server_ns": 5251518751,
+          "correction_push_bytes": 132823543,
+          "correction_push_ns": 41444414418,
+          "session_authorization_upload_bytes": 2966,
+          "session_authorization_download_bytes": 44,
+          "preparation_attempts": 96,
+          "preparation_rows": 14625,
+          "prepared_stage_rows_issued": 14625,
+          "prepared_stage_rows_reserved": 14625,
+          "prepared_stage_rows_claimed": 14625,
+          "prepared_stage_rows_burned": 0,
+          "prepared_stage_rows_discarded": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_failures": 0,
+          "inference_control_upload_bytes": 3964,
+          "inference_control_download_bytes": 5055,
+          "preparation_control_upload_bytes": 0,
+          "preparation_control_download_bytes": 65,
+          "decode_epochs_started": 0,
+          "decode_epoch_pauses": 0,
+          "decode_epoch_pause_ns": 0,
+          "generation_requested_prefill_tokens": 150,
+          "generation_requested_decode_steps": 7,
+          "generation_remote_prefill_tokens": 150,
+          "generation_remote_terminal_prefill_rows": 1,
+          "generation_remote_decode_steps": 7,
+          "decode_cache_root_hits": 0,
+          "decode_cache_branch_hits": 0,
+          "decode_cache_misses": 0,
+          "decode_cache_skipped_remote_rows": 0,
+          "decode_cache_skipped_prefill_tokens": 0,
+          "decode_cache_skipped_decode_steps": 0,
+          "decode_cache_fully_warm_responses": 0,
+          "bundle_network_bytes": 3410184,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_cache_corruptions": 0,
+          "tokenizer_artifact_local_bytes": 9285336,
+          "public_prefix_artifact_local_bytes": 0,
+          "nonlinear_elements": 0,
+          "nonlinear_chunks": 0,
+          "nonlinear_party_key_bytes": 0,
+          "nonlinear_peer_frame_bytes": 0,
+          "nonlinear_client_issuance_ns": 0,
+          "nonlinear_client_issuance_cpu_ns": 0,
+          "private_boundary_lookup_rows": 157,
+          "private_boundary_head_calls": 8,
+          "private_boundary_lookup_upload_bytes": 92910,
+          "private_boundary_lookup_download_bytes": 306744,
+          "private_boundary_head_upload_bytes": 59584,
+          "private_boundary_head_download_bytes": 9726176,
+          "private_boundary_body_coverage_failures": 0,
+          "role_link.worker_a.setup_upload_bytes": 0,
+          "role_link.worker_a.setup_download_bytes": 0,
+          "role_link.worker_a.online_upload_bytes": 0,
+          "role_link.worker_a.online_download_bytes": 0,
+          "role_link.worker_a.teardown_upload_bytes": 0,
+          "role_link.worker_a.teardown_download_bytes": 0,
+          "role_link.worker_b.setup_upload_bytes": 0,
+          "role_link.worker_b.setup_download_bytes": 0,
+          "role_link.worker_b.online_upload_bytes": 0,
+          "role_link.worker_b.online_download_bytes": 0,
+          "role_link.worker_b.teardown_upload_bytes": 0,
+          "role_link.worker_b.teardown_download_bytes": 0,
+          "role_link.boundary_a.setup_upload_bytes": 515,
+          "role_link.boundary_a.setup_download_bytes": 600,
+          "role_link.boundary_a.online_upload_bytes": 76247,
+          "role_link.boundary_a.online_download_bytes": 5016460,
+          "role_link.boundary_a.teardown_upload_bytes": 121,
+          "role_link.boundary_a.teardown_download_bytes": 141,
+          "role_link.boundary_b.setup_upload_bytes": 515,
+          "role_link.boundary_b.setup_download_bytes": 600,
+          "role_link.boundary_b.online_upload_bytes": 76247,
+          "role_link.boundary_b.online_download_bytes": 5016460,
+          "role_link.boundary_b.teardown_upload_bytes": 121,
+          "role_link.boundary_b.teardown_download_bytes": 141
+        },
+        "ledger": {
+          "schema": "pllm.topology_body_accounting.v4",
+          "body_counter_coverage": "prepared_body_and_private_boundary_lifecycle_v4",
+          "correction_ack_counter_set_present": true,
+          "control_body_counter_set_present": true,
+          "lifecycle_control_serialized_body_bytes": 9084,
+          "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
+          "scope": "prepared-body plus two private-boundary sender-side application bodies; not native payload plus HTTP",
+          "tracked_body_counter_set_present": true,
+          "body_bytes_by_edge": [
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 12947
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 10865
+            },
+            {
+              "source": "preparation",
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 132823543
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 3410184
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 86425294
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 132907780
+            },
+            {
+              "source": "client",
+              "destination": "inference",
+              "phase": "control",
+              "serialized_body_bytes": 3964
+            },
+            {
+              "source": "inference",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 5055
+            },
+            {
+              "source": "client",
+              "destination": "preparation",
+              "phase": "control",
+              "serialized_body_bytes": 0
+            },
+            {
+              "source": "preparation",
+              "destination": "client",
+              "phase": "control",
+              "serialized_body_bytes": 65
+            },
+            {
+              "source": "inference",
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 7804
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "setup",
+              "serialized_body_bytes": 515
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "setup",
+              "serialized_body_bytes": 600
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "online",
+              "serialized_body_bytes": 76247
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 5016460
+            },
+            {
+              "source": "client",
+              "destination": "boundary_a",
+              "phase": "teardown",
+              "serialized_body_bytes": 121
+            },
+            {
+              "source": "boundary_a",
+              "destination": "client",
+              "phase": "teardown",
+              "serialized_body_bytes": 141
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "setup",
+              "serialized_body_bytes": 515
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "setup",
+              "serialized_body_bytes": 600
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "online",
+              "serialized_body_bytes": 76247
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 5016460
+            },
+            {
+              "source": "client",
+              "destination": "boundary_b",
+              "phase": "teardown",
+              "serialized_body_bytes": 121
+            },
+            {
+              "source": "boundary_b",
+              "destination": "client",
+              "phase": "teardown",
+              "serialized_body_bytes": 141
+            }
+          ],
+          "client_serialized_body_bytes": 232964322,
+          "all_link_serialized_body_bytes": 365795669,
+          "online_client_serialized_body_bytes": 229518488,
+          "online_all_link_serialized_body_bytes": 229518488,
+          "run_window_cpu_seconds_by_role": null,
+          "aggregate_run_window_cpu_seconds": null,
+          "total_wire_bytes": null,
+          "full_response_compute_cap_checked": false,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and uninstrumented control endpoints",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ],
+          "traffic_attribution": {
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Partial",
+            "total_all_link_body_bytes": 365795669,
+            "base_all_link_body_bytes": null,
+            "output_dependent_all_link_body_bytes": null,
+            "known_base_all_link_body_bytes": 340702973,
+            "known_output_dependent_all_link_body_bytes": 24956535,
+            "unattributed_all_link_body_bytes": 136161,
+            "unused_output_material_body_bytes": null,
+            "conservation_checked": true,
+            "attribution_valid": true,
+            "headline_eligible": true,
+            "source": "sdk_combined_prepared_private_boundary_phase_counters_v1",
+            "components_body_bytes": {
+              "setup_and_delivery": 3413194,
+              "prefill_material": 126586133,
+              "decode_material": 6138939,
+              "boundary_setup_and_retirement": 2754,
+              "prefill_online": 210700892,
+              "decode_online": 18817596
+            },
+            "audit_counters": {
+              "inflight_producer_registrations": 0,
+              "inflight_joins": 0,
+              "preparation_upload_bytes": 9981,
+              "preparation_download_bytes": 10821,
+              "inference_upload_bytes": 86425294,
+              "inference_download_bytes": 132907780,
+              "generation_completed_responses": 1,
+              "generation_output_tokens": 8,
+              "generation_decode_output_tokens": 7,
+              "generation_prefill_online_body_bytes": 210700892,
+              "generation_decode_online_body_bytes": 18817596,
+              "generation_requested_output_tokens": 8,
+              "generation_executed_decode_steps": 7,
+              "generation_attribution_supported_responses": 1,
+              "preparation_attributed_body_bytes": 132844345,
+              "preparation_decode_material_body_bytes": 6138939,
+              "preparation_prefill_material_body_bytes": 126586133,
+              "preparation_decode_rows_issued": 672,
+              "preparation_prefill_rows_issued": 13953,
+              "preparation_padding_rows_issued": 0,
+              "correction_ack_bytes": 7804,
+              "correction_ack_accounted_push_bytes": 132823543,
+              "correction_push_bytes": 132823543,
+              "session_authorization_upload_bytes": 2966,
+              "session_authorization_download_bytes": 44,
+              "prepared_stage_rows_issued": 14625,
+              "prepared_stage_rows_reserved": 14625,
+              "prepared_stage_rows_claimed": 14625,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_discarded": 0,
+              "inference_control_upload_bytes": 3964,
+              "inference_control_download_bytes": 5055,
+              "preparation_control_upload_bytes": 0,
+              "preparation_control_download_bytes": 65,
+              "decode_epochs_started": 0,
+              "bundle_network_bytes": 3410184,
+              "public_prefix_artifact_local_bytes": 0,
+              "private_boundary_body_coverage_failures": 0,
+              "role_link.boundary_a.setup_upload_bytes": 515,
+              "role_link.boundary_a.setup_download_bytes": 600,
+              "role_link.boundary_a.online_upload_bytes": 76247,
+              "role_link.boundary_a.online_download_bytes": 5016460,
+              "role_link.boundary_a.teardown_upload_bytes": 121,
+              "role_link.boundary_a.teardown_download_bytes": 141,
+              "role_link.boundary_b.setup_upload_bytes": 515,
+              "role_link.boundary_b.setup_download_bytes": 600,
+              "role_link.boundary_b.online_upload_bytes": 76247,
+              "role_link.boundary_b.online_download_bytes": 5016460,
+              "role_link.boundary_b.teardown_upload_bytes": 121,
+              "role_link.boundary_b.teardown_download_bytes": 141
+            },
+            "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+            "unknown_reasons": [],
+            "prepared_rows": {
+              "prefill": 13953,
+              "decode": 672,
+              "padding": 0
+            },
+            "inventory_rows": {
+              "issued": 14625,
+              "reserved": 14625,
+              "claimed": 14625,
+              "burned": 0,
+              "discarded": 0
+            },
+            "reserved_equals_claimed_plus_burned": true,
+            "executed_decode_steps": 7,
+            "generated_output_tokens": 8,
+            "output_allowance": 8
+          },
+          "boundary_body_counter_set_present": true,
+          "source_distribution_bytes": null,
+          "unknown_reasons": []
+        },
+        "driver_implementation": {
+          "benchmark_private_boundary.py": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+          "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+          "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+          "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+          "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+        },
+        "sampler_diagnostic": {
+          "seed": 42,
+          "temperature": 0,
+          "frozen_runtime_count": 1,
+          "cryptographic_randomness_frozen": false,
+          "scope": "public sampler fixture and exact-state hashing charged inside client CPU/RSS/wall"
+        },
+        "cleanup": {
+          "known_private_containers_empty": true,
+          "container_counts": {
+            "cache": 0,
+            "histories": 0,
+            "message_histories": 0,
+            "_pending_response_store": 0,
+            "_transformer_states": 0,
+            "_transformer_conversations": 0,
+            "_decode_epoch_responses": 0
+          },
+          "owner_counters_after_close": [],
+          "boundary_transports_observed": 1,
+          "boundary_transports_retired_and_owned_http_closed": true
+        },
+        "client_lifetime_cpu_seconds": 13.449427,
+        "boundary_operation_diagnostics": [
+          {
+            "lookup": {
+              "calls": 10,
+              "rows": 157,
+              "upload_bytes": 92910,
+              "download_bytes": 306744
+            },
+            "head": {
+              "calls": 8,
+              "rows": 8,
+              "upload_bytes": 59584,
+              "download_bytes": 9726176
+            }
+          }
+        ],
+        "client_peak_rss_bytes": 194297856,
+        "client_setup_seconds": 1.4820471666753292,
+        "client_worker_entry_cpu_seconds": 13.234005,
+        "client_cpu_scope": "child process birth through pre-serialization report sample; complete child CPU charged after reap",
+        "client_rss_scope": "OS child process lifetime high-water RSS through report sample, not a sampled request peak",
+        "client_window_seconds": 83.95566837489605
+      },
+      "provider_birth_cpu_seconds": {
+        "inference": 19.816149888,
+        "preparation": 14.357700352,
+        "boundary_a": 4.299341184,
+        "boundary_b": 4.229605136
+      },
+      "provider_sampled_peak_rss_bytes": {
+        "inference": 1160511488,
+        "preparation": 203145216,
+        "boundary_a": 398688256,
+        "boundary_b": 398180352
+      },
+      "wan": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "inference": "inference",
+          "preparation": "preparation",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 107.33420508354902,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 5020222
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 83774
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 5020222
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 83774
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 87221191
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 147157410
+            }
+          },
+          "inference": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 137099252
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 219826916
+            }
+          },
+          "preparation": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 132854752
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 63765
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->inference": 86998330,
+          "inference->client": 137090800,
+          "client->preparation": 55313,
+          "preparation->client": 26166,
+          "client->boundary_a": 83774,
+          "boundary_a->client": 5020222,
+          "client->boundary_b": 83774,
+          "boundary_b->client": 5020222,
+          "preparation->inference": 132828586,
+          "inference->preparation": 8452
+        },
+        "total_stream_bytes": 367215639,
+        "client_stream_bytes": 234378601,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "aggregate_cleanup_cpu_seconds": 61.822661,
+      "cpu_accounting": {
+        "schema": "pllm.private_boundary_case_cpu.v1",
+        "parent_all_threads_cpu_seconds": 5.5235780000000005,
+        "reaped_children_cpu_seconds": 56.299082999999996,
+        "aggregate_cpu_seconds": 61.822661,
+        "scope": "case admission through owned client/provider/relay cleanup; CPU only; post-return cohort verification/reporting charged separately",
+        "native_wan_cpu_location": "included in parent all-threads process CPU, not client child CPU",
+        "sampled_client_and_provider_cpu_added_again": false,
+        "synchronized_all_role_request_cpu_seconds": null
+      },
+      "provider_cpu_scope": "sampled process birth through client subprocess exit; shutdown included separately in reaped-child CPU",
+      "provider_rss_scope": "50 ms samples after role startup through client subprocess exit; startup and shutdown peaks unknown",
+      "complete_case_seconds": 108.87636820878834,
+      "source_delivery": {
+        "schema": "pllm.private_boundary_source_delivery.v1",
+        "case": "source-present",
+        "measured": false,
+        "edges": null,
+        "application_bytes": null,
+        "tcp_stream_bytes": null,
+        "physical_wire_bytes": null,
+        "prepositioned_source_not_free": true
+      },
+      "admitted_host_bytes": 6218412650,
+      "priority_metrics": {
+        "client_base_traffic_bytes": null,
+        "client_output_traffic_bytes": null,
+        "all_link_base_traffic_bytes": null,
+        "all_link_output_traffic_bytes": null,
+        "client_peak_rss_bytes": 194297856,
+        "ttft_seconds": 78.79673762433231,
+        "decode_tps": 1.925519638987833
+      },
+      "provider_processes_reaped": true,
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "source_case": "source-present",
+      "wan_requested": true,
+      "source_inclusive_all_link_application_bytes": null,
+      "source_inclusive_all_link_tcp_stream_bytes": null
+    }
+  ],
+  "attempts": [
+    {
+      "variant": "baseline",
+      "replicate": 0,
+      "status": "executed"
+    },
+    {
+      "variant": "coupled",
+      "replicate": 0,
+      "status": "executed"
+    },
+    {
+      "variant": "coupled",
+      "replicate": 1,
+      "status": "executed"
+    },
+    {
+      "variant": "baseline",
+      "replicate": 1,
+      "status": "executed"
+    },
+    {
+      "variant": "baseline",
+      "replicate": 2,
+      "status": "executed"
+    },
+    {
+      "variant": "coupled",
+      "replicate": 2,
+      "status": "executed"
+    }
+  ],
+  "priority_metrics": [
+    "client_base_traffic",
+    "client_output_traffic",
+    "all_link_base_traffic",
+    "all_link_output_traffic",
+    "client_peak_rss",
+    "ttft",
+    "decode_tps"
+  ],
+  "limits": [
+    "source measurements absent remain null; prepositioned source is not free",
+    "application bodies and TCP stream bytes separate; physical wire unknown",
+    "local children share host/operator; no independent-operator claim",
+    "provider RSS sampled after startup; startup peaks unknown",
+    "request CPU is client-only; parent native WAN and providers are charged in complete-case CPU",
+    "fresh client/processes do not imply cold OS source caches or newly distributed checkpoint artifacts",
+    "exact trajectory hashing charged equally inside client CPU/RSS/wall windows",
+    "missing-worker source delivery currently blocked; no fabricated bytes"
+  ],
+  "cohort_cpu_accounting": {
+    "launcher_process_birth_to_report_sample_cpu_seconds": 40.312265,
+    "children_reaped_since_driver_entry_cpu_seconds": 325.44819,
+    "aggregate_cpu_seconds": 365.760455,
+    "case_cpu_totals_are_subsets_not_added_again": true,
+    "scope": "source/header preflight, case admission, SDK children, relays, verification and prior report writes; through this sample",
+    "excluded": [
+      "final report serialization/write and process teardown after this CPU sample",
+      "source distribution before this driver process"
+    ]
+  },
+  "verification": {
+    "complete": true,
+    "exact_full_state_parity": true,
+    "checked_responses": 6,
+    "maximum_client_rss_across_replicates_bytes": 195788800,
+    "maximum_client_rss_by_variant_bytes": {
+      "baseline": 190709760,
+      "coupled": 195788800
+    }
+  },
+  "swap": {
+    "initial_bytes": 902365184,
+    "maximum_growth_bytes": 0,
+    "minimum_available_bytes": 10364076032
+  }
+}

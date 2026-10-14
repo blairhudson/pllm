@@ -188,6 +188,39 @@ The full compressed head remains 121.08 MB, and the largest worker RSS rises
 1.70%. These scoped lookup gains do not remove the ordinary client's tied head.
 Contract and replay:
 `docs/research/private-lookup-acceleration-reference.md`.
+The explicit `PrivateLookupAndFullHead` and `PreparedBoundaryRoles` composition
+now couples that packed lookup with exact ring32 full-head sharing across two
+additional boundary workers, retaining the original prepared decoder body.
+Each boundary worker shares one immutable native tied-weight owner between lookup
+and head; the thin client receives no vocabulary matrix. A model-neutral native
+contract and independently checked source, matrix and scale commitments precede
+session admission. The client retains tokenization, nonlinear work, attention,
+full KV, complete reconstructed logits and the original sampler. Generated
+Qwen2/Qwen3/Llama SDK and gateway controls preserve logits, KV, tokens and RNG;
+malformed inputs, replay, partial admission and cancellation retire one-use owners.
+Paging, compressed artifacts, demand issuance and packed/residue prepared-body
+frames compose under separate boundary accounting. Native shared access caps
+cover all five roles. Co-located children establish neither non-collusion nor
+independent cryptographic review; missing-worker checkpoint delivery remains
+unmeasured. Contract and replay:
+`docs/research/private-boundary-sdk-reference.md`.
+A separate six-client pinned Qwen2.5 48+8 cohort preserves full logits, active KV,
+history, selections and RNG with zero observed swap growth under shared native
+100/40 caps. Coupled lookup/head reduces median all-link TCP streams 44.64% and
+request latency 31.96%; complete startup-through-cleanup time falls 12.95%.
+Decode throughput falls 50.32%, complete-case CPU rises 15.53% and client-subprocess
+peak RSS rises 2.58%. Cold client delivery falls 124.91 to 3.41 MB, while fresh
+boundary operations add 9.93 MB and increase online traffic. Checkpoint and
+indexed-tokenizer distribution remain unmeasured; client RSS excludes the separate
+parent/relay owner. This source-present short-request result establishes a
+traffic/latency tradeoff, not whole-client memory or Low-tier qualification.
+A separate six-client 150+8 cohort preserves the same complete state/output
+contracts with zero observed swap growth. All-link TCP streams fall 23.26% and
+request latency 16.34%; complete startup-through-cleanup time falls 7.47%.
+Decode throughput falls 48.82%, complete-case CPU rises 12.10% and client-subprocess
+RSS rises 2.35%. Additional boundary bodies are 10.19 MB; ordinary prepared
+arithmetic bodies remain identical. These independently retained workload cohorts
+do not establish a warm-request win or savings when workers lack the source.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

@@ -109,6 +109,9 @@ pub(crate) fn lower_decoder_continuation_from_schedule(
     composition: &[u8],
     source: &DecoderRuntimeSchedule,
 ) -> Result<DecoderContinuation, String> {
+    if source.private_boundary.is_some() {
+        return Err("private boundary continuation and state reuse are not supported".into());
+    }
     if source.retained_state.is_some() {
         return Err("retained response-owned state cannot enter full-KV continuation".into());
     }

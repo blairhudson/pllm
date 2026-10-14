@@ -34,3 +34,45 @@ cost tradeoff and the SDK example.
 of decoder layers to the trusted client. It keeps the remote suffix prepared
 and masked, but adds prefix matrices to the client bundle; inspect its matched
 [cold versus online results](/sdk/evaluate/benchmark/) before selection.
+
+## Coupled private vocabulary boundary
+
+`PrivateLookupAndFullHead` with `PreparedBoundaryRoles` assigns a tied W8A8
+token table and its complete output head to two online boundary workers. The
+prepared body keeps its existing Inference and offline Preparation roles. The
+client keeps tokenizer queries, decoder state, reconstruction, full logits and
+sampling local, and receives no tied vocabulary matrix.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import PreparedBoundaryRoles, PrivateLookupAndFullHead
+
+experiment = Experiment(
+    "private-boundary",
+    MaskedLinearCpu(
+        Model.tiny(),
+        boundary=PrivateLookupAndFullHead(),
+        topology=PreparedBoundaryRoles(),
+    ),
+    Deployment.local(root=".pllm/private-boundary"),
+    ExecutionBudget(requests=1, max_input_tokens=256, max_new_tokens=8),
+)
+```
+
+`examples/private_boundary.py` executes this composition through `serve_local`
+and the ordinary SDK, including paged artifacts, packed/residue body frames and
+demand preparation. Local native execution and shared TCP rate caps are supported.
+Network planning, Docker, untied or auxiliary token tables, Metal, verification,
+retained state, prefix caches, epoch schedules and MLP tiling reject this initial
+composition.
+
+The two boundary workers must not collude; Preparation's existing erasure and
+non-collusion requirements also remain. Co-located child processes establish
+functionality, not independent operators or cryptographic review. Cold-client
+costs depend on whether workers already own the public source. Full-head replies
+and every executed generated-token lookup remain charged; embedding-only lookup
+cannot remove a tied client head.
+
+Contract, accounting and replay:
+[coupled private boundary](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-sdk-reference.md).

@@ -105,7 +105,11 @@ pub(crate) fn build_contract(
     if !(1..=256).contains(&tile_rows) || source.mlp_tiling.is_some() {
         return Err("invalid MLP tiling source schedule".into());
     }
-    if source.nonlinear.is_some() || source.retained_state.is_some() || plan.prefill.batch != 1 {
+    if source.private_boundary.is_some()
+        || source.nonlinear.is_some()
+        || source.retained_state.is_some()
+        || plan.prefill.batch != 1
+    {
         return Err("MLP tiling requires the ordinary dense client numeric contract".into());
     }
     let graph = &plan.prefill;

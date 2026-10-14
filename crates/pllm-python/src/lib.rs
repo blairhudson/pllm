@@ -641,14 +641,16 @@ impl FreivaldsVerifierHandle {
 
 #[pyclass(frozen, module = "pllm._native")]
 struct Matrix {
-    inner: kernels::Matrix,
+    inner: std::sync::Arc<kernels::Matrix>,
 }
 #[pymethods]
 impl Matrix {
     #[new]
     fn new(data: &Bound<'_, PyBytes>, rows: usize, cols: usize) -> PyResult<Self> {
         Ok(Self {
-            inner: kernels::Matrix::new(data.as_bytes(), rows, cols).map_err(invalid)?,
+            inner: std::sync::Arc::new(
+                kernels::Matrix::new(data.as_bytes(), rows, cols).map_err(invalid)?,
+            ),
         })
     }
     #[getter]

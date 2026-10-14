@@ -70,6 +70,8 @@ from pllm.roles import (
     Inference,
     InferenceRole,
     OutputHeadAtInference,
+    PrivateLookupAndFullHead,
+    PreparedBoundaryRoles,
     PreparedProviderRoles,
     TwoOnlineOffsetRoles,
 )
@@ -131,6 +133,8 @@ def _instances():
         MlpPrefillTiling(),
         ModelAwareCorrections(),
         OutputHeadAtInference(),
+        PrivateLookupAndFullHead(),
+        PreparedBoundaryRoles(),
         ClientOnlyRoles(),
         PreparedProviderRoles(),
         PreparedInventory(),

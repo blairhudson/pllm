@@ -71,6 +71,27 @@ def test_cancelled_pacing_does_not_consume_budget_or_record_unsent_chunk():
     assert pacer.snapshot()["total_stream_bytes"] == 0
 
 
+def test_five_role_boundary_access_shares_client_budget_across_all_peers():
+    roles = ("client", "inference", "preparation", "boundary_a", "boundary_b")
+    conditions = WanConditions()
+    pacer = SharedPacer(conditions, roles)
+
+    async def run():
+        for peer in roles[1:]:
+            await pacer.reserve("client", peer, READ_CHUNK_BYTES)
+            await pacer.reserve(peer, "client", READ_CHUNK_BYTES)
+        await pacer.reserve("preparation", "inference", READ_CHUNK_BYTES)
+        await pacer.reserve("inference", "preparation", READ_CHUNK_BYTES)
+
+    asyncio.run(run())
+    sample = pacer.snapshot()
+    assert sample["client_stream_bytes"] == 8 * READ_CHUNK_BYTES
+    assert sample["total_stream_bytes"] == 10 * READ_CHUNK_BYTES
+    assert sample["parties"]["client"]["upload"]["admitted_bytes"] == 4 * READ_CHUNK_BYTES
+    assert sample["parties"]["client"]["download"]["admitted_bytes"] == 4 * READ_CHUNK_BYTES
+    _check_native_sample(sample, conditions, pacer.assignments)
+
+
 def test_native_relay_duplex_bytes_and_cancellation_leave_no_owned_sockets(monkeypatch):
     network = NativePartyNetwork(WanConditions(), ("client", "inference"))
     reservations = []

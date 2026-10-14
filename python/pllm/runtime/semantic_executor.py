@@ -84,7 +84,33 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         nonlinear_evaluator: Callable[[int, np.ndarray], np.ndarray] | None = None,
         causal_reduction: str | None = None,
         verification_lineage_limit: int = 1,
+        boundary: object | None = None,
+        _private_boundary_binding: object | None = None,
     ) -> None:
+        boundary_selected = "private_boundary" in schedule
+        if boundary_selected != ("private_boundary" in bundle.privacy):
+            raise TransformerClientError("private boundary bundle and schedule ownership differ")
+        if boundary_selected:
+            from .model_binding import CompiledRuntimeModel, RuntimeBindingError
+            from .private_boundary_transport import PrivateBoundaryTransport
+
+            if (type(_private_boundary_binding) is not CompiledRuntimeModel
+                    or _private_boundary_binding._bundle is not bundle
+                    or _private_boundary_binding._plan is not plan
+                    or _private_boundary_binding._validated_schedule() != schedule
+                    or type(boundary) is not PrivateBoundaryTransport
+                    or boundary.descriptor != _private_boundary_binding.private_boundary_descriptor()
+                    or boundary._state != "active" or boundary._retired
+                    or getattr(boundary, "_runtime_owner", None) is not None):
+                raise TransformerClientError("private boundary requires its compiled response owner")
+            try:
+                _private_boundary_binding._validate_private_boundary_owner(remote, boundary)
+            except RuntimeBindingError as exc:
+                raise TransformerClientError(str(exc)) from exc
+            if token_cache is not None or nonlinear_evaluator is not None:
+                raise TransformerClientError("private boundary cannot admit token caches or nonlinear callbacks")
+        elif boundary is not None or _private_boundary_binding is not None:
+            raise TransformerClientError("ordinary schedule cannot admit a private boundary executor")
         super().__init__(
             bundle,
             remote,
@@ -94,6 +120,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             nonlinear_evaluator=nonlinear_evaluator,
         )
         self._graphs = plan.to_dict()
+        self._boundary = boundary
         if causal_reduction not in {None, "prefix_f32"}:
             raise TransformerClientError("unsupported causal reduction contract")
         self._causal_reduction = causal_reduction
@@ -125,6 +152,25 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         self._recurrent_pairs = {phase: recurrent_pairs(self._graphs[phase])
                                  for phase in ("prefill", "decode")}
         self.reset()
+        if boundary_selected:
+            # Keep the spent-owner marker without a transport/runtime cycle.
+            import weakref
+            boundary._runtime_owner = weakref.ref(self)
+
+    def close(self) -> None:
+        """Retire the response boundary; transport drains in-flight calls safely."""
+        if self._boundary is not None:
+            self._boundary.close()
+
+    def _token_lookup(self, ids: np.ndarray) -> tuple[np.ndarray, np.ndarray | None]:
+        if self._boundary is None:
+            return super()._token_lookup(ids)
+        result = self._boundary.token_lookup(ids)
+        if (type(result) is not np.ndarray or result.dtype != np.float32
+                or result.shape != (ids.size, self.cfg["hidden_size"])
+                or not np.all(np.isfinite(result))):
+            raise TransformerClientError("private token lookup shape/type mismatch")
+        return result, None
 
     @staticmethod
     def _excluded_multimodal_tokens(graphs: dict[str, Any], cfg: dict[str, Any]) -> frozenset[int]:
@@ -1085,11 +1131,28 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         elif operations[op_ids[0]]["operator"] == "output_head":
             input_value = values[step["input_ids"][0]]
             stage = self.bundle.stages[stage_id]
-            values[op_ids[0]] = (
-                self.bundle.local_linear(stage_id, input_value)
-                if stage.client_weight is not None
-                else self.remote(stage_id, input_value)
-            )
+            if self._boundary is not None:
+                # Public row order is exact; no slicing of vocabulary or local fallback.
+                shape = input_value.shape[:-1] + (stage.out_features,)
+                if (input_value.dtype != np.float32 or input_value.shape[-1] != stage.in_features
+                        or not np.all(np.isfinite(input_value))):
+                    raise TransformerClientError("private full head input shape/type mismatch")
+                rows = np.asarray(input_value).reshape(-1, stage.in_features)
+                output = np.empty((rows.shape[0], stage.out_features), dtype=np.float32)
+                for index in range(rows.shape[0]):
+                    result = self._boundary.linear(stage_id, np.ascontiguousarray(rows[index:index + 1]))
+                    if (type(result) is not np.ndarray or result.dtype != np.float32
+                            or result.shape != (1, stage.out_features)
+                            or not np.all(np.isfinite(result))):
+                        raise TransformerClientError("private full head shape/type mismatch")
+                    output[index] = result[0]
+                values[op_ids[0]] = output.reshape(shape)
+            else:
+                values[op_ids[0]] = (
+                    self.bundle.local_linear(stage_id, input_value)
+                    if stage.client_weight is not None
+                    else self.remote(stage_id, input_value)
+                )
             if continuation and (
                 np.asarray(values[op_ids[0]]).shape != np.asarray(input_value).shape[:-1] + (stage.out_features,)
                 or np.asarray(values[op_ids[0]]).dtype != np.float32
@@ -1141,6 +1204,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 self._tiered.finish(self, ids, result)
             return result
         except BaseException:
+            if self._boundary is not None:
+                self._boundary.abort()
             for state in getattr(self, "_phase_recurrent_states", []):
                 state.fill(0)
             if getattr(self, "_hybrid_contracts", {}):

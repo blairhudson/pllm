@@ -171,6 +171,64 @@ def _validate_workload(max_input_tokens, max_output_tokens, inventory_rows, cach
         raise BenchmarkMemoryError("invalid client cache input bound")
 
 
+def private_boundary_memory(vocabulary, hidden, *, lookup_rows, head_calls,
+                            concurrent_requests=1, shared_matrix=True):
+    """Allocation owners for packed128 lookup plus full additive wrap32 head.
+
+    A context shares immutable table storage, never its replay ledger. Scratch
+    is per active lookup (not per issued row); framing/import/export copies are
+    deliberately additional owners. This is not a measured RSS result.
+    """
+    for value, limit in ((vocabulary, 1048576), (hidden, 1048576),
+                         (lookup_rows, 4096), (head_calls, 4096),
+                         (concurrent_requests, 8)):
+        if type(value) is not int or not 1 <= value <= limit:
+            raise BenchmarkMemoryError("private boundary allocation geometry exceeds bound")
+    if type(shared_matrix) is not bool:
+        raise BenchmarkMemoryError("private boundary sharing evidence must be explicit")
+    table, scales = vocabulary * hidden, 4 * vocabulary
+    # Protocol accepts up to 64 lookup rows per frame; expansion is serial.
+    lookup_frame = 8192 + min(64, lookup_rows) * (hidden + 4 + 256)
+    head_frame = 8192 + 4 * (hidden + vocabulary)
+    if max(lookup_frame, head_frame) > 16 * MiB:
+        raise BenchmarkMemoryError("private boundary allocation exceeds frame bound")
+    ledger = 8192 + 64 * (lookup_rows + head_calls)
+    root_ledger = 4096 * 256  # Native context set plus Python worker replay set.
+    scratch = vocabulary * 64
+    worker_work = concurrent_requests * (ledger + scratch + 8 * max(lookup_frame, head_frame))
+    native_table = table + scales + (0 if shared_matrix else table + scales)
+    # The native publisher borrows the existing head Arc, hashes one row at a
+    # time, and exports only its descriptor. Python/native scale buffers and the
+    # row hash buffer remain additional owners. Unsupported older bindings keep
+    # their conservative full-table serialization allowance.
+    publisher_table_export = 0 if shared_matrix else 6 * table
+    publisher_descriptor_work = 4 * scales + hidden
+    # Matrix import and bytes/Vec overlap; source publisher remains separately priced.
+    chunk_elements = min(vocabulary, 64, max(1, (1 << 20) // hidden)) * hidden
+    import_work = max(3 * table + 4 * scales, 28 * chunk_elements,
+                      4 * min(table, max(1 << 20, hidden)))
+    # Source stage keeps its NumPy scales while native lookup owns scales Vec.
+    # Head-only loader retains config/tokenizer/plan descriptors, not decoder W.
+    retained_metadata = 96 * MiB + scales
+    worker_peak = (_PROCESS_BYTES + native_table + retained_metadata + root_ledger
+                   + max(import_work, worker_work))
+    # Both returned u32 shares, reconstruction, float logits and client scales.
+    client_work = scales + concurrent_requests * (
+        ledger + 8 * max(lookup_frame, head_frame) + 24 * vocabulary + 16 * hidden)
+    return {"scope": "private_boundary_allocation_owners_v1", "table_bytes": table,
+            "scales_bytes": scales, "shared_immutable_matrix": shared_matrix,
+            "worker_native_table_bytes": native_table, "worker_import_work_bytes": import_work,
+            "publisher_table_export_bytes": publisher_table_export,
+            "publisher_descriptor_work_bytes": publisher_descriptor_work,
+            "worker_retained_metadata_and_source_scales_bytes": retained_metadata,
+            "worker_root_context_ledger_bytes": root_ledger,
+            "worker_session_ledger_bytes": concurrent_requests * ledger,
+            "worker_lookup_scratch_bytes": concurrent_requests * scratch,
+            "worker_peak_bytes": worker_peak, "client_work_bytes": client_work,
+            "client_tied_weight_bytes": 0, "lookup_rows_bound": lookup_rows,
+            "head_calls_bound": head_calls, "concurrent_request_bound": concurrent_requests}
+
+
 def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                     inventory_rows=64, cache_bytes=0, cache_bound_tokens=None, checkpoint_bytes=0, store=None):
     """Model-neutral graph geometry; no arrays or checkpoint tensor reads."""
@@ -252,14 +310,19 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     token = next(s for s in stages if s.role == "token_lookup")
     head = next(s for s in stages if s.role == "lm_head")
     shared_main_table = bool(token.weight_keys and head.weight_keys
-                             and token.weight_keys[0] == head.weight_keys[0])
+                              and token.weight_keys[0] == head.weight_keys[0])
     if shared_main_table:
         boundary -= next(s.in_features * s.out_features for s in stages if s.role == "lm_head")
+    private_boundary = bool(getattr(options, "private_boundary", False))
+    if private_boundary:
+        if not shared_main_table:
+            raise BenchmarkMemoryError("private boundary admission requires canonical tied weights")
+        boundary = 0
     # Descriptors include scales for every stage, not only client-owned weights.
     metadata = 16 * sum(s.out_features + s.in_features for s in stages) + 32 * MiB + local_tensors
     bundle = boundary + local_weights + metadata
-    client_stages = [*client_body, token]
-    if not options.remote_output_head:
+    client_stages = [*client_body, *([] if private_boundary else [token])]
+    if not options.remote_output_head and not private_boundary:
         client_stages.append(head)
     # Raw paged import shares one executor and never creates a whole-matrix
     # Python array. Metadata is still owned by the decoded document and bundle;
@@ -303,6 +366,14 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     # the full inventory upper bound too until role lifetimes are independently
     # measured. In-flight responses may each own an inventory and active claim.
     concurrent_requests = options.inflight_max_requests if options.inflight else 1
+    boundary_allocation = None
+    if private_boundary:
+        server = getattr(native, "PrivatePageServer", None)
+        shared = server is not None and all(hasattr(server, name) for name in ("from_matrix", "bind_context"))
+        boundary_allocation = private_boundary_memory(head.out_features, head.in_features,
+            lookup_rows=compiled_input_bound + max_output_tokens - 1,
+            head_calls=max_output_tokens, concurrent_requests=concurrent_requests,
+            shared_matrix=shared)
     masks *= concurrent_requests
     mask_cursors *= concurrent_requests
     legacy_masks *= concurrent_requests
@@ -350,6 +421,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     if metal and not roles:
         gpu_client = weights
     limitations = []
+    if private_boundary and not boundary_allocation["shared_immutable_matrix"]:
+        limitations.append("private boundary requires native from_matrix and bind_context shared immutable storage")
     paged_preparation = options.preparation_storage == "paged"
     digit_workspace = 0
     if options.preparation_kernel == "digit8":
@@ -378,14 +451,25 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     role_weights, role_loading = {}, {}
     from .encoded_artifacts import WORK_BYTES as ARTIFACT_CACHE_WORK_BYTES
     artifact_cache_roles = {role: options.provider_artifact_cache_bytes for role in roles
-                            if role != "preparation" and options.provider_artifact_cache_bytes}
+                            if role not in {"preparation", "boundary_a", "boundary_b"}
+                            and options.provider_artifact_cache_bytes}
     for role in roles:
+        if role in {"boundary_a", "boundary_b"} and boundary_allocation is not None:
+            role_weights[role] = boundary_allocation["worker_native_table_bytes"]
+            role_loading[role] = boundary_allocation["worker_import_work_bytes"]
+            role_peaks[role] = _slack(boundary_allocation["worker_peak_bytes"])
+            # Unknown/stale image imports may retain full original source engine.
+            docker_role_peaks[role] = _slack(boundary_allocation["worker_peak_bytes"] + engine + legacy_loading)
+            continue
         # Preparation never exports a client bundle; inference and either offset
         # worker may. Include retained corrections while preparing new material.
         # Native delivery streams immutable weight views and retains only copied
         # metadata plus bounded compression/batch frames. Existing images may
         # still pack/unpack full bundles and cache copied artifact objects.
         delivery = 2 * metadata + 8 * MiB if role != "preparation" else 0
+        if private_boundary and role == "inference":
+            delivery += (boundary_allocation["publisher_table_export_bytes"]
+                         + boundary_allocation["publisher_descriptor_work_bytes"])
         cache_work = ARTIFACT_CACHE_WORK_BYTES if role in artifact_cache_roles else 0
         legacy_delivery = 5 * bundle if role != "preparation" else 0
         retained = {s.id for s in remote} if role == "preparation" else {
@@ -422,6 +506,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client + public_artifact_work + nonlinear_client
     client += inflight_owner + inflight_copy_work
     client += decode_owner
+    if boundary_allocation is not None:
+        client += boundary_allocation["client_work_bytes"]
     if not roles:
         client += engine + loading
     client_peak = _slack(client)
@@ -446,6 +532,7 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
                            "immutable_segments_v1; client import retains conservative copy bounds"),
         "mask_storage": "one_active_stage_v1; one benchmark response at a time",
         "verification_allocation": verification_allocation,
+        **({"private_boundary_allocation": boundary_allocation} if private_boundary else {}),
         "tensor_storage": workspace["mode"] + "; completed benchmark response histories are retired",
         "native_total_peak_bytes": client_peak + sum(role_peaks.values()),
         "components": {"per_engine_i8_and_native_bytes": cpu_weights,

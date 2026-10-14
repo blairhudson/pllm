@@ -32,6 +32,7 @@ from pllm.runtime.semantic_stages import (
 from pllm.runtime.semantic_source import semantic_source_config
 from pllm.runtime.semantic_tensors import SemanticTensorError, required_client_tensors
 from pllm.runtime.transformer_client import ClientBundle, TransformerClientError
+from pllm.runtime.transformer_client import validate_private_boundary_bundle
 
 if TYPE_CHECKING:
     from pllm.runtime.model_execution import CompiledRuntimeSession
@@ -348,7 +349,9 @@ class CompiledRuntimeModel:
         composition = Pipeline.from_spec(json.loads(self._canonical_composition))
         schedule = self._plan.runtime_schedule(composition).to_dict()
         bindings = {op: ((stage.stage_id, stage.role)
-                        if self._bundle.stages[stage.stage_id].client_weight is None else None)
+                        if self._bundle.stages[stage.stage_id].client_weight is None
+                        and not ("private_boundary" in self._bundle.privacy
+                                 and stage.stage_id in BOUNDARY_STAGE_IDS) else None)
                     for stage in self._stages for op in stage.semantic_operations}
         try:
             return prepared_phase_rows(schedule, bindings, prefill_rows, decode_steps,
@@ -361,6 +364,49 @@ class CompiledRuntimeModel:
 
     def validate(self) -> None:
         self._validated_schedule()
+
+    def _validate_private_boundary_owner(self, remote, boundary):
+        from .private_boundary_transport import PrivateBoundaryTransport
+        from .private_boundary_protocol import BoundaryAdmission
+        from .transformer_client import PreparedInventoryLease, PreparedRemoteLinear
+
+        if (type(boundary) is not PrivateBoundaryTransport
+                or boundary.descriptor != self.private_boundary_descriptor()
+                or boundary._state != "active" or boundary._retired or boundary._epoch != 0
+                or type(boundary._admission) is not BoundaryAdmission
+                or boundary._admission.plan_digest != self.model_plan_digest
+                or boundary._admission.descriptor_digest != boundary.descriptor.digest
+                or boundary._lookup_rows or boundary._heads
+                or type(remote) is not PreparedRemoteLinear
+                or remote.model_id != self._bundle.model_id
+                    or remote.body_fingerprint != self._bundle.privacy.get("body_fingerprint")
+                    or remote.stages is not self._bundle.stages
+                    or remote.verification_component != "none"
+                    or type(remote.inventory) is not PreparedInventoryLease or remote.inventory._closed
+                    or remote.inventory._owner._cancelled
+                    or set(remote.inventory.stages) != {row.stage_id for row in self._stages
+                                                       if row.stage_id not in BOUNDARY_STAGE_IDS}
+                    or any(material.request.model != self._bundle.model_id
+                        or material.request.body_fingerprint != self._bundle.privacy["body_fingerprint"]
+                        or material.request.weight_digest != self._bundle.stages[stage_id].weight_digest
+                        or material.request.in_features != self._bundle.stages[stage_id].in_features
+                        or material.request.out_features != self._bundle.stages[stage_id].out_features
+                        or material.request.profile != self._bundle.stages[stage_id].seeded_profile
+                        or material.verification is not None
+                        for stage_id, material in remote.inventory.stages.items())):
+            raise RuntimeBindingError("private boundary plan requires matching open boundary and prepared body owners")
+        contract = self.to_spec()["private_boundary_contract"]
+        if contract["prefill"]["head_rows"] != 1 or contract["decode"]["head_rows"] != 1:
+            raise RuntimeBindingError("network private boundary requires an ordinary final-row head contract")
+        graph = self._plan.to_dict()
+        requested_prefill = boundary._admission.lookup_rows - boundary._admission.head_calls + 1
+        max_heads = graph["decode"]["maximum_key_sequence"] - graph["prefill"]["query_sequence"] + 1
+        if (boundary._admission.lookup_rows > contract["lookup_query_bound"]
+                or not 1 <= requested_prefill <= graph["prefill"]["query_sequence"]
+                or not 1 <= boundary._admission.head_calls <= max_heads):
+            raise RuntimeBindingError("private boundary admission exceeds compiled workload bounds")
+        if getattr(boundary, "_runtime_owner", None) is not None:
+            raise RuntimeBindingError("private boundary already has a runtime owner")
 
     def _validated_schedule(self) -> dict[str, Any]:
         refreshed, schedule = _compile_runtime_model(
@@ -376,11 +422,16 @@ class CompiledRuntimeModel:
         self,
         remote: Callable[[str, np.ndarray], np.ndarray],
         *,
+        boundary: object | None = None,
+        private_boundary: object | None = None,
         token_cache: OrderedDict[int, np.ndarray] | None = None,
         token_cache_size: int = 512,
         token_cache_lock: threading.Lock | None = None,
         nonlinear_evaluator: Callable[[int, np.ndarray], np.ndarray] | None = None,
     ) -> SemanticDecoderRuntime:
+        if boundary is not None and private_boundary is not None:
+            raise RuntimeBindingError("private boundary executor supplied twice")
+        boundary = private_boundary if private_boundary is not None else boundary
         schedule = self._validated_schedule()
         from .semantic_executor import SemanticDecoderRuntime
 
@@ -389,6 +440,13 @@ class CompiledRuntimeModel:
         from pllm.verification import FreivaldsVerify
 
         options = resolve_runtime_composition(composition)
+        private_boundary = bool(getattr(options, "private_boundary", False))
+        if private_boundary:
+            self._validate_private_boundary_owner(remote, boundary)
+            if token_cache is not None or nonlinear_evaluator is not None:
+                raise RuntimeBindingError("private boundary cannot admit token caches or nonlinear callbacks")
+        elif boundary is not None:
+            raise RuntimeBindingError("ordinary plan cannot admit a private boundary")
         if (
             options is not None
             and options.client_runtime == "compiled_client_local_v1"
@@ -441,12 +499,14 @@ class CompiledRuntimeModel:
             stages=bindings,
             tensors=local_tensors,
             token_cache=token_cache,
-            token_cache_size=token_cache_size,
+            token_cache_size=0 if private_boundary else token_cache_size,
             token_cache_lock=token_cache_lock,
             nonlinear_evaluator=nonlinear_evaluator,
             causal_reduction=options.causal_reduction,
             verification_lineage_limit=(FreivaldsVerify._MAX_CACHE_LINEAGE
                 if options.verification_component and options.prefix_cache_bytes else 1),
+            boundary=boundary,
+            _private_boundary_binding=self if private_boundary else None,
         )
         cache = composition.components.get("cache")
         if cache is not None and cache.params.get("generated_prefixes"):
@@ -461,6 +521,45 @@ class CompiledRuntimeModel:
             from .mlp_tiling import MlpTiling
             runtime._mlp_tiling = MlpTiling(self, runtime, schedule["mlp_tiling"]["tile_rows"])
         return runtime
+
+    def new_runtime(self, remote, *, private_boundary=None, **kwargs):
+        """Create a response runtime with an explicitly admitted boundary owner."""
+        return self.runtime(remote, private_boundary=private_boundary, **kwargs)
+
+    def private_boundary_descriptor(self):
+        """Reconstruct session identity from validated native schedule and public bundle."""
+        schedule = self._validated_schedule()
+        contract = schedule.get("private_boundary")
+        if type(contract) is not dict:
+            raise RuntimeBindingError("compiled plan has no private boundary contract")
+        from .private_boundary_protocol import BoundaryDescriptor
+        descriptor = self._bundle.privacy["private_boundary"]
+        head = next(row for row in self._stages if row.stage_id == "lm_head")
+        source_digest, checkpoint_digest = _private_boundary_source_identity(self._bundle.manifest)
+        return BoundaryDescriptor(source_digest=source_digest, checkpoint_digest=checkpoint_digest,
+            model_config_digest=contract["model_config_digest"],
+            composition_digest=contract["composition_digest"], schedule_digest=self.runtime_schedule_digest,
+            head_weight_digest=head.weight_digest, head_scales_digest=head.weight_scales_digest,
+            lookup_digest=descriptor["lookup"]["digest"], vocabulary=contract["vocabulary"],
+            hidden=contract["hidden_width"],
+            activation_bits=contract["activation_bits"],
+            signed_output_bound=self._bundle.stages[head.stage_id].seeded_profile.signed_output_bound)
+
+    def private_boundary_admission(self, prefill_rows: int, decode_steps: int, *, full_prefill_head: bool = False):
+        from .private_boundary_protocol import BoundaryAdmission
+        descriptor = self.private_boundary_descriptor()
+        graph = self._plan.to_dict()
+        if (type(prefill_rows) is not int or not 1 <= prefill_rows <= graph["prefill"]["query_sequence"]
+                or type(decode_steps) is not int or not 0 <= decode_steps <=
+                graph["decode"]["maximum_key_sequence"] - graph["prefill"]["query_sequence"]
+                or type(full_prefill_head) is not bool):
+            raise RuntimeBindingError("private boundary workload exceeds compiled bounds")
+        if full_prefill_head:
+            contract = self.to_spec()["private_boundary_contract"]
+            if contract["prefill"]["head_rows"] != contract["prefill"]["lookup_rows"]:
+                raise RuntimeBindingError("full-prefill head diagnostics require an explicit native full-head contract")
+        return BoundaryAdmission(descriptor.digest, self.model_plan_digest,
+            prefill_rows + decode_steps, (prefill_rows if full_prefill_head else 1) + decode_steps)
 
     def _runtime_with_nonlinear(
         self,
@@ -1082,6 +1181,99 @@ def compile_runtime_model(
     return _compile_runtime_model(plan, bundle, composition=composition)[0]
 
 
+def _private_boundary_source_identity(manifest):
+    """Require loader-produced source and checkpoint evidence, not config aliases."""
+    from pllm.model_loader import _CHECKPOINT_DOMAIN, _SOURCE_LOCK_DOMAIN, _SOURCE_LOCK_SCHEMA, _digest
+
+    metadata = manifest.get("metadata") if type(manifest) is dict else None
+    if type(metadata) is not dict:
+        raise RuntimeBindingError("private boundary requires locked original source evidence")
+    source = metadata.get("source_lock_digest")
+    checkpoint = metadata.get("checkpoint_digest")
+    lock = metadata.get("source_lock")
+    def valid_digest(value):
+        return type(value) is str and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
+    if (not valid_digest(source) or not valid_digest(checkpoint) or type(lock) is not dict
+            or lock.get("schema") != _SOURCE_LOCK_SCHEMA or lock.get("checkpoint_digest") != checkpoint
+            or metadata.get("config_only") is not False):
+        raise RuntimeBindingError("private boundary requires locked original source evidence")
+    files = lock.get("files")
+    if (type(files) is not list or not files
+            or any(type(row) is not dict or set(row) != {"path", "size", "sha256"}
+                or type(row["path"]) is not str or not row["path"]
+                or type(row["size"]) is not int or row["size"] < 0
+                or not valid_digest(row["sha256"]) for row in files)
+            or len({row["path"] for row in files}) != len(files)
+            or not any(row["path"].endswith((".safetensors", ".gguf")) for row in files)):
+        raise RuntimeBindingError("private boundary source lock lacks checkpoint file evidence")
+    try:
+        matches = (_digest(_SOURCE_LOCK_DOMAIN, lock) == source
+                   and _digest(_CHECKPOINT_DOMAIN, {"files": files}) == checkpoint)
+    except (TypeError, ValueError):
+        matches = False
+    if not matches:
+        raise RuntimeBindingError("private boundary source lock commitments differ")
+    return source, checkpoint
+
+
+def _validate_private_boundary_contract(contract, document, *, plan_digest, composition_digest,
+                                        vocabulary, hidden, activation_bits):
+    """Check every public native boundary identity against the original graph."""
+    phases = {}
+    weights = set()
+    for phase in ("prefill", "decode"):
+        graph = document[phase]
+        lookups = [op for op in graph["operations"] if op["operator"] == "token_lookup"]
+        heads = [op for op in graph["operations"] if op["operator"] == "output_head"]
+        if len(lookups) != 1 or len(heads) != 1:
+            raise RuntimeBindingError("private boundary requires unique lookup and full head")
+        lookup, head = lookups[0], heads[0]
+        weight = lookup["attributes"].get("weight")
+        if (not isinstance(weight, str) or not weight
+                or head["attributes"].get("weight") != weight
+                or head["attributes"].get("tied") is not True
+                or lookup.get("inputs") != ["input.tokens"]
+                or lookup["output_shape"] != [1, graph["query_sequence"], hidden]
+                or len(head["output_shape"]) not in (2, 3) or head["output_shape"][0] != 1
+                or head["output_shape"][-1] != vocabulary):
+            raise RuntimeBindingError("private boundary native graph is not a tied full boundary")
+        weights.add(weight)
+        phases[phase] = {"lookup_operation": lookup["id"], "head_operation": head["id"],
+                         "lookup_rows": lookup["output_shape"][1],
+                         "head_rows": 1 if len(head["output_shape"]) == 2 else head["output_shape"][1]}
+    if len(weights) != 1:
+        raise RuntimeBindingError("private boundary phase weight identities differ")
+    if type(activation_bits) is not int or activation_bits not in (4, 8):
+        raise RuntimeBindingError("private boundary activation precision is unsupported")
+    bound = hidden * 127 * ((1 << (activation_bits - 1)) - 1)
+    ring_bits = next((bits for bits in (16, 24, 32) if bound < 1 << (bits - 1)), None)
+    expected = {"schema_version": "pllm.private_boundary.v1", "model_plan_digest": plan_digest,
+        "model_config_digest": document["config_digest"], "composition_digest": composition_digest,
+        "weight_id": weights.pop(), "vocabulary": vocabulary, "hidden_width": hidden,
+        "owners": ["boundary_a", "boundary_b"], "lookup_protocol": "packed128_xor_dpf_v2",
+        "head_protocol": "two_party_additive_full_head_v1", "weight_bits": 8, "activation_bits": activation_bits,
+        "head_ring_bits": ring_bits, "head_signed_output_bound": bound,
+        "embedding_numeric": "tied_per_token_row_f32_v1",
+        "head_numeric": "ordinary_symmetric_per_row_integer_then_f32_v1", "lookup_batch_bound": 64,
+        "lookup_query_bound": phases["prefill"]["lookup_rows"] + document["decode"]["maximum_key_sequence"]
+                              - document["prefill"]["query_sequence"],
+        "matrix_bytes": vocabulary * hidden, "scale_bytes": vocabulary * 4,
+        "lookup_scratch_bytes": vocabulary * 64, "client_weight_bytes": 0, **phases}
+    # Canonical comparison also distinguishes booleans from integer geometry.
+    try:
+        matches = type(contract) is dict and _canonical_json(contract) == _canonical_json(expected)
+    except (TypeError, ValueError):
+        matches = False
+    if not matches:
+        raise RuntimeBindingError("private boundary native contract identities or geometry differ")
+
+
+def _validate_private_boundary_stage(stage):
+    if any(value is not None for value in (
+            stage.client_weight, stage.client_weight_scales, stage.client_aux_weight, stage.client_aux_scales)):
+        raise RuntimeBindingError("private boundary must not retain any client matrices")
+
+
 def _compile_runtime_model(
     plan: ModelPlan,
     bundle: ClientBundle,
@@ -1110,6 +1302,7 @@ def _compile_runtime_model(
     client_owned = runtime_options.client_runtime == "compiled_client_local_v1"
     offset_public = runtime_options.client_runtime == "compiled_offset_v1"
     verified_public = runtime_options.verification_component is not None
+    private_boundary = bool(getattr(runtime_options, "private_boundary", False))
     if verified_public and (
         client_owned
         or offset_public
@@ -1289,6 +1482,25 @@ def _compile_runtime_model(
         raise RuntimeBindingError("model plan position bounds exceed the bundle context")
 
     privacy = bundle.privacy if isinstance(bundle.privacy, dict) else {}
+    if (runtime_schedule_spec.get("private_boundary") is not None) is not private_boundary:
+        raise RuntimeBindingError("private boundary schedule ownership differs from composition")
+    if ("private_boundary" in privacy) is not private_boundary:
+        raise RuntimeBindingError("private boundary ownership differs from composition")
+    if private_boundary:
+        _private_boundary_source_identity(manifest)
+        try:
+            validate_private_boundary_bundle(privacy["private_boundary"],
+                vocabulary=dims["vocab"], hidden=dims["hidden"])
+        except TransformerClientError as exc:
+            raise RuntimeBindingError(str(exc)) from exc
+        contract = runtime_schedule_spec.get("private_boundary")
+        _validate_private_boundary_contract(contract, document, plan_digest=plan.digest,
+            composition_digest=composition.digest(), vocabulary=dims["vocab"], hidden=dims["hidden"],
+            activation_bits=privacy.get("activation_bits"))
+        if (runtime_schedule_spec.get("composition_digest") != composition.digest()
+                or manifest.get("tied_embeddings") is not True
+                or privacy.get("local_quantized_stages", []) != []):
+            raise RuntimeBindingError("private boundary lacks a matching native tied contract")
     if privacy.get("mode") != ("offset_public" if offset_public else "public"):
         raise RuntimeBindingError("client bundle privacy mode differs from its topology")
     if privacy.get("preprocessed") is not (not client_owned and not offset_public):
@@ -1353,6 +1565,8 @@ def _compile_runtime_model(
     canonical: dict[str, Any] = {}
     for key, stage in bundle.stages.items():
         if key != stage.id:
+            if private_boundary and not (key == "embed_tokens" and stage is bundle.stages.get("token_lookup")):
+                raise RuntimeBindingError("private boundary has an unsolicited stage alias")
             continue
         if stage.id in canonical:
             raise RuntimeBindingError(f"duplicate bundle stage id {stage.id!r}")
@@ -1365,6 +1579,8 @@ def _compile_runtime_model(
     if len(set(named_roles)) != len(named_roles):
         raise RuntimeBindingError("bundle named stage roles and layers must be unique")
     for stage_id, stage in canonical.items():
+        if private_boundary:
+            _validate_private_boundary_stage(stage)
         expected_digest = None if stage_id in BOUNDARY_STAGE_IDS else equalization_digest
         if stage.equalization_profile_digest != expected_digest or (
             stage.input_equalization is None
@@ -1690,6 +1906,16 @@ def _compile_runtime_model(
         raise RuntimeBindingError("client bundle weight storage differs from its composition")
     tied = bool(manifest.get("tied_embeddings"))
     for stage in (head_stage, token_stage):
+        if private_boundary:
+            if (any(value is not None for value in (stage.client_weight, stage.client_weight_scales,
+                    stage.client_aux_weight, stage.client_aux_scales, stage.bias, stage.input_equalization))
+                    or stage.output_residue_bits is not None):
+                raise RuntimeBindingError("private boundary must not retain local matrix or auxiliary payloads")
+            if stage.id == "lm_head" and (
+                    stage.weight_digest != privacy["private_boundary"]["head_weight_digest"]
+                    or _sha256(_f32_bytes(stage.weight_scales)) != privacy["private_boundary"]["head_scales_digest"]):
+                raise RuntimeBindingError("private boundary head commitment differs")
+            continue
         if stage.id == "lm_head" and remote_output_head:
             if (
                 any(
@@ -2103,6 +2329,10 @@ def _compile_runtime_model(
         raise RuntimeBindingError("plan operation coverage is incomplete")
 
     local_tensors = []
+    if private_boundary:
+        resolved = {_resolve_array(bundle.arrays, weight_id)[0] for weight_id in client_weights}
+        if set(bundle.arrays) != resolved:
+            raise RuntimeBindingError("private boundary has unsolicited client tensors")
     for weight_id in sorted(client_weights):
         key, array = _resolve_array(bundle.arrays, weight_id)
         value = np.asarray(array)
@@ -2195,7 +2425,8 @@ def _compile_runtime_model(
                         "runtime_config_digest",
                         "verification_component",
                         "verification_target_failure_bits",
-                    )
+                    ) + (("source_lock_digest", "checkpoint_digest", "source_lock", "config_only")
+                         if private_boundary else ())
                     if key in manifest_metadata
                 },
             }
@@ -2259,6 +2490,8 @@ def _compile_runtime_model(
             for key, value in sorted(bundle.arrays.items())
         ],
     }
+    if private_boundary:
+        fingerprint_payload["privacy"]["private_boundary"] = privacy["private_boundary"]
     fingerprint = _binding_digest(_canonical_json(fingerprint_payload))
 
     spec = {
@@ -2285,6 +2518,9 @@ def _compile_runtime_model(
     if nonlinear_operations:
         spec["nonlinear_operations"] = sorted(nonlinear_operations)
         spec["nonlinear_contract"] = runtime_schedule_spec["nonlinear"]
+    if private_boundary:
+        spec["private_boundary"] = privacy["private_boundary"]
+        spec["private_boundary_contract"] = runtime_schedule_spec["private_boundary"]
     if runtime_options.prepared_output_encoding == "row_residues":
         spec["prepared_output_encoding"] = "row_residues"
         spec["prepared_residue_layout_digest"] = manifest_metadata.get("prepared_residue_layout_digest")

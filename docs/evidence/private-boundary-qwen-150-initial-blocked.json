@@ -1,0 +1,325 @@
+{
+  "schema": "pllm.private_boundary_sdk_benchmark.v1",
+  "complete": false,
+  "driver_implementation": {
+    "benchmark_private_boundary.py": "3caf612d05956374a98bfa31faece8d52bfdf581b03cd3be3e48639317bc0475",
+    "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+    "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+    "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+    "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+  },
+  "tiny": false,
+  "scope": "matched-sdk-response",
+  "source_delivery_scope": "prepositioned source; distribution unmeasured",
+  "network_scope": "native shared 100 Mbps down / 40 Mbps up",
+  "sampler_fixture": {
+    "seed": 42,
+    "temperature": 0,
+    "cryptographic_randomness_frozen": false,
+    "diagnostic_cost_charged_equally": true
+  },
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "expected_digest": "6616a8facdde81f805fade8383bbf7c5ebb8e762f7d8785bd0096c66698543cf"
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "cohort_commitment": "6c1eca63ad670a040ea15479ad3191ee25add65de888c590d5ee3e2163207694",
+  "replicates": 3,
+  "planned_cells": 6,
+  "memory_admission": {
+    "150/baseline": {
+      "topology": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 10431201280,
+          "swap_used": 902365184,
+          "disk_free": 39867617280,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6136233984
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "85ebc0776aa598cf87a8cb9b803c8adea15aea72c330605f7ec71434c9685e85",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 742023770,
+          "provider_peak_bytes": {
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "inference": 3587006720,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 3578563930,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 182521344,
+            "client_bundle_work_bytes": 112015360,
+            "client_paged_metadata_bytes": 2464768,
+            "client_additional_paged_disk_bytes": 270352384,
+            "client_weight_snapshot_disk_bytes": 136134656,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 3612118362,
+            "docker": null,
+            "required_disk_bytes": 3888487424
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 3578563930,
+            "docker": null,
+            "required_disk_bytes": 3888487424
+          }
+        },
+        "enforced_wan": true
+      },
+      "required_bytes": 3914108250,
+      "admitted": true
+    },
+    "150/coupled": {
+      "topology": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": false,
+        "requested_backend": "native",
+        "selected_backend": null,
+        "host": {
+          "total": 34359738368,
+          "available": 10435280896,
+          "swap_used": 902365184,
+          "disk_free": 39867617280,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6140313600
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "9f2e9bf515a84b5259f8cd5d87e9c853f2442ad25b546debe8440f3d48665488",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 750497130,
+          "provider_peak_bytes": {
+            "boundary_a": 1147915520,
+            "boundary_b": 1147915520,
+            "inference": 2638961280,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 3009736320,
+            "boundary_b": 3009736320,
+            "inference": 2736165120,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 136134656,
+            "scales_bytes": 607744,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 136742400,
+            "worker_import_work_bytes": 410834944,
+            "worker_retained_metadata_and_source_scales_bytes": 101271040,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 18752,
+            "worker_lookup_scratch_bytes": 9723904,
+            "worker_peak_bytes": 918332416,
+            "client_work_bytes": 9243456,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 157,
+            "head_calls_bound": 8,
+            "concurrent_request_bound": 1
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 6838819690,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 136742400,
+              "boundary_b": 136742400,
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 410834944,
+              "boundary_b": 410834944,
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 46386688,
+            "client_bundle_work_bytes": 109550592,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": false,
+            "reasons": [
+              "estimated host peak 6.40 GiB exceeds safe headroom 5.72 GiB"
+            ],
+            "required_host_bytes": 6872374122,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable",
+              "estimated host peak 6.37 GiB exceeds safe headroom 5.72 GiB"
+            ],
+            "required_host_bytes": 6838819690,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          }
+        },
+        "enforced_wan": true
+      },
+      "required_bytes": 7174364010,
+      "admitted": false
+    }
+  },
+  "source_case": "source-present",
+  "wan_requested": true,
+  "results": [],
+  "attempts": [],
+  "priority_metrics": [
+    "client_base_traffic",
+    "client_output_traffic",
+    "all_link_base_traffic",
+    "all_link_output_traffic",
+    "client_peak_rss",
+    "ttft",
+    "decode_tps"
+  ],
+  "limits": [
+    "source measurements absent remain null; prepositioned source is not free",
+    "application bodies and TCP stream bytes separate; physical wire unknown",
+    "local children share host/operator; no independent-operator claim",
+    "provider RSS sampled after startup; startup peaks unknown",
+    "request CPU is client-only; parent native WAN and providers are charged in complete-case CPU",
+    "fresh client/processes do not imply cold OS source caches or newly distributed checkpoint artifacts",
+    "exact trajectory hashing charged equally inside client CPU/RSS/wall windows",
+    "missing-worker source delivery currently blocked; no fabricated bytes"
+  ],
+  "cohort_cpu_accounting": {
+    "launcher_process_birth_to_report_sample_cpu_seconds": 4.927159,
+    "children_reaped_since_driver_entry_cpu_seconds": 0.654023,
+    "aggregate_cpu_seconds": 5.581182,
+    "case_cpu_totals_are_subsets_not_added_again": true,
+    "scope": "source/header preflight, case admission, SDK children, relays, verification and prior report writes; through this sample",
+    "excluded": [
+      "final report serialization/write and process teardown after this CPU sample",
+      "source distribution before this driver process"
+    ]
+  },
+  "failure": {
+    "stage": "memory_admission"
+  }
+}

@@ -287,7 +287,7 @@ def create_preparation_app(
         for source in config.engine_models:
             body = dict(source)
             model = model_from_runtime_spec(body)
-            if model.kind not in {"huggingface", "safetensors", "vllm", "mlx", "mlx-lm"}:
+            if model.kind not in {"huggingface", "safetensors", "vllm", "mlx", "mlx-lm", "tiny"}:
                 raise RuntimeError(
                     f"preparation service does not support model kind {model.kind!r}"
                 )

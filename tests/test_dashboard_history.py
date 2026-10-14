@@ -157,6 +157,32 @@ def test_history_uses_xdg_versioned_immutable_sqlite_and_filters(tmp_path: Path)
     memory.close()
 
 
+def test_history_preserves_private_boundary_metrics_without_backfilling_old_runs(tmp_path: Path) -> None:
+    audit = PrivacyAudit(private_boundary_lookup_rows=17, private_boundary_head_calls=8,
+        private_boundary_lookup_upload_bytes=205, private_boundary_lookup_download_bytes=409,
+        private_boundary_head_upload_bytes=307, private_boundary_head_download_bytes=5003,
+        private_boundary_body_coverage_failures=1)
+    audit.role_link_bodies = {role: {"online_upload_bytes": 256, "online_download_bytes": 128}
+                             for role in ("boundary_a", "boundary_b")}
+    processes = {role: {"cpu_seconds": 0.5, "rss_peak_bytes": 1024}
+                 for role in ("boundary_a", "boundary_b")}
+    record = replace(_record("run_boundary"), privacy_delta=audit.to_dict(), process_metrics=processes)
+    history = BenchmarkHistory(tmp_path / "boundary.sqlite3")
+    try:
+        history.add(_record("run_historical"))
+        history.add(record)
+        saved = history.get("run_boundary")
+        assert saved["privacy"] == audit.to_dict()
+        assert saved["processes"] == processes
+        assert history.get("run_historical")["privacy"] == {"online_steps": 2}
+        with pytest.raises(ValueError, match="unsupported privacy metrics"):
+            replace(record, privacy_delta={"private_boundary_token_ids": 123})
+        with pytest.raises(ValueError, match="unsupported process role"):
+            replace(record, process_metrics={"boundary_c": {"cpu_seconds": 0.5}})
+    finally:
+        history.close()
+
+
 def test_history_preserves_epoch_and_prefix_counters_without_backfilling_old_runs(tmp_path: Path) -> None:
     audit = PrivacyAudit()
     audit.inference_control_upload_bytes = 157

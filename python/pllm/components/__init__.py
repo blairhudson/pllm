@@ -83,6 +83,8 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         ClientPrefixLayers,
         Inference,
         OutputHeadAtInference,
+        PrivateLookupAndFullHead,
+        PreparedBoundaryRoles,
         PreparedProviderRoles,
         TwoOnlineOffsetRoles,
     )
@@ -143,6 +145,8 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         ModelAwareCorrections,
         MlpPrefillTiling,
         OutputHeadAtInference,
+        PrivateLookupAndFullHead,
+        PreparedBoundaryRoles,
         ClientPrefixLayers,
         ClientLinearRoles,
         PreparedInventory,

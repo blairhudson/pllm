@@ -23,6 +23,30 @@ impl Server {
         let d = self.inner.descriptor();
         (PyBytes::new(py, &d.digest), d.records, d.width)
     }
+    #[staticmethod]
+    fn from_matrix(
+        py: Python<'_>,
+        matrix: &crate::Matrix,
+        scales: &[u8],
+        party: u8,
+    ) -> PyResult<Self> {
+        let matrix = std::sync::Arc::clone(&matrix.inner);
+        Ok(Self {
+            inner: py
+                .detach(|| native::Server::from_matrix(matrix, scales, party))
+                .map_err(invalid)?,
+        })
+    }
+    fn bind_context(&mut self, py: Python<'_>, context: &[u8]) -> PyResult<Self> {
+        let context = context
+            .try_into()
+            .map_err(|_| invalid("private page context must be 32 bytes".into()))?;
+        Ok(Self {
+            inner: py
+                .detach(|| self.inner.bind_context(context))
+                .map_err(invalid)?,
+        })
+    }
     fn evaluate<'py>(&mut self, py: Python<'py>, query: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
         let result = py.detach(|| self.inner.evaluate(query)).map_err(invalid)?;
         Ok(PyBytes::new(py, &result))

@@ -401,6 +401,13 @@ class PrivacyAudit:
     nonlinear_peer_frame_bytes: int = 0
     nonlinear_client_issuance_ns: int = 0
     nonlinear_client_issuance_cpu_ns: int = 0
+    private_boundary_lookup_rows: int = 0
+    private_boundary_head_calls: int = 0
+    private_boundary_lookup_upload_bytes: int = 0
+    private_boundary_lookup_download_bytes: int = 0
+    private_boundary_head_upload_bytes: int = 0
+    private_boundary_head_download_bytes: int = 0
+    private_boundary_body_coverage_failures: int = 0
     role_link_bodies: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, int]:
@@ -1080,6 +1087,8 @@ class RuntimeClient:
         experiment: Experiment | ExperimentProfile | None = None,
         local_engine: MaskedTransformerEngine | None = None,
         role_connections: Mapping[str, tuple[str, str]] | None = None,
+        boundary_urls: tuple[str, str] | None = None,
+        boundary_api_keys: tuple[str, str] | None = None,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
 
@@ -1094,6 +1103,26 @@ class RuntimeClient:
         self._experiment_budget = experiment.budget if isinstance(experiment, Experiment) else None
         self._local_engine = local_engine
         self._native_worker_limit = None
+        self._private_boundary = bool(getattr(self.experiment, "private_boundary", False))
+        self._boundary_connections = None
+        self._boundary_timeout = timeout
+        if self._private_boundary:
+            from .private_boundary_transport import _origin
+
+            if (self._experiment_budget is None or local_engine is not None
+                    or type(boundary_urls) is not tuple or len(boundary_urls) != 2
+                    or type(boundary_api_keys) is not tuple or len(boundary_api_keys) != 2
+                    or any(type(value) is not str or not value for value in boundary_urls)
+                    or any(type(value) is not str or len(value) < 16 for value in boundary_api_keys)
+                    or not preparation_base_url or not preparation_api_key
+                    or len({api_key, preparation_api_key, *boundary_api_keys}) != 4):
+                raise ValueError("private boundary requires a bounded Experiment and four distinct role credentials")
+            origins = [_origin(value) for value in (*boundary_urls, base_url, preparation_base_url)]
+            if len(set(origins)) != 4:
+                raise ValueError("private boundary requires four distinct provider origins")
+            self._boundary_connections = tuple(zip(boundary_urls, boundary_api_keys, strict=True))
+        elif boundary_urls is not None or boundary_api_keys is not None:
+            raise ValueError("boundary connections require an explicit private-boundary Experiment")
         offset_execution = (
             self.experiment is not None and self.experiment.client_runtime == "compiled_offset_v1"
         )
@@ -1221,6 +1250,8 @@ class RuntimeClient:
         self.prefill_cache_bytes = prefill_cache_bytes
         self.prefill_cache_mode = prefill_cache_mode
         self.prefill_cache_bound_tokens = prefill_cache_bound_tokens
+        if self._private_boundary and (prefill_cache_bytes or decode_cache is not None):
+            raise ValueError("private boundary does not admit retained prefix or decode caches")
         cache_params = (json.loads(self.experiment.canonical_composition)
             .get("components", {}).get("cache", {}).get("params", {})
             if self.experiment is not None else {})
@@ -1405,6 +1436,7 @@ class RuntimeClient:
         )
         self._activity_lock = threading.Lock()
         self._active_offset_transports: dict[str, Any] = {}
+        self._active_boundary_transports: dict[str, Any] = {}
         self._online_active = 0
         self._preparation_active = 0
         self._transformer_conversations: dict[str, _TransformerConversationState] = {}
@@ -2010,10 +2042,15 @@ class RuntimeClient:
 
     @staticmethod
     def _remote_stages(state: _TransformerCryptoState) -> list[StageMetadata]:
+        boundary_stages = (
+            {"token_lookup", "lm_head"}
+            if "private_boundary" in state.bundle.privacy else set()
+        )
         return [
             stage
             for stage in state.bundle.stages.values()
-            if stage.client_weight is None and stage.id != "embed_tokens"
+            if stage.client_weight is None
+            and stage.id not in boundary_stages | {"embed_tokens"}
         ]
 
     def _transformer_state(self, model_id: str) -> _TransformerCryptoState:
@@ -2243,6 +2280,11 @@ class RuntimeClient:
             or max_new_tokens > self._experiment_budget.max_new_tokens
         ):
             raise ModelError("response exceeds its immutable Experiment workload bounds")
+        if self._private_boundary:
+            # Head-only workers independently compile this public envelope once.
+            # Each response separately admits its actual lookup/head counts.
+            max_input_tokens = self._experiment_budget.max_input_tokens
+            max_new_tokens = self._experiment_budget.max_new_tokens
         if self.prefill_cache_mode == "prefix" and state.privacy_mode in {"public", "offset_public"}:
             assert self.prefill_cache_bound_tokens is not None
             if max_input_tokens > self.prefill_cache_bound_tokens:
@@ -3404,6 +3446,10 @@ class RuntimeClient:
             self._closing = True
             offset_transports = tuple(self._active_offset_transports.values())
             self._active_offset_transports.clear()
+            boundary_transports = tuple(self._active_boundary_transports.values())
+            self._active_boundary_transports.clear()
+        for transport in boundary_transports:
+            retire(transport.abort)
         if self._prepared_queue is not None:
             retire(self._prepared_queue.close)
             if self._inflight_prefix_owner is not None:
@@ -3586,6 +3632,10 @@ class RuntimeClient:
                     # remote session. Do not cancel shared material mid-prefill.
                     return Response(id=response_id, model=attempt.model_id,
                                     output=[], status="cancelled")
+        with self._activity_lock:
+            boundary_transport = self._active_boundary_transports.get(response_id)
+        if boundary_transport is not None:
+            boundary_transport.abort()
         with self._response_cache_lock:
             epoch_response = self._decode_epoch_responses.get(response_id)
             if epoch_response is not None:
@@ -3689,6 +3739,8 @@ class RuntimeClient:
         )
         stored_rendered = prompt_text(messages)
         previous_id = body.get("previous_response_id")
+        if self._private_boundary and previous_id:
+            raise ModelError("private boundary requires a fresh complete prompt per response")
         previous_history: str | None = None
         if previous_id:
             if str(previous_id) not in self.histories:
@@ -4156,10 +4208,12 @@ class RuntimeClient:
         else:
             session_value, state, provider = self._open_transformer_session(
                 model_id,
-                max_output_tokens=max_tokens,
+                max_output_tokens=(self._experiment_budget.max_new_tokens
+                                   if self._private_boundary else max_tokens),
                 required_rows=required_rows,
                 compiled=compiled,
                 semantic_input_tokens=(
+                    self._experiment_budget.max_input_tokens if self._private_boundary else
                     self.prefill_cache_bound_tokens
                     if compiled is not None and self.prefill_cache_mode == "prefix"
                     else len(input_ids or [int(state.bundle.config["bos_token_id"])])
@@ -4172,6 +4226,8 @@ class RuntimeClient:
             attempt.model_id = model_id
         self._track_response(response_id, bool(body.get("store", True)))
         channel: _Channel | None = None
+        boundary_transport = None
+        boundary_retired = False
         runtime = None
         initializing = True
         abandoned = False
@@ -4186,6 +4242,30 @@ class RuntimeClient:
             return False
 
         cleanup.push(evict_failed_turn)
+
+        def retire_boundary() -> None:
+            nonlocal boundary_retired
+            if boundary_transport is None or boundary_retired:
+                return
+            boundary_retired = True
+            with self._activity_lock:
+                self._active_boundary_transports.pop(response_id, None)
+            try:
+                boundary_transport.close()
+            finally:
+                for role, values in boundary_transport.role_link_bodies.items():
+                    tracked = self.audit.role_link_bodies.setdefault(role, {})
+                    for metric, count in values.items():
+                        tracked[metric] = tracked.get(metric, 0) + count
+                for operation, values in boundary_transport.operation_counters.items():
+                    for direction in ("upload", "download"):
+                        name = f"private_boundary_{operation}_{direction}_bytes"
+                        setattr(self.audit, name, getattr(self.audit, name) + values[f"{direction}_bytes"])
+                self.audit.private_boundary_lookup_rows += boundary_transport.operation_counters["lookup"]["rows"]
+                self.audit.private_boundary_head_calls += boundary_transport.operation_counters["head"]["rows"]
+                self.audit.private_boundary_body_coverage_failures += int(not boundary_transport.body_coverage_complete)
+
+        cleanup.callback(retire_boundary)
 
         def abandon_transformer_session() -> None:
             nonlocal abandoned
@@ -4357,12 +4437,31 @@ class RuntimeClient:
             return remote(stage, values)
 
         try:
+            if self._private_boundary:
+                from .private_boundary_transport import PrivateBoundaryTransport
+
+                if compiled is None or self._boundary_connections is None:
+                    raise ModelError("private boundary requires complete compiled execution")
+                (url_a, key_a), (url_b, key_b) = self._boundary_connections
+                boundary_transport = PrivateBoundaryTransport(
+                    worker_a=url_a, worker_b=url_b, api_key_a=key_a, api_key_b=key_b,
+                    descriptor=compiled.private_boundary_descriptor(),
+                    head_scales=state.bundle.stages["lm_head"].weight_scales,
+                    timeout=self._boundary_timeout,
+                )
+                with self._activity_lock:
+                    if self._closing:
+                        raise ProtocolError("client closed while opening boundary sessions", 409)
+                    self._active_boundary_transports[response_id] = boundary_transport
+                boundary_transport.open(compiled.private_boundary_admission(
+                    len(full_prefill_ids), max_tokens - 1))
             runtime = (
                 compiled.runtime(
                     admitted_remote if decode_reuse else remote,
-                    token_cache=state.token_cache,
+                    token_cache=None if self._private_boundary else state.token_cache,
                     token_cache_size=self.token_cache_size,
                     token_cache_lock=state.token_cache_lock,
+                    **({"private_boundary": boundary_transport} if self._private_boundary else {}),
                 )
                 if compiled is not None
                 else MaskedTransformerClientRuntime(
@@ -4573,7 +4672,12 @@ class RuntimeClient:
             # is merged at close. Sampling the cumulative public audit here
             # would incorrectly classify prefill as decode.
             if isinstance(remote, PreparedRemoteLinear):
-                return remote.stats.inference_upload_bytes + remote.stats.inference_download_bytes
+                boundary_bytes = (sum(
+                    values.get("online_upload_bytes", 0) + values.get("online_download_bytes", 0)
+                    for values in boundary_transport.role_link_bodies.values()
+                ) if boundary_transport is not None else 0)
+                return (remote.stats.inference_upload_bytes + remote.stats.inference_download_bytes
+                        + boundary_bytes)
             if offset_transport is not None:
                 return sum(
                     values.get("online_upload_bytes", 0) + values.get("online_download_bytes", 0)
@@ -4817,6 +4921,9 @@ class RuntimeClient:
                         }
                     )
                     event_sequence += 1
+                # A paused stream can be cancelled after delivering this token.
+                # Check before its private feedback lookup or any decode work.
+                check_epoch_cancelled()
                 if step + 1 >= max_tokens:
                     pending_token_ids = [token]
                     break
@@ -5022,6 +5129,8 @@ class RuntimeClient:
                     json={"usage": usage.to_dict()},
                 )
                 _raise(complete)
+            if boundary_transport is not None:
+                boundary_transport.complete()
             evaluated_ids = [*input_ids, *output_ids]
             if (runtime.position != len(evaluated_ids) - len(pending_token_ids)
                     or (pending_token_ids and evaluated_ids[runtime.position:] != pending_token_ids)):
@@ -5094,6 +5203,8 @@ class RuntimeClient:
             if getattr(runtime, "_retained", None) is not None:
                 retire(runtime._retained.burn, runtime)
             completed_online_bytes = response_online_bytes()
+            if boundary_transport is not None:
+                retire(retire_boundary)
             if (
                 session_completed and first_output_online_bytes is not None
                 and completed_online_bytes is not None and output_ids
@@ -5330,6 +5441,8 @@ class OpenAI:
         local_engine: MaskedTransformerEngine | None = None,
         role_connections: Mapping[str, tuple[str, str]] | None = None,
         execution: Any | None = None,
+        boundary_urls: tuple[str, str] | None = None,
+        boundary_api_keys: tuple[str, str] | None = None,
         network: Any | None = None,
         planning: Any | None = None,
         performance_prior: Any | None = None,
@@ -5369,6 +5482,8 @@ class OpenAI:
                 experiment,
                 local_engine,
                 role_connections,
+                boundary_urls,
+                boundary_api_keys,
                 network,
                 planning,
                 performance_prior,
@@ -5414,7 +5529,7 @@ class OpenAI:
                        prepared_inventory_rows, preparation_decode_epoch_tokens, token_cache_size, prefill_cache_bound_tokens,
                       bundle_cache_mode, bundle_cache_dir, bundle_compression, tenseal_path,
                        timeout, http_client, preparation_http_client, local_engine, role_connections,
-                       decode_cache)
+                        decode_cache, boundary_urls, boundary_api_keys)
             if (any(value is not None for value in manual) or prefill_cache_bytes
                     or prefill_cache_mode != "exact" or background_inventory_refill is not None):
                 raise ValueError("automatic network planning conflicts with manual runtime overrides")
@@ -5581,6 +5696,8 @@ class OpenAI:
                 experiment=experiment,
                 local_engine=local_engine,
                 role_connections=role_connections,
+                boundary_urls=boundary_urls,
+                boundary_api_keys=boundary_api_keys,
             )
         except BaseException:
             if self._owned_topology is not None:

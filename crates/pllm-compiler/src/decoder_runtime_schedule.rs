@@ -122,6 +122,8 @@ pub struct DecoderRuntimeSchedule {
     pub protected_execution: bool,
     pub complete: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub private_boundary: Option<crate::decoder_boundary::PrivateBoundaryContract>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nonlinear: Option<crate::masked_wire_schedule::MaskedWireNumericContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retained_state: Option<serde_json::Value>,
@@ -1821,6 +1823,11 @@ pub fn lower_decoder_runtime_schedule(
         decode,
         protected_execution: false,
         complete: true,
+        private_boundary: if crate::decoder_boundary::selected(&composition) {
+            Some(crate::decoder_boundary::lower(plan, canonical_composition)?)
+        } else {
+            None
+        },
         nonlinear,
         retained_state: None,
         mlp_tiling: None,

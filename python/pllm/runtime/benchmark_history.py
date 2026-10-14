@@ -15,7 +15,8 @@ SCHEMA_VERSION = 3
 DEFAULT_LIMIT = 200
 MAX_LIMIT = 2000
 
-_TOPOLOGY_ROLES = frozenset({"client", "preparation", "inference", "worker_a", "worker_b"})
+_TOPOLOGY_ROLES = frozenset({"client", "preparation", "inference", "worker_a", "worker_b",
+                           "boundary_a", "boundary_b"})
 _ROLE_BODY_FIELDS = frozenset(
     f"role_link.{role}.{phase}_{direction}_bytes"
     for role in _TOPOLOGY_ROLES
@@ -115,6 +116,10 @@ _PRIVACY_FIELDS |= frozenset({
     "preparation_decode_material_body_bytes", "preparation_prefill_material_body_bytes",
     "preparation_decode_rows_issued", "preparation_prefill_rows_issued", "preparation_padding_rows_issued",
     "correction_ack_bytes", "correction_ack_accounted_push_bytes",
+    "private_boundary_lookup_rows", "private_boundary_head_calls",
+    "private_boundary_lookup_upload_bytes", "private_boundary_lookup_download_bytes",
+    "private_boundary_head_upload_bytes", "private_boundary_head_download_bytes",
+    "private_boundary_body_coverage_failures",
 })
 _PRIVACY_FIELDS |= frozenset({"prepared_stage_rows_" + name for name in
     ("issued", "reserved", "claimed", "burned", "discarded")})
