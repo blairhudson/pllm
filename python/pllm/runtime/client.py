@@ -8,6 +8,7 @@ import json
 import os
 import posixpath
 import secrets
+import sys
 import tempfile
 import threading
 import time
@@ -105,6 +106,7 @@ from .types import Response, ResponseEvent, ResponseUsage, new_id
 
 if TYPE_CHECKING:
     from .conversation import AsyncConversation, Conversation
+    from pllm.state.decode import DecodeCache
     from pllm.configuration import Experiment, ExperimentProfile, Model
     from pllm.runtime.model_binding import CompiledRuntimeModel
     from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -233,17 +235,42 @@ class _NoProviderHTTP:
         raise ProtocolError("client-only topology has no provider endpoint", 400)
 
 
+def _raise_cleanup_errors(errors: list[BaseException], primary: BaseException | None = None) -> None:
+    if not errors:
+        return
+    error = primary if primary is not None else errors[0]
+    for secondary in errors if primary is not None else errors[1:]:
+        error.add_note(f"cleanup failed: {type(secondary).__name__}: {secondary}")
+    if primary is None:
+        raise error
+
+
+def _cleanup_calls(calls, *, primary: BaseException | None = None) -> None:
+    errors = []
+    for call in calls:
+        try:
+            call()
+        except BaseException as error:
+            errors.append(error)
+    _raise_cleanup_errors(errors, primary)
+
+
 class ResponseStream(Generic[T]):
-    def __init__(self, iterator: Iterator[T], close: Callable[[], None] | None = None) -> None:
+    def __init__(self, iterator: Iterator[T], close: Callable[[], None] | None = None,
+                 *, terminal: Callable[[str], None] | None = None) -> None:
         self.iterator = iterator
         self._close = close
         self._closed = False
+        self._terminal = terminal
 
     def __iter__(self) -> "ResponseStream[T]":
         return self
 
     def __next__(self) -> T:
-        return next(self.iterator)
+        event = next(self.iterator)
+        if self._terminal is not None and event.type in {"response.completed", "response.incomplete"}:
+            self._terminal(event.response["id"])
+        return event
 
     def close(self) -> None:
         if self._closed:
@@ -350,6 +377,18 @@ class PrivacyAudit:
     decode_epochs_started: int = 0
     decode_epoch_pauses: int = 0
     decode_epoch_pause_ns: int = 0
+    generation_requested_prefill_tokens: int = 0
+    generation_requested_decode_steps: int = 0
+    generation_remote_prefill_tokens: int = 0
+    generation_remote_terminal_prefill_rows: int = 0
+    generation_remote_decode_steps: int = 0
+    decode_cache_root_hits: int = 0
+    decode_cache_branch_hits: int = 0
+    decode_cache_misses: int = 0
+    decode_cache_skipped_remote_rows: int = 0
+    decode_cache_skipped_prefill_tokens: int = 0
+    decode_cache_skipped_decode_steps: int = 0
+    decode_cache_fully_warm_responses: int = 0
     bundle_network_bytes: int = 0
     bundle_cache_hits: int = 0
     bundle_cache_misses: int = 0
@@ -1030,6 +1069,7 @@ class RuntimeClient:
         prefill_cache_bytes: int = 0,
         prefill_cache_mode: str = "exact",
         prefill_cache_bound_tokens: int | None = None,
+        decode_cache: DecodeCache | None = None,
         bundle_cache_mode: str = "read-write",
         bundle_cache_dir: str | Path | None = None,
         bundle_compression: str | None = None,
@@ -1181,6 +1221,22 @@ class RuntimeClient:
         self.prefill_cache_bytes = prefill_cache_bytes
         self.prefill_cache_mode = prefill_cache_mode
         self.prefill_cache_bound_tokens = prefill_cache_bound_tokens
+        cache_params = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("cache", {}).get("params", {})
+            if self.experiment is not None else {})
+        if bool(cache_params.get("decode")) != (decode_cache is not None):
+            raise ValueError("decode reuse requires its immutable component and a caller-owned DecodeCache")
+        if decode_cache is not None:
+            from pllm.state.decode import DecodeCache
+            if type(decode_cache) is not DecodeCache:
+                raise TypeError("decode_cache must be a DecodeCache")
+            if decode_cache._limits["max_transient_bytes"] > cache_params.get("decode_max_bytes", 128 << 20):
+                raise ValueError("decode cache exceeds the composition's additional client memory bound")
+        self.decode_cache = None
+        self._decode_cache_lock = threading.Lock()
+        self._decode_publications = {}
+        self._decode_pending_responses = set()
+        self._decode_terminal_responses = set()
         if bundle_cache_mode not in _BUNDLE_CACHE_MODES:
             raise ValueError("bundle_cache_mode must be read-write, read-only, refresh, or off")
         if self.experiment is not None and "delivery" in json.loads(
@@ -1223,8 +1279,15 @@ class RuntimeClient:
         if preparation_decode_epoch_tokens is not None and preparation_decode_epoch_tokens != epoch_tokens:
             raise ValueError("decode epoch override differs from immutable Experiment")
         self.preparation_decode_epoch_tokens = epoch_tokens
-        if epoch_tokens is not None:
-            if type(epoch_tokens) is not int or not 1 <= epoch_tokens <= 64:
+        epoch_schedule = components.get("inventory", {}).get("params", {}).get("decode_epoch_schedule")
+        self.preparation_decode_epoch_schedule = None
+        if epoch_schedule is not None:
+            from pllm.preparation import validate_decode_epoch_schedule
+            self.preparation_decode_epoch_schedule = validate_decode_epoch_schedule(epoch_schedule)
+            if epoch_tokens is not None:
+                raise ValueError("fixed and scheduled decode epochs are mutually exclusive")
+        if epoch_tokens is not None or epoch_schedule is not None:
+            if epoch_tokens is not None and (type(epoch_tokens) is not int or not 1 <= epoch_tokens <= 64):
                 raise ValueError("preparation_decode_epoch_tokens must be in [1, 64]")
             if (self.preparation_allocation != "demand" or refill != "on-demand"
                     or self.prefill_cache_mode != "prefix" or offset_execution or local_engine is not None
@@ -1264,6 +1327,25 @@ class RuntimeClient:
             }
         ):
             raise ValueError("base_url must use HTTPS outside loopback")
+        # Validate both origins/credentials before creating either owned client.
+        if preparation_http_client is not None or preparation_base_url is not None:
+            if not preparation_api_key:
+                raise ValueError("preparation_api_key is required for preparation service")
+            if preparation_api_key == api_key:
+                raise ValueError("inference and preparation credentials must be distinct")
+            provider_urls = (
+                http_client.base_url if http_client is not None else httpx.URL(self.base_url),
+                preparation_http_client.base_url if preparation_http_client is not None
+                else httpx.URL(preparation_base_url.rstrip("/")),
+            )
+            origins = [(url.scheme, url.host, url.port or (443 if url.scheme == "https" else 80))
+                       for url in provider_urls]
+            if origins[0] == origins[1]:
+                raise ValueError("preparation and inference require distinct origins")
+            for name, url in zip(("base_url", "preparation_base_url"), provider_urls, strict=True):
+                if url.scheme != "https" and url.host not in {"127.0.0.1", "localhost", "::1"}:
+                    raise ValueError(f"{name} must use HTTPS outside loopback")
+        response_cache_limit = max(1, min(int(os.getenv("PLLM_RESPONSE_CACHE_SIZE", "128")), 1024))
         self._owns_http = http_client is None and local_engine is None
         self.http = (
             _NoProviderHTTP()
@@ -1285,34 +1367,13 @@ class RuntimeClient:
         )
         self.preparation_http = preparation_http_client
         if self.preparation_http is None and preparation_base_url is not None:
-            self.preparation_http = httpx.Client(
-                base_url=preparation_base_url.rstrip("/"), timeout=timeout
-            )
-        if self.preparation_http is not None:
-            if not preparation_api_key:
-                raise ValueError("preparation_api_key is required for preparation service")
-            if preparation_api_key == api_key:
-                raise ValueError("inference and preparation credentials must be distinct")
-            provider_urls = (self.http.base_url, self.preparation_http.base_url)
-            origins = [
-                (
-                    item.scheme,
-                    item.host,
-                    item.port or (443 if item.scheme == "https" else 80),
+            try:
+                self.preparation_http = httpx.Client(
+                    base_url=preparation_base_url.rstrip("/"), timeout=timeout
                 )
-                for item in provider_urls
-            ]
-            if origins[0] == origins[1]:
-                raise ValueError("preparation and inference require distinct origins")
-            for name, provider_url in zip(
-                ("base_url", "preparation_base_url"), provider_urls, strict=True
-            ):
-                if provider_url.scheme != "https" and provider_url.host not in {
-                    "127.0.0.1",
-                    "localhost",
-                    "::1",
-                }:
-                    raise ValueError(f"{name} must use HTTPS outside loopback")
+            except BaseException as error:
+                _cleanup_calls([self.http.close] if self._owns_http else [], primary=error)
+                raise
         self.preparation_headers = {"Authorization": f"Bearer {preparation_api_key}"}
         self._provider_executor = ThreadPoolExecutor(
             max_workers=2, thread_name_prefix="pllm-provider"
@@ -1320,9 +1381,7 @@ class RuntimeClient:
         self.cache: dict[str, Response] = {}
         self.histories: dict[str, str] = {}
         self.message_histories: dict[str, list[dict[str, Any]]] = {}
-        self._response_cache_limit = max(
-            1, min(int(os.getenv("PLLM_RESPONSE_CACHE_SIZE", "128")), 1024)
-        )
+        self._response_cache_limit = response_cache_limit
         self._response_cache_order: deque[str] = deque()
         self._response_cache_lock = threading.Lock()
         self._decode_epoch_responses: dict[str, tuple[threading.Event, str, str]] = {}
@@ -1370,6 +1429,13 @@ class RuntimeClient:
                 max_requests=cache_options.get("inflight_max_requests", 8),
                 max_bytes=cache_options.get("inflight_max_bytes", 64 << 20))
             self.audit._inflight_owner = self._inflight_prefix_owner
+        if decode_cache is not None:
+            try:
+                decode_cache.claim(self)
+            except BaseException:
+                self.close()
+                raise
+            self.decode_cache = decode_cache
 
     def _open_private_session(
         self,
@@ -2697,10 +2763,10 @@ class RuntimeClient:
                     semantic_input_tokens=self.prefill_cache_bound_tokens)
                 self.audit.decode_epochs_started += 1
                 return result
-            except BaseException:
+            except BaseException as error:
                 inventory = state.prepared_inventory
                 if inventory is not None and not inventory.status()["reserved"]:
-                    self._cancel_prepared_inventory(inventory)
+                    _cleanup_calls([lambda: self._cancel_prepared_inventory(inventory)], primary=error)
                     state.prepared_inventory = None
                 raise
 
@@ -2774,10 +2840,16 @@ class RuntimeClient:
         state: _TransformerCryptoState,
         inventory: PreparedInventoryLease,
     ) -> None:
-        inventory.close()
-        self._end_online()
+        try:
+            inventory.close()
+        except BaseException as error:
+            _cleanup_calls([self._stop_prepared_admission], primary=error)
+            raise
+        finally:
+            self._end_online()
+            with self._transformer_state_lock:
+                state.active_prepared_responses = max(0, state.active_prepared_responses - 1)
         with self._transformer_state_lock:
-            state.active_prepared_responses = max(0, state.active_prepared_responses - 1)
             retained: list[PreparedInventory] = []
             for retired in state.retired_inventories:
                 if retired.status()["reserved"] == 0:
@@ -2884,37 +2956,37 @@ class RuntimeClient:
             else:
                 provider = None
 
-            session_body: dict[str, Any] = {
-                "model": model_id,
-                "max_output_tokens": max_output_tokens,
-            }
-            if prepared_public:
-                assert provider is not None
-                session_body["execution"] = "seeded-preparation"
-                session_body["inventory_id"] = provider.inventory_id
-                session_body["inventory_start"] = provider.reservation_start
-                session_body["inventory_rows"] = provider.reservation_rows
-                if self.prepared_request_encoding != "raw":
-                    session_body["prepared_request_encoding"] = self.prepared_request_encoding
-                if compiled is not None:
-                    session_body["decoder_plan"] = {
-                        "schema": "pllm.decoder_session.v1",
-                        "digest": compiled.model_plan_digest,
-                        "max_input_tokens": semantic_input_tokens,
-                        "body_fingerprint": compiled.to_spec()["body_fingerprint"],
-                        "stage_commitment": compiled.to_spec()["stage_commitment"],
-                        "runtime_config_digest": compiled.runtime_config_digest,
-                    }
-                    if self.prefill_cache_mode == "prefix":
-                        session_body["decoder_continuation"] = {
-                            "composition": json.loads(compiled._canonical_composition),
-                            "contract": self._decoder_continuation(compiled).handshake_spec(),
-                        }
-            if state.context_ids:
-                session_body["context_ids"] = list(state.context_ids.values())
             online_started = False
             session_id = None
             try:
+                session_body: dict[str, Any] = {
+                    "model": model_id,
+                    "max_output_tokens": max_output_tokens,
+                }
+                if prepared_public:
+                    assert provider is not None
+                    session_body["execution"] = "seeded-preparation"
+                    session_body["inventory_id"] = provider.inventory_id
+                    session_body["inventory_start"] = provider.reservation_start
+                    session_body["inventory_rows"] = provider.reservation_rows
+                    if self.prepared_request_encoding != "raw":
+                        session_body["prepared_request_encoding"] = self.prepared_request_encoding
+                    if compiled is not None:
+                        session_body["decoder_plan"] = {
+                            "schema": "pllm.decoder_session.v1",
+                            "digest": compiled.model_plan_digest,
+                            "max_input_tokens": semantic_input_tokens,
+                            "body_fingerprint": compiled.to_spec()["body_fingerprint"],
+                            "stage_commitment": compiled.to_spec()["stage_commitment"],
+                            "runtime_config_digest": compiled.runtime_config_digest,
+                        }
+                        if self.prefill_cache_mode == "prefix":
+                            session_body["decoder_continuation"] = {
+                                "composition": json.loads(compiled._canonical_composition),
+                                "contract": self._decoder_continuation(compiled).handshake_spec(),
+                            }
+                if state.context_ids:
+                    session_body["context_ids"] = list(state.context_ids.values())
                 if prepared_public:
                     self._begin_online()
                     online_started = True
@@ -2934,16 +3006,24 @@ class RuntimeClient:
                     raise ModelError("provider response identifier is invalid")
                 if prepared_public and session_value.get("prepared_request_encoding", "raw") != self.prepared_request_encoding:
                     raise ModelError("provider did not admit the prepared request encoding")
-            except BaseException:
+            except BaseException as error:
                 if prepared_public and provider is not None:
+                    calls = []
                     if online_started:
                         if session_id is not None:
-                            self._cancel_transformer_session(session_id)
+                            calls.append(lambda: self._cancel_transformer_session(session_id))
                         else:
-                            self._stop_prepared_admission()
-                    provider.close()
+                            calls.append(self._stop_prepared_admission)
+                    def close_reservation():
+                        try:
+                            provider.close()
+                        except BaseException as error:
+                            _cleanup_calls([self._stop_prepared_admission], primary=error)
+                            raise
+                    calls.append(close_reservation)
                     if online_started:
-                        self._end_online()
+                        calls.append(self._end_online)
+                    _cleanup_calls(calls, primary=error)
                 raise
             if prepared_public:
                 state.active_prepared_responses += 1
@@ -3248,7 +3328,7 @@ class RuntimeClient:
         prefix_rows = (
             0 if cached is None else (cached[0] if type(cached[0]) is int else len(full_ids))
         )
-        allowance = min(self.preparation_decode_epoch_tokens or max_output_tokens, max_output_tokens)
+        allowance = self._decode_epoch_allowance(0, max_output_tokens)
         required = max(1, len(full_ids) - prefix_rows + max(0, allowance - 1))
         if not _stage_demand:
             return required
@@ -3257,14 +3337,31 @@ class RuntimeClient:
             compiled = self._compiled_public_decoder(state, max_input_tokens=len(full_ids), max_new_tokens=max_output_tokens)
             if compiled is None:
                 raise ModelError("demand preparation requires a complete compiled schedule")
+            if self._decode_epochs_enabled():
+                contract = self._decoder_continuation(compiled)
+                if len(full_ids) + max_output_tokens - 1 > contract.to_dict()["token_bound"]:
+                    raise ModelError("decode epoch response exceeds fixed continuation token bound")
+                if max_output_tokens > 1:
+                    contract.admit(len(full_ids), max_output_tokens - 1)
             demand = compiled.prepared_stage_rows(len(full_ids) - prefix_rows, max(0, allowance - 1),
                                                   continuation=prefix_rows > 0)
         if _phase_demand:
             phases = (compiled.prepared_stage_phase_rows(len(full_ids) - prefix_rows, max(0, allowance - 1),
-                continuation=prefix_rows > 0) if demand is not None and self.preparation_decode_epoch_tokens is None
+                continuation=prefix_rows > 0) if demand is not None and not self._decode_epochs_enabled()
                 and self._inflight_prefix_owner is None and not self.background_inventory_refill else None)
             return required, demand, phases
         return required, demand
+
+    def _decode_epochs_enabled(self) -> bool:
+        return (self.preparation_decode_epoch_tokens is not None
+                or self.preparation_decode_epoch_schedule is not None)
+
+    def _decode_epoch_allowance(self, index: int, remaining: int) -> int:
+        """Public epoch index only. Repeat final declared size; clip at cap only."""
+        schedule = self.preparation_decode_epoch_schedule
+        size = (schedule[min(index, len(schedule) - 1)] if schedule is not None
+                else self.preparation_decode_epoch_tokens)
+        return min(size, remaining) if size is not None else remaining
 
     def prepare_response(self, model: str, input, max_output_tokens: int, *, instructions=None, store=True):
         """Issue exactly the admitted response demand before online execution."""
@@ -3294,31 +3391,47 @@ class RuntimeClient:
         self.preprocess(model_id, count=required_rows, stage_rows=stage_rows, _phase_rows=phase_rows)
 
     def close(self) -> None:
+        primary = sys.exception()
+        errors = []
+
+        def retire(function, *args, **kwargs):
+            try:
+                function(*args, **kwargs)
+            except BaseException as error:
+                errors.append(error)
+
         with self._activity_lock:
             self._closing = True
             offset_transports = tuple(self._active_offset_transports.values())
             self._active_offset_transports.clear()
         if self._prepared_queue is not None:
-            self._prepared_queue.close()
+            retire(self._prepared_queue.close)
             if self._inflight_prefix_owner is not None:
-                self._inflight_prefix_owner.close(wait=False)
+                retire(self._inflight_prefix_owner.close, wait=False)
             with self._prepared_attempt_lock:
                 attempts = tuple(self._prepared_attempts)
             for attempt in attempts:
-                attempt.cancel()
+                retire(attempt.cancel)
             for attempt in attempts:
-                attempt.close()
+                retire(attempt.close)
             if self._inflight_prefix_owner is not None:
-                self._inflight_prefix_owner.close()
+                retire(self._inflight_prefix_owner.close)
         for transport in offset_transports:
-            transport.abort()
-        self._provider_executor.shutdown(wait=True, cancel_futures=True)
+            retire(transport.abort)
+        retire(self._provider_executor.shutdown, wait=True, cancel_futures=True)
+        if self.decode_cache is not None:
+            for response_id in tuple(self._decode_publications):
+                retire(self._rollback_decode_response, response_id)
+            retire(self.decode_cache.close)
+        self._decode_publications.clear()
+        self._decode_pending_responses.clear()
+        self._decode_terminal_responses.clear()
         with self._transformer_state_lock:
             inventories: list[PreparedInventory] = []
             for state in self._transformer_states.values():
-                state.bundle.close()
+                retire(state.bundle.close)
                 if state.prefill_cache is not None:
-                    state.prefill_cache.clear()
+                    retire(state.prefill_cache.clear)
                 if state.prepared_inventory is not None:
                     inventories.append(state.prepared_inventory)
                 if state.prepared_inventory_spare is not None:
@@ -3336,13 +3449,14 @@ class RuntimeClient:
         self.message_histories.clear()
         self._pending_response_store.clear()
         for inventory in inventories:
-            self._cancel_prepared_inventory(inventory)
+            retire(self._cancel_prepared_inventory, inventory)
         if self._owns_preparation_http and self.preparation_http is not None:
-            self.preparation_http.close()
+            retire(self.preparation_http.close)
         if self._offset_workers:
-            self._offset_workers["worker_b"][0].close()
+            retire(self._offset_workers["worker_b"][0].close)
         if self._owns_http:
-            self.http.close()
+            retire(self.http.close)
+        _raise_cleanup_errors(errors, primary)
 
     def list_models(self) -> dict[str, Any]:
         if self._local_engine is not None or self._offset_workers:
@@ -3397,6 +3511,8 @@ class RuntimeClient:
         self.histories.pop(response_id, None)
         self.message_histories.pop(response_id, None)
         with self._response_cache_lock:
+            self._decode_pending_responses.discard(response_id)
+            self._decode_terminal_responses.discard(response_id)
             try:
                 self._response_cache_order.remove(response_id)
             except ValueError:
@@ -3426,7 +3542,39 @@ class RuntimeClient:
         while len(self._ephemeral_response_order) > self._response_cache_limit * 8:
             self._ephemeral_response_ids.discard(self._ephemeral_response_order.popleft())
 
+    def _accept_decode_response(self, response_id: str) -> None:
+        with self._response_cache_lock:
+            self._decode_publications.pop(response_id, None)
+            self._decode_pending_responses.discard(response_id)
+
+    def _rollback_decode_response(self, response_id: str) -> None:
+        publication = self._decode_publications.pop(response_id, None)
+        if publication is not None and self.decode_cache is not None:
+            prior, current = publication
+            if self.decode_cache.head != current:
+                raise ModelError("decode publication changed before response delivery")
+            try:
+                self.decode_cache._restore_head(prior)
+            except BaseException as error:
+                _cleanup_calls([self.decode_cache.close], primary=error)
+                raise
+
+    def _abort_decode_response(self, response_id: str, *, primary=None) -> None:
+        _cleanup_calls([
+            lambda: self._rollback_decode_response(response_id),
+            lambda: self.evict_response(response_id),
+            lambda: self._pending_response_store.pop(response_id, None),
+        ], primary=primary)
+
     def cancel(self, response_id: str) -> Response:
+        with self._response_cache_lock:
+            # Linearize explicit cancel against terminal readiness, not physical
+            # delivery. Once ready, return terminal status; never claim cancelled.
+            if response_id in self._decode_terminal_responses:
+                return self.cache[response_id]
+            epoch_response = self._decode_epoch_responses.get(response_id)
+            if epoch_response is not None:
+                epoch_response[0].set()
         with self._prepared_attempt_lock:
             attempts = tuple(self._prepared_attempts)
         for attempt in attempts:
@@ -3466,15 +3614,33 @@ class RuntimeClient:
         return Response.from_dict(response.json())
 
     def create(self, body: dict[str, Any]) -> Response | ResponseStream[ResponseEvent]:
+        from .prepared_queue import prepared_cancellation
+        synchronous = prepared_cancellation.get() is None
         if body.get("stream"):
-            return ResponseStream(self.events(body))
+            return ResponseStream(self.events(body), terminal=(self._accept_decode_response
+                if synchronous and self.decode_cache is not None else None))
         final: Response | None = None
-        for event in self.events(body):
-            if event.type in {"response.completed", "response.incomplete"}:
-                final = Response.from_dict(event.response)
-        if final is None:
-            raise ProtocolError("response stream ended without a terminal response")
-        return final
+        response_id = None
+        events = self.events(body)
+        try:
+            try:
+                for event in events:
+                    if event.type in {"response.completed", "response.incomplete"}:
+                        response_id = event.response["id"]
+                        final = Response.from_dict(event.response)
+            finally:
+                close = getattr(events, "close", None)
+                if close is not None:
+                    _cleanup_calls([close], primary=sys.exception())
+            if final is None:
+                raise ProtocolError("response stream ended without a terminal response")
+            if synchronous and self.decode_cache is not None:
+                self._accept_decode_response(final.id)
+            return final
+        except BaseException as error:
+            if self.decode_cache is not None and response_id is not None:
+                self._abort_decode_response(response_id, primary=error)
+            raise
 
     def events(self, body: dict[str, Any]) -> Iterator[ResponseEvent]:
         if self._prepared_queue is not None:
@@ -3765,6 +3931,12 @@ class RuntimeClient:
         from contextlib import ExitStack
 
         with ExitStack() as cleanup:
+            if self.decode_cache is not None:
+                if not self._decode_cache_lock.acquire(blocking=False):
+                    raise ModelError("one DecodeCache admits only one active response")
+                cleanup.callback(self._decode_cache_lock.release)
+                if self._decode_pending_responses:
+                    raise ModelError("decode response delivery is still pending")
             yield from self._owned_transformer_events(body, messages, descriptor,
                 previous_history=previous_history, cleanup=cleanup)
 
@@ -3900,9 +4072,17 @@ class RuntimeClient:
         offset_execution = bool(self._offset_workers)
         if (client_owned or offset_execution) and compiled is None:
             raise ModelError("selected topology requires complete compiled execution")
-        epoch_tokens = self.preparation_decode_epoch_tokens
-        epoch_allowance = min(epoch_tokens, max_tokens) if epoch_tokens is not None else max_tokens
-        if epoch_tokens is not None:
+        epochs_enabled = self._decode_epochs_enabled()
+        decode_reuse = (self.decode_cache is not None and bool(body.get("store", True))
+                        and not previous_id)
+        if decode_reuse and (not epochs_enabled or self.preparation_decode_epoch_tokens != 1):
+            raise ModelError("decode reuse requires one-selection epochs")
+        if decode_reuse and max_tokens > self.decode_cache._limits["max_staged"]:
+            raise ModelError("decode response exceeds the cache's bounded staging capacity")
+        epoch_index = 0
+        epoch_allowance = self._decode_epoch_allowance(epoch_index, max_tokens)
+        epoch_boundary = epoch_allowance
+        if epochs_enabled:
             if (compiled is None or state.privacy_mode != "public"
                     or state.bundle.privacy.get("verification_component", "none") != "none"):
                 raise ModelError("decode epochs require a compiled public unverified decoder")
@@ -3927,7 +4107,7 @@ class RuntimeClient:
                     raise ModelError("demand preparation requires a complete compiled schedule")
                 demand = compiled.prepared_stage_rows(required_input_rows, max(0, epoch_allowance - 1),
                     continuation=bool(previous_id) or required_input_rows != len(full_prefill_ids))
-            if epoch_tokens is None:
+            if not epochs_enabled:
                 phases = (compiled.prepared_stage_phase_rows(required_input_rows, max(0, epoch_allowance - 1),
                     continuation=bool(previous_id) or required_input_rows != len(full_prefill_ids))
                     if demand is not None and self._inflight_prefix_owner is None
@@ -3964,7 +4144,12 @@ class RuntimeClient:
         elif client_owned:
             session_value = {"id": new_id("client_session"), "response_id": new_id("resp")}
             provider = None
-        elif epoch_tokens is not None:
+        elif decode_reuse:
+            # Source and full-response admission are already complete. No row is
+            # issued until the exact root/next-child lookup below misses.
+            session_value = {"id": "", "response_id": new_id("resp")}
+            provider = None
+        elif epochs_enabled:
             session_value, state, provider = self._open_decode_epoch(model_id, state,
                 required_rows, demand, max_output_tokens=max_tokens, compiled=compiled,
                 initial=True, cancelled=attempt.check_cancelled if attempt is not None else lambda: None)
@@ -3990,33 +4175,47 @@ class RuntimeClient:
         runtime = None
         initializing = True
         abandoned = False
+        session_completed = False
+
+        def evict_failed_turn(exc_type, error, traceback):
+            if not session_completed or (exc_type is not None and exc_type is not GeneratorExit):
+                _cleanup_calls([
+                    lambda: self.evict_response(response_id),
+                    lambda: self._pending_response_store.pop(response_id, None),
+                ], primary=error)
+            return False
+
+        cleanup.push(evict_failed_turn)
 
         def abandon_transformer_session() -> None:
             nonlocal abandoned
             if abandoned:
                 return
             abandoned = True
+            calls = []
             if channel is not None:
-                channel.close()
-            if not (client_owned or offset_execution):
-                self._cancel_transformer_session(session_id)
+                calls.append(channel.close)
+            if not (client_owned or offset_execution or decode_reuse):
+                calls.append(lambda: self._cancel_transformer_session(session_id))
             if isinstance(provider, PreparedInventoryLease):
-                self._finish_prepared_response(model_id, state, provider)
+                calls.append(lambda: self._finish_prepared_response(model_id, state, provider))
             if runtime is not None:
-                runtime.reset()
-            self._pending_response_store.pop(response_id, None)
-            if epoch_tokens is not None:
-                with self._transformer_state_lock:
-                    if state.prepared_inventory is not None:
-                        self._cancel_prepared_inventory(state.prepared_inventory)
-                        state.prepared_inventory = None
-                return
-            if offset_transport is not None:
-                offset_transport.abort()
+                calls.append(runtime.reset)
+            calls.append(lambda: self._pending_response_store.pop(response_id, None))
+            if epochs_enabled:
+                def cancel_inventory():
+                    with self._transformer_state_lock:
+                        if state.prepared_inventory is not None:
+                            self._cancel_prepared_inventory(state.prepared_inventory)
+                            state.prepared_inventory = None
+                calls.append(cancel_inventory)
+            elif offset_transport is not None:
+                calls.append(offset_transport.abort)
+            _cleanup_calls(calls, primary=sys.exception())
 
         cleanup.callback(lambda: abandon_transformer_session() if initializing else None)
 
-        if not client_owned and not offset_execution:
+        if not (client_owned or offset_execution or decode_reuse):
             try:
                 channel = _Channel(
                     self.http, self.base_url, self.api_key, session_id,
@@ -4030,7 +4229,7 @@ class RuntimeClient:
                 raise
         key = (
             derive_session_key(self.api_key, session_id)
-            if not (client_owned or offset_execution)
+            if not (client_owned or offset_execution or decode_reuse)
             else b""
         )
         sequence = 0
@@ -4112,6 +4311,8 @@ class RuntimeClient:
         elif client_owned:
             assert compiled is not None and self._local_engine is not None
             remote = compiled.client_linear_executor(self._local_engine)
+        elif decode_reuse:
+            remote = None
         elif state.privacy_mode == "public":
             if not isinstance(provider, PreparedInventoryLease):
                 abandon_transformer_session()
@@ -4150,10 +4351,15 @@ class RuntimeClient:
             if provider is None:
                 raise ModelError("public mode requires a correlation provider")
             remote = RemoteLinear(state.bundle.stages, provider, exchange)
+        def admitted_remote(stage, values):
+            if remote is None:
+                raise ModelError("decode execution has no freshly admitted material")
+            return remote(stage, values)
+
         try:
             runtime = (
                 compiled.runtime(
-                    remote,
+                    admitted_remote if decode_reuse else remote,
                     token_cache=state.token_cache,
                     token_cache_size=self.token_cache_size,
                     token_cache_lock=state.token_cache_lock,
@@ -4177,20 +4383,141 @@ class RuntimeClient:
         previous_text = ""
         session_completed = False
         first_output_online_bytes: int | None = None
-        epoch_session_active = True
+        epoch_session_active = not decode_reuse
+        decode_tickets = []
+        decode_remote_used = False
+        if decode_reuse:
+            self.decode_cache.bind(compiled, runtime)
+            self._decode_pending_responses.add(response_id)
+
+            def retire_decode_turn(exc_type, error, traceback):
+                errors = []
+                try:
+                    self.decode_cache.discard()
+                except BaseException as failure:
+                    errors.append(failure)
+                if (not session_completed or exc_type is not None or errors) and response_id in self._decode_pending_responses:
+                    try:
+                        self._abort_decode_response(response_id)
+                    except BaseException as failure:
+                        errors.append(failure)
+                _raise_cleanup_errors(errors, error)
+                return False
+
+            cleanup.push(retire_decode_turn)
+            root_hit = self.decode_cache.lookup(full_prefill_ids)
+            if root_hit is not None:
+                cached_prefill = (root_hit.snapshot, root_hit.logits)
+                self.audit.decode_cache_root_hits += 1
+            required_input_rows = (len(full_prefill_ids) if cached_prefill is None else
+                len(full_prefill_ids) - cached_prefill[0].position if cached_prefill[1] is None else 0)
         epoch_cancelled = threading.Event()
-        if epoch_tokens is not None:
+        if epochs_enabled:
             with self._response_cache_lock:
-                self._decode_epoch_responses[response_id] = (epoch_cancelled, session_id, model_id)
+                self._decode_epoch_responses[response_id] = (
+                    epoch_cancelled, session_id if epoch_session_active else "", model_id)
+
+        def retire_decode_material(emitted: int):
+            nonlocal epoch_session_active, channel
+            if not epoch_session_active:
+                return
+            complete = self._control_post(self.http,
+                f"/v1/runtime/sessions/{session_id}/complete", headers=self.headers,
+                json={"usage": ResponseUsage(len(full_prefill_ids), emitted,
+                                             len(full_prefill_ids) + emitted).to_dict()})
+            _raise(complete)
+            if channel is not None:
+                channel.close()
+                channel = None
+            self._finish_prepared_response(model_id, state, remote.inventory)
+            epoch_session_active = False
+            with self._response_cache_lock:
+                self._decode_epoch_responses[response_id] = (epoch_cancelled, "", model_id)
+
+        def admit_decode_material(rows: int, *, continuation: bool, initial: bool = False):
+            nonlocal session_id, session_value, provider, channel, key, sequence, remote
+            nonlocal epoch_session_active, decode_remote_used
+            if epoch_session_active:
+                raise ModelError("decode miss cannot prepare during an active session")
+            check_epoch_cancelled()
+            session_value, _, provider = self._open_decode_epoch(model_id, state, max(1, rows),
+                compiled.prepared_stage_rows(rows, 0, continuation=continuation),
+                max_output_tokens=max_tokens, compiled=compiled, cancelled=check_epoch_cancelled,
+                initial=initial)
+            session_id = str(session_value["id"])
+            epoch_session_active = True
+            decode_remote_used = True
+            try:
+                if remote is None:
+                    remote = PreparedRemoteLinear(model_id=model_id,
+                        body_fingerprint=str(state.bundle.privacy["body_fingerprint"]),
+                        stages=state.bundle.stages, inference=exchange, inventory=provider,
+                        prefill_chunk_rows=self.prefill_chunk_rows,
+                        request_encoding=self.prepared_request_encoding,
+                        verification_component="none")
+                else:
+                    remote.inventory = provider
+                with self._response_cache_lock:
+                    self._decode_epoch_responses[response_id] = (epoch_cancelled, session_id, model_id)
+                check_epoch_cancelled()
+                key = derive_session_key(self.api_key, session_id)
+                sequence = 0
+                channel = _Channel(self.http, self.base_url, self.api_key, session_id,
+                    "websocket" if self.prefill_chunk_rows else self.session_transport,
+                    frame_limit=(16 << 20) if self.prefill_chunk_rows else None, compression=None)
+                runtime.install_continuation(self._admitted_decoder_continuation(session_value, compiled))
+            except BaseException as error:
+                calls = [lambda: self._cancel_transformer_session(session_id),
+                         lambda: self._finish_prepared_response(model_id, state, provider)]
+                if channel is not None:
+                    calls.insert(0, channel.close)
+                _cleanup_calls(calls, primary=error)
+                channel = None
+                epoch_session_active = False
+                with self._response_cache_lock:
+                    self._decode_epoch_responses[response_id] = (epoch_cancelled, "", model_id)
+                raise
+
+        def stage_decode_state(executed_ids, logits):
+            snapshot = (runtime.canonical_generated_snapshot()
+                        if runtime._snapshot_basis.phase == "incremental" else runtime.snapshot())
+            ticket = self.decode_cache.stage(executed_ids, snapshot, np.asarray(logits))
+            if ticket is not None:
+                decode_tickets.append(ticket)
+
+        def next_decode_state(token: int, emitted: int):
+            parent_ids = [*input_ids, *output_ids[:-1]]
+            retire_decode_material(emitted)
+            check_epoch_cancelled()
+            hit = self.decode_cache.lookup_child(parent_ids, token)
+            if hit is not None:
+                runtime.restore(hit.snapshot)
+                self.audit.decode_cache_branch_hits += 1
+                self.audit.decode_cache_skipped_decode_steps += 1
+                self.audit.decode_cache_skipped_remote_rows += sum(
+                    compiled.prepared_stage_rows(1, 0, continuation=True).values())
+                return hit.logits, runtime.caches
+            self.audit.decode_cache_misses += 1
+            started = time.perf_counter_ns()
+            self.audit.decode_epoch_pauses += 1
+            try:
+                admit_decode_material(1, continuation=True)
+                next_logits = runtime.continue_ids([token])[-1]
+                self.audit.generation_remote_decode_steps += 1
+                stage_decode_state([*parent_ids, token], next_logits)
+                return next_logits, runtime.caches
+            finally:
+                self.audit.decode_epoch_pause_ns += time.perf_counter_ns() - started
 
         def check_epoch_cancelled():
             if attempt is not None:
                 attempt.check_cancelled()
-            if epoch_tokens is not None and (epoch_cancelled.is_set() or self._closing):
+            if epochs_enabled and (epoch_cancelled.is_set() or self._closing):
                 raise ProtocolError("decode epoch response cancelled", 409)
 
         def rotate_decode_epoch(token: int, emitted: int):
             nonlocal session_id, session_value, provider, channel, key, sequence, epoch_session_active
+            nonlocal epoch_index, epoch_boundary
             assert compiled is not None and isinstance(remote, PreparedRemoteLinear)
             check_epoch_cancelled()
             # Complete the old authenticated execution, drain its transport, burn
@@ -4207,7 +4534,9 @@ class RuntimeClient:
             with self._response_cache_lock:
                 self._decode_epoch_responses[response_id] = (epoch_cancelled, "", model_id)
             snapshot = runtime.snapshot_for_response(response_id)
-            allowance = min(epoch_tokens, max_tokens - emitted)
+            epoch_index += 1
+            allowance = self._decode_epoch_allowance(epoch_index, max_tokens - emitted)
+            epoch_boundary = emitted + allowance
             epoch_contract.admit(runtime.position, allowance)
             session_value, _, provider = self._open_decode_epoch(model_id, state, allowance,
                 compiled.prepared_stage_rows(1, allowance - 1, continuation=True),
@@ -4250,7 +4579,7 @@ class RuntimeClient:
                     values.get("online_upload_bytes", 0) + values.get("online_download_bytes", 0)
                     for values in offset_transport.http_body_costs.values()
                 )
-            return 0 if client_owned else None
+            return 0 if client_owned or decode_reuse else None
 
         created = Response(
             id=response_id,
@@ -4261,8 +4590,9 @@ class RuntimeClient:
         ).to_dict()
         initializing = False
         try:
-            if epoch_tokens is not None:
-                runtime.install_continuation(self._admitted_decoder_continuation(session_value, compiled))
+            if epochs_enabled:
+                runtime.install_continuation(epoch_contract if decode_reuse else
+                    self._admitted_decoder_continuation(session_value, compiled))
             yield ResponseEvent.from_dict(
                 {"type": "response.created", "sequence_number": event_sequence, "response": created}
             )
@@ -4311,6 +4641,18 @@ class RuntimeClient:
 
             check_epoch_cancelled()
             continuation_used = False
+            if decode_reuse and required_input_rows:
+                admit_decode_material(required_input_rows,
+                    continuation=cached_prefill is not None, initial=True)
+            self.audit.generation_requested_prefill_tokens += len(full_prefill_ids)
+            if not client_owned:
+                self.audit.generation_remote_prefill_tokens += required_input_rows
+                self.audit.generation_remote_terminal_prefill_rows += (
+                    required_input_rows if cached_prefill is not None else min(required_input_rows, 1))
+            if decode_reuse and not required_input_rows:
+                self.audit.decode_cache_skipped_prefill_tokens += len(full_prefill_ids)
+                self.audit.decode_cache_skipped_remote_rows += sum(
+                    compiled.prepared_stage_rows(len(full_prefill_ids), 0).values())
             prior: _TransformerConversationState | None = None
             if previous_id:
                 with self._transformer_conversation_lock:
@@ -4441,6 +4783,8 @@ class RuntimeClient:
                 )
                 cache.put(cache_key, runtime.snapshot(), np.asarray(logits))
             pending_token_ids: list[int] = []
+            if decode_reuse and root_hit is None:
+                stage_decode_state(input_ids, logits)
             executed_decode_steps = 0
             hit_token_limit = True
             for step in range(max_tokens):
@@ -4476,10 +4820,14 @@ class RuntimeClient:
                 if step + 1 >= max_tokens:
                     pending_token_ids = [token]
                     break
-                if epoch_tokens is not None and (step + 1) % epoch_tokens == 0:
+                if decode_reuse:
+                    logits, caches = next_decode_state(token, step + 1)
+                elif epochs_enabled and step + 1 == epoch_boundary:
                     logits, caches = resume_decode_epoch(token, step + 1)
                 else:
                     logits, caches = runtime.decode_step(token, caches, len(input_ids) + step)
+                if not (decode_reuse or client_owned):
+                    self.audit.generation_remote_decode_steps += 1
                 executed_decode_steps += 1
 
             self.audit.token_lookup_cache_hits += runtime.token_cache_hits
@@ -4665,6 +5013,8 @@ class RuntimeClient:
             if offset_execution:
                 assert offset_transport is not None
                 offset_transport.complete()
+            elif decode_reuse:
+                retire_decode_material(len(output_ids))
             elif not client_owned:
                 complete = self._control_post(self.http,
                     f"/v1/runtime/sessions/{session_id}/complete",
@@ -4682,7 +5032,9 @@ class RuntimeClient:
                         and runtime.position <= compiled._plan.to_dict()["prefill"]["query_sequence"]):
                     # Completion has been acknowledged. A selected but unexecuted
                     # final token never enters this independent canonical key.
-                    canonical = runtime.canonical_generated_snapshot()
+                    canonical = (runtime.canonical_generated_snapshot()
+                                 if runtime._snapshot_basis.phase == "incremental"
+                                 else runtime.snapshot())
                     executed_ids = evaluated_ids[:runtime.position]
                     cache.put_prefixes(compiled.digest, state.bundle_fingerprint, executed_ids, canonical)
                     cache.put(prefill_key(compiled.digest, state.bundle_fingerprint, executed_ids,
@@ -4705,17 +5057,42 @@ class RuntimeClient:
                         pending_token_ids=pending_token_ids,
                     )
             self._remember_response(response_id)
-            session_completed = True
-            yield ResponseEvent.from_dict(
+            if decode_reuse:
+                check_epoch_cancelled()
+                if decode_tickets:
+                    prior_head = self.decode_cache.head
+                    current_head = self.decode_cache.commit(decode_tickets, acknowledged=True)
+                    self._decode_publications[response_id] = (prior_head, current_head)
+                check_epoch_cancelled()
+                if not decode_remote_used:
+                    self.audit.decode_cache_fully_warm_responses += 1
+            terminal_event = ResponseEvent.from_dict(
                 {
                     "type": f"response.{response_status}",
                     "sequence_number": event_sequence,
                     "response": final.to_dict(),
                 }
             )
+            # Construct before success; explicit cancel shares this readiness
+            # boundary. This is not an atomic promise of physical delivery.
+            with self._response_cache_lock:
+                check_epoch_cancelled()
+                if epochs_enabled:
+                    self._decode_terminal_responses.add(response_id)
+                session_completed = True
+            yield terminal_event
         finally:
+            cleanup_primary = sys.exception()
+            retirement_errors = []
+
+            def retire(function, *args):
+                try:
+                    function(*args)
+                except BaseException as error:
+                    retirement_errors.append(error)
+
             if getattr(runtime, "_retained", None) is not None:
-                runtime._retained.burn(runtime)
+                retire(runtime._retained.burn, runtime)
             completed_online_bytes = response_online_bytes()
             if (
                 session_completed and first_output_online_bytes is not None
@@ -4731,8 +5108,9 @@ class RuntimeClient:
                 )
                 self.audit.generation_requested_output_tokens += max_tokens
                 self.audit.generation_executed_decode_steps += executed_decode_steps
+                self.audit.generation_requested_decode_steps += executed_decode_steps
                 if (isinstance(remote, PreparedRemoteLinear) and compiled is not None
-                        and self.preparation_allocation == "demand" and epoch_tokens is None
+                        and self.preparation_allocation == "demand" and not epochs_enabled
                         and not previous_id and self._inflight_prefix_owner is None
                         and not self.background_inventory_refill and state.public_prefix_binding is None):
                     self.audit.generation_attribution_supported_responses += 1
@@ -4741,7 +5119,7 @@ class RuntimeClient:
                     if self._active_offset_transports.get(session_id) is offset_transport:
                         self._active_offset_transports.pop(session_id, None)
                 if not session_completed:
-                    offset_transport.abort()
+                    retire(offset_transport.abort)
                 for role, values in offset_transport.http_body_costs.items():
                     tracked = self.audit.role_link_bodies.setdefault(role, {})
                     for metric, count in values.items():
@@ -4760,28 +5138,35 @@ class RuntimeClient:
                 self.audit.inference_server_ns += remote.stats.inference_server_ns
                 self.audit.correction_push_bytes += remote.stats.correction_push_bytes
                 self.audit.correction_push_ns += remote.stats.correction_push_ns
-                if not session_completed and (epoch_tokens is None or epoch_session_active):
+                if not session_completed and (not epochs_enabled or epoch_session_active):
                     # Cancel/drain the current provider before releasing its online
                     # exclusion. No fresh epoch may be issued after cancellation.
                     if channel is not None:
-                        channel.close()
+                        retire(channel.close)
                         channel = None
-                    self._cancel_transformer_session(session_id)
-                if epoch_tokens is None or epoch_session_active:
-                    self._finish_prepared_response(model_id, state, remote.inventory)
-                if epoch_tokens is not None:
-                    with self._response_cache_lock:
-                        self._decode_epoch_responses.pop(response_id, None)
-                    with self._transformer_state_lock:
-                        if state.prepared_inventory is not None:
-                            self._cancel_prepared_inventory(state.prepared_inventory)
-                            state.prepared_inventory = None
-                    if not session_completed:
-                        runtime.reset()
+                    retire(self._cancel_transformer_session, session_id)
+                if not epochs_enabled or epoch_session_active:
+                    retire(self._finish_prepared_response, model_id, state, remote.inventory)
+            if epochs_enabled:
+                with self._response_cache_lock:
+                    self._decode_epoch_responses.pop(response_id, None)
+                with self._transformer_state_lock:
+                    if state.prepared_inventory is not None:
+                        retire(self._cancel_prepared_inventory, state.prepared_inventory)
+                        state.prepared_inventory = None
+                if not session_completed:
+                    retire(runtime.reset)
             if channel is not None:
-                channel.close()
+                retire(channel.close)
             if attempt is not None:
-                runtime.reset()
+                retire(runtime.reset)
+            try:
+                _raise_cleanup_errors(retirement_errors, cleanup_primary)
+            finally:
+                # GeneratorExit includes this frame. Do not retain that cycle
+                # after close and keep request-owned tokenizer/tensors alive.
+                cleanup_primary = None
+                retirement_errors.clear()
 
 
 class ResponsesResource:
@@ -4933,6 +5318,7 @@ class OpenAI:
         prefill_cache_bytes: int = 0,
         prefill_cache_mode: str = "exact",
         prefill_cache_bound_tokens: int | None = None,
+        decode_cache: DecodeCache | None = None,
         bundle_cache_mode: str | None = None,
         bundle_cache_dir: str | Path | None = None,
         bundle_compression: str | None = None,
@@ -4972,6 +5358,7 @@ class OpenAI:
                 preparation_decode_epoch_tokens,
                 token_cache_size,
                 prefill_cache_bound_tokens,
+                decode_cache,
                 bundle_cache_mode,
                 bundle_cache_dir,
                 bundle_compression,
@@ -5026,7 +5413,8 @@ class OpenAI:
                       preparation_base_url, preparation_api_key, correlation_prefetch,
                        prepared_inventory_rows, preparation_decode_epoch_tokens, token_cache_size, prefill_cache_bound_tokens,
                       bundle_cache_mode, bundle_cache_dir, bundle_compression, tenseal_path,
-                      timeout, http_client, preparation_http_client, local_engine, role_connections)
+                       timeout, http_client, preparation_http_client, local_engine, role_connections,
+                       decode_cache)
             if (any(value is not None for value in manual) or prefill_cache_bytes
                     or prefill_cache_mode != "exact" or background_inventory_refill is not None):
                 raise ValueError("automatic network planning conflicts with manual runtime overrides")
@@ -5182,6 +5570,7 @@ class OpenAI:
                 prefill_cache_bytes=prefill_cache_bytes,
                 prefill_cache_mode=prefill_cache_mode,
                 prefill_cache_bound_tokens=prefill_cache_bound_tokens,
+                decode_cache=decode_cache,
                 bundle_cache_mode=settings.bundle_cache_mode,
                 bundle_cache_dir=settings.bundle_cache_dir,
                 bundle_compression=bundle_compression,
@@ -5325,11 +5714,21 @@ class AsyncResponsesResource:
                         event = await _owned_thread(owned_call, advance, cancel=cancellation.cancel)
                         if event is sentinel:
                             break
+                        if event.type in {"response.completed", "response.incomplete"}:
+                            core._accept_decode_response(response_id)
                         yield event
                 finally:
-                    await _owned_thread(owned_call, stream.close, cancel=cancellation.cancel)
-                    if cancellation.event.is_set() and response_id is not None:
-                        core.evict_response(response_id)
+                    primary = sys.exception()
+                    close_error = None
+                    try:
+                        await _owned_thread(owned_call, stream.close, cancel=cancellation.cancel)
+                    except BaseException as error:
+                        close_error = error
+                    finally:
+                        if cancellation.event.is_set() and response_id is not None:
+                            core._abort_decode_response(response_id, primary=primary or close_error)
+                    if close_error is not None:
+                        _raise_cleanup_errors([close_error], primary)
 
             return iterate()
         completed = []
@@ -5340,12 +5739,14 @@ class AsyncResponsesResource:
             return response
 
         try:
-            return await _owned_thread(create, cancel=cancellation.cancel)
-        except asyncio.CancelledError:
+            response = await _owned_thread(create, cancel=cancellation.cancel)
+            core._accept_decode_response(response.id)
+            return response
+        except asyncio.CancelledError as error:
             # Cancellation can race the final commit. The drained worker's
             # otherwise-unobservable completed response remains ours to retire.
             for response in completed:
-                core.evict_response(response.id)
+                core._abort_decode_response(response.id, primary=error)
             raise
 
     async def retrieve(self, response_id: str) -> Response:

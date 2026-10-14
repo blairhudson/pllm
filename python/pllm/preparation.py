@@ -59,6 +59,15 @@ class ModelAwareCorrections(PreparationProvider):
         return cls.descriptor
 
 
+def validate_decode_epoch_schedule(value: object) -> tuple[int, ...]:
+    """Normalize a bounded public policy; never derive sizes from private state."""
+    if (not isinstance(value, (tuple, list)) or not 1 <= len(value) <= 64
+            or any(type(size) is not int or not 1 <= size <= 64 for size in value)
+            or any(left > right for left, right in zip(value, value[1:]))):
+        raise ConfigurationError("decode_epoch_schedule requires 1–64 nondecreasing integer sizes in [1, 64]")
+    return tuple(value)
+
+
 class PreparedInventory(ComponentRef):
     """Client inventory floor and startup policy; rows remain strictly one-use."""
 
@@ -83,14 +92,16 @@ class PreparedInventory(ComponentRef):
                 "stage_window_bytes": {"type": "integer", "minimum": 1048576, "maximum": 67108864},
                 "allocation": {"type": "string", "enum": ["demand"]},
                 "decode_epoch_tokens": {"type": "integer", "minimum": 1, "maximum": 64},
+                "decode_epoch_schedule": {"type": "array", "minItems": 1, "maxItems": 64,
+                                          "items": {"type": "integer", "minimum": 1, "maximum": 64}},
             },
             "allOf": [{
-                "if": {"required": ["decode_epoch_tokens"]},
+                "if": {"anyOf": [{"required": ["decode_epoch_tokens"]}, {"required": ["decode_epoch_schedule"]}]},
                 "then": {"required": ["allocation", "refill"], "properties": {
                     "policy": {"const": "request-sized"}, "rows": {"const": 1},
                     "allocation": {"const": "demand"}, "refill": {"const": "on-demand"},
                 }},
-            }],
+            }, {"not": {"required": ["decode_epoch_tokens", "decode_epoch_schedule"]}}],
         },
         capabilities=("bounded-prepared-inventory", "request-sized-preparation"),
         role_eligibility=("client", "preparation", "inference"),
@@ -98,7 +109,8 @@ class PreparedInventory(ComponentRef):
 
     def __init__(self, policy: str = "request-sized", *, rows: int | None = None, refill: str | None = None,
                  stage_window: int = 1, allocation: str = "uniform",
-                 stage_window_bytes: int = 16 << 20, decode_epoch_tokens: int | None = None) -> None:
+                 stage_window_bytes: int = 16 << 20, decode_epoch_tokens: int | None = None,
+                 decode_epoch_schedule: tuple[int, ...] | list[int] | None = None) -> None:
         if policy not in {"prewarm", "request-sized"}:
             raise ConfigurationError("inventory policy must be prewarm or request-sized")
         if rows is None:
@@ -114,6 +126,13 @@ class PreparedInventory(ComponentRef):
             (policy != "request-sized" or rows != 1 or refill != "on-demand")):
             raise ConfigurationError("demand allocation requires request-sized rows=1 and on-demand refill")
         params = {"policy": policy, "rows": rows}
+        if decode_epoch_schedule is not None:
+            if decode_epoch_tokens is not None:
+                raise ConfigurationError("fixed and scheduled decode epochs are mutually exclusive")
+            schedule = validate_decode_epoch_schedule(decode_epoch_schedule)
+            if policy != "request-sized" or rows != 1 or allocation != "demand" or refill != "on-demand":
+                raise ConfigurationError("decode epochs require request-sized rows=1, demand allocation and on-demand refill")
+            params["decode_epoch_schedule"] = schedule
         if decode_epoch_tokens is not None:
             if type(decode_epoch_tokens) is not int or not 1 <= decode_epoch_tokens <= 64:
                 raise ConfigurationError("decode_epoch_tokens must be an integer in [1, 64]")
@@ -134,7 +153,7 @@ class PreparedInventory(ComponentRef):
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
         return {"stage_window": 1, "stage_window_bytes": 16 << 20, "allocation": "uniform",
-                "decode_epoch_tokens": None, **self.params}
+                "decode_epoch_tokens": None, "decode_epoch_schedule": None, **self.params}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

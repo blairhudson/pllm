@@ -105,6 +105,11 @@ _PRIVACY_FIELDS = frozenset(
 )
 _PRIVACY_FIELDS |= _ROLE_BODY_FIELDS
 _PRIVACY_FIELDS |= frozenset({
+    "generation_requested_prefill_tokens", "generation_requested_decode_steps",
+    "generation_remote_prefill_tokens", "generation_remote_terminal_prefill_rows",
+    "generation_remote_decode_steps", "decode_cache_root_hits", "decode_cache_branch_hits",
+    "decode_cache_misses", "decode_cache_skipped_remote_rows", "decode_cache_skipped_prefill_tokens",
+    "decode_cache_skipped_decode_steps", "decode_cache_fully_warm_responses",
     "generation_requested_output_tokens", "generation_executed_decode_steps",
     "generation_attribution_supported_responses", "preparation_attributed_body_bytes",
     "preparation_decode_material_body_bytes", "preparation_prefill_material_body_bytes",

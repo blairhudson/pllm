@@ -664,6 +664,10 @@ class Experiment(_Configuration):
             raise ConfigurationError("experiment.deployment must be a Deployment")
         if not isinstance(self.budget, ExecutionBudget):
             raise ConfigurationError("experiment.budget must be an ExecutionBudget")
+        cache = self.pipeline.components.get("cache")
+        if (self.deployment.kind == "network" and cache is not None
+                and {"decode", "decode_max_bytes"} & cache.params.keys()):
+            raise ConfigurationError("network automatic planning does not support caller-owned decode cache resources")
 
     @classmethod
     def from_spec(
@@ -730,6 +734,9 @@ class ExperimentProfile:
     background_inventory_refill: bool
     inventory_refill: str | None
     preparation_decode_epoch_tokens: int | None
+    preparation_decode_epoch_schedule: tuple[int, ...] | None
+    decode: bool
+    decode_max_bytes: int
     inflight: bool
     inflight_max_requests: int
     inflight_max_bytes: int
@@ -745,7 +752,7 @@ class ExperimentProfile:
 
         runtime_options = resolve_runtime_composition(experiment.pipeline)
         if runtime_options is not None:
-            for name in ("preparation_decode_epoch_tokens", "inflight", "inflight_max_requests", "inflight_max_bytes"):
+            for name in ("preparation_decode_epoch_tokens", "preparation_decode_epoch_schedule", "decode", "decode_max_bytes", "inflight", "inflight_max_requests", "inflight_max_bytes"):
                 object.__setattr__(self, name, getattr(runtime_options, name))
         object.__setattr__(
             self,

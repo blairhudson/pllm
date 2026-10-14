@@ -131,6 +131,8 @@ pub struct DecoderRuntimeSchedule {
     pub decode_epochs: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inflight_prefix: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decode_reuse: Option<serde_json::Value>,
 }
 
 impl DecoderRuntimeSchedule {
@@ -1824,22 +1826,56 @@ pub fn lower_decoder_runtime_schedule(
         mlp_tiling: None,
         decode_epochs: None,
         inflight_prefix: None,
+        decode_reuse: None,
     };
-    if let Some(tokens) = composition
-        .components
-        .get("inventory")
-        .and_then(|value| value.params.get("decode_epoch_tokens"))
-    {
-        schedule.decode_epochs = Some(serde_json::json!({
+    if let Some(inventory) = composition.components.get("inventory").filter(|value| {
+        value.params.contains_key("decode_epoch_tokens")
+            || value.params.contains_key("decode_epoch_schedule")
+    }) {
+        let mut epochs = serde_json::json!({
             "schema_version": "pllm.decode_epochs.v1",
-            "decode_epoch_tokens": tokens,
             "composition_digest": schedule.composition_digest,
             "model_plan_digest": schedule.model_plan_digest,
             "maximum_key_sequence": plan.decode.maximum_key_sequence,
             "state_identity": "exact_compiled_generation_and_session",
             "material_lifetime": "fresh_one_use_inventory_per_epoch",
             "semantic_bounds": "unchanged_full_cap"
+        });
+        for field in ["decode_epoch_tokens", "decode_epoch_schedule"] {
+            if let Some(value) = inventory.params.get(field) {
+                epochs[field] = value.clone();
+            }
+        }
+        schedule.decode_epochs = Some(epochs);
+    }
+    if let Some(cache) = composition.components.get("cache").filter(|value| {
+        value
+            .params
+            .get("decode")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+    }) {
+        schedule.decode_reuse = Some(serde_json::json!({
+            "schema_version": "pllm.decode_reuse.v1",
+            "composition_digest": schedule.composition_digest,
+            "model_plan_digest": schedule.model_plan_digest,
+            "maximum_key_sequence": plan.decode.maximum_key_sequence,
+            "decode_max_bytes": cache.params["decode_max_bytes"],
+            "client_additional_memory_bytes": cache.params["decode_max_bytes"],
+            "ownership": "caller_owned_trusted_client_decode_cache",
+            "resource_allowance": "additional_client_transient_and_metadata_envelope",
+            "state_identity": "exact_source_composition_full_kv_logits_history_pending_rng",
+            "material_admission": "lookup_before_fresh_one_token_epoch",
+            "semantic_bounds": "unchanged_full_cap"
         }));
+        let continuation = crate::decoder_continuation::lower_decoder_continuation_from_schedule(
+            plan,
+            canonical_composition,
+            &schedule,
+        )?;
+        if !continuation.generated_prefix_canonical {
+            return Err("decode reuse requires native canonical full-KV continuation".into());
+        }
     }
     if let Some(cache) = composition.components.get("cache").filter(|value| {
         value

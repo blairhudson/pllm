@@ -62,6 +62,10 @@ def test_client_only_responses_have_no_provider_channel_or_inventory(tmp_path: P
         assert client.privacy_audit.inference_stage_calls == 0
         assert client.privacy_audit.inference_upload_bytes == 0
         assert client.privacy_audit.preparation_upload_bytes == 0
+        assert client.privacy_audit.generation_requested_prefill_tokens == response.usage.input_tokens
+        assert client.privacy_audit.generation_remote_prefill_tokens == 0
+        assert client.privacy_audit.generation_remote_terminal_prefill_rows == 0
+        assert client.privacy_audit.generation_remote_decode_steps == 0
         with pytest.raises(ProtocolError, match="provider endpoint"):
             client.runtime.capabilities()
         with pytest.raises(ModelError, match="preparation inventory"):
@@ -287,7 +291,11 @@ def test_prepared_verified_and_client_owned_match_in_existing_experiment_compari
         assert report["checks"]["passed"]
         candidates.append((experiment, report))
     comparison = build_comparison_report(candidates)
-    assert comparison["checks"]["passed"], comparison["checks"]
+    # Exact numeric execution does not make distinct verifier contracts rankable.
+    assert not comparison["checks"]["passed"]
+    assert comparison["checks"]["all_candidates_passed"]
+    assert not comparison["checks"]["matched_verification"]
+    assert all(not ranking for ranking in comparison["rankings"].values())
     assert comparison["checks"]["matched_workload"]
     assert comparison["comparison_key"]["output_tokens"] > 0
     assert {

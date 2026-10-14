@@ -659,6 +659,9 @@ class RuntimeComposition:
     background_inventory_refill: bool = True
     inventory_refill: str | None = None
     preparation_decode_epoch_tokens: int | None = None
+    preparation_decode_epoch_schedule: tuple[int, ...] | None = None
+    decode: bool = False
+    decode_max_bytes: int = 128 << 20
     inflight: bool = False
     inflight_max_requests: int = 8
     inflight_max_bytes: int = 64 << 20
@@ -677,9 +680,10 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     identities = {name: component.component for name, component in pipeline.components.items()}
     inventory = pipeline.components.get("inventory")
     cache = pipeline.components.get("cache")
-    epochs = inventory is not None and "decode_epoch_tokens" in inventory.params
+    epochs = inventory is not None and bool({"decode_epoch_tokens", "decode_epoch_schedule"} & inventory.params.keys())
     inflight = cache is not None and cache.params.get("inflight") is True
-    if epochs or inflight:
+    decode = cache is not None and bool({"decode", "decode_max_bytes"} & cache.params.keys())
+    if epochs or inflight or decode:
         quantization = pipeline.components.get("quantization")
         if (identities.get("linear") != "pllm/masked-linear"
                 or identities.get("preparation") != "pllm/model-aware-corrections"
@@ -688,6 +692,12 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
                 or {"verification", "state", "nonlinear", "scheduler", "public_prefix"} & identities.keys()
                 or epochs and cache is None):
             return None
+    if decode and (
+            cache.params.get("decode") is not True or cache.params.get("generated_prefixes") is not True
+            or inflight or identities.get("kernels") != "pllm/cpu"
+            or inventory is None or inventory.params.get("decode_epoch_tokens") != 1
+            or "decode_epoch_schedule" in inventory.params):
+        return None
     scheduler = pipeline.components.get("scheduler")
     if scheduler is not None:
         if (scheduler.component != MlpPrefillTiling.descriptor.component
@@ -780,11 +790,18 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     inventory = pipeline.components.get("inventory")
     delivery = pipeline.components.get("delivery")
     if inventory is not None:
+        try:
+            PreparedInventory(**inventory.params)
+            if "decode_epoch_schedule" in inventory.params:
+                from pllm.preparation import validate_decode_epoch_schedule
+                validate_decode_epoch_schedule(inventory.params["decode_epoch_schedule"])
+        except (ConfigurationError, TypeError, ValueError):
+            return None
         if (
             inventory.component != PreparedInventory.descriptor.component
             or not {"policy", "rows"} <= set(inventory.params)
-            or set(inventory.params) - {"policy", "rows", "refill", "stage_window", "stage_window_bytes", "allocation", "decode_epoch_tokens"}
-            or (epochs and (type(inventory.params["decode_epoch_tokens"]) is not int
+            or set(inventory.params) - {"policy", "rows", "refill", "stage_window", "stage_window_bytes", "allocation", "decode_epoch_tokens", "decode_epoch_schedule"}
+            or ("decode_epoch_tokens" in inventory.params and (type(inventory.params["decode_epoch_tokens"]) is not int
                 or not 1 <= inventory.params["decode_epoch_tokens"] <= 64
                 or inventory.params.get("allocation") != "demand"))
             or ("allocation" in inventory.params and (
@@ -808,6 +825,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             background_inventory_refill=inventory.params.get("refill", "idle") == "idle",
             inventory_refill=inventory.params.get("refill"),
             preparation_decode_epoch_tokens=inventory.params.get("decode_epoch_tokens"),
+            preparation_decode_epoch_schedule=(tuple(inventory.params["decode_epoch_schedule"])
+                if "decode_epoch_schedule" in inventory.params else None),
         )
         del identities["inventory"]
     if delivery is not None:
@@ -862,6 +881,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         cache_options = {
             "prefix_cache_bytes": cache.params["max_bytes"],
             "prefix_cache_bound_tokens": cache.params["fixed_input_tokens"],
+            "decode": cache.params.get("decode", False),
+            "decode_max_bytes": cache.params.get("decode_max_bytes", 128 << 20),
             "inflight": cache.params.get("inflight", False),
             "inflight_max_requests": cache.params.get("inflight_max_requests", 8),
             "inflight_max_bytes": cache.params.get("inflight_max_bytes", 64 << 20),

@@ -19,10 +19,12 @@ selects SDK, gateway and benchmark execution.
 | Experimental large-batch CPU digit GEMM on Apple Silicon | `ModelAwareCorrections(storage="paged", kernel="digit8", min_rows=64)` |
 | Demand-sized, on-demand corrections; concurrent stage issuance | `PreparedInventory(refill="on-demand", allocation="demand", stage_window=4, stage_window_bytes=64 << 20)` |
 | Fresh bounded decode inventories within one response | `PreparedInventory(refill="on-demand", allocation="demand", decode_epoch_tokens=16)` with canonical full-KV prefix reuse |
+| Public growing decode inventories | `PreparedInventory(refill="on-demand", allocation="demand", decode_epoch_schedule=(4, 60))` |
 | Smaller exact requests/outputs and sixteen-row duplex prefill | `MaskedLinear(request_encoding="stage_packed", output_encoding="row_residues", prefill_pruning="terminal", prefill_chunk_rows=16)` |
 | Public offline BPE compilation | `IndexedTokenizer.compile(tokenizer_json, directory)` |
 | One tokenizer owner across sizing and execution | `with client.tokenizer_scope():` |
 | Exact completed-prefix reuse | `ClientPrefixReuse(...)`; `prefix_f32` admits the matching canonical continuation contract |
+| Encrypted exact decode-branch reuse | `ClientPrefixReuse(..., generated_prefixes=True, decode=True)` with fixed one-output epochs and caller-owned `DecodeCache` |
 | Same-client pending-prefill sharing | `ClientPrefixReuse(..., inflight=True)` under the canonical full-KV contract |
 | One retained response/KV owner across conversation turns | `with client.conversation(max_state_bytes=32 << 20) as chat:` |
 | Explicit encrypted conversation recovery | `chat.checkpoint(directory, key)` and `chat.restore(directory, key, head)` |
@@ -113,6 +115,26 @@ needs admission for its full token and state bounds. Small epochs can waste less
 Preparation work when generation ends early, while adding session setup and
 visible pauses when the request uses its full output allowance.
 
+Alternatively, declare `decode_epoch_schedule=(4, 60)` on that same inventory.
+This is an immutable public policy of 1–64 nondecreasing integer sizes, each in
+`[1, 64]`, mutually exclusive with `decode_epoch_tokens`. Epoch boundaries are
+cumulative: four selections, then sixty more. The last declared size repeats if
+the output cap exceeds the schedule sum; only the request's final epoch clips to
+its remaining cap. No prompt, token value, logits or stopping prediction selects
+sizes. EOS is sampled before emission: EOS after four visible outputs requires
+rotation to execute the fourth pending token before selecting EOS. Full-cap
+native state admission remains unchanged, including explicit preparation.
+The response keeps its execution queue seat across complete/drain/burn and fresh
+idle-only preparation. See `examples/growing_epochs_sdk.py` for generated exact-state
+SDK and gateway validation; this is not a traffic or memory qualification.
+
+A separate three-replicate Qwen2.5 cohort measures `(4, 60)`: at three outputs
+against allowance 64, all-link TCP traffic falls **19.81%** and request time
+**34.36%**. At all 64 outputs, first-text delay improves **27.60%**, while charged
+decode throughput falls **37.25%** and traffic is nearly unchanged. Largest
+observed growing-policy client peak is **140.86 MiB**. See the
+[matched SDK evidence](https://github.com/blairhudson/pllm/blob/main/docs/research/decode-frontier-sdk-results.md).
+
 `ClientPrefixReuse(..., inflight=True, inflight_max_requests=8,
 inflight_max_bytes=64 << 20)` lets concurrent callers on one trusted client join
 a compatible pending prefill. A completed-cache hit uses the existing cache path.
@@ -131,6 +153,48 @@ Historical stage-body projections in the
 [five-method screen](https://github.com/blairhudson/pllm/blob/main/docs/plans/all-link-next-five.md)
 retain their original scope. Compare installed SDK execution with all seed,
 correction, session, pause and branch costs charged.
+
+## Reuse exact executed decode branches
+
+`ClientPrefixReuse(..., generated_prefixes=True, decode=True,
+decode_max_bytes=32 << 20)` selects a caller-owned encrypted decode cache.
+Pair it with `PreparedInventory(decode_epoch_tokens=1, allocation="demand",
+refill="on-demand")`, canonical `prefix_f32` arithmetic, and an explicit
+`pllm.state.DecodeCache` passed as `OpenAI(decode_cache=owner)` or
+`AsyncOpenAI(decode_cache=owner)`.
+
+The client looks up the exact executed prefix and freshly sampled next token
+before issuing provider material. Hits restore authenticated exact logits and
+full KV; misses obtain fresh one-use corrections. Sampling runs normally on
+every request. Pending selections and EOS never become executed cache rows.
+New states publish only after successful authenticated provider retirement;
+fully cached responses issue no corrections and write no new cache generation.
+
+The caller retains the key and accepted `DecodeCacheHead` across restart.
+Reopening requires both; the directory never chooses its own latest trusted head.
+One client owns the cache, and each response has exclusive execution ownership.
+Failed requests discard unpublished state; async cancellation drains work before
+retirement. Client shutdown closes its cache owner without deleting caller files.
+
+`decode_max_bytes` is an additional 8–256 MiB logical allocation envelope, in whole
+MiB, above ordinary decoder and prefix-cache owners. Cache limits also bound disk,
+nodes, staged states, token count and reconstruction. Reaching a limit rejects;
+there is no implicit eviction. These bounds are not a whole-client RSS guarantee.
+Growing epochs, in-flight prefix sharing, network-planned caller-owned resources,
+and unsupported state/device/verifier compositions reject.
+
+`examples/decode_cache_sdk.py` exercises generated-checkpoint cold, hot and
+caller-headed restart parity. Matched whole-client measurements use
+`examples/benchmarks/decode_cache_sdk.py`; exact-state compatibility alone does
+not establish traffic, latency or Low-tier memory savings.
+
+The matched three-request Qwen2.5 cohort records **10.96% / 4.73%** less all-link
+TCP traffic with repeated/distinct sampler seeds. Client CPU rises
+**53.63% / 68.79%** and complete-cell time **6.16% / 12.93%** versus ordinary
+inventory. Largest cache-client peak is **169.59 MiB**. Fully cached requests
+issue zero provider rows and write no new generation, but still authenticate and
+read local state. The [complete results](https://github.com/blairhudson/pllm/blob/main/docs/research/decode-frontier-sdk-results.md#exact-encrypted-decode-cache)
+retain cold costs, both controls, exact state checks and separate disk accounting.
 
 ## Own a bounded conversation
 

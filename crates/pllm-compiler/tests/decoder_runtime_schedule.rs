@@ -195,6 +195,52 @@ fn all_link_contracts_reject_unimplemented_compositions_and_malformed_limits() {
 }
 
 #[test]
+fn growing_epochs_bind_public_schedule_and_keep_full_cap() {
+    let model = plan(QWEN2);
+    let baseline = lower_decoder_runtime_schedule(
+        &model,
+        &canonical_bytes(&all_link_composition(None, false)),
+    )
+    .unwrap();
+    for inflight in [false, true] {
+        let mut composition = all_link_composition(None, inflight);
+        composition["components"]["inventory"]["params"]["decode_epoch_schedule"] = json!([4, 60]);
+        let schedule =
+            lower_decoder_runtime_schedule(&model, &canonical_bytes(&composition)).unwrap();
+        assert_eq!(schedule.prefill, baseline.prefill);
+        assert_eq!(schedule.decode, baseline.decode);
+        let epochs = schedule.decode_epochs.unwrap();
+        assert_eq!(epochs["decode_epoch_schedule"], json!([4, 60]));
+        assert!(epochs.get("decode_epoch_tokens").is_none());
+        assert_eq!(
+            epochs["maximum_key_sequence"],
+            json!(model.decode.maximum_key_sequence)
+        );
+        let experiment = json!({"schema": "pllm.experiment.v2", "name": "growing",
+            "pipeline": composition, "deployment": {"kind": "local", "root": "local://growing"},
+            "budget": {"requests": 8, "max_input_tokens": 3, "max_new_tokens": 2}});
+        assert!(pllm_compiler::resolve_experiment(&canonical_bytes(&experiment)).is_ok());
+    }
+    for invalid in [
+        json!([]),
+        json!([0]),
+        json!([65]),
+        json!([true]),
+        json!([4.0]),
+        json!([4, 3]),
+        json!(vec![1; 65]),
+        json!("4"),
+    ] {
+        let mut composition = all_link_composition(None, false);
+        composition["components"]["inventory"]["params"]["decode_epoch_schedule"] = invalid;
+        assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&composition)).is_err());
+    }
+    let mut composition = all_link_composition(Some(4), false);
+    composition["components"]["inventory"]["params"]["decode_epoch_schedule"] = json!([4, 60]);
+    assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&composition)).is_err());
+}
+
+#[test]
 fn packed_ingress_requires_the_exact_output_quotient_contract() {
     for verified in [false, true] {
         let plan = plan(QWEN2);

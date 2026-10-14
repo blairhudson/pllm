@@ -142,6 +142,9 @@ def test_early_eos_cannot_be_relabelled_from_cap_or_truncation(driver):
 def test_lifetime_audit_requires_complete_control_and_one_use_conservation(driver):
     from pllm.runtime.client import PrivacyAudit
     audit = PrivacyAudit().to_dict()
+    # This historical driver validates v2 evidence, before correction ACKs
+    # became a separately accounted v3 edge.
+    audit.pop("correction_ack_bytes")
     audit.update(prepared_stage_rows_reserved=3, prepared_stage_rows_claimed=2,
                  prepared_stage_rows_burned=1, bundle_network_bytes=100,
                  inference_control_upload_bytes=7)

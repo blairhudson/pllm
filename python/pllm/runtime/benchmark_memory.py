@@ -317,6 +317,10 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     # Charge owner plus two bounded snapshot/export copies during fork/import.
     inflight_owner = options.inflight_max_bytes if options.inflight else 0
     inflight_copy_work = 2 * inflight_owner
+    # Caller-owned decode cache is additional to ordinary KV, prefix cache,
+    # snapshots and response owners. Its bound covers transient/metadata work;
+    # no projected hit licenses smaller full-cap decoder or correction bounds.
+    decode_owner = options.decode_max_bytes if options.decode else 0
     # Serial dispatch owns one client chunk; overlap also owns one prefetched
     # chunk. A worker may own one chunk in each of
     # eight admitted sessions. Charge the native allocation ceiling, packet
@@ -417,6 +421,7 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
     public_artifact_work = (32 * MiB if tokenizer else 0) + (4 * capsule.params["size_bytes"] if capsule else 0)
     client = _PROCESS_BYTES + bundle_work + masks + verification + tensors + cache_bytes + gpu_client + public_artifact_work + nonlinear_client
     client += inflight_owner + inflight_copy_work
+    client += decode_owner
     if not roles:
         client += engine + loading
     client_peak = _slack(client)
@@ -427,6 +432,9 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         "compiled_input_bound": compiled_input_bound,
         "inventory_rows": rows, "kernel": "metal" if metal else "cpu",
         "preparation_decode_epoch_tokens": options.preparation_decode_epoch_tokens,
+        **({"preparation_decode_epoch_schedule": options.preparation_decode_epoch_schedule}
+           if options.preparation_decode_epoch_schedule is not None else {}),
+        **({"decode": True, "decode_max_bytes": options.decode_max_bytes} if options.decode else {}),
         "concurrent_response_bound": concurrent_requests,
         "allocation_slack_percent": 25, "client_peak_bytes": client_peak,
         "provider_peak_bytes": role_peaks,
@@ -468,7 +476,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
              "legacy_client_tensor_work_bytes": concurrent_requests * workspace["legacy_working_bytes"],
              "client_cache_bytes": cache_bytes, "per_provider_metal_bytes": gpu_provider,
              "client_inflight_owner_bytes": inflight_owner,
-             "client_inflight_copy_work_bytes": inflight_copy_work,
+              "client_inflight_copy_work_bytes": inflight_copy_work,
+              **({"client_decode_owner_bytes": decode_owner} if options.decode else {}),
             "client_metal_bytes": gpu_client, "checkpoint_bytes": checkpoint_bytes,
             "per_engine_compiled_disk_bytes": sum(s.in_features * s.out_features
                 for s in stages if s.in_features * s.out_features >= 50_000_000)},

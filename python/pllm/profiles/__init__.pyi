@@ -51,6 +51,9 @@ class RuntimeComposition:
     background_inventory_refill: bool
     inventory_refill: str | None
     preparation_decode_epoch_tokens: int | None
+    preparation_decode_epoch_schedule: tuple[int, ...] | None
+    decode: bool
+    decode_max_bytes: int
     inflight: bool
     inflight_max_requests: int
     inflight_max_bytes: int

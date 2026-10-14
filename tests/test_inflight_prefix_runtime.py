@@ -196,13 +196,14 @@ def test_public_sdk_one_pending_prefill_exact_independent_branches(tmp_path, mon
 
 
 @pytest.mark.parametrize("stream", [False, True])
-def test_gateway_shared_prefill_keeps_queue_owner_across_decode_epochs(tmp_path, monkeypatch, stream):
+@pytest.mark.parametrize("epoch", [2, (2, 5)])
+def test_gateway_shared_prefill_keeps_queue_owner_across_decode_epochs(tmp_path, monkeypatch, stream, epoch):
     import json
     from fastapi.testclient import TestClient
     from pllm.runtime.sidecar import create_sidecar_app
     from pllm.runtime.types import Response
 
-    exp = experiment(tmp_path, epoch=2)
+    exp = experiment(tmp_path, epoch=epoch)
     with build_roles(exp, engine_threads=1) as roles:
         reference = controls(roles, tmp_path)
         with roles.client(session_transport="websocket", bundle_cache_dir=tmp_path / "shared") as client:

@@ -1964,6 +1964,45 @@ These workload-dependent results charge fresh client/provider setup and cleanup,
 but exclude checkpoint/tokenizer distribution, physical wire and Internet RTT.
 They establish neither universal selection nor a client-memory improvement.
 
+`PreparedInventory(decode_epoch_schedule=(4, 60))` additionally binds a public,
+nondecreasing schedule of one to sixty-four epoch sizes. Each size remains at
+most sixty-four output selections; the final size repeats and the request cap
+clips its last epoch. Fixed and scheduled policies are mutually exclusive. Native
+admission retains full-request state bounds, and the ordinary SDK preserves exact
+continuation and idle-only issuance across cumulative boundaries. Generated SDK
+and gateway checks pass. A separate 24-client, three-replicate pinned Qwen2.5
+cohort preserves exact state/output with zero observed swap growth. At three
+outputs against allowance 64, growing epochs reduce all-link TCP traffic 19.81%
+and request time 34.36%. At all 64 outputs, first-text delay improves 27.60%, but
+charged decode throughput falls 37.25% and traffic is nearly unchanged. Largest
+growing-policy client peak is 140.86 MiB, below the observed Low-RSS threshold;
+conservative runtime admission retains its separate bound. Frozen contract:
+`docs/research/growing-epochs-sdk-reference.md`; completed evidence:
+`docs/research/decode-frontier-sdk-results.md`.
+
+The explicit `ClientPrefixReuse(generated_prefixes=True, decode=True)` composition
+also admits caller-owned `pllm.state.DecodeCache` under fixed one-token epochs.
+Exact executed-prefix lookup precedes fresh material issuance; request sampling
+still runs, and pending selections never become executed state. Encrypted local
+full-KV/logit nodes bind source, numeric and native continuation identities, with
+caller-held keys and trusted heads across restart. An 8–256 MiB additional logical
+owner envelope, independent disk limits and exclusive response ownership bound the
+store; the ordinary decoder and prefix cache remain additional owners. Growing
+epochs, in-flight sharing and network-planned caller resources reject. Generated
+Qwen2/Qwen3/Llama SDK and fresh-interpreter checks preserve exact logits and active
+KV; all-hit requests issue no provider rows or new disk generation. Failure and
+cancellation retire unpublished state or restore the prior accepted head.
+Eighteen fresh pinned Qwen2.5 clients additionally preserve all 54 checked states,
+histories, outputs and sampler witnesses with zero observed swap growth. Against
+ordinary inventory, three-request traffic falls 10.96% with repeated seeds and
+4.73% with distinct seeds, while client CPU rises 53.63%/68.79% and complete-cell
+time 6.16%/12.93%. Largest cache-client peak is 169.59 MiB, below the observed
+Low-RSS threshold but higher than controls. Full hits issue no provider rows or
+new disk generation; local authenticated reads remain charged. Contracts and
+matched benchmark: `docs/research/decode-cache-sdk-reference.md`,
+`docs/research/decode-cache-benchmark-reference.md` and
+`docs/research/decode-frontier-sdk-results.md`.
+
 The optional `pllm.protocols.MaskedLinear(output_encoding="row_residues")` uses
 public per-output weight-row bounds to encode both corrections and online outputs
 in exact smaller power-of-two residues. Full-width input masks, one-use tickets,

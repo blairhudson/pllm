@@ -12,6 +12,7 @@ from .public_prefix import PublicPrefixCapsule
 if TYPE_CHECKING:
     from .checkpoint import CheckpointHead, CheckpointSession
     from .conversation import ConversationCheckpoint
+    from .decode import DecodeCache, DecodeCacheHead
     from pllm.runtime.semantic_hybrid import (
         BoundedDepthwiseCausalConvolution, BoundedGatedDeltaRecurrence, OwnedGatedDeltaRecurrence,
         HybridStateError, bounded_gated_delta_decay,
@@ -19,6 +20,9 @@ if TYPE_CHECKING:
 
 
 def __getattr__(name: str) -> object:
+    if name in {"DecodeCache", "DecodeCacheHead"}:
+        from .decode import DecodeCache, DecodeCacheHead
+        return {"DecodeCache": DecodeCache, "DecodeCacheHead": DecodeCacheHead}[name]
     if name == "ConversationCheckpoint":
         from .conversation import ConversationCheckpoint
         return ConversationCheckpoint
@@ -95,7 +99,12 @@ class ClientLocalKv(StateProtocol):
 
 
 class ClientPrefixReuse(ComponentRef):
-    """Byte-bounded trusted-client cache for cost-admitted causal prefill prefixes."""
+    """Trusted-client causal prefix reuse with optional exact decode reuse.
+
+    Decode reuse requires generated prefixes and one-token prepared epochs.
+    ``decode_max_bytes`` is an additional transient/metadata envelope, not a
+    replacement for ordinary full-cap runtime state or the prefill cache.
+    """
 
     __slots__ = ()
     descriptor = ComponentDescriptor(
@@ -113,21 +122,30 @@ class ClientPrefixReuse(ComponentRef):
                 "max_bytes": {"type": "integer", "minimum": 1048576, "maximum": 268435456, "multipleOf": 1048576},
                 "fixed_input_tokens": {"type": "integer", "minimum": 2, "maximum": 4096},
                 "generated_prefixes": {"type": "boolean"},
+                "decode": {"type": "boolean", "const": True},
+                "decode_max_bytes": {"type": "integer", "minimum": 8388608, "maximum": 268435456, "multipleOf": 1048576},
                 "inflight": {"type": "boolean", "const": True},
                 "inflight_max_requests": {"type": "integer", "minimum": 2, "maximum": 32},
                 "inflight_max_bytes": {"type": "integer", "minimum": 1048576, "maximum": 268435456, "multipleOf": 1048576},
             },
             "additionalProperties": False,
             "dependentRequired": {
+                "decode": ["generated_prefixes", "decode_max_bytes"],
+                "decode_max_bytes": ["decode"],
                 "inflight": ["inflight_max_requests", "inflight_max_bytes"],
                 "inflight_max_requests": ["inflight"], "inflight_max_bytes": ["inflight"],
             },
+            "allOf": [{"if": {"required": ["decode"]}, "then": {
+                "properties": {"generated_prefixes": {"const": True}},
+                "not": {"required": ["inflight"]},
+            }}],
         },
         capabilities=("causal-prefix-kv-reuse", "client-only-state", "repeat-pattern-visible"),
         role_eligibility=("client",),
     )
 
     def __init__(self, *, max_bytes: int, fixed_input_tokens: int, generated_prefixes: bool = False,
+                  decode: bool = False, decode_max_bytes: int = 128 << 20,
                  inflight: bool = False, inflight_max_requests: int = 8,
                  inflight_max_bytes: int = 64 << 20) -> None:
         if type(max_bytes) is not int or not 1 <= max_bytes >> 20 <= 256 or max_bytes % (1 << 20):
@@ -136,6 +154,15 @@ class ClientPrefixReuse(ComponentRef):
             raise ConfigurationError("client prefix fixed_input_tokens must be in [2, 4096]")
         if type(generated_prefixes) is not bool:
             raise ConfigurationError("generated_prefixes must be a boolean")
+        if type(decode) is not bool:
+            raise ConfigurationError("decode must be a boolean")
+        if (type(decode_max_bytes) is not int or not 8 <= decode_max_bytes >> 20 <= 256
+                or decode_max_bytes % (1 << 20)):
+            raise ConfigurationError("decode_max_bytes must be whole MiB in [8, 256]")
+        if not decode and decode_max_bytes != 128 << 20:
+            raise ConfigurationError("non-default decode limits require decode=True")
+        if decode and (not generated_prefixes or inflight):
+            raise ConfigurationError("decode reuse requires generated_prefixes=True and inflight=False")
         if type(inflight) is not bool:
             raise ConfigurationError("inflight must be a boolean")
         if type(inflight_max_requests) is not int or not 2 <= inflight_max_requests <= 32:
@@ -148,13 +175,15 @@ class ClientPrefixReuse(ComponentRef):
         super().__init__(
             self.descriptor.component,
             {"max_bytes": max_bytes, "fixed_input_tokens": fixed_input_tokens,
-              **({"generated_prefixes": True} if generated_prefixes else {}),
+               **({"generated_prefixes": True} if generated_prefixes else {}),
+               **({"decode": True, "decode_max_bytes": decode_max_bytes} if decode else {}),
               **({"inflight": True, "inflight_max_requests": inflight_max_requests,
                   "inflight_max_bytes": inflight_max_bytes} if inflight else {})},
         )
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"generated_prefixes": False, "inflight": False, "inflight_max_requests": 8,
+        return {"generated_prefixes": False, "decode": False, "decode_max_bytes": 128 << 20,
+                "inflight": False, "inflight_max_requests": 8,
                 "inflight_max_bytes": 64 << 20, **self.params}
 
     @classmethod
@@ -197,6 +226,7 @@ class LongRopeCacheRerotation(PendingModelCapability):
 
 
 __all__ = [
+    "DecodeCache", "DecodeCacheHead",
     "ConversationCheckpoint",
     "CheckpointHead", "CheckpointSession",
     "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "OwnedGatedDeltaRecurrence", "HybridStateError",

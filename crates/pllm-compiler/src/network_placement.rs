@@ -60,6 +60,14 @@ fn admit_network_placement(
     super::validate_experiment_model(&pipeline.model)?;
     // Exact component and privacy-option admission. Pending slots cannot inject roles.
     let kind = validate_decoder_linear_composition(&pipeline)?;
+    if pipeline.components.get("cache").is_some_and(|cache| {
+        cache.params.contains_key("decode") || cache.params.contains_key("decode_max_bytes")
+    }) {
+        return Err(
+            "network automatic planning does not support caller-owned decode cache resources"
+                .into(),
+        );
+    }
     if pipeline
         .components
         .get("delivery")

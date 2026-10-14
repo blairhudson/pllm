@@ -1,5 +1,5 @@
 //! Full-KV continuation is an extension of an admitted prefill schedule, not decode batching.
-use crate::{lower_decoder_runtime_schedule, DecoderRuntimePhaseSchedule};
+use crate::{lower_decoder_runtime_schedule, DecoderRuntimePhaseSchedule, DecoderRuntimeSchedule};
 use pllm_models::{DecoderGraph, DecoderPlan, ModelOperator, StateKind};
 use pllm_types::{canonical_bytes, canonical_digest, Digest};
 use serde::{Deserialize, Serialize};
@@ -99,6 +99,16 @@ pub fn lower_decoder_continuation(
         return Err("continuation requires admitted public linear composition".into());
     }
     let source = lower_decoder_runtime_schedule(plan, composition)?;
+    lower_decoder_continuation_from_schedule(plan, composition, &source)
+}
+
+/// Reuse exact native full-KV admission without recursively lowering a source
+/// schedule that itself declares decode reuse.
+pub(crate) fn lower_decoder_continuation_from_schedule(
+    plan: &DecoderPlan,
+    composition: &[u8],
+    source: &DecoderRuntimeSchedule,
+) -> Result<DecoderContinuation, String> {
     if source.retained_state.is_some() {
         return Err("retained response-owned state cannot enter full-KV continuation".into());
     }

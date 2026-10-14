@@ -1588,6 +1588,20 @@ fn document_error(message: impl Into<String>) -> Vec<Diagnostic> {
 }
 
 fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
+    if matches!(document.deployment, ExperimentDeployment::Network(_))
+        && document
+            .pipeline
+            .components
+            .get("cache")
+            .is_some_and(|value| {
+                value.params.contains_key("decode") || value.params.contains_key("decode_max_bytes")
+            })
+    {
+        return Err(
+            "network automatic planning does not support caller-owned decode cache resources"
+                .into(),
+        );
+    }
     match (&*document.schema, &document.deployment) {
         ("pllm.experiment.v2", ExperimentDeployment::Local { root }) if !root.is_empty() => {}
         ("pllm.experiment.v3", ExperimentDeployment::Network(intent))
@@ -1857,6 +1871,8 @@ fn valid_prefix_cache(component: &ExperimentComponent) -> bool {
                 "max_bytes"
                     | "fixed_input_tokens"
                     | "generated_prefixes"
+                    | "decode"
+                    | "decode_max_bytes"
                     | "inflight"
                     | "inflight_max_requests"
                     | "inflight_max_bytes"
@@ -1866,6 +1882,23 @@ fn valid_prefix_cache(component: &ExperimentComponent) -> bool {
             .params
             .get("generated_prefixes")
             .is_none_or(|value| value.as_bool() == Some(true))
+        && if component.params.contains_key("decode") {
+            component
+                .params
+                .get("decode")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
+                && component
+                    .params
+                    .get("generated_prefixes")
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true)
+                && !component.params.contains_key("inflight")
+                && matches!(component.params.get("decode_max_bytes").and_then(serde_json::Value::as_u64),
+                    Some(value) if (8_388_608..=268_435_456).contains(&value) && value % 1_048_576 == 0)
+        } else {
+            !component.params.contains_key("decode_max_bytes")
+        }
         && if component.params.contains_key("inflight") {
             component
                 .params
@@ -1900,9 +1933,15 @@ fn valid_prefix_cache(component: &ExperimentComponent) -> bool {
 fn validate_all_link_composition(pipeline: &ExperimentPipeline) -> Result<(), String> {
     let inventory = pipeline.components.get("inventory");
     let cache = pipeline.components.get("cache");
-    let epochs = inventory.is_some_and(|value| value.params.contains_key("decode_epoch_tokens"));
+    let epochs = inventory.is_some_and(|value| {
+        value.params.contains_key("decode_epoch_tokens")
+            || value.params.contains_key("decode_epoch_schedule")
+    });
     let inflight = cache.is_some_and(|value| value.params.contains_key("inflight"));
-    if !epochs && !inflight {
+    let decode = cache.is_some_and(|value| {
+        value.params.contains_key("decode") || value.params.contains_key("decode_max_bytes")
+    });
+    if !epochs && !inflight && !decode {
         return Ok(());
     }
     let prefix_f32 = pipeline
@@ -1939,19 +1978,52 @@ fn validate_all_link_composition(pipeline: &ExperimentPipeline) -> Result<(), St
     {
         return Err("decode epochs/in-flight sharing require prepared baseline, full-KV prefix_f32 and a fixed-bound client prefix cache; verifier, retained, special-region and tile state are unsupported".into());
     }
+    if decode
+        && (inflight
+            || !pipeline
+                .components
+                .get("kernels")
+                .is_some_and(|value| value.component == "pllm/cpu")
+            || !inventory.is_some_and(|value| {
+                value
+                    .params
+                    .get("decode_epoch_tokens")
+                    .and_then(serde_json::Value::as_u64)
+                    == Some(1)
+                    && !value.params.contains_key("decode_epoch_schedule")
+            }))
+    {
+        return Err("decode reuse requires ordinary prepared CPU prefix_f32, generated prefixes, no in-flight sharing and fixed one-token demand/on-demand epochs".into());
+    }
     if epochs
         && !inventory.is_some_and(|value| {
-            matches!(
+            (matches!(
                 value
                     .params
                     .get("decode_epoch_tokens")
                     .and_then(serde_json::Value::as_u64),
                 Some(1..=64)
-            ) && value
-                .params
-                .get("policy")
-                .and_then(serde_json::Value::as_str)
-                == Some("request-sized")
+            ) && !value.params.contains_key("decode_epoch_schedule")
+                || !value.params.contains_key("decode_epoch_tokens")
+                    && value
+                        .params
+                        .get("decode_epoch_schedule")
+                        .and_then(serde_json::Value::as_array)
+                        .is_some_and(|sizes| {
+                            !sizes.is_empty()
+                                && sizes.len() <= 64
+                                && sizes
+                                    .iter()
+                                    .all(|size| matches!(size.as_u64(), Some(1..=64)))
+                                && sizes
+                                    .windows(2)
+                                    .all(|pair| pair[0].as_u64() <= pair[1].as_u64())
+                        }))
+                && value
+                    .params
+                    .get("policy")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("request-sized")
                 && value.params.get("rows").and_then(serde_json::Value::as_u64) == Some(1)
                 && value
                     .params
@@ -2149,6 +2221,7 @@ fn validate_masked_linear_composition(
                         | "stage_window_bytes"
                         | "allocation"
                         | "decode_epoch_tokens"
+                        | "decode_epoch_schedule"
                 )
             })
             || inventory.params.get("allocation").is_some_and(|value| {
