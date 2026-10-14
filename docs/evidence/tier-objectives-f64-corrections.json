@@ -1,0 +1,1650 @@
+{
+  "identity": {
+    "build": {
+      "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+      "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+    },
+    "files": {
+      "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+      "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+      "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+      "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+      "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+    }
+  },
+  "memory_admission_bytes": 402653184,
+  "records": [
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "wrap32",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.276729,
+      "complete_worker_peak_rss_bytes": 45613056,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45481984,
+        "mode": "wrap32",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.002784999999999982,
+          "wall_s": 0.0027869176119565964
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.00022500000000003073,
+            "wall_s": 0.00022395793348550797
+          },
+          {
+            "cpu_s": 0.00018500000000004624,
+            "wall_s": 0.0001865839585661888
+          },
+          {
+            "cpu_s": 0.00012699999999998823,
+            "wall_s": 0.00012729130685329437
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "digit8",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.275807,
+      "complete_worker_peak_rss_bytes": 46022656,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45907968,
+        "mode": "digit8",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.002681999999999962,
+          "wall_s": 0.002681417390704155
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.00034200000000000896,
+            "wall_s": 0.0003415420651435852
+          },
+          {
+            "cpu_s": 0.0003389999999999782,
+            "wall_s": 0.00034025032073259354
+          },
+          {
+            "cpu_s": 0.00018799999999996597,
+            "wall_s": 0.00018925033509731293
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "accelerate",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.270226,
+      "complete_worker_peak_rss_bytes": 45498368,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45449216,
+        "mode": "accelerate",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0005920000000000092,
+          "wall_s": 0.0025969594717025757
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0006229999999999847,
+            "wall_s": 0.0006222082301974297
+          },
+          {
+            "cpu_s": 0.0004190000000000027,
+            "wall_s": 0.0004192497581243515
+          },
+          {
+            "cpu_s": 0.00021199999999998997,
+            "wall_s": 0.00021083373576402664
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "wrap32",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.300287,
+      "complete_worker_peak_rss_bytes": 48316416,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 48185344,
+        "mode": "wrap32",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0036579999999999946,
+          "wall_s": 0.003658459521830082
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.00018600000000001948,
+            "wall_s": 0.00018654204905033112
+          },
+          {
+            "cpu_s": 0.00015500000000001624,
+            "wall_s": 0.0001560421660542488
+          },
+          {
+            "cpu_s": 0.00012699999999998823,
+            "wall_s": 0.00012737512588500977
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "digit8",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.304811,
+      "complete_worker_peak_rss_bytes": 49381376,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 49250304,
+        "mode": "digit8",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.003257999999999983,
+          "wall_s": 0.003258165903389454
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0004979999999999984,
+            "wall_s": 0.000497874803841114
+          },
+          {
+            "cpu_s": 0.0006340000000000234,
+            "wall_s": 0.0006343750283122063
+          },
+          {
+            "cpu_s": 0.00042799999999998395,
+            "wall_s": 0.0004287911579012871
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "accelerate",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.307282,
+      "complete_worker_peak_rss_bytes": 57163776,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 57098240,
+        "mode": "accelerate",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0009469999999999756,
+          "wall_s": 0.0009479587897658348
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0033170000000000144,
+            "wall_s": 0.007688499987125397
+          },
+          {
+            "cpu_s": 0.001556999999999975,
+            "wall_s": 0.0015581659972667694
+          },
+          {
+            "cpu_s": 0.0007490000000000552,
+            "wall_s": 0.0007482077926397324
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "accelerate",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.298058,
+      "complete_worker_peak_rss_bytes": 57016320,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 56967168,
+        "mode": "accelerate",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0007620000000000404,
+          "wall_s": 0.0007626665756106377
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0020319999999999783,
+            "wall_s": 0.0020315414294600487
+          },
+          {
+            "cpu_s": 0.0011629999999999696,
+            "wall_s": 0.0011622505262494087
+          },
+          {
+            "cpu_s": 0.0007389999999999897,
+            "wall_s": 0.0007380004972219467
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "digit8",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.299232,
+      "complete_worker_peak_rss_bytes": 49233920,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 49102848,
+        "mode": "digit8",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.00322699999999998,
+          "wall_s": 0.003227708861231804
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0004750000000000032,
+            "wall_s": 0.00047520827502012253
+          },
+          {
+            "cpu_s": 0.0006249999999999867,
+            "wall_s": 0.0006249593570828438
+          },
+          {
+            "cpu_s": 0.00040800000000001946,
+            "wall_s": 0.0004083756357431412
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "wrap32",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.301241,
+      "complete_worker_peak_rss_bytes": 48218112,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 48087040,
+        "mode": "wrap32",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0031010000000000204,
+          "wall_s": 0.0031014587730169296
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.00016900000000003024,
+            "wall_s": 0.00016875006258487701
+          },
+          {
+            "cpu_s": 0.000154000000000043,
+            "wall_s": 0.00015474949032068253
+          },
+          {
+            "cpu_s": 0.000128000000000017,
+            "wall_s": 0.00012700073421001434
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "accelerate",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.274243,
+      "complete_worker_peak_rss_bytes": 45563904,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45498368,
+        "mode": "accelerate",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0003130000000000077,
+          "wall_s": 0.00031333230435848236
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0006240000000000134,
+            "wall_s": 0.0006232084706425667
+          },
+          {
+            "cpu_s": 0.0004689999999999972,
+            "wall_s": 0.00046958308666944504
+          },
+          {
+            "cpu_s": 0.00023000000000000798,
+            "wall_s": 0.0002298746258020401
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "digit8",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.276681,
+      "complete_worker_peak_rss_bytes": 46071808,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45940736,
+        "mode": "digit8",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.00259100000000001,
+          "wall_s": 0.0025896672159433365
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.00035600000000002296,
+            "wall_s": 0.00035679060965776443
+          },
+          {
+            "cpu_s": 0.0002790000000000292,
+            "wall_s": 0.0002793753519654274
+          },
+          {
+            "cpu_s": 0.00018699999999999273,
+            "wall_s": 0.00018737558275461197
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "wrap32",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.268868,
+      "complete_worker_peak_rss_bytes": 45514752,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45383680,
+        "mode": "wrap32",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.002581,
+          "wall_s": 0.00258070882409811
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0002919999999999867,
+            "wall_s": 0.00029254239052534103
+          },
+          {
+            "cpu_s": 0.00016800000000000148,
+            "wall_s": 0.00016812514513731003
+          },
+          {
+            "cpu_s": 0.00012700000000004374,
+            "wall_s": 0.00012687500566244125
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "wrap32",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.277204,
+      "complete_worker_peak_rss_bytes": 45727744,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45613056,
+        "mode": "wrap32",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.00301499999999999,
+          "wall_s": 0.0030153747648000717
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0003969999999999807,
+            "wall_s": 0.0003971252590417862
+          },
+          {
+            "cpu_s": 0.00018000000000001348,
+            "wall_s": 0.00018004048615694046
+          },
+          {
+            "cpu_s": 0.00012499999999998623,
+            "wall_s": 0.00012604054063558578
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "digit8",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.279654,
+      "complete_worker_peak_rss_bytes": 45940736,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45809664,
+        "mode": "digit8",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0025209999999999955,
+          "wall_s": 0.002520540729165077
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0003210000000000157,
+            "wall_s": 0.00032129231840372086
+          },
+          {
+            "cpu_s": 0.0002929999999999877,
+            "wall_s": 0.0002927081659436226
+          },
+          {
+            "cpu_s": 0.00018899999999999473,
+            "wall_s": 0.00019020866602659225
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 2048,
+        "kind": "f64",
+        "mode": "accelerate",
+        "rows": 16
+      },
+      "complete_worker_cpu_seconds": 0.269929,
+      "complete_worker_peak_rss_bytes": 45432832,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 524288,
+          "binding_output_serialize_and_python_bytes": 4096,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 2048,
+          "candidate_rust_workspace_bytes": 792576,
+          "correction_encoded_body_bytes": 2048,
+          "correction_u32_owner_bytes": 2048,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 2097152,
+          "digit8_macs": 4194304,
+          "digit8_partial_reconstruction_elements": 6144,
+          "digit8_sgemm_calls": 12,
+          "digit8_weight_conversion_read_write_bytes": 163840,
+          "digit8_workspace_bytes": 200512,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 65536,
+          "f64_input_conversion_read_write_bytes": 786432,
+          "f64_macs": 1048576,
+          "f64_partial_reconstruction_elements": 512,
+          "f64_weight_conversion_elements": 32768,
+          "f64_weight_conversion_read_write_bytes": 294912,
+          "fixture_workspace_bound_bytes": 813056,
+          "geometry": [
+            16,
+            2048,
+            32
+          ],
+          "i8_weight_owner_bytes": 32768,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 264192,
+          "weight_setup_serialization_and_native_copy_bytes": 65536,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 45383680,
+        "mode": "accelerate",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.00032999999999999696,
+          "wall_s": 0.00033066701143980026
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0005499999999999949,
+            "wall_s": 0.0005501667037606239
+          },
+          {
+            "cpu_s": 0.0004250000000000087,
+            "wall_s": 0.0004255417734384537
+          },
+          {
+            "cpu_s": 0.00021900000000002473,
+            "wall_s": 0.0002188337966799736
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "wrap32",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.306312,
+      "complete_worker_peak_rss_bytes": 48250880,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 48119808,
+        "mode": "wrap32",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0035430000000000184,
+          "wall_s": 0.003543917089700699
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.00019900000000000473,
+            "wall_s": 0.00019912514835596085
+          },
+          {
+            "cpu_s": 0.00017800000000001148,
+            "wall_s": 0.00017920881509780884
+          },
+          {
+            "cpu_s": 0.00012699999999998823,
+            "wall_s": 0.00012812484055757523
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "digit8",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.304881,
+      "complete_worker_peak_rss_bytes": 49397760,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 49266688,
+        "mode": "digit8",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0034610000000000474,
+          "wall_s": 0.003461667336523533
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.0004669999999999952,
+            "wall_s": 0.0004671243950724602
+          },
+          {
+            "cpu_s": 0.0006400000000000294,
+            "wall_s": 0.0006407499313354492
+          },
+          {
+            "cpu_s": 0.00045200000000000795,
+            "wall_s": 0.0004505421966314316
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 4864,
+        "kind": "f64",
+        "mode": "accelerate",
+        "rows": 256
+      },
+      "complete_worker_cpu_seconds": 0.301988,
+      "complete_worker_peak_rss_bytes": 56918016,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+          "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+          "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "cost": {
+          "binding_input_serialization_and_decode_bytes": 38912,
+          "binding_output_serialize_and_python_bytes": 2048,
+          "bits": 32,
+          "blas_scratch_and_thread_stacks_bytes": null,
+          "block": 4864,
+          "candidate_rust_workspace_bytes": 10003456,
+          "correction_encoded_body_bytes": 1024,
+          "correction_u32_owner_bytes": 1024,
+          "dgemm_calls": 1,
+          "digit8_input_conversion_read_write_bytes": 155648,
+          "digit8_macs": 4980736,
+          "digit8_partial_reconstruction_elements": 5120,
+          "digit8_sgemm_calls": 20,
+          "digit8_weight_conversion_read_write_bytes": 6225920,
+          "digit8_workspace_bytes": 1053692,
+          "existing_digit8_admission_allowance_bytes": 234881024,
+          "f64_input_conversion_elements": 4864,
+          "f64_input_conversion_read_write_bytes": 58368,
+          "f64_macs": 1245184,
+          "f64_partial_reconstruction_elements": 256,
+          "f64_weight_conversion_elements": 1245184,
+          "f64_weight_conversion_read_write_bytes": 11206656,
+          "fixture_workspace_bound_bytes": 10013696,
+          "geometry": [
+            256,
+            4864,
+            1
+          ],
+          "i8_weight_owner_bytes": 1245184,
+          "measured_cpu_s": null,
+          "persistent_f64_weight_bytes": 0,
+          "u32_input_and_output_mask_owner_bytes": 20480,
+          "weight_setup_serialization_and_native_copy_bytes": 2490368,
+          "whole_client_tier_qualified": false
+        },
+        "maxrss_bytes_darwin": 56852480,
+        "mode": "accelerate",
+        "parity": true,
+        "scope": "standalone fixture, not complete-client timing",
+        "setup": {
+          "cpu_s": 0.0009410000000000251,
+          "wall_s": 0.0009424993768334389
+        },
+        "threads_requested": 1,
+        "transfer_inclusive": [
+          {
+            "cpu_s": 0.002214999999999967,
+            "wall_s": 0.0022148750722408295
+          },
+          {
+            "cpu_s": 0.0011860000000000204,
+            "wall_s": 0.001186625100672245
+          },
+          {
+            "cpu_s": 0.0007289999999999797,
+            "wall_s": 0.000729583203792572
+          }
+        ],
+        "vendor_threads_verified": false
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    }
+  ],
+  "replicates": 3,
+  "schema": "pllm.tier_objectives_operator_screen.v1",
+  "scope": "isolated operator fixtures; peak RSS includes setup and audits",
+  "selection": "f64",
+  "serving_gain": null,
+  "watchdog": {
+    "baseline_swap_used_bytes": 902365184,
+    "error": null,
+    "maximum_swap_growth_bytes": 0,
+    "minimum_available_bytes": 11320557568
+  },
+  "whole_client_tier_qualified": false
+}

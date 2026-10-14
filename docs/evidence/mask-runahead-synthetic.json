@@ -1,0 +1,108 @@
+{
+  "schema": "pllm.mask_runahead.reference.v1",
+  "investigation": 3,
+  "scope": "Public deterministic fixtures using installed native expansion; no complete-response or network performance measurement",
+  "date": "2026-10-14",
+  "environment": {
+    "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "installed_package": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+    "checkout_shadowing": false,
+    "builds_or_installs": false,
+    "checkpoint_or_provider_access": false
+  },
+  "correctness": {
+    "command": "target/frontier-sdk-env/bin/python -I -m pytest -q --noconftest -o pythonpath= tests/test_mask_runahead_probe.py",
+    "exit_code": 0,
+    "stdout": "...................... [100%]\n22 passed in 0.29s",
+    "tests_passed": 22,
+    "ring_bits": [16, 24, 32],
+    "fixture_geometry": {"rows": 3, "input_width": 17, "output_width": 11},
+    "mask_u32_values_compared_with_hashlib": 252,
+    "future_row_tickets_compared": 9,
+    "signed_integer_linear_outputs_compared": 99,
+    "fused_float32_outputs_compared_byte_for_byte": 99,
+    "controls": [
+      "synchronous PreparedInventoryLease.take using installed native cursor",
+      "independent hashlib SHAKE input/output full-mask oracle",
+      "independent signed-int64 linear modular oracle",
+      "native prepared_quantize_pack and prepared_dequantize_output",
+      "direct PreparedStageLayout.prepare/receive/finish ownership control"
+    ],
+    "lifecycle_checks": [
+      "one worker/future slot, immediate next stage, one 1-32-row chunk per remote window",
+      "conservative cap rejection before cursor claim",
+      "barriers before/after native expansion for completion, error and cancellation",
+      "drain before lease close, unused rows burned and slot references released",
+      "expansion failure propagation and conservative early-stop waste",
+      "inventory cancellation before expansion",
+      "replayed handle closes and burns remaining prefetched slot",
+      "barrier-coordinated concurrent consumers deliver handle exactly once",
+      "disjoint lease survives wrapper close",
+      "eager/verified controls rejected rather than changing ownership/trust",
+      "actual RuntimeClient finish methods retain online guard until drain and then schedule recorded idle refill"
+    ],
+    "simulated_remote_overlap": {
+      "native_expansion": true,
+      "remote_wait": "threading.Barrier, not sleeps or live network",
+      "proves": "native expansion completes before simulated remote wait is released",
+      "response_gain_measured": false
+    }
+  },
+  "memory_admission": {
+    "fresh_buffer_formula": "B=4*c*(n+m), regardless of 16/24/32-bit wire ring",
+    "required_formula": "caller whole-client base_peak_bytes + 3*B_max + thread_stack_bytes + executor_bytes",
+    "thread_stack_min_bytes": 8388608,
+    "executor_min_bytes": 65536,
+    "default_timing_fresh_buffer_bytes": 98304,
+    "default_timing_incremental_reserve_bytes": 8749056,
+    "maximum_timing_incremental_reserve_bytes": 23396352,
+    "early_stop_waste": "at most one future chunk per window; conservative attempted size counted even on failed expansion",
+    "whole_client_peak_measured": false,
+    "tier_qualified": false,
+    "base_must_include": [
+      "current-stage masks/query and request/response ownership",
+      "existing cursor ledgers and inventories",
+      "activation/KV state and retained delivered masks",
+      "main/library thread stacks, allocator/runtime and traceback-retained buffers"
+    ]
+  },
+  "parent_timing": {
+    "command": "target/frontier-sdk-env/bin/python -I scripts/probe_mask_runahead.py --timing --width 2048 --output-width 4096 --rows 4 --repeats 3",
+    "executed": false,
+    "cli_help_checked": true,
+    "admission": "parent existing frontier lock and host headroom gate; one native executor worker, incremental reserve 8749056 bytes plus process base and existing cursor owners",
+    "hard_limits": {"rows": 32, "input_width": 19456, "output_width": 19456, "samples_per_mode": 5},
+    "measures": "native expansion CPU/wall, executor overhead, digest parity and cumulative single-process peak only",
+    "does_not_measure": "TTFT, N-1 decode throughput, Preparation CPU/RSS, all-link traffic, WAN overlap, fresh-process tier qualification"
+  },
+  "missing_integration_gates": [
+    "compiled public schedule and authentic transport in-flight binding",
+    "research adapter for PreparedRemoteLinear whole-stage and bounded prefill chunk consumption",
+    "fused owner lacks already-expanded-mask entry point: direct cursor replay is tested and rejected",
+    "real session cancellation acknowledgment and async shielded worker drain before online activity ends",
+    "complete-client audit proving zero online Preparation/refill calls",
+    "full logits/KV/generated-token parity and matched prepared attempts versus synchronous lazy/fused controls",
+    "at least 90 percent remote body MACs independently in prefill/decode",
+    "parent complete-response TTFT and N-1 decode cohorts with client/Preparation CPU/RSS and all-link traffic",
+    "matched fresh-process maximum whole-client RSS replicas with stack/copy/early-stop-waste charges",
+    "installed native binary provenance validation against inspected source without assuming build attestation"
+  ],
+  "hashes_sha256": {
+    "scripts/probe_mask_runahead.py": "22e8977a1e5b6e15cd27d5e4b1221fbf0ab90a30d9f87376fcef6def9eb29bf5",
+    "tests/test_mask_runahead_probe.py": "0d2ae13d0137798dc1c75a9e4086ff9fe7b9bdef432561bd78d93373a283ce69",
+    "docs/research/mask-runahead-reference.md": "6d5a296effd3e670c7695225f4230e7d70f262fd9a4f3d2cd744595647f7403b",
+    "crates/pllm-core/src/mask_stream.rs": "96bc662be5d19353e14adf88b93314b5984b6e6f56e26a593e3a1f465c392b9b",
+    "crates/pllm-python/src/mask_stream.rs": "91509ed44d6d9e95d02f49ddbc4a66444de05ce39c3846aab668a8b15aea929a",
+    "crates/pllm-core/src/prepared_stage.rs": "44c7f6cba9312fddd76aa9109e915cca1fca9309d06449bb7f7510fb4f5f4b27",
+    "crates/pllm-python/src/prepared_stage.rs": "d63ce785c9bbe13b3388db595a45b93bbad917a4dc1f7af9bc94cb629dc39d35",
+    "python/pllm/runtime/transformer_client.py": "d8fd3762b6bf04b6ce1c9de299455ba3faee42de17a15b9b76b378a85eb1062c",
+    "python/pllm/runtime/preparation_protocol.py": "dc879c9816840e722c4eee5675783b7d4d7b67250012d9276ab5c54a9c3a6503",
+    "python/pllm/runtime/client.py": "234537752fa84bf7c5f56416937969affbdd60b8bcdc265a5484e39d43e7d584",
+    "python/pllm/runtime/prepared_stage.py": "4e72ecca466d693bbeda1c9d9afb9bea703e0dbbd873000a9e27f2acde12ba7b",
+    "target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/transformer_client.py": "d8fd3762b6bf04b6ce1c9de299455ba3faee42de17a15b9b76b378a85eb1062c",
+    "target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/preparation_protocol.py": "dc879c9816840e722c4eee5675783b7d4d7b67250012d9276ab5c54a9c3a6503",
+    "target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/native.py": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f",
+    "target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff"
+  }
+}

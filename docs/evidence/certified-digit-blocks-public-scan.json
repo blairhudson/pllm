@@ -1,0 +1,280 @@
+{
+  "checkpoint_files": {
+    "config.json": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+    "model.safetensors": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+  },
+  "compiled_stage_commitment_match": null,
+  "estimated_scan_peak_bytes": 1256533939,
+  "installed_build": {
+    "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+  },
+  "kind": "source_locked_public_weight_block_scan_counts_only",
+  "native_timing": null,
+  "observed_swap_growth_bytes": 0,
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "runtime_scratch_allowance_bytes": 268435456,
+  "source_lock_sha256": "be4a2b32dd596cc5a5ad096a356e69bb13f2324e049fa9c06609e5e6eb4b2d32",
+  "source_sha256": {
+    "/Users/blairhudson/workspace/pllm/crates/pllm-core/src/digit_gemm.rs": "bf464bf2d18f57f8d43e12d906fc25f840b5652eec618323115a6eb562e235d8",
+    "/Users/blairhudson/workspace/pllm/scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+    "/Users/blairhudson/workspace/pllm/scripts/probe_certified_digit_blocks.py": "d434f62cf322c8c7f136528ab1c4fdbdfa8e5cfd0256573926c71a94a3eac54f",
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/_native_support.py": "ce14f68b2184dc103a7e60eb03fa4b26dbfd2d9a5794f3deacdf6f4dd4fd6031",
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "/Users/blairhudson/workspace/pllm/tests/test_certified_digit_blocks_probe.py": "b5c018556e83c03b2dc424803cdac37fd20ba128b31668dbcb04032f0373b4e5"
+  },
+  "stages": [
+    {
+      "certificate": {
+        "batch": 150,
+        "bits": 32,
+        "cost": {
+          "baseline_dense_products": 2614886400,
+          "baseline_mask_digit_conversion_elements": 2918400,
+          "baseline_partial_output_reconstruction_elements": 2688000,
+          "baseline_sgemm_calls": 20,
+          "baseline_weight_conversion_elements": 4358144,
+          "baseline_workspace_bytes": 5355432,
+          "binding_input_copy_bytes": 2918400,
+          "binding_output_copy_bytes": 537600,
+          "blas_internal_workspace_bytes": null,
+          "certificate_reserved_bytes": 145408,
+          "certificate_used_bytes": 48,
+          "correction_owner_bytes": 537600,
+          "dense_products": 2614886400,
+          "mask_digit_conversion_elements": 2918400,
+          "mask_owners_bytes": 3456000,
+          "native_timing": null,
+          "paged_decode_owners_bytes": null,
+          "partial_output_reconstruction_elements": 1075200,
+          "public_i8_owner_bytes": 4358144,
+          "sgemm_calls": 8,
+          "weight_conversion_elements": 4358144,
+          "whole_client_peak_bytes": null,
+          "wire_correction_bytes": 537600,
+          "workspace_bytes": 19023528
+        },
+        "l1_limit": 131071,
+        "records": [
+          [
+            0,
+            896,
+            0,
+            4255,
+            131057
+          ],
+          [
+            0,
+            896,
+            4255,
+            4864,
+            19525
+          ]
+        ],
+        "scope": "resident matrix or one decoded page; not whole paged schedule",
+        "shape": [
+          896,
+          4864
+        ],
+        "tile_rows": 896,
+        "weight_sha256": "1152598dbaaaf29546a9b7471c7987b345819a7adbd5bcd831f5ddffc8a1ed5f",
+        "width_cap": 4864
+      },
+      "key": "model.layers.0.mlp.down_proj.weight",
+      "native_measurement": null,
+      "orientation": "explicit output-by-input; no transpose",
+      "scales_f32_sha256": "87ad0c5852fc08c212c2a0ea7fb430eae0852be53b45939cf637bf5580342f82",
+      "source_setup": null
+    },
+    {
+      "certificate": {
+        "batch": 150,
+        "bits": 32,
+        "cost": {
+          "baseline_dense_products": 2614886400,
+          "baseline_mask_digit_conversion_elements": 2918400,
+          "baseline_partial_output_reconstruction_elements": 2688000,
+          "baseline_sgemm_calls": 20,
+          "baseline_weight_conversion_elements": 4358144,
+          "baseline_workspace_bytes": 5355432,
+          "binding_input_copy_bytes": 2918400,
+          "binding_output_copy_bytes": 537600,
+          "blas_internal_workspace_bytes": null,
+          "certificate_reserved_bytes": 145408,
+          "certificate_used_bytes": 48,
+          "correction_owner_bytes": 537600,
+          "dense_products": 2614886400,
+          "mask_digit_conversion_elements": 2918400,
+          "mask_owners_bytes": 3456000,
+          "native_timing": null,
+          "paged_decode_owners_bytes": null,
+          "partial_output_reconstruction_elements": 1075200,
+          "public_i8_owner_bytes": 4358144,
+          "sgemm_calls": 8,
+          "weight_conversion_elements": 4358144,
+          "whole_client_peak_bytes": null,
+          "wire_correction_bytes": 537600,
+          "workspace_bytes": 19525608
+        },
+        "l1_limit": 131071,
+        "records": [
+          [
+            0,
+            896,
+            0,
+            4375,
+            131017
+          ],
+          [
+            0,
+            896,
+            4375,
+            4864,
+            15297
+          ]
+        ],
+        "scope": "resident matrix or one decoded page; not whole paged schedule",
+        "shape": [
+          896,
+          4864
+        ],
+        "tile_rows": 896,
+        "weight_sha256": "29df02f8ff9180fd3c320f0b091bcfc3872d0c18024f821a7f57842562b9737e",
+        "width_cap": 4864
+      },
+      "key": "model.layers.8.mlp.down_proj.weight",
+      "native_measurement": null,
+      "orientation": "explicit output-by-input; no transpose",
+      "scales_f32_sha256": "c181832696f7320cdd2d93af87408302d27688aa04a048f488b441be23d661b4",
+      "source_setup": null
+    },
+    {
+      "certificate": {
+        "batch": 150,
+        "bits": 32,
+        "cost": {
+          "baseline_dense_products": 2614886400,
+          "baseline_mask_digit_conversion_elements": 2918400,
+          "baseline_partial_output_reconstruction_elements": 2688000,
+          "baseline_sgemm_calls": 20,
+          "baseline_weight_conversion_elements": 4358144,
+          "baseline_workspace_bytes": 5355432,
+          "binding_input_copy_bytes": 2918400,
+          "binding_output_copy_bytes": 537600,
+          "blas_internal_workspace_bytes": null,
+          "certificate_reserved_bytes": 145408,
+          "certificate_used_bytes": 48,
+          "correction_owner_bytes": 537600,
+          "dense_products": 2614886400,
+          "mask_digit_conversion_elements": 2918400,
+          "mask_owners_bytes": 3456000,
+          "native_timing": null,
+          "paged_decode_owners_bytes": null,
+          "partial_output_reconstruction_elements": 1075200,
+          "public_i8_owner_bytes": 4358144,
+          "sgemm_calls": 8,
+          "weight_conversion_elements": 4358144,
+          "whole_client_peak_bytes": null,
+          "wire_correction_bytes": 537600,
+          "workspace_bytes": 19709704
+        },
+        "l1_limit": 131071,
+        "records": [
+          [
+            0,
+            896,
+            0,
+            4419,
+            131067
+          ],
+          [
+            0,
+            896,
+            4419,
+            4864,
+            14293
+          ]
+        ],
+        "scope": "resident matrix or one decoded page; not whole paged schedule",
+        "shape": [
+          896,
+          4864
+        ],
+        "tile_rows": 896,
+        "weight_sha256": "77a3d9dc3156012ddc66737b1269ae41e0bcd299827fdf07b16fa437abb88e77",
+        "width_cap": 4864
+      },
+      "key": "model.layers.16.mlp.down_proj.weight",
+      "native_measurement": null,
+      "orientation": "explicit output-by-input; no transpose",
+      "scales_f32_sha256": "662c9b7d082639d995063c0cfc23d03e5aff15f81548d0bbf37dc381db5a7ef5",
+      "source_setup": null
+    },
+    {
+      "certificate": {
+        "batch": 150,
+        "bits": 32,
+        "cost": {
+          "baseline_dense_products": 2614886400,
+          "baseline_mask_digit_conversion_elements": 2918400,
+          "baseline_partial_output_reconstruction_elements": 2688000,
+          "baseline_sgemm_calls": 20,
+          "baseline_weight_conversion_elements": 4358144,
+          "baseline_workspace_bytes": 5355432,
+          "binding_input_copy_bytes": 2918400,
+          "binding_output_copy_bytes": 537600,
+          "blas_internal_workspace_bytes": null,
+          "certificate_reserved_bytes": 145408,
+          "certificate_used_bytes": 48,
+          "correction_owner_bytes": 537600,
+          "dense_products": 2614886400,
+          "mask_digit_conversion_elements": 2918400,
+          "mask_owners_bytes": 3456000,
+          "native_timing": null,
+          "paged_decode_owners_bytes": null,
+          "partial_output_reconstruction_elements": 1075200,
+          "public_i8_owner_bytes": 4358144,
+          "sgemm_calls": 8,
+          "weight_conversion_elements": 4358144,
+          "whole_client_peak_bytes": null,
+          "wire_correction_bytes": 537600,
+          "workspace_bytes": 19115576
+        },
+        "l1_limit": 131071,
+        "records": [
+          [
+            0,
+            896,
+            0,
+            4277,
+            131059
+          ],
+          [
+            0,
+            896,
+            4277,
+            4864,
+            18500
+          ]
+        ],
+        "scope": "resident matrix or one decoded page; not whole paged schedule",
+        "shape": [
+          896,
+          4864
+        ],
+        "tile_rows": 896,
+        "weight_sha256": "a2eafb084e2f7904a548c673367427532f5777e775226ac3ebd883d6c3aa2474",
+        "width_cap": 4864
+      },
+      "key": "model.layers.23.mlp.down_proj.weight",
+      "native_measurement": null,
+      "orientation": "explicit output-by-input; no transpose",
+      "scales_f32_sha256": "29a8b98d879fdc4e69a9c7b0a276d28b430d76765f522a593391df8f61f9948f",
+      "source_setup": null
+    }
+  ],
+  "whole_response": null,
+  "whole_topology_admitted": null,
+  "worker_peak_through_post_source_validation_bytes_macos": null
+}

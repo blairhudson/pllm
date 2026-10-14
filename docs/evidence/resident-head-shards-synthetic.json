@@ -1,0 +1,153 @@
+{
+  "authentication": "actual-byte SHA-256 at import; no repeated native page MAC/hash",
+  "benchmark_baseline": "all-paged arm is sharded, not ordinary unsharded PagedGEMM",
+  "footprint": "67x33 i8 head; <=2211 resident bytes; 2112 reserved promotion bytes; full original and derived disk copies at setup",
+  "fresh_process": false,
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "probe_and_inspected_source_sha256": {
+    "crates/pllm-core/src/kernels.rs": "5313b717725bd72709c99409a18204d50c42ef4e4a6b40a8bb52033740def17e",
+    "crates/pllm-core/src/paged.rs": "89acc780d58651c956ffef505e911a1dd98e2d405bfda0e7267c4c18b24b311a",
+    "crates/pllm-core/src/public_file.rs": "743e0f3f814faed3b481d7bfd1e5478237493e1840f1ca775139f015dcda938a",
+    "crates/pllm-python/src/paged.rs": "7d62ede4e2e302e4aa8c2a1f8887fc218fe2b64ea9fa19d39f15341f0e9292ff",
+    "python/pllm/runtime/bundle_storage.py": "ce241fb9e3fd22b6afeed9bc4f3087218e9b262742ca3e15f33486f6b818e9ea",
+    "python/pllm/runtime/native.py": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f",
+    "python/pllm/runtime/paged.py": "9e5fb2a231dd7d167144afe81f61e97fb7e582914decafbb41e8559192186139",
+    "python/pllm/runtime/transformer_client.py": "d8fd3762b6bf04b6ce1c9de299455ba3faee42de17a15b9b76b378a85eb1062c",
+    "scripts/probe_resident_head_shards.py": "7ed8a2714441902d3476f237a855076df567abc28e6de77d8b6e010cd8ebc56a",
+    "tests/test_resident_head_shards_probe.py": "dc81cca25b836f706db7241d9a12ad2bd10471df9d0e311c7663ef6097209d6d"
+  },
+  "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+  "qualification": "synthetic correctness only; no tier, traffic or speedup claim",
+  "samples": [
+    {
+      "checked_full_output_elements": 201,
+      "choice": "paged",
+      "compression": "raw",
+      "controls": [
+        "clear",
+        "full_float32_logits_and_bias",
+        "wrap32",
+        "modular",
+        "tied_rows",
+        "tied_columns",
+        "untied_rows",
+        "source_mutation",
+        "eviction"
+      ],
+      "full_logits_sha256": "6ca0a1bbc89823da2edaebc650babc4ef7c70577d588ceb64ecb2caa8ce6c7ca",
+      "logical_paged_payload_bytes_all_checks": 11055,
+      "logical_resident_payload_bytes_all_checks": 0,
+      "native_module": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+      "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+      "original_object_sha256": "b0ca48b2df0b8e0b8301e785871b2c61bf09adede473ab011a0027750c795e23",
+      "original_weight_sha256": "b0ca48b2df0b8e0b8301e785871b2c61bf09adede473ab011a0027750c795e23",
+      "output_sha256": "007cf6f8c087e5cd0e437505635f7cda23016711c8f92215e428e03adb02c7af",
+      "ownership": {
+        "external_original_snapshot_not_owned": true,
+        "fallback_matrix_and_executor_owners": 5,
+        "fallback_metadata_bytes": 160,
+        "fallback_private_artifact_bytes": 2651,
+        "maximum_fallback_owner_count": 8,
+        "paged_transient_weight_bytes": 1056,
+        "reserved_promotion_workspace_bytes": 2112,
+        "resident_and_fallback_overlap_explicit": true,
+        "resident_i8_payload_bytes": 0,
+        "resident_shared_executor_owners": 1,
+        "unpriced_overheads": "Python/Rust objects, allocators, executor stacks, inputs/outputs, OS cache; use process RSS"
+      },
+      "peak_process_rss_bytes": 42647552,
+      "shape": [
+        67,
+        33
+      ],
+      "synthetic_numeric_metadata_sha256": "86cdb4f0a112495bdbc3b3ffe120bc47e08078ef79e1d815b87d04d3660195b2"
+    },
+    {
+      "checked_full_output_elements": 201,
+      "choice": "partial",
+      "compression": "raw",
+      "controls": [
+        "clear",
+        "full_float32_logits_and_bias",
+        "wrap32",
+        "modular",
+        "tied_rows",
+        "tied_columns",
+        "untied_rows",
+        "source_mutation",
+        "eviction"
+      ],
+      "full_logits_sha256": "6ca0a1bbc89823da2edaebc650babc4ef7c70577d588ceb64ecb2caa8ce6c7ca",
+      "logical_paged_payload_bytes_all_checks": 6831,
+      "logical_resident_payload_bytes_all_checks": 4224,
+      "native_module": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+      "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+      "original_object_sha256": "b0ca48b2df0b8e0b8301e785871b2c61bf09adede473ab011a0027750c795e23",
+      "original_weight_sha256": "b0ca48b2df0b8e0b8301e785871b2c61bf09adede473ab011a0027750c795e23",
+      "output_sha256": "007cf6f8c087e5cd0e437505635f7cda23016711c8f92215e428e03adb02c7af",
+      "ownership": {
+        "external_original_snapshot_not_owned": true,
+        "fallback_matrix_and_executor_owners": 5,
+        "fallback_metadata_bytes": 160,
+        "fallback_private_artifact_bytes": 2651,
+        "maximum_fallback_owner_count": 8,
+        "paged_transient_weight_bytes": 1056,
+        "reserved_promotion_workspace_bytes": 2112,
+        "resident_and_fallback_overlap_explicit": true,
+        "resident_i8_payload_bytes": 1056,
+        "resident_shared_executor_owners": 1,
+        "unpriced_overheads": "Python/Rust objects, allocators, executor stacks, inputs/outputs, OS cache; use process RSS"
+      },
+      "peak_process_rss_bytes": 49807360,
+      "shape": [
+        67,
+        33
+      ],
+      "synthetic_numeric_metadata_sha256": "86cdb4f0a112495bdbc3b3ffe120bc47e08078ef79e1d815b87d04d3660195b2"
+    },
+    {
+      "checked_full_output_elements": 201,
+      "choice": "full",
+      "compression": "raw",
+      "controls": [
+        "clear",
+        "full_float32_logits_and_bias",
+        "wrap32",
+        "modular",
+        "tied_rows",
+        "tied_columns",
+        "untied_rows",
+        "source_mutation",
+        "eviction"
+      ],
+      "full_logits_sha256": "6ca0a1bbc89823da2edaebc650babc4ef7c70577d588ceb64ecb2caa8ce6c7ca",
+      "logical_paged_payload_bytes_all_checks": 2211,
+      "logical_resident_payload_bytes_all_checks": 8844,
+      "native_module": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+      "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+      "original_object_sha256": "b0ca48b2df0b8e0b8301e785871b2c61bf09adede473ab011a0027750c795e23",
+      "original_weight_sha256": "b0ca48b2df0b8e0b8301e785871b2c61bf09adede473ab011a0027750c795e23",
+      "output_sha256": "007cf6f8c087e5cd0e437505635f7cda23016711c8f92215e428e03adb02c7af",
+      "ownership": {
+        "external_original_snapshot_not_owned": true,
+        "fallback_matrix_and_executor_owners": 5,
+        "fallback_metadata_bytes": 160,
+        "fallback_private_artifact_bytes": 2651,
+        "maximum_fallback_owner_count": 8,
+        "paged_transient_weight_bytes": 1056,
+        "reserved_promotion_workspace_bytes": 2112,
+        "resident_and_fallback_overlap_explicit": true,
+        "resident_i8_payload_bytes": 2211,
+        "resident_shared_executor_owners": 1,
+        "unpriced_overheads": "Python/Rust objects, allocators, executor stacks, inputs/outputs, OS cache; use process RSS"
+      },
+      "peak_process_rss_bytes": 49823744,
+      "shape": [
+        67,
+        33
+      ],
+      "synthetic_numeric_metadata_sha256": "86cdb4f0a112495bdbc3b3ffe120bc47e08078ef79e1d815b87d04d3660195b2"
+    }
+  ],
+  "schema": "pllm.resident_head_shards.synthetic.v1"
+}

@@ -1,0 +1,214 @@
+{
+  "schema": "pllm.column_streaming_linear.research.v1",
+  "shape": [
+    3,
+    17,
+    7
+  ],
+  "bits": 24,
+  "block": 4,
+  "transport": "direct",
+  "timing_scope": "measured local complete projection, native kernels/codecs; modeled WAN overlap only",
+  "records": [
+    {
+      "mode": "full-stage",
+      "replicate": 0,
+      "groups": [
+        {
+          "upload_frame_bytes": [
+            90,
+            244,
+            91
+          ],
+          "download_frame_bytes": 264,
+          "complete_projection_wall_seconds": 0.00023841578513383865,
+          "combined_client_provider_cpu_seconds": 0.0002390000000000031,
+          "provider_online_thread_cpu_seconds": 0.00010291599999999457,
+          "client_plus_transport_cpu_seconds": 0.00013808400000001053,
+          "partial_native_and_accumulate_seconds": [
+            1.6500242054462433e-05
+          ],
+          "provider_cold_matrix_setup_cpu_seconds": 2.999999999998837e-05,
+          "provider_cold_matrix_setup_wall_seconds": 2.94586643576622e-05,
+          "first_partial_started_before_local_input_upload_completed": false,
+          "upload_completion_scope": "last column sendall return for socketpair; before last receive call for direct",
+          "native_launches": 1,
+          "correction_applications": 1,
+          "reference_offline_payload_ledger": {
+            "preparation_to_provider_preloaded_correction_bytes": 47,
+            "preparation_to_client_raw_r_s_bytes": 288,
+            "scope": "payloads only, not transported; offline authenticated frames/session costs remain unmeasured"
+          },
+          "modeled_overlap_seconds": 0.040106119999999995
+        }
+      ],
+      "preparation_correction_cpu_seconds": 0.00011200000000000099,
+      "exact_independent_integer_oracle": true
+    },
+    {
+      "mode": "column-stream",
+      "replicate": 0,
+      "groups": [
+        {
+          "upload_frame_bytes": [
+            90,
+            127,
+            127,
+            127,
+            127,
+            100,
+            91
+          ],
+          "download_frame_bytes": 264,
+          "complete_projection_wall_seconds": 0.00018354225903749466,
+          "combined_client_provider_cpu_seconds": 0.0001850000000000046,
+          "provider_online_thread_cpu_seconds": 0.00010033400000000747,
+          "client_plus_transport_cpu_seconds": 8.466599999999713e-05,
+          "partial_native_and_accumulate_seconds": [
+            8.165836334228516e-06,
+            5.584210157394409e-06,
+            4.124827682971954e-06,
+            3.958120942115784e-06,
+            3.999099135398865e-06
+          ],
+          "provider_cold_matrix_setup_cpu_seconds": 3.200000000000425e-05,
+          "provider_cold_matrix_setup_wall_seconds": 3.2374635338783264e-05,
+          "first_partial_started_before_local_input_upload_completed": true,
+          "upload_completion_scope": "last column sendall return for socketpair; before last receive call for direct",
+          "native_launches": 5,
+          "correction_applications": 1,
+          "reference_offline_payload_ledger": {
+            "preparation_to_provider_preloaded_correction_bytes": 47,
+            "preparation_to_client_raw_r_s_bytes": 288,
+            "scope": "payloads only, not transported; offline authenticated frames/session costs remain unmeasured"
+          },
+          "modeled_overlap_seconds": 0.04017892
+        }
+      ],
+      "preparation_correction_cpu_seconds": 2.4999999999997247e-05,
+      "exact_independent_integer_oracle": true
+    },
+    {
+      "mode": "row-duplex-baseline",
+      "replicate": 0,
+      "groups": [
+        {
+          "upload_frame_bytes": [
+            90,
+            244,
+            91
+          ],
+          "download_frame_bytes": 264,
+          "complete_projection_wall_seconds": 7.737427949905396e-05,
+          "combined_client_provider_cpu_seconds": 7.799999999999474e-05,
+          "provider_online_thread_cpu_seconds": 4.054099999999117e-05,
+          "client_plus_transport_cpu_seconds": 3.845900000000457e-05,
+          "partial_native_and_accumulate_seconds": [
+            5.709007382392883e-06
+          ],
+          "provider_cold_matrix_setup_cpu_seconds": 1.2999999999999123e-05,
+          "provider_cold_matrix_setup_wall_seconds": 1.3874843716621399e-05,
+          "first_partial_started_before_local_input_upload_completed": false,
+          "upload_completion_scope": "last column sendall return for socketpair; before last receive call for direct",
+          "native_launches": 1,
+          "correction_applications": 1,
+          "reference_offline_payload_ledger": {
+            "preparation_to_provider_preloaded_correction_bytes": 47,
+            "preparation_to_client_raw_r_s_bytes": 288,
+            "scope": "payloads only, not transported; offline authenticated frames/session costs remain unmeasured"
+          },
+          "modeled_overlap_seconds": 0.040106119999999995
+        }
+      ],
+      "preparation_correction_cpu_seconds": 1.6000000000002124e-05,
+      "exact_independent_integer_oracle": true
+    }
+  ],
+  "admission": {
+    "client_input_and_full_r_bytes": 255,
+    "client_s_and_result_bytes": 252,
+    "client_block_and_codec_copy_reserve_bytes": 8576,
+    "provider_private_accumulator_bytes": 84,
+    "provider_partial_result_bytes": 84,
+    "provider_correction_upper_bytes": 84,
+    "provider_source_plus_packed_weights_bytes": 238,
+    "preparation_r_s_wr_and_source_upper_bytes": 610,
+    "thread_stack_reserve_bytes": 8388608,
+    "native_matrix_metadata_reserve_bytes": 327680,
+    "runtime_import_reserve_bytes": 134217728,
+    "host_headroom_recommendation_bytes": 536870912,
+    "whole_process_admission_limit_bytes": 268435456,
+    "qualification": "estimate only; whole-client fresh-process replicated RSS gate missing",
+    "conservative_estimated_co_resident_bytes": 142944199
+  },
+  "process_peak_rss_bytes_macos": 41598976,
+  "application_ack_frames": 0,
+  "transport_frames_include": "4-byte length, 8-byte magic, MessagePack, 32-byte HMAC",
+  "all_link_exclusions": [
+    "TCP ACK/IP/TLS (socketpair is AF_UNIX)",
+    "session authorization/reservation",
+    "cold weights",
+    "Preparation correction delivery and mask-seed delivery"
+  ],
+  "wan_model": {
+    "upload_mbps": 40,
+    "download_mbps": 100,
+    "one_way_delay_ms": 20,
+    "compute_contention_multiplier": 1,
+    "excluded": "client masking/auth CPU, final codec/correction, queue jitter, packet ACKs/TLS"
+  },
+  "role_measurement_limits": {
+    "client_cpu": "combined minus measured provider receive thread CPU; includes transport overhead",
+    "client_rss": "roles co-resident; process peak is not client-only tier qualification",
+    "preparation_cpu": "native correction and matrix compile only; randomness, mask delivery excluded",
+    "preparation_rss": "estimated live bytes only, not fresh process measured",
+    "TTFT": "complete synthetic projection only, not whole decoder TTFT",
+    "N_minus_1_decode_throughput": "not measured; optimization targets prefill"
+  },
+  "row_baseline_scope": "serial authenticated row-group reference; not production duplex WebSocket timing",
+  "replay_command": [
+    "target/frontier-sdk-env/bin/python",
+    "scripts/probe_column_streaming_linear.py",
+    "--rows",
+    "3",
+    "--columns",
+    "17",
+    "--outputs",
+    "7",
+    "--block",
+    "4",
+    "--transport",
+    "direct",
+    "--output",
+    "docs/evidence/column-streaming-linear-synthetic.json"
+  ],
+  "environment": {
+    "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+    "native_threads": 1,
+    "pid": 96898
+  },
+  "source_sha256": {
+    "scripts/probe_column_streaming_linear.py": "d08122416d96d0978eef72dc9efcc6d115270b7742f1dc12b0f4db0cc0aaf1f5",
+    "tests/test_column_streaming_linear_probe.py": "d1df65cdc7e4e866583ef5bcf6ee7517f5f7410da7b9d24b6dc2e8f6faef2400",
+    "docs/research/column-streaming-linear-reference.md": "89679eeb3e3df2e95248300467a9863bf052239113b7e2b2f55fda7ab22b4629",
+    "python/pllm/runtime/correction_rendezvous.py": "9737a64a08e64fa1d2cdc19c4ee494c56a19ba074684984bbb6ebc468d43572e",
+    "python/pllm/runtime/server.py": "2a2eb6a4d71958f8ff230df2254b0fceeb4ebebf5d3f6ca470d0a01934fc0f8a",
+    "python/pllm/runtime/residue_codec.py": "22cdf38e6ebf2402ccccb186fee3e9709061695e811142576a25d9776d613ce7",
+    "python/pllm/metrics/prepared_duplex.py": "ce2ee5505df659559ef274262dd003f9aa0b525dc1984aed388bab7aedc19291",
+    "python/pllm/runtime/native.py": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f",
+    "crates/pllm-core/src/offset_transport.rs": "5b379541fa4de7390cc048a564a44616cae7cf6b82c3c869993df2ec76c660c2"
+  },
+  "installed_native": {
+    "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+    "sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff"
+  },
+  "gates_missing": [
+    "production authenticated session adapter",
+    "restart-safe ticket authority",
+    "serial parent transport cohort",
+    "matched whole-client tier RSS",
+    "complete checkpoint TTFT/N-1 decode",
+    "all-link accounting and >=90% remote body MAC placement"
+  ],
+  "qualified": false
+}

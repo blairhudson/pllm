@@ -1,0 +1,3029 @@
+{
+  "production_activation": false,
+  "replay": [
+    {
+      "budget": 16777216,
+      "heuristic": {
+        "accepted_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up",
+          "layer0:mlp_down",
+          "layer1:mlp_down"
+        ],
+        "ack_seconds": {
+          "layer0:mlp_down": 0.16089739935364722,
+          "layer0:mlp_gate_up": 0.0868606108689785,
+          "layer0:qkv_projection": 0.01119565296279192,
+          "layer1:mlp_down": 0.16826265425192116,
+          "layer1:mlp_gate_up": 0.15353214445537328,
+          "layer1:qkv_projection": 0.020189077282583713
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.002202228643000126,
+            "push",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.01119565296279192,
+            "ack",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.01119565296279192,
+            "issue",
+            "layer0:mlp_down"
+          ],
+          [
+            0.01119565296279192,
+            "push",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.020189077282583713,
+            "ack",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.020189077282583713,
+            "issue",
+            "layer1:mlp_down"
+          ],
+          [
+            0.020189077282583713,
+            "push",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.0868606108689785,
+            "ack",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.0868606108689785,
+            "push",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.15353214445537328,
+            "ack",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.15353214445537328,
+            "push",
+            "layer0:mlp_down"
+          ],
+          [
+            0.16089739935364722,
+            "ack",
+            "layer0:mlp_down"
+          ],
+          [
+            0.16089739935364722,
+            "push",
+            "layer1:mlp_down"
+          ],
+          [
+            0.16826265425192116,
+            "ack",
+            "layer1:mlp_down"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up",
+          "layer0:mlp_down",
+          "layer1:mlp_down"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 0.16826265425192116,
+        "peak_stage_slots": 4,
+        "peak_work_bytes": 11124736,
+        "start_seconds": {
+          "layer0:mlp_down": 0.01119565296279192,
+          "layer0:mlp_gate_up": 0.0,
+          "layer0:qkv_projection": 0.0,
+          "layer1:mlp_down": 0.020189077282583713,
+          "layer1:mlp_gate_up": 0.0,
+          "layer1:qkv_projection": 0.0
+        },
+        "upload_busy_seconds": 0.16606042560892104,
+        "upload_idle_seconds": 0.002202228643000126
+      },
+      "jobs": [
+        {
+          "compute": 0.002202228643000126,
+          "deadline": null,
+          "stage": "layer0:qkv_projection",
+          "upload": 0.008993424319791794,
+          "work": 675840
+        },
+        {
+          "compute": 0.010763562750071287,
+          "deadline": null,
+          "stage": "layer0:mlp_gate_up",
+          "upload": 0.06667153358639478,
+          "work": 3969024
+        },
+        {
+          "compute": 0.009224854409694672,
+          "deadline": null,
+          "stage": "layer0:mlp_down",
+          "upload": 0.007365254898273945,
+          "work": 1593344
+        },
+        {
+          "compute": 0.002202228643000126,
+          "deadline": null,
+          "stage": "layer1:qkv_projection",
+          "upload": 0.008993424319791794,
+          "work": 675840
+        },
+        {
+          "compute": 0.010763562750071287,
+          "deadline": null,
+          "stage": "layer1:mlp_gate_up",
+          "upload": 0.06667153358639478,
+          "work": 3969024
+        },
+        {
+          "compute": 0.009224854409694672,
+          "deadline": null,
+          "stage": "layer1:mlp_down",
+          "upload": 0.007365254898273945,
+          "work": 1593344
+        }
+      ],
+      "oracle": {
+        "best": {
+          "accepted_order": [
+            "layer0:qkv_projection",
+            "layer1:qkv_projection",
+            "layer0:mlp_down",
+            "layer0:mlp_gate_up",
+            "layer1:mlp_gate_up",
+            "layer1:mlp_down"
+          ],
+          "ack_seconds": {
+            "layer0:mlp_down": 0.027554332180857656,
+            "layer0:mlp_gate_up": 0.09422586576725245,
+            "layer0:qkv_projection": 0.01119565296279192,
+            "layer1:mlp_down": 0.16826265425192116,
+            "layer1:mlp_gate_up": 0.16089739935364722,
+            "layer1:qkv_projection": 0.020189077282583713
+          },
+          "deadline_misses": [],
+          "events": [
+            [
+              0.0,
+              "issue",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer0:mlp_down"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.002202228643000126,
+              "push",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.01119565296279192,
+              "ack",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.01119565296279192,
+              "issue",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.01119565296279192,
+              "push",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.020189077282583713,
+              "ack",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.020189077282583713,
+              "issue",
+              "layer1:mlp_down"
+            ],
+            [
+              0.020189077282583713,
+              "push",
+              "layer0:mlp_down"
+            ],
+            [
+              0.027554332180857656,
+              "ack",
+              "layer0:mlp_down"
+            ],
+            [
+              0.027554332180857656,
+              "push",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.09422586576725245,
+              "ack",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.09422586576725245,
+              "push",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.16089739935364722,
+              "ack",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.16089739935364722,
+              "push",
+              "layer1:mlp_down"
+            ],
+            [
+              0.16826265425192116,
+              "ack",
+              "layer1:mlp_down"
+            ]
+          ],
+          "feasible": true,
+          "issue_order": [
+            "layer0:qkv_projection",
+            "layer0:mlp_gate_up",
+            "layer0:mlp_down",
+            "layer1:qkv_projection",
+            "layer1:mlp_gate_up",
+            "layer1:mlp_down"
+          ],
+          "max_wait_violations": [],
+          "modeled_seconds": 0.16826265425192116,
+          "peak_stage_slots": 4,
+          "peak_work_bytes": 11124736,
+          "start_seconds": {
+            "layer0:mlp_down": 0.0,
+            "layer0:mlp_gate_up": 0.0,
+            "layer0:qkv_projection": 0.0,
+            "layer1:mlp_down": 0.020189077282583713,
+            "layer1:mlp_gate_up": 0.01119565296279192,
+            "layer1:qkv_projection": 0.0
+          },
+          "upload_busy_seconds": 0.16606042560892104,
+          "upload_idle_seconds": 0.002202228643000126
+        },
+        "enumerated": 720,
+        "order": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "scope": "all strict eager issuance permutations; FIFO completion upload"
+      },
+      "phase_provenance": [
+        {
+          "declared_work_bytes": 675840,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 73833.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.0006101243197917938,
+          "prior_mask_plus_kernel_median_seconds": 0.002202228643000126,
+          "role": "qkv_projection",
+          "rows": 16,
+          "shape_out_in": [
+            1152,
+            896
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        },
+        {
+          "declared_work_bytes": 3969024,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 622697.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.003401833586394787,
+          "prior_mask_plus_kernel_median_seconds": 0.010763562750071287,
+          "role": "mlp_gate_up",
+          "rows": 16,
+          "shape_out_in": [
+            9728,
+            896
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        },
+        {
+          "declared_work_bytes": 1593344,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 57449.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.0006203548982739449,
+          "prior_mask_plus_kernel_median_seconds": 0.009224854409694672,
+          "role": "mlp_down",
+          "rows": 16,
+          "shape_out_in": [
+            896,
+            4864
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        }
+      ],
+      "rows": 16,
+      "simulated_bandwidth_bytes_per_second": 10000000,
+      "simulated_full_ack_latency_seconds": 0.001,
+      "source_order": {
+        "accepted_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_down",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up",
+          "layer1:mlp_down"
+        ],
+        "ack_seconds": {
+          "layer0:mlp_down": 0.027554332180857656,
+          "layer0:mlp_gate_up": 0.09422586576725245,
+          "layer0:qkv_projection": 0.01119565296279192,
+          "layer1:mlp_down": 0.16826265425192116,
+          "layer1:mlp_gate_up": 0.16089739935364722,
+          "layer1:qkv_projection": 0.020189077282583713
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_down"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.002202228643000126,
+            "push",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.01119565296279192,
+            "ack",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.01119565296279192,
+            "issue",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.01119565296279192,
+            "push",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.020189077282583713,
+            "ack",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.020189077282583713,
+            "issue",
+            "layer1:mlp_down"
+          ],
+          [
+            0.020189077282583713,
+            "push",
+            "layer0:mlp_down"
+          ],
+          [
+            0.027554332180857656,
+            "ack",
+            "layer0:mlp_down"
+          ],
+          [
+            0.027554332180857656,
+            "push",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.09422586576725245,
+            "ack",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.09422586576725245,
+            "push",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.16089739935364722,
+            "ack",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.16089739935364722,
+            "push",
+            "layer1:mlp_down"
+          ],
+          [
+            0.16826265425192116,
+            "ack",
+            "layer1:mlp_down"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "layer0:qkv_projection",
+          "layer0:mlp_gate_up",
+          "layer0:mlp_down",
+          "layer1:qkv_projection",
+          "layer1:mlp_gate_up",
+          "layer1:mlp_down"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 0.16826265425192116,
+        "peak_stage_slots": 4,
+        "peak_work_bytes": 11124736,
+        "start_seconds": {
+          "layer0:mlp_down": 0.0,
+          "layer0:mlp_gate_up": 0.0,
+          "layer0:qkv_projection": 0.0,
+          "layer1:mlp_down": 0.020189077282583713,
+          "layer1:mlp_gate_up": 0.01119565296279192,
+          "layer1:qkv_projection": 0.0
+        },
+        "upload_busy_seconds": 0.16606042560892104,
+        "upload_idle_seconds": 0.002202228643000126
+      },
+      "width": 4
+    },
+    {
+      "budget": 16777216,
+      "heuristic": {
+        "accepted_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_down",
+          "layer1:mlp_down",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up"
+        ],
+        "ack_seconds": {
+          "layer0:mlp_down": 0.03609398218085766,
+          "layer0:mlp_gate_up": 0.06691763066552639,
+          "layer0:qkv_projection": 0.01355068296279192,
+          "layer1:mlp_down": 0.0472888270791316,
+          "layer1:mlp_gate_up": 0.08654643425192118,
+          "layer1:qkv_projection": 0.024899137282583715
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_down"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:mlp_down"
+          ],
+          [
+            0.002202228643000126,
+            "push",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.01355068296279192,
+            "ack",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.01355068296279192,
+            "issue",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.01355068296279192,
+            "push",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.024899137282583715,
+            "ack",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.024899137282583715,
+            "issue",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.024899137282583715,
+            "push",
+            "layer0:mlp_down"
+          ],
+          [
+            0.03609398218085766,
+            "ack",
+            "layer0:mlp_down"
+          ],
+          [
+            0.03609398218085766,
+            "push",
+            "layer1:mlp_down"
+          ],
+          [
+            0.0472888270791316,
+            "ack",
+            "layer1:mlp_down"
+          ],
+          [
+            0.0472888270791316,
+            "push",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.06691763066552639,
+            "ack",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.06691763066552639,
+            "push",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.08654643425192118,
+            "ack",
+            "layer1:mlp_gate_up"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_down",
+          "layer1:mlp_down",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 0.08654643425192118,
+        "peak_stage_slots": 4,
+        "peak_work_bytes": 11124736,
+        "start_seconds": {
+          "layer0:mlp_down": 0.0,
+          "layer0:mlp_gate_up": 0.01355068296279192,
+          "layer0:qkv_projection": 0.0,
+          "layer1:mlp_down": 0.0,
+          "layer1:mlp_gate_up": 0.024899137282583715,
+          "layer1:qkv_projection": 0.0
+        },
+        "upload_busy_seconds": 0.08434420560892106,
+        "upload_idle_seconds": 0.002202228643000126
+      },
+      "jobs": [
+        {
+          "compute": 0.002202228643000126,
+          "deadline": null,
+          "stage": "layer0:qkv_projection",
+          "upload": 0.011348454319791795,
+          "work": 675840
+        },
+        {
+          "compute": 0.010763562750071287,
+          "deadline": null,
+          "stage": "layer0:mlp_gate_up",
+          "upload": 0.019628803586394787,
+          "work": 3969024
+        },
+        {
+          "compute": 0.009224854409694672,
+          "deadline": null,
+          "stage": "layer0:mlp_down",
+          "upload": 0.011194844898273945,
+          "work": 1593344
+        },
+        {
+          "compute": 0.002202228643000126,
+          "deadline": null,
+          "stage": "layer1:qkv_projection",
+          "upload": 0.011348454319791795,
+          "work": 675840
+        },
+        {
+          "compute": 0.010763562750071287,
+          "deadline": null,
+          "stage": "layer1:mlp_gate_up",
+          "upload": 0.019628803586394787,
+          "work": 3969024
+        },
+        {
+          "compute": 0.009224854409694672,
+          "deadline": null,
+          "stage": "layer1:mlp_down",
+          "upload": 0.011194844898273945,
+          "work": 1593344
+        }
+      ],
+      "oracle": {
+        "best": {
+          "accepted_order": [
+            "layer0:qkv_projection",
+            "layer1:qkv_projection",
+            "layer0:mlp_down",
+            "layer0:mlp_gate_up",
+            "layer1:mlp_gate_up",
+            "layer1:mlp_down"
+          ],
+          "ack_seconds": {
+            "layer0:mlp_down": 0.03609398218085766,
+            "layer0:mlp_gate_up": 0.055722785767252446,
+            "layer0:qkv_projection": 0.01355068296279192,
+            "layer1:mlp_down": 0.08654643425192118,
+            "layer1:mlp_gate_up": 0.07535158935364723,
+            "layer1:qkv_projection": 0.024899137282583715
+          },
+          "deadline_misses": [],
+          "events": [
+            [
+              0.0,
+              "issue",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer0:mlp_down"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.002202228643000126,
+              "push",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.01355068296279192,
+              "ack",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.01355068296279192,
+              "issue",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.01355068296279192,
+              "push",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.024899137282583715,
+              "ack",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.024899137282583715,
+              "issue",
+              "layer1:mlp_down"
+            ],
+            [
+              0.024899137282583715,
+              "push",
+              "layer0:mlp_down"
+            ],
+            [
+              0.03609398218085766,
+              "ack",
+              "layer0:mlp_down"
+            ],
+            [
+              0.03609398218085766,
+              "push",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.055722785767252446,
+              "ack",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.055722785767252446,
+              "push",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.07535158935364723,
+              "ack",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.07535158935364723,
+              "push",
+              "layer1:mlp_down"
+            ],
+            [
+              0.08654643425192118,
+              "ack",
+              "layer1:mlp_down"
+            ]
+          ],
+          "feasible": true,
+          "issue_order": [
+            "layer0:qkv_projection",
+            "layer0:mlp_gate_up",
+            "layer0:mlp_down",
+            "layer1:qkv_projection",
+            "layer1:mlp_gate_up",
+            "layer1:mlp_down"
+          ],
+          "max_wait_violations": [],
+          "modeled_seconds": 0.08654643425192118,
+          "peak_stage_slots": 4,
+          "peak_work_bytes": 11124736,
+          "start_seconds": {
+            "layer0:mlp_down": 0.0,
+            "layer0:mlp_gate_up": 0.0,
+            "layer0:qkv_projection": 0.0,
+            "layer1:mlp_down": 0.024899137282583715,
+            "layer1:mlp_gate_up": 0.01355068296279192,
+            "layer1:qkv_projection": 0.0
+          },
+          "upload_busy_seconds": 0.08434420560892106,
+          "upload_idle_seconds": 0.002202228643000126
+        },
+        "enumerated": 720,
+        "order": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "scope": "all strict eager issuance permutations; FIFO completion upload"
+      },
+      "phase_provenance": [
+        {
+          "declared_work_bytes": 675840,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 73833.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.0006101243197917938,
+          "prior_mask_plus_kernel_median_seconds": 0.002202228643000126,
+          "role": "qkv_projection",
+          "rows": 16,
+          "shape_out_in": [
+            1152,
+            896
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        },
+        {
+          "declared_work_bytes": 3969024,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 622697.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.003401833586394787,
+          "prior_mask_plus_kernel_median_seconds": 0.010763562750071287,
+          "role": "mlp_gate_up",
+          "rows": 16,
+          "shape_out_in": [
+            9728,
+            896
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        },
+        {
+          "declared_work_bytes": 1593344,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 57449.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.0006203548982739449,
+          "prior_mask_plus_kernel_median_seconds": 0.009224854409694672,
+          "role": "mlp_down",
+          "rows": 16,
+          "shape_out_in": [
+            896,
+            4864
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        }
+      ],
+      "rows": 16,
+      "simulated_bandwidth_bytes_per_second": 100000000,
+      "simulated_full_ack_latency_seconds": 0.01,
+      "source_order": {
+        "accepted_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_down",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up",
+          "layer1:mlp_down"
+        ],
+        "ack_seconds": {
+          "layer0:mlp_down": 0.03609398218085766,
+          "layer0:mlp_gate_up": 0.055722785767252446,
+          "layer0:qkv_projection": 0.01355068296279192,
+          "layer1:mlp_down": 0.08654643425192118,
+          "layer1:mlp_gate_up": 0.07535158935364723,
+          "layer1:qkv_projection": 0.024899137282583715
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_down"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.002202228643000126,
+            "push",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.01355068296279192,
+            "ack",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.01355068296279192,
+            "issue",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.01355068296279192,
+            "push",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.024899137282583715,
+            "ack",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.024899137282583715,
+            "issue",
+            "layer1:mlp_down"
+          ],
+          [
+            0.024899137282583715,
+            "push",
+            "layer0:mlp_down"
+          ],
+          [
+            0.03609398218085766,
+            "ack",
+            "layer0:mlp_down"
+          ],
+          [
+            0.03609398218085766,
+            "push",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.055722785767252446,
+            "ack",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.055722785767252446,
+            "push",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.07535158935364723,
+            "ack",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.07535158935364723,
+            "push",
+            "layer1:mlp_down"
+          ],
+          [
+            0.08654643425192118,
+            "ack",
+            "layer1:mlp_down"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "layer0:qkv_projection",
+          "layer0:mlp_gate_up",
+          "layer0:mlp_down",
+          "layer1:qkv_projection",
+          "layer1:mlp_gate_up",
+          "layer1:mlp_down"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 0.08654643425192118,
+        "peak_stage_slots": 4,
+        "peak_work_bytes": 11124736,
+        "start_seconds": {
+          "layer0:mlp_down": 0.0,
+          "layer0:mlp_gate_up": 0.0,
+          "layer0:qkv_projection": 0.0,
+          "layer1:mlp_down": 0.024899137282583715,
+          "layer1:mlp_gate_up": 0.01355068296279192,
+          "layer1:qkv_projection": 0.0
+        },
+        "upload_busy_seconds": 0.08434420560892106,
+        "upload_idle_seconds": 0.002202228643000126
+      },
+      "width": 4
+    },
+    {
+      "budget": 67108864,
+      "heuristic": {
+        "accepted_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_down",
+          "layer1:mlp_down",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up"
+        ],
+        "ack_seconds": {
+          "layer0:mlp_down": 0.22039710849761368,
+          "layer0:mlp_gate_up": 0.8957333980340659,
+          "layer0:qkv_projection": 0.08721069609721303,
+          "layer1:mlp_down": 0.2789770129748106,
+          "layer1:mlp_gate_up": 1.5806985967606186,
+          "layer1:qkv_projection": 0.16181720402041674
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_down"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:mlp_down"
+          ],
+          [
+            0.012604188174009323,
+            "push",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.08721069609721303,
+            "ack",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.08721069609721303,
+            "push",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.16181720402041674,
+            "ack",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.16181720402041674,
+            "issue",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.16181720402041674,
+            "push",
+            "layer0:mlp_down"
+          ],
+          [
+            0.22039710849761368,
+            "ack",
+            "layer0:mlp_down"
+          ],
+          [
+            0.22039710849761368,
+            "push",
+            "layer1:mlp_down"
+          ],
+          [
+            0.2789770129748106,
+            "ack",
+            "layer1:mlp_down"
+          ],
+          [
+            0.2789770129748106,
+            "push",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.8957333980340659,
+            "ack",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.8957333980340659,
+            "issue",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.9639422117013633,
+            "push",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            1.5806985967606186,
+            "ack",
+            "layer1:mlp_gate_up"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_down",
+          "layer1:mlp_down",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 1.5806985967606186,
+        "peak_stage_slots": 4,
+        "peak_work_bytes": 66981888,
+        "start_seconds": {
+          "layer0:mlp_down": 0.0,
+          "layer0:mlp_gate_up": 0.16181720402041674,
+          "layer0:qkv_projection": 0.0,
+          "layer1:mlp_down": 0.0,
+          "layer1:mlp_gate_up": 0.8957333980340659,
+          "layer1:qkv_projection": 0.0
+        },
+        "upload_busy_seconds": 1.499885594919312,
+        "upload_idle_seconds": 0.08081300184130669
+      },
+      "jobs": [
+        {
+          "compute": 0.012604188174009323,
+          "deadline": null,
+          "stage": "layer0:qkv_projection",
+          "upload": 0.07460650792320371,
+          "work": 6301696
+        },
+        {
+          "compute": 0.06820881366729736,
+          "deadline": null,
+          "stage": "layer0:mlp_gate_up",
+          "upload": 0.6167563850592553,
+          "work": 37175296
+        },
+        {
+          "compute": 0.04227231163531542,
+          "deadline": null,
+          "stage": "layer0:mlp_down",
+          "upload": 0.05857990447719693,
+          "work": 14903296
+        },
+        {
+          "compute": 0.012604188174009323,
+          "deadline": null,
+          "stage": "layer1:qkv_projection",
+          "upload": 0.07460650792320371,
+          "work": 6301696
+        },
+        {
+          "compute": 0.06820881366729736,
+          "deadline": null,
+          "stage": "layer1:mlp_gate_up",
+          "upload": 0.6167563850592553,
+          "work": 37175296
+        },
+        {
+          "compute": 0.04227231163531542,
+          "deadline": null,
+          "stage": "layer1:mlp_down",
+          "upload": 0.05857990447719693,
+          "work": 14903296
+        }
+      ],
+      "oracle": {
+        "best": {
+          "accepted_order": [
+            "layer0:qkv_projection",
+            "layer0:mlp_down",
+            "layer0:mlp_gate_up",
+            "layer1:mlp_down",
+            "layer1:qkv_projection",
+            "layer1:mlp_gate_up"
+          ],
+          "ack_seconds": {
+            "layer0:mlp_down": 0.14579060057440996,
+            "layer0:mlp_gate_up": 0.7625469856336653,
+            "layer0:qkv_projection": 0.08721069609721303,
+            "layer1:mlp_down": 0.8211268901108623,
+            "layer1:mlp_gate_up": 1.5124897830933213,
+            "layer1:qkv_projection": 0.8957333980340659
+          },
+          "deadline_misses": [],
+          "events": [
+            [
+              0.0,
+              "issue",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer0:mlp_down"
+            ],
+            [
+              0.012604188174009323,
+              "push",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.08721069609721303,
+              "ack",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.08721069609721303,
+              "issue",
+              "layer1:mlp_down"
+            ],
+            [
+              0.08721069609721303,
+              "push",
+              "layer0:mlp_down"
+            ],
+            [
+              0.14579060057440996,
+              "ack",
+              "layer0:mlp_down"
+            ],
+            [
+              0.14579060057440996,
+              "issue",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.14579060057440996,
+              "push",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.7625469856336653,
+              "ack",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.7625469856336653,
+              "issue",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.7625469856336653,
+              "push",
+              "layer1:mlp_down"
+            ],
+            [
+              0.8211268901108623,
+              "ack",
+              "layer1:mlp_down"
+            ],
+            [
+              0.8211268901108623,
+              "push",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.8957333980340659,
+              "ack",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.8957333980340659,
+              "push",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              1.5124897830933213,
+              "ack",
+              "layer1:mlp_gate_up"
+            ]
+          ],
+          "feasible": true,
+          "issue_order": [
+            "layer0:qkv_projection",
+            "layer0:mlp_gate_up",
+            "layer0:mlp_down",
+            "layer1:mlp_down",
+            "layer1:qkv_projection",
+            "layer1:mlp_gate_up"
+          ],
+          "max_wait_violations": [],
+          "modeled_seconds": 1.5124897830933213,
+          "peak_stage_slots": 3,
+          "peak_work_bytes": 66981888,
+          "start_seconds": {
+            "layer0:mlp_down": 0.0,
+            "layer0:mlp_gate_up": 0.0,
+            "layer0:qkv_projection": 0.0,
+            "layer1:mlp_down": 0.08721069609721303,
+            "layer1:mlp_gate_up": 0.7625469856336653,
+            "layer1:qkv_projection": 0.14579060057440996
+          },
+          "upload_busy_seconds": 1.499885594919312,
+          "upload_idle_seconds": 0.012604188174009323
+        },
+        "enumerated": 720,
+        "order": [
+          0,
+          1,
+          2,
+          5,
+          3,
+          4
+        ],
+        "scope": "all strict eager issuance permutations; FIFO completion upload"
+      },
+      "phase_provenance": [
+        {
+          "declared_work_bytes": 6301696,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 691413.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.004465207923203707,
+          "prior_mask_plus_kernel_median_seconds": 0.012604188174009323,
+          "role": "qkv_projection",
+          "rows": 150,
+          "shape_out_in": [
+            1152,
+            896
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        },
+        {
+          "declared_work_bytes": 37175296,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 5837013.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.03205508505925536,
+          "prior_mask_plus_kernel_median_seconds": 0.06820881366729736,
+          "role": "mlp_gate_up",
+          "rows": 150,
+          "shape_out_in": [
+            9728,
+            896
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        },
+        {
+          "declared_work_bytes": 14903296,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 537813.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.003798604477196932,
+          "prior_mask_plus_kernel_median_seconds": 0.04227231163531542,
+          "role": "mlp_down",
+          "rows": 150,
+          "shape_out_in": [
+            896,
+            4864
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        }
+      ],
+      "rows": 150,
+      "simulated_bandwidth_bytes_per_second": 10000000,
+      "simulated_full_ack_latency_seconds": 0.001,
+      "source_order": {
+        "accepted_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_down",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_down",
+          "layer1:mlp_gate_up"
+        ],
+        "ack_seconds": {
+          "layer0:mlp_down": 0.22039710849761368,
+          "layer0:mlp_gate_up": 0.837153493556869,
+          "layer0:qkv_projection": 0.08721069609721303,
+          "layer1:mlp_down": 0.9380057096693813,
+          "layer1:mlp_gate_up": 1.5547620947286367,
+          "layer1:qkv_projection": 0.16181720402041674
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_down"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.012604188174009323,
+            "push",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.08721069609721303,
+            "ack",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.08721069609721303,
+            "push",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.16181720402041674,
+            "ack",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.16181720402041674,
+            "push",
+            "layer0:mlp_down"
+          ],
+          [
+            0.22039710849761368,
+            "ack",
+            "layer0:mlp_down"
+          ],
+          [
+            0.22039710849761368,
+            "push",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.837153493556869,
+            "ack",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.837153493556869,
+            "issue",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.837153493556869,
+            "issue",
+            "layer1:mlp_down"
+          ],
+          [
+            0.8794258051921844,
+            "push",
+            "layer1:mlp_down"
+          ],
+          [
+            0.9380057096693813,
+            "ack",
+            "layer1:mlp_down"
+          ],
+          [
+            0.9380057096693813,
+            "push",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            1.5547620947286367,
+            "ack",
+            "layer1:mlp_gate_up"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "layer0:qkv_projection",
+          "layer0:mlp_gate_up",
+          "layer0:mlp_down",
+          "layer1:qkv_projection",
+          "layer1:mlp_gate_up",
+          "layer1:mlp_down"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 1.5547620947286367,
+        "peak_stage_slots": 4,
+        "peak_work_bytes": 64681984,
+        "start_seconds": {
+          "layer0:mlp_down": 0.0,
+          "layer0:mlp_gate_up": 0.0,
+          "layer0:qkv_projection": 0.0,
+          "layer1:mlp_down": 0.837153493556869,
+          "layer1:mlp_gate_up": 0.837153493556869,
+          "layer1:qkv_projection": 0.0
+        },
+        "upload_busy_seconds": 1.499885594919312,
+        "upload_idle_seconds": 0.05487649980932474
+      },
+      "width": 4
+    },
+    {
+      "budget": 67108864,
+      "heuristic": {
+        "accepted_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_gate_up",
+          "layer0:mlp_down",
+          "layer1:mlp_down",
+          "layer1:mlp_gate_up"
+        ],
+        "ack_seconds": {
+          "layer0:mlp_down": 0.23008307483906504,
+          "layer0:mlp_gate_up": 0.1686340287265527,
+          "layer0:qkv_projection": 0.03398352609721303,
+          "layer1:mlp_down": 0.24925980931626196,
+          "layer1:mlp_gate_up": 0.3496850243755173,
+          "layer1:qkv_projection": 0.055362864020416735
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.012604188174009323,
+            "push",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.03398352609721303,
+            "ack",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.03398352609721303,
+            "push",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.055362864020416735,
+            "ack",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.06820881366729736,
+            "push",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.1686340287265527,
+            "ack",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.1686340287265527,
+            "issue",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.1686340287265527,
+            "issue",
+            "layer0:mlp_down"
+          ],
+          [
+            0.1686340287265527,
+            "issue",
+            "layer1:mlp_down"
+          ],
+          [
+            0.21090634036186812,
+            "push",
+            "layer0:mlp_down"
+          ],
+          [
+            0.23008307483906504,
+            "ack",
+            "layer0:mlp_down"
+          ],
+          [
+            0.23008307483906504,
+            "push",
+            "layer1:mlp_down"
+          ],
+          [
+            0.24925980931626196,
+            "ack",
+            "layer1:mlp_down"
+          ],
+          [
+            0.24925980931626196,
+            "push",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.3496850243755173,
+            "ack",
+            "layer1:mlp_gate_up"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_gate_up",
+          "layer0:mlp_down",
+          "layer1:mlp_down"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 0.3496850243755173,
+        "peak_stage_slots": 3,
+        "peak_work_bytes": 66981888,
+        "start_seconds": {
+          "layer0:mlp_down": 0.1686340287265527,
+          "layer0:mlp_gate_up": 0.0,
+          "layer0:qkv_projection": 0.0,
+          "layer1:mlp_down": 0.1686340287265527,
+          "layer1:mlp_gate_up": 0.1686340287265527,
+          "layer1:qkv_projection": 0.0
+        },
+        "upload_busy_seconds": 0.281962574919312,
+        "upload_idle_seconds": 0.06772244945620531
+      },
+      "jobs": [
+        {
+          "compute": 0.012604188174009323,
+          "deadline": null,
+          "stage": "layer0:qkv_projection",
+          "upload": 0.021379337923203706,
+          "work": 6301696
+        },
+        {
+          "compute": 0.06820881366729736,
+          "deadline": null,
+          "stage": "layer0:mlp_gate_up",
+          "upload": 0.10042521505925535,
+          "work": 37175296
+        },
+        {
+          "compute": 0.04227231163531542,
+          "deadline": null,
+          "stage": "layer0:mlp_down",
+          "upload": 0.019176734477196932,
+          "work": 14903296
+        },
+        {
+          "compute": 0.012604188174009323,
+          "deadline": null,
+          "stage": "layer1:qkv_projection",
+          "upload": 0.021379337923203706,
+          "work": 6301696
+        },
+        {
+          "compute": 0.06820881366729736,
+          "deadline": null,
+          "stage": "layer1:mlp_gate_up",
+          "upload": 0.10042521505925535,
+          "work": 37175296
+        },
+        {
+          "compute": 0.04227231163531542,
+          "deadline": null,
+          "stage": "layer1:mlp_down",
+          "upload": 0.019176734477196932,
+          "work": 14903296
+        }
+      ],
+      "oracle": {
+        "best": {
+          "accepted_order": [
+            "layer0:qkv_projection",
+            "layer0:mlp_down",
+            "layer0:mlp_gate_up",
+            "layer1:qkv_projection",
+            "layer1:mlp_down",
+            "layer1:mlp_gate_up"
+          ],
+          "ack_seconds": {
+            "layer0:mlp_down": 0.061449046112512354,
+            "layer0:mlp_gate_up": 0.1686340287265527,
+            "layer0:qkv_projection": 0.03398352609721303,
+            "layer1:mlp_down": 0.23008307483906504,
+            "layer1:mlp_gate_up": 0.3372680574531054,
+            "layer1:qkv_projection": 0.20261755482376573
+          },
+          "deadline_misses": [],
+          "events": [
+            [
+              0.0,
+              "issue",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.0,
+              "issue",
+              "layer0:mlp_down"
+            ],
+            [
+              0.012604188174009323,
+              "push",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.03398352609721303,
+              "ack",
+              "layer0:qkv_projection"
+            ],
+            [
+              0.04227231163531542,
+              "push",
+              "layer0:mlp_down"
+            ],
+            [
+              0.061449046112512354,
+              "ack",
+              "layer0:mlp_down"
+            ],
+            [
+              0.06820881366729736,
+              "push",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.1686340287265527,
+              "ack",
+              "layer0:mlp_gate_up"
+            ],
+            [
+              0.1686340287265527,
+              "issue",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.1686340287265527,
+              "issue",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.1686340287265527,
+              "issue",
+              "layer1:mlp_down"
+            ],
+            [
+              0.18123821690056202,
+              "push",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.20261755482376573,
+              "ack",
+              "layer1:qkv_projection"
+            ],
+            [
+              0.21090634036186812,
+              "push",
+              "layer1:mlp_down"
+            ],
+            [
+              0.23008307483906504,
+              "ack",
+              "layer1:mlp_down"
+            ],
+            [
+              0.23684284239385006,
+              "push",
+              "layer1:mlp_gate_up"
+            ],
+            [
+              0.3372680574531054,
+              "ack",
+              "layer1:mlp_gate_up"
+            ]
+          ],
+          "feasible": true,
+          "issue_order": [
+            "layer0:qkv_projection",
+            "layer0:mlp_gate_up",
+            "layer0:mlp_down",
+            "layer1:mlp_gate_up",
+            "layer1:qkv_projection",
+            "layer1:mlp_down"
+          ],
+          "max_wait_violations": [],
+          "modeled_seconds": 0.3372680574531054,
+          "peak_stage_slots": 3,
+          "peak_work_bytes": 58380288,
+          "start_seconds": {
+            "layer0:mlp_down": 0.0,
+            "layer0:mlp_gate_up": 0.0,
+            "layer0:qkv_projection": 0.0,
+            "layer1:mlp_down": 0.1686340287265527,
+            "layer1:mlp_gate_up": 0.1686340287265527,
+            "layer1:qkv_projection": 0.1686340287265527
+          },
+          "upload_busy_seconds": 0.281962574919312,
+          "upload_idle_seconds": 0.055305482533793415
+        },
+        "enumerated": 720,
+        "order": [
+          0,
+          1,
+          2,
+          4,
+          3,
+          5
+        ],
+        "scope": "all strict eager issuance permutations; FIFO completion upload"
+      },
+      "phase_provenance": [
+        {
+          "declared_work_bytes": 6301696,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 691413.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.004465207923203707,
+          "prior_mask_plus_kernel_median_seconds": 0.012604188174009323,
+          "role": "qkv_projection",
+          "rows": 150,
+          "shape_out_in": [
+            1152,
+            896
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        },
+        {
+          "declared_work_bytes": 37175296,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 5837013.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.03205508505925536,
+          "prior_mask_plus_kernel_median_seconds": 0.06820881366729736,
+          "role": "mlp_gate_up",
+          "rows": 150,
+          "shape_out_in": [
+            9728,
+            896
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        },
+        {
+          "declared_work_bytes": 14903296,
+          "measured_local_phase_records": 12,
+          "measured_samples": 3,
+          "prior_encoded_bytes_median": 537813.0,
+          "prior_encoding_decode_file_io_median_seconds": 0.003798604477196932,
+          "prior_mask_plus_kernel_median_seconds": 0.04227231163531542,
+          "role": "mlp_down",
+          "rows": 150,
+          "shape_out_in": [
+            896,
+            4864
+          ],
+          "source": {
+            "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model": "Qwen/Qwen2.5-0.5B-Instruct",
+            "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "schedule_digest": "9db903fe5a0ae36d4c8f7069c75f52a5f0c2a9377e9224f9d3b262641cb48b2b",
+            "weights": "public deterministic synthetic i8; not checkpoint tensor values"
+          }
+        }
+      ],
+      "rows": 150,
+      "simulated_bandwidth_bytes_per_second": 100000000,
+      "simulated_full_ack_latency_seconds": 0.01,
+      "source_order": {
+        "accepted_order": [
+          "layer0:qkv_projection",
+          "layer1:qkv_projection",
+          "layer0:mlp_down",
+          "layer0:mlp_gate_up",
+          "layer1:mlp_down",
+          "layer1:mlp_gate_up"
+        ],
+        "ack_seconds": {
+          "layer0:mlp_down": 0.07453959849761367,
+          "layer0:mlp_gate_up": 0.17496481355686902,
+          "layer0:qkv_projection": 0.03398352609721303,
+          "layer1:mlp_down": 0.23641385966938136,
+          "layer1:mlp_gate_up": 0.34359884228342175,
+          "layer1:qkv_projection": 0.055362864020416735
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer0:mlp_down"
+          ],
+          [
+            0.0,
+            "issue",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.012604188174009323,
+            "push",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.03398352609721303,
+            "ack",
+            "layer0:qkv_projection"
+          ],
+          [
+            0.03398352609721303,
+            "push",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.055362864020416735,
+            "ack",
+            "layer1:qkv_projection"
+          ],
+          [
+            0.055362864020416735,
+            "push",
+            "layer0:mlp_down"
+          ],
+          [
+            0.07453959849761367,
+            "ack",
+            "layer0:mlp_down"
+          ],
+          [
+            0.07453959849761367,
+            "push",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.17496481355686902,
+            "ack",
+            "layer0:mlp_gate_up"
+          ],
+          [
+            0.17496481355686902,
+            "issue",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.17496481355686902,
+            "issue",
+            "layer1:mlp_down"
+          ],
+          [
+            0.21723712519218444,
+            "push",
+            "layer1:mlp_down"
+          ],
+          [
+            0.23641385966938136,
+            "ack",
+            "layer1:mlp_down"
+          ],
+          [
+            0.24317362722416638,
+            "push",
+            "layer1:mlp_gate_up"
+          ],
+          [
+            0.34359884228342175,
+            "ack",
+            "layer1:mlp_gate_up"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "layer0:qkv_projection",
+          "layer0:mlp_gate_up",
+          "layer0:mlp_down",
+          "layer1:qkv_projection",
+          "layer1:mlp_gate_up",
+          "layer1:mlp_down"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 0.34359884228342175,
+        "peak_stage_slots": 4,
+        "peak_work_bytes": 64681984,
+        "start_seconds": {
+          "layer0:mlp_down": 0.0,
+          "layer0:mlp_gate_up": 0.0,
+          "layer0:qkv_projection": 0.0,
+          "layer1:mlp_down": 0.17496481355686902,
+          "layer1:mlp_gate_up": 0.17496481355686902,
+          "layer1:qkv_projection": 0.0
+        },
+        "upload_busy_seconds": 0.281962574919312,
+        "upload_idle_seconds": 0.061636267364109765
+      },
+      "width": 4
+    }
+  ],
+  "schema": "pllm.preparation_flowshop.v1",
+  "scope": "simulated scheduling; prior local measured phase replay",
+  "source_hashes": {
+    "docs/evidence/research-correction-stripes-cohort.json": "00488adc5721938dbfda865f5c2328a044a7b88fdfb3e797bb640484da67a5ca",
+    "docs/evidence/research-preparation-factory.json": "3606492584a8ccab3a2d4621654619bb9e79367d8ad6addf0ac380fb2a13e063",
+    "docs/research/preparation-flowshop-reference.md": "78069ad7fd2b261c37c563cbdd0ce4c23905c3357c09f1d47dd141e41509f0ad",
+    "python/pllm/runtime/client.py": "234537752fa84bf7c5f56416937969affbdd60b8bcdc265a5484e39d43e7d584",
+    "python/pllm/runtime/preparation_server.py": "8c53329b3fc302b19d33131b8eb07a4c19ce24ec9d42531f298a568e52fe8e6c",
+    "python/pllm/runtime/preparation_window.py": "5b0d717c87d3c1385044e518df5037a83d96f76b30c1e9879151cb87c2c6a8f9",
+    "scripts/probe_preparation_flowshop.py": "df4cce86ba529432e1f632efeef7ccd05f578a486600e7762423125c072ebcc0",
+    "tests/test_preparation_flowshop_probe.py": "40bf412b2c6004e3cf7a72b84b0eea4f497a66234b4e0d55b760e1b253760ab8"
+  },
+  "tier_qualification": false,
+  "tiny": [
+    {
+      "heuristic": {
+        "accepted_order": [
+          "0",
+          "2",
+          "1"
+        ],
+        "ack_seconds": {
+          "0": 2.0,
+          "1": 5.0,
+          "2": 4.0
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "0"
+          ],
+          [
+            0.0,
+            "issue",
+            "2"
+          ],
+          [
+            1.0,
+            "push",
+            "0"
+          ],
+          [
+            2.0,
+            "ack",
+            "0"
+          ],
+          [
+            2.0,
+            "issue",
+            "1"
+          ],
+          [
+            2.0,
+            "push",
+            "2"
+          ],
+          [
+            4.0,
+            "ack",
+            "2"
+          ],
+          [
+            4.0,
+            "push",
+            "1"
+          ],
+          [
+            5.0,
+            "ack",
+            "1"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "0",
+          "2",
+          "1"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 5.0,
+        "peak_stage_slots": 2,
+        "peak_work_bytes": 2097152,
+        "start_seconds": {
+          "0": 0.0,
+          "1": 2.0,
+          "2": 0.0
+        },
+        "upload_busy_seconds": 4,
+        "upload_idle_seconds": 1.0
+      },
+      "independently_checked_orders": 6,
+      "jobs": [
+        {
+          "compute": 1,
+          "deadline": null,
+          "stage": "0",
+          "upload": 1,
+          "work": 1048576
+        },
+        {
+          "compute": 2,
+          "deadline": null,
+          "stage": "1",
+          "upload": 1,
+          "work": 1048576
+        },
+        {
+          "compute": 2,
+          "deadline": null,
+          "stage": "2",
+          "upload": 2,
+          "work": 1048576
+        }
+      ],
+      "name": "upload_busy_gain",
+      "oracle": {
+        "best": {
+          "accepted_order": [
+            "0",
+            "2",
+            "1"
+          ],
+          "ack_seconds": {
+            "0": 2.0,
+            "1": 5.0,
+            "2": 4.0
+          },
+          "deadline_misses": [],
+          "events": [
+            [
+              0.0,
+              "issue",
+              "0"
+            ],
+            [
+              0.0,
+              "issue",
+              "2"
+            ],
+            [
+              1.0,
+              "push",
+              "0"
+            ],
+            [
+              2.0,
+              "ack",
+              "0"
+            ],
+            [
+              2.0,
+              "issue",
+              "1"
+            ],
+            [
+              2.0,
+              "push",
+              "2"
+            ],
+            [
+              4.0,
+              "ack",
+              "2"
+            ],
+            [
+              4.0,
+              "push",
+              "1"
+            ],
+            [
+              5.0,
+              "ack",
+              "1"
+            ]
+          ],
+          "feasible": true,
+          "issue_order": [
+            "0",
+            "2",
+            "1"
+          ],
+          "max_wait_violations": [],
+          "modeled_seconds": 5.0,
+          "peak_stage_slots": 2,
+          "peak_work_bytes": 2097152,
+          "start_seconds": {
+            "0": 0.0,
+            "1": 2.0,
+            "2": 0.0
+          },
+          "upload_busy_seconds": 4,
+          "upload_idle_seconds": 1.0
+        },
+        "enumerated": 6,
+        "order": [
+          0,
+          2,
+          1
+        ],
+        "scope": "all strict eager issuance permutations; FIFO completion upload"
+      },
+      "source": {
+        "accepted_order": [
+          "0",
+          "1",
+          "2"
+        ],
+        "ack_seconds": {
+          "0": 2.0,
+          "1": 3.0,
+          "2": 6.0
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "0"
+          ],
+          [
+            0.0,
+            "issue",
+            "1"
+          ],
+          [
+            1.0,
+            "push",
+            "0"
+          ],
+          [
+            2.0,
+            "ack",
+            "0"
+          ],
+          [
+            2.0,
+            "issue",
+            "2"
+          ],
+          [
+            2.0,
+            "push",
+            "1"
+          ],
+          [
+            3.0,
+            "ack",
+            "1"
+          ],
+          [
+            4.0,
+            "push",
+            "2"
+          ],
+          [
+            6.0,
+            "ack",
+            "2"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "0",
+          "1",
+          "2"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 6.0,
+        "peak_stage_slots": 2,
+        "peak_work_bytes": 2097152,
+        "start_seconds": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 2.0
+        },
+        "upload_busy_seconds": 4,
+        "upload_idle_seconds": 2.0
+      }
+    },
+    {
+      "heuristic": {
+        "accepted_order": [
+          "0",
+          "2",
+          "1"
+        ],
+        "ack_seconds": {
+          "0": 2.0,
+          "1": 5.0,
+          "2": 3.0
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "0"
+          ],
+          [
+            0.0,
+            "issue",
+            "2"
+          ],
+          [
+            1.0,
+            "push",
+            "0"
+          ],
+          [
+            2.0,
+            "ack",
+            "0"
+          ],
+          [
+            2.0,
+            "issue",
+            "1"
+          ],
+          [
+            2.0,
+            "push",
+            "2"
+          ],
+          [
+            3.0,
+            "ack",
+            "2"
+          ],
+          [
+            4.0,
+            "push",
+            "1"
+          ],
+          [
+            5.0,
+            "ack",
+            "1"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "0",
+          "2",
+          "1"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 5.0,
+        "peak_stage_slots": 2,
+        "peak_work_bytes": 2097152,
+        "start_seconds": {
+          "0": 0.0,
+          "1": 2.0,
+          "2": 0.0
+        },
+        "upload_busy_seconds": 3,
+        "upload_idle_seconds": 2.0
+      },
+      "independently_checked_orders": 6,
+      "jobs": [
+        {
+          "compute": 1,
+          "deadline": null,
+          "stage": "0",
+          "upload": 1,
+          "work": 1048576
+        },
+        {
+          "compute": 2,
+          "deadline": null,
+          "stage": "1",
+          "upload": 1,
+          "work": 1048576
+        },
+        {
+          "compute": 1,
+          "deadline": null,
+          "stage": "2",
+          "upload": 1,
+          "work": 1048576
+        }
+      ],
+      "name": "reorder_can_lose",
+      "oracle": {
+        "best": {
+          "accepted_order": [
+            "0",
+            "1",
+            "2"
+          ],
+          "ack_seconds": {
+            "0": 2.0,
+            "1": 3.0,
+            "2": 4.0
+          },
+          "deadline_misses": [],
+          "events": [
+            [
+              0.0,
+              "issue",
+              "0"
+            ],
+            [
+              0.0,
+              "issue",
+              "1"
+            ],
+            [
+              1.0,
+              "push",
+              "0"
+            ],
+            [
+              2.0,
+              "ack",
+              "0"
+            ],
+            [
+              2.0,
+              "issue",
+              "2"
+            ],
+            [
+              2.0,
+              "push",
+              "1"
+            ],
+            [
+              3.0,
+              "ack",
+              "1"
+            ],
+            [
+              3.0,
+              "push",
+              "2"
+            ],
+            [
+              4.0,
+              "ack",
+              "2"
+            ]
+          ],
+          "feasible": true,
+          "issue_order": [
+            "0",
+            "1",
+            "2"
+          ],
+          "max_wait_violations": [],
+          "modeled_seconds": 4.0,
+          "peak_stage_slots": 2,
+          "peak_work_bytes": 2097152,
+          "start_seconds": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 2.0
+          },
+          "upload_busy_seconds": 3,
+          "upload_idle_seconds": 1.0
+        },
+        "enumerated": 6,
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "scope": "all strict eager issuance permutations; FIFO completion upload"
+      },
+      "source": {
+        "accepted_order": [
+          "0",
+          "1",
+          "2"
+        ],
+        "ack_seconds": {
+          "0": 2.0,
+          "1": 3.0,
+          "2": 4.0
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "0"
+          ],
+          [
+            0.0,
+            "issue",
+            "1"
+          ],
+          [
+            1.0,
+            "push",
+            "0"
+          ],
+          [
+            2.0,
+            "ack",
+            "0"
+          ],
+          [
+            2.0,
+            "issue",
+            "2"
+          ],
+          [
+            2.0,
+            "push",
+            "1"
+          ],
+          [
+            3.0,
+            "ack",
+            "1"
+          ],
+          [
+            3.0,
+            "push",
+            "2"
+          ],
+          [
+            4.0,
+            "ack",
+            "2"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "0",
+          "1",
+          "2"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 4.0,
+        "peak_stage_slots": 2,
+        "peak_work_bytes": 2097152,
+        "start_seconds": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 2.0
+        },
+        "upload_busy_seconds": 3,
+        "upload_idle_seconds": 1.0
+      }
+    },
+    {
+      "heuristic": {
+        "accepted_order": [
+          "1",
+          "2",
+          "0",
+          "3"
+        ],
+        "ack_seconds": {
+          "0": 18.0,
+          "1": 9.0,
+          "2": 13.0,
+          "3": 21.0
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "1"
+          ],
+          [
+            0.0,
+            "issue",
+            "2"
+          ],
+          [
+            1.0,
+            "push",
+            "1"
+          ],
+          [
+            9.0,
+            "ack",
+            "1"
+          ],
+          [
+            9.0,
+            "issue",
+            "0"
+          ],
+          [
+            9.0,
+            "push",
+            "2"
+          ],
+          [
+            13.0,
+            "ack",
+            "2"
+          ],
+          [
+            13.0,
+            "issue",
+            "3"
+          ],
+          [
+            17.0,
+            "push",
+            "0"
+          ],
+          [
+            18.0,
+            "ack",
+            "0"
+          ],
+          [
+            20.0,
+            "push",
+            "3"
+          ],
+          [
+            21.0,
+            "ack",
+            "3"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "1",
+          "2",
+          "0",
+          "3"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 21.0,
+        "peak_stage_slots": 2,
+        "peak_work_bytes": 2097152,
+        "start_seconds": {
+          "0": 9.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 13.0
+        },
+        "upload_busy_seconds": 14,
+        "upload_idle_seconds": 7.0
+      },
+      "independently_checked_orders": 24,
+      "jobs": [
+        {
+          "compute": 8,
+          "deadline": null,
+          "stage": "0",
+          "upload": 1,
+          "work": 1048576
+        },
+        {
+          "compute": 1,
+          "deadline": null,
+          "stage": "1",
+          "upload": 8,
+          "work": 1048576
+        },
+        {
+          "compute": 2,
+          "deadline": null,
+          "stage": "2",
+          "upload": 4,
+          "work": 1048576
+        },
+        {
+          "compute": 7,
+          "deadline": null,
+          "stage": "3",
+          "upload": 1,
+          "work": 1048576
+        }
+      ],
+      "name": "long_compute_hidden_by_source",
+      "oracle": {
+        "best": {
+          "accepted_order": [
+            "1",
+            "0",
+            "2",
+            "3"
+          ],
+          "ack_seconds": {
+            "0": 10.0,
+            "1": 9.0,
+            "2": 16.0,
+            "3": 17.0
+          },
+          "deadline_misses": [],
+          "events": [
+            [
+              0.0,
+              "issue",
+              "0"
+            ],
+            [
+              0.0,
+              "issue",
+              "1"
+            ],
+            [
+              1.0,
+              "push",
+              "1"
+            ],
+            [
+              9.0,
+              "ack",
+              "1"
+            ],
+            [
+              9.0,
+              "issue",
+              "3"
+            ],
+            [
+              9.0,
+              "push",
+              "0"
+            ],
+            [
+              10.0,
+              "ack",
+              "0"
+            ],
+            [
+              10.0,
+              "issue",
+              "2"
+            ],
+            [
+              12.0,
+              "push",
+              "2"
+            ],
+            [
+              16.0,
+              "ack",
+              "2"
+            ],
+            [
+              16.0,
+              "push",
+              "3"
+            ],
+            [
+              17.0,
+              "ack",
+              "3"
+            ]
+          ],
+          "feasible": true,
+          "issue_order": [
+            "0",
+            "1",
+            "3",
+            "2"
+          ],
+          "max_wait_violations": [],
+          "modeled_seconds": 17.0,
+          "peak_stage_slots": 2,
+          "peak_work_bytes": 2097152,
+          "start_seconds": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 10.0,
+            "3": 9.0
+          },
+          "upload_busy_seconds": 14,
+          "upload_idle_seconds": 3.0
+        },
+        "enumerated": 24,
+        "order": [
+          0,
+          1,
+          3,
+          2
+        ],
+        "scope": "all strict eager issuance permutations; FIFO completion upload"
+      },
+      "source": {
+        "accepted_order": [
+          "1",
+          "0",
+          "2",
+          "3"
+        ],
+        "ack_seconds": {
+          "0": 10.0,
+          "1": 9.0,
+          "2": 15.0,
+          "3": 18.0
+        },
+        "deadline_misses": [],
+        "events": [
+          [
+            0.0,
+            "issue",
+            "0"
+          ],
+          [
+            0.0,
+            "issue",
+            "1"
+          ],
+          [
+            1.0,
+            "push",
+            "1"
+          ],
+          [
+            9.0,
+            "ack",
+            "1"
+          ],
+          [
+            9.0,
+            "issue",
+            "2"
+          ],
+          [
+            9.0,
+            "push",
+            "0"
+          ],
+          [
+            10.0,
+            "ack",
+            "0"
+          ],
+          [
+            10.0,
+            "issue",
+            "3"
+          ],
+          [
+            11.0,
+            "push",
+            "2"
+          ],
+          [
+            15.0,
+            "ack",
+            "2"
+          ],
+          [
+            17.0,
+            "push",
+            "3"
+          ],
+          [
+            18.0,
+            "ack",
+            "3"
+          ]
+        ],
+        "feasible": true,
+        "issue_order": [
+          "0",
+          "1",
+          "2",
+          "3"
+        ],
+        "max_wait_violations": [],
+        "modeled_seconds": 18.0,
+        "peak_stage_slots": 2,
+        "peak_work_bytes": 2097152,
+        "start_seconds": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 9.0,
+          "3": 10.0
+        },
+        "upload_busy_seconds": 14,
+        "upload_idle_seconds": 4.0
+      }
+    }
+  ],
+  "unknown": {
+    "TTFT": null,
+    "all_link_traffic": null,
+    "concurrent_compute_cost": null,
+    "decode_throughput": null,
+    "physical_wire_bytes": null,
+    "preparation_cpu_rss": null,
+    "provider_completion": null,
+    "real_transport_contention": null,
+    "whole_client_cpu_rss": null
+  }
+}

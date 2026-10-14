@@ -238,6 +238,15 @@ one Low-tier regression. The other screens expose scheduling, provenance,
 sparse-tail and full-logit constraints. Independent confirmation and a new
 Low/Medium SOTA result remain open.
 
+The subsequent [ten fixed-tier objective screens](https://github.com/blairhudson/pllm/blob/main/docs/research/tier-objectives-reference.md)
+target CPU, latency and traffic while keeping client memory constrained.
+Source-certified wider digit blocks lower one stage's prefill CPU 9.99% in a
+standalone native screen, while setup and memory rise and one-row work regresses.
+Measured FP64 corrections regress, while packed-limb reuse and decode-attention lifetime
+fusion show only small isolated CPU changes. Scheduling and head-shard probes
+retain their execution and ownership gates. No new whole-client tier or serving
+SOTA result follows from these operator screens.
+
 Start with a question such as: “Can smaller prefill tiles lower client peak RSS
 within an acceptable first-token delay?” Name the primary objective and the
 resource or latency budgets that must still hold. Then identify the mechanism,

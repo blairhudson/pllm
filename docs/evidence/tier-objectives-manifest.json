@@ -1,0 +1,26 @@
+{
+  "schema": "pllm.tier_objectives_evidence_manifest.v1",
+  "scope": "separate bounded research cohorts; no serving or whole-client tier qualification",
+  "sha256": {
+    "certified-digit-blocks-native-adversarial.json": "d3bb312cce02bb0d71ffd1f79d68b4d5bc615f5e1e4cc7a027128e5c0928836d",
+    "certified-digit-blocks-native-build.json": "ed61136c94db78a2d4e89cc18dd5224373abf5e9e5ed0e4080e5fad4b68897ef",
+    "certified-digit-blocks-native-down0.json": "e7fef89f9efc683871fdab2bf54d05bc0a919824d77e01259abc9d4dd5192127",
+    "certified-digit-blocks-public-scan.json": "03a91b27f2196d9cc1b3c33df08933484cfbcc0763d23851b78c7a20bd060ca8",
+    "certified-digit-blocks-synthetic.json": "a4a4adfc1b0bf7d70393b5d26252eeb0ea91a58ff4a28b58fc2e51ae7b629e62",
+    "column-streaming-linear-synthetic.json": "694b44dea6f170f4f82567d3a2351c4559c598939bbb3d9ba59decea7e958b98",
+    "exact-f64-corrections-synthetic.json": "525e6de4f71c76daf8e675e331ce2b1fc599a9d23a034d07af913e31bbe8ad33",
+    "fused-decode-attention-synthetic.json": "0db8325998549f165a49f7645ed51419ef5603a6cb28345ad1ac5002abbd2e56",
+    "limb-stationary-corrections-synthetic.json": "17d7d86be055f985d0c0290e4b205552c2f86de32430343327667e69da986f29",
+    "mask-runahead-synthetic.json": "2017ded44aee18932b0a7e52812ea90b785d0d2197e980f2492a858e87078bec",
+    "masked-decode-microbatch-synthetic.json": "7488ccad5d079df5414960187f29f513a04690dd917009cc81b62a687cddf5f3",
+    "phase-split-placement-synthetic.json": "9cff15b26bbe3dd72eb80aec6a6b22da8ea399384cfd44561a4f0913884daa78",
+    "preparation-flowshop-synthetic.json": "f9495ca74159cbe01e8a356c3744e9d336d9ee1d6197d8c2782d88e430dd39d2",
+    "resident-head-shards-synthetic.json": "52e1fe9304f374a876a9f00b2fc09422e0d41098d13bbc67cf3438f0bf39a704",
+    "tier-objectives-decode-attention.json": "ae5a5e2e773c8c5df597724774fcd89553912d8a5cd80e1bacd37b8d8a9935bb",
+    "tier-objectives-f64-corrections.json": "faf040f445e36685153a9a8a0dc47774a643423f503115e357cd68191b8e17d8",
+    "tier-objectives-limb-build.json": "ca4a95c0ef48a07829727c0e6f45a383ce542b3c3614f8e7b84b42f9c796fa6d",
+    "tier-objectives-limb-stationary.json": "d41d95b3d69e8020e0ac245972ca9108b6f730f6a3828e04731fa37cde7b1b94",
+    "tier-objectives-limb-tails.json": "9ab68532b8418e62297cc840e8e1f85478b1d16ef82cc32c124b43053e9030e0",
+    "tier-objectives-mask-runahead.json": "2c0432d6967eb724d5e49b5d3f7d6f7059887427c1499d1af68a30362804aa67"
+  }
+}

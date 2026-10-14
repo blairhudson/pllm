@@ -136,6 +136,17 @@ storage regresses after coefficient costs, and head certificates cannot replace
 complete-logit contracts. These research references establish neither serving
 SOTA nor Low/Medium client qualification. Evidence and next gates:
 `docs/research/orthogonal-frontier-reference.md`.
+Ten further fixed-tier objective screens retain bounded references for public
+weight certificates, phase placement, mask runahead, Preparation ordering, FP64
+corrections, packed-limb reuse, resident head shards, decode-attention lifetimes,
+column-streamed products and cross-session queues. Four pinned Qwen down tensors
+certify eight rather than twenty digit SGEMMs with unchanged dense products.
+Twenty-four fresh native stage workers preserve 6,494,208 outputs and observe zero
+swap growth; at 150 rows, the matched C schedule lowers issuance CPU 9.99%, while
+setup and process RSS rise. One-row execution regresses. Separate operator screens
+find FP64 slower and only small packed-limb/attention CPU changes. These references
+establish neither native SDK integration nor Low/Medium whole-client improvement.
+Exact scope, negative results and replay: `docs/research/tier-objectives-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

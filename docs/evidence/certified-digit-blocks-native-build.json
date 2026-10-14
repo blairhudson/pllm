@@ -1,0 +1,30 @@
+{
+  "compile_command": [
+    "/usr/bin/clang",
+    "-O2",
+    "-std=c11",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wno-deprecated-declarations",
+    "-dynamiclib",
+    "/Users/blairhudson/workspace/pllm/scripts/research_native/certified_digit_blocks/fixture.c",
+    "-framework",
+    "Accelerate",
+    "-o",
+    "/Users/blairhudson/workspace/pllm/target/tier-objectives-ten/certified-digit-blocks-v1/fixture.dylib"
+  ],
+  "compile_stderr": "",
+  "compile_stdout": "",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "fixture_source_sha256": "77c3f27e22525b6bf32905ccef4bf862879462500357cae1171bf358291bb921",
+  "installed_build": {
+    "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+  },
+  "kind": "standalone_certified_digit_blocks_compile",
+  "library": "/Users/blairhudson/workspace/pllm/target/tier-objectives-ten/certified-digit-blocks-v1/fixture.dylib",
+  "library_sha256": "d8a2435b5707b3c4408e467b798b5e1119367ad85015aacebd62b8e38888cd5d",
+  "observed_swap_growth_bytes": 0,
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O"
+}

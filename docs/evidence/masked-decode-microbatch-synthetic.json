@@ -1,0 +1,148 @@
+{
+  "cohorts": [
+    {
+      "adaptive": false,
+      "backend": "rust",
+      "batch": 1,
+      "cpu_seconds": 0.001233999999999999,
+      "latency_p50_seconds": 0.00039004208520054817,
+      "latency_p95_seconds": 0.00046186037361621856,
+      "metrics": {
+        "batches": 8,
+        "burned": 0,
+        "deadline_dispatch": 0,
+        "idle_dispatch": 0,
+        "rows": 8,
+        "size_dispatch": 8
+      },
+      "peak_owner_charge_bytes": 1087088,
+      "preparation_fixture_cpu_seconds": 0.0037599999999999995,
+      "preparation_fixture_wall_seconds": 0.004057000391185284,
+      "queue_p95_seconds": 0.0003711787052452564,
+      "rows": 8,
+      "rows_per_second": 6495.038019323452,
+      "sessions": 4,
+      "wall_seconds": 0.0012317094951868057
+    },
+    {
+      "adaptive": false,
+      "backend": "rust",
+      "batch": 4,
+      "cpu_seconds": 0.0007820000000000049,
+      "latency_p50_seconds": 0.0002910420298576355,
+      "latency_p95_seconds": 0.00039249374531209465,
+      "metrics": {
+        "batches": 2,
+        "burned": 0,
+        "deadline_dispatch": 0,
+        "idle_dispatch": 0,
+        "rows": 8,
+        "size_dispatch": 2
+      },
+      "peak_owner_charge_bytes": 1088624,
+      "preparation_fixture_cpu_seconds": 0.0007599999999999968,
+      "preparation_fixture_wall_seconds": 0.0007607089355587959,
+      "queue_p95_seconds": 0.0002280869986861944,
+      "rows": 8,
+      "rows_per_second": 10259.688662061915,
+      "sessions": 4,
+      "wall_seconds": 0.000779750756919384
+    },
+    {
+      "adaptive": false,
+      "backend": "rust",
+      "batch": 1,
+      "cpu_seconds": 0.0001820000000000016,
+      "latency_p50_seconds": 8.712569251656532e-05,
+      "latency_p95_seconds": 9.293812327086926e-05,
+      "metrics": {
+        "batches": 2,
+        "burned": 0,
+        "deadline_dispatch": 0,
+        "idle_dispatch": 0,
+        "rows": 2,
+        "size_dispatch": 2
+      },
+      "peak_owner_charge_bytes": 1058972,
+      "preparation_fixture_cpu_seconds": 0.0001799999999999996,
+      "preparation_fixture_wall_seconds": 0.00018016714602708817,
+      "queue_p95_seconds": 1.6378285363316535e-05,
+      "rows": 2,
+      "rows_per_second": 11062.432507057345,
+      "sessions": 1,
+      "wall_seconds": 0.00018079206347465515
+    },
+    {
+      "adaptive": false,
+      "backend": "rust",
+      "batch": 4,
+      "cpu_seconds": 0.00022600000000000398,
+      "latency_p50_seconds": 0.0004537082277238369,
+      "latency_p95_seconds": 0.00045907055027782917,
+      "metrics": {
+        "batches": 2,
+        "burned": 0,
+        "deadline_dispatch": 2,
+        "idle_dispatch": 0,
+        "rows": 2,
+        "size_dispatch": 0
+      },
+      "peak_owner_charge_bytes": 1060508,
+      "preparation_fixture_cpu_seconds": 0.00015699999999999048,
+      "preparation_fixture_wall_seconds": 0.00015674997121095657,
+      "queue_p95_seconds": 0.0003761168103665113,
+      "rows": 2,
+      "rows_per_second": 2193.0844530318923,
+      "sessions": 1,
+      "wall_seconds": 0.0009119575843214989
+    },
+    {
+      "adaptive": true,
+      "backend": "rust",
+      "batch": 4,
+      "cpu_seconds": 0.0001749999999999946,
+      "latency_p50_seconds": 8.49580392241478e-05,
+      "latency_p95_seconds": 8.810795843601227e-05,
+      "metrics": {
+        "batches": 2,
+        "burned": 0,
+        "deadline_dispatch": 0,
+        "idle_dispatch": 2,
+        "rows": 2,
+        "size_dispatch": 0
+      },
+      "peak_owner_charge_bytes": 1060508,
+      "preparation_fixture_cpu_seconds": 0.00015500000000000236,
+      "preparation_fixture_wall_seconds": 0.0001555420458316803,
+      "queue_p95_seconds": 1.6524828970432283e-05,
+      "rows": 2,
+      "rows_per_second": 11494.257633904437,
+      "sessions": 1,
+      "wall_seconds": 0.00017399992793798447
+    }
+  ],
+  "fixture_retention_upper_bytes": 17920,
+  "native_extension_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+  "native_extension_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+  "probe_sha256": "e40bedd52a79e0a1f48a9c0f0df804339dcca53c0877a63cf42a3a13aff388cc",
+  "process_peak_rss_bytes": 44531712,
+  "scope": "synthetic online row owner only",
+  "source_hashes": {
+    "python/pllm/runtime/correction_rendezvous.py": "9737a64a08e64fa1d2cdc19c4ee494c56a19ba074684984bbb6ebc468d43572e",
+    "python/pllm/runtime/masked_runtime.py": "c3ea422b023baf8af234b2a4d1ef04ad8955807d9ed96d92cbc4e38c3be6dd6d",
+    "python/pllm/runtime/native.py": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f",
+    "python/pllm/runtime/server.py": "2a2eb6a4d71958f8ff230df2254b0fceeb4ebebf5d3f6ca470d0a01934fc0f8a",
+    "python/pllm/runtime/transformer_engine.py": "14d8efdec0b1b4c48b4312e81454729fe554d324de009c2d4519251c1d932f4d",
+    "tests/test_masked_decode_microbatch_probe.py": "8b1326646964333d591af3addb0efe6600c517d8dae2c4dad8253d4b07538caa"
+  },
+  "workload": {
+    "batch": 4,
+    "inputs": 16,
+    "output": "docs/evidence/masked-decode-microbatch-synthetic.json",
+    "outputs": 16,
+    "rounds": 2,
+    "seed": 10,
+    "sessions": 4,
+    "wait_ms": 0.25
+  }
+}

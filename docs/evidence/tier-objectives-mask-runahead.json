@@ -1,0 +1,461 @@
+{
+  "identity": {
+    "build": {
+      "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+      "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+    },
+    "files": {
+      "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+      "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+      "scripts/probe_mask_runahead.py": "22e8977a1e5b6e15cd27d5e4b1221fbf0ab90a30d9f87376fcef6def9eb29bf5",
+      "tests/test_mask_runahead_probe.py": "0d2ae13d0137798dc1c75a9e4086ff9fe7b9bdef432561bd78d93373a283ce69"
+    }
+  },
+  "memory_admission_bytes": 402653184,
+  "records": [
+    {
+      "case": {
+        "kind": "mask",
+        "output": 4096,
+        "rows": 4,
+        "width": 2048
+      },
+      "complete_worker_cpu_seconds": 0.156007,
+      "complete_worker_peak_rss_bytes": 45236224,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_mask_runahead.py": "22e8977a1e5b6e15cd27d5e4b1221fbf0ab90a30d9f87376fcef6def9eb29bf5",
+          "tests/test_mask_runahead_probe.py": "0d2ae13d0137798dc1c75a9e4086ff9fe7b9bdef432561bd78d93373a283ce69"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "peak_rss_bytes": 45219840,
+        "samples": [
+          {
+            "client_cpu_ns": 310000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 311084
+          },
+          {
+            "client_cpu_ns": 244000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 244042
+          },
+          {
+            "client_cpu_ns": 236000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 235750
+          },
+          {
+            "client_cpu_ns": 511000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 465583
+          },
+          {
+            "client_cpu_ns": 346000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 326083
+          },
+          {
+            "client_cpu_ns": 356000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 332375
+          }
+        ],
+        "scope": "native expansion only; no response gain or tier qualification",
+        "shape": [
+          4,
+          2048,
+          4096
+        ]
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "kind": "mask",
+        "output": 9728,
+        "rows": 32,
+        "width": 896
+      },
+      "complete_worker_cpu_seconds": 0.177786,
+      "complete_worker_peak_rss_bytes": 50462720,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_mask_runahead.py": "22e8977a1e5b6e15cd27d5e4b1221fbf0ab90a30d9f87376fcef6def9eb29bf5",
+          "tests/test_mask_runahead_probe.py": "0d2ae13d0137798dc1c75a9e4086ff9fe7b9bdef432561bd78d93373a283ce69"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "peak_rss_bytes": 50446336,
+        "samples": [
+          {
+            "client_cpu_ns": 3569000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3569583
+          },
+          {
+            "client_cpu_ns": 3083000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3082417
+          },
+          {
+            "client_cpu_ns": 3023000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3022834
+          },
+          {
+            "client_cpu_ns": 3629000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3569125
+          },
+          {
+            "client_cpu_ns": 3164000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3141375
+          },
+          {
+            "client_cpu_ns": 3139000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3118250
+          }
+        ],
+        "scope": "native expansion only; no response gain or tier qualification",
+        "shape": [
+          32,
+          896,
+          9728
+        ]
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "kind": "mask",
+        "output": 9728,
+        "rows": 32,
+        "width": 896
+      },
+      "complete_worker_cpu_seconds": 0.174816,
+      "complete_worker_peak_rss_bytes": 50561024,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_mask_runahead.py": "22e8977a1e5b6e15cd27d5e4b1221fbf0ab90a30d9f87376fcef6def9eb29bf5",
+          "tests/test_mask_runahead_probe.py": "0d2ae13d0137798dc1c75a9e4086ff9fe7b9bdef432561bd78d93373a283ce69"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "peak_rss_bytes": 50511872,
+        "samples": [
+          {
+            "client_cpu_ns": 3322000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3322125
+          },
+          {
+            "client_cpu_ns": 3087000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3086667
+          },
+          {
+            "client_cpu_ns": 3023000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3023333
+          },
+          {
+            "client_cpu_ns": 3512000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3468000
+          },
+          {
+            "client_cpu_ns": 3142000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3122334
+          },
+          {
+            "client_cpu_ns": 3180000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3158958
+          }
+        ],
+        "scope": "native expansion only; no response gain or tier qualification",
+        "shape": [
+          32,
+          896,
+          9728
+        ]
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "kind": "mask",
+        "output": 4096,
+        "rows": 4,
+        "width": 2048
+      },
+      "complete_worker_cpu_seconds": 0.15827,
+      "complete_worker_peak_rss_bytes": 45252608,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_mask_runahead.py": "22e8977a1e5b6e15cd27d5e4b1221fbf0ab90a30d9f87376fcef6def9eb29bf5",
+          "tests/test_mask_runahead_probe.py": "0d2ae13d0137798dc1c75a9e4086ff9fe7b9bdef432561bd78d93373a283ce69"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "peak_rss_bytes": 45236224,
+        "samples": [
+          {
+            "client_cpu_ns": 294000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 293333
+          },
+          {
+            "client_cpu_ns": 240000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 240292
+          },
+          {
+            "client_cpu_ns": 235000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 235333
+          },
+          {
+            "client_cpu_ns": 504000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 461542
+          },
+          {
+            "client_cpu_ns": 417000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 393375
+          },
+          {
+            "client_cpu_ns": 364000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 343083
+          }
+        ],
+        "scope": "native expansion only; no response gain or tier qualification",
+        "shape": [
+          4,
+          2048,
+          4096
+        ]
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "kind": "mask",
+        "output": 4096,
+        "rows": 4,
+        "width": 2048
+      },
+      "complete_worker_cpu_seconds": 0.152534,
+      "complete_worker_peak_rss_bytes": 45318144,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_mask_runahead.py": "22e8977a1e5b6e15cd27d5e4b1221fbf0ab90a30d9f87376fcef6def9eb29bf5",
+          "tests/test_mask_runahead_probe.py": "0d2ae13d0137798dc1c75a9e4086ff9fe7b9bdef432561bd78d93373a283ce69"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "peak_rss_bytes": 45301760,
+        "samples": [
+          {
+            "client_cpu_ns": 354000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 358709
+          },
+          {
+            "client_cpu_ns": 241000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 241500
+          },
+          {
+            "client_cpu_ns": 235000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "synchronous",
+            "wall_ns": 234166
+          },
+          {
+            "client_cpu_ns": 515000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 471792
+          },
+          {
+            "client_cpu_ns": 351000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 325250
+          },
+          {
+            "client_cpu_ns": 342000,
+            "mask_ticket_sha256": "c1584406ad105200db0e967ac16910f33213abdf11270c7af6fbdcf2cb2bf4d9",
+            "mode": "executor",
+            "wall_ns": 321375
+          }
+        ],
+        "scope": "native expansion only; no response gain or tier qualification",
+        "shape": [
+          4,
+          2048,
+          4096
+        ]
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "kind": "mask",
+        "output": 9728,
+        "rows": 32,
+        "width": 896
+      },
+      "complete_worker_cpu_seconds": 0.172708,
+      "complete_worker_peak_rss_bytes": 50479104,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_mask_runahead.py": "22e8977a1e5b6e15cd27d5e4b1221fbf0ab90a30d9f87376fcef6def9eb29bf5",
+          "tests/test_mask_runahead_probe.py": "0d2ae13d0137798dc1c75a9e4086ff9fe7b9bdef432561bd78d93373a283ce69"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "peak_rss_bytes": 50462720,
+        "samples": [
+          {
+            "client_cpu_ns": 3310000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3310333
+          },
+          {
+            "client_cpu_ns": 3048000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3047500
+          },
+          {
+            "client_cpu_ns": 3050000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "synchronous",
+            "wall_ns": 3049500
+          },
+          {
+            "client_cpu_ns": 3295000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3256834
+          },
+          {
+            "client_cpu_ns": 3126000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3097750
+          },
+          {
+            "client_cpu_ns": 3118000,
+            "mask_ticket_sha256": "7b53bec92fd9f37e0454e45500d4be6ffebc710abbef29ebfca372972b5008d7",
+            "mode": "executor",
+            "wall_ns": 3101000
+          }
+        ],
+        "scope": "native expansion only; no response gain or tier qualification",
+        "shape": [
+          32,
+          896,
+          9728
+        ]
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    }
+  ],
+  "replicates": 3,
+  "schema": "pllm.tier_objectives_operator_screen.v1",
+  "scope": "isolated operator fixtures; peak RSS includes setup and audits",
+  "selection": "mask",
+  "serving_gain": null,
+  "watchdog": {
+    "baseline_swap_used_bytes": 902365184,
+    "error": null,
+    "maximum_swap_growth_bytes": 0,
+    "minimum_available_bytes": 11317985280
+  },
+  "whole_client_tier_qualified": false
+}

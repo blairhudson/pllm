@@ -1,0 +1,138 @@
+{
+  "accelerate_observed": true,
+  "backend_case_count": 36,
+  "cost_examples": [
+    {
+      "binding_input_serialization_and_decode_bytes": 32768,
+      "binding_output_serialize_and_python_bytes": 2048,
+      "bits": 32,
+      "blas_scratch_and_thread_stacks_bytes": null,
+      "block": 4096,
+      "candidate_rust_workspace_bytes": 8424448,
+      "correction_encoded_body_bytes": 1024,
+      "correction_u32_owner_bytes": 1024,
+      "dgemm_calls": 1,
+      "digit8_input_conversion_read_write_bytes": 131072,
+      "digit8_macs": 4194304,
+      "digit8_partial_reconstruction_elements": 5120,
+      "digit8_sgemm_calls": 20,
+      "digit8_weight_conversion_read_write_bytes": 5242880,
+      "digit8_workspace_bytes": 1053692,
+      "existing_digit8_admission_allowance_bytes": 234881024,
+      "f64_input_conversion_elements": 4096,
+      "f64_input_conversion_read_write_bytes": 49152,
+      "f64_macs": 1048576,
+      "f64_partial_reconstruction_elements": 256,
+      "f64_weight_conversion_elements": 1048576,
+      "f64_weight_conversion_read_write_bytes": 9437184,
+      "fixture_workspace_bound_bytes": 8434688,
+      "geometry": [
+        256,
+        4096,
+        1
+      ],
+      "i8_weight_owner_bytes": 1048576,
+      "measured_cpu_s": null,
+      "persistent_f64_weight_bytes": 0,
+      "u32_input_and_output_mask_owner_bytes": 17408,
+      "weight_setup_serialization_and_native_copy_bytes": 2097152,
+      "whole_client_tier_qualified": false
+    },
+    {
+      "binding_input_serialization_and_decode_bytes": 1048576,
+      "binding_output_serialize_and_python_bytes": 65536,
+      "bits": 32,
+      "blas_scratch_and_thread_stacks_bytes": null,
+      "block": 4096,
+      "candidate_rust_workspace_bytes": 9535488,
+      "correction_encoded_body_bytes": 32768,
+      "correction_u32_owner_bytes": 32768,
+      "dgemm_calls": 1,
+      "digit8_input_conversion_read_write_bytes": 4194304,
+      "digit8_macs": 134217728,
+      "digit8_partial_reconstruction_elements": 163840,
+      "digit8_sgemm_calls": 20,
+      "digit8_weight_conversion_read_write_bytes": 5242880,
+      "digit8_workspace_bytes": 1244032,
+      "existing_digit8_admission_allowance_bytes": 234881024,
+      "f64_input_conversion_elements": 131072,
+      "f64_input_conversion_read_write_bytes": 1572864,
+      "f64_macs": 33554432,
+      "f64_partial_reconstruction_elements": 8192,
+      "f64_weight_conversion_elements": 1048576,
+      "f64_weight_conversion_read_write_bytes": 9437184,
+      "fixture_workspace_bound_bytes": 9863168,
+      "geometry": [
+        256,
+        4096,
+        32
+      ],
+      "i8_weight_owner_bytes": 1048576,
+      "measured_cpu_s": null,
+      "persistent_f64_weight_bytes": 0,
+      "u32_input_and_output_mask_owner_bytes": 557056,
+      "weight_setup_serialization_and_native_copy_bytes": 2097152,
+      "whole_client_tier_qualified": false
+    }
+  ],
+  "gates": [
+    "vendor reduction algorithm certification",
+    "serial admitted native timing",
+    "checkpoint source bounds",
+    "complete-client exactness/RSS/traffic"
+  ],
+  "installed_controls": {
+    "digit8_available": true,
+    "installed_package": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+    "native_library": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+    "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+    "parity_cases": 6
+  },
+  "numpy": "2.5.3",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "proofs": [
+    {
+      "bits": 16,
+      "exact_integer_limit": 9007199254740992,
+      "float_subtraction_universal_width": 1073758208,
+      "mask": 65535,
+      "product_max": 8322945,
+      "product_min": -8388480,
+      "source_l1_limit": 137441050656,
+      "universal_width": 1073758208
+    },
+    {
+      "bits": 24,
+      "exact_integer_limit": 9007199254740992,
+      "float_subtraction_universal_width": 4194304,
+      "mask": 16777215,
+      "product_max": 2130706305,
+      "product_min": -2147483520,
+      "source_l1_limit": 536870944,
+      "universal_width": 4194304
+    },
+    {
+      "bits": 32,
+      "exact_integer_limit": 9007199254740992,
+      "float_subtraction_universal_width": 16383,
+      "mask": 4294967295,
+      "product_max": 545460846465,
+      "product_min": -549755813760,
+      "source_l1_limit": 2097152,
+      "universal_width": 16384
+    }
+  ],
+  "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+  "scope": "synthetic bounded parity only; no performance/tier claim",
+  "seed": 5005,
+  "sha256": {
+    "crates/pllm-core/src/codec.rs": "770e311d626c303c247c8c8c8ebc3dd8e150b23782604231479d9b2eb6a49549",
+    "crates/pllm-core/src/digit_gemm.rs": "bf464bf2d18f57f8d43e12d906fc25f840b5652eec618323115a6eb562e235d8",
+    "crates/pllm-core/src/kernels.rs": "5313b717725bd72709c99409a18204d50c42ef4e4a6b40a8bb52033740def17e",
+    "crates/pllm-python/src/lib.rs": "dff8c207716ddcfb6e72ad2154ac1d9cf9ac1a71cf0ff8bf63e5fee8a482363b",
+    "python/pllm/runtime/correction_batch.py": "f3544c56df3e6a86cc68dfae164773038a9a25a49d61547a3bc63e8e6a9740cf",
+    "scripts/probe_exact_f64_corrections.py": "b51af96d5ad41ad48acc1aea23ce7fc9ab966bc884a886a3169cca2bb08d8044",
+    "scripts/research_native/exact_f64_corrections/accelerate.py": "31bf8725a3536570af55f2935dd8f4899eb3a24ddffc2348b147d06284f6cd2a",
+    "tests/test_exact_f64_corrections_probe.py": "2861d70b223ab79d2b6653e87ffb1fc4a6a0dd0509e05df051bfd8f4123b2877"
+  }
+}

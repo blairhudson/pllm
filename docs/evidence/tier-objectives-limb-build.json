@@ -1,0 +1,18 @@
+{
+  "command": [
+    "cc",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-dynamiclib",
+    "/Users/blairhudson/workspace/pllm/scripts/research_native/limb_stationary_corrections/fixture.c",
+    "-framework",
+    "Accelerate",
+    "-o",
+    "/Users/blairhudson/workspace/pllm/target/limb_stationary_corrections/fixture.dylib"
+  ],
+  "source_sha256": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+  "library_sha256": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+  "swap_growth_bytes": 0,
+  "compiler_stderr": "/Users/blairhudson/workspace/pllm/scripts/research_native/limb_stationary_corrections/fixture.c:59:17: warning: 'cblas_sgemm' is deprecated: first deprecated in macOS 13.3 - An updated CBLAS interface supporting ILP64 is available.  Please compile with -DACCELERATE_NEW_LAPACK to access the new headers and -DACCELERATE_LAPACK_ILP64 for ILP64 support. [-Wdeprecated-declarations]\n   59 |                 cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans,\n      |                 ^\n/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/vecLib.framework/Headers/cblas.h:610:6: note: 'cblas_sgemm' has been explicitly marked deprecated here\n  610 | void cblas_sgemm(const enum CBLAS_ORDER __Order,\n      |      ^\n1 warning generated.\n"
+}

@@ -1,0 +1,812 @@
+{
+  "expected_identity": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+    "numpy": "2.5.3",
+    "build": {
+      "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+      "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+    },
+    "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+    "related_sha256": {
+      "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+      "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+      "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+      "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+    },
+    "operators": {
+      "pllm.runtime.semantic_attention": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+        "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+      },
+      "pllm.runtime.causal_reduction": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+        "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+      },
+      "pllm.runtime.semantic_executor": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+        "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+      }
+    }
+  },
+  "records": [
+    {
+      "identity": {
+        "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+        "numpy": "2.5.3",
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+        },
+        "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+        "related_sha256": {
+          "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+          "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+          "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+          "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+        },
+        "operators": {
+          "pllm.runtime.semantic_attention": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+            "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+          },
+          "pllm.runtime.causal_reduction": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+            "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+          },
+          "pllm.runtime.semantic_executor": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+            "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+          }
+        }
+      },
+      "payload": {
+        "fixture": {
+          "capacity": 1024,
+          "position": 287,
+          "width": 64,
+          "heads": 2,
+          "group": 7,
+          "layout": "sequence_major"
+        },
+        "profile": "prefix_f32",
+        "arm": "baseline",
+        "iterations": 256,
+        "expected_identity": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+          "numpy": "2.5.3",
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+          },
+          "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+          "related_sha256": {
+            "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+            "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+            "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+            "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+          },
+          "operators": {
+            "pllm.runtime.semantic_attention": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+              "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+            },
+            "pllm.runtime.causal_reduction": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+              "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+            },
+            "pllm.runtime.semantic_executor": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+              "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+            }
+          }
+        }
+      },
+      "fixture_setup": {
+        "cpu_seconds": 0.010498000000000007,
+        "wall_seconds": 0.01049866620451212,
+        "scope": "fixture construction; imports/identity checks excluded"
+      },
+      "cold": {
+        "operations": 1,
+        "cpu_seconds": 0.0012689999999999924,
+        "wall_seconds": 0.001269499771296978,
+        "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "repeated_same_fixture": {
+        "operations": 256,
+        "cpu_seconds_total": 0.20033700000000002,
+        "wall_seconds_total": 0.20033966656774282,
+        "cpu_seconds_per_op": 0.0007825664062500001,
+        "wall_seconds_per_op": 0.0007825768225302454,
+        "final_output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "charged_operations": 257,
+      "charged_float_products": 132636672,
+      "process_peak_rss_bytes": 51789824,
+      "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a",
+      "owners": {
+        "input_unique_owner_bytes": 1052168,
+        "logical_operand_bytes": 1052168,
+        "operand_views": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "complete_output_bytes": 3584,
+        "full_score_bytes": 57344,
+        "conservative_scratch_bytes": 1130720,
+        "attention_only_envelope_bytes": 2186472,
+        "is_whole_client_admission": false,
+        "exclusions": [
+          "interpreter/imports",
+          "allocator/thread stacks",
+          "weights",
+          "other layers/KV",
+          "remote/transport",
+          "preparation",
+          "filesystem cache"
+        ]
+      },
+      "gain": null,
+      "scope": "cold/repeated same-fixture operator only; not serving throughput"
+    },
+    {
+      "identity": {
+        "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+        "numpy": "2.5.3",
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+        },
+        "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+        "related_sha256": {
+          "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+          "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+          "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+          "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+        },
+        "operators": {
+          "pllm.runtime.semantic_attention": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+            "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+          },
+          "pllm.runtime.causal_reduction": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+            "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+          },
+          "pllm.runtime.semantic_executor": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+            "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+          }
+        }
+      },
+      "payload": {
+        "fixture": {
+          "capacity": 1024,
+          "position": 287,
+          "width": 64,
+          "heads": 2,
+          "group": 7,
+          "layout": "sequence_major"
+        },
+        "profile": "prefix_f32",
+        "arm": "fused",
+        "iterations": 256,
+        "expected_identity": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+          "numpy": "2.5.3",
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+          },
+          "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+          "related_sha256": {
+            "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+            "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+            "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+            "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+          },
+          "operators": {
+            "pllm.runtime.semantic_attention": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+              "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+            },
+            "pllm.runtime.causal_reduction": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+              "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+            },
+            "pllm.runtime.semantic_executor": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+              "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+            }
+          }
+        }
+      },
+      "fixture_setup": {
+        "cpu_seconds": 0.011491000000000001,
+        "wall_seconds": 0.011492541059851646,
+        "scope": "fixture construction; imports/identity checks excluded"
+      },
+      "cold": {
+        "operations": 1,
+        "cpu_seconds": 0.0011320000000000219,
+        "wall_seconds": 0.0011328747496008873,
+        "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "repeated_same_fixture": {
+        "operations": 256,
+        "cpu_seconds_total": 0.192349,
+        "wall_seconds_total": 0.19235129188746214,
+        "cpu_seconds_per_op": 0.00075136328125,
+        "wall_seconds_per_op": 0.000751372233935399,
+        "final_output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "charged_operations": 257,
+      "charged_float_products": 132636672,
+      "process_peak_rss_bytes": 51806208,
+      "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a",
+      "owners": {
+        "input_unique_owner_bytes": 1052168,
+        "logical_operand_bytes": 1052168,
+        "operand_views": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "complete_output_bytes": 3584,
+        "full_score_bytes": 57344,
+        "conservative_scratch_bytes": 786656,
+        "attention_only_envelope_bytes": 1842408,
+        "is_whole_client_admission": false,
+        "exclusions": [
+          "interpreter/imports",
+          "allocator/thread stacks",
+          "weights",
+          "other layers/KV",
+          "remote/transport",
+          "preparation",
+          "filesystem cache"
+        ]
+      },
+      "gain": null,
+      "scope": "cold/repeated same-fixture operator only; not serving throughput"
+    },
+    {
+      "identity": {
+        "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+        "numpy": "2.5.3",
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+        },
+        "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+        "related_sha256": {
+          "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+          "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+          "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+          "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+        },
+        "operators": {
+          "pllm.runtime.semantic_attention": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+            "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+          },
+          "pllm.runtime.causal_reduction": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+            "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+          },
+          "pllm.runtime.semantic_executor": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+            "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+          }
+        }
+      },
+      "payload": {
+        "fixture": {
+          "capacity": 1024,
+          "position": 287,
+          "width": 64,
+          "heads": 2,
+          "group": 7,
+          "layout": "sequence_major"
+        },
+        "profile": "prefix_f32",
+        "arm": "fused",
+        "iterations": 256,
+        "expected_identity": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+          "numpy": "2.5.3",
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+          },
+          "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+          "related_sha256": {
+            "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+            "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+            "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+            "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+          },
+          "operators": {
+            "pllm.runtime.semantic_attention": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+              "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+            },
+            "pllm.runtime.causal_reduction": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+              "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+            },
+            "pllm.runtime.semantic_executor": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+              "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+            }
+          }
+        }
+      },
+      "fixture_setup": {
+        "cpu_seconds": 0.011247000000000007,
+        "wall_seconds": 0.011245792731642723,
+        "scope": "fixture construction; imports/identity checks excluded"
+      },
+      "cold": {
+        "operations": 1,
+        "cpu_seconds": 0.0011569999999999914,
+        "wall_seconds": 0.001157458871603012,
+        "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "repeated_same_fixture": {
+        "operations": 256,
+        "cpu_seconds_total": 0.19362400000000002,
+        "wall_seconds_total": 0.19362800009548664,
+        "cpu_seconds_per_op": 0.0007563437500000001,
+        "wall_seconds_per_op": 0.0007563593753729947,
+        "final_output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "charged_operations": 257,
+      "charged_float_products": 132636672,
+      "process_peak_rss_bytes": 51789824,
+      "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a",
+      "owners": {
+        "input_unique_owner_bytes": 1052168,
+        "logical_operand_bytes": 1052168,
+        "operand_views": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "complete_output_bytes": 3584,
+        "full_score_bytes": 57344,
+        "conservative_scratch_bytes": 786656,
+        "attention_only_envelope_bytes": 1842408,
+        "is_whole_client_admission": false,
+        "exclusions": [
+          "interpreter/imports",
+          "allocator/thread stacks",
+          "weights",
+          "other layers/KV",
+          "remote/transport",
+          "preparation",
+          "filesystem cache"
+        ]
+      },
+      "gain": null,
+      "scope": "cold/repeated same-fixture operator only; not serving throughput"
+    },
+    {
+      "identity": {
+        "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+        "numpy": "2.5.3",
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+        },
+        "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+        "related_sha256": {
+          "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+          "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+          "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+          "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+        },
+        "operators": {
+          "pllm.runtime.semantic_attention": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+            "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+          },
+          "pllm.runtime.causal_reduction": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+            "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+          },
+          "pllm.runtime.semantic_executor": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+            "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+          }
+        }
+      },
+      "payload": {
+        "fixture": {
+          "capacity": 1024,
+          "position": 287,
+          "width": 64,
+          "heads": 2,
+          "group": 7,
+          "layout": "sequence_major"
+        },
+        "profile": "prefix_f32",
+        "arm": "baseline",
+        "iterations": 256,
+        "expected_identity": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+          "numpy": "2.5.3",
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+          },
+          "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+          "related_sha256": {
+            "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+            "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+            "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+            "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+          },
+          "operators": {
+            "pllm.runtime.semantic_attention": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+              "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+            },
+            "pllm.runtime.causal_reduction": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+              "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+            },
+            "pllm.runtime.semantic_executor": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+              "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+            }
+          }
+        }
+      },
+      "fixture_setup": {
+        "cpu_seconds": 0.011253999999999986,
+        "wall_seconds": 0.011257042177021503,
+        "scope": "fixture construction; imports/identity checks excluded"
+      },
+      "cold": {
+        "operations": 1,
+        "cpu_seconds": 0.0012770000000000004,
+        "wall_seconds": 0.0012796670198440552,
+        "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "repeated_same_fixture": {
+        "operations": 256,
+        "cpu_seconds_total": 0.199438,
+        "wall_seconds_total": 0.19944225065410137,
+        "cpu_seconds_per_op": 0.0007790546875,
+        "wall_seconds_per_op": 0.0007790712916175835,
+        "final_output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "charged_operations": 257,
+      "charged_float_products": 132636672,
+      "process_peak_rss_bytes": 51871744,
+      "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a",
+      "owners": {
+        "input_unique_owner_bytes": 1052168,
+        "logical_operand_bytes": 1052168,
+        "operand_views": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "complete_output_bytes": 3584,
+        "full_score_bytes": 57344,
+        "conservative_scratch_bytes": 1130720,
+        "attention_only_envelope_bytes": 2186472,
+        "is_whole_client_admission": false,
+        "exclusions": [
+          "interpreter/imports",
+          "allocator/thread stacks",
+          "weights",
+          "other layers/KV",
+          "remote/transport",
+          "preparation",
+          "filesystem cache"
+        ]
+      },
+      "gain": null,
+      "scope": "cold/repeated same-fixture operator only; not serving throughput"
+    },
+    {
+      "identity": {
+        "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+        "numpy": "2.5.3",
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+        },
+        "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+        "related_sha256": {
+          "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+          "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+          "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+          "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+        },
+        "operators": {
+          "pllm.runtime.semantic_attention": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+            "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+          },
+          "pllm.runtime.causal_reduction": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+            "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+          },
+          "pllm.runtime.semantic_executor": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+            "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+          }
+        }
+      },
+      "payload": {
+        "fixture": {
+          "capacity": 1024,
+          "position": 287,
+          "width": 64,
+          "heads": 2,
+          "group": 7,
+          "layout": "sequence_major"
+        },
+        "profile": "prefix_f32",
+        "arm": "baseline",
+        "iterations": 256,
+        "expected_identity": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+          "numpy": "2.5.3",
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+          },
+          "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+          "related_sha256": {
+            "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+            "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+            "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+            "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+          },
+          "operators": {
+            "pllm.runtime.semantic_attention": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+              "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+            },
+            "pllm.runtime.causal_reduction": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+              "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+            },
+            "pllm.runtime.semantic_executor": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+              "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+            }
+          }
+        }
+      },
+      "fixture_setup": {
+        "cpu_seconds": 0.011062000000000016,
+        "wall_seconds": 0.011065708473324776,
+        "scope": "fixture construction; imports/identity checks excluded"
+      },
+      "cold": {
+        "operations": 1,
+        "cpu_seconds": 0.001595000000000013,
+        "wall_seconds": 0.0015960419550538063,
+        "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "repeated_same_fixture": {
+        "operations": 256,
+        "cpu_seconds_total": 0.20080299999999998,
+        "wall_seconds_total": 0.20083758234977722,
+        "cpu_seconds_per_op": 0.0007843867187499999,
+        "wall_seconds_per_op": 0.0007845218060538173,
+        "final_output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "charged_operations": 257,
+      "charged_float_products": 132636672,
+      "process_peak_rss_bytes": 51888128,
+      "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a",
+      "owners": {
+        "input_unique_owner_bytes": 1052168,
+        "logical_operand_bytes": 1052168,
+        "operand_views": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "complete_output_bytes": 3584,
+        "full_score_bytes": 57344,
+        "conservative_scratch_bytes": 1130720,
+        "attention_only_envelope_bytes": 2186472,
+        "is_whole_client_admission": false,
+        "exclusions": [
+          "interpreter/imports",
+          "allocator/thread stacks",
+          "weights",
+          "other layers/KV",
+          "remote/transport",
+          "preparation",
+          "filesystem cache"
+        ]
+      },
+      "gain": null,
+      "scope": "cold/repeated same-fixture operator only; not serving throughput"
+    },
+    {
+      "identity": {
+        "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+        "numpy": "2.5.3",
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+        },
+        "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+        "related_sha256": {
+          "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+          "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+          "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+          "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+        },
+        "operators": {
+          "pllm.runtime.semantic_attention": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+            "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+          },
+          "pllm.runtime.causal_reduction": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+            "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+          },
+          "pllm.runtime.semantic_executor": {
+            "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+            "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+          }
+        }
+      },
+      "payload": {
+        "fixture": {
+          "capacity": 1024,
+          "position": 287,
+          "width": 64,
+          "heads": 2,
+          "group": 7,
+          "layout": "sequence_major"
+        },
+        "profile": "prefix_f32",
+        "arm": "fused",
+        "iterations": 256,
+        "expected_identity": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+          "numpy": "2.5.3",
+          "build": {
+            "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233"
+          },
+          "probe_sha256": "b6e9057f88c395cd0d47f5d24d91f500b1216ade1c409ae8ec6f2e9fc0b66911",
+          "related_sha256": {
+            "tests/test_fused_decode_attention_probe.py": "78ae97bad8c8f5607e3ee41376cfe30eb01d8a43a7297f0239aeebf439dd5e26",
+            "docs/research/fused-decode-attention-reference.md": "090ed9811bc806ff680d07d1d6c5ec4e6cf0afd88c07462fdcdbf1a5cbcda1ef",
+            "python/pllm/runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+            "scripts/probe_exact_attention_streaming.py": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6"
+          },
+          "operators": {
+            "pllm.runtime.semantic_attention": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+              "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+            },
+            "pllm.runtime.causal_reduction": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+              "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+            },
+            "pllm.runtime.semantic_executor": {
+              "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+              "sha256": "7024339d34afbdf1833ca942f4895ea9031f03c3ab4f6774e9657ee4a866020c"
+            }
+          }
+        }
+      },
+      "fixture_setup": {
+        "cpu_seconds": 0.01270400000000002,
+        "wall_seconds": 0.01277866680175066,
+        "scope": "fixture construction; imports/identity checks excluded"
+      },
+      "cold": {
+        "operations": 1,
+        "cpu_seconds": 0.0011709999999999776,
+        "wall_seconds": 0.0011722920462489128,
+        "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "repeated_same_fixture": {
+        "operations": 256,
+        "cpu_seconds_total": 0.19788699999999998,
+        "wall_seconds_total": 0.19880862440913916,
+        "cpu_seconds_per_op": 0.0007729960937499999,
+        "wall_seconds_per_op": 0.0007765961890981998,
+        "final_output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a"
+      },
+      "charged_operations": 257,
+      "charged_float_products": 132636672,
+      "process_peak_rss_bytes": 52068352,
+      "output_sha256": "9e1055f2c2bb047d73086bd0965e805408038f2a2f2a035e2310e52f8c09f68a",
+      "owners": {
+        "input_unique_owner_bytes": 1052168,
+        "logical_operand_bytes": 1052168,
+        "operand_views": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "complete_output_bytes": 3584,
+        "full_score_bytes": 57344,
+        "conservative_scratch_bytes": 786656,
+        "attention_only_envelope_bytes": 1842408,
+        "is_whole_client_admission": false,
+        "exclusions": [
+          "interpreter/imports",
+          "allocator/thread stacks",
+          "weights",
+          "other layers/KV",
+          "remote/transport",
+          "preparation",
+          "filesystem cache"
+        ]
+      },
+      "gain": null,
+      "scope": "cold/repeated same-fixture operator only; not serving throughput"
+    }
+  ],
+  "admission": {
+    "memory_admission_bytes": 273782016,
+    "input_owner_bytes_per_child": 1052168,
+    "complete_output_bytes": 3584,
+    "maximum_scratch_bytes": 1130720,
+    "products_per_op": 516096,
+    "products_per_child": 132636672,
+    "products_cohort": 795820032,
+    "operations_per_arm": 771,
+    "cold_operations_per_child": 1,
+    "repeated_operations_per_child": 256,
+    "bounds": {
+      "iterations": 1024,
+      "products_per_child": 536870912,
+      "products_cohort": 4294967296,
+      "memory_admission_bytes": 536870912
+    }
+  },
+  "watchdog": {
+    "baseline_swap_used_bytes": 902365184,
+    "final_swap_used_bytes": 902365184,
+    "maximum_swap_growth_bytes": 0,
+    "minimum_available_bytes": 11274272768,
+    "error": null,
+    "missing_values_mean": "unsupported; never evidence of zero swap",
+    "final_minus_baseline_swap_bytes": 0
+  },
+  "all_pair_hashes_match": true,
+  "charged_operations_per_arm": {
+    "baseline": 771,
+    "fused": 771
+  },
+  "gain": null,
+  "scope": "isolated cold/repeated same-fixture attention; not serving throughput or whole-client qualification"
+}

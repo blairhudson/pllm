@@ -1,0 +1,715 @@
+{
+  "identity": {
+    "build": {
+      "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+      "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+    },
+    "files": {
+      "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+      "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+      "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+      "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+      "target/limb_stationary_corrections/fixture.dylib": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+      "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+    }
+  },
+  "memory_admission_bytes": 402653184,
+  "records": [
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 1024,
+        "kind": "limb",
+        "rows": 4096
+      },
+      "complete_worker_cpu_seconds": 0.363188,
+      "complete_worker_peak_rss_bytes": 78299136,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "target/limb_stationary_corrections/fixture.dylib": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "full_installed_integer_audit": {
+          "checked_values": 786432,
+          "process_cpu_seconds": 0.14590499999999998,
+          "scope": "additional complete-output audit, outside native operation timing"
+        },
+        "geometry": [
+          32,
+          4096,
+          1024,
+          32
+        ],
+        "kind": "resident standalone C Accelerate, transfers included; not SDK or full response",
+        "measurements": [
+          {
+            "output_sha256": "69aaa3c843ab3d21ee68ee4270c7f9fbadc40af01c0374931a2dfc3cea88c868",
+            "process_cpu_seconds": 0.005622999999999989,
+            "rep": 0,
+            "stationary": false,
+            "wall_seconds": 0.0056091248989105225
+          },
+          {
+            "output_sha256": "69aaa3c843ab3d21ee68ee4270c7f9fbadc40af01c0374931a2dfc3cea88c868",
+            "process_cpu_seconds": 0.004460999999999993,
+            "rep": 0,
+            "stationary": true,
+            "wall_seconds": 0.004459749907255173
+          },
+          {
+            "output_sha256": "2b04f90cba9b73af6bf1767d4d10c52f49cb4d553a89f05ef8647f971c186294",
+            "process_cpu_seconds": 0.004418000000000005,
+            "rep": 1,
+            "stationary": true,
+            "wall_seconds": 0.0044167498126626015
+          },
+          {
+            "output_sha256": "2b04f90cba9b73af6bf1767d4d10c52f49cb4d553a89f05ef8647f971c186294",
+            "process_cpu_seconds": 0.004489000000000021,
+            "rep": 1,
+            "stationary": false,
+            "wall_seconds": 0.004478666931390762
+          },
+          {
+            "output_sha256": "b22f980e20a41bca2573fd2c8820aeec4e2fd4f1327f2a187618e23be91a5bd3",
+            "process_cpu_seconds": 0.004497000000000001,
+            "rep": 2,
+            "stationary": false,
+            "wall_seconds": 0.004496709443628788
+          },
+          {
+            "output_sha256": "b22f980e20a41bca2573fd2c8820aeec4e2fd4f1327f2a187618e23be91a5bd3",
+            "process_cpu_seconds": 0.004410999999999998,
+            "rep": 2,
+            "stationary": true,
+            "wall_seconds": 0.004407458007335663
+          }
+        ],
+        "native_library_sha256": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+        "oracle_scope": "2 rows x 2 output columns",
+        "peak_rss_platform_units": 76382208,
+        "preflight": {
+          "admitted_stage_extra_bytes": 234881024,
+          "blocks": 2,
+          "float_mac_products": 536870912,
+          "gemm_calls": 32,
+          "integer_reconstruction_elements": 1048576,
+          "mask_pack_elements": 131072,
+          "native_bytes": 5369344,
+          "page_transient_bytes": 0,
+          "pages": 1,
+          "resident_weight_bytes": 4194304,
+          "stage_extra_bytes": 74444288,
+          "tiles": 4,
+          "useful_within_page_reuse": true,
+          "weight_pack_elements": 4194304
+        },
+        "source_sha256": {
+          "crates/pllm-core/src/digit_gemm.rs": "bf464bf2d18f57f8d43e12d906fc25f840b5652eec618323115a6eb562e235d8",
+          "crates/pllm-core/src/paged.rs": "89acc780d58651c956ffef505e911a1dd98e2d405bfda0e7267c4c18b24b311a",
+          "crates/pllm-python/src/lib.rs": "dff8c207716ddcfb6e72ad2154ac1d9cf9ac1a71cf0ff8bf63e5fee8a482363b",
+          "python/pllm/runtime/benchmark_memory.py": "97c547da021c1df28cd2af9ba8cd679112b56d4e2012cf0925e87a93f38f5765",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 1024,
+        "kind": "limb",
+        "rows": 4096
+      },
+      "complete_worker_cpu_seconds": 0.244545,
+      "complete_worker_peak_rss_bytes": 73252864,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "target/limb_stationary_corrections/fixture.dylib": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "replicate": 0,
+      "result": {
+        "full_installed_integer_audit": {
+          "checked_values": 24576,
+          "process_cpu_seconds": 0.060998,
+          "scope": "additional complete-output audit, outside native operation timing"
+        },
+        "geometry": [
+          1,
+          4096,
+          1024,
+          32
+        ],
+        "kind": "resident standalone C Accelerate, transfers included; not SDK or full response",
+        "measurements": [
+          {
+            "output_sha256": "a8cf1d684490c0fa8515881f888d76925499314ac90db86ca4c8265fc56f9db5",
+            "process_cpu_seconds": 0.0012770000000000004,
+            "rep": 0,
+            "stationary": false,
+            "wall_seconds": 0.0012732502073049545
+          },
+          {
+            "output_sha256": "a8cf1d684490c0fa8515881f888d76925499314ac90db86ca4c8265fc56f9db5",
+            "process_cpu_seconds": 0.0011559999999999904,
+            "rep": 0,
+            "stationary": true,
+            "wall_seconds": 0.0011543752625584602
+          },
+          {
+            "output_sha256": "6f95feb2eb704b9243072cbb2703d05b4ef5d06438698685a334c07e195e2ac8",
+            "process_cpu_seconds": 0.0011420000000000041,
+            "rep": 1,
+            "stationary": true,
+            "wall_seconds": 0.0011405004188418388
+          },
+          {
+            "output_sha256": "6f95feb2eb704b9243072cbb2703d05b4ef5d06438698685a334c07e195e2ac8",
+            "process_cpu_seconds": 0.0011649999999999994,
+            "rep": 1,
+            "stationary": false,
+            "wall_seconds": 0.001163417473435402
+          },
+          {
+            "output_sha256": "4322718dd9447c0f31d7352ca99a8c8d3cec7794b25021bc81830a07d8c61945",
+            "process_cpu_seconds": 0.0011509999999999854,
+            "rep": 2,
+            "stationary": false,
+            "wall_seconds": 0.0011480404064059258
+          },
+          {
+            "output_sha256": "4322718dd9447c0f31d7352ca99a8c8d3cec7794b25021bc81830a07d8c61945",
+            "process_cpu_seconds": 0.0011450000000000071,
+            "rep": 2,
+            "stationary": true,
+            "wall_seconds": 0.001143958419561386
+          }
+        ],
+        "native_library_sha256": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+        "oracle_scope": "2 rows x 2 output columns",
+        "peak_rss_platform_units": 71860224,
+        "preflight": {
+          "admitted_stage_extra_bytes": 234881024,
+          "blocks": 2,
+          "float_mac_products": 16777216,
+          "gemm_calls": 32,
+          "integer_reconstruction_elements": 32768,
+          "mask_pack_elements": 4096,
+          "native_bytes": 4227056,
+          "page_transient_bytes": 0,
+          "pages": 1,
+          "resident_weight_bytes": 4194304,
+          "stage_extra_bytes": 71397360,
+          "tiles": 4,
+          "useful_within_page_reuse": true,
+          "weight_pack_elements": 4194304
+        },
+        "source_sha256": {
+          "crates/pllm-core/src/digit_gemm.rs": "bf464bf2d18f57f8d43e12d906fc25f840b5652eec618323115a6eb562e235d8",
+          "crates/pllm-core/src/paged.rs": "89acc780d58651c956ffef505e911a1dd98e2d405bfda0e7267c4c18b24b311a",
+          "crates/pllm-python/src/lib.rs": "dff8c207716ddcfb6e72ad2154ac1d9cf9ac1a71cf0ff8bf63e5fee8a482363b",
+          "python/pllm/runtime/benchmark_memory.py": "97c547da021c1df28cd2af9ba8cd679112b56d4e2012cf0925e87a93f38f5765",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 1024,
+        "kind": "limb",
+        "rows": 4096
+      },
+      "complete_worker_cpu_seconds": 0.246566,
+      "complete_worker_peak_rss_bytes": 73318400,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "target/limb_stationary_corrections/fixture.dylib": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "full_installed_integer_audit": {
+          "checked_values": 24576,
+          "process_cpu_seconds": 0.06251200000000001,
+          "scope": "additional complete-output audit, outside native operation timing"
+        },
+        "geometry": [
+          1,
+          4096,
+          1024,
+          32
+        ],
+        "kind": "resident standalone C Accelerate, transfers included; not SDK or full response",
+        "measurements": [
+          {
+            "output_sha256": "a8cf1d684490c0fa8515881f888d76925499314ac90db86ca4c8265fc56f9db5",
+            "process_cpu_seconds": 0.0014340000000000186,
+            "rep": 0,
+            "stationary": false,
+            "wall_seconds": 0.0014301249757409096
+          },
+          {
+            "output_sha256": "a8cf1d684490c0fa8515881f888d76925499314ac90db86ca4c8265fc56f9db5",
+            "process_cpu_seconds": 0.0012089999999999879,
+            "rep": 0,
+            "stationary": true,
+            "wall_seconds": 0.0012078750878572464
+          },
+          {
+            "output_sha256": "6f95feb2eb704b9243072cbb2703d05b4ef5d06438698685a334c07e195e2ac8",
+            "process_cpu_seconds": 0.0011709999999999776,
+            "rep": 1,
+            "stationary": true,
+            "wall_seconds": 0.0011709574609994888
+          },
+          {
+            "output_sha256": "6f95feb2eb704b9243072cbb2703d05b4ef5d06438698685a334c07e195e2ac8",
+            "process_cpu_seconds": 0.0011680000000000024,
+            "rep": 1,
+            "stationary": false,
+            "wall_seconds": 0.0011665411293506622
+          },
+          {
+            "output_sha256": "4322718dd9447c0f31d7352ca99a8c8d3cec7794b25021bc81830a07d8c61945",
+            "process_cpu_seconds": 0.0012350000000000139,
+            "rep": 2,
+            "stationary": false,
+            "wall_seconds": 0.0012340424582362175
+          },
+          {
+            "output_sha256": "4322718dd9447c0f31d7352ca99a8c8d3cec7794b25021bc81830a07d8c61945",
+            "process_cpu_seconds": 0.0011480000000000101,
+            "rep": 2,
+            "stationary": true,
+            "wall_seconds": 0.0011472497135400772
+          }
+        ],
+        "native_library_sha256": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+        "oracle_scope": "2 rows x 2 output columns",
+        "peak_rss_platform_units": 71942144,
+        "preflight": {
+          "admitted_stage_extra_bytes": 234881024,
+          "blocks": 2,
+          "float_mac_products": 16777216,
+          "gemm_calls": 32,
+          "integer_reconstruction_elements": 32768,
+          "mask_pack_elements": 4096,
+          "native_bytes": 4227056,
+          "page_transient_bytes": 0,
+          "pages": 1,
+          "resident_weight_bytes": 4194304,
+          "stage_extra_bytes": 71397360,
+          "tiles": 4,
+          "useful_within_page_reuse": true,
+          "weight_pack_elements": 4194304
+        },
+        "source_sha256": {
+          "crates/pllm-core/src/digit_gemm.rs": "bf464bf2d18f57f8d43e12d906fc25f840b5652eec618323115a6eb562e235d8",
+          "crates/pllm-core/src/paged.rs": "89acc780d58651c956ffef505e911a1dd98e2d405bfda0e7267c4c18b24b311a",
+          "crates/pllm-python/src/lib.rs": "dff8c207716ddcfb6e72ad2154ac1d9cf9ac1a71cf0ff8bf63e5fee8a482363b",
+          "python/pllm/runtime/benchmark_memory.py": "97c547da021c1df28cd2af9ba8cd679112b56d4e2012cf0925e87a93f38f5765",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 1024,
+        "kind": "limb",
+        "rows": 4096
+      },
+      "complete_worker_cpu_seconds": 0.3552,
+      "complete_worker_peak_rss_bytes": 78381056,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "target/limb_stationary_corrections/fixture.dylib": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "replicate": 1,
+      "result": {
+        "full_installed_integer_audit": {
+          "checked_values": 786432,
+          "process_cpu_seconds": 0.143895,
+          "scope": "additional complete-output audit, outside native operation timing"
+        },
+        "geometry": [
+          32,
+          4096,
+          1024,
+          32
+        ],
+        "kind": "resident standalone C Accelerate, transfers included; not SDK or full response",
+        "measurements": [
+          {
+            "output_sha256": "69aaa3c843ab3d21ee68ee4270c7f9fbadc40af01c0374931a2dfc3cea88c868",
+            "process_cpu_seconds": 0.005194000000000004,
+            "rep": 0,
+            "stationary": false,
+            "wall_seconds": 0.005187832750380039
+          },
+          {
+            "output_sha256": "69aaa3c843ab3d21ee68ee4270c7f9fbadc40af01c0374931a2dfc3cea88c868",
+            "process_cpu_seconds": 0.0044379999999999975,
+            "rep": 0,
+            "stationary": true,
+            "wall_seconds": 0.004435542039573193
+          },
+          {
+            "output_sha256": "2b04f90cba9b73af6bf1767d4d10c52f49cb4d553a89f05ef8647f971c186294",
+            "process_cpu_seconds": 0.0044410000000000005,
+            "rep": 1,
+            "stationary": true,
+            "wall_seconds": 0.004440458491444588
+          },
+          {
+            "output_sha256": "2b04f90cba9b73af6bf1767d4d10c52f49cb4d553a89f05ef8647f971c186294",
+            "process_cpu_seconds": 0.004519999999999996,
+            "rep": 1,
+            "stationary": false,
+            "wall_seconds": 0.00451691634953022
+          },
+          {
+            "output_sha256": "b22f980e20a41bca2573fd2c8820aeec4e2fd4f1327f2a187618e23be91a5bd3",
+            "process_cpu_seconds": 0.004583000000000004,
+            "rep": 2,
+            "stationary": false,
+            "wall_seconds": 0.004578458145260811
+          },
+          {
+            "output_sha256": "b22f980e20a41bca2573fd2c8820aeec4e2fd4f1327f2a187618e23be91a5bd3",
+            "process_cpu_seconds": 0.004428000000000015,
+            "rep": 2,
+            "stationary": true,
+            "wall_seconds": 0.004426457919180393
+          }
+        ],
+        "native_library_sha256": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+        "oracle_scope": "2 rows x 2 output columns",
+        "peak_rss_platform_units": 76414976,
+        "preflight": {
+          "admitted_stage_extra_bytes": 234881024,
+          "blocks": 2,
+          "float_mac_products": 536870912,
+          "gemm_calls": 32,
+          "integer_reconstruction_elements": 1048576,
+          "mask_pack_elements": 131072,
+          "native_bytes": 5369344,
+          "page_transient_bytes": 0,
+          "pages": 1,
+          "resident_weight_bytes": 4194304,
+          "stage_extra_bytes": 74444288,
+          "tiles": 4,
+          "useful_within_page_reuse": true,
+          "weight_pack_elements": 4194304
+        },
+        "source_sha256": {
+          "crates/pllm-core/src/digit_gemm.rs": "bf464bf2d18f57f8d43e12d906fc25f840b5652eec618323115a6eb562e235d8",
+          "crates/pllm-core/src/paged.rs": "89acc780d58651c956ffef505e911a1dd98e2d405bfda0e7267c4c18b24b311a",
+          "crates/pllm-python/src/lib.rs": "dff8c207716ddcfb6e72ad2154ac1d9cf9ac1a71cf0ff8bf63e5fee8a482363b",
+          "python/pllm/runtime/benchmark_memory.py": "97c547da021c1df28cd2af9ba8cd679112b56d4e2012cf0925e87a93f38f5765",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 32,
+        "bits": 32,
+        "cols": 1024,
+        "kind": "limb",
+        "rows": 4096
+      },
+      "complete_worker_cpu_seconds": 0.359154,
+      "complete_worker_peak_rss_bytes": 78381056,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "target/limb_stationary_corrections/fixture.dylib": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "full_installed_integer_audit": {
+          "checked_values": 786432,
+          "process_cpu_seconds": 0.150827,
+          "scope": "additional complete-output audit, outside native operation timing"
+        },
+        "geometry": [
+          32,
+          4096,
+          1024,
+          32
+        ],
+        "kind": "resident standalone C Accelerate, transfers included; not SDK or full response",
+        "measurements": [
+          {
+            "output_sha256": "69aaa3c843ab3d21ee68ee4270c7f9fbadc40af01c0374931a2dfc3cea88c868",
+            "process_cpu_seconds": 0.005171000000000009,
+            "rep": 0,
+            "stationary": false,
+            "wall_seconds": 0.00516512431204319
+          },
+          {
+            "output_sha256": "69aaa3c843ab3d21ee68ee4270c7f9fbadc40af01c0374931a2dfc3cea88c868",
+            "process_cpu_seconds": 0.004427000000000014,
+            "rep": 0,
+            "stationary": true,
+            "wall_seconds": 0.004424707964062691
+          },
+          {
+            "output_sha256": "2b04f90cba9b73af6bf1767d4d10c52f49cb4d553a89f05ef8647f971c186294",
+            "process_cpu_seconds": 0.004456999999999989,
+            "rep": 1,
+            "stationary": true,
+            "wall_seconds": 0.0044549573212862015
+          },
+          {
+            "output_sha256": "2b04f90cba9b73af6bf1767d4d10c52f49cb4d553a89f05ef8647f971c186294",
+            "process_cpu_seconds": 0.0045560000000000045,
+            "rep": 1,
+            "stationary": false,
+            "wall_seconds": 0.004554166458547115
+          },
+          {
+            "output_sha256": "b22f980e20a41bca2573fd2c8820aeec4e2fd4f1327f2a187618e23be91a5bd3",
+            "process_cpu_seconds": 0.004477000000000009,
+            "rep": 2,
+            "stationary": false,
+            "wall_seconds": 0.004476707428693771
+          },
+          {
+            "output_sha256": "b22f980e20a41bca2573fd2c8820aeec4e2fd4f1327f2a187618e23be91a5bd3",
+            "process_cpu_seconds": 0.0044650000000000245,
+            "rep": 2,
+            "stationary": true,
+            "wall_seconds": 0.004464291967451572
+          }
+        ],
+        "native_library_sha256": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+        "oracle_scope": "2 rows x 2 output columns",
+        "peak_rss_platform_units": 76398592,
+        "preflight": {
+          "admitted_stage_extra_bytes": 234881024,
+          "blocks": 2,
+          "float_mac_products": 536870912,
+          "gemm_calls": 32,
+          "integer_reconstruction_elements": 1048576,
+          "mask_pack_elements": 131072,
+          "native_bytes": 5369344,
+          "page_transient_bytes": 0,
+          "pages": 1,
+          "resident_weight_bytes": 4194304,
+          "stage_extra_bytes": 74444288,
+          "tiles": 4,
+          "useful_within_page_reuse": true,
+          "weight_pack_elements": 4194304
+        },
+        "source_sha256": {
+          "crates/pllm-core/src/digit_gemm.rs": "bf464bf2d18f57f8d43e12d906fc25f840b5652eec618323115a6eb562e235d8",
+          "crates/pllm-core/src/paged.rs": "89acc780d58651c956ffef505e911a1dd98e2d405bfda0e7267c4c18b24b311a",
+          "crates/pllm-python/src/lib.rs": "dff8c207716ddcfb6e72ad2154ac1d9cf9ac1a71cf0ff8bf63e5fee8a482363b",
+          "python/pllm/runtime/benchmark_memory.py": "97c547da021c1df28cd2af9ba8cd679112b56d4e2012cf0925e87a93f38f5765",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    },
+    {
+      "case": {
+        "batch": 1,
+        "bits": 32,
+        "cols": 1024,
+        "kind": "limb",
+        "rows": 4096
+      },
+      "complete_worker_cpu_seconds": 0.244666,
+      "complete_worker_peak_rss_bytes": 73187328,
+      "identity": {
+        "build": {
+          "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "files": {
+          "scripts/benchmark_tier_objectives.py": "65cd436bb444c072b5fc25bdbd6ae943d874ed1f672aebb8173f4f5ba2bf9467",
+          "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "target/limb_stationary_corrections/fixture.dylib": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "replicate": 2,
+      "result": {
+        "full_installed_integer_audit": {
+          "checked_values": 24576,
+          "process_cpu_seconds": 0.062170999999999976,
+          "scope": "additional complete-output audit, outside native operation timing"
+        },
+        "geometry": [
+          1,
+          4096,
+          1024,
+          32
+        ],
+        "kind": "resident standalone C Accelerate, transfers included; not SDK or full response",
+        "measurements": [
+          {
+            "output_sha256": "a8cf1d684490c0fa8515881f888d76925499314ac90db86ca4c8265fc56f9db5",
+            "process_cpu_seconds": 0.0012530000000000041,
+            "rep": 0,
+            "stationary": false,
+            "wall_seconds": 0.001247207634150982
+          },
+          {
+            "output_sha256": "a8cf1d684490c0fa8515881f888d76925499314ac90db86ca4c8265fc56f9db5",
+            "process_cpu_seconds": 0.0011539999999999884,
+            "rep": 0,
+            "stationary": true,
+            "wall_seconds": 0.0011519165709614754
+          },
+          {
+            "output_sha256": "6f95feb2eb704b9243072cbb2703d05b4ef5d06438698685a334c07e195e2ac8",
+            "process_cpu_seconds": 0.0011140000000000039,
+            "rep": 1,
+            "stationary": true,
+            "wall_seconds": 0.0011127907782793045
+          },
+          {
+            "output_sha256": "6f95feb2eb704b9243072cbb2703d05b4ef5d06438698685a334c07e195e2ac8",
+            "process_cpu_seconds": 0.0011390000000000011,
+            "rep": 1,
+            "stationary": false,
+            "wall_seconds": 0.001137666404247284
+          },
+          {
+            "output_sha256": "4322718dd9447c0f31d7352ca99a8c8d3cec7794b25021bc81830a07d8c61945",
+            "process_cpu_seconds": 0.0011500000000000121,
+            "rep": 2,
+            "stationary": false,
+            "wall_seconds": 0.001148957759141922
+          },
+          {
+            "output_sha256": "4322718dd9447c0f31d7352ca99a8c8d3cec7794b25021bc81830a07d8c61945",
+            "process_cpu_seconds": 0.0011249999999999871,
+            "rep": 2,
+            "stationary": true,
+            "wall_seconds": 0.0011238325387239456
+          }
+        ],
+        "native_library_sha256": "3eb3a120205bdb2290b73bad14db57df55c6b7020a28f05ef46e9b31f63eb889",
+        "oracle_scope": "2 rows x 2 output columns",
+        "peak_rss_platform_units": 71761920,
+        "preflight": {
+          "admitted_stage_extra_bytes": 234881024,
+          "blocks": 2,
+          "float_mac_products": 16777216,
+          "gemm_calls": 32,
+          "integer_reconstruction_elements": 32768,
+          "mask_pack_elements": 4096,
+          "native_bytes": 4227056,
+          "page_transient_bytes": 0,
+          "pages": 1,
+          "resident_weight_bytes": 4194304,
+          "stage_extra_bytes": 71397360,
+          "tiles": 4,
+          "useful_within_page_reuse": true,
+          "weight_pack_elements": 4194304
+        },
+        "source_sha256": {
+          "crates/pllm-core/src/digit_gemm.rs": "bf464bf2d18f57f8d43e12d906fc25f840b5652eec618323115a6eb562e235d8",
+          "crates/pllm-core/src/paged.rs": "89acc780d58651c956ffef505e911a1dd98e2d405bfda0e7267c4c18b24b311a",
+          "crates/pllm-python/src/lib.rs": "dff8c207716ddcfb6e72ad2154ac1d9cf9ac1a71cf0ff8bf63e5fee8a482363b",
+          "python/pllm/runtime/benchmark_memory.py": "97c547da021c1df28cd2af9ba8cd679112b56d4e2012cf0925e87a93f38f5765",
+          "scripts/probe_limb_stationary_corrections.py": "38752ba4869297dc15796169ac579338e4ada2eead2b03125aa95344d3f2be50",
+          "scripts/research_native/limb_stationary_corrections/fixture.c": "ee9c01f1a6063e2a4bc1d56c5b228c42515af2decd23e91085b3b2f08695db6b",
+          "tests/test_limb_stationary_corrections_probe.py": "5a3d7cc644a7300cb21618fe76fcdb1c6699a74f52346c930446e71b707f0336"
+        }
+      },
+      "threads_requested": 1,
+      "vendor_threads_verified": false
+    }
+  ],
+  "replicates": 3,
+  "schema": "pllm.tier_objectives_operator_screen.v1",
+  "scope": "isolated operator fixtures; peak RSS includes setup and audits",
+  "selection": "limb",
+  "serving_gain": null,
+  "watchdog": {
+    "baseline_swap_used_bytes": 902365184,
+    "error": null,
+    "maximum_swap_growth_bytes": 0,
+    "minimum_available_bytes": 11331911680
+  },
+  "whole_client_tier_qualified": false
+}
