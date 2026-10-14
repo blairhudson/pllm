@@ -160,6 +160,18 @@ private prompt encoders are follow-up candidates, not admitted protocols or
 measured quality, traffic or client-memory improvements. Consumer software is
 the target; TEE-dependent designs are excluded. Contracts and replay:
 `docs/research/cold-request-frontier-reference.md`.
+A separate pinned public finite-language boundary gate retains all 73 output
+token rows for three fixed labels, including alternate tokenizer segmentations.
+Original integer/float32 head values and 1,824 sampler/RNG comparisons agree;
+bounded compressed research artifacts fall from 121.08 MB to 63.7 kB. Twelve
+fresh native lookup-party processes preserve 446,208 embedding values with zero
+observed swap growth. At 150 prompt rows, both-party native frames total 0.406 MB,
+but median aggregate lookup evaluation CPU is 118.28 seconds and the largest
+party peak is 317.52 MB. Local table derivation and missing-worker source delivery
+retain distinct costs. Arbitrary JSON still admits at least 145,459 token rows.
+These are restricted-boundary results, not task quality, complete response costs,
+whole-client memory or an executable online lookup role graph. Contract and replay:
+`docs/research/public-grammar-boundary-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

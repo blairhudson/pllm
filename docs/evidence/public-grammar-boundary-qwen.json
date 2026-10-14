@@ -1,0 +1,1104 @@
+{
+  "authenticated_provider_transport": false,
+  "build": {
+    "expected_digest": "aa8aa10f44aec143421bf90ae1dc93fd7a50189d6d034aaf14c720b0f6efd233",
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+  },
+  "client_only_peak_rss_bytes": null,
+  "cold_delivery_cases": {
+    "all_parties_cold": "charge common source distribution in both arms; do not add derived-table transfer when locally derived",
+    "existing_full_checkpoint_at_each_lookup_role": "derive records locally; additional table network bytes zero, CPU/RSS/storage charged",
+    "two_additional_workers_missing_source": 273484800
+  },
+  "complete_request_bytes": null,
+  "full_decoder_or_task_quality": null,
+  "head": {
+    "complete_head_sha256": "9b83465f5d55634052fb097ea575109f85be50711c603ba4ea10562fc1190dcf",
+    "exact_float32_and_integer_oracle": true,
+    "full_head_values_checked": 1215488,
+    "masked_vocabulary_values_checked": 92377088,
+    "memory": {
+      "process_lifetime_peak_rss_bytes": 118718464,
+      "rss_bytes": 113557504
+    },
+    "sampler_and_rng_comparisons": 1824,
+    "scope": "boundary-only validation; both arms and oracle charged; no body/KV or task quality",
+    "sliced_head_sha256": "c1ca63ea37dd8cd282b419528a2226b3db5e2b9f1e477de7331c8f015ff7e7d1",
+    "synthetic_hidden_rows": 8
+  },
+  "host": {
+    "available": 10807820288,
+    "disk_free": 41761984512,
+    "swap_used": 902365184,
+    "total": 34359738368
+  },
+  "maximum_swap_growth_bytes": 0,
+  "medians": [
+    {
+      "both_party_evaluation_cpu_seconds": 12.583452000000001,
+      "both_party_setup_cpu_seconds": 1.240472,
+      "largest_party_process_peak_rss_bytes": 308805632,
+      "native_body_bytes": 43296,
+      "prompt_lookup_rows": 16,
+      "replicates": 3
+    },
+    {
+      "both_party_evaluation_cpu_seconds": 118.281833,
+      "both_party_setup_cpu_seconds": 1.2384249999999999,
+      "largest_party_process_peak_rss_bytes": 317521920,
+      "native_body_bytes": 405900,
+      "prompt_lookup_rows": 150,
+      "replicates": 3
+    }
+  ],
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "public": {
+    "alternate_paths": [
+      [
+        90,
+        1,
+        75,
+        64,
+        65,
+        68,
+        75,
+        1,
+        25,
+        1,
+        77,
+        68,
+        70,
+        64,
+        83,
+        72,
+        85,
+        68,
+        1,
+        92
+      ],
+      [
+        90,
+        1,
+        75,
+        64,
+        65,
+        68,
+        75,
+        1,
+        25,
+        1,
+        77,
+        68,
+        84,
+        83,
+        81,
+        64,
+        75,
+        1,
+        92
+      ],
+      [
+        90,
+        1,
+        75,
+        64,
+        65,
+        68,
+        75,
+        1,
+        25,
+        1,
+        79,
+        78,
+        82,
+        72,
+        83,
+        72,
+        85,
+        68,
+        1,
+        92
+      ]
+    ],
+    "arbitrary_json_interior_token_lower_bound": 145459,
+    "canonical_paths": [
+      [
+        4913,
+        1502,
+        3252,
+        42224,
+        9207
+      ],
+      [
+        4913,
+        1502,
+        3252,
+        59568,
+        9207
+      ],
+      [
+        4913,
+        1502,
+        3252,
+        30487,
+        9207
+      ]
+    ],
+    "descriptor": "efa85e841ae3e07b7c76b67525d42e8db0ab8bbf2ec7dbf633f9486526d3a04f",
+    "eos": 151645,
+    "files": {
+      "head.i8": {
+        "bytes": 136134656,
+        "sha256": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed"
+      },
+      "language.json": {
+        "bytes": 2897,
+        "sha256": "2bd1198a23348e0b75c6630b1f69c140d586bca9118d6f25844ad63d5e543571"
+      },
+      "prompt.json": {
+        "bytes": 697,
+        "sha256": "c1c4c63a750f226890d0fbc61838d99cde1179f0e32e09263b5b0322a1ae4abd"
+      },
+      "records.bin": {
+        "bytes": 136742400,
+        "sha256": "bbfdb0fa1cb17ace41f660fbe8c878f78c4e18e9f55dbc683172e4c609b15c7e"
+      },
+      "scales.f32": {
+        "bytes": 607744,
+        "sha256": "7717b3190c09c2e38eabd11884e4c83a48103089cab01aa9d2d7011d1a9b67e5"
+      },
+      "shard.i8": {
+        "bytes": 65408,
+        "sha256": "678ae12ec759e3188c820677aa467ac0a07d406606f04d2f766f64279ff59765"
+      },
+      "shard.scales.f32": {
+        "bytes": 292,
+        "sha256": "c86887325b022ccfc0b627cd01ac5d81a0345dc8dd8633d20abe2ffb88555759"
+      }
+    },
+    "finite_boundary_artifact": {
+      "format": "research magic8+header_length_u32+canonical_header; u32 raw/encoded sizes per <=1MiB independent block",
+      "frames": 2,
+      "header_bytes": 4147,
+      "raw_framed_bytes": 69863,
+      "zlib_framed_bytes": 63710
+    },
+    "full_boundary_artifact": {
+      "format": "research magic8+header_length_u32+canonical_header; u32 raw/encoded sizes per <=1MiB independent block",
+      "frames": 131,
+      "header_bytes": 910,
+      "raw_framed_bytes": 136744358,
+      "zlib_framed_bytes": 121084623
+    },
+    "language": {
+      "eos": 151645,
+      "minimum_selections": [
+        6,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        4,
+        4,
+        4,
+        3,
+        3,
+        4,
+        3,
+        4,
+        3,
+        4,
+        3,
+        4,
+        3,
+        4,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3,
+        2,
+        2,
+        2,
+        2,
+        1,
+        2,
+        1,
+        1
+      ],
+      "prefixes_hex": [
+        "",
+        "7b",
+        "7b22",
+        "7b226c",
+        "7b226c61",
+        "7b226c6162",
+        "7b226c616265",
+        "7b226c6162656c",
+        "7b226c6162656c22",
+        "7b226c6162656c223a",
+        "7b226c6162656c223a22",
+        "7b226c6162656c223a226e",
+        "7b226c6162656c223a2270",
+        "7b226c6162656c223a226e65",
+        "7b226c6162656c223a22706f",
+        "7b226c6162656c223a226e6567",
+        "7b226c6162656c223a226e6575",
+        "7b226c6162656c223a22706f73",
+        "7b226c6162656c223a226e656761",
+        "7b226c6162656c223a226e657574",
+        "7b226c6162656c223a22706f7369",
+        "7b226c6162656c223a226e65676174",
+        "7b226c6162656c223a226e65757472",
+        "7b226c6162656c223a22706f736974",
+        "7b226c6162656c223a226e6567617469",
+        "7b226c6162656c223a226e6575747261",
+        "7b226c6162656c223a22706f73697469",
+        "7b226c6162656c223a226e656761746976",
+        "7b226c6162656c223a226e65757472616c",
+        "7b226c6162656c223a22706f7369746976",
+        "7b226c6162656c223a226e65676174697665",
+        "7b226c6162656c223a226e65757472616c22",
+        "7b226c6162656c223a22706f736974697665",
+        "7b226c6162656c223a226e6567617469766522",
+        "7b226c6162656c223a226e65757472616c227d",
+        "7b226c6162656c223a22706f73697469766522",
+        "7b226c6162656c223a226e65676174697665227d",
+        "7b226c6162656c223a22706f736974697665227d"
+      ],
+      "schema": "pllm.research.finite_byte_language.v1",
+      "selection_budget_includes_eos": true,
+      "tokenizer_sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+      "transitions": [
+        [
+          [
+            90,
+            1
+          ],
+          [
+            4913,
+            2
+          ]
+        ],
+        [
+          [
+            1,
+            2
+          ],
+          [
+            92667,
+            7
+          ]
+        ],
+        [
+          [
+            75,
+            3
+          ],
+          [
+            1502,
+            7
+          ],
+          [
+            4260,
+            4
+          ],
+          [
+            14380,
+            5
+          ]
+        ],
+        [
+          [
+            64,
+            4
+          ],
+          [
+            370,
+            5
+          ],
+          [
+            780,
+            7
+          ],
+          [
+            8229,
+            6
+          ]
+        ],
+        [
+          [
+            65,
+            5
+          ],
+          [
+            1371,
+            6
+          ],
+          [
+            9779,
+            7
+          ]
+        ],
+        [
+          [
+            68,
+            6
+          ],
+          [
+            301,
+            7
+          ]
+        ],
+        [
+          [
+            75,
+            7
+          ]
+        ],
+        [
+          [
+            1,
+            8
+          ],
+          [
+            788,
+            9
+          ],
+          [
+            3252,
+            10
+          ]
+        ],
+        [
+          [
+            25,
+            9
+          ],
+          [
+            2974,
+            10
+          ]
+        ],
+        [
+          [
+            1,
+            10
+          ]
+        ],
+        [
+          [
+            77,
+            11
+          ],
+          [
+            79,
+            12
+          ],
+          [
+            811,
+            13
+          ],
+          [
+            966,
+            17
+          ],
+          [
+            2724,
+            23
+          ],
+          [
+            5368,
+            14
+          ],
+          [
+            28775,
+            15
+          ],
+          [
+            30487,
+            32
+          ],
+          [
+            42224,
+            30
+          ],
+          [
+            59568,
+            28
+          ]
+        ],
+        [
+          [
+            68,
+            13
+          ],
+          [
+            791,
+            15
+          ],
+          [
+            11188,
+            18
+          ],
+          [
+            15060,
+            30
+          ],
+          [
+            20128,
+            16
+          ],
+          [
+            60053,
+            19
+          ]
+        ],
+        [
+          [
+            78,
+            14
+          ],
+          [
+            436,
+            17
+          ],
+          [
+            30724,
+            20
+          ],
+          [
+            34054,
+            23
+          ]
+        ],
+        [
+          [
+            70,
+            15
+          ],
+          [
+            84,
+            16
+          ],
+          [
+            332,
+            19
+          ],
+          [
+            6743,
+            18
+          ],
+          [
+            14253,
+            28
+          ],
+          [
+            77881,
+            25
+          ],
+          [
+            79281,
+            22
+          ]
+        ],
+        [
+          [
+            82,
+            17
+          ],
+          [
+            6321,
+            20
+          ],
+          [
+            46865,
+            23
+          ]
+        ],
+        [
+          [
+            64,
+            18
+          ],
+          [
+            266,
+            21
+          ],
+          [
+            1388,
+            30
+          ],
+          [
+            9307,
+            24
+          ],
+          [
+            19488,
+            27
+          ]
+        ],
+        [
+          [
+            83,
+            19
+          ],
+          [
+            376,
+            22
+          ],
+          [
+            2172,
+            25
+          ]
+        ],
+        [
+          [
+            72,
+            20
+          ],
+          [
+            275,
+            23
+          ],
+          [
+            3404,
+            32
+          ],
+          [
+            12303,
+            26
+          ]
+        ],
+        [
+          [
+            83,
+            21
+          ],
+          [
+            10251,
+            24
+          ]
+        ],
+        [
+          [
+            81,
+            22
+          ],
+          [
+            956,
+            25
+          ],
+          [
+            3461,
+            28
+          ]
+        ],
+        [
+          [
+            83,
+            23
+          ],
+          [
+            10251,
+            26
+          ]
+        ],
+        [
+          [
+            72,
+            24
+          ],
+          [
+            344,
+            27
+          ],
+          [
+            533,
+            30
+          ]
+        ],
+        [
+          [
+            64,
+            25
+          ],
+          [
+            278,
+            28
+          ]
+        ],
+        [
+          [
+            72,
+            26
+          ],
+          [
+            344,
+            29
+          ],
+          [
+            533,
+            32
+          ]
+        ],
+        [
+          [
+            85,
+            27
+          ],
+          [
+            586,
+            30
+          ]
+        ],
+        [
+          [
+            75,
+            28
+          ]
+        ],
+        [
+          [
+            85,
+            29
+          ],
+          [
+            586,
+            32
+          ]
+        ],
+        [
+          [
+            68,
+            30
+          ]
+        ],
+        [
+          [
+            1,
+            31
+          ],
+          [
+            9207,
+            34
+          ]
+        ],
+        [
+          [
+            68,
+            32
+          ]
+        ],
+        [
+          [
+            1,
+            33
+          ],
+          [
+            9207,
+            36
+          ]
+        ],
+        [
+          [
+            92,
+            34
+          ]
+        ],
+        [
+          [
+            1,
+            35
+          ],
+          [
+            9207,
+            37
+          ]
+        ],
+        [
+          [
+            92,
+            36
+          ]
+        ],
+        [
+          [
+            151645,
+            -1
+          ]
+        ],
+        [
+          [
+            92,
+            37
+          ]
+        ],
+        [
+          [
+            151645,
+            -1
+          ]
+        ],
+        [
+          [
+            151645,
+            -1
+          ]
+        ]
+      ],
+      "union": [
+        1,
+        25,
+        64,
+        65,
+        68,
+        70,
+        72,
+        75,
+        77,
+        78,
+        79,
+        81,
+        82,
+        83,
+        84,
+        85,
+        90,
+        92,
+        266,
+        275,
+        278,
+        301,
+        332,
+        344,
+        370,
+        376,
+        436,
+        533,
+        586,
+        780,
+        788,
+        791,
+        811,
+        956,
+        966,
+        1371,
+        1388,
+        1502,
+        2172,
+        2724,
+        2974,
+        3252,
+        3404,
+        3461,
+        4260,
+        4913,
+        5368,
+        6321,
+        6743,
+        8229,
+        9207,
+        9307,
+        9779,
+        10251,
+        11188,
+        12303,
+        14253,
+        14380,
+        15060,
+        19488,
+        20128,
+        28775,
+        30487,
+        30724,
+        34054,
+        42224,
+        46865,
+        59568,
+        60053,
+        77881,
+        79281,
+        92667,
+        151645
+      ],
+      "visibility": "public",
+      "vocabulary": 151936,
+      "words_utf8_hex": [
+        "7b226c6162656c223a226e65676174697665227d",
+        "7b226c6162656c223a226e65757472616c227d",
+        "7b226c6162656c223a22706f736974697665227d"
+      ]
+    },
+    "language_digest": "2bd1198a23348e0b75c6630b1f69c140d586bca9118d6f25844ad63d5e543571",
+    "memory": {
+      "process_lifetime_peak_rss_bytes": 460259328,
+      "rss_bytes": 189136896
+    },
+    "public_source_float32_values_sha256": "8d0ebe5b0c508d3de72e7a0baa045208358a504e18dfbbd1fe1c02fe26da7b9c",
+    "publisher_complete_cpu_seconds": 9.788832000000001,
+    "shape": [
+      151936,
+      896
+    ],
+    "source": {
+      "config.json": {
+        "bytes": 659,
+        "sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45"
+      },
+      "generation_config.json": {
+        "bytes": 242,
+        "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+      },
+      "model.safetensors": {
+        "bytes": 988097824,
+        "sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+      },
+      "tokenizer.json": {
+        "bytes": 7031645,
+        "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+      },
+      "tokenizer_config.json": {
+        "bytes": 7305,
+        "sha256": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583"
+      }
+    }
+  },
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "role_scope": "one native party per fresh sequential interpreter; co-located, not independent operators",
+  "samples": [
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 9.299999999998199e-05,
+      "client_issue_cpu_seconds": 0.0011629999999999974,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.252745,
+          "evaluation_elapsed_seconds": 6.259049874730408,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 308805632,
+            "rss_bytes": 308789248
+          },
+          "native_query_bytes": 6208,
+          "native_reply_bytes": 15440,
+          "party": 0,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.621027
+        },
+        {
+          "evaluation_cpu_seconds": 6.330707,
+          "evaluation_elapsed_seconds": 6.33483275026083,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 308756480,
+            "rss_bytes": 308740096
+          },
+          "native_query_bytes": 6208,
+          "native_reply_bytes": 15440,
+          "party": 1,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.6275740000000001
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 0
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.0005050000000000332,
+      "client_issue_cpu_seconds": 0.010107000000000005,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 59.263213,
+          "evaluation_elapsed_seconds": 59.295906541869044,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 313262080,
+            "rss_bytes": 181501952
+          },
+          "native_query_bytes": 58200,
+          "native_reply_bytes": 144750,
+          "party": 0,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.622645
+        },
+        {
+          "evaluation_cpu_seconds": 59.359874999999995,
+          "evaluation_elapsed_seconds": 59.387830916792154,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 313163776,
+            "rss_bytes": 181420032
+          },
+          "native_query_bytes": 58200,
+          "native_reply_bytes": 144750,
+          "party": 1,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.61578
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 0
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.0004129999999999967,
+      "client_issue_cpu_seconds": 0.01009199999999999,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 59.010523,
+          "evaluation_elapsed_seconds": 59.0564308334142,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 317521920,
+            "rss_bytes": 182304768
+          },
+          "native_query_bytes": 58200,
+          "native_reply_bytes": 144750,
+          "party": 0,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.6189819999999999
+        },
+        {
+          "evaluation_cpu_seconds": 59.27131,
+          "evaluation_elapsed_seconds": 59.29571070894599,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 312983552,
+            "rss_bytes": 181239808
+          },
+          "native_query_bytes": 58200,
+          "native_reply_bytes": 144750,
+          "party": 1,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.600871
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 1
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 0.00011099999999997223,
+      "client_issue_cpu_seconds": 0.0011489999999999556,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.220179,
+          "evaluation_elapsed_seconds": 6.2210807502269745,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 308756480,
+            "rss_bytes": 308740096
+          },
+          "native_query_bytes": 6208,
+          "native_reply_bytes": 15440,
+          "party": 0,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.6137429999999999
+        },
+        {
+          "evaluation_cpu_seconds": 6.227519,
+          "evaluation_elapsed_seconds": 6.233560582622886,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 308740096,
+            "rss_bytes": 308723712
+          },
+          "native_query_bytes": 6208,
+          "native_reply_bytes": 15440,
+          "party": 1,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.60476
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 1
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 8.300000000005525e-05,
+      "client_issue_cpu_seconds": 0.0011220000000000674,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.318881,
+          "evaluation_elapsed_seconds": 6.320161541923881,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 308789248,
+            "rss_bytes": 308772864
+          },
+          "native_query_bytes": 6208,
+          "native_reply_bytes": 15440,
+          "party": 0,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.618129
+        },
+        {
+          "evaluation_cpu_seconds": 6.314235999999999,
+          "evaluation_elapsed_seconds": 6.314303291961551,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 308740096,
+            "rss_bytes": 308723712
+          },
+          "native_query_bytes": 6208,
+          "native_reply_bytes": 15440,
+          "party": 1,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.622343
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 2
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.00044199999999994244,
+      "client_issue_cpu_seconds": 0.010176999999999992,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 58.912241,
+          "evaluation_elapsed_seconds": 58.937971875071526,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 313393152,
+            "rss_bytes": 181370880
+          },
+          "native_query_bytes": 58200,
+          "native_reply_bytes": 144750,
+          "party": 0,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.618043
+        },
+        {
+          "evaluation_cpu_seconds": 58.956272999999996,
+          "evaluation_elapsed_seconds": 58.99755537509918,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 313229312,
+            "rss_bytes": 181305344
+          },
+          "native_query_bytes": 58200,
+          "native_reply_bytes": 144750,
+          "party": 1,
+          "replay_rejected": true,
+          "setup_cpu_seconds": 0.621542
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 2
+    }
+  ],
+  "schema": "pllm.public_grammar_boundary_gate.v1",
+  "scope": "Pinned finite-output head/PIR gate; separate serial roles, no serving promotion.\n\nReal public Qwen boundary weights, synthetic hidden rows and public prompt tokens.\nPipe execution measures native bodies/CPU, not authenticated provider transport.\n",
+  "source_sha256": {
+    "scripts/finite_language_boundary.py": "526d5c55bfbcb502d48b1b5ba93d7e1c4d08c6188da6e514a150f1c838f088eb",
+    "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+    "scripts/probe_public_grammar_boundary.py": "82a43976ad70f5df65d48a5b363ebe4d868614fc93420d49523ee1cbbcc17a6b",
+    "target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+    "target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/transformer_client.py": "d8fd3762b6bf04b6ce1c9de299455ba3faee42de17a15b9b76b378a85eb1062c",
+    "tests/test_public_grammar_boundary.py": "e2cfb7f20f651929e3bc6950746da28f1f8284c47604de1dd1f828cacc4de6ac"
+  }
+}

@@ -13,8 +13,13 @@ The best near-term implementation candidate is a **public finite-grammar boundar
 retain only reachable output-head rows and retrieve private prompt embeddings
 through an independently operated private lookup. It can preserve the original
 model's explicitly restricted output contract without retraining, but its real
-tokenizer, sampler, lookup transport and complete source binding are missing.
-General JSON with arbitrary strings does not supply a small vocabulary union.
+serving transport and compiled role/state binding remain missing. A subsequent
+[pinned boundary gate](public-grammar-boundary-reference.md) closes tokenizer,
+head/sampler and native private-lookup checks: 73 rows replace the full tied head,
+cutting bounded compressed research delivery from 121.08 MB to 63.7 kB. At 150
+prompt rows, lookup adds 0.406 MB but costs 118.28 aggregate worker CPU seconds.
+This is boundary evidence, not complete-request performance. General JSON with
+arbitrary strings does not supply a small vocabulary union.
 
 The highest-upside learned direction is a **small private prompt encoder**. It
 targets the dominant prefill bill rather than only eight-token decode. A compatible
@@ -75,11 +80,12 @@ toy models, raw artifact estimates and historical transport cohorts are not pool
 
 ## Follow-up order
 
-1. **Public finite-grammar boundary:** freeze one genuinely public finite language
-   and pinned tokenizer; derive every reachable token without private-prompt
-   selection. Check source-locked head rows, full restricted float32 sampling and
-   private prompt lookup before SDK integration. Compare both provider-resident
-   and provider-cold bills, retaining table replication and lookup compute.
+1. **Public finite-grammar boundary:** the subsequent pinned gate preserves checked
+   head/embedding bits and original sampler/RNG behavior, but native lookup is
+   expensive. Reduce complete batched lookup cost, then bind an explicit online
+   lookup role and restricted-output state contract before SDK comparison. Compare
+   both provider-resident and provider-cold bills, retaining table replication
+   when required, local derivation costs and complete lookup compute.
 2. **Private prompt encoder:** freeze a small model/download budget and task-quality
    contract. Train on public data only; compare full original, full adapted and
    compressed adapted inputs separately. Exact-copy, rare-token and positional
@@ -105,6 +111,8 @@ historical extraction has its own artifact:
 The [manifest](../evidence/cold-request-frontier-manifest.json) binds each result
 without merging their evidence identities. No checkpoint values, training cohort,
 whole-response timing or candidate process-RSS measurement was run in this screen.
+The later pinned boundary report remains separate and does load checkpoint values;
+its role peaks and synthetic-hidden-state checks do not fill whole-client gaps.
 
 Parent validation passes **157 tests**; all eight reports reproduce exactly in
 fresh interpreter invocations against the installed environment. Ruff passes for

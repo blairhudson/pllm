@@ -1,5 +1,11 @@
 # Cold grammar-specialized client boundaries
 
+The subsequent [pinned checkpoint gate](public-grammar-boundary-reference.md)
+executes complete tokenizer reachability, sliced-head/sampler parity and separate
+native lookup-party processes. Its 73-row head is small, but 150 prompt lookups
+cost 118.28 aggregate worker CPU seconds. The synthetic accounting below retains
+its original scope and conservative lookup slots.
+
 ## Result and scope
 
 **Conditional byte win, not a private serving implementation.** A public,
