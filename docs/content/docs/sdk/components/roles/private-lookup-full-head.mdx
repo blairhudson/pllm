@@ -1,0 +1,53 @@
+---
+title: "Private lookup and full head"
+description: "Move a tied token table and full output head to two boundary workers while retaining ordinary generation."
+---
+
+[`PrivateLookupAndFullHead`](/sdk/reference/python/pllm/roles/#privatelookupandfullhead)
+(`pllm/private-lookup-full-head/v1`) selects the `boundary` slot of a prepared
+`MaskedLinearCpu` Pipeline. It requires
+[`PreparedBoundaryRoles`](/sdk/components/roles/prepared-boundary/).
+Packed private lookup and exact ring32 full-head sharing use one immutable tied
+weight owner in each boundary worker. The client receives no vocabulary matrix;
+tokenization, attention, full KV, reconstructed complete logits and sampling stay
+local. Generated Qwen2/Qwen3/Llama controls preserve logits, KV, tokens and RNG.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import PreparedBoundaryRoles, PrivateLookupAndFullHead
+
+boundary = PrivateLookupAndFullHead()
+experiment = Experiment(
+    name="private-vocabulary-example",
+    pipeline=MaskedLinearCpu(
+        Model.tiny(), boundary=boundary, topology=PreparedBoundaryRoles(),
+    ),
+    deployment=Deployment.local(root="local://private-vocabulary-example"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=2),
+)
+assert experiment.pipeline.components["boundary"] == boundary
+assert experiment.resolve().composition_digest == experiment.pipeline.digest()
+```
+
+Run `examples/private_boundary.py` for ordinary SDK/gateway execution. Use
+`examples/benchmarks/private_boundary.py` for build-locked, fresh-process
+`BenchmarkTarget.response` / `benchmark_suite` comparisons; the same Experiment
+also works with `pllm benchmark run`. See the
+[provider-role guide](/sdk/run/provider-roles/#coupled-private-vocabulary-boundary).
+
+The [matched SOTA screens](/research/sota/#coupled-private-boundary-sdk-screen)
+measure lower cold-client traffic when workers already hold the source. They
+also record slower decode and higher CPU/client-subprocess RSS. Checkpoint and
+tokenizer distribution remain unmeasured, and child-only RSS cannot qualify a
+whole-client memory tier. Embedding-only relocation would save no tied-head bytes.
+
+The initial contract requires a tied W8A8 table without auxiliary token tables.
+Supported compositions and exclusions follow the
+[role guide](/sdk/run/provider-roles/#coupled-private-vocabulary-boundary).
+Boundary workers must not collude; co-located children do not establish operator
+independence or cryptographic review.
+
+API: [`PrivateLookupAndFullHead`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

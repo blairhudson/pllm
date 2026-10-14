@@ -223,6 +223,23 @@ The exact installed modules, extension and dependency commitments are retained i
 
 ## Validation
 
+Both capabilities also run through ordinary `BenchmarkTarget.response` and
+`benchmark_suite`; `examples/benchmarks/private_boundary.py` executes its local
+and coupled choices in fresh processes. Its generated-checkpoint 100/40 smoke
+completes both cases. The benchmark's whole-topology memory budget remains
+distinct from a client memory tier.
+
+`scripts/summarize_private_boundary_sdk.py` revalidates the two original cohorts
+without model execution. Hash-bound summaries retain their frozen control recipe,
+native admission identities, exact parity, directed counters, complete replicates
+and historical build. Repository capability coverage recognizes those records as
+validated historical evidence, or stale when a requested build differs.
+The research registry adds separate 48+8 and 150+8 screen entries with an explicit
+five-role topology. First-text/setup, N−1 text-event decode, lifetime child CPU
+and parent-excluding child RAM have their own labels. Missing whole-client RAM
+prevents all memory-tier qualification; the original three-role control and new
+five-role placement keep separate topology leaders.
+
 The native compiler suite and all eight private-page tests pass. Installed-wheel
 validation includes 18 SDK lifecycle tests across generated Qwen2/Qwen3/Llama,
 319 lower-level regression checks, 101 existing SDK checks and a final 142-test
@@ -241,6 +258,19 @@ The generated-source example executes the installed SDK:
 ```bash
 python examples/private_boundary.py --root target/private-boundary-example
 ```
+
+Ordinary SDK benchmarking and read-only historical summary replay:
+
+```bash
+python examples/benchmarks/private_boundary.py --output target/private-boundary-suite.json
+python scripts/summarize_private_boundary_sdk.py docs/evidence/private-boundary-qwen-48-sdk.json \
+  --control docs/evidence/private-boundary-qwen-control.json \
+  --output target/private-boundary-48-summary.json
+```
+
+The first command produces fresh `BenchmarkResult` records through the standard
+runner. It is not a substitute for the original diagnostic driver or its complete
+state-audit window. The second reproduces the archived summary byte-for-byte.
 
 For a cached checkpoint, `examples/private_boundary.py --model-dir PATH` builds
 the offline indexed tokenizer and selects the same paging/codec composition.

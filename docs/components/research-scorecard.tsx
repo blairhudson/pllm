@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState, type CSSProperties } from 'react';
 import data from '@/data/research/scorecard.json';
-import { leaders, normalizedAxes, measuredSegments, groupedMetrics, memoryBudgetRows, defaultResearchCohort } from '@/lib/research-rankings.mjs';
+import { leaders, normalizedAxes, measuredSegments, groupedMetrics, memoryBudgetRows, defaultResearchCohort, scopedMetric } from '@/lib/research-rankings.mjs';
 import { withBasePath } from '@/lib/paths.mjs';
 import styles from './research-scorecard.module.css';
 import { ResearchSotaTable } from './research-sota';
@@ -50,12 +50,7 @@ export function ResearchScorecard() {
   const available = data.cohorts.filter((cohort) => cohort.model === model);
   const cohort = available.find((candidate) => candidate.id === cohortId) ?? available[0];
   const measurement = 'measurement' in cohort ? cohort.measurement : null;
-  const definitions = data.metrics.map((metric) => {
-    const label = metric.id === 'clientPeak' ? measurement?.clientRssLabel
-      : metric.id === 'clientCpu' ? measurement?.clientCpuLabel
-        : metric.id === 'preparationCpu' ? measurement?.preparationCpuLabel : null;
-    return label ? { ...metric, shortLabel: label, label } : metric;
-  });
+  const definitions = data.metrics.map((metric) => scopedMetric(metric, measurement));
   const groups = groupedMetrics(metricIds.map((key) => definitions.find((metric) => metric.id === key)!));
   const metrics = groups.flatMap((group) => group.metrics);
   const maxBytes = data.clientMemoryTiers.find((tier) => tier.id === memoryTier)?.maxBytes ?? null;

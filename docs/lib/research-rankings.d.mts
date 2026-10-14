@@ -5,6 +5,10 @@ export function sortMetricRows<R extends Row>(rows: R[], metricId: string, direc
 export function improvement(value: number | null, baseline: number | null, direction: string): number | null;
 export const defaultMetrics: string[];
 export const sotaMetrics: string[];
+export function scopedMetric<M extends Metric>(metric: M, measurement?: {
+  metricLabels?: Record<string, string>; clientRssLabel?: string;
+  clientCpuLabel?: string; preparationCpuLabel?: string;
+} | null): M;
 export function memoryBudgetRows<R extends Row>(rows: R[], maxBytes?: number | null): {
   rows: R[]; unknownCount: number; overBudgetCount: number;
 };

@@ -51,6 +51,15 @@ export const defaultMetrics = [...priorities.flatMap((priority) => priority.metr
 export const sotaMetrics = [...priorities.flatMap((priority) => priority.metrics),
   'baseNetwork', 'tokenNetwork', 'totalNetwork'];
 
+/** A cohort may measure a different, explicitly named window on the same axis. */
+export function scopedMetric(metric, measurement) {
+  const label = measurement?.metricLabels?.[metric.id] ?? ({
+    clientPeak: measurement?.clientRssLabel, clientCpu: measurement?.clientCpuLabel,
+    preparationCpu: measurement?.preparationCpuLabel,
+  })[metric.id];
+  return label ? { ...metric, shortLabel: label, label } : metric;
+}
+
 // Extra decimals prevent nearby observations from looking like a tied result.
 function metricPrecision(rows, metric) {
   const values = [...new Set(rows.map((row) => row.metrics[metric.id]).filter(Number.isFinite))];
@@ -106,6 +115,8 @@ const componentNames = {
   'pllm/mlp-prefill-tiling/v1': 'MlpPrefillTiling',
   'pllm/model-aware-corrections': 'ModelAwareCorrections',
   'pllm/prepared-inventory-policy/v1': 'PreparedInventory',
+  'pllm/prepared-body-two-online-boundary/v1': 'PreparedBoundaryRoles',
+  'pllm/private-lookup-full-head/v1': 'PrivateLookupAndFullHead',
   'pllm/public-per-channel-equalized/v1': 'PublicPerChannelEqualized',
   'pllm/public-prefix-capsule/v1': 'PublicPrefixCapsule',
   'pllm/symmetric-per-row-quantization/v1': 'SymmetricPerRow',

@@ -83,6 +83,12 @@ test('published budgets share the installed SDK definition and all evidence wind
   for (const cohort of card.cohorts) for (const row of cohort.rows) {
     assert.ok(row.clientMemory.scope);
     assert.equal(row.clientMemory.sampleCount, row.sampleCount ?? cohort.replicates ?? 1);
+    if (row.clientMemory.scope === 'whole_client_unknown_parent_relay_excluded') {
+      assert.equal(row.clientMemory.maxPeakBytes, null);
+      assert.ok(row.observedClientSubprocessPeakBytes >= Math.round(row.metrics.clientPeak * 1e6));
+      assert.equal(memoryBudgetRows([row], 16 * 2 ** 30).rows.length, 0);
+      continue;
+    }
     if (row.metrics.clientPeak === null) assert.equal(row.clientMemory.maxPeakBytes, null);
     else assert.ok(row.clientMemory.maxPeakBytes >= Math.round(row.metrics.clientPeak * 1e6));
     if (row.observations) assert.equal(row.clientMemory.maxPeakBytes,

@@ -108,8 +108,14 @@ export function executionPlacement(pipeline, roles, body = null) {
     client: 'Client-only',
     'client,inference,preparation': 'Prepared',
     'client,worker_a,worker_b': 'Two workers',
+    'boundary_a,boundary_b,client,inference,preparation': 'Prepared + private boundary',
   }[declared];
   if (!topology) throw new Error('Unsupported measured role graph');
+  if (topology === 'Prepared + private boundary' &&
+      (components.boundary?.component !== 'pllm/private-lookup-full-head/v1' ||
+       components.topology?.component !== 'pllm/prepared-body-two-online-boundary/v1')) {
+    throw new Error('Private boundary role graph requires both explicit SDK capabilities');
+  }
   const client = components.placement;
   const clientBody = topology === 'Client-only' || Boolean(client);
   const kernel = { 'pllm/cpu': 'CPU', 'pllm/apple-metal-int8/v1': 'CPU + Metal' }[components.kernels?.component];
@@ -358,7 +364,7 @@ export function buildScorecard({ trafficAttributionConsumer = null } = {}) {
       const raw = fs.readFileSync(path.join(root, cohort.report));
       const value = cohortRows(cohort, JSON.parse(raw));
       return { ...value, reportSha256: hash(raw) };
-    }), ...(manifest.adapted_cohorts ?? []).flatMap((spec) => adaptedCohorts({ ...spec, frozen_factory: manifest.historical_factory }, read,
+    }), ...(manifest.adapted_cohorts ?? []).flatMap((spec) => adaptedCohorts({ ...spec, frozen_factory: spec.frozen_factory ?? manifest.historical_factory }, read,
       { metrics, executionPlacement, providerPeak, trafficAttributionConsumer }).map((value) => ({ ...value, reportSha256: spec.sha256 })))];
   for (const value of cohorts) {
       for (const row of value.rows) {

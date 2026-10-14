@@ -221,6 +221,14 @@ Decode throughput falls 48.82%, complete-case CPU rises 12.10% and client-subpro
 RSS rises 2.35%. Additional boundary bodies are 10.19 MB; ordinary prepared
 arithmetic bodies remain identical. These independently retained workload cohorts
 do not establish a warm-request win or savings when workers lack the source.
+Both installed boundary capabilities additionally run through ordinary
+`BenchmarkTarget.response` and `benchmark_suite`, demonstrated by
+`examples/benchmarks/private_boundary.py`. Hash-bound read-only summaries connect
+the two original cohorts to capability coverage and separate SOTA screen entries.
+Their five-role topology, setup-inclusive first-text timing, N−1 text-event decode
+and child-only resource labels remain explicit. Parent/relay-excluding RSS cannot
+qualify whole-client memory tiers; different workloads and topologies retain
+separate rankings.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

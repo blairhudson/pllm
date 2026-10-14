@@ -64,6 +64,42 @@
       "replay_file": "scripts/benchmark_sota_combinations.py",
       "replay_sha256": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d",
       "scope": "Completed 30-client, 60-response screen: three balanced serial replicates per choice with one private cohort salt. Installed tiling, digit8 and frozen selective placement; four-stage/64 MiB issuance at 150 inputs and serial issuance at 288, shared across each workload's five choices. Cold and exact-repeat views remain separate; lifetime client RSS covers both. Partial application-body partitions conserve known base, known output-dependent and residual bytes; complete headline splits remain unknown. Cached checkpoint, pre-positioned tokenizer, co-located roles; physical wire, cleanup CPU/time, quality and independent finalist confirmation excluded. Earlier failed/interrupted cohorts are not pooled."
+    },
+    {
+      "id": "qwen25-private-boundary-48-8",
+      "evidenceTier": "screen",
+      "title": "Coupled private boundary SDK · 48+8 · native 100/40",
+      "adapter": "private-boundary-v1",
+      "report": "docs/evidence/private-boundary-qwen-48-sdk.json",
+      "sha256": "c117dd5f0d5b5706a8bc18451241d779a1871eb06c8b20b3dc55d3219c76f57a",
+      "summary": "docs/evidence/private-boundary-qwen-48-sdk.summary.json",
+      "summary_sha256": "ba10022d2034fa6682c861da4c3e0ffcee1746af2c63bc9dd0515a815ea22dd8",
+      "summary_source": "scripts/summarize_private_boundary_sdk.py",
+      "summary_source_sha256": "35d132adc429d65cceb69b8529fdb71e20e89df26548aad42db48a4dd24c69fa",
+      "control": "docs/evidence/private-boundary-qwen-control.json",
+      "control_sha256": "e92cc7210714bbeec49e8b6a674a2ed40d3dd41061b33d62bebed40d649dafa6",
+      "replay_file": "scripts/benchmark_private_boundary.py",
+      "replay_sha256": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+      "frozen_factory": {"file": "benchmarks/research/private_boundary.py", "sha256": "df81dd5ed0765d882a48f0dd5e4696105cefee3bff0d56fdd8079bae5c2bf2e7"},
+      "scope": "Three matched fresh-client pairs; exact full logits, KV, history, tokens and greedy RNG, zero observed swap growth. Original prepared body versus two additional private lookup/full-head workers. Full vocabulary retained. Source-present cold client; checkpoint/tokenizer distribution unmeasured. Client RAM/CPU covers the child only and excludes the parent/relay; whole-client memory tiers remain unqualified. Aggregate CPU/time includes startup and cleanup. Request first text includes setup; N−1 decode uses eight observed text events for eight authoritative outputs. Topologies and the separate 150+8 salt keep separate leaders; this is a screen, not independent confirmation."
+    },
+    {
+      "id": "qwen25-private-boundary-150-8",
+      "evidenceTier": "screen",
+      "title": "Coupled private boundary SDK · 150+8 · native 100/40",
+      "adapter": "private-boundary-v1",
+      "report": "docs/evidence/private-boundary-qwen-150-sdk.json",
+      "sha256": "5f59094f24105ad26e024ba688c4d0015969d53ea39b1f95eb2d77b2cc5c6c6b",
+      "summary": "docs/evidence/private-boundary-qwen-150-sdk.summary.json",
+      "summary_sha256": "e46343cc8a253e12f1e193344bbce76eecefc49e428783ee63ef5e6b88934d83",
+      "summary_source": "scripts/summarize_private_boundary_sdk.py",
+      "summary_source_sha256": "35d132adc429d65cceb69b8529fdb71e20e89df26548aad42db48a4dd24c69fa",
+      "control": "docs/evidence/private-boundary-qwen-control.json",
+      "control_sha256": "e92cc7210714bbeec49e8b6a674a2ed40d3dd41061b33d62bebed40d649dafa6",
+      "replay_file": "scripts/benchmark_private_boundary.py",
+      "replay_sha256": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+      "frozen_factory": {"file": "benchmarks/research/private_boundary.py", "sha256": "df81dd5ed0765d882a48f0dd5e4696105cefee3bff0d56fdd8079bae5c2bf2e7"},
+      "scope": "Independent 150+8 source-present workload: three matched fresh-client pairs, exact complete state/output and zero observed swap growth. Full vocabulary and ordinary prepared arithmetic bodies preserved. Client subprocess RAM excludes parent/relay; no whole-client RAM tier qualification. Aggregate CPU/time charges startup and cleanup; checkpoint/tokenizer distribution and physical wire remain unknown. Request first text includes setup; N−1 decode uses authoritative matched text events. Separate topologies retain their own leaders. Neither the 48+8 cohort nor failed 150-token attempts supply replicates; this is a screen, not independent confirmation."
     }
   ],
   "quality_cohorts": [
@@ -99,6 +135,8 @@
     {"title": "Public-prefix search", "file": "docs/evidence/research-search-public-prefix-qwen25-v2.json", "sha256": "67c98ac2d89dea093da5b9c14dff209248336b3f5fa6eee71d24991e290f0aaf"}
   ],
   "historical_exclusions": [
+    {"report": "docs/evidence/private-boundary-qwen-150-incomplete.json", "sha256": "5569476af7c68b3fe46d1e0f3dd6952dc5675d6dce43379e6f322994d51faa63", "reason": "Incomplete paired cohort after host-memory admission changed. Saved control does not fill any replicate in the independently salted complete 150+8 cohort."},
+    {"report": "docs/evidence/private-boundary-qwen-150-initial-blocked.json", "sha256": "2985c7282e4ef01220e05fa770e7f50d5c3babbf0ee92a96ff298e67bc002e3b", "reason": "Initial admission rejected before complete paired execution; no performance result or tier qualification."},
     {"report": "docs/evidence/research-sota-combinations-qwen25-interrupted.json", "sha256": "44b9191e77e87e1fbb36883b43629e74b8c4cf9c65d85160b205f90e515e0f49", "reason": "Corrected five-way screen stopped with 21 of 30 cells saved and no final summary. All saved cells completed, but the runner was absent when inspected; no exit cause was retained. Two full balanced rounds and one partial third round cannot establish the planned three-replicate frontier. Preserved independently; never pooled with a fresh-salt rerun."},
     {"report": "docs/evidence/research-sota-combinations-qwen25-window-rejected.json", "sha256": "00a7058a3fc8eb0e6141e9df3638c444dccd64e4b7d750c154950da810fa17f3", "reason": "Original five-way screen: all 15 short-workload cells completed, but all 15 long-workload cells failed before online execution. Full 295-row stage issuance exceeds the frozen 64 MiB concurrent work window. Preserved independently; no completed matched frontier or pooling with the corrected serial-issuance cohort."},
     {"report": "docs/evidence/research-all-link-placement-sdk.json", "reason": "Incomplete control after admission; never pooled with successful independent confirmation."},

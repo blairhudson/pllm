@@ -16,6 +16,11 @@ are explicit model-neutral capabilities whose bundle and online costs must be
 compared together. Semantic-role placement can keep attention projections local
 while leaving MLP projections remote, across every matching layer.
 
+[Private lookup and full head](/sdk/components/roles/private-lookup-full-head/)
+with [prepared boundary roles](/sdk/components/roles/prepared-boundary/) moves a
+tied vocabulary matrix to two additional workers. It retains complete client-side
+logits and sampling, with separately measured cold-delivery and decode tradeoffs.
+
 ## Python SDK example
 
 ```python

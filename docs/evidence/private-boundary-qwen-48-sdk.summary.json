@@ -1,0 +1,278 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "build": {
+    "expected_digest": "dacf2d9d983de6860c4439eba11eb0d24d843d1715dd15b9563f9bab327753cf",
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+  },
+  "cohort_commitment": "0c6c06f783bf5564e7ac1945085b0128fc407ce966e11b85b838f9c4aafc20cb",
+  "control_sha256": "e92cc7210714bbeec49e8b6a674a2ed40d3dd41061b33d62bebed40d649dafa6",
+  "driver_implementation": {
+    "benchmark_conversation_restore.py": "c6e423303002492ec7839fb59e6b20defa22a2315b6598cc31107109c751610e",
+    "benchmark_epoch_prefix_sdk.py": "dd6c4496646bae788d71d379f496fd6ec3840a6216bc589d5a8b466edf5c82e1",
+    "benchmark_growing_epochs_sdk.py": "e15fed482ddc08d28167d4a23c5de9a6a0ffbb678139aee1d6a4538280489f4c",
+    "benchmark_private_boundary.py": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
+    "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+  },
+  "evidence_class": "matched-source-present-sdk-screen",
+  "groups": {
+    "baseline": {
+      "configuration_digest": "81fb953e655c05ad6a61ac8f306d5ddc37e09e1a25bab18d7e8969144bfa6845",
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 48,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "target/private-boundary-cohort"
+        },
+        "name": "local-boundary-control",
+        "pipeline": {
+          "components": {
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "storage": "paged"
+              }
+            },
+            "inference": {
+              "component": "pllm/inference",
+              "params": {}
+            },
+            "inventory": {
+              "component": "pllm/prepared-inventory-policy/v1",
+              "params": {
+                "allocation": "demand",
+                "policy": "request-sized",
+                "refill": "on-demand",
+                "rows": 1,
+                "stage_window": 4,
+                "stage_window_bytes": 67108864
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/masked-linear",
+              "params": {
+                "output_encoding": "row_residues",
+                "prefill_chunk_rows": 16,
+                "prefill_pruning": "terminal",
+                "request_encoding": "stage_packed"
+              }
+            },
+            "preparation": {
+              "component": "pllm/model-aware-corrections",
+              "params": {
+                "storage": "paged"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "tokenizer": {
+              "component": "pllm/indexed-tokenizer/v1",
+              "params": {
+                "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+              }
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      },
+      "maximum_client_subprocess_peak_rss_bytes": 150126592,
+      "medians": {
+        "aggregate_cleanup_cpu_seconds": 41.160904000000016,
+        "all_link_tcp_stream_bytes": 249865551,
+        "bundle_delivery_bytes": 124905091,
+        "client_lifetime_cpu_seconds": 8.302893,
+        "client_request_cpu_seconds": 6.569542,
+        "client_subprocess_peak_rss_bytes": 148144128,
+        "client_tcp_stream_bytes": 203084708,
+        "complete_case_seconds": 73.81457645818591,
+        "covered_body_bytes": 248892683,
+        "first_text_seconds": 51.12484058458358,
+        "inference_sampled_peak_rss_bytes": 888799232,
+        "online_body_bytes": 77179864,
+        "preparation_birth_cpu_seconds": 11.35006784,
+        "preparation_sampled_peak_rss_bytes": 162512896,
+        "provider_sampled_peak_rss_bytes": 888799232,
+        "request_seconds": 52.92160062585026,
+        "text_delta_decode_tps": 3.922990666068734
+      },
+      "pipeline_digest": "85ebc0776aa598cf87a8cb9b803c8adea15aea72c330605f7ec71434c9685e85",
+      "sample_count": 3,
+      "whole_client_memory_tier_qualified": false,
+      "whole_client_peak_rss_bytes": null
+    },
+    "coupled": {
+      "configuration_digest": "c5ce75fc44612df60db0a1cfcc97d48a1257e28620aacf713fe73a28f629d7ec",
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 48,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "target/private-boundary-cohort"
+        },
+        "name": "local-boundary-control",
+        "pipeline": {
+          "components": {
+            "boundary": {
+              "component": "pllm/private-lookup-full-head/v1",
+              "params": {}
+            },
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "storage": "paged"
+              }
+            },
+            "inference": {
+              "component": "pllm/inference",
+              "params": {}
+            },
+            "inventory": {
+              "component": "pllm/prepared-inventory-policy/v1",
+              "params": {
+                "allocation": "demand",
+                "policy": "request-sized",
+                "refill": "on-demand",
+                "rows": 1,
+                "stage_window": 4,
+                "stage_window_bytes": 67108864
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/masked-linear",
+              "params": {
+                "output_encoding": "row_residues",
+                "prefill_chunk_rows": 16,
+                "prefill_pruning": "terminal",
+                "request_encoding": "stage_packed"
+              }
+            },
+            "preparation": {
+              "component": "pllm/model-aware-corrections",
+              "params": {
+                "storage": "paged"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "tokenizer": {
+              "component": "pllm/indexed-tokenizer/v1",
+              "params": {
+                "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+              }
+            },
+            "topology": {
+              "component": "pllm/prepared-body-two-online-boundary/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      },
+      "maximum_client_subprocess_peak_rss_bytes": 152993792,
+      "medians": {
+        "aggregate_cleanup_cpu_seconds": 47.551428,
+        "all_link_tcp_stream_bytes": 138318198,
+        "bundle_delivery_bytes": 3410184,
+        "client_lifetime_cpu_seconds": 10.952314,
+        "client_request_cpu_seconds": 9.189862,
+        "client_subprocess_peak_rss_bytes": 151961600,
+        "client_tcp_stream_bytes": 91537355,
+        "complete_case_seconds": 64.25230895727873,
+        "covered_body_bytes": 137328792,
+        "first_text_seconds": 32.39151141513139,
+        "inference_sampled_peak_rss_bytes": 889634816,
+        "online_body_bytes": 87108130,
+        "preparation_birth_cpu_seconds": 11.638676736,
+        "preparation_sampled_peak_rss_bytes": 159809536,
+        "provider_sampled_peak_rss_bytes": 889634816,
+        "request_seconds": 36.008887415751815,
+        "text_delta_decode_tps": 1.9490613738276203
+      },
+      "pipeline_digest": "9f2e9bf515a84b5259f8cd5d87e9c853f2442ad25b546debe8440f3d48665488",
+      "sample_count": 3,
+      "whole_client_memory_tier_qualified": false,
+      "whole_client_peak_rss_bytes": null
+    }
+  },
+  "input_tokens": 48,
+  "limits": [
+    "source measurements absent remain null; prepositioned source is not free",
+    "application bodies and TCP stream bytes separate; physical wire unknown",
+    "local children share host/operator; no independent-operator claim",
+    "provider RSS sampled after startup; startup peaks unknown",
+    "request CPU is client-only; parent native WAN and providers are charged in complete-case CPU",
+    "fresh client/processes do not imply cold OS source caches or newly distributed checkpoint artifacts",
+    "exact trajectory hashing charged equally inside client CPU/RSS/wall windows",
+    "missing-worker source delivery currently blocked; no fabricated bytes",
+    "client-subprocess RSS excludes parent/relay; no whole-client memory-tier qualification",
+    "first-text delay includes request setup; decode uses eight observed text events for eight outputs",
+    "independent workload cohorts and different role topologies retain separate rankings"
+  ],
+  "maximum_swap_growth_bytes": 0,
+  "output_cap": 8,
+  "output_commitment": "8f8a386562c1070118f6c43428c979b5bd44d9d72098fd0f251d04f7b57a018f",
+  "output_tokens": 8,
+  "replicates": 3,
+  "schema": "pllm.private_boundary_sdk_summary.v1",
+  "source_case": "source-present",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "source_sha256": "c117dd5f0d5b5706a8bc18451241d779a1871eb06c8b20b3dc55d3219c76f57a",
+  "summarizer_sha256": "35d132adc429d65cceb69b8529fdb71e20e89df26548aad42db48a4dd24c69fa",
+  "verification": {
+    "checked_responses": 6,
+    "complete": true,
+    "exact_full_state_parity": true,
+    "maximum_client_rss_across_replicates_bytes": 152993792,
+    "maximum_client_rss_by_variant_bytes": {
+      "baseline": 150126592,
+      "coupled": 152993792
+    }
+  },
+  "wan_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb"
+}

@@ -127,6 +127,22 @@ def external_decode(report, file_hash, build_digest):
         "scope": summary["evidence_class"], "limits": summary["limits"]}
 
 
+def external_private_boundary(report, file_hash, build_digest, control, control_hash):
+    from scripts.summarize_private_boundary_sdk import summarize
+
+    summary = summarize(report, file_hash, control, control_hash)
+    observed = summary["build"]["expected_digest"]
+    return {"status": "validated_historical" if build_digest is None else
+            "validated_current" if observed == build_digest else "stale_build",
+        "kind": "response", "build_digest": observed,
+        "cohort": summary["cohort_commitment"], "source_lock_digest": summary["source_lock_digest"],
+        "configurations": {key: {"target": {"kind": "response", "parameters": {
+            "model": {"experiment": value["experiment"]}}},
+            "client_samples": value["sample_count"], "request_samples": value["sample_count"]}
+            for key, value in summary["groups"].items()},
+        "scope": summary["evidence_class"], "limits": summary["limits"]}
+
+
 def inventory(root=ROOT, *, extra_evidence=(), build_digest=None):
     api = surface()
     aliases = {alias: name for name, item in api.items() for alias in item["aliases"]}
@@ -143,7 +159,7 @@ def inventory(root=ROOT, *, extra_evidence=(), build_digest=None):
             continue
         schema = document.get("schema", document.get("schema_version"))
         configs = list(_components(document))
-        if schema != "pllm.benchmark_run.v1" and not configs:
+        if schema not in {"pllm.benchmark_run.v1", "pllm.private_boundary_sdk_benchmark.v1"} and not configs:
             continue
         label = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
         source = {"path": label, "sha256": file_hash, "schema": schema, "status": "linked_only",
@@ -158,6 +174,11 @@ def inventory(root=ROOT, *, extra_evidence=(), build_digest=None):
                               result_ids=[r.id for r in run.results])
             elif schema in {"pllm.growing_epochs_sdk_benchmark.v1", "pllm.decode_cache_sdk_benchmark.v1"}:
                 source.update(external_decode(document, file_hash, build_digest))
+            elif schema == "pllm.private_boundary_sdk_benchmark.v1":
+                control, control_hash = read(root / "docs/evidence/private-boundary-qwen-control.json")
+                source.update(external_private_boundary(document, file_hash, build_digest, control, control_hash))
+                source["component_ids"] = sorted({component["component"] for item in source["configurations"].values()
+                    for component in _components(item["target"])})
         except (ValueError, TypeError, KeyError, RuntimeError) as exc:
             # Preserve the failed import as a visible evidence-adapter gap.
             source.update(status="validation_failed", error_type=type(exc).__name__)

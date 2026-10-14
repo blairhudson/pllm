@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import data from '@/data/research/scorecard.json';
-import { componentCombination, defaultResearchCohort, memoryBudgetRows, sortMetricRows, sotaMetrics, sotaTable } from '@/lib/research-rankings.mjs';
+import { componentCombination, defaultResearchCohort, memoryBudgetRows, scopedMetric, sortMetricRows, sotaMetrics, sotaTable } from '@/lib/research-rankings.mjs';
 import { withBasePath } from '@/lib/paths.mjs';
 import styles from './research-sota.module.css';
 
@@ -61,12 +61,7 @@ export function ResearchSotaTable({ cohort, memoryTier, onMemoryTierChange }: {
 }) {
   const id = useId();
   const measurement = 'measurement' in cohort ? cohort.measurement : null;
-  const metrics = metricDefinitions.map((metric) => {
-    const label = metric.id === 'clientPeak' ? measurement?.clientRssLabel
-      : metric.id === 'clientCpu' ? measurement?.clientCpuLabel
-        : metric.id === 'preparationCpu' ? measurement?.preparationCpuLabel : null;
-    return label ? { ...metric, shortLabel: label, label } : metric;
-  });
+  const metrics = metricDefinitions.map((metric) => scopedMetric(metric, measurement));
   const topologies = [...new Set(cohort.rows.map((row) => row.placement.topology))];
   const [selected, setTopology] = useState('Prepared');
   const [sort, setSort] = useState<MetricSort | null>(null);
@@ -160,7 +155,7 @@ export function ResearchSotaTable({ cohort, memoryTier, onMemoryTierChange }: {
             const leading = table.leaders[metric.id].includes(row.id);
             return <td key={metric.id} data-metric={metric.id} data-accounting-plane={metric.accountingPlane ?? undefined} data-leading={leading || undefined}
               className={leading ? styles.leading : undefined}>
-              {value === null ? <span className={styles.unknown}>{metric.id.startsWith('preparation') && topology !== 'Prepared'
+              {value === null ? <span className={styles.unknown}>{metric.id.startsWith('preparation') && !('preparation' in row.pipeline.components)
                 ? 'No role' : metric.id === 'baseNetwork' || metric.id === 'tokenNetwork' ? 'Unattributed' : 'Unmeasured'}</span>
                 : <><span className={styles.value} title={String(value)}>{number(value, table.precision[metric.id])}</span>
                   {leading && <span className={styles.badge}>{badge}{table.leaders[metric.id].length > 1 ? ' · tied' : ''}</span>}</>}

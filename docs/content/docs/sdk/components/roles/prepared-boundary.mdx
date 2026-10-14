@@ -1,0 +1,50 @@
+---
+title: "Prepared boundary roles"
+description: "Compose the prepared decoder body with two online private lookup and full-head workers."
+---
+
+[`PreparedBoundaryRoles`](/sdk/reference/python/pllm/roles/#preparedboundaryroles)
+(`pllm/prepared-body-two-online-boundary/v1`) selects a five-role topology:
+Client, offline Preparation, online Inference and two online boundary workers.
+The `boundary` slot must select
+[`PrivateLookupAndFullHead`](/sdk/components/roles/private-lookup-full-head/).
+The original prepared body retains its one-use inventory; boundary sessions
+separately bind source, weight, scale, shape and request commitments. Completion,
+malformed inputs, replay and cancellation retire their owners.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import PreparedBoundaryRoles, PrivateLookupAndFullHead
+
+topology = PreparedBoundaryRoles()
+experiment = Experiment(
+    name="prepared-boundary-roles-example",
+    pipeline=MaskedLinearCpu(
+        Model.tiny(), boundary=PrivateLookupAndFullHead(), topology=topology,
+    ),
+    deployment=Deployment.local(root="local://prepared-boundary-roles-example"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=2),
+)
+assert experiment.pipeline.components["topology"] == topology
+assert experiment.resolve().composition_digest == experiment.pipeline.digest()
+```
+
+Local SDK serving, gateway requests and ordinary response benchmarks use this
+same Experiment. Native shared access caps cover all five roles. Replay examples,
+composition limits and the benchmark command appear in the
+[provider-role guide](/sdk/run/provider-roles/#coupled-private-vocabulary-boundary).
+
+Each boundary worker retains the tied table; the client retains complete logits,
+nonlinear work, attention and KV. Cold public delivery, fresh lookup/head traffic,
+provider CPU and all client owners therefore need separate accounting. The
+[SOTA screens](/research/sota/#coupled-private-boundary-sdk-screen) preserve their
+source-present lifecycle and do not qualify whole-client RAM tiers.
+
+The boundary workers must not collude. Preparation must also honor the existing
+mask-erasure and non-collusion contract with Inference. Running all roles locally
+tests functionality and accounting, not independent operators or reviewed security.
+
+API: [`PreparedBoundaryRoles`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

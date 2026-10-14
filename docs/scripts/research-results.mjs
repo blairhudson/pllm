@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildScorecard, reportMetrics } from './research-scorecard.mjs';
+import { scopedMetric } from '../lib/research-rankings.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const repository = 'https://github.com/blairhudson/pllm/blob/main/';
@@ -120,7 +121,8 @@ These quality observations do not populate the performance chart's unmeasured wh
       ? `[${paper.sdk_benchmark.api}](${paper.sdk_benchmark.guide}) · ${link('Example', paper.sdk_benchmark.configuration)} · ${link('SDK report', paper.sdk_benchmark.evidence)}`
       : 'Not exposed by this reference record']));
   const sections = card.cohorts.map((cohort) => {
-    const axes = card.defaultMetrics.map((id) => card.metrics.find((metric) => metric.id === id));
+    const definitions = card.metrics.map((metric) => scopedMetric(metric, cohort.measurement));
+    const axes = card.defaultMetrics.map((id) => definitions.find((metric) => metric.id === id));
     return `## ${cohort.title}
 
 ${cohort.scope}
@@ -136,8 +138,8 @@ ${table(['Experiment', 'Topology / kernel', 'Public prefix tokens', 'Covered bod
 
 ### Complete metric ledger
 
-${table(['Experiment', ...card.metrics.map((metric) => `${metric.shortLabel} (${metric.unit})`)], cohort.rows.map((row) => [
-  row.label, ...card.metrics.map((metric) => number(row.metrics[metric.id]))]))}`;
+${table(['Experiment', ...definitions.map((metric) => `${metric.shortLabel} (${metric.unit})`)], cohort.rows.map((row) => [
+  row.label, ...definitions.map((metric) => number(row.metrics[metric.id]))]))}`;
   });
   const exploratory = searches.map((search) => {
     const metric = (trial, id) => trial.metrics.find((item) => item.id === id)?.value;
@@ -163,12 +165,12 @@ ${search.rejections.length ? `### Rejected trials\n\n${table(['Attempt', 'Reason
   });
   const text = `---
 title: "Research data"
-description: "Every confirmed experiment, every exploratory observation and every rejected SDK-search trial."
+description: "Every registered experiment, every exploratory observation and every rejected SDK-search trial."
 ---
 
 {/* Generated from checked canonical reports by docs/scripts/research-results.mjs. */}
 
-The [SOTA tables by model](/research/sota/) and [interactive frontier](/research/papers/#research-frontier) use these confirmed cohorts.
+The [SOTA tables by model](/research/sota/) and [interactive frontier](/research/papers/#research-frontier) use these separately classified confirmation and screen cohorts.
 Every score links to its rerunnable Python configuration. Unknown values remain **Unmeasured**.
 Read the [reproduction guide](/research/scorecard/) for workload identities, commands and measurement boundaries.
 

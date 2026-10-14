@@ -58,11 +58,28 @@ experiment = Experiment(
     Deployment.local(root=".pllm/private-boundary"),
     ExecutionBudget(requests=1, max_input_tokens=256, max_new_tokens=8),
 )
+assert experiment.resolve().composition_digest == experiment.pipeline.digest()
 ```
 
 `examples/private_boundary.py` executes this composition through `serve_local`
 and the ordinary SDK, including paged artifacts, packed/residue body frames and
 demand preparation. Local native execution and shared TCP rate caps are supported.
+
+The same Experiment works with `BenchmarkTarget.response`, `benchmark_suite` and
+`pllm benchmark run`. The generated-checkpoint example runs local-boundary and
+coupled-boundary choices in fresh processes under shared native 100/40 caps:
+
+```sh
+python examples/benchmarks/private_boundary.py --output target/private-boundary-suite.json
+```
+
+Its `--memory-mib` is a **whole-topology benchmark admission budget**, not a client
+RAM tier. Use `--model-dir` and `--prompt-file` for an explicitly selected local
+checkpoint/workload. This ordinary benchmark example creates new evidence; it
+does not recreate the historical diagnostic's exact full-state auditing window.
+The [SOTA screen](/research/sota/#coupled-private-boundary-sdk-screen) retains
+the separately measured Qwen cold-request results and their resource tradeoffs.
+
 Network planning, Docker, untied or auxiliary token tables, Metal, verification,
 retained state, prefix caches, epoch schedules and MLP tiling reject this initial
 composition.

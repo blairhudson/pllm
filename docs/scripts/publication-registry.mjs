@@ -52,6 +52,7 @@ const cliCommands = [
   ['plan', 'validate'],
   ['benchmark', 'run'],
   ['benchmark', 'quality'],
+  ['benchmark', 'coverage'],
   ['gateway'],
   ['serve'],
   ['serve', 'inference'],

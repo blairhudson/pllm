@@ -45,7 +45,33 @@ The network-configured SDK accepts `OpenAI(max_client_memory="low")`,
 the maximum keeps automatic headroom-based admission. See
 [maximum client RAM in the SDK](/sdk/run/deployment/#maximum-client-ram).
 
-## Latest combination screen
+## Coupled private-boundary SDK screen
+
+`PrivateLookupAndFullHead` + `PreparedBoundaryRoles` are installed SDK capabilities:
+private token lookup and the complete tied head run at two boundary workers while
+the original prepared decoder body stays remote. Full vocabulary, logits, KV,
+history and sampling behavior are preserved. The separate three-pair Qwen2.5
+cold-client cohorts measure:
+
+| Workload | All-link TCP traffic | Complete startup-to-cleanup time | N−1 decode throughput | Aggregate CPU |
+| --- | --- | --- | --- | --- |
+| 48 input + 8 output tokens | −44.64% | −12.95% | −50.32% | +15.53% |
+| 150 input + 8 output tokens | −23.26% | −7.47% | −48.82% | +12.10% |
+
+These are matched **source-present tradeoffs**, not a universal SOTA or warm-request
+win. Workers already hold the checkpoint; checkpoint/tokenizer distribution is
+unmeasured. Client-subprocess peak RSS increases 2.58% / 2.35% and excludes the
+parent/relay, so these cohorts do not qualify a whole-client RAM tier. Select
+**Show all evidence**, a **Coupled private boundary SDK** workload, and the
+**Prepared + private boundary** topology to inspect its measured combination.
+The local-boundary control keeps its separate Prepared topology. Repetition does
+not promote these screens to independent confirmation.
+
+Use the [SDK composition and benchmark example](/sdk/run/provider-roles/#coupled-private-vocabulary-boundary).
+The [full evidence and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-sdk-reference.md)
+retain both independent cohorts, original build, source locks and failed attempts.
+
+## Prepared combination screen
 
 Thirty fresh Qwen2.5 clients completed all sixty cold/repeat responses at 150/288
 input tokens plus eight outputs. Compared with the matched maintained control:
