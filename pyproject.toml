@@ -97,6 +97,7 @@ include = [
   { path = "python/pllm/search/client_memory_tiers.json", format = "wheel" },
   { path = "python/pllm/dashboard/**/*", format = "sdist" },
   { path = "Cargo.toml", format = "sdist" },
+  { path = ".cargo/config.toml", format = "sdist" },
   { path = "schemas/**/*.json", format = "sdist" },
   { path = "tests/**/*.py", format = "sdist" },
   { path = "scripts/**/*", format = "sdist" },

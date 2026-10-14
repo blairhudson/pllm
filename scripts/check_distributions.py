@@ -51,6 +51,8 @@ def main() -> None:
     with tarfile.open(sources[0]) as archive:
         names = archive.getnames()
         assert any(n.endswith("/pyproject.toml") for n in names)
+        cargo_config = next(n for n in names if n.endswith("/.cargo/config.toml"))
+        assert archive.extractfile(cargo_config).read() == Path(".cargo/config.toml").read_bytes()
         assert any(n.endswith("/crates/pllm-python/Cargo.toml") for n in names)
         assert any(n.endswith("/crates/pllm-core/Cargo.toml") for n in names)
         assert any(n.endswith("/crates/pllm-plugin-api/Cargo.toml") for n in names)

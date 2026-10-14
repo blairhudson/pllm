@@ -172,6 +172,22 @@ retain distinct costs. Arbitrary JSON still admits at least 145,459 token rows.
 These are restricted-boundary results, not task quality, complete response costs,
 whole-client memory or an executable online lookup role graph. Contract and replay:
 `docs/research/public-grammar-boundary-reference.md`.
+The separate private-lookup acceleration reference retains ordinary full-vocabulary
+generation. Runtime-detected ARM AES, encryption-only schedules and an explicit
+128-selection-bit terminal layout reduce DPF expansion while preserving the complete
+table XOR. Independent OpenSSL selection checks and generated Qwen2/Qwen3/Llama
+prefill/decode preserve exact logits, active KV, sampled tokens and RNG state.
+Qwen's tied full output head remains client-owned, so embedding relocation removes
+zero client weight bytes. Packed lookup has its own frame/domain identity and
+retains bounded one-use ownership. It does not select an online lookup role graph
+or establish a whole-request network saving. Thirty-six fresh pinned Qwen boundary
+workers preserve 1,338,624 embedding values with zero observed swap growth. At
+150 prompt rows, median summed evaluation CPU falls 117.86 to 1.28 seconds and
+native frames 405,900 to 374,700 bytes; setup-plus-evaluation falls 47.40-fold.
+The full compressed head remains 121.08 MB, and the largest worker RSS rises
+1.70%. These scoped lookup gains do not remove the ordinary client's tied head.
+Contract and replay:
+`docs/research/private-lookup-acceleration-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

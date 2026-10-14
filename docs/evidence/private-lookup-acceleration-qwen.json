@@ -1,0 +1,946 @@
+{
+  "additional_worker_table_payload_if_missing_source_bytes": 273484800,
+  "authenticated_provider_transport": false,
+  "build": {
+    "expected_digest": "6dae859c79ce23650f1b57124f18fb644eb07007e3f4e642a947a4d6a12d982b",
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+  },
+  "client_issuance_scope": "current installed implementation in every arm; original arm isolates original server evaluation",
+  "client_weight_bytes_removed": 0,
+  "control": {
+    "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+    "private_pages_source_sha256": "de9bc8eda0929c2a8feada35e6ec53d1452434cd1e31dcfd5a39426f7a40ec67",
+    "source_commit": "376686886a6e3e32981e10aba2454eb853eca831"
+  },
+  "full_decoder_checkpoint_quality": null,
+  "full_request_traffic_savings": null,
+  "full_tied_client_head_retained": true,
+  "host": {
+    "available": 11307286528,
+    "disk_free": 41242853376,
+    "swap_used": 902365184,
+    "total": 34359738368
+  },
+  "maximum_swap_growth_bytes": 0,
+  "medians": [
+    {
+      "both_party_evaluation_cpu_seconds": 12.443258,
+      "both_party_setup_cpu_seconds": 1.227868,
+      "client_decode_cpu_seconds": 8.299999999994423e-05,
+      "client_issue_cpu_seconds": 0.00021999999999999797,
+      "largest_party_process_peak_rss_bytes": 316358656,
+      "native_body_bytes": 43296,
+      "prompt_lookup_rows": 16,
+      "replicates": 3,
+      "variant": "original_scalar"
+    },
+    {
+      "both_party_evaluation_cpu_seconds": 1.4477989999999998,
+      "both_party_setup_cpu_seconds": 1.232672,
+      "client_decode_cpu_seconds": 8.60000000000305e-05,
+      "client_issue_cpu_seconds": 0.00021300000000001873,
+      "largest_party_process_peak_rss_bytes": 316342272,
+      "native_body_bytes": 43296,
+      "prompt_lookup_rows": 16,
+      "replicates": 3,
+      "variant": "accelerated_scalar"
+    },
+    {
+      "both_party_evaluation_cpu_seconds": 0.14696600000000015,
+      "both_party_setup_cpu_seconds": 1.236294,
+      "client_decode_cpu_seconds": 8.299999999999974e-05,
+      "client_issue_cpu_seconds": 0.00018600000000001948,
+      "largest_party_process_peak_rss_bytes": 316604416,
+      "native_body_bytes": 39968,
+      "prompt_lookup_rows": 16,
+      "replicates": 3,
+      "variant": "accelerated_packed128"
+    },
+    {
+      "both_party_evaluation_cpu_seconds": 117.864205,
+      "both_party_setup_cpu_seconds": 1.220853,
+      "client_decode_cpu_seconds": 0.0004549999999999832,
+      "client_issue_cpu_seconds": 0.0016780000000000128,
+      "largest_party_process_peak_rss_bytes": 321028096,
+      "native_body_bytes": 405900,
+      "prompt_lookup_rows": 150,
+      "replicates": 3,
+      "variant": "original_scalar"
+    },
+    {
+      "both_party_evaluation_cpu_seconds": 13.342451,
+      "both_party_setup_cpu_seconds": 1.21898,
+      "client_decode_cpu_seconds": 0.0004709999999999992,
+      "client_issue_cpu_seconds": 0.0016970000000000596,
+      "largest_party_process_peak_rss_bytes": 326893568,
+      "native_body_bytes": 405900,
+      "prompt_lookup_rows": 150,
+      "replicates": 3,
+      "variant": "accelerated_scalar"
+    },
+    {
+      "both_party_evaluation_cpu_seconds": 1.2786469999999999,
+      "both_party_setup_cpu_seconds": 1.232753,
+      "client_decode_cpu_seconds": 0.00043199999999998795,
+      "client_issue_cpu_seconds": 0.0013799999999999923,
+      "largest_party_process_peak_rss_bytes": 326483968,
+      "native_body_bytes": 374700,
+      "prompt_lookup_rows": 150,
+      "replicates": 3,
+      "variant": "accelerated_packed128"
+    }
+  ],
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "public": {
+    "descriptor": "efa85e841ae3e07b7c76b67525d42e8db0ab8bbf2ec7dbf633f9486526d3a04f",
+    "files": {
+      "head.i8": {
+        "bytes": 136134656,
+        "sha256": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed"
+      },
+      "prompt.json": {
+        "bytes": 870,
+        "sha256": "67a3c34d79737c3f30fb5511746a6cf4070338255afb6b4aee602831d3aa26d6"
+      },
+      "records.bin": {
+        "bytes": 136742400,
+        "sha256": "bbfdb0fa1cb17ace41f660fbe8c878f78c4e18e9f55dbc683172e4c609b15c7e"
+      },
+      "scales.f32": {
+        "bytes": 607744,
+        "sha256": "7717b3190c09c2e38eabd11884e4c83a48103089cab01aa9d2d7011d1a9b67e5"
+      }
+    },
+    "full_boundary_artifact": {
+      "format": "research magic8+header_length_u32+canonical_header; u32 raw/encoded sizes per <=1MiB independent block",
+      "frames": 131,
+      "header_bytes": 910,
+      "raw_framed_bytes": 136744358,
+      "zlib_framed_bytes": 121084623
+    },
+    "memory": {
+      "process_lifetime_peak_rss_bytes": 394067968,
+      "rss_bytes": 126058496
+    },
+    "publisher_cpu_seconds": 6.704272,
+    "shape": [
+      151936,
+      896
+    ],
+    "source": {
+      "config.json": {
+        "bytes": 659,
+        "sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45"
+      },
+      "generation_config.json": {
+        "bytes": 242,
+        "sha256": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6"
+      },
+      "model.safetensors": {
+        "bytes": 988097824,
+        "sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+      },
+      "tokenizer.json": {
+        "bytes": 7031645,
+        "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+      },
+      "tokenizer_config.json": {
+        "bytes": 7305,
+        "sha256": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583"
+      }
+    },
+    "vocabulary_restricted": false
+  },
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "samples": [
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 8.600000000000274e-05,
+      "client_issue_cpu_seconds": 0.00027900000000000147,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.216973,
+          "evaluation_elapsed_seconds": 6.223040250129998,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316260352,
+            "rss_bytes": 316260352
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.624676
+        },
+        {
+          "evaluation_cpu_seconds": 6.213085,
+          "evaluation_elapsed_seconds": 6.214712374843657,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316358656,
+            "rss_bytes": 316358656
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.6080720000000001
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 0,
+      "variant": "original_scalar"
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 7.799999999999474e-05,
+      "client_issue_cpu_seconds": 0.00020799999999998597,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.7579430000000001,
+          "evaluation_elapsed_seconds": 0.7584212077781558,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316309504,
+            "rss_bytes": 316309504
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.614216
+        },
+        {
+          "evaluation_cpu_seconds": 0.7201360000000001,
+          "evaluation_elapsed_seconds": 0.7201579585671425,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316227584,
+            "rss_bytes": 316227584
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.618456
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 0,
+      "variant": "accelerated_scalar"
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 8.299999999999974e-05,
+      "client_issue_cpu_seconds": 0.00017800000000001148,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 128,
+      "native_body_bytes": 39968,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.07413999999999998,
+          "evaluation_elapsed_seconds": 0.074561582878232,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316342272,
+            "rss_bytes": 316342272
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 4544,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.628413
+        },
+        {
+          "evaluation_cpu_seconds": 0.075901,
+          "evaluation_elapsed_seconds": 0.07595170754939318,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316604416,
+            "rss_bytes": 316604416
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 4544,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.6262310000000001
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 0,
+      "variant": "accelerated_packed128"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.0004549999999999832,
+      "client_issue_cpu_seconds": 0.0016780000000000128,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 58.893314,
+          "evaluation_elapsed_seconds": 58.91470329090953,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 320864256,
+            "rss_bytes": 188907520
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.5988960000000001
+        },
+        {
+          "evaluation_cpu_seconds": 58.970891,
+          "evaluation_elapsed_seconds": 59.10248491726816,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 320864256,
+            "rss_bytes": 188907520
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.621957
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 0,
+      "variant": "original_scalar"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.0004709999999999992,
+      "client_issue_cpu_seconds": 0.0017099999999999893,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.682999,
+          "evaluation_elapsed_seconds": 6.690451332367957,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326402048,
+            "rss_bytes": 326402048
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.601809
+        },
+        {
+          "evaluation_cpu_seconds": 6.718306,
+          "evaluation_elapsed_seconds": 6.738792042247951,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326418432,
+            "rss_bytes": 326418432
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.6164
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 0,
+      "variant": "accelerated_scalar"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.0004609999999999892,
+      "client_issue_cpu_seconds": 0.0013889999999999736,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 128,
+      "native_body_bytes": 374700,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.642694,
+          "evaluation_elapsed_seconds": 0.642699958756566,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326483968,
+            "rss_bytes": 326483968
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 42600,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.6032449999999999
+        },
+        {
+          "evaluation_cpu_seconds": 0.635953,
+          "evaluation_elapsed_seconds": 0.6359551250934601,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326402048,
+            "rss_bytes": 326402048
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 42600,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.60972
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 0,
+      "variant": "accelerated_packed128"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.00048799999999998844,
+      "client_issue_cpu_seconds": 0.0016579999999999928,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.663092000000001,
+          "evaluation_elapsed_seconds": 6.663331833668053,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326647808,
+            "rss_bytes": 326647808
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.6233580000000001
+        },
+        {
+          "evaluation_cpu_seconds": 6.679359,
+          "evaluation_elapsed_seconds": 6.68545912578702,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326893568,
+            "rss_bytes": 326893568
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.6062770000000001
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 1,
+      "variant": "accelerated_scalar"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.00042200000000003346,
+      "client_issue_cpu_seconds": 0.0013799999999999923,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 128,
+      "native_body_bytes": 374700,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.6368450000000001,
+          "evaluation_elapsed_seconds": 0.6370776668190956,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326418432,
+            "rss_bytes": 326418432
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 42600,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.6068469999999999
+        },
+        {
+          "evaluation_cpu_seconds": 0.6479229999999999,
+          "evaluation_elapsed_seconds": 0.6492774588987231,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326451200,
+            "rss_bytes": 326451200
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 42600,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.6259060000000001
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 1,
+      "variant": "accelerated_packed128"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.0004589999999999872,
+      "client_issue_cpu_seconds": 0.0017129999999999646,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 58.985699000000004,
+          "evaluation_elapsed_seconds": 59.007076459005475,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 320831488,
+            "rss_bytes": 188710912
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.614475
+        },
+        {
+          "evaluation_cpu_seconds": 58.985752,
+          "evaluation_elapsed_seconds": 59.044065915979445,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 320831488,
+            "rss_bytes": 188874752
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.655314
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 1,
+      "variant": "original_scalar"
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 0.00015100000000001224,
+      "client_issue_cpu_seconds": 0.00023899999999998922,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.7230759999999999,
+          "evaluation_elapsed_seconds": 0.7318756664171815,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316325888,
+            "rss_bytes": 316325888
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.6011390000000001
+        },
+        {
+          "evaluation_cpu_seconds": 0.724723,
+          "evaluation_elapsed_seconds": 0.725781749933958,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316309504,
+            "rss_bytes": 316309504
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.594952
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 1,
+      "variant": "accelerated_scalar"
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 7.80000000000225e-05,
+      "client_issue_cpu_seconds": 0.00018600000000001948,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 128,
+      "native_body_bytes": 39968,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.07663300000000006,
+          "evaluation_elapsed_seconds": 0.07701949961483479,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316260352,
+            "rss_bytes": 316260352
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 4544,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.612382
+        },
+        {
+          "evaluation_cpu_seconds": 0.07033300000000009,
+          "evaluation_elapsed_seconds": 0.07033570762723684,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316375040,
+            "rss_bytes": 316375040
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 4544,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.607012
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 1,
+      "variant": "accelerated_packed128"
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 8.199999999991547e-05,
+      "client_issue_cpu_seconds": 0.00021399999999993646,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.226304,
+          "evaluation_elapsed_seconds": 6.226394874975085,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316276736,
+            "rss_bytes": 316276736
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.605451
+        },
+        {
+          "evaluation_cpu_seconds": 6.257968999999999,
+          "evaluation_elapsed_seconds": 6.261022916994989,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316293120,
+            "rss_bytes": 316293120
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.622417
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 1,
+      "variant": "original_scalar"
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 8.500000000000174e-05,
+      "client_issue_cpu_seconds": 0.000188000000000077,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 128,
+      "native_body_bytes": 39968,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.07099999999999995,
+          "evaluation_elapsed_seconds": 0.07100312411785126,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316260352,
+            "rss_bytes": 316260352
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 4544,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.617888
+        },
+        {
+          "evaluation_cpu_seconds": 0.06958599999999993,
+          "evaluation_elapsed_seconds": 0.06959587521851063,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316276736,
+            "rss_bytes": 316276736
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 4544,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.618406
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 2,
+      "variant": "accelerated_packed128"
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 8.299999999994423e-05,
+      "client_issue_cpu_seconds": 0.00021999999999999797,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.2231060000000005,
+          "evaluation_elapsed_seconds": 6.223503333516419,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316293120,
+            "rss_bytes": 316293120
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.603911
+        },
+        {
+          "evaluation_cpu_seconds": 6.220152,
+          "evaluation_elapsed_seconds": 6.222081291489303,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316358656,
+            "rss_bytes": 316358656
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.620266
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 2,
+      "variant": "original_scalar"
+    },
+    {
+      "checked_embedding_values": 14336,
+      "client_decode_cpu_seconds": 8.60000000000305e-05,
+      "client_issue_cpu_seconds": 0.00021300000000001873,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 43296,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.718228,
+          "evaluation_elapsed_seconds": 0.7187971659004688,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316342272,
+            "rss_bytes": 316342272
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.625806
+        },
+        {
+          "evaluation_cpu_seconds": 0.71488,
+          "evaluation_elapsed_seconds": 0.7149120401591063,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 316309504,
+            "rss_bytes": 316309504
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 6208,
+          "replay_rejected": true,
+          "reply_bytes": 15440,
+          "setup_cpu_seconds": 0.618984
+        }
+      ],
+      "prompt_lookup_rows": 16,
+      "repeat": 2,
+      "variant": "accelerated_scalar"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.00043199999999998795,
+      "client_issue_cpu_seconds": 0.0013650000000000606,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 128,
+      "native_body_bytes": 374700,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 0.6386850000000001,
+          "evaluation_elapsed_seconds": 0.6386958342045546,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326336512,
+            "rss_bytes": 326336512
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 42600,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.6228260000000001
+        },
+        {
+          "evaluation_cpu_seconds": 0.63378,
+          "evaluation_elapsed_seconds": 0.6337855001911521,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326402048,
+            "rss_bytes": 326402048
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 42600,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.61691
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 2,
+      "variant": "accelerated_packed128"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.00042800000000009497,
+      "client_issue_cpu_seconds": 0.0016599999999999948,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 58.912493,
+          "evaluation_elapsed_seconds": 58.95329508371651,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 321028096,
+            "rss_bytes": 188907520
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.619392
+        },
+        {
+          "evaluation_cpu_seconds": 58.827895999999996,
+          "evaluation_elapsed_seconds": 58.840760624967515,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 320831488,
+            "rss_bytes": 188907520
+          },
+          "native_sha256": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.594847
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 2,
+      "variant": "original_scalar"
+    },
+    {
+      "checked_embedding_values": 134400,
+      "client_decode_cpu_seconds": 0.0004690000000000527,
+      "client_issue_cpu_seconds": 0.0016970000000000596,
+      "exact_embedding_bytes_and_float32_bits": true,
+      "leaf_bits": 1,
+      "native_body_bytes": 405900,
+      "parties": [
+        {
+          "evaluation_cpu_seconds": 6.668574,
+          "evaluation_elapsed_seconds": 6.6693882923573256,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326451200,
+            "rss_bytes": 326451200
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 0,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.612501
+        },
+        {
+          "evaluation_cpu_seconds": 6.651085999999999,
+          "evaluation_elapsed_seconds": 6.651227416470647,
+          "memory": {
+            "process_lifetime_peak_rss_bytes": 326451200,
+            "rss_bytes": 326451200
+          },
+          "native_sha256": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+          "numpy_version": "2.5.3",
+          "party": 1,
+          "query_bytes": 58200,
+          "replay_rejected": true,
+          "reply_bytes": 144750,
+          "setup_cpu_seconds": 0.606479
+        }
+      ],
+      "prompt_lookup_rows": 150,
+      "repeat": 2,
+      "variant": "accelerated_scalar"
+    }
+  ],
+  "schema": "pllm.private_lookup_acceleration.v1",
+  "scope": "Fresh-process exact private-lookup screen with the full tied output head retained.\n\nReal public Qwen boundary weights and public query fixtures. Native framed bodies\nare not HTTP or physical wire. Separate sequential workers are not independent\noperators. No restricted vocabulary, sampling change, or serving promotion.\n",
+  "source_delivery_scope": "derived tables add no network only when both workers already own the source; full client head remains in every arm",
+  "source_sha256": {
+    ".cargo/config.toml": "fa046de4c84327faed9bdd08a44a661dcd2ea553a2af2615d566501906777730",
+    "crates/pllm-garble/src/private_pages.rs": "d7756f9ec4d185fda14e08341d7cebbde960773724f284960f02f92cbfa387ba",
+    "crates/pllm-python/src/private_pages.rs": "9a9d6804770b7955d6c97dc7dcc9106a8cbc3c09ce08ae6579fc11225c57a4d2",
+    "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+    "scripts/probe_private_lookup_acceleration.py": "a9c1a6399c4b51ab3039f7482215f6d1afe7d894236f5edab2a55a9d1243bcb4",
+    "scripts/probe_public_grammar_boundary.py": "82a43976ad70f5df65d48a5b363ebe4d868614fc93420d49523ee1cbbcc17a6b",
+    "target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so": "80f155920d29e72eaf9767e1c21530b9bc585eac9e86828bb35992cefa2a80bf",
+    "target/private-lookup-control/_native.abi3.so": "baa69ca5d362f2327502e5fbd9ff8150d215692dc300d5554033f86c64fc22ff",
+    "target/private-lookup-control/identity.json": "30ef008125d4af34137abe4313462783a1efd43694c6742cb3c4c93149315164"
+  },
+  "whole_client_peak_rss_bytes": null
+}

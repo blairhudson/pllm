@@ -74,26 +74,30 @@ impl Decoder {
     }
 }
 #[pyfunction]
+#[pyo3(signature = (digest, records, record_bytes, index, *, leaf_bits=1))]
 fn private_page_issue<'py>(
     py: Python<'py>,
     digest: &[u8],
     records: usize,
     record_bytes: usize,
     index: usize,
+    leaf_bits: usize,
 ) -> PyResult<(Bound<'py, PyBytes>, Bound<'py, PyBytes>, Decoder)> {
     let digest = digest
         .try_into()
         .map_err(|_| invalid("page source digest must be 32 bytes".into()))?;
     let (a, b, decoder) = py
         .detach(|| {
-            native::issue(
-                native::Descriptor {
-                    digest,
-                    records,
-                    width: record_bytes,
-                },
-                index,
-            )
+            let descriptor = native::Descriptor {
+                digest,
+                records,
+                width: record_bytes,
+            };
+            match leaf_bits {
+                1 => native::issue(descriptor, index),
+                128 => native::issue_packed(descriptor, index),
+                _ => Err("private page leaf_bits must be 1 or 128".into()),
+            }
         })
         .map_err(invalid)?;
     Ok((

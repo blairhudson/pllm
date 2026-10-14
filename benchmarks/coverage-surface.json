@@ -553,7 +553,7 @@
     "pllm._benchmark_contract.BenchmarkCase": "99ad5939a9eb5d51d78b8af02cc86c576078c5d06f2b60e9a846a13ad25ba495",
     "pllm._benchmark_contract.BenchmarkSuite": "43f767ce0a179719b94fc63fdda51f9947e505cd96a94b487d311f0d8325ddd3",
     "pllm._benchmark_contract.BenchmarkTarget": "e20b2d5e8b3d7b6f3ec8c7c505a6b3a443fb33410a9bd64ec78b2b71c3138d28",
-    "pllm._benchmark_contract.BuildRef": "b504993b531b52f3920c41cec66b9fbcfb7afe07f86ee4ac068742a40b39c418",
+    "pllm._benchmark_contract.BuildRef": "5b584a894987c0fe467660315823bf8345849f7f9d592e12649d136df18aa48e",
     "pllm._benchmark_contract.Sampling": "ff1b5b09e593a270adc1b9aec5559ac7008abaf5fc2ab7143c7faf25bde5f919",
     "pllm._benchmark_contract.Scenario": "25a153c96e19b3ad6ab3979108a3a645db04da7cef7e2fcc608f97802f11b392",
     "pllm._benchmark_contract.TargetBudget": "d00037b3a807965d854eb942340059b6e6f07ba32ab9082d680a5305a2710a1b",

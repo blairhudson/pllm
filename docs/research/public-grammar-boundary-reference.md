@@ -16,6 +16,11 @@ The public output language is exactly these three UTF-8 strings:
 {"label":"positive"}
 ```
 
+The subsequent [private-lookup acceleration screen](private-lookup-acceleration-reference.md)
+retains unrestricted full-vocabulary generation and charges the complete tied
+output head. Its lookup improvements do not inherit this restricted head's
+artifact reduction.
+
 Whitespace variants, arbitrary JSON strings, private label lists and unrestricted
 output are different contracts. Body activations and KV are not executed here;
 the head audit uses eight public synthetic hidden vectors, including zero/tied

@@ -3,7 +3,7 @@
 //! streaming native table scan. Semi-honest, non-colluding parties; unreviewed.
 use aes::{
     cipher::{BlockEncrypt, KeyInit},
-    Aes128,
+    Aes128Enc,
 };
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -12,8 +12,39 @@ use zeroize::Zeroize;
 type Block = [u8; 16];
 const QUERY: &[u8; 8] = b"PLLMPQ01";
 const REPLY: &[u8; 8] = b"PLLMPR01";
+const PACKED_QUERY: &[u8; 8] = b"PLLMPQ02";
+const PACKED_REPLY: &[u8; 8] = b"PLLMPR02";
 const HEADER: usize = 65;
 const MAX_QUERIES: usize = 4096;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Layout {
+    Scalar,
+    Packed128,
+}
+impl Layout {
+    fn leaf_bits(self) -> usize {
+        match self {
+            Self::Scalar => 1,
+            Self::Packed128 => 128,
+        }
+    }
+    fn final_bytes(self) -> usize {
+        self.leaf_bits().div_ceil(8)
+    }
+    fn query_magic(self) -> &'static [u8; 8] {
+        match self {
+            Self::Scalar => QUERY,
+            Self::Packed128 => PACKED_QUERY,
+        }
+    }
+    fn reply_magic(self) -> &'static [u8; 8] {
+        match self {
+            Self::Scalar => REPLY,
+            Self::Packed128 => PACKED_REPLY,
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Descriptor {
@@ -34,8 +65,8 @@ impl Descriptor {
         }
         Ok(self)
     }
-    fn depth(self) -> usize {
-        (usize::BITS - (self.records - 1).leading_zeros()) as usize
+    fn depth(self, layout: Layout) -> usize {
+        (usize::BITS - (self.records.div_ceil(layout.leaf_bits()) - 1).leading_zeros()) as usize
     }
 }
 #[derive(Clone)]
@@ -50,25 +81,29 @@ impl Drop for Correction {
     }
 }
 struct Key {
+    layout: Layout,
     descriptor: Descriptor,
     id: Block,
     party: u8,
     root: Block,
     words: Vec<Correction>,
-    final_bit: u8,
+    final_word: Block,
 }
 impl Drop for Key {
     fn drop(&mut self) {
         self.root.zeroize();
-        self.final_bit.zeroize();
+        self.final_word.zeroize();
     }
 }
 fn xor(a: Block, b: Block) -> Block {
     std::array::from_fn(|i| a[i] ^ b[i])
 }
-fn domain(descriptor: Descriptor, id: Block) -> Block {
+fn domain(descriptor: Descriptor, id: Block, layout: Layout) -> Block {
     let mut h = Sha256::new();
-    h.update(b"pllm/private-page-dpf/aes128/v1\0");
+    h.update(match layout {
+        Layout::Scalar => b"pllm/private-page-dpf/aes128/v1\0",
+        Layout::Packed128 => b"pllm/private-page-dpf/aes128/v2\0",
+    });
     h.update(descriptor.digest);
     h.update(id);
     h.update((descriptor.records as u64).to_le_bytes());
@@ -76,8 +111,8 @@ fn domain(descriptor: Descriptor, id: Block) -> Block {
     h.finalize()[..16].try_into().unwrap()
 }
 fn stretch(seed: Block, domain: Block, level: usize) -> [(Block, u8); 2] {
-    let cipher = Aes128::new_from_slice(&seed).unwrap();
-    let mut blocks = [aes::cipher::Block::<Aes128>::default(); 3];
+    let cipher = Aes128Enc::new_from_slice(&seed).unwrap();
+    let mut blocks = [aes::cipher::Block::<Aes128Enc>::default(); 3];
     for (i, block) in blocks.iter_mut().enumerate() {
         block.copy_from_slice(&domain);
         block[0] ^= 0xa1;
@@ -94,14 +129,18 @@ fn stretch(seed: Block, domain: Block, level: usize) -> [(Block, u8); 2] {
     }
     result
 }
-fn leaf(seed: Block, domain: Block) -> u8 {
-    let cipher = Aes128::new_from_slice(&seed).unwrap();
-    let mut block = aes::cipher::Block::<Aes128>::from(domain);
+fn leaf(seed: Block, domain: Block, layout: Layout) -> Block {
+    let cipher = Aes128Enc::new_from_slice(&seed).unwrap();
+    let mut block = aes::cipher::Block::<Aes128Enc>::from(domain);
     block[0] ^= 0xb2;
     cipher.encrypt_block(&mut block);
-    let bit = block[0] & 1;
+    let mut result: Block = block.into();
+    if layout == Layout::Scalar {
+        result[0] &= 1;
+        result[1..].zeroize();
+    }
     block.as_mut_slice().zeroize();
-    bit
+    result
 }
 fn header(magic: &[u8; 8], d: Descriptor, id: Block, party: u8) -> Vec<u8> {
     let mut out = Vec::with_capacity(HEADER);
@@ -115,30 +154,43 @@ fn header(magic: &[u8; 8], d: Descriptor, id: Block, party: u8) -> Vec<u8> {
 }
 impl Key {
     fn encode(&self) -> Vec<u8> {
-        let mut out = header(QUERY, self.descriptor, self.id, self.party);
+        let mut out = header(
+            self.layout.query_magic(),
+            self.descriptor,
+            self.id,
+            self.party,
+        );
         out.extend_from_slice(&self.root);
         for word in &self.words {
             out.extend_from_slice(&word.seed);
             out.push(word.controls);
         }
-        out.push(self.final_bit);
+        out.extend_from_slice(&self.final_word[..self.layout.final_bytes()]);
         out
     }
     fn decode(data: &[u8]) -> Result<Self, String> {
-        if data.len() < HEADER + 17 || &data[..8] != QUERY || data[8] > 1 {
+        if data.len() < HEADER + 17 || data[8] > 1 {
             return Err("malformed private page query".into());
         }
+        let layout = match &data[..8] {
+            value if value == QUERY => Layout::Scalar,
+            value if value == PACKED_QUERY => Layout::Packed128,
+            _ => return Err("malformed private page query namespace".into()),
+        };
         let descriptor = Descriptor {
             records: u32::from_le_bytes(data[9..13].try_into().unwrap()) as usize,
             width: u32::from_le_bytes(data[13..17].try_into().unwrap()) as usize,
             digest: data[17..49].try_into().unwrap(),
         }
         .validate()?;
-        if data.len() != HEADER + 17 + 17 * descriptor.depth() || *data.last().unwrap() > 1 {
+        let final_bytes = layout.final_bytes();
+        if data.len() != HEADER + 16 + final_bytes + 17 * descriptor.depth(layout)
+            || (layout == Layout::Scalar && *data.last().unwrap() > 1)
+        {
             return Err("private page query size or bit differs".into());
         }
-        let mut words = Vec::with_capacity(descriptor.depth());
-        for item in data[HEADER + 16..data.len() - 1].chunks_exact(17) {
+        let mut words = Vec::with_capacity(descriptor.depth(layout));
+        for item in data[HEADER + 16..data.len() - final_bytes].chunks_exact(17) {
             if item[16] & !3 != 0 {
                 return Err("noncanonical private page control word".into());
             }
@@ -147,17 +199,21 @@ impl Key {
                 controls: item[16],
             });
         }
+        let mut final_word = [0; 16];
+        final_word[..final_bytes].copy_from_slice(&data[data.len() - final_bytes..]);
         Ok(Self {
+            layout,
             descriptor,
             id: data[49..65].try_into().unwrap(),
             party: data[8],
             root: data[HEADER..HEADER + 16].try_into().unwrap(),
             words,
-            final_bit: *data.last().unwrap(),
+            final_word,
         })
     }
 }
 pub struct Decoder {
+    layout: Layout,
     descriptor: Descriptor,
     id: Block,
 }
@@ -166,7 +222,13 @@ impl Decoder {
     pub fn decode(self, a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
         for (party, reply) in [a, b].iter().enumerate() {
             if reply.len() != HEADER + self.descriptor.width
-                || reply[..HEADER] != header(REPLY, self.descriptor, self.id, party as u8)
+                || reply[..HEADER]
+                    != header(
+                        self.layout.reply_magic(),
+                        self.descriptor,
+                        self.id,
+                        party as u8,
+                    )
             {
                 return Err("private page response binding or size differs".into());
             }
@@ -179,6 +241,23 @@ impl Decoder {
     }
 }
 pub fn issue(descriptor: Descriptor, index: usize) -> Result<(Vec<u8>, Vec<u8>, Decoder), String> {
+    issue_layout(descriptor, index, Layout::Scalar)
+}
+
+/// Packed-output DPF: each terminal PRG block selects 128 original records.
+/// This uses a distinct research packet contract; the scalar API is unchanged.
+pub fn issue_packed(
+    descriptor: Descriptor,
+    index: usize,
+) -> Result<(Vec<u8>, Vec<u8>, Decoder), String> {
+    issue_layout(descriptor, index, Layout::Packed128)
+}
+
+fn issue_layout(
+    descriptor: Descriptor,
+    index: usize,
+    layout: Layout,
+) -> Result<(Vec<u8>, Vec<u8>, Decoder), String> {
     let descriptor = descriptor.validate()?;
     if index >= descriptor.records {
         return Err("private page index is outside the table".into());
@@ -189,11 +268,13 @@ pub fn issue(descriptor: Descriptor, index: usize) -> Result<(Vec<u8>, Vec<u8>, 
     for root in &mut roots {
         getrandom::fill(root).map_err(|e| e.to_string())?;
     }
-    let domain = domain(descriptor, id);
+    let domain = domain(descriptor, id, layout);
     let (mut seeds, mut controls) = (roots, [0_u8, 1]);
-    let mut words = Vec::with_capacity(descriptor.depth());
-    for level in 0..descriptor.depth() {
-        let direction = (index >> (descriptor.depth() - level - 1)) & 1;
+    let depth = descriptor.depth(layout);
+    let address = index / layout.leaf_bits();
+    let mut words = Vec::with_capacity(depth);
+    for level in 0..depth {
+        let direction = (address >> (depth - level - 1)) & 1;
         let mut children = [
             stretch(seeds[0], domain, level),
             stretch(seeds[1], domain, level),
@@ -215,29 +296,45 @@ pub fn issue(descriptor: Descriptor, index: usize) -> Result<(Vec<u8>, Vec<u8>, 
         children.zeroize();
         words.push(word);
     }
-    let final_bit = leaf(seeds[0], domain) ^ leaf(seeds[1], domain) ^ 1;
+    let mut final_word = xor(
+        leaf(seeds[0], domain, layout),
+        leaf(seeds[1], domain, layout),
+    );
+    let bit = index % layout.leaf_bits();
+    final_word[bit / 8] ^= 1 << (bit % 8);
     let a = Key {
+        layout,
         descriptor,
         id,
         party: 0,
         root: roots[0],
         words: words.clone(),
-        final_bit,
+        final_word,
     }
     .encode();
     let b = Key {
+        layout,
         descriptor,
         id,
         party: 1,
         root: roots[1],
         words,
-        final_bit,
+        final_word,
     }
     .encode();
     roots.zeroize();
     seeds.zeroize();
     controls.zeroize();
-    Ok((a, b, Decoder { descriptor, id }))
+    final_word.zeroize();
+    Ok((
+        a,
+        b,
+        Decoder {
+            layout,
+            descriptor,
+            id,
+        },
+    ))
 }
 /// One independently owned table and one party's process-local replay ledger.
 pub struct Server {
@@ -291,14 +388,19 @@ impl Server {
         let mut out = vec![0; self.descriptor.width];
         self.visit(
             &key,
-            domain(self.descriptor, key.id),
+            domain(self.descriptor, key.id, key.layout),
             key.root,
             key.party,
             0,
             0,
             &mut out,
         );
-        let mut reply = header(REPLY, self.descriptor, key.id, self.party);
+        let mut reply = header(
+            key.layout.reply_magic(),
+            self.descriptor,
+            key.id,
+            self.party,
+        );
         reply.extend_from_slice(&out);
         out.zeroize();
         Ok(reply)
@@ -331,7 +433,7 @@ impl Server {
         for (lane, key) in keys.iter().enumerate() {
             fill_bits(
                 key,
-                domain(self.descriptor, key.id),
+                domain(self.descriptor, key.id, key.layout),
                 key.root,
                 key.party,
                 0,
@@ -360,7 +462,12 @@ impl Server {
             .iter()
             .zip(outputs.chunks_exact(self.descriptor.width))
             .map(|(key, out)| {
-                let mut reply = header(REPLY, self.descriptor, key.id, self.party);
+                let mut reply = header(
+                    key.layout.reply_magic(),
+                    self.descriptor,
+                    key.id,
+                    self.party,
+                );
                 reply.extend_from_slice(out);
                 reply
             })
@@ -377,18 +484,31 @@ impl Server {
         first: usize,
         out: &mut [u8],
     ) {
-        if first >= self.descriptor.records {
+        let first_record = first * key.layout.leaf_bits();
+        if first_record >= self.descriptor.records {
             seed.zeroize();
             return;
         }
         if level == key.words.len() {
-            let bit = leaf(seed, domain) ^ (control & key.final_bit);
-            let mask = 0_u8.wrapping_sub(bit);
-            let row =
-                &self.data[first * self.descriptor.width..(first + 1) * self.descriptor.width];
-            for (dst, &byte) in out.iter_mut().zip(row) {
-                *dst ^= byte & mask;
+            let mut word = leaf(seed, domain, key.layout);
+            for (a, b) in word.iter_mut().zip(key.final_word) {
+                *a ^= b & 0_u8.wrapping_sub(control);
             }
+            for bit in 0..key
+                .layout
+                .leaf_bits()
+                .min(self.descriptor.records - first_record)
+            {
+                let mask = 0_u8.wrapping_sub((word[bit / 8] >> (bit % 8)) & 1);
+                let start = (first_record + bit) * self.descriptor.width;
+                for (dst, &byte) in out
+                    .iter_mut()
+                    .zip(&self.data[start..start + self.descriptor.width])
+                {
+                    *dst ^= byte & mask;
+                }
+            }
+            word.zeroize();
         } else {
             let mut children = stretch(seed, domain, level);
             for (direction, child) in children.iter_mut().enumerate() {
@@ -425,12 +545,24 @@ fn fill_bits(
     count: usize,
     output: &mut [u8],
 ) {
-    if first >= key.descriptor.records {
+    let first_record = first * key.layout.leaf_bits();
+    if first_record >= key.descriptor.records {
         seed.zeroize();
         return;
     }
     if level == key.words.len() {
-        output[first * count + lane] = leaf(seed, domain) ^ (control & key.final_bit);
+        let mut word = leaf(seed, domain, key.layout);
+        for (a, b) in word.iter_mut().zip(key.final_word) {
+            *a ^= b & 0_u8.wrapping_sub(control);
+        }
+        for bit in 0..key
+            .layout
+            .leaf_bits()
+            .min(key.descriptor.records - first_record)
+        {
+            output[(first_record + bit) * count + lane] = (word[bit / 8] >> (bit % 8)) & 1;
+        }
+        word.zeroize();
     } else {
         let mut children = stretch(seed, domain, level);
         for (direction, child) in children.iter_mut().enumerate() {
@@ -458,6 +590,114 @@ fn fill_bits(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn encryption_only_schedule_preserves_scalar_prg() {
+        // The original full cipher remains an independent schedule oracle.
+        for seed in [[0; 16], [255; 16], std::array::from_fn(|i| i as u8)] {
+            let domain = [17; 16];
+            let cipher = aes::Aes128::new_from_slice(&seed).unwrap();
+            for level in 0..18 {
+                let mut blocks = [aes::cipher::Block::<aes::Aes128>::from(domain); 3];
+                for (i, block) in blocks.iter_mut().enumerate() {
+                    block[0] ^= 0xa1;
+                    block[1] ^= level as u8;
+                    block[2] ^= i as u8;
+                    cipher.encrypt_block(block);
+                }
+                assert_eq!(
+                    stretch(seed, domain, level),
+                    [
+                        (blocks[0].into(), blocks[2][0] & 1),
+                        (blocks[1].into(), (blocks[2][0] >> 1) & 1),
+                    ]
+                );
+            }
+            let mut block = aes::cipher::Block::<aes::Aes128>::from(domain);
+            block[0] ^= 0xb2;
+            cipher.encrypt_block(&mut block);
+            assert_eq!(leaf(seed, domain, Layout::Scalar)[0], block[0] & 1);
+            assert_eq!(leaf(seed, domain, Layout::Packed128), <Block>::from(block));
+        }
+    }
+
+    #[test]
+    fn packed_exhaustive_basis_and_incomplete_leaves() {
+        // Every output coordinate is visible in the basis oracle, including
+        // padded/tail leaves and the 127/128 group boundary.
+        for records in [1, 2, 3, 127, 128, 129, 255, 257] {
+            let mut data = vec![0; records * records];
+            for row in 0..records {
+                data[row * records + row] = 1;
+            }
+            let mut a = Server::new(&data, records, 0).unwrap();
+            let mut b = Server::new(&data, records, 1).unwrap();
+            for index in 0..records {
+                let (ka, kb, decoder) = issue_packed(a.descriptor(), index).unwrap();
+                assert_eq!(&ka[..8], PACKED_QUERY);
+                assert_eq!(
+                    ka.len(),
+                    HEADER + 32 + 17 * a.descriptor().depth(Layout::Packed128)
+                );
+                let ra = a.evaluate(&ka).unwrap();
+                let rb = b.evaluate(&kb).unwrap();
+                assert_eq!(
+                    decoder.decode(&ra, &rb).unwrap(),
+                    data[index * records..(index + 1) * records]
+                );
+                assert!(a.evaluate(&ka).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn mixed_layout_batch_atomicity_and_namespace_binding() {
+        let data: Vec<u8> = (0..1009 * 19).map(|i| (i * 131 + i / 19) as u8).collect();
+        let mut a = Server::new(&data, 19, 0).unwrap();
+        let mut b = Server::new(&data, 19, 1).unwrap();
+        let queries: Vec<_> = (0..64)
+            .map(|i| {
+                let layout = if i % 2 == 0 {
+                    Layout::Scalar
+                } else {
+                    Layout::Packed128
+                };
+                issue_layout(a.descriptor(), (i * 129) % 1009, layout).unwrap()
+            })
+            .collect();
+        let qa: Vec<_> = queries.iter().map(|q| q.0.as_slice()).collect();
+        let qb: Vec<_> = queries.iter().map(|q| q.1.as_slice()).collect();
+        assert!(a.evaluate_batch(&[qa[0], qa[1], qa[1]]).is_err());
+        assert!(a.evaluate_batch(&[qa[0], b"malformed"]).is_err());
+        let ra = a.evaluate_batch(&qa).unwrap();
+        let rb = b.evaluate_batch(&qb).unwrap();
+        assert!(b.evaluate_batch(&qb).is_err());
+        for (i, ((_, _, decoder), (a, b))) in
+            queries.into_iter().zip(ra.iter().zip(&rb)).enumerate()
+        {
+            let index = (i * 129) % 1009;
+            assert_eq!(
+                decoder.decode(a, b).unwrap(),
+                data[index * 19..(index + 1) * 19]
+            );
+        }
+        let (ka, kb, decoder) = issue_packed(a.descriptor(), 128).unwrap();
+        for end in 0..ka.len() {
+            assert!(a.evaluate(&ka[..end]).is_err());
+        }
+        let mut bad = ka.clone();
+        bad[..8].copy_from_slice(QUERY);
+        assert!(a.evaluate(&bad).is_err());
+        let mut ra = a.evaluate(&ka).unwrap();
+        let rb = b.evaluate(&kb).unwrap();
+        ra[..8].copy_from_slice(REPLY);
+        assert!(decoder.decode(&ra, &rb).is_err());
+        let (ka, kb, _) = issue_packed(a.descriptor(), 1008).unwrap();
+        a.cancel(&ka).unwrap();
+        b.cancel(&kb).unwrap();
+        assert!(a.evaluate_batch(&[&ka]).is_err());
+        assert!(b.evaluate(&kb).is_err());
+    }
+
     #[test]
     fn batch_exactness_and_atomic_admission() {
         let data: Vec<u8> = (0..31 * 17).map(|x| x as u8).collect();
