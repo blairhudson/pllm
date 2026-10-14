@@ -240,6 +240,14 @@ and parent-excluding child RAM have their own labels. Missing whole-client RAM
 prevents all memory-tier qualification; the original three-role control and new
 five-role placement keep separate topology leaders.
 
+The later [complete-worker tier confirmation](private-boundary-tiers-reference.md)
+uses a new 24-client 150+8 cohort with SDK, dashboard, relay and audit in one
+measured process. Its coupled maximum is 210.22 MiB, qualifying observed Low;
+traffic and full request latency beat the best matched prepared incumbents by
+19.93% and 20.26%. That independent result leaves these two historical child-only
+cohorts' memory status unchanged and retains the additional boundary-worker trust
+contract.
+
 The native compiler suite and all eight private-page tests pass. Installed-wheel
 validation includes 18 SDK lifecycle tests across generated Qwen2/Qwen3/Llama,
 319 lower-level regression checks, 101 existing SDK checks and a final 142-test

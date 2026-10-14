@@ -515,7 +515,7 @@ test('canonical attribution rejects stale counters, wrong windows, output denomi
 
 test('all metrics sort unknown last in both directions; leaders remain local', () => {
   const views = specs.flatMap((spec) => adaptedCohorts(spec, read, helpers));
-  assert.equal(views.length, 18);
+  assert.equal(views.length, 19);
   for (const view of views) for (const metric of metrics) {
     const table = sotaTable(view, 'Prepared', [metric]);
     assert.ok(table.leaders[metric.id].every((id) => view.rows.some((row) => row.id === id)));
@@ -589,7 +589,8 @@ test('registry evidence tiers are explicit and never inferred from repetition', 
   const entries = [...manifest.cohorts, ...manifest.adapted_cohorts];
   const confirmations = ['qwen25-native-wan-frontier-150-8', 'qwen25-sdk-finalists-150-8',
     'qwen25-maintained-digit8-confirm', 'qwen25-mlp-tiling-confirm-c',
-    'qwen25-all-link-placement-confirm', 'qwen25-epoch-prefix-confirm'];
+    'qwen25-all-link-placement-confirm', 'qwen25-epoch-prefix-confirm',
+    'qwen25-private-boundary-tiers-150-8'];
   assert.ok(entries.every((cohort) => ['confirmation', 'screen', 'observation'].includes(cohort.evidenceTier)));
   assert.deepEqual(entries.filter((cohort) => cohort.evidenceTier === 'confirmation').map((cohort) => cohort.id).sort(), confirmations.sort());
   assert.ok(entries.filter((cohort) => cohort.id.includes('screen')).every((cohort) => cohort.evidenceTier === 'screen'));

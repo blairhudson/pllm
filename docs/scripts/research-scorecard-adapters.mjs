@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { clientMemoryEvidence } from './research-memory.mjs';
 import { isDeepStrictEqual } from 'node:util';
 import { privateBoundaryCohorts } from './research-private-boundary.mjs';
+import { privateBoundaryTierCohorts } from './research-private-boundary-tiers.mjs';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const digest = (value) => /^[a-f0-9]{64}$/.test(value ?? '');
@@ -594,5 +595,7 @@ export function adaptedCohorts(spec, read, helpers) {
   if (spec.adapter === 'benchmark-suite-v1') return benchmarkSuiteCohorts(spec, document, plan, helpers);
   if (spec.adapter === 'epoch-prefix-v1') return epochPrefixCohorts(spec, document, helpers);
   if (spec.adapter === 'private-boundary-v1') return privateBoundaryCohorts(spec, document, read, helpers);
+  if (spec.adapter === 'private-boundary-tiers-v1') return privateBoundaryTierCohorts(spec, document, plan, read,
+    { ...helpers, checkRun, checkedWan });
   throw new Error('Unknown scorecard evidence adapter');
 }

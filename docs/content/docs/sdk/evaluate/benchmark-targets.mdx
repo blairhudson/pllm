@@ -123,6 +123,27 @@ metric. Missing roles, unmetered streams and zero decode denominators remain nul
 Import-process memory, parent-only memory and full-client memory never share an
 implicit measurement scope.
 
+### Exact cold-response state audit
+
+`BenchmarkTarget.response(experiment, state_audit=True)` adds bounded commitments
+for every selected full logit vector, active full KV, position, token selection
+and greedy sampler state. It accepts one cold native response with at most 64
+output selections. Installed tiling and placement components retain their ordinary
+execution paths; concurrent callers and other research instrumentation reject.
+
+Every compared case must select the audit in the same suite. Hashing and its
+32 MiB scratch/metadata admission allowance remain client costs. Reports contain
+salted commitments rather than tokens or tensors. A public sampler fixture leaves
+cryptographic randomness fresh; terminal EOS selection can exceed emitted output
+count by one. Audit instrumentation and sampler ownership retire on failure.
+
+The ordinary native runner keeps SDK, role supervisor, dashboard and WAN relay in
+one fresh worker. `client.peak_rss` covers that process through scenario cleanup;
+`process.peak_rss` additionally covers target finalization. Tier qualification uses
+the largest complete worker peak across all replicates. The idle suite launcher
+and provider processes have separate ownership. Older benchmarks that split client
+and relay processes retain their original, narrower memory scope.
+
 ### Decode epochs and concurrent callers
 
 Select `PreparedInventory(decode_epoch_tokens=16, allocation="demand",

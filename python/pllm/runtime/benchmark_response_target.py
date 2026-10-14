@@ -183,6 +183,9 @@ def execute_response(p, m):
     if p.get("client_attention") is not None:
         from .benchmark_client_attention import attention_memory_admission
         admission = attention_memory_admission(admission, m.sampling.memory_bytes, enforced_wan=wan is not None)
+    if p.get("state_audit"):
+        from .benchmark_response_audit import state_audit_admission
+        admission = state_audit_admission(admission, m.sampling.memory_bytes, enforced_wan=wan is not None)
     m.details["topology_admission"] = admission
     if not admission["admitted"]:
         raise TargetUnavailable("topology_memory_limit", status="blocked")
@@ -214,6 +217,9 @@ def execute_response(p, m):
     if attention is not None:
         from .benchmark_client_attention import client_attention_execution
         stage_scope = client_attention_execution(attention, m.salt)
+    if p.get("state_audit"):
+        from .benchmark_response_audit import response_state_audit
+        stage_scope = response_state_audit(m.salt)
     with stage_scope as stage_records:
         report, = m.run(execute)
     if selected is not None:
@@ -275,6 +281,24 @@ def execute_response(p, m):
     m.fixture = {"kind": "generated_checkpoint" if experiment.pipeline.model.kind == "tiny" else "checkpoint",
         "digest": config["source_lock_digest"], "metadata": {"cached_checkpoint": True, "owned_client_cache": "fresh"}}
     m.oracle = {"kind": "ordinary_role_runtime_checks", "outcome": "passed", "checked_values": sum(r["tokens"]["output_tokens"] for r in runs)}
+    if p.get("state_audit"):
+        if (len(stage_records) != 1 or stage_records[0]["failed"]
+                or len(stage_records[0]["selections"]) not in {
+                    runs[0]["tokens"]["output_tokens"], runs[0]["tokens"]["output_tokens"] + 1}
+                or not 1 <= len(stage_records[0]["selections"]) <= scenario.max_output_tokens):
+            raise TargetUnavailable("response_state_audit_incomplete", status="failed")
+        m.details["response_state_audit"] = {"schema": "pllm.response_state_audit.v1", "bindings": stage_records,
+            "scope": "every sampled full logit vector, active full KV, position, selection and greedy RNG",
+            "terminal_eos_selection_may_exceed_emitted_count": True,
+            "client_memory_owners": ["sdk", "dashboard", "native_wan_relay", "audit", "role_supervision"],
+            "client_process_isolation": "one fresh process owns all client work; idle suite launcher excluded"}
+        m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
+            "state_audit": "pllm.response_state_audit.v1"})
+        m.comparison["output_digest"] = digest({"output": m.comparison["output_digest"], "state": stage_records})
+        m.oracle = {"kind": "salted_full_logit_kv_sampler_commitments", "outcome": "passed",
+            "checked_values": sum(row["checked_values"] for row in stage_records[0]["selections"])}
+        m.limitations += ["Every arm pays full-state hashing; exact equality requires matched cohort commitments.",
+            "Public greedy sampler seed is a benchmark fixture; cryptographic random sources remain fresh."]
     if attention is not None:
         phases = [row["phases"] for row in stage_records]
         m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],

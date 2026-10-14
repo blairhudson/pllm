@@ -344,7 +344,8 @@ class BenchmarkTarget:
 
     @classmethod
     def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None,
-                 client_mlp=None, client_metadata=False, concurrent_requests=1, client_attention=None):
+                 client_mlp=None, client_metadata=False, concurrent_requests=1, client_attention=None,
+                 state_audit=False):
         if scenario is None:
             scenario = Scenario.cold()
         if not isinstance(scenario, Scenario):
@@ -366,6 +367,10 @@ class BenchmarkTarget:
             raise ValueError("client metadata attribution must be a boolean")
         if client_metadata:
             parameters["client_metadata"] = True
+        if type(state_audit) is not bool:
+            raise ValueError("response state audit must be a boolean")
+        if state_audit:
+            parameters["state_audit"] = True
         return cls("response", parameters)
 
     @classmethod
@@ -401,6 +406,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"client_metadata"}
     if kind == "response" and "concurrent_requests" in p:
         fields[kind] = fields[kind] | {"concurrent_requests"}
+    if kind == "response" and "state_audit" in p:
+        fields[kind] = fields[kind] | {"state_audit"}
     if kind == "preparation" and "output_columns" in p:
         fields[kind] = fields[kind] | {"output_columns"}
         if "credit_window" in p:
@@ -482,8 +489,13 @@ def _validate_target(document):
             bounded_int(p["concurrent_requests"], 2, 8, "concurrent requests")
             if (p["scenario"]["kind"] != "cold" or p["backend"] != "native"
                     or p["wan"] is not None
-                    or any(key in p for key in ("client_stage", "client_mlp", "client_metadata", "client_attention"))):
+                     or any(key in p for key in ("client_stage", "client_mlp", "client_metadata", "client_attention", "state_audit"))):
                 raise ValueError("concurrent responses require a cold native scenario without adapters or WAN")
+        if "state_audit" in p:
+            if (p["state_audit"] is not True or p["backend"] != "native"
+                    or p["scenario"]["kind"] != "cold" or p["scenario"]["max_output_tokens"] > 64
+                    or any(key in p for key in ("client_stage", "client_mlp", "client_metadata", "client_attention"))):
+                raise ValueError("state audit requires a separate cold native response with at most 64 outputs")
         if "client_metadata" in p:
             if (p["client_metadata"] is not True or p["backend"] != "native"
                     or "client_stage" in p or "client_mlp" in p):

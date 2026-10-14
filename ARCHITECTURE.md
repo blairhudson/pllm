@@ -229,6 +229,20 @@ Their five-role topology, setup-inclusive first-text timing, N−1 text-event de
 and child-only resource labels remain explicit. Parent/relay-excluding RSS cannot
 qualify whole-client memory tiers; different workloads and topologies retain
 separate rankings.
+A separate 24-client pinned Qwen2.5 150+8 confirmation compares the coupled
+boundary against seven prepared incumbents under one build, private cohort and
+shared native 100/40 caps. All 210,247,680 checked logit/KV values and output,
+position, selection and RNG commitments agree, with zero observed swap growth.
+The complete worker includes SDK, supervisor, dashboard, relay and audit; every
+recipe's largest peak fits observed Low, with 210.22 MiB for coupled execution.
+Against each metric's best eligible incumbent, coupled traffic falls 19.93%, full
+request latency 20.26% and startup-through-cleanup time 10.88%. Client CPU falls
+2.42% in the median with overlapping ranges, while client RSS rises 12.04%,
+online TTFT 25.25% and decode throughput falls 56.22%. Preparation and aggregate
+CPU also rise. These Low/Medium-eligible cross-topology costs retain the additional
+boundary-worker trust contract, source-present scope and separate topology leaders.
+Historical child-only cohorts stay unqualified. Complete evidence and replay:
+`docs/research/private-boundary-tiers-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede
@@ -1216,6 +1230,14 @@ role responses. Immutable cases, sampling, build locks and metric budgets produc
 original semantics. Private inputs and a common private cohort salt pass over
 stdin. Source/numeric/state, fixture, oracle, owner and measurement-window
 commitments gate comparison; timeouts and cancellation retire owned processes.
+The opt-in response `state_audit=True` additionally commits each complete logit
+vector, active full KV, position, selected token and greedy sampler state for one
+bounded cold native response. Hashing and its admitted scratch remain client
+costs; cryptographic randomness remains fresh. The ordinary worker owns SDK,
+supervisor, dashboard and native WAN relay together, so its complete target
+lifetime RSS includes all those owners. The largest replicate peak qualifies an
+observed memory tier; the idle suite launcher and providers retain separate scope.
+Historical child-only peaks cannot inherit this complete-client measurement.
 `benchmark_capabilities`, `BenchmarkRequirement` and `benchmark_coverage` resolve
 registered components, parameter choices and explicit interactions to exact cases
 and evidence cells. Missing, partial, blocked, unsupported and stale-build results

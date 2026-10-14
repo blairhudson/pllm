@@ -100,6 +100,22 @@
       "replay_sha256": "f2467add48add9e5e5100cb47305ca7551a84c6aea55d788dc693d450b24c8ab",
       "frozen_factory": {"file": "benchmarks/research/private_boundary.py", "sha256": "df81dd5ed0765d882a48f0dd5e4696105cefee3bff0d56fdd8079bae5c2bf2e7"},
       "scope": "Independent 150+8 source-present workload: three matched fresh-client pairs, exact complete state/output and zero observed swap growth. Full vocabulary and ordinary prepared arithmetic bodies preserved. Client subprocess RAM excludes parent/relay; no whole-client RAM tier qualification. Aggregate CPU/time charges startup and cleanup; checkpoint/tokenizer distribution and physical wire remain unknown. Request first text includes setup; N−1 decode uses authoritative matched text events. Separate topologies retain their own leaders. Neither the 48+8 cohort nor failed 150-token attempts supply replicates; this is a screen, not independent confirmation."
+    },
+    {
+      "id": "qwen25-private-boundary-tiers-150-8",
+      "evidenceTier": "confirmation",
+      "title": "Cold tier incumbents + coupled boundary · 150+8 · 3 clients/recipe",
+      "adapter": "private-boundary-tiers-v1",
+      "report": "docs/evidence/private-boundary-tiers-qwen25-2026-10-06.json",
+      "sha256": "0bc6061e24f41fdd12ae60c67c9e313ad8551fbefdb36e92bceadfd88e12e1ca",
+      "plan": "docs/evidence/private-boundary-tiers-qwen25-2026-10-06.plan.json",
+      "plan_sha256": "76a0816cbe5bae10df141072a54312949ca682883fb131e168a4652a073b3ea4",
+      "summary": "docs/evidence/private-boundary-tiers-qwen25-2026-10-06.summary.json",
+      "summary_sha256": "bd93e6bba34f96039791b17eb8bac09fa878b5eb221295a3dc60aa553bf2163c",
+      "replay_file": "scripts/benchmark_private_boundary_tiers.py",
+      "replay_sha256": "9429648310c62cb1f2c9941d0ae5fddc557391558630052c27fa4f589bcd9972",
+      "frozen_factory": {"file": "benchmarks/research/private_boundary_tiers.py", "sha256": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867"},
+      "scope": "One independent source-present cold cohort: eight frozen recipes, three balanced fresh workers each, exact logits/KV/positions/selections/RNG/output equality and zero observed swap growth. All recipes use the same 150+8 public bound. Complete worker RSS includes SDK, supervisor, dashboard, WAN relay and audit; the largest replicate qualifies the observed RAM budget. Coupled boundary beats the best eligible tested incumbents on all-link TCP streams and full request latency in Low and Medium, with slower online TTFT/decode and more RAM. Two additional boundary workers change the non-collusion contract; topology-specific SOTA rows remain separate. Checkpoint/tokenizer distribution, physical wire and Internet RTT are unmeasured. Original historical cohorts and preflight-rejected attempts supply no replicates. Full results: docs/research/private-boundary-tiers-reference.md."
     }
   ],
   "quality_cohorts": [
@@ -135,6 +151,7 @@
     {"title": "Public-prefix search", "file": "docs/evidence/research-search-public-prefix-qwen25-v2.json", "sha256": "67c98ac2d89dea093da5b9c14dff209248336b3f5fa6eee71d24991e290f0aaf"}
   ],
   "historical_exclusions": [
+    {"report": "docs/evidence/private-boundary-tiers-qwen25-preflight-rejected.plan.json", "sha256": "99d6b088a283008348af259ef6f0ad7126180c5eb4616f2c448f19beede3d644", "reason": "Five-role host-memory preflight rejected before any client measurements. Same guards retained for the separate successful 24-client rerun; this plan supplies no performance samples."},
     {"report": "docs/evidence/private-boundary-qwen-150-incomplete.json", "sha256": "5569476af7c68b3fe46d1e0f3dd6952dc5675d6dce43379e6f322994d51faa63", "reason": "Incomplete paired cohort after host-memory admission changed. Saved control does not fill any replicate in the independently salted complete 150+8 cohort."},
     {"report": "docs/evidence/private-boundary-qwen-150-initial-blocked.json", "sha256": "2985c7282e4ef01220e05fa770e7f50d5c3babbf0ee92a96ff298e67bc002e3b", "reason": "Initial admission rejected before complete paired execution; no performance result or tier qualification."},
     {"report": "docs/evidence/research-sota-combinations-qwen25-interrupted.json", "sha256": "44b9191e77e87e1fbb36883b43629e74b8c4cf9c65d85160b205f90e515e0f49", "reason": "Corrected five-way screen stopped with 21 of 30 cells saved and no final summary. All saved cells completed, but the runner was absent when inspected; no exit cause was retained. Two full balanced rounds and one partial third round cannot establish the planned three-replicate frontier. Preserved independently; never pooled with a fresh-salt rerun."},
