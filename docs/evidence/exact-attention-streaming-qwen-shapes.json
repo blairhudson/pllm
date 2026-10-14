@@ -1,0 +1,2500 @@
+{
+  "cells": [
+    {
+      "measurement": {
+        "arms": [
+          {
+            "cpu_seconds": 0.050830000000000014,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 12763208,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11526040,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 54640640,
+            "wall_seconds": 0.050829583778977394
+          },
+          {
+            "cpu_seconds": 0.054953,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 1606520,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 369352,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 17584
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 51314688,
+            "wall_seconds": 0.05495200026780367
+          },
+          {
+            "cpu_seconds": 0.05562400000000001,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 1606520,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 369352,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 17584
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 51691520,
+            "wall_seconds": 0.05561974924057722
+          },
+          {
+            "cpu_seconds": 0.05040800000000001,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 12763208,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11526040,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 54919168,
+            "wall_seconds": 0.05041083227843046
+          },
+          {
+            "cpu_seconds": 0.05115800000000001,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 12763208,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11526040,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 54886400,
+            "wall_seconds": 0.051164000295102596
+          },
+          {
+            "cpu_seconds": 0.05524699999999999,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 1606520,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 369352,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 17584
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 51429376,
+            "wall_seconds": 0.05524666700512171
+          }
+        ],
+        "build": {
+          "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "matching_outputs": true,
+        "observed_swap_growth_bytes": 0,
+        "qualification": "isolated synthetic attention, not whole-client tier evidence",
+        "replicates": 3,
+        "schema": "pllm.attention_lifetime_measurement.v1"
+      },
+      "profile": "prefix_f32",
+      "query_tile": 4,
+      "rows": 150
+    },
+    {
+      "measurement": {
+        "arms": [
+          {
+            "cpu_seconds": 0.051283999999999996,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 12763208,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11526040,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 54951936,
+            "wall_seconds": 0.051285792142152786
+          },
+          {
+            "cpu_seconds": 0.05093699999999998,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 2659608,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 1422440,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 140672
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 51691520,
+            "wall_seconds": 0.05093379132449627
+          },
+          {
+            "cpu_seconds": 0.05014199999999999,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 2659608,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 1422440,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 140672
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 51576832,
+            "wall_seconds": 0.0501399589702487
+          },
+          {
+            "cpu_seconds": 0.05065600000000001,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 12763208,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11526040,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 54951936,
+            "wall_seconds": 0.05065533425658941
+          },
+          {
+            "cpu_seconds": 0.05115,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 12763208,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11526040,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 54870016,
+            "wall_seconds": 0.051149833016097546
+          },
+          {
+            "cpu_seconds": 0.049897,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "e745cfa94e5ff5357da5cfd8f2e6b8524d003dec3aa2c653933d305017193763",
+            "owners": {
+              "attention_only_envelope_bytes": 2659608,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 1422440,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 140672
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 51642368,
+            "wall_seconds": 0.04989500064402819
+          }
+        ],
+        "build": {
+          "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "matching_outputs": true,
+        "observed_swap_growth_bytes": 0,
+        "qualification": "isolated synthetic attention, not whole-client tier evidence",
+        "replicates": 3,
+        "schema": "pllm.attention_lifetime_measurement.v1"
+      },
+      "profile": "prefix_f32",
+      "query_tile": 16,
+      "rows": 150
+    },
+    {
+      "measurement": {
+        "arms": [
+          {
+            "cpu_seconds": 0.129799,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 42618680,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40249912,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 65159168,
+            "wall_seconds": 0.12983362469822168
+          },
+          {
+            "cpu_seconds": 0.137688,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 3061592,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 692824,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 33040
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 54329344,
+            "wall_seconds": 0.13768783304840326
+          },
+          {
+            "cpu_seconds": 0.13736399999999999,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 3061592,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 692824,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 33040
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 54018048,
+            "wall_seconds": 0.13736479077488184
+          },
+          {
+            "cpu_seconds": 0.129137,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 42618680,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40249912,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 65044480,
+            "wall_seconds": 0.12913374975323677
+          },
+          {
+            "cpu_seconds": 0.13068700000000003,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 42618680,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40249912,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 65404928,
+            "wall_seconds": 0.13068637531250715
+          },
+          {
+            "cpu_seconds": 0.13719399999999998,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 3061592,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 692824,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 33040
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 1,
+              "profile": "prefix_f32",
+              "query_rows": 4,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 54378496,
+            "wall_seconds": 0.13719250075519085
+          }
+        ],
+        "build": {
+          "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "matching_outputs": true,
+        "observed_swap_growth_bytes": 0,
+        "qualification": "isolated synthetic attention, not whole-client tier evidence",
+        "replicates": 3,
+        "schema": "pllm.attention_lifetime_measurement.v1"
+      },
+      "profile": "prefix_f32",
+      "query_tile": 4,
+      "rows": 288
+    },
+    {
+      "measurement": {
+        "arms": [
+          {
+            "cpu_seconds": 0.12839300000000003,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 42618680,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40249912,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 65339392,
+            "wall_seconds": 0.1283930828794837
+          },
+          {
+            "cpu_seconds": 0.129403,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 4993464,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 2624696,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 264320
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 54444032,
+            "wall_seconds": 0.12944283336400986
+          },
+          {
+            "cpu_seconds": 0.12588800000000003,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 4993464,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 2624696,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 264320
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 54689792,
+            "wall_seconds": 0.12590837571769953
+          },
+          {
+            "cpu_seconds": 0.12993100000000002,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 42618680,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40249912,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 65421312,
+            "wall_seconds": 0.12992970924824476
+          },
+          {
+            "cpu_seconds": 0.12911999999999998,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 42618680,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40249912,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 65142784,
+            "wall_seconds": 0.129119792021811
+          },
+          {
+            "cpu_seconds": 0.127014,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "ec6c63068b279254bdccc5cb031c4e3e70e484bcd428f4e3031130268512e070",
+            "owners": {
+              "attention_only_envelope_bytes": 4993464,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 2624696,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 264320
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "prefix_f32",
+              "query_rows": 16,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 54738944,
+            "wall_seconds": 0.1270095407962799
+          }
+        ],
+        "build": {
+          "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "matching_outputs": true,
+        "observed_swap_growth_bytes": 0,
+        "qualification": "isolated synthetic attention, not whole-client tier evidence",
+        "replicates": 3,
+        "schema": "pllm.attention_lifetime_measurement.v1"
+      },
+      "profile": "prefix_f32",
+      "query_tile": 16,
+      "rows": 288
+    },
+    {
+      "measurement": {
+        "arms": [
+          {
+            "cpu_seconds": 0.01022400000000001,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "eb13385a5a1ea9a32d2a956ad6d4f1b73cf3f0871e963d8f3e1e61d4ea24242f",
+            "owners": {
+              "attention_only_envelope_bytes": 12682824,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11445656,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 56311808,
+            "wall_seconds": 0.010210124775767326
+          },
+          {
+            "cpu_seconds": 0.009654999999999997,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "eb13385a5a1ea9a32d2a956ad6d4f1b73cf3f0871e963d8f3e1e61d4ea24242f",
+            "owners": {
+              "attention_only_envelope_bytes": 2579224,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 1342056,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 140672
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 51216384,
+            "wall_seconds": 0.009649541229009628
+          },
+          {
+            "cpu_seconds": 0.009846999999999995,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "eb13385a5a1ea9a32d2a956ad6d4f1b73cf3f0871e963d8f3e1e61d4ea24242f",
+            "owners": {
+              "attention_only_envelope_bytes": 2579224,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 1342056,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 140672
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 51298304,
+            "wall_seconds": 0.009839917533099651
+          },
+          {
+            "cpu_seconds": 0.009975999999999985,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "eb13385a5a1ea9a32d2a956ad6d4f1b73cf3f0871e963d8f3e1e61d4ea24242f",
+            "owners": {
+              "attention_only_envelope_bytes": 12682824,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11445656,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 56147968,
+            "wall_seconds": 0.009975125081837177
+          },
+          {
+            "cpu_seconds": 0.009710999999999997,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "eb13385a5a1ea9a32d2a956ad6d4f1b73cf3f0871e963d8f3e1e61d4ea24242f",
+            "owners": {
+              "attention_only_envelope_bytes": 12682824,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 11445656,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 1318800
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 56344576,
+            "wall_seconds": 0.009710375219583511
+          },
+          {
+            "cpu_seconds": 0.009759999999999991,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "eb13385a5a1ea9a32d2a956ad6d4f1b73cf3f0871e963d8f3e1e61d4ea24242f",
+            "owners": {
+              "attention_only_envelope_bytes": 2579224,
+              "complete_output_bytes": 537600,
+              "conservative_numeric_scratch_bytes": 1342056,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 1318800,
+              "input_unique_owner_bytes": 699568,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 140672
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 157,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 150,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 51331072,
+            "wall_seconds": 0.009757082909345627
+          }
+        ],
+        "build": {
+          "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "matching_outputs": true,
+        "observed_swap_growth_bytes": 0,
+        "qualification": "isolated synthetic attention, not whole-client tier evidence",
+        "replicates": 3,
+        "schema": "pllm.attention_lifetime_measurement.v1"
+      },
+      "profile": "dense",
+      "query_tile": 16,
+      "rows": 150
+    },
+    {
+      "measurement": {
+        "arms": [
+          {
+            "cpu_seconds": 0.034693999999999975,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "868d7e63530af0150c31eb8def2590bc68fd9df19d4d63884c645ddf3e19e5d2",
+            "owners": {
+              "attention_only_envelope_bytes": 42467640,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40098872,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 72204288,
+            "wall_seconds": 0.034698499366641045
+          },
+          {
+            "cpu_seconds": 0.033142000000000005,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "868d7e63530af0150c31eb8def2590bc68fd9df19d4d63884c645ddf3e19e5d2",
+            "owners": {
+              "attention_only_envelope_bytes": 4842424,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 2473656,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 264320
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 0
+            },
+            "process_peak_rss_bytes": 53493760,
+            "wall_seconds": 0.033138833940029144
+          },
+          {
+            "cpu_seconds": 0.03429499999999999,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "868d7e63530af0150c31eb8def2590bc68fd9df19d4d63884c645ddf3e19e5d2",
+            "owners": {
+              "attention_only_envelope_bytes": 4842424,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 2473656,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 264320
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 53805056,
+            "wall_seconds": 0.034425207413733006
+          },
+          {
+            "cpu_seconds": 0.03495000000000001,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "868d7e63530af0150c31eb8def2590bc68fd9df19d4d63884c645ddf3e19e5d2",
+            "owners": {
+              "attention_only_envelope_bytes": 42467640,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40098872,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 1
+            },
+            "process_peak_rss_bytes": 72400896,
+            "wall_seconds": 0.03507029265165329
+          },
+          {
+            "cpu_seconds": 0.035442,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "868d7e63530af0150c31eb8def2590bc68fd9df19d4d63884c645ddf3e19e5d2",
+            "owners": {
+              "attention_only_envelope_bytes": 42467640,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 40098872,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 4757760
+            },
+            "payload": {
+              "arm": "control",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 72220672,
+            "wall_seconds": 0.03543420881032944
+          },
+          {
+            "cpu_seconds": 0.03326799999999999,
+            "identity": {
+              "build": {
+                "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+                "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+              },
+              "numpy": "2.5.3",
+              "operators": {
+                "pllm.runtime.causal_reduction": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/causal_reduction.py",
+                  "sha256": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0"
+                },
+                "pllm.runtime.semantic_attention": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+                  "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+                },
+                "pllm.runtime.semantic_executor": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+                  "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+                },
+                "pllm.runtime.semantic_numeric": {
+                  "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_numeric.py",
+                  "sha256": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf"
+                }
+              },
+              "pllm": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+              "probe_sha256": "4c5fa47ee934d7e421a21c487cb7ee19a2844fb71da51e58cca1a9c642edebb6",
+              "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+            },
+            "output_sha256": "868d7e63530af0150c31eb8def2590bc68fd9df19d4d63884c645ddf3e19e5d2",
+            "owners": {
+              "attention_only_envelope_bytes": 4842424,
+              "complete_output_bytes": 1032192,
+              "conservative_numeric_scratch_bytes": 2473656,
+              "exclusions": [
+                "imports/interpreter",
+                "other decoder layers and KV",
+                "weights",
+                "remote exchange owners",
+                "native allocator overhead",
+                "filesystem cache"
+              ],
+              "full_score_bytes": 4757760,
+              "input_unique_owner_bytes": 1336576,
+              "is_whole_client_admission": false,
+              "score_slab_bytes": 264320
+            },
+            "payload": {
+              "arm": "candidate",
+              "fixture": {
+                "capacity": 295,
+                "group": 7,
+                "heads": 2,
+                "layout": "sequence_major",
+                "rows": 288,
+                "width": 64
+              },
+              "kv_heads": 2,
+              "profile": "dense",
+              "query_rows": 16,
+              "replicate": 2
+            },
+            "process_peak_rss_bytes": 53297152,
+            "wall_seconds": 0.03326429147273302
+          }
+        ],
+        "build": {
+          "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+        },
+        "matching_outputs": true,
+        "observed_swap_growth_bytes": 0,
+        "qualification": "isolated synthetic attention, not whole-client tier evidence",
+        "replicates": 3,
+        "schema": "pllm.attention_lifetime_measurement.v1"
+      },
+      "profile": "dense",
+      "query_tile": 16,
+      "rows": 288
+    }
+  ],
+  "fresh_processes": 36,
+  "geometry": {
+    "capacity": "input_rows + 7",
+    "head_dim": 64,
+    "kv_heads": 2,
+    "layout": "sequence_major",
+    "query_heads": 14
+  },
+  "remote_body_mac_fraction": null,
+  "schema": "pllm.orthogonal_attention_screen.v1",
+  "scope": "synthetic Qwen2.5-shaped local attention; no checkpoint values, decoder or provider execution",
+  "whole_client_tier_qualified": false
+}

@@ -1,0 +1,130 @@
+{
+  "schema": "pllm.projection-kv-probe.v1",
+  "scope": "bounded synthetic; no checkpoint or timing",
+  "identity": {
+    "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "files": {
+      "pllm": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+        "sha256": "8a27dcd4029a5ca29905c8ecb7ef30a542d95ec8c08ac867b00834dbd58c106c"
+      },
+      "pllm._native": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+        "sha256": "4e30131776a394a1bb5df15283574edf60b9b23c1274d7ba10e28793158b0812"
+      },
+      "pllm.runtime.quantization": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/quantization.py",
+        "sha256": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412"
+      },
+      "pllm.runtime.semantic_executor": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_executor.py",
+        "sha256": "640bbf6ea1eb79b62af6eb0f1954f931c4df5da1392e8f7b6ba62ca20fff5a94"
+      },
+      "pllm.runtime.rotary_coefficients": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/rotary_coefficients.py",
+        "sha256": "dc54c6dec672992f917cfd69703c95316debb89c022e0476d551b883bb6fc30a"
+      },
+      "pllm.runtime.semantic_attention": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/semantic_attention.py",
+        "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+      },
+      "numpy": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/numpy/__init__.py",
+        "sha256": "09295a80660f17925ae23765ce8cbd7ff7ceae968d5f2f89349f1cb74c0b9e11"
+      },
+      "numpy._core._multiarray_umath": {
+        "path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/numpy/_core/_multiarray_umath.cpython-313-darwin.so",
+        "sha256": "c3f325f8c20ffada58134c2bf0cfe157bd03bccdaac784168f1b97bd6ba12c23"
+      }
+    },
+    "digest": "fd8a8226e697b54ff3422149968e9bf3d293f5d3ed3173922ffe5a946465b0fb"
+  },
+  "fixtures": [
+    {
+      "family_fixture": "qwen2",
+      "kv_and_attention_bits_equal": true,
+      "public_widths": [
+        19,
+        19,
+        19,
+        19,
+        19,
+        18,
+        19,
+        19,
+        18,
+        19,
+        19,
+        19,
+        18,
+        19,
+        19,
+        19
+      ],
+      "dense_kv_bytes": 896,
+      "page_bytes_including_duplicate_positions_and_commitments": 762,
+      "original_coefficient_bytes": 448,
+      "attention_sha256": "a494fc3d42f23b6284bdb1667f0634d24f7a79ace2527be74a25c6100204fb14"
+    },
+    {
+      "family_fixture": "qwen3",
+      "kv_and_attention_bits_equal": true,
+      "public_widths": [
+        19,
+        19,
+        19,
+        18,
+        18,
+        19,
+        19,
+        19,
+        19,
+        18,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19
+      ],
+      "dense_kv_bytes": 896,
+      "page_bytes_including_duplicate_positions_and_commitments": 761,
+      "original_coefficient_bytes": 448,
+      "attention_sha256": "30fc971c8b3026b66da7e8c63f867dce4752553fad9ab14147eb8a0b61e8a5b2"
+    },
+    {
+      "family_fixture": "llama",
+      "kv_and_attention_bits_equal": true,
+      "public_widths": [
+        18,
+        18,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        18
+      ],
+      "dense_kv_bytes": 896,
+      "page_bytes_including_duplicate_positions_and_commitments": 760,
+      "original_coefficient_bytes": 448,
+      "attention_sha256": "3c36304d5c7873d929bd0b35b520edf3e6ba0cf86efe0287ed3f7bba6ae1b46f"
+    }
+  ],
+  "promotion": "research only; no tier or SOTA qualification",
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "expected_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e"
+  },
+  "probe_sha256": "e2cda42f8ab9d27c66b688adff4b677d8fc0db9aaa155ee648ae95506251bbd3"
+}

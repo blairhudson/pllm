@@ -124,6 +124,18 @@ peak RSS 9.48%/16.31%, with matching outputs, covered application bodies and zer
 observed swap growth. Online TTFT rises 3.70%/2.90% and complete cold requests
 remain slower. Both full and tiled configurations remain nondominated across the
 seven metrics; the cohorts are not pooled and establish no tenfold improvement.
+Five separate client-resource screens now investigate cross-stage MLP scheduling,
+quantization-origin KV, reduction-preserving attention lifetimes, exception-split
+Preparation and a certified local head. Thirty-six fresh synthetic Qwen-shaped
+attention workers preserve output hashes; sixteen-query-row `prefix_f32` tiles
+lower isolated process peak RSS 6.02%/16.30% at 150/288 rows. Full Q/K/V/output
+owners remain, and complete-client gains are unmeasured. Four pinned Qwen down
+tensors have 68.61–75.65% four-bit exceptions; every tested packed-base/CSR layout
+exceeds original i8 storage. Conveyor overlap remains simulated, tiny origin-KV
+storage regresses after coefficient costs, and head certificates cannot replace
+complete-logit contracts. These research references establish neither serving
+SOTA nor Low/Medium client qualification. Evidence and next gates:
+`docs/research/orthogonal-frontier-reference.md`.
 The separate response-target metadata selector attributes Python-traced compiler,
 preparation-demand and runtime-binding construction allocations. Unique public
 metadata counts exclude tensors; phase peaks include their own temporaries.

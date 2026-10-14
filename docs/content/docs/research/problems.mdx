@@ -228,6 +228,13 @@ to its own matched workload; their percentage improvements cannot be multiplied.
 
 ## Turn an objective into an experiment
 
+The [five orthogonal resource screens](https://github.com/blairhudson/pllm/blob/main/docs/research/orthogonal-frontier-reference.md)
+apply this process to attention scratch, MLP scheduling, exact KV storage,
+Preparation kernels and local head search. Attention lifetime tiling survives its
+isolated exactness/memory gate; the other screens expose scheduling, provenance,
+sparse-tail and full-logit constraints. Whole-client Low/Medium qualification and
+matched serving improvements remain open.
+
 Start with a question such as: “Can smaller prefill tiles lower client peak RSS
 within an acceptable first-token delay?” Name the primary objective and the
 resource or latency budgets that must still hold. Then identify the mechanism,

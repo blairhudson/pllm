@@ -1,0 +1,20 @@
+{
+  "source_head": "e49a48b6082f8f7d17f744ec1190e84d13a653dc",
+  "installed_build_digest": "37b6546de0a4b221fb71fca33caf97094666551db8fb7c626888ce3c30dee86e",
+  "command": "target/frontier-sdk-env/bin/python -m pytest -o pythonpath='' tests/test_exact_attention_streaming_probe.py -q",
+  "observed_result": "65 passed in 0.58s",
+  "correctness_evidence": "docs/evidence/exact-attention-streaming-correctness.json",
+  "synthetic_comparison_cases": 144,
+  "all_compared_output_words_bitwise_equal": true,
+  "real_counterexamples_changed_words": {
+    "contiguous_copy_of_reversed_feature_operands": 1106,
+    "truncate_zero_capacity_23_to_9": 26,
+    "replace_dense_with_prefix_f32": 1145
+  },
+  "whole_decoder_executed": false,
+  "checkpoint_loaded": false,
+  "timing_cohort_executed": false,
+  "remote_body_mac_coverage": null,
+  "whole_client_tier_qualification": false,
+  "verdict": "bounded numeric research survivor; native reduction identity and whole-decoder gates remain"
+}

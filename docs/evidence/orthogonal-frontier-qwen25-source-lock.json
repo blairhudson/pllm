@@ -1,0 +1,9 @@
+{
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "provenance": "Copied from the independently retained checkpoint_files and source revision in docs/evidence/research-residual-delegation.json; not derived from current local checkpoint contents.",
+  "sha256": {
+    "config.json": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+    "model.safetensors": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+  }
+}
