@@ -55,6 +55,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
     _causal_reduction: str | None = None
     _retained = None
     _mlp_tiling = None
+    _attention_tiling = None
     _tiered = None
     _capsule = None
 
@@ -603,6 +604,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         values: dict[str, Any],
         state_kinds: dict[str, str],
         pending_keys: dict[int, tuple[str, np.ndarray]],
+        *, attention_positions: np.ndarray | None = None,
     ) -> Any:
         kind = operation["operator"]
         inputs = operation["inputs"]
@@ -907,7 +909,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         elif kind == "attention_scores":
             if self._causal_reduction is not None:
                 from .causal_reduction import scores
-                positions = np.arange(self.position, self.position + source.shape[2], dtype=np.int64)
+                positions = (attention_positions if attention_positions is not None else
+                             np.arange(self.position, self.position + source.shape[2], dtype=np.int64))
                 return scores(source, values[inputs[1]], positions, int(attrs["group_size"]))
             if "key_layout" in attrs:
                 try:
@@ -968,7 +971,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         elif kind == "attention_values":
             if self._causal_reduction is not None:
                 from .causal_reduction import values as weighted_values
-                positions = np.arange(self.position, self.position + source.shape[2], dtype=np.int64)
+                positions = (attention_positions if attention_positions is not None else
+                             np.arange(self.position, self.position + source.shape[2], dtype=np.int64))
                 return weighted_values(source, values[inputs[1]], positions, int(attrs["group_size"]))
             if "value_layout" in attrs:
                 try:
@@ -1149,6 +1153,10 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 self._tiered.abort(self)
             if self._retained is not None:
                 self._retained.burn(self)
+            if self._attention_tiling is not None:
+                self._attention_tiling.failed = True
+                self._reset_state()
+                self._continuation_failed = True
             raise
         finally:
             self._phase_recurrent_results = {}
@@ -1279,6 +1287,17 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             step, operations = frame["step"], frame["operations"]
             if step_index < skipped_until:
                 continue
+            attention = (self._attention_tiling.regions.get(step_index)
+                         if self._attention_tiling is not None and phase == "prefill" and not continuation else None)
+            if attention is not None:
+                self._attention_tiling.execute(self, attention, operations, values)
+                skipped_until = attention["end_step"]
+                for tiled_step in steps[step_index:skipped_until]:
+                    for input_id in tiled_step["input_ids"]:
+                        remaining[input_id] -= 1
+                        if remaining[input_id] == 0 and input_id != logits_id:
+                            values.pop(input_id, None)
+                continue
             region = (self._mlp_tiling.regions.get(step_index)
                       if self._mlp_tiling is not None and phase == "prefill" and not continuation else None)
             if region is not None:
@@ -1372,6 +1391,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         execution = hashlib.sha256(
             b"pllm.decoder.execution-basis.v1\0" + native_phase.encode()
             + (b"" if self._mlp_tiling is None else self._mlp_tiling.digest.encode())
+            + (b"" if self._attention_tiling is None else self._attention_tiling.digest.encode())
             + (b"" if previous_basis is None else previous_basis.execution_digest.encode())
             + positions.astype("<i8").tobytes() + ids.astype("<i8").tobytes()
         ).hexdigest()

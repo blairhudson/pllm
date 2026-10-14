@@ -1,0 +1,729 @@
+{
+  "schema": "pllm.attention_tiling_screen.v1",
+  "completed_clients": 18,
+  "completed_responses": 36,
+  "checked_values": 524973312,
+  "all_full_logits_active_kv_and_outputs_match": true,
+  "noncontrol_application_bodies_match": true,
+  "all_covered_application_bodies_match": false,
+  "covered_body_ranges": {
+    "288/tiling": {
+      "minimum": 802350813.0,
+      "maximum": 802350815.0
+    },
+    "288/digit8": {
+      "minimum": 802350715.0,
+      "maximum": 802350718.0
+    },
+    "288/both-placement": {
+      "minimum": 736652402.0,
+      "maximum": 736652404.0
+    }
+  },
+  "maximum_observed_swap_growth_bytes": 0,
+  "observed_tiers": {
+    "288/tiling/full": {
+      "largest_client_peak_bytes": 239091712.0,
+      "low": true,
+      "medium": true
+    },
+    "288/tiling/tiled": {
+      "largest_client_peak_bytes": 232128512.0,
+      "low": true,
+      "medium": true
+    },
+    "288/digit8/full": {
+      "largest_client_peak_bytes": 266633216.0,
+      "low": true,
+      "medium": true
+    },
+    "288/digit8/tiled": {
+      "largest_client_peak_bytes": 282722304.0,
+      "low": false,
+      "medium": true
+    },
+    "288/both-placement/full": {
+      "largest_client_peak_bytes": 237207552.0,
+      "low": true,
+      "medium": true
+    },
+    "288/both-placement/tiled": {
+      "largest_client_peak_bytes": 239321088.0,
+      "low": true,
+      "medium": true
+    }
+  },
+  "comparisons": [
+    {
+      "recipe": "288/tiling",
+      "metrics": {
+        "client.peak_rss": {
+          "status": "comparable",
+          "control_median": 236912640.0,
+          "candidate_median": 231194624.0,
+          "paired_control_over_candidate": [
+            1.0195511010728402,
+            1.037823871384483,
+            1.0341577492736163
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "client.cold_cpu": {
+          "status": "comparable",
+          "control_median": 27.025899,
+          "candidate_median": 27.023046,
+          "paired_control_over_candidate": [
+            1.0443968901833514,
+            1.0001055765512148,
+            0.9992572239962615
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "preparation.cold_cpu": {
+          "status": "comparable",
+          "control_median": 20.100309120000002,
+          "candidate_median": 20.17297472,
+          "paired_control_over_candidate": [
+            1.0419718143093957,
+            0.9963978738382121,
+            0.9991276355926819
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "preparation.peak_rss": {
+          "status": "comparable",
+          "control_median": 261128192.0,
+          "candidate_median": 263553024.0,
+          "paired_control_over_candidate": [
+            1.0210962516481448,
+            0.9907994529404451,
+            0.9677676328206385
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "response.ttft": {
+          "status": "comparable",
+          "control_median": 41.297771770999994,
+          "candidate_median": 41.263505708500006,
+          "paired_control_over_candidate": [
+            1.0099821627364458,
+            1.0006713133335048,
+            0.9997484470036712
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "response.decode_tps": {
+          "status": "comparable",
+          "control_median": 3.689345978989377,
+          "candidate_median": 3.703152136217847,
+          "paired_control_over_candidate": [
+            0.9798393807645004,
+            0.994153199397442,
+            1.0069344411026573
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "network.base_body_bytes_per_request": {
+          "status": "unranked",
+          "reason": "measurement_contract_differs"
+        },
+        "network.output_dependent_body_bytes_per_generated_token": {
+          "status": "unranked",
+          "reason": "measurement_contract_differs"
+        },
+        "network.all_link_stream_bytes": {
+          "status": "comparable",
+          "control_median": 805286325.0,
+          "candidate_median": 805286308.0,
+          "paired_control_over_candidate": [
+            1.0000000012417944,
+            1.0000000223522987,
+            1.0000000012417944
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "network.covered_body_bytes": {
+          "status": "comparable",
+          "control_median": 802350814.0,
+          "candidate_median": 802350813.0,
+          "paired_control_over_candidate": [
+            1.0000000012463377,
+            1.0,
+            1.0000000012463377
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.full": {
+          "status": "comparable",
+          "control_median": 181.938089959,
+          "candidate_median": 181.931515625,
+          "paired_control_over_candidate": [
+            1.0044737189218742,
+            1.000036136311938,
+            0.9996218715918666
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.preparation": {
+          "status": "comparable",
+          "control_median": 69.74624125,
+          "candidate_median": 69.78421425,
+          "paired_control_over_candidate": [
+            0.9983560139512001,
+            0.9994558511490296,
+            0.9999985410423324
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.ttft": {
+          "status": "comparable",
+          "control_median": 79.901893334,
+          "candidate_median": 79.855673167,
+          "paired_control_over_candidate": [
+            1.0100430018343376,
+            1.000499689657578,
+            0.9997325544804394
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.decode_tps": {
+          "status": "comparable",
+          "control_median": 3.680095921468873,
+          "candidate_median": 3.684450824259363,
+          "paired_control_over_candidate": [
+            0.9761052641799978,
+            0.9988180320492226,
+            1.0025613616067708
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.full": {
+          "status": "comparable",
+          "control_median": 11.326683458,
+          "candidate_median": 11.298215166,
+          "paired_control_over_candidate": [
+            1.0209345308550837,
+            1.0025735682498913,
+            0.9994028469998885
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.preparation": {
+          "status": "comparable",
+          "control_median": 6.116138834,
+          "candidate_median": 6.098153041,
+          "paired_control_over_candidate": [
+            1.0293037811873995,
+            0.9991875615507368,
+            1.002060477111356
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.ttft": {
+          "status": "comparable",
+          "control_median": 2.693650208,
+          "candidate_median": 2.678146125,
+          "paired_control_over_candidate": [
+            1.0081806897411654,
+            1.0057891101815815,
+            1.0002235302848677
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.decode_tps": {
+          "status": "comparable",
+          "control_median": 3.698596036509881,
+          "candidate_median": 3.7104427039761307,
+          "paired_control_over_candidate": [
+            0.9835588231809057,
+            0.9895547463231731,
+            1.0113052410431895
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        }
+      }
+    },
+    {
+      "recipe": "288/digit8",
+      "metrics": {
+        "client.peak_rss": {
+          "status": "comparable",
+          "control_median": 266321920.0,
+          "candidate_median": 279445504.0,
+          "paired_control_over_candidate": [
+            0.9419911914696337,
+            0.9541510318949343,
+            0.9396024918421834
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "client.cold_cpu": {
+          "status": "comparable",
+          "control_median": 26.35421,
+          "candidate_median": 26.389825,
+          "paired_control_over_candidate": [
+            1.0004294458186063,
+            0.9975001378676974,
+            0.9969202247141196
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "preparation.cold_cpu": {
+          "status": "comparable",
+          "control_median": 13.154752768,
+          "candidate_median": 13.140445184,
+          "paired_control_over_candidate": [
+            0.9959159198729486,
+            1.0005190620125328,
+            1.001088820340533
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "preparation.peak_rss": {
+          "status": "comparable",
+          "control_median": 259489792.0,
+          "candidate_median": 260128768.0,
+          "paired_control_over_candidate": [
+            0.9925678654657681,
+            0.9963512833417212,
+            1.0005038735277445
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "response.ttft": {
+          "status": "comparable",
+          "control_median": 39.493248208500006,
+          "candidate_median": 39.508105833,
+          "paired_control_over_candidate": [
+            1.0001544050485685,
+            0.9995575906259005,
+            0.9996429345191937
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "response.decode_tps": {
+          "status": "comparable",
+          "control_median": 3.700174548620798,
+          "candidate_median": 3.7055706880755332,
+          "paired_control_over_candidate": [
+            0.9889365564871185,
+            1.0011744795508462,
+            1.0000085786203399
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "network.base_body_bytes_per_request": {
+          "status": "unranked",
+          "reason": "measurement_contract_differs"
+        },
+        "network.output_dependent_body_bytes_per_generated_token": {
+          "status": "unranked",
+          "reason": "measurement_contract_differs"
+        },
+        "network.all_link_stream_bytes": {
+          "status": "comparable",
+          "control_median": 805286176.0,
+          "candidate_median": 805286177.0,
+          "paired_control_over_candidate": [
+            1.0000000471881956,
+            0.9999999751641092,
+            0.9999999776476978
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "network.covered_body_bytes": {
+          "status": "comparable",
+          "control_median": 802350716.0,
+          "candidate_median": 802350716.0,
+          "paired_control_over_candidate": [
+            1.0000000024926756,
+            0.9999999975073245,
+            1.0
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.full": {
+          "status": "comparable",
+          "control_median": 171.512963792,
+          "candidate_median": 171.575140667,
+          "paired_control_over_candidate": [
+            1.0033679150775756,
+            1.0000315175672363,
+            0.9988431310140363
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.preparation": {
+          "status": "comparable",
+          "control_median": 62.742324292,
+          "candidate_median": 62.860507625,
+          "paired_control_over_candidate": [
+            1.0091519375103237,
+            1.0010453741297325,
+            0.9971176258855419
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.ttft": {
+          "status": "comparable",
+          "control_median": 76.473012542,
+          "candidate_median": 76.500891958,
+          "paired_control_over_candidate": [
+            1.000052790247233,
+            0.9992939527649404,
+            0.9998357069983301
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.decode_tps": {
+          "status": "comparable",
+          "control_median": 3.6899159792742395,
+          "candidate_median": 3.684375514590478,
+          "paired_control_over_candidate": [
+            0.9993992163436615,
+            1.0000723929887283,
+            1.006117350226707
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.full": {
+          "status": "comparable",
+          "control_median": 11.057500541,
+          "candidate_median": 10.999866083,
+          "paired_control_over_candidate": [
+            1.016315266899236,
+            1.0102968075992955,
+            0.9926287221628253
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.preparation": {
+          "status": "comparable",
+          "control_median": 6.004229542,
+          "candidate_median": 5.957591834,
+          "paired_control_over_candidate": [
+            1.021493227056817,
+            1.014049369725657,
+            0.9876790327665633
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.ttft": {
+          "status": "comparable",
+          "control_median": 2.513483875,
+          "candidate_median": 2.515319708,
+          "paired_control_over_candidate": [
+            1.0032449159341617,
+            1.0076458399815267,
+            0.9938081828100702
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.decode_tps": {
+          "status": "comparable",
+          "control_median": 3.7104331179673564,
+          "candidate_median": 3.726765861560589,
+          "paired_control_over_candidate": [
+            0.978592904853261,
+            1.0022728835831551,
+            0.9939931186059807
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        }
+      }
+    },
+    {
+      "recipe": "288/both-placement",
+      "metrics": {
+        "client.peak_rss": {
+          "status": "comparable",
+          "control_median": 235732992.0,
+          "candidate_median": 233226240.0,
+          "paired_control_over_candidate": [
+            1.0107481559536353,
+            0.991168617785993,
+            1.0079138742335663
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "client.cold_cpu": {
+          "status": "comparable",
+          "control_median": 27.189904,
+          "candidate_median": 27.179265,
+          "paired_control_over_candidate": [
+            1.0009650382551118,
+            0.9976086307838281,
+            0.9994693381149196
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "preparation.cold_cpu": {
+          "status": "comparable",
+          "control_median": 12.300456576,
+          "candidate_median": 12.327444992,
+          "paired_control_over_candidate": [
+            0.9889814734164475,
+            0.9990763815204701,
+            0.9995481105090472
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "preparation.peak_rss": {
+          "status": "comparable",
+          "control_median": 259309568.0,
+          "candidate_median": 259522560.0,
+          "paired_control_over_candidate": [
+            0.9836372720459655,
+            1.0040567951318458,
+            0.999179292929293
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "response.ttft": {
+          "status": "comparable",
+          "control_median": 37.984992104,
+          "candidate_median": 37.9661399995,
+          "paired_control_over_candidate": [
+            0.9998483040945659,
+            1.0008771302666122,
+            1.000431915260664
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "response.decode_tps": {
+          "status": "comparable",
+          "control_median": 4.287212073822808,
+          "candidate_median": 4.276507909223381,
+          "paired_control_over_candidate": [
+            1.0075078936268769,
+            1.0019771096720986,
+            1.0025030152700853
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "network.base_body_bytes_per_request": {
+          "status": "unranked",
+          "reason": "measurement_contract_differs"
+        },
+        "network.output_dependent_body_bytes_per_generated_token": {
+          "status": "unranked",
+          "reason": "measurement_contract_differs"
+        },
+        "network.all_link_stream_bytes": {
+          "status": "comparable",
+          "control_median": 738802713.0,
+          "candidate_median": 738802713.0,
+          "paired_control_over_candidate": [
+            1.0,
+            1.0000000013535413,
+            0.9999999769897981
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "network.covered_body_bytes": {
+          "status": "comparable",
+          "control_median": 736652403.0,
+          "candidate_median": 736652403.0,
+          "paired_control_over_candidate": [
+            1.0,
+            1.0000000013574923,
+            1.0000000013574923
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.full": {
+          "status": "comparable",
+          "control_median": 168.100158334,
+          "candidate_median": 168.172798334,
+          "paired_control_over_candidate": [
+            0.9993058756519698,
+            0.9970108967346285,
+            1.0036922123763714
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.preparation": {
+          "status": "comparable",
+          "control_median": 55.110686083,
+          "candidate_median": 55.145436625,
+          "paired_control_over_candidate": [
+            0.9975444371957586,
+            0.9915697707174587,
+            1.011688179599144
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.ttft": {
+          "status": "comparable",
+          "control_median": 73.29749375,
+          "candidate_median": 73.258628208,
+          "paired_control_over_candidate": [
+            0.9999064033505313,
+            1.0007774755464747,
+            1.0004385173592618
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.0.decode_tps": {
+          "status": "comparable",
+          "control_median": 4.279314310038117,
+          "candidate_median": 4.267597246729154,
+          "paired_control_over_candidate": [
+            1.0033543617093035,
+            1.0003045009376141,
+            1.0027455878874099
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.full": {
+          "status": "comparable",
+          "control_median": 10.858152625,
+          "candidate_median": 10.886637,
+          "paired_control_over_candidate": [
+            0.9971670085077696,
+            1.0025483733561174,
+            1.0029594413280059
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.preparation": {
+          "status": "comparable",
+          "control_median": 5.912210958,
+          "candidate_median": 5.909073209,
+          "paired_control_over_candidate": [
+            1.0005310052674963,
+            1.0038175346365827,
+            1.0061837930533755
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.ttft": {
+          "status": "comparable",
+          "control_median": 2.6832975,
+          "candidate_median": 2.6771555,
+          "paired_control_over_candidate": [
+            0.9982574631918093,
+            1.0036076908116716,
+            1.0002523172896824
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        },
+        "request.1.decode_tps": {
+          "status": "comparable",
+          "control_median": 4.295109837607499,
+          "candidate_median": 4.285418571717607,
+          "paired_control_over_candidate": [
+            1.0116815740089482,
+            1.0036424624817617,
+            1.0022614514143031
+          ],
+          "process_pairs": 3,
+          "scope": "target-local",
+          "confirmation": "separate finalist cohort required"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Matched screening cohort; independent finalist confirmation remains required.",
+    "Full-logit/active-KV audit CPU and memory are charged identically to both arms.",
+    "Observed tier eligibility is not conservative runtime admission or device memory.",
+    "Cold/repeat timings and process-lifetime RSS have different windows.",
+    "Variable lifecycle-control metadata stays charged; non-control bodies must match exactly.",
+    "TCP streams exclude physical wire, checkpoint and pre-positioned tokenizer distribution."
+  ]
+}

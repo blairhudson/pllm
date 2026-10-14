@@ -28,6 +28,8 @@ mod stage_kernel_plan;
 pub use stage_kernel_plan::stage_kernel_plan;
 mod mlp_tiling;
 pub use mlp_tiling::mlp_tiling_bytes;
+mod attention_tiling;
+pub use attention_tiling::attention_tiling_bytes;
 mod retained_decoder;
 pub use decoder_continuation::{
     admit_decoder_continuation, decoder_continuation_bytes, lower_decoder_continuation,

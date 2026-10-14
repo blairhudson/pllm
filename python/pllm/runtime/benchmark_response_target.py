@@ -180,6 +180,9 @@ def execute_response(p, m):
     wan = None if p["wan"] is None else WanConditions.from_spec(p["wan"])
     admission = benchmark_memory(experiment, backend=p["backend"], enforced_wan=wan is not None,
                                  memory_budget_bytes=m.sampling.memory_bytes)
+    if p.get("client_attention") is not None:
+        from .benchmark_client_attention import attention_memory_admission
+        admission = attention_memory_admission(admission, m.sampling.memory_bytes, enforced_wan=wan is not None)
     m.details["topology_admission"] = admission
     if not admission["admitted"]:
         raise TargetUnavailable("topology_memory_limit", status="blocked")
@@ -207,6 +210,10 @@ def execute_response(p, m):
     if metadata:
         from .benchmark_client_metadata import client_metadata_attribution
         stage_scope = client_metadata_attribution()
+    attention = p.get("client_attention")
+    if attention is not None:
+        from .benchmark_client_attention import client_attention_execution
+        stage_scope = client_attention_execution(attention, m.salt)
     with stage_scope as stage_records:
         report, = m.run(execute)
     if selected is not None:
@@ -224,6 +231,13 @@ def execute_response(p, m):
             raise TargetUnavailable("client_metadata_attribution_missing", status="failed")
         m.details["client_metadata"] = {"phases": stage_records,
             "scope": "python_traced_construction_and_unique_public_metadata", "pipeline_component": False}
+    if attention is not None:
+        if (not stage_records or not any(row["prefill_calls"] for row in stage_records)
+                or any(row["failed"] or not row["phases"] for row in stage_records)
+                or attention["enabled"] and not any(row["tiles"] for row in stage_records)):
+            raise TargetUnavailable("research_attention_not_executed", status="failed")
+        m.details["client_attention_research"] = {"selection": attention, "bindings": stage_records,
+            "scope": "compiler_bound_initial_attention_in_complete_sdk", "pipeline_component": False}
     if (report.get("checks", {}).get("passed") is not True or len(report["runs"]) != scenario.count
             or any(r["status"] != "completed" or r["tokens"].get("authoritative") is not True for r in report["runs"])):
         raise TargetUnavailable("response_checks_failed", status="failed")
@@ -261,6 +275,16 @@ def execute_response(p, m):
     m.fixture = {"kind": "generated_checkpoint" if experiment.pipeline.model.kind == "tiny" else "checkpoint",
         "digest": config["source_lock_digest"], "metadata": {"cached_checkpoint": True, "owned_client_cache": "fresh"}}
     m.oracle = {"kind": "ordinary_role_runtime_checks", "outcome": "passed", "checked_values": sum(r["tokens"]["output_tokens"] for r in runs)}
+    if attention is not None:
+        phases = [row["phases"] for row in stage_records]
+        m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
+            "research": "client_attention_tiling_v1", "state_audit": "all_executed_logits_and_active_kv_v1"})
+        m.comparison["output_digest"] = digest({"output": m.comparison["output_digest"], "phases": phases})
+        m.oracle = {"kind": "salted_full_logit_kv_commitments", "outcome": "passed",
+            "checked_values": sum(phase["checked_values"] for group in phases for phase in group)}
+        m.limitations += ["Internal initial-prefill attention region, not a selectable Pipeline component.",
+            "Both arms pay for bounded full-logit/active-KV hashing; equality requires a matched control.",
+            "Full-stage topology admission remains conservative; decode and cache continuation use their original schedules."]
     m.details.update(model={"id": expected_model_id(experiment.pipeline.model), "checkpoint_digest": None,
                            "source_lock_digest": config["source_lock_digest"]},
         component_ids=sorted(c.component for c in experiment.pipeline.components.values()), report=report)

@@ -344,7 +344,7 @@ class BenchmarkTarget:
 
     @classmethod
     def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None,
-                 client_mlp=None, client_metadata=False, concurrent_requests=1):
+                 client_mlp=None, client_metadata=False, concurrent_requests=1, client_attention=None):
         if scenario is None:
             scenario = Scenario.cold()
         if not isinstance(scenario, Scenario):
@@ -360,6 +360,8 @@ class BenchmarkTarget:
             parameters["client_stage"] = dict(client_stage)
         if client_mlp is not None:
             parameters["client_mlp"] = dict(client_mlp)
+        if client_attention is not None:
+            parameters["client_attention"] = dict(client_attention)
         if type(client_metadata) is not bool:
             raise ValueError("client metadata attribution must be a boolean")
         if client_metadata:
@@ -393,6 +395,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"steps", "page_rows"}
     if kind == "response" and "client_mlp" in p:
         fields[kind] = fields[kind] | {"client_mlp"}
+    if kind == "response" and "client_attention" in p:
+        fields[kind] = fields[kind] | {"client_attention"}
     if kind == "response" and "client_metadata" in p:
         fields[kind] = fields[kind] | {"client_metadata"}
     if kind == "response" and "concurrent_requests" in p:
@@ -478,7 +482,7 @@ def _validate_target(document):
             bounded_int(p["concurrent_requests"], 2, 8, "concurrent requests")
             if (p["scenario"]["kind"] != "cold" or p["backend"] != "native"
                     or p["wan"] is not None
-                    or any(key in p for key in ("client_stage", "client_mlp", "client_metadata"))):
+                    or any(key in p for key in ("client_stage", "client_mlp", "client_metadata", "client_attention"))):
                 raise ValueError("concurrent responses require a cold native scenario without adapters or WAN")
         if "client_metadata" in p:
             if (p["client_metadata"] is not True or p["backend"] != "native"
@@ -491,6 +495,15 @@ def _validate_target(document):
             bounded_int(selected["tile_rows"], 0, 256, "MLP tile rows")
             if p["backend"] != "native" or "client_stage" in p:
                 raise ValueError("research MLP tiling requires separate native response cases")
+        if "client_attention" in p:
+            selected = p["client_attention"]
+            if (not isinstance(selected, dict) or set(selected) != {"enabled", "query_rows", "kv_heads"}
+                    or type(selected["enabled"]) is not bool):
+                raise ValueError("invalid research attention tiling selection")
+            bounded_int(selected["query_rows"], 1, 256, "attention query rows")
+            bounded_int(selected["kv_heads"], 1, 64, "attention KV heads")
+            if p["backend"] != "native" or any(key in p for key in ("client_stage", "client_mlp", "client_metadata")):
+                raise ValueError("research attention tiling requires separate native response cases")
         choice(p["backend"], {"native", "docker", "auto"}, "serving backend")
         if p["wan"] is not None:
             from pllm.deployment import WanConditions

@@ -136,6 +136,25 @@ storage regresses after coefficient costs, and head certificates cannot replace
 complete-logit contracts. These research references establish neither serving
 SOTA nor Low/Medium client qualification. Evidence and next gates:
 `docs/research/orthogonal-frontier-reference.md`.
+An internal compiler-bound initial-attention region additionally tiles public query
+rows and KV-head groups through the original score, scale, mask, softmax and value
+operators. Exclusive consumers and source/schedule/numeric commitments precede
+execution. Borrowed operand strides, complete key capacity and query-relative
+reduction domains remain exact; complete outputs and ordinary full KV stay live.
+Generated Qwen2/Qwen3/Llama logits, active KV, restoration, prepared-role children
+and gateway controls pass, including MLP tiling and failure retirement. A fixed
+response benchmark selector charges full-logit/KV audits equally to both arms
+under conservative full-stage admission. This remains an internal research
+executor. Eighteen fresh pinned Qwen2.5 288+8 clients preserve 524,973,312 checked
+logit/KV values with zero observed swap growth. Attention tiling lowers median
+client RSS 2.41% atop MLP tiling and 1.06% with combined placement, but digit8 alone
+regresses 4.93% and exceeds the observed Low threshold. Timing and traffic remain
+nearly unchanged; 150-token digit8/placement measurements are host-admission
+blocked. A separate six-client 150+8 MLP-tiling pair preserves 98,682,624 checked
+values with zero observed swap growth. Median client RSS falls 0.75%, but two
+paired samples regress and the largest peak rises; cold latency is effectively
+unchanged. No Low/Medium SOTA or universal memory improvement follows; independent
+confirmation remains open. Contract: `docs/research/attention-tiling-reference.md`.
 The separate response-target metadata selector attributes Python-traced compiler,
 preparation-demand and runtime-binding construction allocations. Unique public
 metadata counts exclude tensors; phase peaks include their own temporaries.

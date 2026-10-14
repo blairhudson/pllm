@@ -9,6 +9,7 @@
     "pllm.runtime.native.CompiledMatrix": ["sdk/native-stage"],
     "pllm.runtime.paged.PagedGEMM": ["sdk/paged-artifact"],
     "pllm.modeling.lower_model": ["sdk/geometry"],
+    "pllm._benchmark_contract.BenchmarkTarget": ["sdk/benchmark-target", "research/attention-tiling"],
     "pllm.metrics.benchmark_runner.benchmark_suite": ["sdk/benchmark-target"],
     "pllm.metrics.benchmark_runner.benchmark_target": ["sdk/benchmark-target"]
   },
@@ -23,6 +24,8 @@
     {"name":"sdk/paged-artifact","component":null,"parameters":{},"present":[],"target":{"kind":"artifacts","parameters":{"storage":"paged"}},"disposition":"required","reason":null},
     {"name":"sdk/geometry","component":null,"parameters":{},"present":[],"target":{"kind":"geometry"},"disposition":"required","reason":null},
     {"name":"sdk/benchmark-target","component":null,"parameters":{},"present":[],"target":{"schema":"pllm.benchmark_target.v1"},"disposition":"required","reason":null},
+    {"name":"research/attention-tiling","component":null,"parameters":{},"present":[],"target":{"kind":"response","parameters":{"client_attention":{"enabled":true}}},"disposition":"required","reason":null},
+    {"name":"interaction/attention-mlp-tiling","component":null,"parameters":{},"present":[],"target":{"kind":"response","parameters":{"client_attention":{"enabled":true},"model":{"experiment":{"pipeline":{"components":{"scheduler":{"component":"pllm/mlp-prefill-tiling/v1"}}}}}}},"disposition":"required","reason":null},
     {"name":"interaction/tile32-digit8-placement","component":null,"parameters":{},"present":[],"target":{"kind":"response","parameters":{"model":{"experiment":{"pipeline":{"components":{"scheduler":{"component":"pllm/mlp-prefill-tiling/v1","params":{"tile_rows":32}},"preparation":{"component":"pllm/model-aware-corrections","params":{"kernel":"digit8"}},"placement":{"component":"pllm/client-owned-linear-roles/v1"}}}}}}},"disposition":"required","reason":null},
     {"name":"interaction/tile16-digit8-placement","component":null,"parameters":{},"present":[],"target":{"kind":"response","parameters":{"model":{"experiment":{"pipeline":{"components":{"scheduler":{"component":"pllm/mlp-prefill-tiling/v1","params":{"tile_rows":16}},"preparation":{"component":"pllm/model-aware-corrections","params":{"kernel":"digit8"}},"placement":{"component":"pllm/client-owned-linear-roles/v1"}}}}}}},"disposition":"required","reason":null},
     {"name":"interaction/growing-epochs-mlp-tiling","component":null,"parameters":{},"present":[],"target":{},"disposition":"unsupported","reason":"Current native epoch continuation rejects MlpPrefillTiling; composition requires implementation before a serving benchmark."},

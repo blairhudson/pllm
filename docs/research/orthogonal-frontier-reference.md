@@ -42,6 +42,22 @@ Parent validation passes **169 focused tests**, Ruff, and the 435-page docs-cont
 check. The synthetic head evidence replays exactly. Source/build identity and
 evidence checks preserve historical measurements; no SDK component is promoted.
 
+The subsequent [compiler-bound attention region](attention-tiling-reference.md)
+now passes generated complete-logit/KV, restored-continuation, prepared-child and
+gateway checks, with explicit failure retirement. Its fixed complete-response
+benchmark selector charges state auditing in both arms. Eighteen fresh pinned
+Qwen2.5 288+8 clients preserve 524,973,312 checked logit/KV values with zero
+observed swap growth. Attention tiling lowers median client RSS 2.41% atop MLP
+tiling and 1.06% atop the combined-placement stack, but digit8 alone regresses
+4.93% and exceeds the observed Low threshold. Timing and traffic are nearly
+unchanged; 150-token digit8/placement comparisons remain host-admission blocked.
+The separate six-client 150+8 integer-Preparation/MLP-tiling pair preserves
+98,682,624 checked values with zero observed swap growth. Median client RSS falls
+0.75%, but two paired samples regress and the largest peak rises; cold latency
+is effectively unchanged. The two workload cohorts are not pooled.
+The original isolated screen retains its scope, and independent confirmation
+remains required. No Low/Medium SOTA improvement is established.
+
 ## Common comparison contract
 
 The whole-client maxima are **268,435,456 bytes (Low)** and

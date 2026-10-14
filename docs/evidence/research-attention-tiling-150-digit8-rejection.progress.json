@@ -1,0 +1,5 @@
+{
+  "schema": "pllm.attention_tiling_progress.v1",
+  "status": "rejected",
+  "failure_code": "attention_overlap_memory_limit"
+}

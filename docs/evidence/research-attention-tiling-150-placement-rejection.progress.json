@@ -1,0 +1,5 @@
+{
+  "schema": "pllm.attention_tiling_progress.v1",
+  "status": "rejected",
+  "failure_code": "topology_memory_limit"
+}

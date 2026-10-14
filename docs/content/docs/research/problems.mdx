@@ -225,15 +225,18 @@ to its own matched workload; their percentage improvements cannot be multiplied.
 | [Two identical pending prompts, Qwen2.5](https://github.com/blairhudson/pllm/blob/main/docs/research/epoch-prefix-sdk-reference.md#completed-real-checkpoint-confirmation) | Sharing reduces TCP traffic 30.15% and complete-cell time 23.98% | Client peak RSS rises 7.81%; unrelated prompts save no material. |
 | [Growing `(4, 60)` epochs, Qwen2.5](https://github.com/blairhudson/pllm/blob/main/docs/research/decode-frontier-sdk-results.md) | At three outputs against allowance 64, TCP traffic falls 19.81% and request time 34.36% | At full 64-output use, traffic is nearly unchanged and charged decode throughput falls 37.25%; largest growing-policy client peak is 140.86 MiB. |
 | [Exact decode cache, Qwen2.5 three requests](https://github.com/blairhudson/pllm/blob/main/docs/research/decode-frontier-sdk-results.md#exact-encrypted-decode-cache) | TCP traffic falls 10.96% with repeated seeds, 4.73% with distinct seeds; largest cache-client peak is 169.59 MiB | Client CPU rises 53.63% / 68.79% and complete-cell time 6.16% / 12.93% against ordinary inventory. |
+| [Attention lifetime tiling, Qwen2.5 288+8](https://github.com/blairhudson/pllm/blob/main/docs/research/attention-tiling-reference.md#completed-288-token-screen) | Median client RSS falls 2.41% atop MLP tiling, preserving complete checked logits/KV | Digit8 alone regresses 4.93% and exceeds the observed Low threshold; timing and traffic are nearly unchanged. |
+| [Attention lifetime tiling, Qwen2.5 150+8](https://github.com/blairhudson/pllm/blob/main/docs/research/attention-tiling-reference.md#completed-150-token-mlp-tiling-pair) | Complete checked logits/KV match; median client RSS falls 0.75% atop MLP tiling | Two paired samples regress and the largest peak rises; cold latency is effectively unchanged. |
 
 ## Turn an objective into an experiment
 
 The [five orthogonal resource screens](https://github.com/blairhudson/pllm/blob/main/docs/research/orthogonal-frontier-reference.md)
 apply this process to attention scratch, MLP scheduling, exact KV storage,
-Preparation kernels and local head search. Attention lifetime tiling survives its
-isolated exactness/memory gate; the other screens expose scheduling, provenance,
-sparse-tail and full-logit constraints. Whole-client Low/Medium qualification and
-matched serving improvements remain open.
+Preparation kernels and local head search. Attention lifetime tiling now has
+compiler-bound whole-client evidence: small recipe-dependent memory gains, and
+one Low-tier regression. The other screens expose scheduling, provenance,
+sparse-tail and full-logit constraints. Independent confirmation and a new
+Low/Medium SOTA result remain open.
 
 Start with a question such as: “Can smaller prefill tiles lower client peak RSS
 within an acceptable first-token delay?” Name the primary objective and the
