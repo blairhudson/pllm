@@ -39,16 +39,18 @@ experiment = "experiment.json"
 
 Provider credentials use the environment references in the network declaration.
 Ordinary calls own discovery, native selection, fresh admission, preparation and
-release:
+release. Call this helper after configuring and starting the network hosts:
 
 ```python
 from pllm import OpenAI
 
-with OpenAI() as client:
-    response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
-    print(response.output_text)
-    decision = client.planning(response.id)
-    assert decision.status == "feasible"
+
+def request_from_config() -> str:
+    with OpenAI() as client:
+        response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+        decision = client.planning(response.id)
+        assert decision.status == "feasible"
+        return response.output_text
 ```
 
 `AsyncOpenAI()` uses the same lifecycle. Closing a stream, cancelling an async
@@ -83,16 +85,20 @@ an OS-enforced peak-RSS guarantee.
 
 ### Maximum client RAM
 
-Choose an optional maximum without replacing the automatic scheduling policy:
+Choose an optional maximum without replacing the automatic scheduling policy.
+This helper uses the same configured, running hosts:
 
 ```python
 from pllm import OpenAI
 
-# Uses the network and Experiment configured above, even on a large machine.
-with OpenAI(max_client_memory="medium") as client:
-    response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
-    decision = client.planning(response.id)
-    assert decision.request.policy.client_peak_memory_limit_bytes == 2 << 30
+
+def request_with_medium_limit() -> str:
+    # Uses the network and Experiment configured above, even on a large machine.
+    with OpenAI(max_client_memory="medium") as client:
+        response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0)
+        decision = client.planning(response.id)
+        assert decision.request.policy.client_peak_memory_limit_bytes == 2 << 30
+        return response.output_text
 ```
 
 | `max_client_memory` | Maximum whole-client memory | Intended use |

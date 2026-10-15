@@ -198,19 +198,23 @@ retain cold costs, both controls, exact state checks and separate disk accountin
 
 ## Own a bounded conversation
 
-An Experiment with bounded `ClientPrefixReuse` can manage a single conversation:
+An Experiment with bounded `ClientPrefixReuse` can manage a single conversation.
+Pass an open, configured `OpenAI` client to this helper:
 
 ```python
-from pllm import Conversation
+from pllm import Conversation, OpenAI
 
-with client.conversation(max_state_bytes=32 << 20,
-                         max_output_tokens=8, temperature=0) as chat:
-    first = chat.send("Explain the first step.")
-    second = chat.send("Now expand that step.")
-    assert isinstance(chat, Conversation)
-    assert chat.response_id == second.id
-    assert chat.state_bytes <= chat.max_state_bytes
-    print(chat.state_bytes)
+
+def continue_conversation(client: OpenAI) -> str:
+    with client.conversation(max_state_bytes=32 << 20,
+                             max_output_tokens=8, temperature=0) as chat:
+        first = chat.send("Explain the first step.")
+        second = chat.send("Now expand that step.")
+        assert isinstance(chat, Conversation)
+        assert first.id != second.id
+        assert chat.response_id == second.id
+        assert chat.state_bytes <= chat.max_state_bytes
+        return second.output_text
 ```
 
 `chat.send` uses the existing exact response-owned continuation, including the
@@ -243,28 +247,33 @@ python examples/conversation.py --root .pllm/conversation-example
 
 Select `SymmetricPerRow(causal_reduction="prefix_f32")` and bounded
 `ClientPrefixReuse` for an ordinary full-KV conversation. A completed turn can
-be sealed into a new client-local directory:
+be sealed into a new client-local directory. This helper takes two open clients
+configured for the same Experiment/source, a new directory whose parent exists,
+and a caller-owned 32-byte key (for example, from `os.urandom(32)`):
 
 ```python
-import os
 from pathlib import Path
+from pllm import OpenAI
 from pllm.state import ConversationCheckpoint
 
-key = os.urandom(32)
-directory = Path("conversation-checkpoint")  # Parent must exist; directory must be new.
-with client.conversation(max_state_bytes=32 << 20) as chat:
-    first = chat.send("Explain the first step.")
-    head = chat.checkpoint(directory, key, page_rows=64)
-    assert isinstance(head, ConversationCheckpoint)
 
-# Retain the key and newest trusted head in caller-controlled private storage.
-head = ConversationCheckpoint.from_spec(head.to_spec())
-with fresh_client.conversation(max_state_bytes=32 << 20) as chat:
-    previous = chat.restore(directory, key, head)
-    assert previous.output_text == first.output_text
-    assert previous.id != first.id
-    response = chat.send("Now expand that step.")
-    assert chat.response_id == response.id
+def checkpoint_and_continue(
+    client: OpenAI, fresh_client: OpenAI, directory: Path, key: bytes,
+) -> tuple[ConversationCheckpoint, str]:
+    with client.conversation(max_state_bytes=32 << 20) as chat:
+        first = chat.send("Explain the first step.")
+        head = chat.checkpoint(directory, key, page_rows=64)
+        assert isinstance(head, ConversationCheckpoint)
+
+    # Retain the key and newest trusted head in caller-controlled private storage.
+    head = ConversationCheckpoint.from_spec(head.to_spec())
+    with fresh_client.conversation(max_state_bytes=32 << 20) as chat:
+        previous = chat.restore(directory, key, head)
+        assert previous.output_text == first.output_text
+        assert previous.id != first.id
+        response = chat.send("Now expand that step.")
+        assert chat.response_id == response.id
+        return head, response.output_text
 ```
 
 The snapshot authenticates executed history, pending selection, logits and every
