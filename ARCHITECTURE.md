@@ -243,6 +243,18 @@ CPU also rise. These Low/Medium-eligible cross-topology costs retain the additio
 boundary-worker trust contract, source-present scope and separate topology leaders.
 Historical child-only cohorts stay unqualified. Complete evidence and replay:
 `docs/research/private-boundary-tiers-reference.md`.
+A separate five-direction decode screen retains exact generated full-head
+contracts for parallel/striped delivery, random-share runahead, smaller residue
+replies, lookup/head scan fusion and a byte-dot API. Four fresh full-geometry TCP
+fixtures lower isolated head exchange from 293.23 to 148.52 ms with parallel
+replies; stripes reach 128.96 ms while increasing fixture CPU 44.20% against
+parallel. Six native workers observe 37.22% lower packing-inclusive byte-dot CPU,
+with different output-allocation contracts. Small test-only fusion lowers elapsed
+time about 18–19%; a public 25-bit codec saves 21.875% of head payload without a
+client weight scan. Equal-service runahead adds no ideal gain over parallel.
+All monitored jobs observe zero swap growth, but these separate generated
+references establish no complete SDK speedup, new SOTA or client-memory tier.
+Contracts, original reports and replay: `docs/research/private-boundary-decode-frontier.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

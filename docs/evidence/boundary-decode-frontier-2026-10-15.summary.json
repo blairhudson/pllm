@@ -1,0 +1,162 @@
+{
+  "archive_sha256": "3c86ff7feed5b60e27ad300cdbc403a241a166724e81b81e46416ed87b658075",
+  "byte_dot": {
+    "baseline": {
+      "cpu_seconds": {
+        "max": 0.006871000000000002,
+        "median": 0.006753499999999989,
+        "min": 0.006687499999999985
+      },
+      "elapsed_seconds": {
+        "max": 0.0068721875,
+        "median": 0.006755051999999999,
+        "min": 0.006695167
+      }
+    },
+    "candidate_including_packing": {
+      "cpu_seconds": {
+        "max": 0.004306500000000019,
+        "median": 0.0042397500000000005,
+        "min": 0.004168999999999978
+      },
+      "elapsed_seconds": {
+        "max": 0.0043107714999999994,
+        "median": 0.00424119825,
+        "min": 0.0041725
+      }
+    },
+    "cpu_reduction_percent": 37.221440734433884,
+    "scope": "API-level: preallocated candidate versus allocating wrap32; packing included"
+  },
+  "duplex": {
+    "parallel": {
+      "aggregate_fixture_cpu_seconds": {
+        "max": 0.07166900000000007,
+        "median": 0.06358225000000003,
+        "min": 0.05545949999999997
+      },
+      "application_stream_bytes": 1223276,
+      "wall_seconds": {
+        "max": 0.15278937527909875,
+        "median": 0.14851505192928016,
+        "min": 0.14430358307436109
+      }
+    },
+    "pipelined": {
+      "aggregate_fixture_cpu_seconds": {
+        "max": 0.1058375,
+        "median": 0.09659174999999999,
+        "min": 0.08629149999999997
+      },
+      "application_stream_bytes": 1229176,
+      "wall_seconds": {
+        "max": 0.13012620899826288,
+        "median": 0.1294247293844819,
+        "min": 0.1287533543072641
+      }
+    },
+    "serial": {
+      "aggregate_fixture_cpu_seconds": {
+        "max": 0.0740925,
+        "median": 0.07096425,
+        "min": 0.05805350000000006
+      },
+      "application_stream_bytes": 1223276,
+      "wall_seconds": {
+        "max": 0.29461975023150444,
+        "median": 0.2932326670270413,
+        "min": 0.2865227912552655
+      }
+    },
+    "striped": {
+      "aggregate_fixture_cpu_seconds": {
+        "max": 0.10867099999999996,
+        "median": 0.09168624999999997,
+        "min": 0.07803100000000004
+      },
+      "application_stream_bytes": 1229176,
+      "wall_seconds": {
+        "max": 0.13094579242169857,
+        "median": 0.12896077171899378,
+        "min": 0.12789764534682035
+      }
+    }
+  },
+  "duplex_aggregation": "four process medians, each containing four balanced repetitions",
+  "fusion": {
+    "1025": {
+      "elapsed_reduction_percent": 19.089242220135795,
+      "worker_aggregate_elapsed_ratios": {
+        "max": 0.8192888603108914,
+        "median": 0.8091075777986421,
+        "min": 0.8007766514712085
+      }
+    },
+    "4096": {
+      "elapsed_reduction_percent": 17.868640896678233,
+      "worker_aggregate_elapsed_ratios": {
+        "max": 0.8217757290720175,
+        "median": 0.8213135910332177,
+        "min": 0.8210358792840361
+      }
+    }
+  },
+  "fusion_aggregation": "three worker-level ratios of 32-repeat aggregate elapsed times per shape",
+  "maximum_observed_swap_growth_bytes": 0,
+  "runahead_equal_service_gain_ms": 0,
+  "schema": "pllm.research.boundary_decode_frontier.summary.v1",
+  "scope": "generated bounded operators; not SDK speed, privacy, quality or client-tier qualification",
+  "successful_monitored_jobs": 13,
+  "uniform_residues": {
+    "costs": {
+      "certificate_metadata_bytes_per_recipient": 989,
+      "client_expanded_native_width_array_bytes": 151936,
+      "client_frame_plus_slice_copy_peak_floor_bytes": 3722632,
+      "client_owned_arrays_with_f32_cast_and_two_multiply_outputs_bytes": 4938120,
+      "client_packed_plus_i64_plus_f32_array_floor_bytes": 2772832,
+      "client_public_verification_weight_and_scales_bytes": 0,
+      "client_retained_public_bounds_bytes_if_postchecking": 0,
+      "cold_certificate_layout_delivery_bytes": 2994,
+      "cold_delivery_break_even_calls_vs_headerless_raw": 1,
+      "delivery_recipients": [
+        "boundary_a",
+        "boundary_b",
+        "client"
+      ],
+      "head_calls": 8,
+      "header_bytes_per_party": 100,
+      "hidden": 896,
+      "http_tls_tcp_and_python_allocator_bytes": "not measured; not included",
+      "packed_bytes_per_party": 474800,
+      "packed_two_party_payload_bytes_per_call": 949600,
+      "per_worker_raw_u32_plus_packed_array_floor_bytes": 1082544,
+      "profile": "uniform-public-geometry-i8-v1",
+      "public_layout_bytes_per_recipient": 1,
+      "public_verification_bounds_and_widths_bytes": 151936,
+      "raw_payload_minus_new_frames_and_cold_delivery_bytes": 2122510,
+      "raw_u32_two_party_payload_bytes_per_call": 1215488,
+      "setup_length_prefix_bytes_per_recipient": 8,
+      "terminal_padding_bits_per_party": 0,
+      "two_party_framed_reply_bytes_per_call": 949800,
+      "unchanged_two_party_u32_request_payload_bytes_per_call": 7168,
+      "vocabulary": 151936
+    },
+    "cpu": {
+      "baseline_client_u32_center_process_cpu_ns_per_call": 280600,
+      "certificate_build_and_second_recomputation_process_cpu_ns": 8310092000,
+      "client_dequantize_process_cpu_ns_per_call": 61400,
+      "client_frame_validation_process_cpu_ns_per_call": 1248200,
+      "client_reconstruct_process_cpu_ns_per_call": 260900,
+      "client_reconstruct_with_public_bound_check_process_cpu_ns_per_call": 692500,
+      "repetitions": 10,
+      "uniform_certificate_build_and_source_free_verification_process_cpu_ns": 55000,
+      "uniform_client_frame_validation_process_cpu_ns_per_call": 1145700,
+      "uniform_client_reconstruct_checked_process_cpu_ns_per_call": 292100,
+      "uniform_worker_a_pack_process_cpu_ns_per_call": 277100,
+      "uniform_worker_b_pack_process_cpu_ns_per_call": 280400,
+      "worker_a_pack_process_cpu_ns_per_call": 416800,
+      "worker_b_pack_process_cpu_ns_per_call": 275600
+    }
+  },
+  "whole_client_memory_tier": null
+}

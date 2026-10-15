@@ -694,6 +694,10 @@ fn fill_bits(
     seed.zeroize();
 }
 #[cfg(test)]
+#[path = "boundary_scan_fusion_probe.rs"]
+mod boundary_scan_fusion_probe;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     #[test]
