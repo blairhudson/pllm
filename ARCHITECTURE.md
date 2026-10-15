@@ -2360,6 +2360,16 @@ Its priority axes are client RSS/CPU, Preparation CPU/RSS, time to first token,
 N−1 decode throughput, and all-link traffic, with their device, trust-control
 and access-link rationale visible beside the chart. Missing Preparation roles
 remain unknown rather than scoring as free work.
+The SOTA relationship matrix and scatter view additionally calculate raw Pearson
+and average-tie-rank Spearman associations within one checked cohort, topology
+and maximum-client-RSS filter. One existing configuration summary supplies one
+point; missing pairs and constant axes remain undefined. Five configurations is
+only a display floor, and leave-one-configuration-out ranges measure sensitivity,
+not confidence. Explicit cross-topology inspection exposes population-dependent
+reversals without pooling cohorts or asserting causal effects. The shared
+read-only analysis also retains complete-request latency and aggregate CPU;
+scope, current tier choices and replay are in
+`docs/research/metric-relationships-reference.md`.
 Generated research-data tables preserve every registered cohort and all exploratory
 trials with digest-checked Python configurations, without ranking across cohorts.
 A fresh-client 17-configuration Qwen2.5 150+8-token native 100/40 cohort matches

@@ -4,6 +4,8 @@ import { useId, useState } from 'react';
 import data from '@/data/research/scorecard.json';
 import { componentCombination, defaultResearchCohort, memoryBudgetRows, scopedMetric, sortMetricRows, sotaMetrics, sotaTable } from '@/lib/research-rankings.mjs';
 import { withBasePath } from '@/lib/paths.mjs';
+import { relationshipMetrics } from '@/lib/research-relationships.mjs';
+import { ResearchRelationships } from './research-relationships';
 import styles from './research-sota.module.css';
 
 type Cohort = typeof data.cohorts[number];
@@ -173,6 +175,8 @@ export function ResearchSotaTable({ cohort, memoryTier, onMemoryTierChange }: {
       ? `${measurement.cpu}. ${measurement.rss}. ${measurement.timing}. ${measurement.traffic}.`
       : 'Client CPU covers the cold lifecycle; Preparation RAM is a sampled peak; TTFT starts online; decode uses N−1 later outputs.'}
        Body-linear offload and public-prefix reuse are shown beside each combination. Metric columns retain their original summaries; RAM-budget eligibility uses the maximum peak shown beside each combination.</p>
+    <ResearchRelationships cohort={cohort} topology={topology} maxBytes={tier?.maxBytes ?? null}
+      metrics={relationshipMetrics.map((id) => scopedMetric(data.metrics.find((metric) => metric.id === id)!, measurement))} />
   </section>;
 }
 

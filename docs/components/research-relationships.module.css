@@ -1,0 +1,46 @@
+.relationships { --series-0: var(--accent); --series-1: #af6b2a; --series-2: #7970bb; --series-3: #b55467; --series-4: #4584ac; margin-block: 2.5rem; min-width: 0; font-size: .8rem; }
+.heading { display: flex; align-items: end; justify-content: space-between; gap: 1.5rem; }
+.heading h3 { margin: 0 0 .6rem; font-size: 1.25rem; font-weight: 550; }
+.heading p, .note { color: var(--muted); line-height: 1.65; }
+.heading p { margin: 0; max-width: 45rem; }
+.heading label { flex: 0 0 12rem; }
+.heading label, .plotControls label { display: grid; gap: .5rem; font-weight: 600; min-width: 0; }
+.relationships select { min-width: 0; width: 100%; font: inherit; font-weight: 400; padding: .7rem .6rem; border: 1px solid var(--line); border-radius: 4px; color: var(--text); background: var(--panel); }
+.toggle { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; }
+.matrixWrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; }
+.matrixWrap table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0; font-size: .73rem; }
+.matrixWrap caption { text-align: left; padding: .8rem; color: var(--muted); }
+.matrixWrap th, .matrixWrap td { border-top: 1px solid var(--line); padding: .6rem; text-align: left; }
+.matrixWrap th { font-weight: 550; }
+.matrixWrap th small { display: block; color: var(--muted); font-weight: 400; }
+.matrix th { min-width: 5rem; max-width: 8rem; }
+.matrix th:first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); min-width: 8rem; }
+.matrix td { padding: .15rem; text-align: center; }
+.matrix button { display: grid; width: 100%; min-height: 3.25rem; align-content: center; padding: .5rem; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font: inherit; color: var(--text); background: transparent; }
+.matrix button[data-sign="positive"] { background: color-mix(in srgb, var(--accent) var(--strength), transparent); }
+.matrix button[data-sign="negative"] { background: color-mix(in srgb, #b97232 var(--strength), transparent); }
+.matrix button[aria-pressed="true"] { border-color: var(--text); }
+.matrix button strong { font-family: var(--font-mono), monospace; font-weight: 500; }
+.matrix button small, .diagonal { color: var(--muted); }
+.relationships button:focus-visible, .relationships select:focus-visible, .relationships summary:focus-visible, .relationships input:focus-visible, .matrixWrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.plotControls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-block: 1.5rem 1rem; }
+.stats { display: grid; gap: .5rem; line-height: 1.6; }
+.stats span { color: var(--muted); }
+.plot { width: 100%; max-height: 30rem; display: block; overflow: visible; }
+.plot text { fill: var(--muted); font-size: 10px; }
+.axis { fill: none; stroke: var(--muted); }
+.grid { fill: none; stroke: var(--line); stroke-dasharray: 3 4; }
+.point circle { opacity: .8; stroke: var(--panel); stroke-width: 1.5; }
+.point:focus { outline: none; }
+.point:focus circle, .point:hover circle { stroke: var(--text); stroke-width: 3; opacity: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 1rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.legend i { width: .6rem; height: .6rem; border-radius: 50%; }
+.points { margin-block: 1rem; }
+.points summary { cursor: pointer; padding-block: .5rem; }
+@media (max-width: 760px) {
+  .heading { display: grid; }
+  .plotControls { grid-template-columns: 1fr; }
+  .plot text { font-size: 18px; }
+  :global(#nd-page) .matrixWrap table { display: table; width: 100% !important; min-width: 0 !important; max-width: none !important; overflow: visible; }
+}
