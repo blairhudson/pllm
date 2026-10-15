@@ -3,6 +3,69 @@
   "historical_factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
   "adapted_cohorts": [
     {
+      "id": "qwen25-private-boundary-decode-long-output-150-64",
+      "evidenceTier": "screen",
+      "title": "Boundary decode long-output screen · 150+64 · 3 clients/recipe",
+      "adapter": "private-boundary-decode-confirmation-v1",
+      "report": "docs/evidence/private-boundary-decode-confirmation-150x64.json",
+      "sha256": "5b890072a678acf41907eae2bf64af5ea6709c434932c7d17a2a96ba7641bef2",
+      "plan": "docs/evidence/private-boundary-decode-confirmation-150x64.plan.json",
+      "plan_sha256": "74a3d5e256169a7f8474a347a4e13f9832fa51799bf2aaef620024d80a7cb7bc",
+      "summary": "docs/evidence/private-boundary-decode-confirmation-150x64.summary.json",
+      "summary_sha256": "6938389d3d5798ac4758d5a3edbdd0caa46d0218b0221dab4979496452168cb3",
+      "replay_file": "scripts/benchmark_private_boundary_decode_confirmation.py",
+      "replay_sha256": "66635e50589731913260e2452b1071eb683c5892cf6304fe3e6b3b4ac402aa6a",
+      "frozen_factory": {
+        "file": "benchmarks/research/private_boundary_decode_confirmation.py",
+        "sha256": "92e7052e78f766e30ada8ef08be2f59a0ee9d4b96cbd8de7ca4974f085041536"
+      },
+      "scope": "Separate nine-client 150+64 long-output screen of the frozen maintained prepared, serial/u32 boundary and parallel/uniform-residue boundary finalists under shared native 100/40 caps. Every response reaches 64 outputs and 63 decode intervals; all 729,833,472 checked logit/KV values and complete state/output commitments agree with zero observed swap growth. Parallel/residue decode rises 52.89% versus serial/u32 and removes exactly 17,007,360 head-reply bytes. Against maintained prepared execution, TCP streams fall 9.71%, full request latency 15.14% and startup-through-cleanup time 11.06%, while decode remains 32.14% slower and online first text is 8.20% later. Largest candidate complete-worker peak is 230.56 MiB, within observed Low and Medium ceilings. All owners and costs retain the original SDK benchmark windows. This first longer-workload screen does not borrow confirmation status or observations from 150+8 or 150+32. Source/tokenizer delivery, physical wire and Internet RTT remain excluded; additional boundary workers retain their distinct trust/topology contract. Full costs and replay: docs/research/private-boundary-decode-followup.md."
+    },
+    {
+      "id": "qwen25-private-boundary-decode-long-output-150-32",
+      "evidenceTier": "screen",
+      "title": "Boundary decode long-output screen · 150+32 · 3 clients/recipe",
+      "adapter": "private-boundary-decode-confirmation-v1",
+      "report": "docs/evidence/private-boundary-decode-confirmation-150x32.json",
+      "sha256": "552f552ca376c85f0135558a83c7ab0d300dad874aedd9c57eb01cb57e9cc1d6",
+      "plan": "docs/evidence/private-boundary-decode-confirmation-150x32.plan.json",
+      "plan_sha256": "945140ac60e26d8ad52bbfd732cea7787d075196af72a4846716d6ca12044818",
+      "summary": "docs/evidence/private-boundary-decode-confirmation-150x32.summary.json",
+      "summary_sha256": "c34aaa0727a6417cc3c75d96e6a90ded0e48e42aee0444adebc6a8db27e80212",
+      "replay_file": "scripts/benchmark_private_boundary_decode_confirmation.py",
+      "replay_sha256": "66635e50589731913260e2452b1071eb683c5892cf6304fe3e6b3b4ac402aa6a",
+      "frozen_factory": {
+        "file": "benchmarks/research/private_boundary_decode_confirmation.py",
+        "sha256": "92e7052e78f766e30ada8ef08be2f59a0ee9d4b96cbd8de7ca4974f085041536"
+      },
+      "scope": "Separate nine-client 150+32 long-output screen of the frozen maintained prepared, serial/u32 boundary and parallel/uniform-residue boundary finalists under shared native 100/40 caps. Every response reaches 32 outputs and 31 decode intervals; all 336,605,184 checked logit/KV values and complete state/output commitments agree with zero observed swap growth. Parallel/residue decode rises 53.79% versus serial/u32 and removes exactly 8,503,680 head-reply bytes. Against maintained prepared execution, TCP streams fall 16.84%, full request latency 20.83% and startup-through-cleanup time 15.51%, while decode remains 32.77% slower and online first text is 6.96% later. Largest candidate complete-worker peak is 230.69 MiB, within observed Low and Medium ceilings. All owners and costs retain the original SDK benchmark windows. This first longer-workload screen does not borrow confirmation status or observations from 150+8. Source/tokenizer delivery, physical wire and Internet RTT remain excluded; additional boundary workers retain their distinct trust/topology contract. Full costs and replay: docs/research/private-boundary-decode-followup.md."
+    },
+    {
+      "id": "qwen25-private-boundary-decode-confirmation-150-8",
+      "evidenceTier": "confirmation",
+      "title": "Independent boundary decode confirmation · 150+8 · 3 clients/recipe",
+      "adapter": "private-boundary-decode-confirmation-v1",
+      "report": "docs/evidence/private-boundary-decode-confirmation-150x8.json",
+      "sha256": "333b652c4f09aff213012ecff083f40471c8f6a2418ab053eb29fb968d724c34",
+      "plan": "docs/evidence/private-boundary-decode-confirmation-150x8.plan.json",
+      "plan_sha256": "b938b213f2673d6fb27b553d846ff162637b6d2a2c0fd4b1ca61f29480749b7b",
+      "summary": "docs/evidence/private-boundary-decode-confirmation-150x8.summary.json",
+      "summary_sha256": "be59ead505959085152b1401ca7fb413b05760d128dd3967b4963421afccd975",
+      "replay_file": "scripts/benchmark_private_boundary_decode_confirmation.py",
+      "replay_sha256": "66635e50589731913260e2452b1071eb683c5892cf6304fe3e6b3b4ac402aa6a",
+      "frozen_factory": {
+        "file": "docs/evidence/private-boundary-confirmation-initial-auditor.py",
+        "sha256": "2720640b8928f044cc65b6f2b361b5d88882202a323de4fe34a28f2fd007772c"
+      },
+      "source_snapshots": {
+        "benchmarks/research/private_boundary_decode_confirmation.py": {
+          "file": "docs/evidence/private-boundary-confirmation-initial-auditor.py",
+          "sha256": "2720640b8928f044cc65b6f2b361b5d88882202a323de4fe34a28f2fd007772c"
+        }
+      },
+      "scope": "Independent nine-client confirmation of maintained prepared, serial/u32 boundary and parallel/uniform-residue boundary execution at 150+8 tokens, three balanced replicates per recipe under shared native 100/40 caps. All 78,842,880 checked logit/KV values and complete state/output commitments agree with zero observed swap growth. Parallel/residue decode rises 52.87% versus serial/u32, with 2.13 MB fewer TCP-stream bytes and 1.48% lower request latency; client CPU is nearly unchanged and median RSS rises 2.61%. Largest candidate complete-worker peak is 224.13 MiB, within observed Low and Medium ceilings. Against maintained prepared execution, traffic falls 23.70% and request latency 24.18%, while decode remains 32.68% slower and online first-text delay rises 8.00%. SDK, supervisor, dashboard, relay and audit share the measured worker. Original sources and evidence are preserved; stronger read-only metric/build audits reproduce the original summary. The swap-rejected attempt and original screen supply no observations. Source/tokenizer delivery, physical wire and Internet RTT remain excluded; the additional boundary workers retain their distinct trust/topology contract. This confirms the selected finalists, not seven earlier incumbents or unmeasured longer outputs. Full costs and replay: docs/research/private-boundary-decode-followup.md."
+    },
+    {
       "id": "qwen25-maintained-digit8-confirm",
       "evidenceTier": "confirmation",
       "title": "Maintained digit8 confirmation · native 100/40",
@@ -167,6 +230,8 @@
     {"title": "Public-prefix search", "file": "docs/evidence/research-search-public-prefix-qwen25-v2.json", "sha256": "67c98ac2d89dea093da5b9c14dff209248336b3f5fa6eee71d24991e290f0aaf"}
   ],
   "historical_exclusions": [
+    {"report": "docs/evidence/private-boundary-profile/150x8.json", "sha256": "759833a9d6bdf037d8b9f099550e892836fe961ca8dca5077ecdfc07d6ea5c73", "reason": "Separate 18-client instrumented timing-attribution cohort with matching full-state commitments and zero swap growth. Exclusive elapsed bins and paired probe/control noise are research evidence; they do not revise ordinary serving rankings or supply an overhead-corrected latency measurement."},
+    {"report": "docs/evidence/rejected/private-boundary-decode-confirmation-swap-rejected.json", "sha256": "6a32a8250891272161e0f94c6e2ebba930d55a39dbb16273266cbd612b973f65", "reason": "All 15 independent decode-confirmation clients completed, but one serial/residue client observed 80,084,992 bytes of host swap growth. The unchanged zero-growth audit rejects the complete cohort; no samples qualify for confirmation or fill later independently salted cohorts."},
     {"report": "docs/evidence/private-boundary-tiers-qwen25-preflight-rejected.plan.json", "sha256": "99d6b088a283008348af259ef6f0ad7126180c5eb4616f2c448f19beede3d644", "reason": "Five-role host-memory preflight rejected before any client measurements. Same guards retained for the separate successful 24-client rerun; this plan supplies no performance samples."},
     {"report": "docs/evidence/private-boundary-qwen-150-incomplete.json", "sha256": "5569476af7c68b3fe46d1e0f3dd6952dc5675d6dce43379e6f322994d51faa63", "reason": "Incomplete paired cohort after host-memory admission changed. Saved control does not fill any replicate in the independently salted complete 150+8 cohort."},
     {"report": "docs/evidence/private-boundary-qwen-150-initial-blocked.json", "sha256": "2985c7282e4ef01220e05fa770e7f50d5c3babbf0ee92a96ff298e67bc002e3b", "reason": "Initial admission rejected before complete paired execution; no performance result or tier qualification."},

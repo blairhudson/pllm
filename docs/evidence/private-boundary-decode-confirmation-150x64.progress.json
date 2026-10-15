@@ -1,0 +1,8 @@
+{
+  "schema": "pllm.private_boundary_decode_confirmation_progress.v1",
+  "status": "completed",
+  "measurement_complete": true,
+  "clients": 9,
+  "long_output_cap_reached": true,
+  "maximum_swap_growth_bytes": 0
+}

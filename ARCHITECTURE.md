@@ -279,6 +279,47 @@ dashboard, relay and audit share the measured worker. This first whole-SDK scree
 retains source-present scope, separate topology leaders and an independent
 confirmation gate. Evidence and replay:
 `docs/research/private-boundary-decode-sdk-reference.md`.
+A separate nine-client 150+8 confirmation preserves 78,842,880 checked logit/KV
+values and complete state/output commitments with zero observed swap growth.
+Parallel/residue decode improves 52.87% versus serial/u32, with nearly unchanged
+client CPU and 2.61% higher median RSS; the largest complete-client peak is
+224.13 MiB. Against maintained prepared execution, traffic falls 23.70% and
+request latency 24.18%, while decode remains 32.68% slower and online first
+text is 8.00% later. This independently confirms the selected short-request
+finalists within observed Low/Medium ceilings. A prior swap-rejected attempt
+remains excluded; longer-output and timing-attribution evidence stay separate.
+Original source snapshots, stronger read-only metric/build audits and replay:
+`docs/research/private-boundary-decode-followup.md`.
+A separate nine-client 150+32 screen reaches every output cap and preserves
+336,605,184 checked logit/KV values with zero observed swap growth. Parallel/residue
+decode improves 53.79% against serial/u32. Against maintained prepared execution,
+traffic falls 16.84% and request latency 20.83%, while decode remains 32.77% slower
+and online first text is 6.96% later. Largest candidate complete-client peak is
+230.69 MiB. This first longer-workload screen retains its own evidence tier and
+does not inherit the short-request confirmation status.
+A separate nine-client 150+64 screen likewise reaches every output cap and
+preserves 729,833,472 checked logit/KV values with zero observed swap growth.
+Parallel/residue decode improves 52.89% against serial/u32. Against maintained
+prepared execution, traffic falls 9.71% and requests are 15.14% faster, while
+decode remains 32.14% slower and online first text is 8.20% later. Largest
+candidate complete-client peak is 230.56 MiB. The longer-workload screens retain
+separate cohorts and show narrower source-present traffic savings at more outputs.
+A separate eighteen-client control/probe timing cohort preserves 157,685,760
+checked logit/KV values with zero observed swap growth. Exclusive client timing
+places serial/u32 and parallel/residue head exchanges at 256.25 and 102.23 ms
+per decode interval; the latter's decoder body occupies 188.72 ms. These are
+instrumented elapsed owners, not remote compute or network attribution. Client
+codec costs are small, but role compute, encoding and transport remain mixed;
+the cohort cannot rank streaming against SDOT or revise serving timings.
+A separate six-worker generated-source HTTP fixture compares installed parallel
+residue delivery with sliced full outputs and duplicate-snapshot early stripes.
+Across separate 8,192/1,024-byte client-read cohorts, early stripes lower isolated
+head exchange about 104 to 98 ms, while fixture CPU rises 35.38%/38.17% and
+persistent native weights grow 136.13 MB. Sliced full outputs regress. Complete
+float32 logits match and observed swap growth is zero, but baseline integer
+evidence and per-arm RSS are absent. Borrowed immutable row-range execution and
+whole-SDK parity/resource evidence remain promotion gates. Results and replay
+stay separate in `docs/research/private-boundary-decode-followup.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

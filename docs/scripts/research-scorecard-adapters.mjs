@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { clientMemoryEvidence } from './research-memory.mjs';
 import { isDeepStrictEqual } from 'node:util';
 import { privateBoundaryCohorts } from './research-private-boundary.mjs';
-import { privateBoundaryTierCohorts } from './research-private-boundary-tiers.mjs';
+import { privateBoundaryTierCohorts, privateBoundaryDecodeConfirmationCohorts } from './research-private-boundary-tiers.mjs';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const digest = (value) => /^[a-f0-9]{64}$/.test(value ?? '');
@@ -648,6 +648,9 @@ export function adaptedCohorts(spec, read, helpers) {
   if (spec.adapter === 'benchmark-suite-v1') return benchmarkSuiteCohorts(spec, document, plan, helpers);
   if (spec.adapter === 'epoch-prefix-v1') return epochPrefixCohorts(spec, document, helpers);
   if (spec.adapter === 'private-boundary-v1') return privateBoundaryCohorts(spec, document, read, helpers);
+  if (spec.adapter === 'private-boundary-decode-confirmation-v1') {
+    return privateBoundaryDecodeConfirmationCohorts(spec, document, plan, read, { ...helpers, checkRun, checkedWan, checkedResponseBodies });
+  }
   if (['private-boundary-tiers-v1', 'private-boundary-decode-v1'].includes(spec.adapter)) {
     return privateBoundaryTierCohorts(spec, document, plan, read, { ...helpers, checkRun, checkedWan, checkedResponseBodies });
   }

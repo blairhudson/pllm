@@ -1,0 +1,10 @@
+{
+  "schema": "pllm.research.head-residue-stripes-progress.v1",
+  "status": "completed",
+  "measurement_complete": true,
+  "planned_runs": 18,
+  "geometry_sha256": "50f49d6f08ce2af421dec51cba50e028e6f24683f77c79949e73e8c86fc0e0a6",
+  "sources_sha256": "6a6d62e9940d08f52cd831a0d7c3051543820736a9a59befd539b11550094842",
+  "elapsed_seconds": 20,
+  "completed_runs": 18
+}

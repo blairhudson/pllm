@@ -1,0 +1,12 @@
+{
+  "schema": "pllm.private_boundary_decode_profile_archive.v1",
+  "scope": "Separate instrumented 18-client 150+8 cohort; not ordinary serving rankings or causal overhead calibration.",
+  "files": {
+    "150x8.json": "759833a9d6bdf037d8b9f099550e892836fe961ca8dca5077ecdfc07d6ea5c73",
+    "150x8.plan.json": "ae361b93da77e5636651de0221afd8739f598bd01f5a88d7a66f6bb4c9027b12",
+    "150x8.summary.json": "e4a9eb1719827803f734ea345b144f2ed7e622c5f0d12e3a646e407e5953c4aa",
+    "150x8.progress.json": "cfd894700ee539d924dcd27df9a97e1e925335a3f57b14607a12663491af9d95"
+  },
+  "contract": "docs/research/private-boundary-decode-profile.md",
+  "results": "docs/research/private-boundary-decode-followup.md"
+}

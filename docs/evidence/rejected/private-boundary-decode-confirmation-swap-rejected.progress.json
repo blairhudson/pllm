@@ -1,0 +1,5 @@
+{
+  "schema": "pllm.private_boundary_decode_progress.v1",
+  "status": "rejected",
+  "failure_code": "decode_swap_growth"
+}

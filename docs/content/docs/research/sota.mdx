@@ -45,6 +45,47 @@ The network-configured SDK accepts `OpenAI(max_client_memory="low")`,
 the maximum keeps automatic headroom-based admission. See
 [maximum client RAM in the SDK](/sdk/run/deployment/#maximum-client-ram).
 
+## Independent boundary decode confirmation
+
+Nine fresh Qwen2.5 clients confirm the selected head choices at **150+8 tokens**
+under shared native 100/40 caps. All **78,842,880** checked logit/KV values and
+complete state/output commitments match, with zero observed swap growth.
+
+| Choice | N−1 decode tokens/s | All-link TCP streams | Largest complete-client peak |
+| --- | ---: | ---: | ---: |
+| Maintained prepared | 4.920 | 478.654 MB | 234.20 MiB |
+| Serial/u32 boundary | 2.167 | 367.347 MB | 227.47 MiB |
+| Parallel/residue boundary | **3.312** | **365.221 MB** | **224.13 MiB** |
+
+Parallel/residue decode improves **52.87%** against serial/u32, while median
+client RSS rises **2.61%** and client CPU is nearly unchanged. Against maintained
+prepared execution, traffic falls **23.70%** and requests are **24.18%** faster;
+decode remains **32.68% slower** and online first text is **8.00% later**.
+
+Select **Independent boundary decode confirmation** for its topology-local
+**Scoped SOTA** leaders. Every choice fits observed Low and Medium. This cohort
+confirms three selected recipes, not the seven earlier incumbents or longer
+outputs. The original screen and swap-rejected attempt supply no samples.
+Source/tokenizer delivery, physical wire and Internet RTT remain unmeasured;
+the additional boundary workers retain their distinct trust contract.
+[Full costs, preserved attempts and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-decode-followup.md)
+
+## Longer-output boundary screens
+
+Two separate nine-client screens reach every output cap, with exact complete-state
+commitments and zero observed swap growth. Parallel/residue results:
+
+| Workload | Decode gain vs serial/u32 | TCP reduction vs maintained | Request reduction vs maintained | Largest complete-client peak |
+| --- | ---: | ---: | ---: | ---: |
+| 150+32 | **53.79%** | **16.84%** | **20.83%** | **230.69 MiB** |
+| 150+64 | **52.89%** | **9.71%** | **15.14%** | **230.56 MiB** |
+
+Decode remains **32.77%/32.14% slower** than maintained prepared execution;
+online first text is **6.96%/8.20% later**. Traffic savings narrow as outputs grow
+in these source-present workloads. Both first longer-workload screens retain
+their own cohorts and evidence tier; neither inherits 150+8 confirmation status.
+[Full costs and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-decode-followup.md)
+
 ## Exact boundary decode screen
 
 Fifteen fresh Qwen2.5 clients compare serial/parallel head dispatch and u32/exact
@@ -67,7 +108,7 @@ slower**. Complete client RAM includes SDK, supervisor, dashboard, relay and aud
 
 Select **Exact boundary decode choices** to inspect this first whole-SDK
 **Screen best** cohort. Prepared and five-role boundary leaders stay separate;
-independent whole-response confirmation remains open. Source/tokenizer delivery,
+the independent confirmation above retains its own observations. Source/tokenizer delivery,
 physical wire and Internet RTT remain unmeasured.
 [All costs, raw evidence and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-decode-sdk-reference.md)
 retain the additional-worker trust contract and both matched controls.

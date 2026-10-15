@@ -1,0 +1,3235 @@
+{
+  "schema": "pllm.research.head-residue-stripes.v1",
+  "setup": {
+    "wall_seconds": 0.3172510424628854,
+    "generated_weight_bytes": 136134656,
+    "full_native_weight_bytes": 136134656,
+    "additional_snapshot_weight_bytes": 136134656,
+    "codec_layout_bytes": 151936,
+    "scope": "generated source, independent chunked i64 oracle; not model admission"
+  },
+  "source_sha256": "6b12108ab0501015253cd02e5403a2150f22b7bfa92c8a0ede17762e6bf8d6cb",
+  "descriptor_sha256": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+  "codec_geometry_sha256": "cfc965676ee012e85e5646b3190c90cf04a4c3c5d0292c56c931b6dc6e931fdc",
+  "weight_sha256": "ddc1d7834db580cabbaa2c7896110daa990e38bdcaa020a1236944e9ff071460",
+  "scales_sha256": "cd74a7abe0ab9256e5ebf11e1ca020963d1fa1468f919ac28b6dd107eb78a5cf",
+  "native_filename": "_native.abi3.so",
+  "native_sha256": "58d57ca513274a038cb352028e2d61ff1af0e3275fec4d1a1feafeaa583fe847",
+  "installed_matrix_methods": [
+    "shape",
+    "weight_bytes"
+  ],
+  "installed_executor_methods": [
+    "clear",
+    "coefficients",
+    "digit8",
+    "modular",
+    "simd",
+    "threads",
+    "wrap32",
+    "wrap64"
+  ],
+  "repeat_orders": [
+    [
+      "parallel",
+      "sliced",
+      "snapshots"
+    ],
+    [
+      "parallel",
+      "snapshots",
+      "sliced"
+    ],
+    [
+      "sliced",
+      "parallel",
+      "snapshots"
+    ],
+    [
+      "sliced",
+      "snapshots",
+      "parallel"
+    ],
+    [
+      "snapshots",
+      "parallel",
+      "sliced"
+    ],
+    [
+      "snapshots",
+      "sliced",
+      "parallel"
+    ]
+  ],
+  "runs": [
+    {
+      "mode": "parallel",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10712024942040443,
+      "exchange_cpu_seconds": 0.03101799999999999,
+      "setup_seconds": 0.8184566665440798,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": null,
+      "baseline_ownership": "installed worker/session and paired executor",
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [],
+      "per_role_bodies": {
+        "boundary_a": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        },
+        "boundary_b": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 1,
+          "rows": 1,
+          "upload_bytes": 7448,
+          "download_bytes": 950032
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.009455458261072636,
+          "asgi_response_body_bytes": 475016
+        },
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.009083333425223827,
+          "asgi_response_body_bytes": 475016
+        }
+      ],
+      "candidate_operation_counters": null,
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4048,
+        "boundary_a->client": 475153,
+        "client->boundary_b": 4048,
+        "boundary_b->client": 475153
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1033492907881737,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 10568
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 952284
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5284,
+          "boundary_a->client": 476142,
+          "client->boundary_b": 5284,
+          "boundary_b->client": 476142
+        },
+        "total_stream_bytes": 962852,
+        "client_stream_bytes": 962852,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "installed parallel full uniform-residue replies",
+      "repeat": 0,
+      "position": 0
+    },
+    {
+      "mode": "sliced",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.11121283285319805,
+      "exchange_cpu_seconds": 0.039994000000000085,
+      "setup_seconds": 0.8344159172847867,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.007071875035762787,
+          "encode_seconds": 0.0011066235601902008,
+          "first_yield_seconds": 0.014968457631766796,
+          "first_asgi_body_seconds": 0.01496933214366436,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.01729266531765461,
+          "first_paired_decoded_stripe_seconds": 0.020885665901005268
+        },
+        {
+          "native_seconds": 0.006973584182560444,
+          "encode_seconds": 0.0011609606444835663,
+          "first_yield_seconds": 0.013517707586288452,
+          "first_asgi_body_seconds": 0.013519749976694584,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.016426040790975094,
+          "first_paired_decoded_stripe_seconds": 0.02088599931448698
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1240640003234148,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "full native output before first stripe",
+      "repeat": 0,
+      "position": 1
+    },
+    {
+      "mode": "snapshots",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.09798291698098183,
+      "exchange_cpu_seconds": 0.04797600000000024,
+      "setup_seconds": 0.833785125054419,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.013050583191215992,
+          "encode_seconds": 0.0011471696197986603,
+          "first_yield_seconds": 0.0030086245387792587,
+          "first_asgi_body_seconds": 0.0030104583129286766,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.0032524997368454933,
+          "first_paired_decoded_stripe_seconds": 0.007670833729207516
+        },
+        {
+          "native_seconds": 0.012998165562748909,
+          "encode_seconds": 0.0011342503130435944,
+          "first_yield_seconds": 0.0031248750165104866,
+          "first_asgi_body_seconds": 0.0031257914379239082,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.00405924953520298,
+          "first_paired_decoded_stripe_seconds": 0.007671041414141655
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1230932911857963,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "extra immutable stripe snapshots; current plus one next native output",
+      "repeat": 0,
+      "position": 2
+    },
+    {
+      "mode": "parallel",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10406270809471607,
+      "exchange_cpu_seconds": 0.027184000000000097,
+      "setup_seconds": 0.8300637500360608,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": null,
+      "baseline_ownership": "installed worker/session and paired executor",
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [],
+      "per_role_bodies": {
+        "boundary_a": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        },
+        "boundary_b": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 1,
+          "rows": 1,
+          "upload_bytes": 7448,
+          "download_bytes": 950032
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.009303208440542221,
+          "asgi_response_body_bytes": 475016
+        },
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.009558540768921375,
+          "asgi_response_body_bytes": 475016
+        }
+      ],
+      "candidate_operation_counters": null,
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4048,
+        "boundary_a->client": 475153,
+        "client->boundary_b": 4048,
+        "boundary_b->client": 475153
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1243722084909678,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 10568
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 952284
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5284,
+          "boundary_a->client": 476142,
+          "client->boundary_b": 5284,
+          "boundary_b->client": 476142
+        },
+        "total_stream_bytes": 962852,
+        "client_stream_bytes": 962852,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "installed parallel full uniform-residue replies",
+      "repeat": 1,
+      "position": 0
+    },
+    {
+      "mode": "snapshots",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.09936354216188192,
+      "exchange_cpu_seconds": 0.040013000000000076,
+      "setup_seconds": 0.841286207549274,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.00816437229514122,
+          "encode_seconds": 0.0011737095192074776,
+          "first_yield_seconds": 0.004338249564170837,
+          "first_asgi_body_seconds": 0.004339916631579399,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.004565374925732613,
+          "first_paired_decoded_stripe_seconds": 0.008943417109549046
+        },
+        {
+          "native_seconds": 0.007880336605012417,
+          "encode_seconds": 0.0011929990723729134,
+          "first_yield_seconds": 0.004428207874298096,
+          "first_asgi_body_seconds": 0.004429125227034092,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.005404249764978886,
+          "first_paired_decoded_stripe_seconds": 0.008943666703999043
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.130529833957553,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "extra immutable stripe snapshots; current plus one next native output",
+      "repeat": 1,
+      "position": 1
+    },
+    {
+      "mode": "sliced",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10742591693997383,
+      "exchange_cpu_seconds": 0.035511999999999766,
+      "setup_seconds": 0.84284383431077,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.006982958875596523,
+          "encode_seconds": 0.0010492494329810143,
+          "first_yield_seconds": 0.009926250204443932,
+          "first_asgi_body_seconds": 0.009928124956786633,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.012574542313814163,
+          "first_paired_decoded_stripe_seconds": 0.017033083364367485
+        },
+        {
+          "native_seconds": 0.007008667103946209,
+          "encode_seconds": 0.001018499955534935,
+          "first_yield_seconds": 0.011180625297129154,
+          "first_asgi_body_seconds": 0.011181333102285862,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.01344683300703764,
+          "first_paired_decoded_stripe_seconds": 0.0170332919806242
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1324909580871463,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "full native output before first stripe",
+      "repeat": 1,
+      "position": 2
+    },
+    {
+      "mode": "sliced",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10748858284205198,
+      "exchange_cpu_seconds": 0.0358369999999999,
+      "setup_seconds": 0.8365934994071722,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.006939957849681377,
+          "encode_seconds": 0.0010420819744467735,
+          "first_yield_seconds": 0.010015415959060192,
+          "first_asgi_body_seconds": 0.010017165914177895,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.012670541182160378,
+          "first_paired_decoded_stripe_seconds": 0.01714420784264803
+        },
+        {
+          "native_seconds": 0.0069619594141840935,
+          "encode_seconds": 0.0009995391592383385,
+          "first_yield_seconds": 0.011292415671050549,
+          "first_asgi_body_seconds": 0.011293250136077404,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.013532624579966068,
+          "first_paired_decoded_stripe_seconds": 0.017144374549388885
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.126969582401216,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "full native output before first stripe",
+      "repeat": 2,
+      "position": 0
+    },
+    {
+      "mode": "parallel",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10395591612905264,
+      "exchange_cpu_seconds": 0.0272319999999997,
+      "setup_seconds": 0.8376993322744966,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": null,
+      "baseline_ownership": "installed worker/session and paired executor",
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [],
+      "per_role_bodies": {
+        "boundary_a": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        },
+        "boundary_b": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 1,
+          "rows": 1,
+          "upload_bytes": 7448,
+          "download_bytes": 950032
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.009250124916434288,
+          "asgi_response_body_bytes": 475016
+        },
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.009500165469944477,
+          "asgi_response_body_bytes": 475016
+        }
+      ],
+      "candidate_operation_counters": null,
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4048,
+        "boundary_a->client": 475153,
+        "client->boundary_b": 4048,
+        "boundary_b->client": 475153
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1320196660235524,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 10568
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 952284
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5284,
+          "boundary_a->client": 476142,
+          "client->boundary_b": 5284,
+          "boundary_b->client": 476142
+        },
+        "total_stream_bytes": 962852,
+        "client_stream_bytes": 962852,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "installed parallel full uniform-residue replies",
+      "repeat": 2,
+      "position": 1
+    },
+    {
+      "mode": "snapshots",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.09775266610085964,
+      "exchange_cpu_seconds": 0.03674799999999934,
+      "setup_seconds": 0.8254866655915976,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.007259581238031387,
+          "encode_seconds": 0.0012081647291779518,
+          "first_yield_seconds": 0.0029228748753666878,
+          "first_asgi_body_seconds": 0.0029244162142276764,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.0031502079218626022,
+          "first_paired_decoded_stripe_seconds": 0.0075317081063985825
+        },
+        {
+          "native_seconds": 0.007316082715988159,
+          "encode_seconds": 0.0011549992486834526,
+          "first_yield_seconds": 0.003041832707822323,
+          "first_asgi_body_seconds": 0.003042791038751602,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.0038442499935626984,
+          "first_paired_decoded_stripe_seconds": 0.007531915791332722
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1155409580096602,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "extra immutable stripe snapshots; current plus one next native output",
+      "repeat": 2,
+      "position": 2
+    },
+    {
+      "mode": "sliced",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10731558315455914,
+      "exchange_cpu_seconds": 0.03571900000000028,
+      "setup_seconds": 0.8335807071998715,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.006938708946108818,
+          "encode_seconds": 0.0010873321443796158,
+          "first_yield_seconds": 0.009797541424632072,
+          "first_asgi_body_seconds": 0.009799166582524776,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.012563916854560375,
+          "first_paired_decoded_stripe_seconds": 0.017031791619956493
+        },
+        {
+          "native_seconds": 0.00697300024330616,
+          "encode_seconds": 0.0010484587401151657,
+          "first_yield_seconds": 0.011160125024616718,
+          "first_asgi_body_seconds": 0.011160957626998425,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.013421041890978813,
+          "first_paired_decoded_stripe_seconds": 0.017031916417181492
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1230888748541474,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "full native output before first stripe",
+      "repeat": 3,
+      "position": 0
+    },
+    {
+      "mode": "snapshots",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.0981438746675849,
+      "exchange_cpu_seconds": 0.03745699999999985,
+      "setup_seconds": 0.8059415826573968,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.007390083745121956,
+          "encode_seconds": 0.001146082766354084,
+          "first_yield_seconds": 0.003376416862010956,
+          "first_asgi_body_seconds": 0.0033773742616176605,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.004211124964058399,
+          "first_paired_decoded_stripe_seconds": 0.007783666253089905
+        },
+        {
+          "native_seconds": 0.007260378450155258,
+          "encode_seconds": 0.001205294393002987,
+          "first_yield_seconds": 0.0032883742824196815,
+          "first_asgi_body_seconds": 0.0032899584621191025,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.0035394588485360146,
+          "first_paired_decoded_stripe_seconds": 0.007783833891153336
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.095674166455865,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "extra immutable stripe snapshots; current plus one next native output",
+      "repeat": 3,
+      "position": 1
+    },
+    {
+      "mode": "parallel",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10360966715961695,
+      "exchange_cpu_seconds": 0.026711999999999847,
+      "setup_seconds": 0.8311471249908209,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": null,
+      "baseline_ownership": "installed worker/session and paired executor",
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [],
+      "per_role_bodies": {
+        "boundary_a": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        },
+        "boundary_b": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 1,
+          "rows": 1,
+          "upload_bytes": 7448,
+          "download_bytes": 950032
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.009054458700120449,
+          "asgi_response_body_bytes": 475016
+        },
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.008736708201467991,
+          "asgi_response_body_bytes": 475016
+        }
+      ],
+      "candidate_operation_counters": null,
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4048,
+        "boundary_a->client": 475153,
+        "client->boundary_b": 4048,
+        "boundary_b->client": 475153
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1254299161955714,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 10568
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 952284
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5284,
+          "boundary_a->client": 476142,
+          "client->boundary_b": 5284,
+          "boundary_b->client": 476142
+        },
+        "total_stream_bytes": 962852,
+        "client_stream_bytes": 962852,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "installed parallel full uniform-residue replies",
+      "repeat": 3,
+      "position": 2
+    },
+    {
+      "mode": "snapshots",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.09763445891439915,
+      "exchange_cpu_seconds": 0.037037999999999016,
+      "setup_seconds": 0.8301791250705719,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.007382253184914589,
+          "encode_seconds": 0.0011855009943246841,
+          "first_yield_seconds": 0.00273341778665781,
+          "first_asgi_body_seconds": 0.0027350839227437973,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.003033292479813099,
+          "first_paired_decoded_stripe_seconds": 0.007279125042259693
+        },
+        {
+          "native_seconds": 0.007390622049570084,
+          "encode_seconds": 0.001180250197649002,
+          "first_yield_seconds": 0.0029105423018336296,
+          "first_asgi_body_seconds": 0.002912375144660473,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.003704458475112915,
+          "first_paired_decoded_stripe_seconds": 0.007279333658516407
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1203002501279116,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "extra immutable stripe snapshots; current plus one next native output",
+      "repeat": 4,
+      "position": 0
+    },
+    {
+      "mode": "parallel",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10325379204005003,
+      "exchange_cpu_seconds": 0.026676000000000144,
+      "setup_seconds": 0.8366029998287559,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": null,
+      "baseline_ownership": "installed worker/session and paired executor",
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [],
+      "per_role_bodies": {
+        "boundary_a": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        },
+        "boundary_b": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 1,
+          "rows": 1,
+          "upload_bytes": 7448,
+          "download_bytes": 950032
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.008749832399189472,
+          "asgi_response_body_bytes": 475016
+        },
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.008994583040475845,
+          "asgi_response_body_bytes": 475016
+        }
+      ],
+      "candidate_operation_counters": null,
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4048,
+        "boundary_a->client": 475153,
+        "client->boundary_b": 4048,
+        "boundary_b->client": 475153
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.128829374909401,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 10568
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 952284
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5284,
+          "boundary_a->client": 476142,
+          "client->boundary_b": 5284,
+          "boundary_b->client": 476142
+        },
+        "total_stream_bytes": 962852,
+        "client_stream_bytes": 962852,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "installed parallel full uniform-residue replies",
+      "repeat": 4,
+      "position": 1
+    },
+    {
+      "mode": "sliced",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10635791532695293,
+      "exchange_cpu_seconds": 0.033380000000001075,
+      "setup_seconds": 0.8345406670123339,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.006933250464498997,
+          "encode_seconds": 0.001075289212167263,
+          "first_yield_seconds": 0.009427165612578392,
+          "first_asgi_body_seconds": 0.00942899938672781,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.011965207755565643,
+          "first_paired_decoded_stripe_seconds": 0.015943249687552452
+        },
+        {
+          "native_seconds": 0.006931792013347149,
+          "encode_seconds": 0.0010049184784293175,
+          "first_yield_seconds": 0.010793540626764297,
+          "first_asgi_body_seconds": 0.010794540867209435,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.012079790234565735,
+          "first_paired_decoded_stripe_seconds": 0.01594345737248659
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1245486671105027,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "full native output before first stripe",
+      "repeat": 4,
+      "position": 2
+    },
+    {
+      "mode": "snapshots",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.09826104063540697,
+      "exchange_cpu_seconds": 0.038100999999999274,
+      "setup_seconds": 0.8405657913535833,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 19,
+          "drained_native_calls": 0,
+          "peak_output_slots": 2,
+          "peak_output_bytes": 65536,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.007408796809613705,
+          "encode_seconds": 0.001245918683707714,
+          "first_yield_seconds": 0.0033746659755706787,
+          "first_asgi_body_seconds": 0.003376125358045101,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.003609125502407551,
+          "first_paired_decoded_stripe_seconds": 0.007979250513017178
+        },
+        {
+          "native_seconds": 0.00739300437271595,
+          "encode_seconds": 0.001190745271742344,
+          "first_yield_seconds": 0.003489125519990921,
+          "first_asgi_body_seconds": 0.0034900829195976257,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.004295416176319122,
+          "first_paired_decoded_stripe_seconds": 0.007979458197951317
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.130250208079815,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "extra immutable stripe snapshots; current plus one next native output",
+      "repeat": 5,
+      "position": 0
+    },
+    {
+      "mode": "sliced",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10797141678631306,
+      "exchange_cpu_seconds": 0.03649799999999992,
+      "setup_seconds": 0.8412138326093554,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": [
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        },
+        {
+          "attempted": true,
+          "retired": true,
+          "native_calls": 1,
+          "drained_native_calls": 0,
+          "peak_output_slots": 1,
+          "peak_output_bytes": 607744,
+          "peak_pending_native": 1,
+          "replay_rejected": true
+        }
+      ],
+      "baseline_ownership": null,
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [
+        409,
+        409
+      ],
+      "per_role_bodies": {
+        "boundary_a": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        },
+        "boundary_b": {
+          "attempted_request_body_bytes": 3724,
+          "generated_reply_body_bytes": 478942,
+          "observed_reply_body_bytes": 478942
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.007081083953380585,
+          "encode_seconds": 0.0011666212230920792,
+          "first_yield_seconds": 0.010252083651721478,
+          "first_asgi_body_seconds": 0.010254207998514175,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.013173624873161316,
+          "first_paired_decoded_stripe_seconds": 0.017606125213205814
+        },
+        {
+          "native_seconds": 0.007133416831493378,
+          "encode_seconds": 0.0011168746277689934,
+          "first_yield_seconds": 0.011699083261191845,
+          "first_asgi_body_seconds": 0.011700250208377838,
+          "asgi_response_body_bytes": 478942,
+          "first_client_body_seconds": 0.013940333388745785,
+          "first_paired_decoded_stripe_seconds": 0.017606250010430813
+        }
+      ],
+      "candidate_operation_counters": {
+        "boundary_a": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        },
+        "boundary_b": {
+          "head_calls_reserved": 1,
+          "sequence_reserved": 0,
+          "complete_stripes_expected": 19
+        }
+      },
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4045,
+        "boundary_a->client": 479240,
+        "client->boundary_b": 4045,
+        "boundary_b->client": 479240
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1308059580624104,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 480381
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5525
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 11050
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 960762
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5525,
+          "boundary_a->client": 480381,
+          "client->boundary_b": 5525,
+          "boundary_b->client": 480381
+        },
+        "total_stream_bytes": 971812,
+        "client_stream_bytes": 971812,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "full native output before first stripe",
+      "repeat": 5,
+      "position": 1
+    },
+    {
+      "mode": "parallel",
+      "success": true,
+      "error": null,
+      "exchange_seconds": 0.10500779282301664,
+      "exchange_cpu_seconds": 0.0275660000000002,
+      "setup_seconds": 0.8248636666685343,
+      "geometry": {
+        "schema": "pllm.research.head-stripes.v1",
+        "descriptor": "8c3ffdbb463bebb710c684ae038fbb4e26282d3726eef91669537b263ab81ef7",
+        "rows": 8192,
+        "vocabulary": 151936,
+        "order": "ascending-complete",
+        "codec": "installed-uniform-residues",
+        "lookahead": 1
+      },
+      "candidate_read_chunk_bytes": 1024,
+      "owners": null,
+      "baseline_ownership": "installed worker/session and paired executor",
+      "remaining_native_tasks": 0,
+      "online_coverage_complete": true,
+      "replay_status": [],
+      "per_role_bodies": {
+        "boundary_a": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        },
+        "boundary_b": {
+          "installed_online_upload_bytes": 3724,
+          "installed_online_download_bytes": 475016
+        }
+      },
+      "installed_operation_counters": {
+        "lookup": {
+          "calls": 0,
+          "rows": 0,
+          "upload_bytes": 0,
+          "download_bytes": 0
+        },
+        "head": {
+          "calls": 1,
+          "rows": 1,
+          "upload_bytes": 7448,
+          "download_bytes": 950032
+        }
+      },
+      "timing_breakdown": [
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.008602583780884743,
+          "asgi_response_body_bytes": 475016
+        },
+        {
+          "native_seconds": 0.0,
+          "encode_seconds": 0.0,
+          "first_asgi_body_seconds": 0.010709833353757858,
+          "asgi_response_body_bytes": 475016
+        }
+      ],
+      "candidate_operation_counters": null,
+      "online_tcp_payload_bytes": {
+        "client->boundary_a": 4048,
+        "boundary_a->client": 475153,
+        "client->boundary_b": 4048,
+        "boundary_b->client": 475153
+      },
+      "all_phases_network": {
+        "schema": "pllm.native_wan.v1",
+        "backend": "native-shared-tcp-pacer",
+        "enforced": true,
+        "conditions": {
+          "schema": "pllm.wan_conditions.v1",
+          "download_mbps": 100.0,
+          "upload_mbps": 40.0,
+          "parties": [],
+          "role_parties": []
+        },
+        "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+        "role_parties": {
+          "client": "client",
+          "boundary_a": "boundary_a",
+          "boundary_b": "boundary_b"
+        },
+        "burst_bytes": 16384,
+        "read_chunk_bytes": 8192,
+        "max_connections": 32,
+        "elapsed_seconds": 1.1190942917019129,
+        "parties": {
+          "boundary_a": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "boundary_b": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 476142
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 5284
+            }
+          },
+          "client": {
+            "upload": {
+              "bytes_per_second": 5000000.0,
+              "admitted_bytes": 10568
+            },
+            "download": {
+              "bytes_per_second": 12500000.0,
+              "admitted_bytes": 952284
+            }
+          }
+        },
+        "directed_stream_bytes": {
+          "client->boundary_a": 5284,
+          "boundary_a->client": 476142,
+          "client->boundary_b": 5284,
+          "boundary_b->client": 476142
+        },
+        "total_stream_bytes": 962852,
+        "client_stream_bytes": 962852,
+        "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+        "excluded": [
+          "IP/TCP headers, ACKs and retransmissions",
+          "telemetry",
+          "checkpoint distribution"
+        ]
+      },
+      "logits_sha256": "90311fa39abd5a2f9892e8d6892950b1c54f968795cbf956c3b0bd51ef4c18a2",
+      "accounting": "TCP payload includes actual HTTP headers/chunk framing; body counters separate; no TLS/IP/ACK",
+      "ownership": "installed parallel full uniform-residue replies",
+      "repeat": 5,
+      "position": 2
+    }
+  ],
+  "production_ready": false,
+  "plan": {
+    "geometry": {
+      "vocabulary": 151936,
+      "hidden": 896,
+      "stripe_rows": 8192,
+      "seed": 17,
+      "activation_bits": 8,
+      "modes": [
+        "parallel",
+        "sliced",
+        "snapshots"
+      ],
+      "repeats": 6,
+      "read_chunk_bytes": 1024,
+      "download_mbps": 100.0,
+      "upload_mbps": 40.0
+    },
+    "geometry_sha256": "6e03b842f5bdfe01d6eb3d58e9687cafccc5e9e8dbd460cddb82f3308ee1be6c",
+    "repeat_orders": [
+      [
+        "parallel",
+        "sliced",
+        "snapshots"
+      ],
+      [
+        "parallel",
+        "snapshots",
+        "sliced"
+      ],
+      [
+        "sliced",
+        "parallel",
+        "snapshots"
+      ],
+      [
+        "sliced",
+        "snapshots",
+        "parallel"
+      ],
+      [
+        "snapshots",
+        "parallel",
+        "sliced"
+      ],
+      [
+        "snapshots",
+        "sliced",
+        "parallel"
+      ]
+    ],
+    "sampled_worker": 1,
+    "sampled_qwen": true,
+    "provenance": {
+      "build": {
+        "expected_digest": "62c17e60f9769b0b29b74cf1b45061c57391d4a638490d7e619754cae6af7e99",
+        "interpreter_sha256": "7710b0490e6af648676d7ad163fa1d54bffb75d8505162609a1c3c9b76e1929d"
+      },
+      "sources": {
+        "pllm.runtime.native": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f",
+        "pllm.runtime.native_wan": "08cb749dd1f38f5c96d932861c0e97621f169504297c1d4adffa9caa8e6b418b",
+        "pllm.runtime.private_boundary_head_codec": "003e6a2e9e91a880936ce7847d47a75db57742d5330d24dde381750fe97f3b0e",
+        "pllm.runtime.private_boundary_protocol": "18f7d1d60792357285e9ffe84085837822c5b7ceebf7b3ae98676ed67976a4fa",
+        "pllm.runtime.private_boundary_transport": "0569c49c8c110281dcb0fad485842fae6b418aa8ea336b93529d51e990ebb5db",
+        "pllm.runtime.private_boundary_worker": "709aa5cc019b2f8ad339ef2c34614edaca0e1d59213988455b89529bd3a02698",
+        "pllm.runtime.quantization": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+        "scripts/probe_boundary_head_residue_stripes.py": "bcbbc2b98dcd748e45029bd9e26e96db761594da155a7e82865523d77c6e2e3f",
+        "tests/test_boundary_head_residue_stripes.py": "ad2ccb0a6a7b9a3061d43827f957770eb79d022e394b23ad155464b1e5ee4bef",
+        "docs/research/boundary-head-residue-stripes.md": "6352c1cd24f6a2f003aeaeb295d8162678d5ac29244ad4f9ab4b5b50104745a0"
+      },
+      "sources_sha256": "6a6d62e9940d08f52cd831a0d7c3051543820736a9a59befd539b11550094842",
+      "native_sha256": "58d57ca513274a038cb352028e2d61ff1af0e3275fec4d1a1feafeaa583fe847",
+      "python_version": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+      "python_executable_name": "python"
+    },
+    "host_admission": {
+      "host": {
+        "total": 34359738368,
+        "available": 12606734336,
+        "swap_used": 3786866688,
+        "disk_free": 36548300800
+      },
+      "reserve_bytes": 4294967296,
+      "allocation_allowance_bytes": 1353678848,
+      "minimum_available_bytes": 12606734336,
+      "maximum_swap_growth_bytes": 0,
+      "sample_interval_seconds": 0.1,
+      "policy": "zero observed new swap, full reserve retained"
+    },
+    "scope": "fresh generated-source worker; no model; shared matrices/executor; allocation extras charged"
+  },
+  "host_guard": {
+    "host": {
+      "total": 34359738368,
+      "available": 12606734336,
+      "swap_used": 3786866688,
+      "disk_free": 36548300800
+    },
+    "reserve_bytes": 4294967296,
+    "allocation_allowance_bytes": 1353678848,
+    "minimum_available_bytes": 12056592384,
+    "maximum_swap_growth_bytes": 0,
+    "sample_interval_seconds": 0.1,
+    "policy": "zero observed new swap, full reserve retained"
+  },
+  "progress": {
+    "schema": "pllm.research.head-residue-stripes-progress.v1",
+    "status": "completed",
+    "measurement_complete": true,
+    "planned_runs": 18,
+    "geometry_sha256": "6e03b842f5bdfe01d6eb3d58e9687cafccc5e9e8dbd460cddb82f3308ee1be6c",
+    "sources_sha256": "6a6d62e9940d08f52cd831a0d7c3051543820736a9a59befd539b11550094842",
+    "elapsed_seconds": 20,
+    "completed_runs": 18
+  }
+}

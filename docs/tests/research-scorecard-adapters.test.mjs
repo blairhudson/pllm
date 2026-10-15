@@ -12,17 +12,28 @@ const read = (file) => fs.readFileSync(root + file);
 const manifest = JSON.parse(read('docs/data/research/benchmark-cohorts.json'));
 const specs = manifest.adapted_cohorts;
 const helpers = { metrics, executionPlacement, providerPeak };
-const load = (index) => ({ spec: specs[index], document: JSON.parse(read(specs[index].report)),
-  plan: specs[index].plan ? JSON.parse(read(specs[index].plan)) : null });
+const fixtureIds = {
+  maintained: 'qwen25-maintained-digit8-confirm',
+  tiling: 'qwen25-mlp-tiling-confirm-c',
+  placement: 'qwen25-all-link-placement-confirm',
+  epoch: 'qwen25-epoch-prefix-confirm',
+};
+const load = (id, adapter = 'benchmark-suite-v1') => {
+  const matches = specs.filter((spec) => spec.id === id);
+  assert.equal(matches.length, 1, `Expected one registered fixture: ${id}`);
+  const [spec] = matches;
+  assert.equal(spec.adapter, adapter, `Unexpected fixture adapter: ${id}`);
+  return { spec, document: JSON.parse(read(spec.report)), plan: spec.plan ? JSON.parse(read(spec.plan)) : null };
+};
 
 test('original SDK suites yield independent workload and cold/repeat medians', () => {
   assert.equal(median([4, 1, 2]), 2);
   assert.equal(median([4, 1]), 2.5);
   assert.throws(() => median([1, NaN]));
-  for (const index of [0, 1, 2]) {
-    const { spec, document, plan } = load(index);
+  for (const [id, viewCount] of [[fixtureIds.maintained, 2], [fixtureIds.tiling, 4], [fixtureIds.placement, 2]]) {
+    const { spec, document, plan } = load(id);
     const views = benchmarkSuiteCohorts(spec, document, plan, helpers);
-    assert.equal(views.length, index === 1 ? 4 : 2);
+    assert.equal(views.length, viewCount);
     for (const view of views) for (const row of view.rows) {
       const samples = document.results.filter((result) => result.execution.case.name === row.id);
       const request = view.identity.requestIndex;
@@ -47,7 +58,7 @@ test('original SDK suites yield independent workload and cold/repeat medians', (
       assert.match(view.measurement.clientRssLabel, /scenario-lifetime \(cold \+ repeat\)/);
       assert.deepEqual(row.recordedCase, samples[0].execution.case);
       assert.deepEqual(row.samplingContract, document.suite.sampling);
-      if (index === 1) {
+      if (id === fixtureIds.tiling) {
         assert.equal(row.researchSelector.pipeline_component, false);
         assert.equal(row.pipeline.components.client_mlp, undefined);
         assert.deepEqual(row.researchSelector.selection, samples[0].execution.case.target.parameters.client_mlp);
@@ -57,7 +68,7 @@ test('original SDK suites yield independent workload and cold/repeat medians', (
 });
 
 test('SDK adapter rejects mutated matched gates, incomplete cells and changed metric windows', () => {
-  const { spec, document, plan } = load(0);
+  const { spec, document, plan } = load(fixtureIds.maintained);
   const mutations = [
     (d) => { d.complete = false; },
     (d) => { d.results.pop(); },
@@ -174,7 +185,7 @@ test('unknown decode boundaries and one-output zero denominators remain unknown,
 });
 
 test('new ACK body coverage is explicit, reconciled and never supplies partial traffic heads', () => {
-  const { spec, document, plan } = load(0);
+  const { spec, document, plan } = load(fixtureIds.maintained);
   const next = structuredClone(document);
   for (const result of next.results) for (const [index, ledger] of result.execution.details.report.topology_accounting.runs.entries()) {
     ledger.schema = 'pllm.topology_body_accounting.v3';
@@ -201,7 +212,7 @@ test('new ACK body coverage is explicit, reconciled and never supplies partial t
 });
 
 test('epoch views retain 36 original cells, exact final states and grouped timing semantics', () => {
-  const { spec, document } = load(3), views = epochPrefixCohorts(spec, document, helpers);
+  const { spec, document } = load(fixtureIds.epoch, 'epoch-prefix-v1'), views = epochPrefixCohorts(spec, document, helpers);
   assert.equal(views.length, 4);
   assert.equal(views.reduce((sum, view) => sum + view.rows.length * 3, 0), 36);
   for (const view of views) for (const row of view.rows) {
@@ -342,7 +353,12 @@ test('canonical partial application bodies disclose conserved windows without co
   for (const selected of [cold, repeat]) assert.equal(selected.disclosure.knownBaseBytes + selected.disclosure.knownOutputDependentBytes + selected.disclosure.residualBytes, selected.disclosure.totalBytes);
   assert.equal(repeat.disclosure.generatedOutputTokens, 2);
   assert.deepEqual(applyTrafficAttribution({ totalNetwork: 9 }, { report, requestIndex: 0 }), { totalNetwork: 9, baseNetwork: null, tokenNetwork: null });
-  assert.equal(applicationBodyAttribution({ report: load(0).document.results[0].execution.details.report, requestIndex: 0 }), null);
+  // Original digit8 evidence predates canonical decomposition. New confirmation
+  // records have real Partial disclosure and are not substitutes for this guard.
+  const historicalReport = load(fixtureIds.maintained).document.results[0].execution.details.report;
+  assert.equal(historicalReport.traffic_decomposition, undefined);
+  assert.equal(historicalReport.communication_per_token.traffic_decomposition, undefined);
+  assert.equal(applicationBodyAttribution({ report: historicalReport, requestIndex: 0 }), null);
 });
 
 test('complete canonical application-body heads use actual outputs and charge startup once', () => {
@@ -515,7 +531,7 @@ test('canonical attribution rejects stale counters, wrong windows, output denomi
 
 test('all metrics sort unknown last in both directions; leaders remain local', () => {
   const views = specs.flatMap((spec) => adaptedCohorts(spec, read, helpers));
-  assert.equal(views.length, 20);
+  assert.equal(views.length, 23);
   for (const view of views) for (const metric of metrics) {
     const table = sotaTable(view, 'Prepared', [metric]);
     assert.ok(table.leaders[metric.id].every((id) => view.rows.some((row) => row.id === id)));
@@ -590,7 +606,7 @@ test('registry evidence tiers are explicit and never inferred from repetition', 
   const confirmations = ['qwen25-native-wan-frontier-150-8', 'qwen25-sdk-finalists-150-8',
     'qwen25-maintained-digit8-confirm', 'qwen25-mlp-tiling-confirm-c',
     'qwen25-all-link-placement-confirm', 'qwen25-epoch-prefix-confirm',
-    'qwen25-private-boundary-tiers-150-8'];
+    'qwen25-private-boundary-tiers-150-8', 'qwen25-private-boundary-decode-confirmation-150-8'];
   assert.ok(entries.every((cohort) => ['confirmation', 'screen', 'observation'].includes(cohort.evidenceTier)));
   assert.deepEqual(entries.filter((cohort) => cohort.evidenceTier === 'confirmation').map((cohort) => cohort.id).sort(), confirmations.sort());
   assert.ok(entries.filter((cohort) => cohort.id.includes('screen')).every((cohort) => cohort.evidenceTier === 'screen'));
@@ -639,7 +655,7 @@ print("frozen contracts passed")
   const result = spawnSync('python3', ['-c', script], { cwd: root, encoding: 'utf8', timeout: 10000 });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /frozen contracts passed/);
-  const { spec } = load(0);
+  const { spec } = load(fixtureIds.maintained);
   const frozen = { ...spec, frozen_factory: manifest.historical_factory };
   const [view] = adaptedCohorts(frozen, read, helpers);
   assert.ok(view.rows.every((row) => row.file === manifest.historical_factory.file));

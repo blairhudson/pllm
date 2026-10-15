@@ -1,0 +1,85 @@
+{
+  "files": {
+    "residue-stripes-frozen-pins-v1.json": {
+      "bytes": 380,
+      "sha256": "48c597060707dab47231ff1e360664e1148bbdf3743cf95daf387a95183b6458"
+    },
+    "residue-stripes-read1024-worker1-v1.json": {
+      "bytes": 104292,
+      "sha256": "141c85613211dfcccee85cc8a3f556753eb72a0d6687be245479545248b0d846"
+    },
+    "residue-stripes-read1024-worker1-v1.json.progress.json": {
+      "bytes": 370,
+      "sha256": "ad363b681a438623698f9d6b4a20903819d5d2a4e9c1a452da60b1409de5eac9"
+    },
+    "residue-stripes-read1024-worker1-v1.json.runs.jsonl": {
+      "bytes": 142449,
+      "sha256": "b9d617e45fd7efee727ab694e64b21fc222e94903c5638a2dc88a716bb37bce2"
+    },
+    "residue-stripes-read1024-worker2-v1.json": {
+      "bytes": 104292,
+      "sha256": "7c085698d32dbc4b1b8bea6792c4df674628d42db5fab4a02981cf6e450c75ae"
+    },
+    "residue-stripes-read1024-worker2-v1.json.progress.json": {
+      "bytes": 370,
+      "sha256": "ad363b681a438623698f9d6b4a20903819d5d2a4e9c1a452da60b1409de5eac9"
+    },
+    "residue-stripes-read1024-worker2-v1.json.runs.jsonl": {
+      "bytes": 142449,
+      "sha256": "8d625b7cc25995b7b1ed912de521e9f6740a6b077568d23f8b1e533646147d10"
+    },
+    "residue-stripes-read1024-worker3-v1.json": {
+      "bytes": 104281,
+      "sha256": "f859fd635597dcb6cc043bf1f57d5e931772f5f2927f16b14504e95f02156cd4"
+    },
+    "residue-stripes-read1024-worker3-v1.json.progress.json": {
+      "bytes": 370,
+      "sha256": "ad363b681a438623698f9d6b4a20903819d5d2a4e9c1a452da60b1409de5eac9"
+    },
+    "residue-stripes-read1024-worker3-v1.json.runs.jsonl": {
+      "bytes": 142427,
+      "sha256": "48c971533b55de2cf5e7a67e023c4d8432cb0ef484f96140063dbefd65a13a1b"
+    },
+    "residue-stripes-read8192-worker1-v1.json": {
+      "bytes": 104287,
+      "sha256": "3277a0e0de258d8f68daf3f9930bace575482f38fcd9bf6373d58256bc55190b"
+    },
+    "residue-stripes-read8192-worker1-v1.json.progress.json": {
+      "bytes": 370,
+      "sha256": "49941a8f0ea53baaf7e8b9023a9fc46f8f8875e36c1934710cb738fed1618b46"
+    },
+    "residue-stripes-read8192-worker1-v1.json.runs.jsonl": {
+      "bytes": 142439,
+      "sha256": "e754ba6dde547ad214d34c9d3cde6bb59a86785ddbf9d33462fdb73f6efa2fa4"
+    },
+    "residue-stripes-read8192-worker2-v1.json": {
+      "bytes": 104287,
+      "sha256": "85e19781c74698d7d93797807ccc2e686ca9aae95a82b51f4950fef668444537"
+    },
+    "residue-stripes-read8192-worker2-v1.json.progress.json": {
+      "bytes": 370,
+      "sha256": "49941a8f0ea53baaf7e8b9023a9fc46f8f8875e36c1934710cb738fed1618b46"
+    },
+    "residue-stripes-read8192-worker2-v1.json.runs.jsonl": {
+      "bytes": 142439,
+      "sha256": "ffdd759b92bc44eac10c390a3511151550657fedb9144731d45459979f057c68"
+    },
+    "residue-stripes-read8192-worker3-v1.json": {
+      "bytes": 104289,
+      "sha256": "70bb60abd101425b97f3ec0ef558fb68ead7ab49f7eb5a350e8aca6593d41f5d"
+    },
+    "residue-stripes-read8192-worker3-v1.json.progress.json": {
+      "bytes": 370,
+      "sha256": "49941a8f0ea53baaf7e8b9023a9fc46f8f8875e36c1934710cb738fed1618b46"
+    },
+    "residue-stripes-read8192-worker3-v1.json.runs.jsonl": {
+      "bytes": 142443,
+      "sha256": "dda21981fcc9a22a2636394a2fd574cb146b610e261f24c53822a1063d855e3c"
+    },
+    "residue-stripes-summary-v1.json": {
+      "bytes": 98909,
+      "sha256": "81d2e17f2ed4e4890a36d0989e228afd71f2c5115d1f217d3d074110baef5f49"
+    }
+  },
+  "schema": "pllm.research.original_evidence_archive.v1"
+}
