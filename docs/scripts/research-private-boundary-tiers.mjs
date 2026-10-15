@@ -18,12 +18,19 @@ const axes = {
   ttft: ['response.ttft', 1], decodeTps: ['response.decode_tps', 1],
   totalNetwork: ['network.all_link_stream_bytes', 1e6], full: ['request.0.full', 1],
 };
+const evidenceContracts = {
+  'private-boundary-tiers-v1': { plan: 'pllm.private_boundary_tiers_plan.v1',
+    summary: 'pllm.private_boundary_tiers.v1', cases: 8 },
+  'private-boundary-decode-v1': { plan: 'pllm.private_boundary_decode_plan.v1',
+    summary: 'pllm.private_boundary_decode.v1', cases: 5 },
+};
 
 export function privateBoundaryTierCohorts(spec, document, plan, read, helpers) {
   const summaryRaw = read(spec.summary), summary = JSON.parse(summaryRaw);
+  const contract = evidenceContracts[spec.adapter];
   check(hash(summaryRaw) === spec.summary_sha256 &&
-    plan?.schema === 'pllm.private_boundary_tiers_plan.v1' && plan.tiny === false &&
-    summary.schema === 'pllm.private_boundary_tiers.v1' && summary.complete === true &&
+    contract && plan?.schema === contract.plan && plan.tiny === false &&
+    summary.schema === contract.summary && summary.complete === true &&
     summary.all_logits_active_kv_positions_selections_rng_and_outputs_match === true &&
     document.schema === 'pllm.benchmark_run.v1' && document.complete === true && digest(document.cohort),
   'Missing complete audited tier evidence');
@@ -31,7 +38,7 @@ export function privateBoundaryTierCohorts(spec, document, plan, read, helpers) 
   const suite = document.suite, count = suite.sampling.processes;
   check(suite.schema === 'pllm.benchmark_suite.v1' && count >= 3 && count === summary.replicates &&
     suite.sampling.order === 'balanced' && suite.sampling.warmups === 0 && suite.sampling.repetitions === 1 &&
-    suite.cases.length === 8 && document.results.length === count * suite.cases.length &&
+    suite.cases.length === contract.cases && document.results.length === count * suite.cases.length &&
     summary.clients === document.results.length && plan.preflight.length === suite.cases.length &&
     plan.preflight.every((cell) => cell.admission.admitted === true), 'Incomplete repeated tier cohort');
   for (const file of [spec.replay_file, spec.frozen_factory.file]) {
@@ -95,6 +102,9 @@ export function privateBoundaryTierCohorts(spec, document, plan, read, helpers) 
     const records = new Map(result.metrics.map((metric) => [metric.id, metric]));
     check(records.size === result.metrics.length, 'Duplicate tier metric');
     const measurements = Object.fromEntries([...records].map(([id, metric]) => [id, metric.value]));
+    if (spec.adapter === 'private-boundary-decode-v1') {
+      helpers.checkedResponseBodies(report, measurements, name !== 'maintained');
+    }
     const metricContracts = Object.values(axes).map(([id]) => {
       const { value, sample_count, unavailable_reason, ...contract } = records.get(id);
       check(Number.isFinite(value) && value >= 0 && sample_count === 1 && unavailable_reason === null,

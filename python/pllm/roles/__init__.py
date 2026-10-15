@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.roles.topology import (
     Channel,
     Role,
@@ -159,13 +159,25 @@ class PrivateLookupAndFullHead(BoundaryPlacement):
         provider="pllm", distribution="pllm.run", version="1",
         category="pllm/boundary-placement", category_version="1",
         lifecycle_phase="offline+online",
-        parameter_schema={"type": "object", "additionalProperties": False},
+        parameter_schema={"type": "object", "additionalProperties": False, "properties": {
+            "head_dispatch": {"type": "string", "enum": ["serial", "parallel"]},
+            "head_output_encoding": {"type": "string", "enum": ["u32", "uniform_residues"]},
+        }},
         capabilities=("private-packed128-token-lookup", "two-party-full-vocabulary-head"),
         role_eligibility=("client", "boundary_a", "boundary_b"),
     )
 
-    def __init__(self) -> None:
-        super().__init__(self.descriptor.component)
+    def __init__(self, head_dispatch: str = "serial", head_output_encoding: str = "u32") -> None:
+        params = {}
+        for name, value, default, allowed in (
+            ("head_dispatch", head_dispatch, "serial", ("serial", "parallel")),
+            ("head_output_encoding", head_output_encoding, "u32", ("u32", "uniform_residues")),
+        ):
+            if type(value) is not str or value not in allowed:
+                raise ConfigurationError(f"{name} must be one of {allowed}")
+            if value != default:
+                params[name] = value
+        super().__init__(self.descriptor.component, params)
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

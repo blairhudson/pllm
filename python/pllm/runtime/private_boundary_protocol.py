@@ -109,8 +109,14 @@ class BoundaryDescriptor:
     wire_bits: int = 32
     modulus: int = 1 << 32
     leaf_bits: int = 128
+    head_dispatch: str = "serial"
+    head_output_encoding: str = "u32"
 
     def __post_init__(self):
+        if type(self.head_dispatch) is not str or self.head_dispatch not in ("serial", "parallel"):
+            raise BoundaryError("invalid head dispatch")
+        if type(self.head_output_encoding) is not str or self.head_output_encoding not in ("u32", "uniform_residues"):
+            raise BoundaryError("invalid head output encoding")
         for field in fields(self):
             if field.name.endswith("digest"):
                 digest(getattr(self, field.name), field.name)
@@ -136,11 +142,19 @@ class BoundaryDescriptor:
             raise BoundaryError("invalid head stage ID")
 
     def to_dict(self) -> dict:
-        return {"schema": SCHEMA + ".descriptor", **asdict(self)}
+        row = {"schema": SCHEMA + ".descriptor", **asdict(self)}
+        for name, default in (("head_dispatch", "serial"), ("head_output_encoding", "u32")):
+            if row[name] == default:
+                del row[name]
+        return row
 
     @classmethod
     def from_dict(cls, value: Any):
-        row = object_fields(value, {"schema", *(f.name for f in fields(cls))})
+        optional = {"head_dispatch", "head_output_encoding"}
+        required = {"schema", *(f.name for f in fields(cls))} - optional
+        if type(value) is not dict or not required <= set(value) or set(value) - required - optional:
+            raise BoundaryError("boundary fields differ")
+        row = value
         if row["schema"] != SCHEMA + ".descriptor":
             raise BoundaryError("boundary descriptor schema differs")
         return cls(**{k: v for k, v in row.items() if k != "schema"})

@@ -691,6 +691,10 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     identities = {name: component.component for name, component in pipeline.components.items()}
     private_boundary = identities.get("boundary") == PrivateLookupAndFullHead.descriptor.component
     if private_boundary:
+        try:
+            PrivateLookupAndFullHead.from_params(pipeline.components["boundary"].params)
+        except ValueError:
+            return None
         quantization = pipeline.components.get("quantization")
         inventory = pipeline.components.get("inventory")
         if (identities.get("topology") != PreparedBoundaryRoles.descriptor.component
@@ -698,7 +702,6 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
                 or identities.get("preparation") != "pllm/model-aware-corrections"
                 or identities.get("inference") != "pllm/inference"
                 or identities.get("kernels") != "pllm/cpu"
-                or pipeline.components["boundary"].params
                 or pipeline.components["topology"].params
                 or {"verification", "nonlinear", "scheduler", "state", "cache", "public_prefix", "placement"} & identities.keys()
                 or quantization is not None and (
@@ -922,7 +925,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         if (
             boundary.component not in {OutputHeadAtInference.descriptor.component,
                                        PrivateLookupAndFullHead.descriptor.component}
-            or boundary.params
+            or (boundary.params and not private_boundary)
             or identities.get("linear") != "pllm/masked-linear"
         ):
             return None

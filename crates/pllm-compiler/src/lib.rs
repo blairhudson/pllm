@@ -2305,7 +2305,7 @@ fn validate_masked_linear_composition(
         if !matches!(
             boundary.component.as_str(),
             "pllm/output-head-at-inference/v1" | decoder_boundary::COMPONENT
-        ) || !boundary.params.is_empty()
+        ) || (boundary.component != decoder_boundary::COMPONENT && !boundary.params.is_empty())
         {
             return Err("remote output head requires baseline masked-linear placement".into());
         }

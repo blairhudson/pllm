@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serial fresh-process research driver; no SDK, production path, or extra weights."""
+"""Serial v3 API probe: historical preallocated and allocating-output pairs; no SDK."""
 import argparse
 import datetime
 import hashlib
@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BINARY = ROOT / "target/release/examples/boundary_head_dotprod"
+SCHEMA = "boundary-head-dotprod-v3"
 SOURCES = ("crates/pllm-core/examples/boundary_head_dotprod.rs",
            "crates/pllm-core/src/kernels.rs", "scripts/probe_boundary_head_dotprod.py",
            "tests/test_boundary_head_dotprod_probe.py", "docs/research/boundary-head-dotprod-probe.md",
@@ -77,6 +78,8 @@ def main():
         if proc.returncode:
             sys.exit(proc.stderr)
         answer = json.loads(proc.stdout)
+        if answer.get("schema") != SCHEMA:
+            sys.exit("unexpected native report schema; rebuild with --build (do not relabel archives)")
         if binary_hash != sha(BINARY) or source_hashes != {name: sha(ROOT / name) for name in SOURCES}:
             sys.exit("binary/source changed during measurement; discard and rerun")
         for native_key, name in (("compiled_source_sha256", SOURCES[0]), ("compiled_kernels_sha256", SOURCES[1])):
@@ -89,7 +92,8 @@ def main():
                                 "binary_path": str(BINARY), "native_command": command}
         answer["process_schedule"] = {"index": a.process_index, "processes": a.processes,
                                       "effective_order_offset": a.order_offset,
-                                      "paired_start_balance": a.processes % 2 == 0}
+                                      "paired_start_balance": a.processes % 2 == 0,
+                                      "paired_cohort_start_balance": a.processes % 2 == 0}
         usage = resource.getrusage(resource.RUSAGE_CHILDREN)
         answer["fresh_process"] = {
             "peak_rss_bytes": int(usage.ru_maxrss * (1 if sys.platform == "darwin" else 1024)),

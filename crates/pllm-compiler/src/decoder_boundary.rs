@@ -29,6 +29,10 @@ pub struct PrivateBoundaryContract {
     pub owners: [String; 2],
     pub lookup_protocol: String,
     pub head_protocol: String,
+    #[serde(default = "serial", skip_serializing_if = "is_serial")]
+    pub head_dispatch: String,
+    #[serde(default = "u32_encoding", skip_serializing_if = "is_u32_encoding")]
+    pub head_output_encoding: String,
     pub weight_bits: u64,
     pub activation_bits: u64,
     pub head_ring_bits: u64,
@@ -45,6 +49,47 @@ pub struct PrivateBoundaryContract {
     pub decode: PrivateBoundaryPhase,
 }
 
+fn serial() -> String {
+    "serial".into()
+}
+fn u32_encoding() -> String {
+    "u32".into()
+}
+fn is_serial(value: &str) -> bool {
+    value == "serial"
+}
+fn is_u32_encoding(value: &str) -> bool {
+    value == "u32"
+}
+
+fn options(pipeline: &ExperimentPipeline) -> Result<(String, String), String> {
+    let params = &pipeline
+        .components
+        .get("boundary")
+        .ok_or("private boundary component is absent")?
+        .params;
+    if params
+        .keys()
+        .any(|key| !matches!(key.as_str(), "head_dispatch" | "head_output_encoding"))
+    {
+        return Err("unknown private boundary option".into());
+    }
+    let choice = |key: &str, default: &str, allowed: &[&str]| -> Result<String, String> {
+        match params.get(key) {
+            None => Ok(default.into()),
+            Some(value) => value
+                .as_str()
+                .filter(|s| allowed.contains(s))
+                .map(str::to_owned)
+                .ok_or_else(|| format!("unsupported private boundary {key}")),
+        }
+    };
+    Ok((
+        choice("head_dispatch", "serial", &["serial", "parallel"])?,
+        choice("head_output_encoding", "u32", &["u32", "uniform_residues"])?,
+    ))
+}
+
 pub(crate) fn selected(pipeline: &ExperimentPipeline) -> bool {
     pipeline
         .components
@@ -53,9 +98,9 @@ pub(crate) fn selected(pipeline: &ExperimentPipeline) -> bool {
 }
 
 pub(crate) fn validate_composition(pipeline: &ExperimentPipeline) -> Result<(), String> {
+    options(pipeline)?;
     let topology = pipeline.components.get("topology");
     if !topology.is_some_and(|c| c.component == TOPOLOGY && c.params.is_empty())
-        || !pipeline.components["boundary"].params.is_empty()
         || !pipeline
             .components
             .get("kernels")
@@ -203,6 +248,10 @@ pub(crate) fn lower(
     plan: &DecoderPlan,
     composition: &[u8],
 ) -> Result<PrivateBoundaryContract, String> {
+    let pipeline: ExperimentPipeline = serde_json::from_slice(composition)
+        .map_err(|error| format!("invalid private boundary composition: {error}"))?;
+    validate_composition(&pipeline)?;
+    let (head_dispatch, head_output_encoding) = options(&pipeline)?;
     if !plan.transformations.is_empty() || !plan.token_feedback {
         return Err("private boundary requires original full-vocabulary token feedback".into());
     }
@@ -258,6 +307,8 @@ pub(crate) fn lower(
         owners: ["boundary_a".into(), "boundary_b".into()],
         lookup_protocol: "packed128_xor_dpf_v2".into(),
         head_protocol: "two_party_additive_full_head_v1".into(),
+        head_dispatch,
+        head_output_encoding,
         weight_bits: 8,
         activation_bits: 8,
         head_ring_bits,
@@ -309,6 +360,75 @@ mod tests {
             },
         )
         .unwrap()
+    }
+
+    #[test]
+    fn private_boundary_transport_choices_preserve_numeric_contract_and_default_bytes() {
+        let plan = plan("qwen2", true);
+        let baseline =
+            crate::lower_decoder_runtime_schedule(&plan, &canonical_bytes(&composition())).unwrap();
+        let baseline_value =
+            serde_json::to_value(baseline.private_boundary.as_ref().unwrap()).unwrap();
+        assert!(baseline_value.get("head_dispatch").is_none());
+        assert!(baseline_value.get("head_output_encoding").is_none());
+        let restored: PrivateBoundaryContract =
+            serde_json::from_value(baseline_value.clone()).unwrap();
+        assert_eq!(restored.head_dispatch, "serial");
+        assert_eq!(restored.head_output_encoding, "u32");
+        assert_eq!(serde_json::to_value(restored).unwrap(), baseline_value);
+        for dispatch in ["serial", "parallel"] {
+            for encoding in ["u32", "uniform_residues"] {
+                let mut composition = composition();
+                composition["components"]["boundary"]["params"] = json!({
+                    "head_dispatch": dispatch, "head_output_encoding": encoding});
+                let schedule =
+                    crate::lower_decoder_runtime_schedule(&plan, &canonical_bytes(&composition))
+                        .unwrap();
+                let contract = schedule.private_boundary.as_ref().unwrap();
+                assert_eq!(contract.head_dispatch, dispatch);
+                assert_eq!(contract.head_output_encoding, encoding);
+                let mut numeric = serde_json::to_value(contract).unwrap();
+                numeric.as_object_mut().unwrap().remove("head_dispatch");
+                numeric
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("head_output_encoding");
+                numeric["composition_digest"] = baseline_value["composition_digest"].clone();
+                assert_eq!(numeric, baseline_value);
+                assert_eq!(schedule.prefill, baseline.prefill);
+                assert_eq!(schedule.decode, baseline.decode);
+                assert_ne!(
+                    contract.composition_digest,
+                    baseline
+                        .private_boundary
+                        .as_ref()
+                        .unwrap()
+                        .composition_digest
+                );
+                assert_ne!(schedule.digest(), baseline.digest());
+            }
+        }
+    }
+
+    #[test]
+    fn private_boundary_transport_choices_fail_closed() {
+        let plan = plan("qwen2", true);
+        for params in [
+            json!({"head_dispatch":"striped"}),
+            json!({"head_dispatch":true}),
+            json!({"head_dispatch":null}),
+            json!({"head_output_encoding":"row_residues"}),
+            json!({"head_output_encoding":32}),
+            json!({"unknown":"parallel"}),
+        ] {
+            let mut composition = composition();
+            composition["components"]["boundary"]["params"] = params;
+            assert!(
+                crate::lower_decoder_runtime_schedule(&plan, &canonical_bytes(&composition))
+                    .is_err()
+            );
+            assert!(lower(&plan, &canonical_bytes(&composition)).is_err());
+        }
     }
 
     #[test]

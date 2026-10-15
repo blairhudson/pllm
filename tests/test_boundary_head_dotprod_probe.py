@@ -31,6 +31,7 @@ class BoundaryHeadDotprodProbe(unittest.TestCase):
                         for r in range(a["rows"])]
                     self.assertEqual(a["output"], expected)
                     self.assertEqual(a["baseline_output"], expected)
+                    self.assertTrue(a["allocation_matched"]["exact"])
                     self.assertIn(-128, a["weights"])
                     self.assertEqual(a["owned_buffers"]["extra_persistent_weight_bytes"], 0)
                     selected = "arm-sdot-inline-asm" if mode == "auto" and a["dotprod_available"] else "scalar-balanced-limbs"
@@ -65,6 +66,12 @@ class BoundaryHeadDotprodProbe(unittest.TestCase):
         for key in ("setup", "packing", "kernel", "baseline"):
             self.assertGreaterEqual(a[key]["cpu_seconds"], 0)
             self.assertGreater(a[key]["elapsed_seconds"], 0)
+        self.assertEqual(a["schema"], "boundary-head-dotprod-v3")
+        self.assertIn("both APIs allocate output", a["allocation_matched_comparison"])
+        self.assertIn("preallocated", a["comparison"])
+        for key in ("packing", "candidate_allocating", "candidate_allocating_including_packing", "baseline"):
+            self.assertGreaterEqual(a["allocation_matched"][key]["cpu_seconds"], 0)
+            self.assertGreater(a["allocation_matched"][key]["elapsed_seconds"], 0)
 
     def test_both_order_offsets_and_fresh_process_balance(self):
         for offset in (0, 1):
@@ -80,6 +87,7 @@ class BoundaryHeadDotprodProbe(unittest.TestCase):
                 chosen = (offset + index) % 2
                 self.assertEqual(a["order_offset"], chosen)
                 self.assertTrue(a["process_schedule"]["paired_start_balance"])
+                self.assertTrue(a["process_schedule"]["paired_cohort_start_balance"])
                 self.assertEqual(a["process_schedule"]["index"], index)
                 self.assertIn("rustc 1.", a["build_provenance"]["rustc_verbose"])
                 self.assertEqual(a["compiled_source_sha256"], a["provenance"]["source_sha256"][
@@ -90,10 +98,20 @@ class BoundaryHeadDotprodProbe(unittest.TestCase):
                 self.assertEqual(a["baseline_output"], expected)
                 for j, sample in enumerate(a["samples"]):
                     self.assertEqual(sample["order"], "candidate-first" if (j+chosen) % 2 == 0 else "baseline-first")
+                    self.assertEqual(sample["cohort_order"], "historical-first" if (j+chosen) % 2 == 0 else "allocation-matched-first")
                     self.assertTrue(sample["exact"])
+                    matched = sample["allocation_matched"]
+                    self.assertEqual(matched["order"], sample["order"])
+                    self.assertTrue(matched["exact"])
                     for clock in ("elapsed_seconds", "cpu_seconds"):
                         self.assertAlmostEqual(sample["candidate_including_packing"][clock],
                                                sample["packing"][clock] + sample["kernel"][clock])
+                        self.assertAlmostEqual(matched["candidate_allocating_including_packing"][clock],
+                                               matched["packing"][clock] + matched["candidate_allocating"][clock])
+                for key in ("packing", "candidate_allocating", "candidate_allocating_including_packing", "baseline"):
+                    for clock in ("elapsed_seconds", "cpu_seconds"):
+                        self.assertAlmostEqual(a["allocation_matched"][key][clock], sum(
+                            sample["allocation_matched"][key][clock] for sample in a["samples"]))
 
 
 if __name__ == "__main__":

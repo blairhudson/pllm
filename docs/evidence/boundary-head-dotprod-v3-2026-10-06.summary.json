@@ -1,0 +1,137 @@
+{
+  "archive_sha256": "c7c39adf629464c75593f2ae92f3a66a0e66e474017020cad7a96d98b9908933",
+  "binary_sha256": "8e92fa4112f0de2c04175af185b1160a871e700293050e2f6eaaf6fb613e712a",
+  "build_timestamp_utc": "2026-10-15T01:30:15.853172+00:00",
+  "cols": 896,
+  "maximum_observed_swap_growth_bytes": 0,
+  "maximum_process_rss_bytes": 281673728,
+  "raw_sha256": {
+    "guard.json": "3a665b8fd02e0a460c489a9da0bab3871c80ac57f92a5ac9acfa696cd0ca0683",
+    "results.jsonl": "bb71f9365c808b367783beece2f999f753bf191dace948807b2926b5808d71a0",
+    "run.log": "bc734fd4f53456bfc8eecc0668be1fb7d335d89113d64fce899aec52354ffe65"
+  },
+  "repeats_per_worker": 4,
+  "rows": 151936,
+  "schema": "pllm.research.boundary_head_dotprod.summary.v3",
+  "scope": "synthetic same-weight allocating-output APIs; internal allocation/transposition differs; not isolated SDOT, SDK or whole-client gain",
+  "source_sha256": {
+    "Cargo.lock": "82bf0fd931f4b479417fe37e37c49bff02ada53ed6e384f4a4d04f8fc19bf9c8",
+    "Cargo.toml": "98ccfa49ed86e7f000cf3ca6b4e16ff858716fe1d94dc2196019abc4804a40ff",
+    "crates/pllm-core/Cargo.toml": "c85f0e54cdc056c4a480d4e52cbc8901c19154bc9e3238de0fb2a304469a6978",
+    "crates/pllm-core/examples/boundary_head_dotprod.rs": "3b58712c0f7ba809c056c91f8ea522044ac09e76377a70be55be14673a47b65e",
+    "crates/pllm-core/src/kernels.rs": "5313b717725bd72709c99409a18204d50c42ef4e4a6b40a8bb52033740def17e",
+    "docs/research/boundary-head-dotprod-probe.md": "ced7adbfa4330e859b0760e3ad014a72af9a462e857fba0a52eacbd6ce586e9a",
+    "scripts/probe_boundary_head_dotprod.py": "26a6021d4aad94abf833633312b8440700a970bcd0b4017dde00cc1311cd7293",
+    "tests/test_boundary_head_dotprod_probe.py": "4d75eb00c38ac3e7a8f57dc8c78415387f2d18efeef2d7cbdcbd6f88abdf2940"
+  },
+  "whole_client_memory_tier": null,
+  "worker_four_call_totals": {
+    "aggregation": "median of six worker four-call totals",
+    "cpu_reduction_percent": 31.325278207257256,
+    "timings": {
+      "baseline": {
+        "cpu_seconds": {
+          "max": 0.027505,
+          "median": 0.026194499999999968,
+          "min": 0.026153999999999983
+        },
+        "elapsed_seconds": {
+          "max": 0.027527043,
+          "median": 0.0262051035,
+          "min": 0.026172208
+        }
+      },
+      "candidate_allocating": {
+        "cpu_seconds": {
+          "max": 0.018266000000000004,
+          "median": 0.017986499999999947,
+          "min": 0.01699700000000004
+        },
+        "elapsed_seconds": {
+          "max": 0.018264706000000002,
+          "median": 0.017999208000000003,
+          "min": 0.016997543
+        }
+      },
+      "candidate_allocating_including_packing": {
+        "cpu_seconds": {
+          "max": 0.018269000000000007,
+          "median": 0.017988999999999977,
+          "min": 0.017001000000000016
+        },
+        "elapsed_seconds": {
+          "max": 0.018267957,
+          "median": 0.0180026245,
+          "min": 0.017001335
+        }
+      },
+      "packing": {
+        "cpu_seconds": {
+          "max": 4.999999999977245e-06,
+          "median": 3.000000000016878e-06,
+          "min": 2.000000000002e-06
+        },
+        "elapsed_seconds": {
+          "max": 3.7919999999999994e-06,
+          "median": 3.4165000000000002e-06,
+          "min": 3e-06
+        }
+      }
+    }
+  },
+  "worker_medians": {
+    "aggregation": "median of six worker medians of four per-repeat samples",
+    "cpu_reduction_percent": 35.43806069860673,
+    "timings": {
+      "baseline": {
+        "cpu_seconds": {
+          "max": 0.006785000000000013,
+          "median": 0.006548750000000006,
+          "min": 0.006529000000000007
+        },
+        "elapsed_seconds": {
+          "max": 0.006788104499999999,
+          "median": 0.0065521977500000005,
+          "min": 0.0065377705
+        }
+      },
+      "candidate_allocating": {
+        "cpu_seconds": {
+          "max": 0.004423499999999997,
+          "median": 0.004226999999999995,
+          "min": 0.0041919999999999735
+        },
+        "elapsed_seconds": {
+          "max": 0.0044278955,
+          "median": 0.004228656250000001,
+          "min": 0.004196500000000001
+        }
+      },
+      "candidate_allocating_including_packing": {
+        "cpu_seconds": {
+          "max": 0.0044239999999999835,
+          "median": 0.004227999999999996,
+          "min": 0.004192499999999988
+        },
+        "elapsed_seconds": {
+          "max": 0.0044286455,
+          "median": 0.00422965625,
+          "min": 0.0041973125
+        }
+      },
+      "packing": {
+        "cpu_seconds": {
+          "max": 1.4999999999876223e-06,
+          "median": 7.500000000007501e-07,
+          "min": 4.999999999866223e-07
+        },
+        "elapsed_seconds": {
+          "max": 8.745000000000001e-07,
+          "median": 8.334999999999999e-07,
+          "min": 7.5e-07
+        }
+      }
+    }
+  },
+  "workers": 6
+}

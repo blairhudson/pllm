@@ -15,6 +15,7 @@ from typing import Any, Callable
 from pllm.configuration import Experiment
 from pllm.model_loader import ResolvedModel, resolve_model
 from pllm.modeling import DecoderRuntimeSchedule, ModelPlan, lower_model
+from pllm.roles import PrivateLookupAndFullHead
 
 from .private_boundary_protocol import (
     BoundaryAdmission, BoundaryDescriptor, BoundaryError, MAX_HEADS, MAX_LOOKUP_ROWS,
@@ -133,6 +134,13 @@ def build_private_boundary_contract(loaded: LoadedPrivateBoundary, experiment: E
     contract = schedule.get("private_boundary")
     if type(contract) is not dict:
         raise BoundaryError("native private boundary contract is absent")
+    boundary = experiment.pipeline.components.get("boundary")
+    try:
+        if boundary is None or boundary.component != PrivateLookupAndFullHead.descriptor.component:
+            raise ValueError("private boundary component is absent")
+        boundary_options = dict(PrivateLookupAndFullHead.from_params(boundary.params).params)
+    except ValueError as exc:
+        raise BoundaryError("private boundary options are unsupported") from exc
     max_input = integer(plan["prefill"]["query_sequence"], 1, MAX_LOOKUP_ROWS, "plan input bound")
     # The prefill head produces token one. Only heads 2..N append decode rows.
     max_key = integer(plan["decode"]["maximum_key_sequence"],
@@ -188,6 +196,7 @@ def build_private_boundary_contract(loaded: LoadedPrivateBoundary, experiment: E
         "lookup_batch_bound": 64, "lookup_query_bound": max_key,
         "matrix_bytes": vocabulary * hidden, "scale_bytes": vocabulary * 4,
         "lookup_scratch_bytes": vocabulary * 64, "client_weight_bytes": 0, **phases,
+        **boundary_options,
     }
     if canonical(contract) != canonical(expected):
         raise BoundaryError("native private boundary contract differs from imported source/head")
@@ -217,6 +226,8 @@ def build_private_boundary_contract(loaded: LoadedPrivateBoundary, experiment: E
         schedule_digest=loaded.schedule.digest, head_weight_digest=weight_digest,
         head_scales_digest=hashlib.sha256(scale_bytes).hexdigest(), lookup_digest=lookup_digest.hex(),
         vocabulary=vocabulary, hidden=hidden, signed_output_bound=head.signed_output_bound,
+        head_dispatch=contract.get("head_dispatch", "serial"),
+        head_output_encoding=contract.get("head_output_encoding", "u32"),
     )
     plan_digest = loaded.plan.digest
 

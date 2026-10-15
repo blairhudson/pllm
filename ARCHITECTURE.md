@@ -255,6 +255,30 @@ client weight scan. Equal-service runahead adds no ideal gain over parallel.
 All monitored jobs observe zero swap growth, but these separate generated
 references establish no complete SDK speedup, new SOTA or client-memory tier.
 Contracts, original reports and replay: `docs/research/private-boundary-decode-frontier.md`.
+A separate six-worker allocating-output comparison observes 35.44% lower median
+packing-inclusive byte-dot API CPU. Native internal allocation/transposition still
+differs; this does not isolate SDOT instructions or measure SDK acceleration.
+Frozen v3 evidence: `docs/research/boundary-head-dotprod-probe.md`.
+The boundary component now admits optional parallel head dispatch and exact
+uniform-residue head replies. Native source/schedule commitments bind both choices;
+the original serial/u32 defaults retain their identity. Paired authenticated calls
+drain before cancellation or failure retirement. A public signed-i8/symmetric-input
+bound derives a 25-bit reply width at hidden size 896, while input shares remain
+ring32 and the client reconstructs every original full-head integer and float32
+logit. Thread, frame and codec owners add to conservative memory admission.
+Generated Qwen2/Qwen3/Llama decoder, SDK and gateway controls preserve complete
+state and sampling. A separate fifteen-client pinned Qwen2.5 150+8 screen checks
+131,404,800 exact logit/KV values with zero observed swap growth under shared
+native 100/40 caps. Parallel uniform-residue replies raise median decode throughput
+2.18 to 3.33 tokens/s (52.42%) against serial/u32; head bodies fall exactly
+2,125,920 bytes. Complete-client peak remains within observed Low at 228.67 MiB,
+while median client RSS rises 1.20% and CPU 3.60%. Against the fresh maintained
+prepared comparator, TCP streams fall 23.70% and full request latency 24.19%,
+but decode remains 32.78% slower and online TTFT rises 8.19%. The SDK, supervisor,
+dashboard, relay and audit share the measured worker. This first whole-SDK screen
+retains source-present scope, separate topology leaders and an independent
+confirmation gate. Evidence and replay:
+`docs/research/private-boundary-decode-sdk-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

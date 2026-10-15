@@ -65,6 +65,26 @@ assert experiment.resolve().composition_digest == experiment.pipeline.digest()
 and the ordinary SDK, including paged artifacts, packed/residue body frames and
 demand preparation. Local native execution and shared TCP rate caps are supported.
 
+Head delivery has two explicit options:
+
+```python
+from pllm.roles import PrivateLookupAndFullHead
+
+boundary = PrivateLookupAndFullHead(
+    head_dispatch="parallel",
+    head_output_encoding="uniform_residues",
+)
+assert boundary.params["head_dispatch"] == "parallel"
+assert boundary.params["head_output_encoding"] == "uniform_residues"
+```
+
+Use this `boundary` in the same Pipeline. Parallel dispatch overlaps the two
+current head exchanges and drains both on failure or cancellation. Uniform
+residues transmit exact smaller output shares under a compiler-checked public
+bound; every vocabulary logit and the original sampler remain client-owned.
+Defaults are serial dispatch and u32 replies. These choices add priced thread,
+frame and codec owners; measured RAM and timing remain workload-specific.
+
 The same Experiment works with `BenchmarkTarget.response`, `benchmark_suite` and
 `pllm benchmark run`. The generated-checkpoint example runs local-boundary and
 coupled-boundary choices in fresh processes under shared native 100/40 caps:

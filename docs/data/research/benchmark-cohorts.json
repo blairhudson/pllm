@@ -116,6 +116,22 @@
       "replay_sha256": "9429648310c62cb1f2c9941d0ae5fddc557391558630052c27fa4f589bcd9972",
       "frozen_factory": {"file": "benchmarks/research/private_boundary_tiers.py", "sha256": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867"},
       "scope": "One independent source-present cold cohort: eight frozen recipes, three balanced fresh workers each, exact logits/KV/positions/selections/RNG/output equality and zero observed swap growth. All recipes use the same 150+8 public bound. Complete worker RSS includes SDK, supervisor, dashboard, WAN relay and audit; the largest replicate qualifies the observed RAM budget. Coupled boundary beats the best eligible tested incumbents on all-link TCP streams and full request latency in Low and Medium, with slower online TTFT/decode and more RAM. Two additional boundary workers change the non-collusion contract; topology-specific SOTA rows remain separate. Checkpoint/tokenizer distribution, physical wire and Internet RTT are unmeasured. Original historical cohorts and preflight-rejected attempts supply no replicates. Full results: docs/research/private-boundary-tiers-reference.md."
+    },
+    {
+      "id": "qwen25-private-boundary-decode-150-8",
+      "evidenceTier": "screen",
+      "title": "Exact boundary decode choices · 150+8 · 3 clients/recipe",
+      "adapter": "private-boundary-decode-v1",
+      "report": "docs/evidence/private-boundary-decode-qwen25-sdk.json",
+      "sha256": "56bcdfbcb53aba403cc406b4854cbf702de41d4b1e9cd0138d26dc7b84997df0",
+      "plan": "docs/evidence/private-boundary-decode-qwen25-sdk.plan.json",
+      "plan_sha256": "21fb23e53bde4276dcb3df4a57997a52d3689bd34e02a3b863fbb81e567341d1",
+      "summary": "docs/evidence/private-boundary-decode-qwen25-sdk.summary.json",
+      "summary_sha256": "109ac6ecafd507680a8837033f86808c5b2091e8771b3a69636bb260a590b89e",
+      "replay_file": "scripts/benchmark_private_boundary_decode.py",
+      "replay_sha256": "9ebc4ef1ae93b6095fe1cd58a185f92a823f4d70b9b8b3f22a369c81edaf4a2d",
+      "frozen_factory": {"file": "benchmarks/research/private_boundary_decode.py", "sha256": "02db9015992714d77d64838ca068f4ca704bb73a79f14de62cb353294ddf6566"},
+      "scope": "First matched whole-SDK screen of serial/parallel and u32/uniform-residue head replies against a fresh maintained control: fifteen clients, three balanced replicates per recipe, one installed build and private salt. All 131,404,800 logit/KV values and complete selection/output commitments agree with zero observed swap growth. Combined choices raise decode throughput 52.42% against serial/u32 and retain observed Low eligibility at a maximum complete-worker peak of 228.67 MiB; client CPU rises 3.60% and median RSS 1.20%. Against maintained prepared execution, TCP streams fall 23.70% and cold request latency 24.19%, while decode remains 32.78% slower. Exact head replies remove 2,125,920 application bytes; lifecycle metadata and TCP overhead stay separately charged. SDK, supervisor, dashboard, relay and audit share the measured worker. Source/tokenizer distribution, physical wire and Internet RTT remain unmeasured; extra boundary workers retain their distinct trust/topology contract. Historical cohorts supply no samples, and independent whole-response confirmation remains open. Full costs and replay: docs/research/private-boundary-decode-sdk-reference.md."
     }
   ],
   "quality_cohorts": [

@@ -94,8 +94,13 @@ def boundary_workers(engine, compiled, admission):
 
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
 @pytest.mark.parametrize("reduction", [None, "prefix_f32"])
-def test_full_logits_kv_tokens_rng_and_repeated_feedback(tmp_path, family, reduction):
-    engine, original, document, plan, composition = generated_boundary(tmp_path, family, reduction)
+@pytest.mark.parametrize("boundary_options", [{}, {"head_dispatch": "parallel"},
+    {"head_output_encoding": "uniform_residues"},
+    {"head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}],
+    ids=["serial-u32", "parallel-u32", "serial-residues", "parallel-residues"])
+def test_full_logits_kv_tokens_rng_and_repeated_feedback(tmp_path, family, reduction, boundary_options):
+    engine, original, document, plan, composition = generated_boundary(tmp_path, family, reduction,
+        boundary_options=boundary_options)
     if not hasattr(_native.PrivatePageServer, "bind_context"):
         pytest.skip("native authenticated context API not installed")
     from pllm import Model

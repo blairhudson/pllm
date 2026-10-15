@@ -129,12 +129,36 @@ def test_memory_table_shared_but_scratch_ledgers_and_imports_not_erased():
 
 
 @pytest.mark.parametrize("kwargs", [{"lookup_rows": 4097}, {"head_calls": 4097},
-    {"lookup_rows": True}, {"concurrent_requests": 0}, {"shared_matrix": 1}])
+    {"lookup_rows": True}, {"concurrent_requests": 0}, {"shared_matrix": 1},
+    {"head_dispatch": "runahead"}, {"head_output_encoding": "row_l1"}])
 def test_memory_protocol_bounds(kwargs):
     arguments = dict(lookup_rows=157, head_calls=8)
     arguments.update(kwargs)
     with pytest.raises(BenchmarkMemoryError):
         private_boundary_memory(1000, 64, **arguments)
+
+
+def test_parallel_residue_memory_charges_overlap_without_discounting_weights():
+    geometry = dict(vocabulary=151936, hidden=896, lookup_rows=157, head_calls=8)
+    baseline = private_boundary_memory(**geometry)
+    parallel = private_boundary_memory(**geometry, head_dispatch="parallel")
+    residues = private_boundary_memory(**geometry, head_output_encoding="uniform_residues")
+    combined = private_boundary_memory(**geometry, head_dispatch="parallel",
+                                       head_output_encoding="uniform_residues")
+    assert baseline["head_reply_bits"] == 32
+    assert combined["head_reply_bits"] == 25
+    assert combined["head_payload_bytes_per_worker"] == 474800
+    assert combined["worker_native_table_bytes"] == baseline["worker_native_table_bytes"]
+    assert parallel["client_work_bytes"] - baseline["client_work_bytes"] == parallel["client_parallel_head_work_bytes"] > 16 << 20
+    assert residues["client_work_bytes"] - baseline["client_work_bytes"] == residues["client_head_codec_work_bytes"] > 0
+    assert combined["client_work_bytes"] == (
+        parallel["client_work_bytes"] + residues["client_head_codec_work_bytes"])
+    assert combined["worker_head_codec_work_bytes"] > 0
+    assert combined["worker_peak_bytes"] >= baseline["worker_peak_bytes"]
+    two = private_boundary_memory(**geometry, head_dispatch="parallel",
+        head_output_encoding="uniform_residues", concurrent_requests=2)
+    for key in ("client_parallel_head_work_bytes", "client_head_codec_work_bytes", "worker_head_codec_work_bytes"):
+        assert two[key] == 2 * combined[key]
 
 
 def driver():

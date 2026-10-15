@@ -6,12 +6,14 @@ import hashlib
 import ipaddress
 import secrets
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlsplit
 
 import httpx
 import numpy as np
 
 from .http_response import owned_response
+from .private_boundary_head_codec import HeadOutputCodec
 from .private_boundary_protocol import (
     BoundaryAdmission, BoundaryDescriptor, BoundaryError, MAX_BODY_BYTES,
     MAX_CONTROL_BYTES, ROLES, SCHEMA, canonical, context_bytes,
@@ -70,6 +72,8 @@ class PrivateBoundaryTransport:
         if origins[0] == origins[1]:
             raise BoundaryError("boundary requires distinct origins")
         self.descriptor = descriptor
+        self._head_codec = (HeadOutputCodec(descriptor)
+                            if descriptor.head_output_encoding == "uniform_residues" else None)
         self._scales = np.frombuffer(raw_scales, "<f4")  # immutable private copy
         self._owned = tuple(type(c) is str for c in arguments)
         clients = []
@@ -92,6 +96,7 @@ class PrivateBoundaryTransport:
         self._finish_lock = threading.Lock()
         self._state = "new"
         self._retired = False
+        self._completed = False
         self._attempted: set[int] = set()
         self._admission = None
         self._session = None
@@ -218,9 +223,8 @@ class PrivateBoundaryTransport:
         with self._state_lock:
             self._diagnostics[operation]["calls"] += 1
             self._diagnostics[operation]["rows"] += len(frames_a)
-        replies = []
-        for index, frames in enumerate((frames_a, frames_b)):
-            self._active()
+
+        def exchange_one(index, frames):
             payload = pack_frame(role=ROLES[index], paired_session=self._session, epoch=self._epoch,
                                  sequence=sequence, operation=operation, frames=frames)
             status, raw = self._post(index, f"/v1/private-boundary/sessions/{self._session}/execute",
@@ -232,7 +236,23 @@ class PrivateBoundaryTransport:
                     or row["epoch"] != self._epoch or row["sequence"] != sequence
                     or row["operation"] != operation or len(row["frames"]) != len(frames)):
                 raise BoundaryError("boundary reply ownership differs")
-            replies.append(row["frames"])
+            return row["frames"]
+
+        if operation == "head" and self.descriptor.head_dispatch == "parallel":
+            # One admitted current-step pair, never speculative work. The caller
+            # holds _lock until both futures drain, including submission failure,
+            # malformed replies and BaseException. Consequently abort/close cannot
+            # retire sessions or close owned clients beneath a pending request.
+            # Per-pair ownership also leaves no idle executor after an exchange.
+            with ThreadPoolExecutor(max_workers=2, thread_name_prefix="pllm-boundary-head") as owner:
+                pending = [owner.submit(exchange_one, index, frames)
+                           for index, frames in enumerate((frames_a, frames_b))]
+                replies = [future.result() for future in pending]
+        else:
+            replies = []
+            for index, frames in enumerate((frames_a, frames_b)):
+                self._active()
+                replies.append(exchange_one(index, frames))
         self._active()  # Cancellation during a blocking exchange cannot deliver.
         return replies
 
@@ -293,12 +313,18 @@ class PrivateBoundaryTransport:
                 clear = quantized.values.astype(np.int64) % (1 << 32)
                 right = np.frombuffer(bytearray(secrets.token_bytes(self.descriptor.hidden * 4)), "<u4").reshape(1, -1)
                 left = np.asarray((clear - right.astype(np.int64)) % (1 << 32), dtype="<u4")
+                sequence = self._sequence
                 replies = self._exchange("head", [left.tobytes()], [right.tobytes()])
-                if any(len(r[0]) != self.descriptor.vocabulary * 4 for r in replies):
-                    raise BoundaryError("boundary head reply width differs")
-                a, b = (np.frombuffer(r[0], "<u4").astype(np.int64).reshape(1, -1) for r in replies)
-                combined = (a + b) % (1 << 32)
-                centered = np.where(combined >= 1 << 31, combined - (1 << 32), combined)
+                if self._head_codec is not None:
+                    centered = self._head_codec.decode(replies[0][0], replies[1][0],
+                        admission=self._admission, paired_session=self._session,
+                        epoch=self._epoch, sequence=sequence)
+                else:
+                    if any(len(r[0]) != self.descriptor.vocabulary * 4 for r in replies):
+                        raise BoundaryError("boundary head reply width differs")
+                    a, b = (np.frombuffer(r[0], "<u4").astype(np.int64).reshape(1, -1) for r in replies)
+                    combined = (a + b) % (1 << 32)
+                    centered = np.where(combined >= 1 << 31, combined - (1 << 32), combined)
                 if np.any(np.abs(centered) > self.descriptor.signed_output_bound):
                     raise BoundaryError("boundary head exceeds signed output bound")
                 result = dequantize_matmul(centered, quantized.scales, self._scales,
@@ -319,6 +345,8 @@ class PrivateBoundaryTransport:
     def _finish(self, action):
         with self._state_lock:
             if self._retired:
+                if action == "complete" and not self._completed:
+                    raise BoundaryError("boundary completion requires an active session")
                 return
             if action == "complete" and self._state != "active":
                 raise BoundaryError("boundary completion requires an active session")
@@ -340,7 +368,9 @@ class PrivateBoundaryTransport:
                         failures = True
                 except Exception:
                     failures = True
-            self._retired = True
+            with self._state_lock:
+                self._completed = action == "complete" and not failures
+                self._retired = True
             if failures and action == "complete":
                 raise BoundaryError("boundary completion failed")
 
@@ -364,6 +394,7 @@ class PrivateBoundaryTransport:
             for client, owned in zip(self._clients, self._owned, strict=True):
                 if owned:
                     client.close()
+            self._head_codec = None
 
     def __enter__(self):
         self._active()

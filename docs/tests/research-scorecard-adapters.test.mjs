@@ -515,7 +515,7 @@ test('canonical attribution rejects stale counters, wrong windows, output denomi
 
 test('all metrics sort unknown last in both directions; leaders remain local', () => {
   const views = specs.flatMap((spec) => adaptedCohorts(spec, read, helpers));
-  assert.equal(views.length, 19);
+  assert.equal(views.length, 20);
   for (const view of views) for (const metric of metrics) {
     const table = sotaTable(view, 'Prepared', [metric]);
     assert.ok(table.leaders[metric.id].every((id) => view.rows.some((row) => row.id === id)));

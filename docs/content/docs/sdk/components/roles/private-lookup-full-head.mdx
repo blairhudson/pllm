@@ -50,4 +50,39 @@ Supported compositions and exclusions follow the
 Boundary workers must not collude; co-located children do not establish operator
 independence or cryptographic review.
 
+## Exact head transport choices
+
+```python
+from pllm.roles import PrivateLookupAndFullHead
+
+boundary = PrivateLookupAndFullHead(
+    head_dispatch="parallel", head_output_encoding="uniform_residues",
+)
+assert boundary.params["head_dispatch"] == "parallel"
+```
+
+`head_dispatch="parallel"` overlaps the current head's two authenticated worker
+requests. Both calls drain before retirement on cancellation or partial failure.
+Lookup requests retain their original ordering. `head_output_encoding="uniform_residues"`
+packs exact output shares using one source-bound public geometry width: 25 bits
+for a hidden width of 896. Input shares remain ring32; the client reconstructs
+all signed head outputs before the original float32 dequantization and sampling.
+No vocabulary matrix or weight scan moves to the client.
+
+The defaults, `"serial"` and `"u32"`, preserve previous configuration identities.
+Each alternative is explicitly selected and compiler-bound. Admission charges
+parallel thread/frame owners and native codec temporaries in addition to the
+original full-frame allowance. Smaller payloads do not establish lower client
+peak memory. `scripts/benchmark_private_boundary_decode.py` compares all four
+boundary combinations with the maintained prepared comparator through ordinary
+fresh-client SDK benchmarks and complete-state audits.
+
+The first matched Qwen2.5 150+8 SDK screen measures **52.42% faster decode** for
+parallel/residue heads against serial/u32, with exact full-state/output parity and
+zero observed swap growth. Its largest complete-client peak is **228.67 MiB**,
+within observed Low, while median client RSS rises 1.20% and CPU 3.60%.
+Against maintained prepared execution, traffic falls 23.70% and full requests
+24.19%, but decode remains 32.78% slower. See the
+[head-choice screen](/research/sota/#exact-boundary-decode-screen) for scope and replay.
+
 API: [`PrivateLookupAndFullHead`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

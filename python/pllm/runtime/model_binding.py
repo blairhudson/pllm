@@ -543,6 +543,8 @@ class CompiledRuntimeModel:
             lookup_digest=descriptor["lookup"]["digest"], vocabulary=contract["vocabulary"],
             hidden=contract["hidden_width"],
             activation_bits=contract["activation_bits"],
+            head_dispatch=contract.get("head_dispatch", "serial"),
+            head_output_encoding=contract.get("head_output_encoding", "u32"),
             signed_output_bound=self._bundle.stages[head.stage_id].seeded_profile.signed_output_bound)
 
     def private_boundary_admission(self, prefill_rows: int, decode_steps: int, *, full_prefill_head: bool = False):
@@ -1217,8 +1219,15 @@ def _private_boundary_source_identity(manifest):
 
 
 def _validate_private_boundary_contract(contract, document, *, plan_digest, composition_digest,
-                                        vocabulary, hidden, activation_bits):
+                                        vocabulary, hidden, activation_bits, boundary_params=None):
     """Check every public native boundary identity against the original graph."""
+    from pllm.roles import PrivateLookupAndFullHead
+
+    try:
+        boundary_options = dict(PrivateLookupAndFullHead.from_params(
+            {} if boundary_params is None else boundary_params).params)
+    except ValueError as exc:
+        raise RuntimeBindingError("private boundary options are unsupported") from exc
     phases = {}
     weights = set()
     for phase in ("prefill", "decode"):
@@ -1232,6 +1241,8 @@ def _validate_private_boundary_contract(contract, document, *, plan_digest, comp
         if (not isinstance(weight, str) or not weight
                 or head["attributes"].get("weight") != weight
                 or head["attributes"].get("tied") is not True
+                or lookup["attributes"].get("bias") is not None
+                or head["attributes"].get("bias") is not None
                 or lookup.get("inputs") != ["input.tokens"]
                 or lookup["output_shape"] != [1, graph["query_sequence"], hidden]
                 or len(head["output_shape"]) not in (2, 3) or head["output_shape"][0] != 1
@@ -1243,7 +1254,7 @@ def _validate_private_boundary_contract(contract, document, *, plan_digest, comp
                          "head_rows": 1 if len(head["output_shape"]) == 2 else head["output_shape"][1]}
     if len(weights) != 1:
         raise RuntimeBindingError("private boundary phase weight identities differ")
-    if type(activation_bits) is not int or activation_bits not in (4, 8):
+    if type(activation_bits) is not int or activation_bits != 8:
         raise RuntimeBindingError("private boundary activation precision is unsupported")
     bound = hidden * 127 * ((1 << (activation_bits - 1)) - 1)
     ring_bits = next((bits for bits in (16, 24, 32) if bound < 1 << (bits - 1)), None)
@@ -1258,7 +1269,8 @@ def _validate_private_boundary_contract(contract, document, *, plan_digest, comp
         "lookup_query_bound": phases["prefill"]["lookup_rows"] + document["decode"]["maximum_key_sequence"]
                               - document["prefill"]["query_sequence"],
         "matrix_bytes": vocabulary * hidden, "scale_bytes": vocabulary * 4,
-        "lookup_scratch_bytes": vocabulary * 64, "client_weight_bytes": 0, **phases}
+        "lookup_scratch_bytes": vocabulary * 64, "client_weight_bytes": 0, **phases,
+        **boundary_options}
     # Canonical comparison also distinguishes booleans from integer geometry.
     try:
         matches = type(contract) is dict and _canonical_json(contract) == _canonical_json(expected)
@@ -1496,7 +1508,8 @@ def _compile_runtime_model(
         contract = runtime_schedule_spec.get("private_boundary")
         _validate_private_boundary_contract(contract, document, plan_digest=plan.digest,
             composition_digest=composition.digest(), vocabulary=dims["vocab"], hidden=dims["hidden"],
-            activation_bits=privacy.get("activation_bits"))
+            activation_bits=privacy.get("activation_bits"),
+            boundary_params=composition.components["boundary"].params)
         if (runtime_schedule_spec.get("composition_digest") != composition.digest()
                 or manifest.get("tied_embeddings") is not True
                 or privacy.get("local_quantized_stages", []) != []):

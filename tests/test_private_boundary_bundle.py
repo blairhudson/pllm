@@ -16,7 +16,7 @@ from pllm.runtime.transformer_client import ClientBundle, TransformerClientError
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
-def generated_boundary(tmp_path, family="llama", reduction=None):
+def generated_boundary(tmp_path, family="llama", reduction=None, *, boundary_options=None):
     if not hasattr(_native.PrivatePageServer, "from_matrix"):
         pytest.skip("shared native private table API not installed")
     from pllm.quantization import SymmetricPerRow
@@ -31,7 +31,7 @@ def generated_boundary(tmp_path, family="llama", reduction=None):
     document = msgpack.unpackb(engine.client_bundle("private-boundary"), raw=False)
     config = json.loads((path / "config.json").read_text())
     plan = lower_model(config, batch=1, max_input_tokens=8, max_new_tokens=4)
-    composition = MaskedLinearCpu(Model("private-boundary"), boundary=PrivateLookupAndFullHead(),
+    composition = MaskedLinearCpu(Model("private-boundary"), boundary=PrivateLookupAndFullHead(**(boundary_options or {})),
         topology=PreparedBoundaryRoles(), quantization=SymmetricPerRow(causal_reduction=reduction))
     return engine, original, document, plan, composition
 

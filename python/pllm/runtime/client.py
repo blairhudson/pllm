@@ -1420,12 +1420,16 @@ class RuntimeClient:
         self._ephemeral_response_ids: set[str] = set()
         self._ephemeral_response_order: deque[str] = deque()
         self.audit = PrivacyAudit()
-        if self._offset_workers is not None:
+        if self._private_boundary or self._offset_workers is not None:
+            # Establish instrumented zero counters before the startup snapshot.
+            # Boundary sessions accumulate into these same owners on retirement;
+            # absence would mean unknown coverage, not zero startup traffic.
+            audit_roles = ("boundary_a", "boundary_b") if self._private_boundary else ("worker_a", "worker_b")
             self.audit.role_link_bodies = {
                 role: {f"{phase}_{direction}_bytes": 0
                        for phase in ("setup", "online", "teardown")
                        for direction in ("upload", "download")}
-                for role in ("worker_a", "worker_b")
+                for role in audit_roles
             }
         self._crypto_states: dict[str, _ModelCryptoState] = {}
         self._crypto_state_lock = threading.Lock()

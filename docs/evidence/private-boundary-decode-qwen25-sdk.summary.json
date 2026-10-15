@@ -1,0 +1,2491 @@
+{
+  "identity": {
+    "source": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "prompt": "126eb6e604df6dd33e6cc52c5967c4e3f54b8823b34d6b2c3a06154b028d939f",
+    "body": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "tokens": {
+      "authoritative": true,
+      "input_tokens": 150,
+      "output_tokens": 8,
+      "total_tokens": 158
+    },
+    "output": "20dc626ea4f5c2bdb0862df4a68be132d0491a3e26ae39ac674682de8f24d9a9",
+    "wan": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+    "sampling": {
+      "effective_temperature": 0.0,
+      "mode": "greedy",
+      "requested_temperature": 0.0,
+      "top_p": null
+    },
+    "build": {
+      "attributes": {
+        "dependencies": {
+          "cryptography": {
+            "files_digest": "2699639b1f7d996d4d5ccb26ff35a9a8da33df93e8b550921cf5755ebc324337",
+            "version": "46.0.7"
+          },
+          "fastapi": {
+            "files_digest": "62dc5645d385f71776a43f55b370b5f649ca2e92191c1d0838b42d970ae84089",
+            "version": "0.141.1"
+          },
+          "httpx": {
+            "files_digest": "8c4585585c3b1dd4f4947a00d8a15c8aac1ab50df81743b46bd0d2422e14aedc",
+            "version": "0.28.1"
+          },
+          "huggingface-hub": {
+            "files_digest": "4b66fd742f07aef2c088872ae694554c7539e959a5f42c4075520fd97b31f948",
+            "version": "1.30.0"
+          },
+          "mlx": {
+            "files_digest": "3b60694e481ff2be38d19085396935a26fa3972c3c01d4f6c4aaa839c48cc11f",
+            "version": "0.32.2"
+          },
+          "msgpack": {
+            "files_digest": "27b599634c2453410722a3cc5fa2b567c03d294a7fbb23e270cfba48633ba33c",
+            "version": "1.2.2"
+          },
+          "numpy": {
+            "files_digest": "abfea8a6c33c5a9f6aa446017d22aa774babb9ea11f017a5b597e572be1e1a1e",
+            "version": "2.5.3"
+          },
+          "psutil": {
+            "files_digest": "e619eeffeb290360d54493ad8a6fa9516ea1768cb39663488cdcecbd75b25205",
+            "version": "7.2.2"
+          },
+          "pydantic": {
+            "files_digest": "3cc75b45b441b7f83b4ddabf0cd14747c78bf7f759b85077fe50f1d32198fbde",
+            "version": "2.13.5"
+          },
+          "pydantic-core": {
+            "files_digest": "4874ced1d0b45ed07dfb1540c303f2bc485bba0e4ad57fe85d0f08c6651fc9c5",
+            "version": "2.46.5"
+          },
+          "safetensors": {
+            "files_digest": "cfcad743f1965da9d0d42b6281b91ec563d858c7451d87f118ef95e5bef73189",
+            "version": "0.8.0"
+          },
+          "starlette": {
+            "files_digest": "51a4d279b5ab1d1344aa74589c1f28c5029ea0f0e4eb0e5ccd862e1ea9d7fcb8",
+            "version": "1.6.0"
+          },
+          "tenseal": {
+            "files_digest": "6c51f57af4690f17aa7f3a870fb5333c29c274b0ee6627c7ed926da99b1505d8",
+            "version": "0.3.17"
+          },
+          "tokenizers": {
+            "files_digest": "97e6756b095528e64cc823422928aab9a7181ded2874e988eb97c7a43ab54b4f",
+            "version": "0.23.2"
+          },
+          "uvicorn": {
+            "files_digest": "3c48457ce9bb02bfd5b99e526538be5a8084cccbcaabb8af6e7d1de1994d687b",
+            "version": "0.52.4"
+          },
+          "websockets": {
+            "files_digest": "7a07a1834e07108e4e1a420c79acd46c62381399b7d78955994ed084729c9a1d",
+            "version": "15.0.1"
+          }
+        },
+        "hardware": {
+          "cpu_affinity": null,
+          "details": {
+            "hw.logicalcpu": "10",
+            "hw.memsize": "34359738368",
+            "hw.model": "Mac17,3",
+            "hw.physicalcpu": "10",
+            "machdep.cpu.brand_string": "Apple M5"
+          },
+          "logical_cpus": 10
+        },
+        "implementation": "CPython",
+        "machine": "arm64",
+        "native_sha256": "58d57ca513274a038cb352028e2d61ff1af0e3275fec4d1a1feafeaa583fe847",
+        "numeric_backend": {
+          "Build Dependencies": {
+            "blas": {
+              "detection method": "system",
+              "found": true,
+              "include directory": "unknown",
+              "lib directory": "unknown",
+              "name": "accelerate",
+              "openblas configuration": "unknown",
+              "pc file directory": "unknown",
+              "version": "unknown"
+            },
+            "lapack": {
+              "detection method": "system",
+              "found": true,
+              "include directory": "unknown",
+              "lib directory": "unknown",
+              "name": "accelerate",
+              "openblas configuration": "unknown",
+              "pc file directory": "unknown",
+              "version": "unknown"
+            }
+          },
+          "Compilers": {
+            "c": {
+              "commands": "cc",
+              "linker": "ld64",
+              "name": "clang",
+              "version": "15.0.0"
+            },
+            "c++": {
+              "commands": "c++",
+              "linker": "ld64",
+              "name": "clang",
+              "version": "15.0.0"
+            },
+            "cython": {
+              "commands": "cython",
+              "linker": "cython",
+              "name": "cython",
+              "version": "3.3.0"
+            }
+          },
+          "Machine Information": {
+            "build": {
+              "cpu": "aarch64",
+              "endian": "little",
+              "family": "aarch64",
+              "system": "darwin"
+            },
+            "host": {
+              "cpu": "aarch64",
+              "endian": "little",
+              "family": "aarch64",
+              "system": "darwin"
+            }
+          },
+          "Python Information": {
+            "path": "/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/build-env-cf3c84h2/bin/python",
+            "version": "3.13"
+          },
+          "SIMD Extensions": {
+            "baseline": [
+              "NEON",
+              "NEON_FP16",
+              "NEON_VFPV4",
+              "ASIMD"
+            ],
+            "found": [
+              "ASIMDHP",
+              "ASIMDDP"
+            ],
+            "not found": [
+              "ASIMDFHM"
+            ]
+          }
+        },
+        "os_release": "25.5.0",
+        "os_version": "Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:17 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T8142",
+        "python": "3.13.15",
+        "python_binary": "7710b0490e6af648676d7ad163fa1d54bffb75d8505162609a1c3c9b76e1929d",
+        "sdk_sources": {
+          "__init__.py": "8a27dcd4029a5ca29905c8ecb7ef30a542d95ec8c08ac867b00834dbd58c106c",
+          "__main__.py": "4ffc46cde082dfa15d39f625b8a12513e869887e38c32bea5e76b6a1777f762c",
+          "_benchmark_build.py": "ce5bf4763fa01895e7c73a71e920b325a910e6ff35e8e169f60f6f2b8557d43b",
+          "_benchmark_contract.py": "3d869d8c32dde595b103655e4d976fbf2a3d76d05ed427124aac77ed9bda451e",
+          "_benchmark_evidence.py": "d20232d90f6bbb15c226b239212a7b51dd08851a2ebf4b841f88383dcf8caf0c",
+          "_benchmark_worker.py": "f1ab57c627e7f72b92448ff7e6689b93c7344153677c71de8bd099ae0eceb5ea",
+          "_cli/__init__.py": "1e9ef8441de8686a08147bdd86e5c915a5e55887b017c68532d173756127963d",
+          "_cli/app.py": "c7d4c888d6bae4517f632dc3a24c9dd973a07bf02e15c2a1117225913aa0fd7a",
+          "_cli/benchmark_output.py": "2aa29f663e940bcc70886be1d1a71fed7c27eea3faad98e2a3bd1cc0bd7197df",
+          "_cli/coverage.py": "1080d7d1fc01a8f0fe918a442745f6ef0e23bab28bf45044714194531fb60710",
+          "_cli/errors.py": "c214743863bb935387b12243e5f4d343984398b9bca9dc802d2f9f3a1fb20473",
+          "_cli/network.py": "7404bb0c7e93a9274ea80e3e06f4d87b7c5e7b58e07db05d31324c50992260cc",
+          "_cli/output.py": "16e95b15bf59ffbc017700ef281556f3d1adfb231af9e839e33d0ce4523bc4c4",
+          "_cli/plan.py": "38f2b1c3223f76593431016ff2535dd9a3f6756e7130abd8afcdb408f56c1435",
+          "_cli/targets.py": "e37d204794ff561b3788fce71cc72358d2443df7a544ecaac7d1667f76dc7038",
+          "_search_benchmark.py": "59578a3fe9b7b1ef18b59741d233bbec361533aec6570cbb800ba7b70d5bf09c",
+          "_version.py": "3150b7c46f54f0a5d74e267614c67d01101200957603e42eed4725884f8dfe12",
+          "assurance/__init__.py": "e44ba0a382a7e64419da09dfa075485b58072faa0db3c295c40f4337fb6d3709",
+          "chat.py": "d7edd598460cd957261a53b2dc1e74a71383cd2ed11a07de778f5831f783073f",
+          "cli.py": "3a98f7b4a20d7fd479a3e8927807e0dbe09bb2a5edfdeecf5d3a5062c30f917e",
+          "client.py": "c07d3a69008a751b4565a9e86410025d5175dab6bcddbdc156ef4a6cfb43e7e7",
+          "compiler.py": "6a37c6942a21ba31a56e9bdd2936cc788609586761e9e983c715bac01961476e",
+          "components/__init__.py": "bb5c2af8a0f9792e325a4ac7d2ee99aa847b56f5da5bd6ab29e10cb3e03f3647",
+          "components/_model_capabilities.py": "d32ea9286370d6b8d0a0e1d01f458e99d715a8221cb13729de5984ad16b793f3",
+          "components/_planned.py": "7b2af848eed5bef1f42c09aced09b8bcb325151728b22411609385dfb89b3084",
+          "components/_q7_activation.py": "82c36d458f7d166adbbb0fc390858b910f20b11b98a871d7d62634bc8007bb9b",
+          "components/model_capabilities.json": "ef9c48cd47bf2718b7fbebbe7aae52f363331947e69bc5524e4c08fc2c774229",
+          "components/planned_methods.json": "7c1f31ac7947175e79359258ae5b7e358492a4e7a0897119349a9ab8a990bcc1",
+          "config/__init__.py": "6fbb96dc5f9d4ae7e52e6522f0e99862e2d9cb7f66bf8f42ef638e0107f2b3ff",
+          "configuration.py": "f6b683007ed0ca169de9ff65238afa4874c187e83b58b1512efe1c9e032de14d",
+          "correlation/__init__.py": "7a163d4af4ed521d4251854401a8b23801a191351e02f1bd6b97e0eacadf6aca",
+          "deployment/__init__.py": "1606eadfe275ed5daeefc23e79b32b63f6f24938869be4c68d29de1e1d231daf",
+          "deployment/admission.py": "44e8e5bc6d363ec4fe82dce38217b6b4e9465640a829a6dfe3c99582177ac9ae",
+          "deployment/execution.py": "4bb29796a22f04d998a29f589970e346e32a836c2e9a95e76a2ccac379ec3208",
+          "deployment/network.py": "7959bc03437d4655c31efc225ec369c30204ff4f30ac2845bef7e05b3161de4d",
+          "deployment/resources.py": "62c3a4197eecfb50e456255b55256b278e9f3b458a0999f5b2069c77bf041293",
+          "deployment/role_placement.py": "154e73a4b324bc2af21bc63770194ca52d92c532f9dfe4e1d7a3d1411989a4ac",
+          "deployment/selection.py": "6e7b0395cd95835cca66deab18b3bdae3cc0446c5c10b42fc0d5871494600f4c",
+          "deployment/wan.py": "2999a5ab059cd798a0a7ff541d3b363c735992224e577b93ef6c6a7a5e5459a7",
+          "evidence.py": "b9c81411b31f50d93d96557613d68db1fb4e522bf7791a57802152ca032a7f16",
+          "kernels/__init__.py": "8acf60ea3fac663213271075009c7c46cb356756365e19936cc39cfcddcc99b3",
+          "metrics/__init__.py": "5749f64a5a737d2f4dd93f51dc8d27b0c0f8f8080682040e9ed8df3befb74919",
+          "metrics/activations.py": "a01c518a987e064024fc86b93bac66a60b6c327d692b1afcd87d7b0d6d6ec985",
+          "metrics/aggregation.py": "ef89dd5405a05c76c994dd7eb5e637d60b31dd2541de7683f6edeae7b4175c1d",
+          "metrics/artifact_planes.py": "d3dd9e1d9fd62e8e2b60eb5dd1c7548e725e55ddac73e2e59d2ab05a8756e116",
+          "metrics/batched_lookup.py": "19f20a8965167cbd1f626a348c5278dd652a58e8b9f02d3ab5981be4500ad514",
+          "metrics/benchmark_runner.py": "8516364c5569fdce957b329300f633862cd46a35a7d11c73a496b7389ec1aad7",
+          "metrics/coded_delegation.py": "805aa25f3e83d8e363f85a223a06c360b34459d7110d535e3ddf2add57feadde",
+          "metrics/communication.py": "3f75b18d45c8073cd9146fff0c5a84aa0f0abc6ea272e5710f0258fba1a09da2",
+          "metrics/compact_product.py": "ff15455bc3cc373e204d9c8c9bf52fd30c052995b779758f040bca7360e0f011",
+          "metrics/coverage.py": "3ccd12de47865cf45aa379c0426c9eb7bd647d3e6ea4175839bfc43404e19a6a",
+          "metrics/encrypted_linear.py": "115b06cb5041a816a4b03edf6848ad60a2d0c1416d38d4b92c9136f720420484",
+          "metrics/encrypted_softmax.py": "4dd0b8636559c0cd169ac212a9a98b709bf01b00c2c7d4e67979d560f7e49dc1",
+          "metrics/head_retrieval.py": "43d2955f1bfd300f22b343a542bbd129b44ce5ccbd038f88274965635c6ad805",
+          "metrics/logrow_product.py": "adbdad8f2c9bb05e0ec0e6d2e2f481674f15e994f90f277d2a411aa842e4edcd",
+          "metrics/masked_wire.py": "3a92a992767ed42613b3d55d8b22307e5fa562e9ed86e1e07a6a9cb5af19b30e",
+          "metrics/mixed_gated.py": "28ecec8338fc736a141fa94482f995d8c3a5b476890485ba89b8b7ed5c57a611",
+          "metrics/network_probes.py": "926652befbc46ffa6a14a5444cb4a544f296f6dd763449c813e2c2a7fd3511a2",
+          "metrics/operator_benchmarks.py": "c80bfddea043e4a7b97a16e814ceef5b06cab53a3ef7c9404590214781c99b1b",
+          "metrics/orthogonal_activation.py": "45a7296d92b7c8f67a6566500b8471d0e932133b846b481d96b2060eb12b705d",
+          "metrics/packed_embedding.py": "e7ef98cff2689b92253e3c3e8c07570d78234323cdab63650d41c2dd154b3992",
+          "metrics/prepared_duplex.py": "ce2ee5505df659559ef274262dd003f9aa0b525dc1984aed388bab7aedc19291",
+          "metrics/prepared_residues.py": "15c27cfdc3187700d2dda9bc254f3e0d802179b32a1dacb200c839372beeb98c",
+          "metrics/private_pages.py": "5a1ccde46f37aedf848743b35a08cb8ef14595d6bb3c95aeef5feb3a2090a91f",
+          "metrics/progressive_head.py": "421bdee5704aa85a3947ba03aa56eb6e9359471d1e0c5dd6efb06b0b7f288ae6",
+          "metrics/projected_polynomial.py": "04a9046764cccbd49ce731d803e37f19939df59f29d79e1ddd82e9d81b42c45e",
+          "metrics/projected_resharing.py": "66444424e5f7f0c664f30682cc57292c629a1a96c672ac2fa7b7eab64e76f2c7",
+          "metrics/repacked_embedding.py": "31d14f377960bee5004ebea4e88e7c809462bf2d41f2dd6d2c6cb4072fe22741",
+          "metrics/secret_replication.py": "4a29af7a970aaa655b7a9dd1d0e4616e224c793903201692e91d2ecbdac9174a",
+          "metrics/shared_rescale.py": "b36c2a885809adaf0b16a20bee8b8f4c72a4dab83b44663331ed911d9c03a397",
+          "metrics/shared_selection.py": "278315d9c58106c326e8c2bbb77ebdef603fbffa6ae2a6d0645202b6649a942b",
+          "metrics/state_reuse.py": "d35081481e3d97814206727b66cc086b9735c25b1ac349ed34eac4f839f50f19",
+          "metrics/token_budget.py": "b3d95d413f8983eeb1e94f2c55b75022a5f9b179daea29ac6fbeb630dc4a4d18",
+          "metrics/token_local.py": "fc8756906638228bcb043a3dbda791bc418d6d5a2237c66b7b9227e77e072971",
+          "metrics/token_pruning.py": "2cef428724379363dfda0df1a292b4108866bf33a3c03e2da959f7a6b31565ef",
+          "metrics/wan.py": "2f535b8e8d0624f316c4fe8005b905dc2a118ed24e306b1f06c3c34668392635",
+          "metrics/wavelet_gated.py": "495a3b6251c4589d7e5e58429497ba7c432a06c2781818813ce0110ccf835ab6",
+          "model_loader.py": "9a11733dd60df26af7f5033f0f28f9d39886c6301ee1266253e58351ec5ef11d",
+          "modeling.py": "4a4d6bca300658c3ffe0c4ee84ce08ca1b7cb514eb93480c4855ee0f1239645e",
+          "models.py": "fcad1d52db25e6268409fa953791d943bbfc9ca294e31332727a568504b84b9e",
+          "native.py": "f7444ef28b56e5af6243619bbf567e01fdc26494ac2bb78f240b8114ca4b4f83",
+          "nonlinear/__init__.py": "113ff2fbecf499b80b6ee22d9522da86ba539e84ee5982a5fa21565ca08356b0",
+          "official.py": "647ab15854fbcc90664721886f77eebce403595a258370a4b1394f50360e110a",
+          "passes/__init__.py": "5ce3709919aa3f79af66f731e2889fa617a840dc10edeaf1cf6f6932f7411682",
+          "pipeline/__init__.py": "ac46989605be4ee1c7a959afbd830c97cf4ef65d00c6990816e0cc18917fc098",
+          "plan.py": "9ef06fd2896e990a37ddb9485e54f8312388b6b713a75a10fb0433675e14627c",
+          "preparation.py": "8ddab1a6b31d66747368237ac0a6a01f774b6f0747b2ff004025f55ff60a685e",
+          "profiles/__init__.py": "cfc8f9be92476b42becf7efd4dbd5302af0acf582376dc718db6a8b390573b21",
+          "protocols/__init__.py": "4be9bbbe50883696ebb8a58652356dbffc5ee1eb294a73ee44910552ed2267ff",
+          "protocols/base.py": "c7846d8772bd09f6a553d37a10596bc8ca953fc4be4102d4246eddaa45e494fd",
+          "protocols/bundle_transport.py": "4886c301bad7b7b8ba2e1c6bc107ab8bd9e74d06147bb9287db84dc3a3c15a68",
+          "protocols/masked_linear/__init__.py": "592447b85b4163918364132f4aae615b94ef8bdb70a19367b22c3987e8ea4450",
+          "protocols/packed_encrypted.py": "a9575099724c0323ab3906dd6b3bdf75c78d507f295da66a1581d2c57893db43",
+          "protocols/runtime_arms.py": "1931176ed5ea1e532fb480c20967b1d623c66d2ae19fa3862106982d7c7fc7a7",
+          "providers/__init__.py": "d9cdcd16860932289955e454e59ff3a36f02d3a33057fc8d385ec8789f3c1e3a",
+          "providers/provider-manifest.schema.json": "6d5019d2af7ad3e893436940f1461d2a204fa654c07a6bda3969c944933823b8",
+          "quantization/__init__.py": "8d73ae0128ffd773e799bc9343ad1a5710b9f42a2de21c44a35794f297bdc7f4",
+          "research/__init__.py": "0aa626136d6f71749ccdbc773abd9a147b2e342b3b874da7655732a7b6444ad8",
+          "roles/__init__.py": "5bb2879605e7578877671bb9fa934ad9c454dcef3250bea2d57035d88d499785",
+          "roles/topology.py": "f4b069b18cf9a75355344ca6c5100aab1ac75f8df3f25db962ca5f86e2fd47a3",
+          "runtime/__init__.py": "54dbb579e3ec0fb113f2b19e19c41d326126188c29781627038c2c8faf66fd06",
+          "runtime/_native_support.py": "ce14f68b2184dc103a7e60eb03fa4b26dbfd2d9a5794f3deacdf6f4dd4fd6031",
+          "runtime/attention_tiling.py": "4ee01c4e3d08c54e94616d995c56edc97d615289ca4e7e7ddc0ac4a1bda8ef31",
+          "runtime/authenticated_mpc.py": "add3eade4b0d49edd3214569a88866fbd0757c3e4e69edde26a9f9c37277e043",
+          "runtime/backends/__init__.py": "86228ad5ae37b5c2669634bb1cebfe07e6fe89462ef31c4236f00a4a09d211cd",
+          "runtime/backends/adapters.py": "d13c2786c77b39b103b0f650310f604639a05cc4f5dedba68953b2511c7c469c",
+          "runtime/backends/base.py": "91c4c0210772ce82237a7123847476384306826d7cacb0d680fbcf78a065554f",
+          "runtime/backends/registry.py": "d3a3b9ba529b460a7f89fb28d1dd5c24dad1d637caa5c64dd49475ffb4e3065a",
+          "runtime/backends/translation.py": "cb7800ba50c786e69f4c5ac59cd80f913625d3cf4b6a8824d0247e106f8edd15",
+          "runtime/benchmark_checkpoint.py": "2bde8897b3e9cdd4dc12f7d67a48b67e0551ff26ef6d6744453389d4704809f2",
+          "runtime/benchmark_cli.py": "7603d4ad6db0f107295f348d4be4b58e1f33536adb0edccc432d4fbfd84e4e22",
+          "runtime/benchmark_client_attention.py": "a73f0f736b4963cba9654a7522f12afed9b3cd54f255462d675b21a62c0d132f",
+          "runtime/benchmark_client_metadata.py": "ea105b1b521cd6ba87b13f52768df3908377b5f9c0053e23af81e423fe530938",
+          "runtime/benchmark_client_mlp.py": "f4fa7dc8804a6da843dd9e3e69cda31bca9a7688f3eed44bb26ec4bcda7d9bba",
+          "runtime/benchmark_client_stage.py": "37fb79646222d8044543e09640ac8f1677f535f1deec08d3247c4547b5a91e36",
+          "runtime/benchmark_communication.py": "419172ea2c842607672e6235509c458e8de4af0f1d605f74f19615f541691a98",
+          "runtime/benchmark_context.py": "c488152a07c63021f7873508faab78aa0f28c0b0145d6a5e97309925c4ecf64a",
+          "runtime/benchmark_correction_stripes.py": "b96c71d5ec265e417818fe3bea908b1694b03dce6121828c340b626ce50553e2",
+          "runtime/benchmark_decoder_restart.py": "dc201adb2e4bacd7d7cc6fc108427c7ab2782346d4c99361ff8299e67804e6b1",
+          "runtime/benchmark_digit_gemm.py": "eadd0002e7c328eff28218ea339cf76d439bd122854bc673d5094df73e1a27a3",
+          "runtime/benchmark_history.py": "ed9e0ad52e30c092d4d25c6c8756ce6e3a6cf3753eb3b9186d3afb6dd5cd342e",
+          "runtime/benchmark_isolation.py": "5ba8267833d55f5724bb5e0e0d6edeebb20e7068153f122d35c4981005462056",
+          "runtime/benchmark_memory.py": "aad26170f01c73d19647e7c85b34d47c3035e44fb86af02f91e3ac572073a2f4",
+          "runtime/benchmark_preparation_batch.py": "f25a59ac15d52ee4575f944fa1577a75be752be76d1ab5c740dbcc8deb23525d",
+          "runtime/benchmark_recurrence.py": "c3c66716f4187ffae14404688e3d70990da9462f16e6a3912df8f75bcddc6276",
+          "runtime/benchmark_resources.py": "f192685246bdf4dce266fb2d8d7ed7f3cfdb87af9feb58ec384c4affea90fd63",
+          "runtime/benchmark_response_audit.py": "284c57acd3214a6c34f49a2517d4c4198778cf5283e6bf921dcd9255bbde1fbf",
+          "runtime/benchmark_response_group.py": "a52de2037628af1d3060cf5fe139ec124ba53e05736855cd4cc7a1d0836ebe60",
+          "runtime/benchmark_response_target.py": "6ce6b48130ba9e46616fe8088cc0bc2eae6fd39b671be6bbfbf3368ee27bc3a1",
+          "runtime/benchmark_sealed_state.py": "5ba837a040a6061c3ad52b200b5fb5069239f13155330d63006f7396c8c82ec6",
+          "runtime/benchmark_state_targets.py": "5c087b0b2c00acb2f532ba83f077c4d571906924ad00e0981a79195513782cd3",
+          "runtime/benchmark_targets.py": "f049b397a4aa771f725334fb764d5e368efca8b9b59386a2f09a238f7728bb76",
+          "runtime/bfv_correlations.py": "f435c043bdc4907dd827dc77e17bf679a73652b4fdfd0888b98c643b323a4ad5",
+          "runtime/blinded_engine.py": "8e5f99bce88dcc08e918403a02784a9bd992d6cccc07fc6cf7a79642a6b46fc5",
+          "runtime/bundle_artifacts.py": "9b563142aa9184932f88de312ba6b89470622139d1250dbe166b7530f2b9191f",
+          "runtime/bundle_compression.py": "35635ace1b0cb469998d6b1cda990eafbe60b926ba8f74bc3f11d1e81e75574c",
+          "runtime/bundle_document.py": "6ecce5a4af70b4aa03a2e30a38fa9f20ac6c32cd7b73ca045b3b5611280679e8",
+          "runtime/bundle_storage.py": "ce241fb9e3fd22b6afeed9bc4f3087218e9b262742ca3e15f33486f6b818e9ea",
+          "runtime/causal_reduction.py": "dcdb083fe9ee4ea0dcbf24a66722f5748203df7f5e21667fec28a552dc5cceb0",
+          "runtime/checkpoint_drafter.py": "72e8cb97915ae66f93c7df96d9ab12352a307e09e221e1c9f471be1ed16e0581",
+          "runtime/ckks_reference.py": "a21e3c62e1a19c62343ad25ee6bc7d9f68783b7e7590f59b539025c79a65219a",
+          "runtime/ckks_softmax.py": "2b1d9cbe8a16363d3d893cf4b639d6bf62a00fffcf0fa9805b0ff10f12bfc457",
+          "runtime/cli.py": "4c00fc9eda020e2f3d706d6208bca6a8d5cced9721b4a89b3d452aac18c3a065",
+          "runtime/client.py": "2e1b902b489eccdd3335a2edb20b608894ea20b4aa927408cdf2ac17f2902b9b",
+          "runtime/coded_resources.py": "f9e22ca14ef80d85d9ae607ea192d2e4bd94dffde27123a75cbc358291f553f6",
+          "runtime/coefficient_repacking.py": "2ec860af6bc1d84db7ec28ce82b912264242dd2a53e1b2c492ef842a54a07547",
+          "runtime/compact.py": "2fa8db8cd0d8ab8c38045c26487927c64294a45e7e5de53d344efb6e95d67c10",
+          "runtime/compiled_cache.py": "14bda04f0b449e9982ac29fa03ba0c3bf1aef6000176e883380ac35b99e36a4c",
+          "runtime/config.py": "0a0de077d78949614e095826090960b2fcbe355dbc44c0ba3b818f04e3d5e72d",
+          "runtime/context_graph.py": "8fd998d8ea56909b985b501aa49d7139642d46a12c428b9fbf2eb4d6a8c21a12",
+          "runtime/continuation_admission.py": "be51ee6d163df94dc615a1d6e497ae3daaa0a97a5421f4b6e7b84939b43aa769",
+          "runtime/conversation.py": "b192da2d8d40c4bd68a87a29070aa247e22dc3a719db5ce7cb6b2d66d812b144",
+          "runtime/conversation_checkpoint.py": "2e654950bc716a32f71b06aca49311de9b446935baa48475a6fb86d9db3e4a70",
+          "runtime/correction_batch.py": "f3544c56df3e6a86cc68dfae164773038a9a25a49d61547a3bc63e8e6a9740cf",
+          "runtime/correction_channel.py": "23a197bbe9fab0f68e3a707d440315457d5c6d2c2e41762d83b7ae07874d2b21",
+          "runtime/correction_rendezvous.py": "9737a64a08e64fa1d2cdc19c4ee494c56a19ba074684984bbb6ebc468d43572e",
+          "runtime/correlation_ledger.py": "be470261fff0a577bcc02819e68b8cf0c96224c1c22bc8ac9a4d9831898a421e",
+          "runtime/dashboard.py": "aac76f65645c0bc77fbac894b8ebaa60d32e3ea5ab02a361ef7fcae6e25f6b0b",
+          "runtime/decision_refinement_reference.py": "b1345ad935403bd4e5a3ee7692faece7bdeb26876085c514d4b301e710d68152",
+          "runtime/decode_store.py": "8f22fa801071a02bbaf65573dc968728efcd5d38f4228c614fc03234454e439f",
+          "runtime/decoder_memory.py": "12986ae90c3ee88c2c96dcdc2a2a680082069bbd6f9211c3c46bee98d15e92d6",
+          "runtime/directory.py": "0f4488883d2915f5b41821b29142605ead586e459d41860166b607149abbafa1",
+          "runtime/docker_network.py": "cf00294e9cfd8ea09d3f6851eb817e38e8ac8b9d368b323d05a77fd2b3bc628c",
+          "runtime/docker_role.py": "78a022f899916c7ceb72ca49e64554855f98daf5fc9dad2c02d42428cabc94ef",
+          "runtime/docker_roles.py": "52d838a50d08715f1cdec266e9570e278d0a0779e6513891e5c6f4aff1df26a7",
+          "runtime/docker_wan.py": "bccbc72f7b0ffbde342648857bff399381deaebba6e6fb9021a94df104cc47e9",
+          "runtime/docker_wan_node.py": "349b6af4bb75d45c71446bc65ed04318ef2a73f00bcc01a414ba4430ccd0998b",
+          "runtime/encoded_artifacts.py": "ed6fc1e8d779bdbe9942f322ecd2561c92f775f00ac44ab5e09cea10f0b4c1fb",
+          "runtime/engine.py": "f4e0d777cf1b63601be62df65b7fce6792d59d85f3ddf055b1af73ed282e5871",
+          "runtime/execution_capsule.py": "7f6a53991b6bbdf9b6ee28c755a2750778df9227d3bc1318136103acdd003030",
+          "runtime/formal_security.py": "ada23468afc783e39e86c648cb3674e47b539c258989f7593eda10e926bbdc12",
+          "runtime/framing.py": "6fa9843804411b2b3c25e2e6f5da05137bae36c0145362f9f3dc4aaf1b0ec89e",
+          "runtime/gemma_runtime.py": "887fe47d238371a5f0ab14485ca85769c1b45f04fddf9adfdb1f8d4803e7944c",
+          "runtime/greedy_verification_reference.py": "96e9085693e04a76c26e5c568d5f9d510f4ca419880ad05a877965ba3152d2b8",
+          "runtime/guarded_engine.py": "2dbb3bbb14cc398d2355e39e57e2c5d84e0f3dfc6217a6416fa91a4120f2553b",
+          "runtime/he_authenticated_preprocessing.py": "835d57c28a48fa2af25cb7b032cb64eb84d94dcbfad2cc8e3c1c4e858f981138",
+          "runtime/he_layer_feasibility.py": "7910f5dfe538fe7a2ab6843d100f9221a7259d4d47fda5dd405a27f6177232bb",
+          "runtime/he_quadratic_share.py": "9e3e5c8643d720c10bc4cb3a674c206688b192a1727813364411734ba5933d4b",
+          "runtime/hf_hub.py": "8382c2e7ca21a688ba2cbe605d3a64a435c6131df0d05b29ea6bc5201405ea39",
+          "runtime/http_gateway.py": "fd05ad88cf43cee9ce245d49d5dc7b9592e5d0cfec37ed481be555dcd474be99",
+          "runtime/http_response.py": "105a0a94bb81385b6ffe3d2c154a200587e3da4d6d74b213bc1982eed3530049",
+          "runtime/indexed_tokenizer.py": "f352c998bb3479e427996db54156040e37336a176919b9c540f955f4eed509df",
+          "runtime/inflight_prefix.py": "94b6dce577c2ff622108c62237761acbea03e63b7e492e0f868b8395cdebd83f",
+          "runtime/integer_structure_reference.py": "ab82a59d3c31f89dd601baa14d933370812b5c1098366edc130fa7cd8fde41f0",
+          "runtime/interaction_reduction_reference.py": "0fcf08e140ae79fdb3a07cc562912c47ebe532ecec53417730f37116fa5fa3b2",
+          "runtime/latent_response_cost.py": "29543a9684069dc234984d1a987b52c90f1488260a060d0d36e7ff730b7530cf",
+          "runtime/linear_integrity.py": "d0e479561280d71b5d25c4302bd58a562585a52c73aaf1d94a96bb8518ca22cd",
+          "runtime/loaders.py": "55d59f8e007601fe6910abc0c2e383f481f2093b91b836421de5088e0cba9169",
+          "runtime/masked_runtime.py": "c3ea422b023baf8af234b2a4d1ef04ad8955807d9ed96d92cbc4e38c3be6dd6d",
+          "runtime/masked_wire.py": "81c73ae90da151e122f9a82837cec1f16438e5238d8c805c6510f7573cc82a15",
+          "runtime/metal.py": "68803f30d06cab64a31f8d91d9a52400b09dce854e57adcab3022d4191e86dfd",
+          "runtime/mlp_channel_extraction.py": "f4d22aacce9c74b393e7380f7f474b1afa04afe8e3c60152b13fbbad4d38e304",
+          "runtime/mlp_tiling.py": "d5aec954c96a78ae9462a2aeb9433ba0fd0d7bab50ad6762027bd3efb0dbe85b",
+          "runtime/model_binding.py": "5131b1fa2221aff4a07655ee311a21f78503b49c79bcdf7f55b18f590ccd9158",
+          "runtime/model_execution.py": "181939c2f536cecaba385fbc2b887f46167524b4c62bcb10b2e9be6bf00913bb",
+          "runtime/models.py": "7ad2bb306b0117e98bcd6d82940f299a29ba16897ffd6afaac46dc3ecb2e076a",
+          "runtime/native.py": "2d0eee13a5499637c8af1c94db23fadf17623f10fc8996784f32c2d3f6b6ec4f",
+          "runtime/native_kernels.py": "84b1875bebccbcf294ff1b228404fe3af058615c760b8a09e35afbeff4341bfa",
+          "runtime/native_wan.py": "08cb749dd1f38f5c96d932861c0e97621f169504297c1d4adffa9caa8e6b418b",
+          "runtime/network_benchmark.py": "dbce65380d4854f4f3c07ce87e31d0e399f54db12e63acd73a062a6f64f9407b",
+          "runtime/official.py": "9ee5407bce3868e47bb1e1fed2e1c8a035c4227fb908adbcfa6d7b76302ad6b2",
+          "runtime/offset_codec.py": "3a6d9e5c6d8212023fc97d60624b54a3eb844e7691f5dbe4615ec279bcdd65ae",
+          "runtime/offset_reference.py": "d07c980b5667ff9a17af45a3af2121d9631293626cb8c74b8e2a3c7c4fa9b0c7",
+          "runtime/offset_worker.py": "49bad6b0f651f6815604517303588b2c3ce9f89ec702e8cc69fd3b0dce071dbd",
+          "runtime/packed_bfv.py": "bb7e8de35354f2ce98e592034943294c7bc2b53173f5b94811431ad7b9da326d",
+          "runtime/paged.py": "9e5fb2a231dd7d167144afe81f61e97fb7e582914decafbb41e8559192186139",
+          "runtime/party.py": "c86c5e9bec7a307ef7d25f5833c009a7c93629357f941d9f4010a7a3a15b690f",
+          "runtime/planned_client.py": "e0e5dfdf8f96f4d5626ee788c4a2f2fe3831124eb0c6f30b2120f9ef70a8afa4",
+          "runtime/polynomial_numeric_reference.py": "7e45fa47ee26cddcb11d296ff19cab14b667db5b4638b1b1718fa18998a251f1",
+          "runtime/predictive_modular_reference.py": "91f15bd7baed3d0cb5e719e2ccdc1d40eaca02fc2b914b71af315cbd35d66fdd",
+          "runtime/prefill_cache.py": "af842c9cc589747922fccc059163d1437b8c84a07e1930cb8f821056ea84ede2",
+          "runtime/preparation_protocol.py": "dc879c9816840e722c4eee5675783b7d4d7b67250012d9276ab5c54a9c3a6503",
+          "runtime/preparation_server.py": "a7b2be726284226f355769faac2393f8020ddff57d9c9abd208052084a651c1e",
+          "runtime/preparation_window.py": "5b0d717c87d3c1385044e518df5037a83d96f76b30c1e9879151cb87c2c6a8f9",
+          "runtime/prepared_accounting.py": "67e2f560dd9d5b6b1705a92ee4848dc223d392fb4b11156476591b1dc8ff10d6",
+          "runtime/prepared_queue.py": "b9b7de67bd31d4a1f03522e0dc9cbce5901aa30d538e642bb7df42b659587bcc",
+          "runtime/prepared_stage.py": "4e72ecca466d693bbeda1c9d9afb9bea703e0dbbd873000a9e27f2acde12ba7b",
+          "runtime/preprocessing_inventory.py": "f1958321158cdd0233189939349109a0d8dea510e0edde5f1d2c864cb8d2f079",
+          "runtime/privacy.py": "ce5b2ebacd52eadfc2239421227d1ddc9bb34f88ca813b575ab7d70e4fe39ea4",
+          "runtime/private_boundary_head_codec.py": "003e6a2e9e91a880936ce7847d47a75db57742d5330d24dde381750fe97f3b0e",
+          "runtime/private_boundary_loader.py": "cc4711215af0c17b1b392e9b93b075559baf34e2769d78f3721ebda357944168",
+          "runtime/private_boundary_protocol.py": "18f7d1d60792357285e9ffe84085837822c5b7ceebf7b3ae98676ed67976a4fa",
+          "runtime/private_boundary_role.py": "0c7172812a914b746b317f4f135aa087e0cb694489634fe27619a6e203f15959",
+          "runtime/private_boundary_transport.py": "0569c49c8c110281dcb0fad485842fae6b418aa8ea336b93529d51e990ebb5db",
+          "runtime/private_boundary_worker.py": "709aa5cc019b2f8ad339ef2c34614edaca0e1d59213988455b89529bd3a02698",
+          "runtime/projected_polynomial_cost.py": "eb645feba75a0b162e612f5b3a1301ec5a105c59399f72c9d0a51e8a56028504",
+          "runtime/proprietary_engine.py": "1c5cc1bca9d00038d6e60c8fefa7ea110eeb241c5b37d8532cbc429c7d262123",
+          "runtime/protocol.py": "726d7606b3e20c7ab4e636470fddd60c6b703a12ac856820bcc681e022391e25",
+          "runtime/public_equalization.py": "9ef0e8eb4ee9a61c057ce01efbda6513dea87dd17bf19a45695bc4ca45047b5d",
+          "runtime/public_prefix.py": "2288060102a1746e3d49b457643aa21695a68457bc061cfef0961ae6e3022be4",
+          "runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+          "runtime/rank_interface_reference.py": "88497a252940c8139922207dda7e73863909dd9246993edfbd1b904a20e5d30f",
+          "runtime/recurrent_execution.py": "6841b8a83b319d6b054a830962532ae184ee94e21d79e212ec0f15ba7fb91ff6",
+          "runtime/reference_benchmark.py": "520e07d2a24e482f419dc65bec88be175458a086c4826e488196dd8f98e3707b",
+          "runtime/region_contract_cost.py": "5aa43419ff72be6d20c793caaf6c813ab6bbe5ee46e913f85a4276802b198dbd",
+          "runtime/residue_codec.py": "a6c5348bdbd30c38f5aa0ab0a0bf1d0d26c7a3af55fe0707cda2e387b59f2846",
+          "runtime/responses.py": "c472f2281b3a67831b34b5d77afe783929690fa8e8b0a7b964597f8acfe602ee",
+          "runtime/retained_execution.py": "9df42a1b62c4ae2b339a9ee39e30d4e1226b02807856d55bf0b5c3c475e810e2",
+          "runtime/retained_state.py": "0d5a24db941f0f2e681974d6279c9fd35dcaf5163be3937b6237270762192af2",
+          "runtime/ring_pcg_reference.py": "f340580f29e3367f2b3705f6e7ab6f9f7ca05822226a8c136c6aa73b3f3b4e7b",
+          "runtime/rotary_coefficients.py": "dc54c6dec672992f917cfd69703c95316debb89c022e0476d551b883bb6fc30a",
+          "runtime/safetensors_engine.py": "9f611fd1987ef1c324204684f0d395e66eb61c9ebbc622f790ed098f055db182",
+          "runtime/safetensors_store.py": "a102349dcb57108c3119d95c1aeaa38872493f615ab985d4cdc715a623c9b8dd",
+          "runtime/scalar_fss_reference.py": "0675293cadf3164480264f2b79171a5f3a05d3c5bcaf3d26ca8c8e1b8d8ee2af",
+          "runtime/seal_frames.py": "88c2c60ba57e9e2507dbaabb0c178ebeef727d4ad561d4330b1896b9f2c73781",
+          "runtime/secure_random.py": "543a9ecc7e8c5a277192d1c024034124c1d0168a39732e087bd2a3c1c74f49b8",
+          "runtime/secure_selection.py": "4e592d696c2f2a02512e6782996ea259b56536ea4097ec61adde674ac5b0ac30",
+          "runtime/secure_transformer.py": "fc72014c3e1608151c3f2b26e18787429e5a8c6864ff778424e5c61e62c7642a",
+          "runtime/security.py": "ba4b38db319774ec853e3f225cfc2900f555f6b610f5742a978ba8aa6f6932c6",
+          "runtime/semantic_attention.py": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590",
+          "runtime/semantic_executor.py": "0b9b4223e5c193530f40760fdcf930d4040f5fce5eb67f3ec03b27c56fa42852",
+          "runtime/semantic_hybrid.py": "830516ea18b81e58cfdaf10495a63e9e95956ca940f74663fccf3b7a774a57f8",
+          "runtime/semantic_numeric.py": "ade41c62a7594351e59912d22acb1c8640b632c94256292f77d55087d7964bbf",
+          "runtime/semantic_source.py": "663355bb26711b92c68cbbfb8b09d70a9ab0313d5c04a11e5c874097fca5eb13",
+          "runtime/semantic_stages.py": "74abda522411ceff602ed5f5503249d6ba4668964a173749f4a842233d00d5d2",
+          "runtime/semantic_state.py": "8fc84d677df0836d717f8c8f4a7366d4aaf1ba5f5602730fe036d95edba2a6d1",
+          "runtime/semantic_tensors.py": "5f34afc8d945e9b4637c541f19bc03727682803d263dc36e6f9cc73c582eb19d",
+          "runtime/server.py": "2a2eb6a4d71958f8ff230df2254b0fceeb4ebebf5d3f6ca470d0a01934fc0f8a",
+          "runtime/servers.py": "d5858242789ac8f319fc28d1c876ccd91bc9705a620672399e46f630a198fec8",
+          "runtime/share_linear_feedback_reference.py": "9d074ab51d00d16b7191642ea87c794183706958fe6c7d8592a5d3ea00a623a5",
+          "runtime/shared_attention.py": "04121e269aafe00d7253ddeeeeb964cfe8be45320ef95086cee39f4ddad96b94",
+          "runtime/shared_dpf.py": "91f5431f63c3e538a6911fb0a5d505bd5e265ce65665bda1dd12fdcbd808eeaa",
+          "runtime/shared_gate_polynomial.py": "76bafeec370f4d21b45204b89641ade858ce7b82543513f8709cdbc30356d5ec",
+          "runtime/shared_gate_projected.py": "57d57e13eb3affc4473b898463ae87d797c6bc26e47f57f55fed03a9ff878c63",
+          "runtime/shared_gate_reference.py": "e1abf5513c3470b1cb5f75d74087edbcfa9b518f2d44ef5e56f5c83b4bf2e160",
+          "runtime/shared_gate_resources.py": "acc2035d35953a99dff103f80f232f4ad243d88bdef020f6fcaa7f8791c089f4",
+          "runtime/shared_lookup.py": "bc5b11375930aea1f079a8190a3676fb99736a4cc65907c6d954f32ed328aa6b",
+          "runtime/shared_mlp.py": "b53193959d9abc0f7e2216cf3015cc74038984f790d8dfeb7456b21265ed0305",
+          "runtime/shared_mpc.py": "a2a6533de27a8dedf2ba34588b87f2e9f4546f07bd39d40883c4cf3c9e7f31e2",
+          "runtime/shared_norm.py": "dbfea1467873442575d9f408c31988bfb4ceaa8e0eb51f90beef78f5897103c5",
+          "runtime/shared_output.py": "02af96009240a0fedb96b1be7342b24c2d4d225721e6320b9d64f7a540dc6c55",
+          "runtime/shared_party.py": "03468dc821425c2ccf2f3ec1c26a3addff68ac87293fa6f75f4d288bac49d134",
+          "runtime/shared_resources.py": "3f090c0f6fb218800a60e7b30c972882061569825aca0f84bf4d7fa35433958f",
+          "runtime/shared_session.py": "7715821202316a0ea5a6775fd495d8a4056373b6edc9d951e52c7cae4c6cde94",
+          "runtime/shutdown.py": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f",
+          "runtime/sidecar.py": "088759f5bdf9e92d2b61bbc9c0c2c61d594a0a71e83cdfb7461c2b06a29e7ada",
+          "runtime/stage_kernels.py": "023e07d543ea66be3d97b93f806caaa407d96fab1efc1f832b7480fe44eeab75",
+          "runtime/stage_protocol.py": "bf22cc5031abb1c28da8f4f0678d490f20e373406f6ffbca7427f3ad434a4d12",
+          "runtime/streamed_reference.py": "2b9d26d83fe09c329e157e0067864e4d1a9236fbab4126bb617da0f9f52937ab",
+          "runtime/synthetic.py": "52d02fab89be153d2e6015125992b86df1bb5bd1f4eb0d05dd763e24c62e95b5",
+          "runtime/telemetry.py": "3557706f3318251b392f916eb8da3e364b791b9054037231f2ab6ce8fd0152c4",
+          "runtime/tiered_execution.py": "daaf5cb01d150aba2e3e5af93b15242b31ae307418f803a6bcfa11fc4e4c3286",
+          "runtime/tiled_bfv.py": "6c67e2acc00746469246c5769572cf52f0e2d0a2578ba0c6075488e81ab98416",
+          "runtime/tiny_gemma.py": "5b1e5d706cfd9e0cdb6bf510970d6719d5b6b47e648614d6e7b070c14afae04d",
+          "runtime/tiny_llama.py": "f368a412dd95ff6892a196106a23e74a0f4714ce889b37853e309cbf9b997862",
+          "runtime/tokenizer.py": "5228ec078a4a22ab738efb1ef1a78cfd1886f3614dc9342715d92636cf12a84a",
+          "runtime/tools.py": "03e88acb255f11d9c2cb0e3368b3724cf1fb326d116b3847b2499b0b372f1e12",
+          "runtime/topology_accounting.py": "8384e353f03600154dd4f35fccc853f97395d818f019bad762a5f02c73a7cce6",
+          "runtime/transformer_client.py": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574",
+          "runtime/transformer_engine.py": "cb9f61d93f9d9f02d4019911a56ccf1aa2daea6b9c4563f1e40f747f9a08a88f",
+          "runtime/transport.py": "ee41bfdf89347afa62b1fbefde6dbea919f9b3570a6cdfab200cbf018a84d3af",
+          "runtime/types.py": "1e4adb6dee4dfdca02fbb3d2acdb5212db7c1ede2d9fd93e86f6640dcb059c39",
+          "schedulers/__init__.py": "348ff1e5ee383593c161867709fefdb8276e6d36f973c3448c6d198badad44bd",
+          "search/__init__.py": "dcc977a0776ce8a0dd5717fd7056ec9b7fefa4b59d09b8b22a899523abe06dbd",
+          "search/_planning_cache.py": "72514eac119db5e9d11163b185d52c9a4dd2c2f1bb4a51c302e1cea1a8b4aac4",
+          "search/beam.py": "fdfff3f5820126c942f1c6a3cc2bd30af88ab57ce4d5c1611a6c8883d2694429",
+          "search/client_memory_tiers.json": "b1ec185e847c13caef0ad58c74666522a4c3b74a9057a2a943bf73faa1394eec",
+          "search/frontier.py": "d9d97e58f4d3221d3437abab0bac69c4386d7af935a886386324ebc389b5552f",
+          "search/optimizations.py": "66d9785c30bb4b2cccfd025ca0b8d485d9fd198c9313c8eae370b95c5993b3b4",
+          "search/performance.py": "0293cfdc8a32b3fd99dfe10cdcc4e3495322080f24363ad213ed69574d37e2f3",
+          "search/placement.py": "7896c8c167714a667b5ab1e4d614b5ba90729ee1edbc81e32da12a88bc6e6c17",
+          "server.py": "fab82e30efa3d1c56a840b322a8d491c148c7770913bd979d66b462f16007516",
+          "settings.py": "b16b9919135262545245c3f09e4c605a4cc58dc4c8833a2c3b30812ff3d3f947",
+          "sources/__init__.py": "22895548c4af1f431b014fdfaf615c82b816938d892e2c59518b4e98b907940e",
+          "state/__init__.py": "94e1b8571b4ac47db7213e480adbad4f4a71861cd7155fe3352793bbf81222e5",
+          "state/checkpoint.py": "8b0a17c1ad5bf4b52964f3f16f390c462406933d421fe005721f81a50353059a",
+          "state/conversation.py": "24abec23be5957ecfd0cbcc3e0eb250c55a103990b56b35a0d77df3ef9f244aa",
+          "state/decode.py": "6cfb5b7656103e90a975e80f7c02b513609ab6a34e58df8e1f7715aca49947e3",
+          "state/public_prefix.py": "36fa321498a09be104f166922ae913fd992855e548752456940c26e412e82189",
+          "tokenization.py": "8442a9549c36099afa085a3e272b34b38eec97de964522db488e20e387edb4cb",
+          "verification/__init__.py": "db9a277d534eaecebf41a79c0a60355e2dfc4b136a61d65da6a4db022dc19ece"
+        },
+        "worker_protocol": "pllm.benchmark_worker.v1"
+      },
+      "digest": "62c17e60f9769b0b29b74cf1b45061c57391d4a638490d7e619754cae6af7e99"
+    }
+  },
+  "complete": true,
+  "replicates": 3,
+  "clients": 15,
+  "checked_values": 131404800,
+  "all_logits_active_kv_positions_selections_rng_and_outputs_match": true,
+  "maximum_observed_swap_growth_bytes": 0,
+  "groups": {
+    "maintained": {
+      "samples": [
+        {
+          "client.cold_cpu": 13.610503,
+          "client.peak_rss": 232587264.0,
+          "network.all_link_stream_bytes": 478654278.0,
+          "network.covered_body_bytes": 477104957.0,
+          "preparation.cold_cpu": 8.971990016,
+          "preparation.peak_rss": 217448448.0,
+          "process.peak_rss": 232587264.0,
+          "request.0.full": 98.992621125,
+          "response.decode_tps": 4.928745593190083,
+          "response.ttft": 38.578358375,
+          "target.latency": 110.79681304097176
+        },
+        {
+          "client.cold_cpu": 14.572448,
+          "client.peak_rss": 231276544.0,
+          "network.all_link_stream_bytes": 478654278.0,
+          "network.covered_body_bytes": 477104957.0,
+          "preparation.cold_cpu": 8.46958944,
+          "preparation.peak_rss": 214548480.0,
+          "process.peak_rss": 231276544.0,
+          "request.0.full": 99.037170834,
+          "response.decode_tps": 5.008257812233796,
+          "response.ttft": 38.769550875,
+          "target.latency": 109.52045779116452
+        },
+        {
+          "client.cold_cpu": 15.145578,
+          "client.peak_rss": 242745344.0,
+          "network.all_link_stream_bytes": 478654269.0,
+          "network.covered_body_bytes": 477104957.0,
+          "preparation.cold_cpu": 8.586958592,
+          "preparation.peak_rss": 215924736.0,
+          "process.peak_rss": 242745344.0,
+          "request.0.full": 99.338995375,
+          "response.decode_tps": 4.948456666816338,
+          "response.ttft": 38.962912,
+          "target.latency": 110.21894754189998
+        }
+      ],
+      "maximum_client_peak_bytes": 242745344,
+      "observed_tiers": {
+        "low": true,
+        "medium": true,
+        "high": true
+      },
+      "medians": {
+        "client.peak_rss": 232587264,
+        "client.cold_cpu": 14.572448,
+        "preparation.cold_cpu": 8.586958592,
+        "preparation.peak_rss": 215924736.0,
+        "response.ttft": 38.769550875,
+        "response.decode_tps": 4.948456666816338,
+        "network.all_link_stream_bytes": 478654278.0,
+        "network.covered_body_bytes": 477104957.0,
+        "request.0.full": 99.037170834,
+        "target.latency": 110.21894754189998,
+        "process.peak_rss": 232587264
+      },
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 150,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": ".pllm/prepared-sdk"
+        },
+        "name": "prepared-sdk",
+        "pipeline": {
+          "components": {
+            "cache": {
+              "component": "pllm/client-prefix-reuse/v1",
+              "params": {
+                "fixed_input_tokens": 150,
+                "max_bytes": 33554432
+              }
+            },
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "provider_cache_bytes": 536870912,
+                "storage": "paged"
+              }
+            },
+            "inference": {
+              "component": "pllm/inference",
+              "params": {}
+            },
+            "inventory": {
+              "component": "pllm/prepared-inventory-policy/v1",
+              "params": {
+                "allocation": "demand",
+                "policy": "request-sized",
+                "refill": "on-demand",
+                "rows": 1,
+                "stage_window": 4,
+                "stage_window_bytes": 67108864
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/masked-linear",
+              "params": {
+                "output_encoding": "row_residues",
+                "prefill_chunk_rows": 16,
+                "prefill_pruning": "terminal",
+                "request_encoding": "stage_packed"
+              }
+            },
+            "preparation": {
+              "component": "pllm/model-aware-corrections",
+              "params": {
+                "storage": "paged"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "tokenizer": {
+              "component": "pllm/indexed-tokenizer/v1",
+              "params": {
+                "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+              }
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      }
+    },
+    "coupled-serial-u32": {
+      "samples": [
+        {
+          "client.cold_cpu": 12.416175,
+          "client.peak_rss": 221659136.0,
+          "network.all_link_stream_bytes": 367346679.0,
+          "network.covered_body_bytes": 365795613.0,
+          "preparation.cold_cpu": 8.89326048,
+          "preparation.peak_rss": 209354752.0,
+          "process.peak_rss": 221659136.0,
+          "request.0.full": 76.029620625,
+          "response.decode_tps": 2.1675888619806334,
+          "response.ttft": 42.086741084,
+          "target.latency": 91.78703845757991
+        },
+        {
+          "client.cold_cpu": 12.14128,
+          "client.peak_rss": 231817216.0,
+          "network.all_link_stream_bytes": 367346669.0,
+          "network.covered_body_bytes": 365795612.0,
+          "preparation.cold_cpu": 7.845055424,
+          "preparation.peak_rss": 202817536.0,
+          "process.peak_rss": 231817216.0,
+          "request.0.full": 74.00780975,
+          "response.decode_tps": 2.1823516959522675,
+          "response.ttft": 41.863516333,
+          "target.latency": 88.44336891639978
+        },
+        {
+          "client.cold_cpu": 12.146334,
+          "client.peak_rss": 231309312.0,
+          "network.all_link_stream_bytes": 367346670.0,
+          "network.covered_body_bytes": 365795613.0,
+          "preparation.cold_cpu": 8.327203008,
+          "preparation.peak_rss": 215990272.0,
+          "process.peak_rss": 231309312.0,
+          "request.0.full": 75.974586125,
+          "response.decode_tps": 2.1823533404315953,
+          "response.ttft": 41.89534175,
+          "target.latency": 90.29505387507379
+        }
+      ],
+      "maximum_client_peak_bytes": 231817216,
+      "observed_tiers": {
+        "low": true,
+        "medium": true,
+        "high": true
+      },
+      "medians": {
+        "client.peak_rss": 231309312,
+        "client.cold_cpu": 12.146334,
+        "preparation.cold_cpu": 8.327203008,
+        "preparation.peak_rss": 209354752.0,
+        "response.ttft": 41.89534175,
+        "response.decode_tps": 2.1823516959522675,
+        "network.all_link_stream_bytes": 367346670.0,
+        "network.covered_body_bytes": 365795613.0,
+        "request.0.full": 75.974586125,
+        "target.latency": 90.29505387507379,
+        "process.peak_rss": 231309312
+      },
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 150,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "target/private-boundary-cohort"
+        },
+        "name": "local-boundary-control",
+        "pipeline": {
+          "components": {
+            "boundary": {
+              "component": "pllm/private-lookup-full-head/v1",
+              "params": {}
+            },
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "storage": "paged"
+              }
+            },
+            "inference": {
+              "component": "pllm/inference",
+              "params": {}
+            },
+            "inventory": {
+              "component": "pllm/prepared-inventory-policy/v1",
+              "params": {
+                "allocation": "demand",
+                "policy": "request-sized",
+                "refill": "on-demand",
+                "rows": 1,
+                "stage_window": 4,
+                "stage_window_bytes": 67108864
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/masked-linear",
+              "params": {
+                "output_encoding": "row_residues",
+                "prefill_chunk_rows": 16,
+                "prefill_pruning": "terminal",
+                "request_encoding": "stage_packed"
+              }
+            },
+            "preparation": {
+              "component": "pllm/model-aware-corrections",
+              "params": {
+                "storage": "paged"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "tokenizer": {
+              "component": "pllm/indexed-tokenizer/v1",
+              "params": {
+                "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+              }
+            },
+            "topology": {
+              "component": "pllm/prepared-body-two-online-boundary/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      }
+    },
+    "coupled-parallel-u32": {
+      "samples": [
+        {
+          "client.cold_cpu": 12.561148,
+          "client.peak_rss": 228409344.0,
+          "network.all_link_stream_bytes": 367346653.0,
+          "network.covered_body_bytes": 365795612.0,
+          "preparation.cold_cpu": 8.567336896,
+          "preparation.peak_rss": 212647936.0,
+          "process.peak_rss": 228409344.0,
+          "request.0.full": 75.258254375,
+          "response.decode_tps": 3.041167744253843,
+          "response.ttft": 41.975318125,
+          "target.latency": 89.94813258294016
+        },
+        {
+          "client.cold_cpu": 12.161929,
+          "client.peak_rss": 233652224.0,
+          "network.all_link_stream_bytes": 367346646.0,
+          "network.covered_body_bytes": 365795612.0,
+          "preparation.cold_cpu": 8.425595584,
+          "preparation.peak_rss": 214581248.0,
+          "process.peak_rss": 233652224.0,
+          "request.0.full": 75.006056,
+          "response.decode_tps": 3.0590083809182116,
+          "response.ttft": 41.739686209,
+          "target.latency": 89.50711633265018
+        },
+        {
+          "client.cold_cpu": 12.564751,
+          "client.peak_rss": 229654528.0,
+          "network.all_link_stream_bytes": 367346637.0,
+          "network.covered_body_bytes": 365795612.0,
+          "preparation.cold_cpu": 8.394516288,
+          "preparation.peak_rss": 210010112.0,
+          "process.peak_rss": 229654528.0,
+          "request.0.full": 75.198753209,
+          "response.decode_tps": 3.0450183662871027,
+          "response.ttft": 41.90650875,
+          "target.latency": 89.68684212490916
+        }
+      ],
+      "maximum_client_peak_bytes": 233652224,
+      "observed_tiers": {
+        "low": true,
+        "medium": true,
+        "high": true
+      },
+      "medians": {
+        "client.peak_rss": 229654528,
+        "client.cold_cpu": 12.561148,
+        "preparation.cold_cpu": 8.425595584,
+        "preparation.peak_rss": 212647936.0,
+        "response.ttft": 41.90650875,
+        "response.decode_tps": 3.0450183662871027,
+        "network.all_link_stream_bytes": 367346646.0,
+        "network.covered_body_bytes": 365795612.0,
+        "request.0.full": 75.198753209,
+        "target.latency": 89.68684212490916,
+        "process.peak_rss": 229654528
+      },
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 150,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "target/private-boundary-cohort"
+        },
+        "name": "local-boundary-control",
+        "pipeline": {
+          "components": {
+            "boundary": {
+              "component": "pllm/private-lookup-full-head/v1",
+              "params": {
+                "head_dispatch": "parallel"
+              }
+            },
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "storage": "paged"
+              }
+            },
+            "inference": {
+              "component": "pllm/inference",
+              "params": {}
+            },
+            "inventory": {
+              "component": "pllm/prepared-inventory-policy/v1",
+              "params": {
+                "allocation": "demand",
+                "policy": "request-sized",
+                "refill": "on-demand",
+                "rows": 1,
+                "stage_window": 4,
+                "stage_window_bytes": 67108864
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/masked-linear",
+              "params": {
+                "output_encoding": "row_residues",
+                "prefill_chunk_rows": 16,
+                "prefill_pruning": "terminal",
+                "request_encoding": "stage_packed"
+              }
+            },
+            "preparation": {
+              "component": "pllm/model-aware-corrections",
+              "params": {
+                "storage": "paged"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "tokenizer": {
+              "component": "pllm/indexed-tokenizer/v1",
+              "params": {
+                "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+              }
+            },
+            "topology": {
+              "component": "pllm/prepared-body-two-online-boundary/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      }
+    },
+    "coupled-serial-uniform_residues": {
+      "samples": [
+        {
+          "client.cold_cpu": 12.587256,
+          "client.peak_rss": 240615424.0,
+          "network.all_link_stream_bytes": 365220749.0,
+          "network.covered_body_bytes": 363669692.0,
+          "preparation.cold_cpu": 8.508793088,
+          "preparation.peak_rss": 211894272.0,
+          "process.peak_rss": 240615424.0,
+          "request.0.full": 75.872481292,
+          "response.decode_tps": 2.458261535591024,
+          "response.ttft": 41.995567583,
+          "target.latency": 90.54499008320272
+        },
+        {
+          "client.cold_cpu": 12.234956,
+          "client.peak_rss": 219316224.0,
+          "network.all_link_stream_bytes": 365220749.0,
+          "network.covered_body_bytes": 363669692.0,
+          "preparation.cold_cpu": 8.9792464,
+          "preparation.peak_rss": 193445888.0,
+          "process.peak_rss": 219316224.0,
+          "request.0.full": 75.981458875,
+          "response.decode_tps": 2.469001284137797,
+          "response.ttft": 41.748230375,
+          "target.latency": 90.87154729198664
+        },
+        {
+          "client.cold_cpu": 12.591094,
+          "client.peak_rss": 226131968.0,
+          "network.all_link_stream_bytes": 365220749.0,
+          "network.covered_body_bytes": 363669692.0,
+          "preparation.cold_cpu": 8.416628416,
+          "preparation.peak_rss": 211156992.0,
+          "process.peak_rss": 226131968.0,
+          "request.0.full": 75.850287,
+          "response.decode_tps": 2.456799951666181,
+          "response.ttft": 42.021191084,
+          "target.latency": 90.39171424973756
+        }
+      ],
+      "maximum_client_peak_bytes": 240615424,
+      "observed_tiers": {
+        "low": true,
+        "medium": true,
+        "high": true
+      },
+      "medians": {
+        "client.peak_rss": 226131968,
+        "client.cold_cpu": 12.587256,
+        "preparation.cold_cpu": 8.508793088,
+        "preparation.peak_rss": 211156992.0,
+        "response.ttft": 41.995567583,
+        "response.decode_tps": 2.458261535591024,
+        "network.all_link_stream_bytes": 365220749.0,
+        "network.covered_body_bytes": 363669692.0,
+        "request.0.full": 75.872481292,
+        "target.latency": 90.54499008320272,
+        "process.peak_rss": 226131968
+      },
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 150,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "target/private-boundary-cohort"
+        },
+        "name": "local-boundary-control",
+        "pipeline": {
+          "components": {
+            "boundary": {
+              "component": "pllm/private-lookup-full-head/v1",
+              "params": {
+                "head_output_encoding": "uniform_residues"
+              }
+            },
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "storage": "paged"
+              }
+            },
+            "inference": {
+              "component": "pllm/inference",
+              "params": {}
+            },
+            "inventory": {
+              "component": "pllm/prepared-inventory-policy/v1",
+              "params": {
+                "allocation": "demand",
+                "policy": "request-sized",
+                "refill": "on-demand",
+                "rows": 1,
+                "stage_window": 4,
+                "stage_window_bytes": 67108864
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/masked-linear",
+              "params": {
+                "output_encoding": "row_residues",
+                "prefill_chunk_rows": 16,
+                "prefill_pruning": "terminal",
+                "request_encoding": "stage_packed"
+              }
+            },
+            "preparation": {
+              "component": "pllm/model-aware-corrections",
+              "params": {
+                "storage": "paged"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "tokenizer": {
+              "component": "pllm/indexed-tokenizer/v1",
+              "params": {
+                "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+              }
+            },
+            "topology": {
+              "component": "pllm/prepared-body-two-online-boundary/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      }
+    },
+    "coupled-parallel-uniform_residues": {
+      "samples": [
+        {
+          "client.cold_cpu": 12.59855,
+          "client.peak_rss": 234094592.0,
+          "network.all_link_stream_bytes": 365220717.0,
+          "network.covered_body_bytes": 363669692.0,
+          "preparation.cold_cpu": 8.486430912,
+          "preparation.peak_rss": 212910080.0,
+          "process.peak_rss": 234094592.0,
+          "request.0.full": 75.109088833,
+          "response.decode_tps": 3.3319476001260666,
+          "response.ttft": 41.942866167,
+          "target.latency": 89.6799127086997
+        },
+        {
+          "client.cold_cpu": 12.051269,
+          "client.peak_rss": 239779840.0,
+          "network.all_link_stream_bytes": 365220699.0,
+          "network.covered_body_bytes": 363669692.0,
+          "preparation.cold_cpu": 8.612330176,
+          "preparation.peak_rss": 211058688.0,
+          "process.peak_rss": 239779840.0,
+          "request.0.full": 74.691107708,
+          "response.decode_tps": 3.2767253670561423,
+          "response.ttft": 41.732203583,
+          "target.latency": 89.50190149992704
+        },
+        {
+          "client.cold_cpu": 12.583485,
+          "client.peak_rss": 224575488.0,
+          "network.all_link_stream_bytes": 365220717.0,
+          "network.covered_body_bytes": 363669692.0,
+          "preparation.cold_cpu": 8.4660032,
+          "preparation.peak_rss": 217677824.0,
+          "process.peak_rss": 224575488.0,
+          "request.0.full": 75.081982875,
+          "response.decode_tps": 3.326406685412156,
+          "response.ttft": 41.959998584,
+          "target.latency": 89.67161041684449
+        }
+      ],
+      "maximum_client_peak_bytes": 239779840,
+      "observed_tiers": {
+        "low": true,
+        "medium": true,
+        "high": true
+      },
+      "medians": {
+        "client.peak_rss": 234094592,
+        "client.cold_cpu": 12.583485,
+        "preparation.cold_cpu": 8.486430912,
+        "preparation.peak_rss": 212910080.0,
+        "response.ttft": 41.942866167,
+        "response.decode_tps": 3.326406685412156,
+        "network.all_link_stream_bytes": 365220717.0,
+        "network.covered_body_bytes": 363669692.0,
+        "request.0.full": 75.081982875,
+        "target.latency": 89.67161041684449,
+        "process.peak_rss": 234094592
+      },
+      "experiment": {
+        "budget": {
+          "max_input_tokens": 150,
+          "max_new_tokens": 8,
+          "requests": 1
+        },
+        "deployment": {
+          "kind": "local",
+          "root": "target/private-boundary-cohort"
+        },
+        "name": "local-boundary-control",
+        "pipeline": {
+          "components": {
+            "boundary": {
+              "component": "pllm/private-lookup-full-head/v1",
+              "params": {
+                "head_dispatch": "parallel",
+                "head_output_encoding": "uniform_residues"
+              }
+            },
+            "delivery": {
+              "component": "pllm/client-bundle-transport/v1",
+              "params": {
+                "batch_objects": 64,
+                "compression": "zlib",
+                "encoding": "artifacts",
+                "storage": "paged"
+              }
+            },
+            "inference": {
+              "component": "pllm/inference",
+              "params": {}
+            },
+            "inventory": {
+              "component": "pllm/prepared-inventory-policy/v1",
+              "params": {
+                "allocation": "demand",
+                "policy": "request-sized",
+                "refill": "on-demand",
+                "rows": 1,
+                "stage_window": 4,
+                "stage_window_bytes": 67108864
+              }
+            },
+            "kernels": {
+              "component": "pllm/cpu",
+              "params": {
+                "threads": 1
+              }
+            },
+            "linear": {
+              "component": "pllm/masked-linear",
+              "params": {
+                "output_encoding": "row_residues",
+                "prefill_chunk_rows": 16,
+                "prefill_pruning": "terminal",
+                "request_encoding": "stage_packed"
+              }
+            },
+            "preparation": {
+              "component": "pllm/model-aware-corrections",
+              "params": {
+                "storage": "paged"
+              }
+            },
+            "quantization": {
+              "component": "pllm/symmetric-per-row-quantization/v1",
+              "params": {
+                "activation_bits": 8,
+                "causal_reduction": "prefix_f32",
+                "weight_bits": 8
+              }
+            },
+            "tokenizer": {
+              "component": "pllm/indexed-tokenizer/v1",
+              "params": {
+                "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+              }
+            },
+            "topology": {
+              "component": "pllm/prepared-body-two-online-boundary/v1",
+              "params": {}
+            }
+          },
+          "model": {
+            "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+            "source": "Qwen/Qwen2.5-0.5B-Instruct"
+          }
+        },
+        "schema": "pllm.experiment.v2"
+      }
+    }
+  },
+  "state_commitment": "f1f928a21e6a400d630fbe55de55a91c5ceda9e3c5f8d5532654d07a08b78586",
+  "scope": {
+    "client": "whole fresh worker: SDK, supervisor, dashboard, WAN relay and audit; idle launcher excluded",
+    "memory": "largest lifetime worker RSS through target finalization across every replicate; no sum of peaks",
+    "comparison": "explicit cross-topology costs; two additional non-colluding boundary workers change role contract",
+    "incumbents": "maintained prepared comparator and coupled serial/u32 control, measured in this cohort only",
+    "request": "single cold client, 150+8; source and indexed tokenizer already present",
+    "public_bound": "one request per fresh client; common input/output envelopes, original numeric body retained",
+    "limits": [
+      "Not a global optimum or representative generation-quality result.",
+      "Source/tokenizer distribution, physical wire, Internet RTT and independent operators unmeasured.",
+      "Low/Medium/High are observed RSS ceilings, not conservative SDK memory admission.",
+      "Full-state audit charged equally; timings remain separate from unaudited historical cohorts.",
+      "Public-prefix and mostly-client-MLP configurations have different reuse/offload contracts."
+    ]
+  },
+  "schema": "pllm.private_boundary_decode.v1",
+  "tiny": false,
+  "comparisons": {
+    "coupled-serial-u32": {
+      "coupled-serial-u32": {
+        "client.peak_rss": {
+          "control": 231309312,
+          "candidate": 231309312,
+          "delta": 0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "client.cold_cpu": {
+          "control": 12.146334,
+          "candidate": 12.146334,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "preparation.cold_cpu": {
+          "control": 8.327203008,
+          "candidate": 8.327203008,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "preparation.peak_rss": {
+          "control": 209354752.0,
+          "candidate": 209354752.0,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "response.ttft": {
+          "control": 41.89534175,
+          "candidate": 41.89534175,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "response.decode_tps": {
+          "control": 2.1823516959522675,
+          "candidate": 2.1823516959522675,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "network.all_link_stream_bytes": {
+          "control": 367346670.0,
+          "candidate": 367346670.0,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "network.covered_body_bytes": {
+          "control": 365795613.0,
+          "candidate": 365795613.0,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "request.0.full": {
+          "control": 75.974586125,
+          "candidate": 75.974586125,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "target.latency": {
+          "control": 90.29505387507379,
+          "candidate": 90.29505387507379,
+          "delta": 0.0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "process.peak_rss": {
+          "control": 231309312,
+          "candidate": 231309312,
+          "delta": 0,
+          "improvement_fraction": 0.0,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "maintained": {
+        "client.peak_rss": {
+          "control": 232587264,
+          "candidate": 231309312,
+          "delta": -1277952,
+          "improvement_fraction": 0.005494505494505475,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -10928128.0,
+            540672.0,
+            -11436032.0
+          ]
+        },
+        "client.cold_cpu": {
+          "control": 14.572448,
+          "candidate": 12.146334,
+          "delta": -2.426114,
+          "improvement_fraction": 0.16648637209067418,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -1.1943279999999987,
+            -2.4311679999999996,
+            -2.999244000000001
+          ]
+        },
+        "preparation.cold_cpu": {
+          "control": 8.586958592,
+          "candidate": 8.327203008,
+          "delta": -0.25975558400000054,
+          "improvement_fraction": 0.03025001008412931,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -0.0787295359999991,
+            -0.6245340160000001,
+            -0.25975558400000054
+          ]
+        },
+        "preparation.peak_rss": {
+          "control": 215924736.0,
+          "candidate": 209354752.0,
+          "delta": -6569984.0,
+          "improvement_fraction": 0.030427194779573563,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -8093696.0,
+            -11730944.0,
+            65536.0
+          ]
+        },
+        "response.ttft": {
+          "control": 38.769550875,
+          "candidate": 41.89534175,
+          "delta": 3.125790875,
+          "improvement_fraction": -0.08062489258846739,
+          "candidate_wins": false,
+          "paired_deltas": [
+            3.508382709000003,
+            3.0939654579999996,
+            2.932429749999997
+          ]
+        },
+        "response.decode_tps": {
+          "control": 4.948456666816338,
+          "candidate": 2.1823516959522675,
+          "delta": -2.766104970864071,
+          "improvement_fraction": -0.5589833673624316,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -2.7611567312094496,
+            -2.8259061162815287,
+            -2.766103326384743
+          ]
+        },
+        "network.all_link_stream_bytes": {
+          "control": 478654278.0,
+          "candidate": 367346670.0,
+          "delta": -111307608.0,
+          "improvement_fraction": 0.23254280409878636,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -111307599.0,
+            -111307609.0,
+            -111307599.0
+          ]
+        },
+        "network.covered_body_bytes": {
+          "control": 477104957.0,
+          "candidate": 365795613.0,
+          "delta": -111309344.0,
+          "improvement_fraction": 0.23330158776782528,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -111309344.0,
+            -111309345.0,
+            -111309344.0
+          ]
+        },
+        "request.0.full": {
+          "control": 99.037170834,
+          "candidate": 75.974586125,
+          "delta": -23.062584708999992,
+          "improvement_fraction": 0.2328679678022717,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -22.963000499999993,
+            -25.029361083999987,
+            -23.364409249999994
+          ]
+        },
+        "target.latency": {
+          "control": 110.21894754189998,
+          "candidate": 90.29505387507379,
+          "delta": -19.92389366682619,
+          "improvement_fraction": 0.18076650259477456,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -19.009774583391845,
+            -21.07708887476474,
+            -19.92389366682619
+          ]
+        },
+        "process.peak_rss": {
+          "control": 232587264,
+          "candidate": 231309312,
+          "delta": -1277952,
+          "improvement_fraction": 0.005494505494505475,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -10928128.0,
+            540672.0,
+            -11436032.0
+          ]
+        }
+      }
+    },
+    "coupled-parallel-u32": {
+      "coupled-serial-u32": {
+        "client.peak_rss": {
+          "control": 231309312,
+          "candidate": 229654528,
+          "delta": -1654784,
+          "improvement_fraction": 0.007153987816971297,
+          "candidate_wins": true,
+          "paired_deltas": [
+            6750208.0,
+            1835008.0,
+            -1654784.0
+          ]
+        },
+        "client.cold_cpu": {
+          "control": 12.146334,
+          "candidate": 12.561148,
+          "delta": 0.4148139999999998,
+          "improvement_fraction": -0.03415137439823401,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.14497299999999846,
+            0.020649000000000584,
+            0.4184169999999998
+          ]
+        },
+        "preparation.cold_cpu": {
+          "control": 8.327203008,
+          "candidate": 8.425595584,
+          "delta": 0.09839257600000018,
+          "improvement_fraction": -0.011815801284714045,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -0.3259235839999999,
+            0.58054016,
+            0.06731328000000047
+          ]
+        },
+        "preparation.peak_rss": {
+          "control": 209354752.0,
+          "candidate": 212647936.0,
+          "delta": 3293184.0,
+          "improvement_fraction": -0.01573016121458748,
+          "candidate_wins": false,
+          "paired_deltas": [
+            3293184.0,
+            11763712.0,
+            -5980160.0
+          ]
+        },
+        "response.ttft": {
+          "control": 41.89534175,
+          "candidate": 41.90650875,
+          "delta": 0.011167000000000371,
+          "improvement_fraction": -0.00026654514639457005,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -0.11142295900000221,
+            -0.12383012400000126,
+            0.011167000000000371
+          ]
+        },
+        "response.decode_tps": {
+          "control": 2.1823516959522675,
+          "candidate": 3.0450183662871027,
+          "delta": 0.8626666703348351,
+          "improvement_fraction": 0.3952922308236899,
+          "candidate_wins": true,
+          "paired_deltas": [
+            0.8735788822732098,
+            0.8766566849659441,
+            0.8626650258555073
+          ]
+        },
+        "network.all_link_stream_bytes": {
+          "control": 367346670.0,
+          "candidate": 367346646.0,
+          "delta": -24.0,
+          "improvement_fraction": 6.533338114955711e-08,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -26.0,
+            -23.0,
+            -33.0
+          ]
+        },
+        "network.covered_body_bytes": {
+          "control": 365795613.0,
+          "candidate": 365795612.0,
+          "delta": -1.0,
+          "improvement_fraction": 2.7337671015814635e-09,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -1.0,
+            0.0,
+            -1.0
+          ]
+        },
+        "request.0.full": {
+          "control": 75.974586125,
+          "candidate": 75.198753209,
+          "delta": -0.7758329159999988,
+          "improvement_fraction": 0.010211742578281835,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -0.7713662499999998,
+            0.998246249999994,
+            -0.7758329159999988
+          ]
+        },
+        "target.latency": {
+          "control": 90.29505387507379,
+          "candidate": 89.68684212490916,
+          "delta": -0.608211750164628,
+          "improvement_fraction": 0.006735825763015901,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -1.8389058746397495,
+            1.0637474162504077,
+            -0.608211750164628
+          ]
+        },
+        "process.peak_rss": {
+          "control": 231309312,
+          "candidate": 229654528,
+          "delta": -1654784,
+          "improvement_fraction": 0.007153987816971297,
+          "candidate_wins": true,
+          "paired_deltas": [
+            6750208.0,
+            1835008.0,
+            -1654784.0
+          ]
+        }
+      },
+      "maintained": {
+        "client.peak_rss": {
+          "control": 232587264,
+          "candidate": 229654528,
+          "delta": -2932736,
+          "improvement_fraction": 0.012609185686108804,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -4177920.0,
+            2375680.0,
+            -13090816.0
+          ]
+        },
+        "client.cold_cpu": {
+          "control": 14.572448,
+          "candidate": 12.561148,
+          "delta": -2.0113000000000003,
+          "improvement_fraction": 0.13802073611791243,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -1.0493550000000003,
+            -2.410518999999999,
+            -2.580827000000001
+          ]
+        },
+        "preparation.cold_cpu": {
+          "control": 8.586958592,
+          "candidate": 8.425595584,
+          "delta": -0.16136300800000036,
+          "improvement_fraction": 0.01879163690743002,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -0.404653119999999,
+            -0.043993856000000164,
+            -0.19244230400000006
+          ]
+        },
+        "preparation.peak_rss": {
+          "control": 215924736.0,
+          "candidate": 212647936.0,
+          "delta": -3276800.0,
+          "improvement_fraction": 0.015175658244176327,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -4800512.0,
+            32768.0,
+            -5914624.0
+          ]
+        },
+        "response.ttft": {
+          "control": 38.769550875,
+          "candidate": 41.90650875,
+          "delta": 3.1369578750000002,
+          "improvement_fraction": -0.08091292790866,
+          "candidate_wins": false,
+          "paired_deltas": [
+            3.3969597500000006,
+            2.9701353339999983,
+            2.9435967499999975
+          ]
+        },
+        "response.decode_tps": {
+          "control": 4.948456666816338,
+          "candidate": 3.0450183662871027,
+          "delta": -1.9034383005292357,
+          "improvement_fraction": -0.3846529188167753,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -1.8875778489362398,
+            -1.9492494313155846,
+            -1.9034383005292357
+          ]
+        },
+        "network.all_link_stream_bytes": {
+          "control": 478654278.0,
+          "candidate": 367346646.0,
+          "delta": -111307632.0,
+          "improvement_fraction": 0.23254285423935983,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -111307625.0,
+            -111307632.0,
+            -111307632.0
+          ]
+        },
+        "network.covered_body_bytes": {
+          "control": 477104957.0,
+          "candidate": 365795612.0,
+          "delta": -111309345.0,
+          "improvement_fraction": 0.23330158986380012,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -111309345.0,
+            -111309345.0,
+            -111309345.0
+          ]
+        },
+        "request.0.full": {
+          "control": 99.037170834,
+          "candidate": 75.198753209,
+          "delta": -23.83841762499999,
+          "improvement_fraction": 0.2407017226386291,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -23.734366749999992,
+            -24.031114833999993,
+            -24.140242165999993
+          ]
+        },
+        "target.latency": {
+          "control": 110.21894754189998,
+          "candidate": 89.68684212490916,
+          "delta": -20.532105416990817,
+          "improvement_fraction": 0.18628471669252233,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -20.848680458031595,
+            -20.013341458514333,
+            -20.532105416990817
+          ]
+        },
+        "process.peak_rss": {
+          "control": 232587264,
+          "candidate": 229654528,
+          "delta": -2932736,
+          "improvement_fraction": 0.012609185686108804,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -4177920.0,
+            2375680.0,
+            -13090816.0
+          ]
+        }
+      }
+    },
+    "coupled-serial-uniform_residues": {
+      "coupled-serial-u32": {
+        "client.peak_rss": {
+          "control": 231309312,
+          "candidate": 226131968,
+          "delta": -5177344,
+          "improvement_fraction": 0.022382773763989228,
+          "candidate_wins": true,
+          "paired_deltas": [
+            18956288.0,
+            -12500992.0,
+            -5177344.0
+          ]
+        },
+        "client.cold_cpu": {
+          "control": 12.146334,
+          "candidate": 12.587256,
+          "delta": 0.4409220000000005,
+          "improvement_fraction": -0.03630082953424463,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.17108099999999915,
+            0.09367600000000031,
+            0.4447600000000005
+          ]
+        },
+        "preparation.cold_cpu": {
+          "control": 8.327203008,
+          "candidate": 8.508793088,
+          "delta": 0.18159007999999943,
+          "improvement_fraction": -0.0218068515713552,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -0.38446739200000124,
+            1.1341909759999993,
+            0.08942540800000032
+          ]
+        },
+        "preparation.peak_rss": {
+          "control": 209354752.0,
+          "candidate": 211156992.0,
+          "delta": 1802240.0,
+          "improvement_fraction": -0.008608545938331602,
+          "candidate_wins": false,
+          "paired_deltas": [
+            2539520.0,
+            -9371648.0,
+            -4833280.0
+          ]
+        },
+        "response.ttft": {
+          "control": 41.89534175,
+          "candidate": 41.995567583,
+          "delta": 0.1002258330000032,
+          "improvement_fraction": -0.0023922906178466263,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -0.0911735010000001,
+            -0.11528595800000119,
+            0.12584933400000153
+          ]
+        },
+        "response.decode_tps": {
+          "control": 2.1823516959522675,
+          "candidate": 2.458261535591024,
+          "delta": 0.27590983963875626,
+          "improvement_fraction": 0.1264277614604934,
+          "candidate_wins": true,
+          "paired_deltas": [
+            0.2906726736103904,
+            0.2866495881855293,
+            0.2744466112345858
+          ]
+        },
+        "network.all_link_stream_bytes": {
+          "control": 367346670.0,
+          "candidate": 365220749.0,
+          "delta": -2125921.0,
+          "improvement_fraction": 0.005787233623214871,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -2125930.0,
+            -2125920.0,
+            -2125921.0
+          ]
+        },
+        "network.covered_body_bytes": {
+          "control": 365795613.0,
+          "candidate": 363669692.0,
+          "delta": -2125921.0,
+          "improvement_fraction": 0.0058117728164225335,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -2125921.0,
+            -2125920.0,
+            -2125921.0
+          ]
+        },
+        "request.0.full": {
+          "control": 75.974586125,
+          "candidate": 75.872481292,
+          "delta": -0.10210483299999851,
+          "improvement_fraction": 0.0013439340469983962,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -0.1571393330000035,
+            1.9736491249999943,
+            -0.1242991250000074
+          ]
+        },
+        "target.latency": {
+          "control": 90.29505387507379,
+          "candidate": 90.54499008320272,
+          "delta": 0.24993620812892914,
+          "improvement_fraction": -0.0027679944515535126,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -1.242048374377191,
+            2.4281783755868673,
+            0.0966603746637702
+          ]
+        },
+        "process.peak_rss": {
+          "control": 231309312,
+          "candidate": 226131968,
+          "delta": -5177344,
+          "improvement_fraction": 0.022382773763989228,
+          "candidate_wins": true,
+          "paired_deltas": [
+            18956288.0,
+            -12500992.0,
+            -5177344.0
+          ]
+        }
+      },
+      "maintained": {
+        "client.peak_rss": {
+          "control": 232587264,
+          "candidate": 226131968,
+          "delta": -6455296,
+          "improvement_fraction": 0.027754296985066262,
+          "candidate_wins": true,
+          "paired_deltas": [
+            8028160.0,
+            -11960320.0,
+            -16613376.0
+          ]
+        },
+        "client.cold_cpu": {
+          "control": 14.572448,
+          "candidate": 12.587256,
+          "delta": -1.9851919999999996,
+          "improvement_fraction": 0.13622913596946784,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -1.0232469999999996,
+            -2.3374919999999992,
+            -2.5544840000000004
+          ]
+        },
+        "preparation.cold_cpu": {
+          "control": 8.586958592,
+          "candidate": 8.508793088,
+          "delta": -0.07816550400000111,
+          "improvement_fraction": 0.009102815992710567,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -0.46319692800000034,
+            0.5096569599999992,
+            -0.17033017600000022
+          ]
+        },
+        "preparation.peak_rss": {
+          "control": 215924736.0,
+          "candidate": 211156992.0,
+          "delta": -4767744.0,
+          "improvement_fraction": 0.022080582745276578,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -5554176.0,
+            -21102592.0,
+            -4767744.0
+          ]
+        },
+        "response.ttft": {
+          "control": 38.769550875,
+          "candidate": 41.995567583,
+          "delta": 3.226016708000003,
+          "improvement_fraction": -0.08321006138041831,
+          "candidate_wins": false,
+          "paired_deltas": [
+            3.4172092080000027,
+            2.9786794999999984,
+            3.0582790839999987
+          ]
+        },
+        "response.decode_tps": {
+          "control": 4.948456666816338,
+          "candidate": 2.458261535591024,
+          "delta": -2.4901951312253146,
+          "improvement_fraction": -0.5032266217312191,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -2.470484057599059,
+            -2.5392565280959993,
+            -2.491656715150157
+          ]
+        },
+        "network.all_link_stream_bytes": {
+          "control": 478654278.0,
+          "candidate": 365220749.0,
+          "delta": -113433529.0,
+          "improvement_fraction": 0.23698425818728397,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -113433529.0,
+            -113433529.0,
+            -113433520.0
+          ]
+        },
+        "network.covered_body_bytes": {
+          "control": 477104957.0,
+          "candidate": 363669692.0,
+          "delta": -113435265.0,
+          "improvement_fraction": 0.23775746475843051,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -113435265.0,
+            -113435265.0,
+            -113435265.0
+          ]
+        },
+        "request.0.full": {
+          "control": 99.037170834,
+          "candidate": 75.872481292,
+          "delta": -23.16468954199999,
+          "improvement_fraction": 0.23389894265888533,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -23.120139832999996,
+            -23.055711958999993,
+            -23.488708375
+          ]
+        },
+        "target.latency": {
+          "control": 110.21894754189998,
+          "candidate": 90.54499008320272,
+          "delta": -19.67395745869726,
+          "improvement_fraction": 0.1784988688194301,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -20.251822957769036,
+            -18.648910499177873,
+            -19.82723329216242
+          ]
+        },
+        "process.peak_rss": {
+          "control": 232587264,
+          "candidate": 226131968,
+          "delta": -6455296,
+          "improvement_fraction": 0.027754296985066262,
+          "candidate_wins": true,
+          "paired_deltas": [
+            8028160.0,
+            -11960320.0,
+            -16613376.0
+          ]
+        }
+      }
+    },
+    "coupled-parallel-uniform_residues": {
+      "coupled-serial-u32": {
+        "client.peak_rss": {
+          "control": 231309312,
+          "candidate": 234094592,
+          "delta": 2785280,
+          "improvement_fraction": -0.01204136563252578,
+          "candidate_wins": false,
+          "paired_deltas": [
+            12435456.0,
+            7962624.0,
+            -6733824.0
+          ]
+        },
+        "client.cold_cpu": {
+          "control": 12.146334,
+          "candidate": 12.583485,
+          "delta": 0.43715100000000007,
+          "improvement_fraction": -0.03599036548805601,
+          "candidate_wins": false,
+          "paired_deltas": [
+            0.18237499999999862,
+            -0.09001100000000051,
+            0.43715100000000007
+          ]
+        },
+        "preparation.cold_cpu": {
+          "control": 8.327203008,
+          "candidate": 8.486430912,
+          "delta": 0.15922790399999975,
+          "improvement_fraction": -0.019121414939329284,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -0.4068295680000009,
+            0.7672747520000005,
+            0.1388001919999997
+          ]
+        },
+        "preparation.peak_rss": {
+          "control": 209354752.0,
+          "candidate": 212910080.0,
+          "delta": 3555328.0,
+          "improvement_fraction": -0.016982313351072253,
+          "candidate_wins": false,
+          "paired_deltas": [
+            3555328.0,
+            8241152.0,
+            1687552.0
+          ]
+        },
+        "response.ttft": {
+          "control": 41.89534175,
+          "candidate": 41.942866167,
+          "delta": 0.04752441699999821,
+          "improvement_fraction": -0.0011343604089348869,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -0.1438749170000051,
+            -0.1313127499999993,
+            0.06465683399999733
+          ]
+        },
+        "response.decode_tps": {
+          "control": 2.1823516959522675,
+          "candidate": 3.326406685412156,
+          "delta": 1.1440549894598884,
+          "improvement_fraction": 0.5242303481981536,
+          "candidate_wins": true,
+          "paired_deltas": [
+            1.1643587381454332,
+            1.0943736711038747,
+            1.1440533449805605
+          ]
+        },
+        "network.all_link_stream_bytes": {
+          "control": 367346670.0,
+          "candidate": 365220717.0,
+          "delta": -2125953.0,
+          "improvement_fraction": 0.0057873207343897,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -2125962.0,
+            -2125970.0,
+            -2125953.0
+          ]
+        },
+        "network.covered_body_bytes": {
+          "control": 365795613.0,
+          "candidate": 363669692.0,
+          "delta": -2125921.0,
+          "improvement_fraction": 0.0058117728164225335,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -2125921.0,
+            -2125920.0,
+            -2125921.0
+          ]
+        },
+        "request.0.full": {
+          "control": 75.974586125,
+          "candidate": 75.081982875,
+          "delta": -0.8926032500000076,
+          "improvement_fraction": 0.01174870829215735,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -0.9205317920000056,
+            0.6832979579999972,
+            -0.8926032500000076
+          ]
+        },
+        "target.latency": {
+          "control": 90.29505387507379,
+          "candidate": 89.67161041684449,
+          "delta": -0.6234434582293034,
+          "improvement_fraction": 0.006904513940396484,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -2.1071257488802075,
+            1.058532583527267,
+            -0.6234434582293034
+          ]
+        },
+        "process.peak_rss": {
+          "control": 231309312,
+          "candidate": 234094592,
+          "delta": 2785280,
+          "improvement_fraction": -0.01204136563252578,
+          "candidate_wins": false,
+          "paired_deltas": [
+            12435456.0,
+            7962624.0,
+            -6733824.0
+          ]
+        }
+      },
+      "maintained": {
+        "client.peak_rss": {
+          "control": 232587264,
+          "candidate": 234094592,
+          "delta": 1507328,
+          "improvement_fraction": -0.006480698788391193,
+          "candidate_wins": false,
+          "paired_deltas": [
+            1507328.0,
+            8503296.0,
+            -18169856.0
+          ]
+        },
+        "client.cold_cpu": {
+          "control": 14.572448,
+          "candidate": 12.583485,
+          "delta": -1.988963,
+          "improvement_fraction": 0.13648791198294208,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -1.011953,
+            -2.521179,
+            -2.562093000000001
+          ]
+        },
+        "preparation.cold_cpu": {
+          "control": 8.586958592,
+          "candidate": 8.486430912,
+          "delta": -0.10052768000000079,
+          "improvement_fraction": 0.01170701813953745,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -0.485559104,
+            0.14274073600000037,
+            -0.12095539200000083
+          ]
+        },
+        "preparation.peak_rss": {
+          "control": 215924736.0,
+          "candidate": 212910080.0,
+          "delta": -3014656.0,
+          "improvement_fraction": 0.013961605584642212,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -4538368.0,
+            -3489792.0,
+            1753088.0
+          ]
+        },
+        "response.ttft": {
+          "control": 38.769550875,
+          "candidate": 41.942866167,
+          "delta": 3.173315291999998,
+          "improvement_fraction": -0.08185071068352934,
+          "candidate_wins": false,
+          "paired_deltas": [
+            3.3645077919999977,
+            2.9626527080000002,
+            2.9970865839999945
+          ]
+        },
+        "response.decode_tps": {
+          "control": 4.948456666816338,
+          "candidate": 3.326406685412156,
+          "delta": -1.6220499814041824,
+          "improvement_fraction": -0.32778906447366185,
+          "candidate_wins": false,
+          "paired_deltas": [
+            -1.5967979930640164,
+            -1.731532445177654,
+            -1.6220499814041824
+          ]
+        },
+        "network.all_link_stream_bytes": {
+          "control": 478654278.0,
+          "candidate": 365220717.0,
+          "delta": -113433561.0,
+          "improvement_fraction": 0.236984325041382,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -113433561.0,
+            -113433579.0,
+            -113433552.0
+          ]
+        },
+        "network.covered_body_bytes": {
+          "control": 477104957.0,
+          "candidate": 363669692.0,
+          "delta": -113435265.0,
+          "improvement_fraction": 0.23775746475843051,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -113435265.0,
+            -113435265.0,
+            -113435265.0
+          ]
+        },
+        "request.0.full": {
+          "control": 99.037170834,
+          "candidate": 75.081982875,
+          "delta": -23.955187959,
+          "improvement_fraction": 0.24188077827013266,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -23.883532291999998,
+            -24.34606312599999,
+            -24.257012500000002
+          ]
+        },
+        "target.latency": {
+          "control": 110.21894754189998,
+          "candidate": 89.67161041684449,
+          "delta": -20.547337125055492,
+          "improvement_fraction": 0.1864229116980488,
+          "candidate_wins": true,
+          "paired_deltas": [
+            -21.116900332272053,
+            -20.018556291237473,
+            -20.547337125055492
+          ]
+        },
+        "process.peak_rss": {
+          "control": 232587264,
+          "candidate": 234094592,
+          "delta": 1507328,
+          "improvement_fraction": -0.006480698788391193,
+          "candidate_wins": false,
+          "paired_deltas": [
+            1507328.0,
+            8503296.0,
+            -18169856.0
+          ]
+        }
+      }
+    }
+  },
+  "body_reconciliation": {
+    "coupled-serial-u32": [
+      {
+        "replicate": 0,
+        "covered_body_delta_bytes": 0,
+        "head_reply_delta_bytes": 0,
+        "lifecycle_control_delta_bytes": 0,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      },
+      {
+        "replicate": 1,
+        "covered_body_delta_bytes": 0,
+        "head_reply_delta_bytes": 0,
+        "lifecycle_control_delta_bytes": 0,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      },
+      {
+        "replicate": 2,
+        "covered_body_delta_bytes": 0,
+        "head_reply_delta_bytes": 0,
+        "lifecycle_control_delta_bytes": 0,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      }
+    ],
+    "coupled-parallel-u32": [
+      {
+        "replicate": 0,
+        "covered_body_delta_bytes": -1,
+        "head_reply_delta_bytes": 0,
+        "lifecycle_control_delta_bytes": -1,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      },
+      {
+        "replicate": 1,
+        "covered_body_delta_bytes": 0,
+        "head_reply_delta_bytes": 0,
+        "lifecycle_control_delta_bytes": 0,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      },
+      {
+        "replicate": 2,
+        "covered_body_delta_bytes": -1,
+        "head_reply_delta_bytes": 0,
+        "lifecycle_control_delta_bytes": -1,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      }
+    ],
+    "coupled-serial-uniform_residues": [
+      {
+        "replicate": 0,
+        "covered_body_delta_bytes": -2125921,
+        "head_reply_delta_bytes": -2125920,
+        "lifecycle_control_delta_bytes": -1,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      },
+      {
+        "replicate": 1,
+        "covered_body_delta_bytes": -2125920,
+        "head_reply_delta_bytes": -2125920,
+        "lifecycle_control_delta_bytes": 0,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      },
+      {
+        "replicate": 2,
+        "covered_body_delta_bytes": -2125921,
+        "head_reply_delta_bytes": -2125920,
+        "lifecycle_control_delta_bytes": -1,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      }
+    ],
+    "coupled-parallel-uniform_residues": [
+      {
+        "replicate": 0,
+        "covered_body_delta_bytes": -2125921,
+        "head_reply_delta_bytes": -2125920,
+        "lifecycle_control_delta_bytes": -1,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      },
+      {
+        "replicate": 1,
+        "covered_body_delta_bytes": -2125920,
+        "head_reply_delta_bytes": -2125920,
+        "lifecycle_control_delta_bytes": 0,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      },
+      {
+        "replicate": 2,
+        "covered_body_delta_bytes": -2125921,
+        "head_reply_delta_bytes": -2125920,
+        "lifecycle_control_delta_bytes": -1,
+        "prepared_stage_reply_delta_bytes": 0,
+        "prepared_stage_reply_metadata_compatibility_bound_bytes": 13456,
+        "bootstrap_and_metadata_residual_bytes": 0
+      }
+    ]
+  },
+  "body_reconciliation_scope": "Fixed prepared arithmetic/lookup/head requests; head reply deltas measured. Prepared stage replies include variable-width MsgPack server_ns; matching row/material work and independent directed stage-byte evidence bound metadata-compatible variation, not exact timing-byte attribution. Bootstrap, metadata and control variation remain charged; residual is not exact codec savings.",
+  "evidence_scope": "One fresh same-build source-present cohort; no historical pooling. 150+8 real-checkpoint cohort; 128+2 tiny smoke. TCP stream payload is not physical wire."
+}

@@ -1,0 +1,1370 @@
+{
+  "schema": "pllm.private_boundary_decode_plan.v1",
+  "suite": {
+    "schema": "pllm.benchmark_suite.v1",
+    "name": "private-boundary-decode-v1",
+    "cases": [
+      {
+        "name": "maintained",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": ".pllm/prepared-sdk"
+                },
+                "name": "prepared-sdk",
+                "pipeline": {
+                  "components": {
+                    "cache": {
+                      "component": "pllm/client-prefix-reuse/v1",
+                      "params": {
+                        "fixed_input_tokens": 150,
+                        "max_bytes": 33554432
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "provider_cache_bytes": 536870912,
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": "baseline.masked_linear_cpu"
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "62c17e60f9769b0b29b74cf1b45061c57391d4a638490d7e619754cae6af7e99"
+        },
+        "budgets": []
+      },
+      {
+        "name": "coupled-serial-u32",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "target/private-boundary-cohort"
+                },
+                "name": "local-boundary-control",
+                "pipeline": {
+                  "components": {
+                    "boundary": {
+                      "component": "pllm/private-lookup-full-head/v1",
+                      "params": {}
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    },
+                    "topology": {
+                      "component": "pllm/prepared-body-two-online-boundary/v1",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": null
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "62c17e60f9769b0b29b74cf1b45061c57391d4a638490d7e619754cae6af7e99"
+        },
+        "budgets": []
+      },
+      {
+        "name": "coupled-parallel-u32",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "target/private-boundary-cohort"
+                },
+                "name": "local-boundary-control",
+                "pipeline": {
+                  "components": {
+                    "boundary": {
+                      "component": "pllm/private-lookup-full-head/v1",
+                      "params": {
+                        "head_dispatch": "parallel"
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    },
+                    "topology": {
+                      "component": "pllm/prepared-body-two-online-boundary/v1",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": null
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "62c17e60f9769b0b29b74cf1b45061c57391d4a638490d7e619754cae6af7e99"
+        },
+        "budgets": []
+      },
+      {
+        "name": "coupled-serial-uniform_residues",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "target/private-boundary-cohort"
+                },
+                "name": "local-boundary-control",
+                "pipeline": {
+                  "components": {
+                    "boundary": {
+                      "component": "pllm/private-lookup-full-head/v1",
+                      "params": {
+                        "head_output_encoding": "uniform_residues"
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    },
+                    "topology": {
+                      "component": "pllm/prepared-body-two-online-boundary/v1",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": null
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "62c17e60f9769b0b29b74cf1b45061c57391d4a638490d7e619754cae6af7e99"
+        },
+        "budgets": []
+      },
+      {
+        "name": "coupled-parallel-uniform_residues",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "target/private-boundary-cohort"
+                },
+                "name": "local-boundary-control",
+                "pipeline": {
+                  "components": {
+                    "boundary": {
+                      "component": "pllm/private-lookup-full-head/v1",
+                      "params": {
+                        "head_dispatch": "parallel",
+                        "head_output_encoding": "uniform_residues"
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    },
+                    "topology": {
+                      "component": "pllm/prepared-body-two-online-boundary/v1",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": null
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "62c17e60f9769b0b29b74cf1b45061c57391d4a638490d7e619754cae6af7e99"
+        },
+        "budgets": []
+      }
+    ],
+    "sampling": {
+      "processes": 3,
+      "repetitions": 1,
+      "warmups": 0,
+      "timeout_seconds": 1200,
+      "order": "balanced",
+      "threads": 1,
+      "memory_bytes": 8589934592
+    }
+  },
+  "frozen_sources": {
+    "/Users/blairhudson/workspace/pllm/scripts/benchmark_private_boundary_decode.py": "9ebc4ef1ae93b6095fe1cd58a185f92a823f4d70b9b8b3f22a369c81edaf4a2d",
+    "benchmarks/research/private_boundary_decode.py": "02db9015992714d77d64838ca068f4ca704bb73a79f14de62cb353294ddf6566",
+    "benchmarks/research/private_boundary_tiers.py": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867",
+    "benchmarks/research/historical_evidence.py": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c",
+    "benchmarks/research/sota_combinations.py": "2ec2441542e06674e7c6c7b179e7126ff2f4ff682922fec45cb658517bdfe375",
+    "scripts/benchmark_sota_combinations.py": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d",
+    "examples/prepared_sdk.py": "6a7d1dd38eeb3e7b9428b547c96902de27fb079c0b8e615bece40ea31f42c0bb",
+    "docs/evidence/private-boundary-qwen-control.json": "e92cc7210714bbeec49e8b6a674a2ed40d3dd41061b33d62bebed40d649dafa6",
+    "target/prepared-frontier-artifacts/prompt.txt": "152f4785641e580301bfcca40cfa5dc2cbc7bdc12fbf6eaeaddaef9cd2e36387",
+    "target/prepared-frontier-artifacts/indexed.json": "b8215d4eb226d2c9673827d683bb4c85083890e90f2d1843121453fb902c5377"
+  },
+  "tiny": false,
+  "public_input_counts": {
+    "150": 150
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "preflight": [
+    {
+      "case": "maintained",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 11013586944,
+          "swap_used": 3916627968,
+          "disk_free": 36856860672,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6718619648
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "cb6376bac5bcadc442b743514397d1e9bcd08814a45862f02e15a10a34ad3e60",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 817521242,
+          "provider_peak_bytes": {
+            "inference": 1745924480,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "inference": 3649921280,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 3716975962,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 182521344,
+            "client_bundle_work_bytes": 112015360,
+            "client_paged_metadata_bytes": 2464768,
+            "client_additional_paged_disk_bytes": 270352384,
+            "client_weight_snapshot_disk_bytes": 136134656,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {
+              "inference": 536870912
+            },
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {
+              "inference": 50331648
+            },
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 33554432,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 3750530394,
+            "docker": null,
+            "required_disk_bytes": 4425358336
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 3716975962,
+            "docker": null,
+            "required_disk_bytes": 4425358336
+          }
+        },
+        "enforced_wan": true
+      }
+    },
+    {
+      "case": "coupled-serial-u32",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 11033444352,
+          "swap_used": 3916627968,
+          "disk_free": 36856860672,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6738477056
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "9f2e9bf515a84b5259f8cd5d87e9c853f2442ad25b546debe8440f3d48665488",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 784051562,
+          "provider_peak_bytes": {
+            "boundary_a": 1147915520,
+            "boundary_b": 1147915520,
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 3009736320,
+            "boundary_b": 3009736320,
+            "inference": 2736165120,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 136134656,
+            "scales_bytes": 607744,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 136742400,
+            "worker_import_work_bytes": 410834944,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 2431872,
+            "worker_retained_metadata_and_source_scales_bytes": 101271040,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 18752,
+            "worker_lookup_scratch_bytes": 9723904,
+            "head_dispatch": "serial",
+            "head_output_encoding": "u32",
+            "head_reply_bits": 32,
+            "head_payload_bytes_per_worker": 607744,
+            "client_parallel_head_work_bytes": 0,
+            "client_head_codec_work_bytes": 0,
+            "worker_head_codec_work_bytes": 0,
+            "worker_peak_bytes": 918332416,
+            "client_work_bytes": 9243456,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 157,
+            "head_calls_bound": 8,
+            "concurrent_request_bound": 1
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 5916422762,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 136742400,
+              "boundary_b": 136742400,
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 410834944,
+              "boundary_b": 410834944,
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 46386688,
+            "client_bundle_work_bytes": 109550592,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 5949977194,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 5916422762,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          }
+        },
+        "enforced_wan": true
+      }
+    },
+    {
+      "case": "coupled-parallel-u32",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 11071488000,
+          "swap_used": 3916627968,
+          "disk_free": 36856840192,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6776520704
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "d91e0c4e2c3666b29781aa96d75bc4dfae9240d3a3fb9086eec4bc0e1e478e36",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 808120682,
+          "provider_peak_bytes": {
+            "boundary_a": 1147915520,
+            "boundary_b": 1147915520,
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 3009736320,
+            "boundary_b": 3009736320,
+            "inference": 2736165120,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 136134656,
+            "scales_bytes": 607744,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 136742400,
+            "worker_import_work_bytes": 410834944,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 2431872,
+            "worker_retained_metadata_and_source_scales_bytes": 101271040,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 18752,
+            "worker_lookup_scratch_bytes": 9723904,
+            "head_dispatch": "parallel",
+            "head_output_encoding": "u32",
+            "head_reply_bits": 32,
+            "head_payload_bytes_per_worker": 607744,
+            "client_parallel_head_work_bytes": 19255296,
+            "client_head_codec_work_bytes": 0,
+            "worker_head_codec_work_bytes": 0,
+            "worker_peak_bytes": 918332416,
+            "client_work_bytes": 28498752,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 157,
+            "head_calls_bound": 8,
+            "concurrent_request_bound": 1
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 5940491882,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 136742400,
+              "boundary_b": 136742400,
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 410834944,
+              "boundary_b": 410834944,
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 46386688,
+            "client_bundle_work_bytes": 109550592,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 5974046314,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 5940491882,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          }
+        },
+        "enforced_wan": true
+      }
+    },
+    {
+      "case": "coupled-serial-uniform_residues",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 11099668480,
+          "swap_used": 3916627968,
+          "disk_free": 36862177280,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6804701184
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "bb4c385a2dc77b93881fc4683351f210e9eb75783fc7cf608ed944dcc76aeeab",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 788324762,
+          "provider_peak_bytes": {
+            "boundary_a": 1147915520,
+            "boundary_b": 1147915520,
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 3009736320,
+            "boundary_b": 3009736320,
+            "inference": 2736165120,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 136134656,
+            "scales_bytes": 607744,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 136742400,
+            "worker_import_work_bytes": 410834944,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 2431872,
+            "worker_retained_metadata_and_source_scales_bytes": 101271040,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 18752,
+            "worker_lookup_scratch_bytes": 9723904,
+            "head_dispatch": "serial",
+            "head_output_encoding": "uniform_residues",
+            "head_reply_bits": 25,
+            "head_payload_bytes_per_worker": 474800,
+            "client_parallel_head_work_bytes": 0,
+            "client_head_codec_work_bytes": 3418560,
+            "worker_head_codec_work_bytes": 2317024,
+            "worker_peak_bytes": 918332416,
+            "client_work_bytes": 12662016,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 157,
+            "head_calls_bound": 8,
+            "concurrent_request_bound": 1
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 5920695962,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 136742400,
+              "boundary_b": 136742400,
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 410834944,
+              "boundary_b": 410834944,
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 46386688,
+            "client_bundle_work_bytes": 109550592,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 5954250394,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 5920695962,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          }
+        },
+        "enforced_wan": true
+      }
+    },
+    {
+      "case": "coupled-parallel-uniform_residues",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 11145953280,
+          "swap_used": 3916627968,
+          "disk_free": 36862173184,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6850985984
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "329050030cfa8610c1fffec3efcf097a23cdc0bc0b628693694f00e01121ee9d",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 812393882,
+          "provider_peak_bytes": {
+            "boundary_a": 1147915520,
+            "boundary_b": 1147915520,
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 3009736320,
+            "boundary_b": 3009736320,
+            "inference": 2736165120,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 136134656,
+            "scales_bytes": 607744,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 136742400,
+            "worker_import_work_bytes": 410834944,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 2431872,
+            "worker_retained_metadata_and_source_scales_bytes": 101271040,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 18752,
+            "worker_lookup_scratch_bytes": 9723904,
+            "head_dispatch": "parallel",
+            "head_output_encoding": "uniform_residues",
+            "head_reply_bits": 25,
+            "head_payload_bytes_per_worker": 474800,
+            "client_parallel_head_work_bytes": 19255296,
+            "client_head_codec_work_bytes": 3418560,
+            "worker_head_codec_work_bytes": 2317024,
+            "worker_peak_bytes": 918332416,
+            "client_work_bytes": 31917312,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 157,
+            "head_calls_bound": 8,
+            "concurrent_request_bound": 1
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 5944765082,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 136742400,
+              "boundary_b": 136742400,
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 410834944,
+              "boundary_b": 410834944,
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 46386688,
+            "client_bundle_work_bytes": 109550592,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 5978319514,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 5944765082,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          }
+        },
+        "enforced_wan": true
+      }
+    }
+  ],
+  "execution": "three balanced serial fresh clients per cell; one private salt; native shared 100/40 caps",
+  "measurement_scope": "source-present; SDK/supervisor/dashboard/relay/full-state audit charged to worker"
+}

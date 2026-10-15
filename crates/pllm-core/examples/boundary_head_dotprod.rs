@@ -115,6 +115,13 @@ fn oracle(matrix: &Matrix, x: &[u32]) -> Vec<u32> {
         })
         .collect()
 }
+fn allocating_candidate(matrix: &Matrix, limbs: &[i8], use_sdot: bool) -> Vec<u32> {
+    // Match output ownership at the API boundary, not Matrix's internal allocation
+    // count/transposition. Keep the real native API as the comparator.
+    let mut output = vec![0u32; matrix.shape().0];
+    candidate(matrix, limbs, &mut output, use_sdot);
+    output
+}
 fn rng(s: &mut u64) -> u32 {
     *s ^= *s << 13;
     *s ^= *s >> 7;
@@ -147,7 +154,7 @@ fn main() -> Result<(), String> {
         return Err("bad mode".into());
     }
     let bytes = rows.checked_mul(cols).ok_or("geometry overflow")?;
-    let live_bound = (bytes as u128) * 2 + (rows as u128) * 20 + (cols as u128) * 8;
+    let live_bound = (bytes as u128) * 2 + (rows as u128) * 24 + (cols as u128) * 8;
     if rows == 0
         || cols == 0
         || cols > MAX_COLS
@@ -215,29 +222,67 @@ fn main() -> Result<(), String> {
     candidate(&matrix, &limbs, &mut result, selected);
     let expected = oracle(&matrix, &x);
     let baseline = matrix.wrap32(&executor, &x, 1)?;
-    if result != expected || baseline != expected {
+    let allocated_warmup = allocating_candidate(&matrix, &limbs, selected);
+    if result != expected || baseline != expected || allocated_warmup != expected {
         return Err("oracle mismatch".into());
     }
+    drop(allocated_warmup);
+    let mut matched_totals = [(0.0, 0.0); 3];
     let mut samples = Vec::with_capacity(repeats);
     for index in 0..repeats {
         let candidate_first = (index + offset) % 2 == 0;
         let mut p = (0.0, 0.0);
         let mut k = (0.0, 0.0);
         let mut b = (0.0, 0.0);
+        let mut matched = [(0.0, 0.0); 3]; // packing, allocating candidate, native API
         let mut control = Vec::new();
-        for phase in 0..2 {
-            if (phase == 0) == candidate_first {
-                let t = stamp();
-                pack(std::hint::black_box(&x), &mut limbs);
-                p = (t.0.elapsed().as_secs_f64(), cpu() - t.1);
-                let t = stamp();
-                candidate(std::hint::black_box(&matrix), &limbs, &mut result, selected);
-                std::hint::black_box(&result);
-                k = (t.0.elapsed().as_secs_f64(), cpu() - t.1);
-            } else {
-                let t = stamp();
-                control = matrix.wrap32(&executor, std::hint::black_box(&x), 1)?;
-                b = (t.0.elapsed().as_secs_f64(), cpu() - t.1);
+        // Counterbalance both pair order and which comparison runs first.
+        // Historical keys still describe only the original preallocated arm.
+        for cohort in 0..2 {
+            let is_matched = (cohort == 0) != candidate_first;
+            let mut allocated = Vec::new();
+            for phase in 0..2 {
+                if (phase == 0) == candidate_first {
+                    let t = stamp();
+                    pack(std::hint::black_box(&x), &mut limbs);
+                    let packing_sample = (t.0.elapsed().as_secs_f64(), cpu() - t.1);
+                    let t = stamp();
+                    if is_matched {
+                        allocated =
+                            allocating_candidate(std::hint::black_box(&matrix), &limbs, selected);
+                        std::hint::black_box(&allocated);
+                    } else {
+                        candidate(std::hint::black_box(&matrix), &limbs, &mut result, selected);
+                        std::hint::black_box(&result);
+                    }
+                    let call_sample = (t.0.elapsed().as_secs_f64(), cpu() - t.1);
+                    if is_matched {
+                        matched[0] = packing_sample;
+                        matched[1] = call_sample;
+                    } else {
+                        p = packing_sample;
+                        k = call_sample;
+                    }
+                } else {
+                    // Drop the previous cohort's output outside this timed API call.
+                    drop(control);
+                    let t = stamp();
+                    control = matrix.wrap32(&executor, std::hint::black_box(&x), 1)?;
+                    std::hint::black_box(&control);
+                    let call_sample = (t.0.elapsed().as_secs_f64(), cpu() - t.1);
+                    if is_matched {
+                        matched[2] = call_sample;
+                    } else {
+                        b = call_sample;
+                    }
+                }
+            }
+            // Validate every fresh result outside timing, before dropping it.
+            if control != expected
+                || (is_matched && allocated != expected)
+                || (!is_matched && result != expected)
+            {
+                return Err("timed oracle mismatch".into());
             }
         }
         // Validation and JSON construction stay outside both timed calls.
@@ -250,20 +295,35 @@ fn main() -> Result<(), String> {
         kernel_cpu += k.1;
         baseline_time += b.0;
         baseline_cpu += b.1;
+        for (total, sample) in matched_totals.iter_mut().zip(matched) {
+            total.0 += sample.0;
+            total.1 += sample.1;
+        }
         samples.push(json!({"index": index,
             "order": if candidate_first { "candidate-first" } else { "baseline-first" },
+            "cohort_order": if candidate_first { "historical-first" } else { "allocation-matched-first" },
             "packing": {"elapsed_seconds": p.0, "cpu_seconds": p.1},
             "kernel": {"elapsed_seconds": k.0, "cpu_seconds": k.1},
             "candidate_including_packing": {"elapsed_seconds": p.0+k.0, "cpu_seconds": p.1+k.1},
-            "baseline": {"elapsed_seconds": b.0, "cpu_seconds": b.1}, "exact": true}));
+            "baseline": {"elapsed_seconds": b.0, "cpu_seconds": b.1}, "exact": true,
+            "allocation_matched": {
+                "order": if candidate_first { "candidate-first" } else { "baseline-first" },
+                "packing": {"elapsed_seconds": matched[0].0, "cpu_seconds": matched[0].1},
+                "candidate_allocating": {"elapsed_seconds": matched[1].0, "cpu_seconds": matched[1].1},
+                "candidate_allocating_including_packing": {
+                    "elapsed_seconds": matched[0].0+matched[1].0,
+                    "cpu_seconds": matched[0].1+matched[1].1},
+                "baseline": {"elapsed_seconds": matched[2].0, "cpu_seconds": matched[2].1},
+                "exact": true}}));
     }
     let emit = args[6] == "emit";
     println!(
         "{}",
         json!({
-            "schema": "boundary-head-dotprod-v2", "arch": std::env::consts::ARCH,
+            "schema": "boundary-head-dotprod-v3", "arch": std::env::consts::ARCH,
             "order_offset": offset, "samples": samples,
             "comparison": "packing+preallocated-candidate-output versus allocating Matrix::wrap32 API",
+            "allocation_matched_comparison": "both APIs allocate output; native Matrix::wrap32 retains internal allocation/transposition; not isolated SDOT instruction throughput",
             "compiled_source_sha256": format!("{:x}", Sha256::digest(include_bytes!("boundary_head_dotprod.rs"))),
             "compiled_kernels_sha256": format!("{:x}", Sha256::digest(include_bytes!("../src/kernels.rs"))),
             "build_provenance": option_env!("BOUNDARY_DOTPROD_BUILD_PROVENANCE"),
@@ -274,9 +334,18 @@ fn main() -> Result<(), String> {
             "kernel": {"elapsed_seconds": kernel, "cpu_seconds": kernel_cpu},
             "candidate_including_packing": {"elapsed_seconds": packing+kernel, "cpu_seconds": packing_cpu+kernel_cpu},
             "baseline": {"elapsed_seconds": baseline_time, "cpu_seconds": baseline_cpu},
+            "allocation_matched": {
+                "packing": {"elapsed_seconds": matched_totals[0].0, "cpu_seconds": matched_totals[0].1},
+                "candidate_allocating": {"elapsed_seconds": matched_totals[1].0, "cpu_seconds": matched_totals[1].1},
+                "candidate_allocating_including_packing": {
+                    "elapsed_seconds": matched_totals[0].0+matched_totals[1].0,
+                    "cpu_seconds": matched_totals[0].1+matched_totals[1].1},
+                "baseline": {"elapsed_seconds": matched_totals[2].0, "cpu_seconds": matched_totals[2].1},
+                "exact": true},
             "owned_buffers": {"weights_bytes": bytes, "input_bytes": 4*cols,
                 "input_limb_bytes": 4*cols, "candidate_output_bytes": 4*rows,
                 "oracle_output_bytes": 4*rows, "baseline_retained_output_bytes": 4*rows,
+                "matched_candidate_call_output_bytes": 4*rows,
                 "baseline_call_temporary_upper_bytes": 8*rows, "setup_raw_temporary_bytes": bytes,
                 "extra_persistent_weight_bytes": 0},
             "weights": if emit { Some(matrix.as_signed_slice()) } else { None },

@@ -16,6 +16,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import Response
 
 from .native import CompiledMatrix
+from .private_boundary_head_codec import HeadOutputCodec
 from .private_boundary_protocol import (
     BoundaryAdmission, BoundaryDescriptor, BoundaryError, MAX_BODY_BYTES,
     MAX_CONTROL_BYTES, PACKED_QUERY_MAGIC, ROLES, SCHEMA, canonical, context_bytes,
@@ -99,6 +100,7 @@ def create_private_boundary_worker_app(
         row_l1 = max(row_l1, int(np.max(np.sum(np.abs(chunk), axis=1, dtype=np.int64))))
     if row_l1 * ((1 << (descriptor.activation_bits - 1)) - 1) > descriptor.signed_output_bound:
         raise BoundaryError("actual head exceeds committed signed bound")
+    head_codec = HeadOutputCodec(descriptor)
     if lookup_root is None:
         constructor = getattr(_native.PrivatePageServer, "from_matrix", None)
         if constructor is None:
@@ -278,7 +280,9 @@ def create_private_boundary_worker_app(
                 result = head.wrap32(share)
                 if result.shape != (1, descriptor.vocabulary) or result.dtype != np.uint32:
                     raise BoundaryError("native head result geometry differs")
-                return [result.astype("<u4", copy=False).tobytes()]
+                return [head_codec.encode(result.astype("<u4", copy=False).tobytes(),
+                    admission=slot.admission, role=role_id, paired_session=sid,
+                    epoch=slot.epoch, sequence=row["sequence"])]
 
             frames = await native_job(slot, evaluate)
             with lock:

@@ -322,6 +322,76 @@ function checkedRates(window, output, allowance, input) {
     : sameNumber(window.incremental_all_link_mb_per_generated_output, dependent / output / 1e6), 'Application-body output rate differs');
 }
 
+function checkedBodyEdges(ledger, audit, boundary = false) {
+  const expectedEdges = [
+    ['client', 'preparation', 'offline', ['session_authorization_upload_bytes', 'preparation_upload_bytes']],
+    ['preparation', 'client', 'offline', ['session_authorization_download_bytes', 'preparation_download_bytes']],
+    ['preparation', 'inference', 'offline', ['correction_push_bytes']],
+    ['inference', 'preparation', 'offline', ['correction_ack_bytes']],
+    ['inference', 'client', 'cold', ['bundle_network_bytes']],
+    ['client', 'inference', 'online', ['inference_upload_bytes']],
+    ['inference', 'client', 'online', ['inference_download_bytes']],
+    ...['inference', 'preparation'].flatMap((role) => [
+      ['client', role, 'control', [`${role}_control_upload_bytes`]],
+      [role, 'client', 'control', [`${role}_control_download_bytes`]],
+    ]),
+    ...(boundary ? ['boundary_a', 'boundary_b'].flatMap((role) => ['setup', 'online', 'teardown'].flatMap((phase) => [
+      ['client', role, phase, [`role_link.${role}.${phase}_upload_bytes`]],
+      [role, 'client', phase, [`role_link.${role}.${phase}_download_bytes`]],
+    ])) : []),
+  ];
+  requireEvidence(ledger.body_bytes_by_edge.length === expectedEdges.length && expectedEdges.every(([source, destination, phase, fields]) => {
+    const edges = ledger.body_bytes_by_edge.filter((edge) => edge.source === source && edge.destination === destination && edge.phase === phase);
+    return edges.length === 1 && fields.every((key) => byteCount(audit[key])) &&
+      fields.reduce((sum, key) => sum + audit[key], 0) === edges[0].serialized_body_bytes;
+  }), 'Metered application-body edges no longer match raw audit');
+}
+
+/** Complete startup/request body owners, charged against their own TCP windows. */
+function checkedResponseBodies(report, measurements, boundary) {
+  const accounting = report.topology_accounting, samples = report.native_network_accounting.samples;
+  requireEvidence(accounting.warmups.length === 0 && accounting.runs.length === 1 && samples.runs.length === 1,
+    'Decode accounting windows changed');
+  const startup = checkedWan(samples.startup.wan_emulation).directed_stream_bytes;
+  const before = checkedWan(samples.runs[0].before.wan_emulation).directed_stream_bytes;
+  const after = checkedWan(samples.runs[0].after.wan_emulation).directed_stream_bytes;
+  for (const [left, right] of [[startup, before], [before, after]]) {
+    requireEvidence(Object.entries(left).every(([edge, value]) => value <= (right[edge] ?? 0)),
+      'Decode TCP counters regressed');
+  }
+  const windows = [accounting.startup, accounting.runs[0]];
+  for (const [index, ledger] of windows.entries()) {
+    const audit = index === 0 ? ledger.traffic_attribution.audit_counters : report.runs[0].privacy;
+    requireEvidence(ledger.schema === `pllm.topology_body_accounting.v${boundary ? 4 : 3}` &&
+      ledger.body_counter_coverage === (boundary ? 'prepared_body_and_private_boundary_lifecycle_v4' : ackCoverage) &&
+      ledger.tracked_body_counter_set_present === true && ledger.control_body_counter_set_present === true &&
+      ledger.correction_ack_counter_set_present === true && ledger.total_wire_bytes === null &&
+      byteCount(audit.correction_ack_accounted_push_bytes) && audit.correction_ack_accounted_push_bytes === audit.correction_push_bytes &&
+      (!boundary || ledger.boundary_body_counter_set_present === true && audit.private_boundary_body_coverage_failures === 0),
+    'Decode raw body coverage incomplete');
+    checkedBodyEdges(ledger, audit, boundary);
+    for (const [field, select] of [
+      ['all_link_serialized_body_bytes', () => true],
+      ['client_serialized_body_bytes', (edge) => [edge.source, edge.destination].includes('client')],
+      ['online_all_link_serialized_body_bytes', (edge) => edge.phase === 'online'],
+      ['online_client_serialized_body_bytes', (edge) => edge.phase === 'online' && [edge.source, edge.destination].includes('client')],
+      ['lifecycle_control_serialized_body_bytes', (edge) => edge.phase === 'control'],
+    ]) {
+      requireEvidence(byteCount(ledger[field]) && ledger[field] === ledger.body_bytes_by_edge.filter(select)
+        .reduce((sum, edge) => sum + edge.serialized_body_bytes, 0), 'Decode cached body total differs');
+    }
+    const directed = {};
+    for (const edge of ledger.body_bytes_by_edge) {
+      const link = `${edge.source}->${edge.destination}`;
+      directed[link] = (directed[link] ?? 0) + edge.serialized_body_bytes;
+    }
+    requireEvidence(Object.entries(directed).every(([link, value]) => value <= (index === 0
+      ? startup[link] ?? 0 : (after[link] ?? 0) - (before[link] ?? 0))), 'Decode bodies exceed matching TCP window');
+  }
+  requireEvidence(windows.reduce((sum, ledger) => sum + ledger.all_link_serialized_body_bytes, 0) === measurements['network.covered_body_bytes'],
+    'Decode body metric differs from raw owners');
+}
+
 function checkedPreparedAttribution(run, ledger, window) {
   const attribution = window.attribution;
   requireEvidence(isDeepStrictEqual(attribution, ledger.traffic_attribution ?? null), 'Cached application-body attribution differs from ledger');
@@ -348,24 +418,7 @@ function checkedPreparedAttribution(run, ledger, window) {
   const rowConserved = ['reserved', 'claimed', 'burned'].every((name) => byteCount(audit[`prepared_stage_rows_${name}`])) &&
     audit.prepared_stage_rows_reserved === audit.prepared_stage_rows_claimed + audit.prepared_stage_rows_burned;
   requireEvidence(attribution.headline_eligible === rowConserved, 'Application-body headline eligibility lacks row conservation');
-  const expectedEdges = [
-    ['client', 'preparation', 'offline', ['session_authorization_upload_bytes', 'preparation_upload_bytes']],
-    ['preparation', 'client', 'offline', ['session_authorization_download_bytes', 'preparation_download_bytes']],
-    ['preparation', 'inference', 'offline', ['correction_push_bytes']],
-    ['inference', 'preparation', 'offline', ['correction_ack_bytes']],
-    ['inference', 'client', 'cold', ['bundle_network_bytes']],
-    ['client', 'inference', 'online', ['inference_upload_bytes']],
-    ['inference', 'client', 'online', ['inference_download_bytes']],
-    ...['inference', 'preparation'].flatMap((role) => [
-      ['client', role, 'control', [`${role}_control_upload_bytes`]],
-      [role, 'client', 'control', [`${role}_control_download_bytes`]],
-    ]),
-  ];
-  requireEvidence(ledger.body_bytes_by_edge.length === expectedEdges.length && expectedEdges.every(([source, destination, phase, fields]) => {
-    const edges = ledger.body_bytes_by_edge.filter((edge) => edge.source === source && edge.destination === destination && edge.phase === phase);
-    return edges.length === 1 && fields.every((key) => byteCount(audit[key])) &&
-      fields.reduce((sum, key) => sum + audit[key], 0) === edges[0].serialized_body_bytes;
-  }), 'Metered application-body edges no longer match raw audit');
+  checkedBodyEdges(ledger, audit);
   requireEvidence(attribution.generated_output_tokens === (run ? run.tokens.output_tokens : audit.generation_output_tokens ?? null) &&
     attribution.output_allowance === (run ? run.max_output_tokens : audit.generation_requested_output_tokens ?? null),
   'Raw application-body output identity differs');
@@ -595,7 +648,8 @@ export function adaptedCohorts(spec, read, helpers) {
   if (spec.adapter === 'benchmark-suite-v1') return benchmarkSuiteCohorts(spec, document, plan, helpers);
   if (spec.adapter === 'epoch-prefix-v1') return epochPrefixCohorts(spec, document, helpers);
   if (spec.adapter === 'private-boundary-v1') return privateBoundaryCohorts(spec, document, read, helpers);
-  if (spec.adapter === 'private-boundary-tiers-v1') return privateBoundaryTierCohorts(spec, document, plan, read,
-    { ...helpers, checkRun, checkedWan });
+  if (['private-boundary-tiers-v1', 'private-boundary-decode-v1'].includes(spec.adapter)) {
+    return privateBoundaryTierCohorts(spec, document, plan, read, { ...helpers, checkRun, checkedWan, checkedResponseBodies });
+  }
   throw new Error('Unknown scorecard evidence adapter');
 }

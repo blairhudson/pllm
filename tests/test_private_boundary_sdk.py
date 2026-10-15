@@ -6,8 +6,10 @@ Transport observation below never changes requests, replies, or decoder executio
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import threading
 from collections import defaultdict
 
 import httpx
@@ -28,9 +30,10 @@ from pllm.runtime.topology_accounting import BOUNDARY_COVERAGE, body_coverage_id
 pytestmark = pytest.mark.integration
 
 
-def experiment(root, deployment, *, private):
+def experiment(root, deployment, *, private, boundary_options=None):
     pipeline = MaskedLinearCpu(Model.path(str(root), model_id="boundary-sdk"),
-        **({"boundary": PrivateLookupAndFullHead(), "topology": PreparedBoundaryRoles()} if private else {}))
+        **({"boundary": PrivateLookupAndFullHead(**(boundary_options or {})),
+            "topology": PreparedBoundaryRoles()} if private else {}))
     return Experiment("private-sdk" if private else "ordinary-sdk", pipeline,
         Deployment.local(root=str(deployment)),
         ExecutionBudget(requests=16, max_input_tokens=32, max_new_tokens=3))
@@ -55,14 +58,21 @@ def test_tiny_source_identity_survives_supervised_roles(tmp_path):
             assert bundle.manifest["metadata"]["source_lock"]["kind"] == "tiny"
 
 
-@pytest.fixture(scope="module", params=["qwen2", "qwen3", "llama"])
+@pytest.fixture(scope="module", params=[
+    pytest.param((family, options), id=f"{family}-{label}")
+    for family in ("qwen2", "qwen3", "llama")
+    for label, options in (("serial-u32", {}), ("parallel-residues", {
+        "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}))
+])
 def roles(request, tmp_path_factory):
-    folder = tmp_path_factory.mktemp("boundary-sdk-" + request.param)
-    checkpoint = create_tiny_llama_checkpoint(folder / "model", model_type=request.param, seed=179,
+    family, boundary_options = request.param
+    folder = tmp_path_factory.mktemp("boundary-sdk-" + family)
+    checkpoint = create_tiny_llama_checkpoint(folder / "model", model_type=family, seed=179,
         hidden_size=8, intermediate_size=16, num_hidden_layers=1,
         num_attention_heads=2, num_key_value_heads=1, head_dim=4, vocab_size=258,
-        with_qkv_bias=request.param == "qwen2", qk_norm=request.param == "qwen3")
-    topology = build_roles(experiment(checkpoint, folder / "private", private=True), engine_threads=1)
+        with_qkv_bias=family == "qwen2", qk_norm=family == "qwen3")
+    topology = build_roles(experiment(checkpoint, folder / "private", private=True,
+        boundary_options=boundary_options), engine_threads=1)
     try:
         topology.start()
         statuses = topology.statuses
@@ -195,6 +205,15 @@ def test_generated_five_role_sdk_matches_ordinary_full_vocab(roles, exchanges):
     topology, checkpoint, folder = roles
     with topology.client(bundle_cache_dir=folder / "cache-private", background_inventory_refill=False) as client:
         assert_private_client(client)
+        startup = client.privacy_audit.to_dict()
+        assert not exchanges  # No boundary operation has occurred before this snapshot.
+        assert all(startup.get(f"role_link.{role}.{phase}_{direction}_bytes") == 0
+            for role in ROLES for phase in ("setup", "online", "teardown")
+            for direction in ("upload", "download"))
+        startup_ledger = private_boundary_body_accounting({"privacy": startup}, initial_preparation=True)
+        assert body_coverage_identity(startup_ledger) == BOUNDARY_COVERAGE
+        assert startup_ledger["all_link_serialized_body_bytes"] == sum(
+            edge["serialized_body_bytes"] for edge in startup_ledger["body_bytes_by_edge"])
         actual = client.responses.create(input="aba", max_output_tokens=3, temperature=0)
         assert_capped(actual)
         actual_state = decoder_state(client, actual)
@@ -273,6 +292,54 @@ def test_gateway_request_uses_same_real_boundary_and_teardown(roles, exchanges):
     assert_boundary_sessions_retired(topology, exchanges, "complete")
 
 
+def test_async_cancel_drains_parallel_head_pair_before_sdk_retirement(tmp_path, exchanges, monkeypatch):
+    from pllm.runtime.client import AsyncResponsesResource
+
+    checkpoint = create_tiny_llama_checkpoint(tmp_path / "model", model_type="qwen2", seed=179,
+        hidden_size=8, intermediate_size=16, num_hidden_layers=1,
+        num_attention_heads=2, num_key_value_heads=1, head_dim=4, vocab_size=258,
+        with_qkv_bias=True)
+    selected = experiment(checkpoint, tmp_path / "async", private=True, boundary_options={
+        "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"})
+    entered = [threading.Event(), threading.Event()]
+    release = threading.Event()
+    original = PrivateBoundaryTransport._post
+
+    def blocked(owner, index, path, payload, phase, **kwargs):
+        if path.endswith("/execute") and unpack_frame(payload)["operation"] == "head":
+            entered[index].set()
+            assert release.wait(15), "paired head exchange did not drain"
+        return original(owner, index, path, payload, phase, **kwargs)
+
+    monkeypatch.setattr(PrivateBoundaryTransport, "_post", blocked)
+    with build_roles(selected, engine_threads=1) as topology, topology.client(
+            bundle_cache_dir=tmp_path / "cache-async", background_inventory_refill=False) as client:
+        async def run():
+            task = asyncio.create_task(AsyncResponsesResource(client.responses).create(
+                input="aba", max_output_tokens=3, temperature=0))
+            try:
+                assert all(await asyncio.gather(*(asyncio.to_thread(event.wait, 15) for event in entered)))
+                task.cancel()
+                await asyncio.sleep(0.05)
+                assert not task.done(), "SDK cancellation escaped before paired calls drained"
+                assert client._core._active_boundary_transports
+                release.set()
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(task, 15)
+            finally:
+                release.set()
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+        asyncio.run(run())
+        assert_boundary_sessions_retired(topology, exchanges, "cancel")
+        assert_private_audit(client)
+        assert not client._core._transformer_conversations
+        assert not any(thread.is_alive() and thread.name.startswith("pllm-boundary-head")
+                       for thread in threading.enumerate())
+
+
 def test_native_wan_five_role_response_conserves_boundary_directions(tmp_path, exchanges):
     """Actual native shared TCP pacing at default 100/40 Mbps, not estimates."""
     from pllm.deployment import WanConditions
@@ -282,7 +349,8 @@ def test_native_wan_five_role_response_conserves_boundary_directions(tmp_path, e
         num_attention_heads=2, num_key_value_heads=1, head_dim=4, vocab_size=258,
         with_qkv_bias=True)
     conditions = WanConditions()
-    topology = build_roles(experiment(checkpoint, tmp_path / "wan", private=True),
+    topology = build_roles(experiment(checkpoint, tmp_path / "wan", private=True,
+        boundary_options={"head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}),
         engine_threads=1, wan=conditions)
     try:
         with topology, topology.client(bundle_cache_dir=tmp_path / "cache-wan",
@@ -335,7 +403,8 @@ def test_composed_artifacts_zlib_paged_demand_packed_residue_response(tmp_path, 
         num_attention_heads=2, num_key_value_heads=1, head_dim=4, vocab_size=258,
         with_qkv_bias=True)
     pipeline = MaskedLinearCpu(Model.path(str(checkpoint), model_id="boundary-sdk"),
-        boundary=PrivateLookupAndFullHead(), topology=PreparedBoundaryRoles(),
+        boundary=PrivateLookupAndFullHead(head_dispatch="parallel", head_output_encoding="uniform_residues"),
+        topology=PreparedBoundaryRoles(),
         linear=MaskedLinear(prefill_pruning="terminal", request_encoding="stage_packed",
                             output_encoding="row_residues"),
         quantization=SymmetricPerRow(weight_bits=8, activation_bits=8, causal_reduction="prefix_f32"),

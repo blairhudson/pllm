@@ -45,6 +45,33 @@ The network-configured SDK accepts `OpenAI(max_client_memory="low")`,
 the maximum keeps automatic headroom-based admission. See
 [maximum client RAM in the SDK](/sdk/run/deployment/#maximum-client-ram).
 
+## Exact boundary decode screen
+
+Fifteen fresh Qwen2.5 clients compare serial/parallel head dispatch and u32/exact
+uniform-residue replies at 150+8 tokens under shared native 100/40 caps. All
+131,404,800 logit/KV values and complete state/output commitments match; observed
+swap growth is zero. Every configuration fits observed Low and Medium.
+
+| Head choice | N−1 decode tokens/s | Change vs serial/u32 | Largest complete-client peak |
+| --- | ---: | ---: | ---: |
+| Serial/u32 | 2.182 | Control | 221.08 MiB |
+| Parallel/u32 | 3.045 | +39.53% | 222.83 MiB |
+| Serial/residues | 2.458 | +12.64% | 229.47 MiB |
+| Parallel/residues | **3.326** | **+52.42%** | **228.67 MiB** |
+
+The combined choice saves exactly **2,125,920 head-reply bytes**. Against
+serial/u32, total TCP streams fall 0.58%, client CPU rises 3.60% and median client
+RSS rises 1.20%. Against the fresh maintained prepared comparator, traffic falls
+**23.70%** and full request latency **24.19%**, while decode remains **32.78%
+slower**. Complete client RAM includes SDK, supervisor, dashboard, relay and audit.
+
+Select **Exact boundary decode choices** to inspect this first whole-SDK
+**Screen best** cohort. Prepared and five-role boundary leaders stay separate;
+independent whole-response confirmation remains open. Source/tokenizer delivery,
+physical wire and Internet RTT remain unmeasured.
+[All costs, raw evidence and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-decode-sdk-reference.md)
+retain the additional-worker trust contract and both matched controls.
+
 ## Cold-request tier confirmation
 
 Twenty-four fresh Qwen2.5 clients compare seven prepared incumbents with the
