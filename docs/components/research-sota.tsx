@@ -10,6 +10,9 @@ import styles from './research-sota.module.css';
 
 type Cohort = typeof data.cohorts[number];
 type Row = Cohort['rows'][number];
+type CohortViewProps = {
+  cohort: Cohort; memoryTier: string | null; onMemoryTierChange: (tier: string | null) => void;
+};
 type MetricKey = keyof Row['metrics'];
 type MetricSort = { id: string; direction: 'ascending' | 'descending' };
 type BodyAttributionDisclosure = { replicate: number; status: string; window: string; scope: string; byteUnit: string;
@@ -58,9 +61,7 @@ function Combination({ row }: { row: Row }) {
   </details>;
 }
 
-export function ResearchSotaTable({ cohort, memoryTier, onMemoryTierChange }: {
-  cohort: Cohort; memoryTier: string | null; onMemoryTierChange: (tier: string | null) => void;
-}) {
+export function ResearchSotaTable({ cohort, memoryTier, onMemoryTierChange }: CohortViewProps) {
   const id = useId();
   const measurement = 'measurement' in cohort ? cohort.measurement : null;
   const metrics = metricDefinitions.map((metric) => scopedMetric(metric, measurement));
@@ -180,12 +181,42 @@ export function ResearchSotaTable({ cohort, memoryTier, onMemoryTierChange }: {
   </section>;
 }
 
-/** Standalone view reuses the chart's checked data and table contract. */
-export function ResearchSota() {
+function ResearchRelationshipView({ cohort, memoryTier, onMemoryTierChange }: CohortViewProps) {
+  const id = useId();
+  const topologies = [...new Set(cohort.rows.map((row) => row.placement.topology))];
+  const [selected, setTopology] = useState('Prepared');
+  const topology = topologies.includes(selected) ? selected : topologies[0];
+  const tier = data.clientMemoryTiers.find((value) => value.id === memoryTier);
+  const measurement = 'measurement' in cohort ? cohort.measurement : null;
+
+  return <div className={styles.explorer}>
+    <div className={styles.controls}>
+      <label htmlFor={`${id}-topology`}>Execution topology<select id={`${id}-topology`} value={topology}
+        onChange={(event) => setTopology(event.target.value)}>{topologies.map((value) => <option key={value} value={value}>
+          {value === 'Client-only' ? 'Client-only control' : value}</option>)}</select></label>
+      <label htmlFor={`${id}-memory`}>Maximum client RAM<select id={`${id}-memory`} value={memoryTier ?? 'all'}
+        onChange={(event) => onMemoryTierChange(event.target.value === 'all' ? null : event.target.value)}>
+        {data.clientMemoryTiers.map((value) => <option key={value.id} value={value.id}>{value.label} · max {value.limit}</option>)}
+        <option value="all">All evidence · no RAM ceiling</option>
+      </select></label>
+    </div>
+    <p className={styles.conditions}>{cohort.identity.inputs} input tokens · {cohort.identity.outputs} generated
+      {' '}of {cohort.identity.cap} allowed · {measurement?.requestScope ?? (cohort.identity.warm ? 'Warm response' : 'Cold response')}
+      {' '}· <a href={repository + cohort.report}>Matched evidence ↗</a></p>
+    <p className={styles.note}>RAM eligibility uses the largest client-process peak across replicates; axes retain each metric's original summary.
+      {measurement && ` ${measurement.cpu}. ${measurement.rss}. ${measurement.timing}. ${measurement.traffic}.`}</p>
+    <ResearchRelationships cohort={cohort} topology={topology} maxBytes={tier?.maxBytes ?? null}
+      metrics={relationshipMetrics.map((id) => scopedMetric(data.metrics.find((metric) => metric.id === id)!, measurement))} />
+  </div>;
+}
+
+/** Both pages share cohort selection, checked evidence and metric contracts. */
+function ResearchExplorer({ view, initialCohortId }: { view: 'leaders' | 'relationships'; initialCohortId?: string }) {
   const id = useId();
   const models = [...new Set(data.cohorts.map((cohort) => cohort.model))];
-  const [model, setModel] = useState(models[0]);
-  const [cohortId, setCohort] = useState(() => defaultResearchCohort(
+  const initial = data.cohorts.find((cohort) => cohort.id === initialCohortId);
+  const [model, setModel] = useState(initial?.model ?? models[0]);
+  const [cohortId, setCohort] = useState(() => initial?.id ?? defaultResearchCohort(
     data.cohorts.filter((cohort) => cohort.model === models[0]),
     data.clientMemoryTiers.find((tier) => tier.id === 'low')!.maxBytes,
   )!.id);
@@ -204,6 +235,16 @@ export function ResearchSota() {
         onChange={(event) => setCohort(event.target.value)}>{available.map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}</select></label>
     </div>
     <p className={styles.note}>{cohort.scope}</p>
-    <ResearchSotaTable key={cohort.id} cohort={cohort} memoryTier={memoryTier} onMemoryTierChange={setMemoryTier} />
+    {view === 'relationships'
+      ? <ResearchRelationshipView key={cohort.id} cohort={cohort} memoryTier={memoryTier} onMemoryTierChange={setMemoryTier} />
+      : <ResearchSotaTable key={cohort.id} cohort={cohort} memoryTier={memoryTier} onMemoryTierChange={setMemoryTier} />}
   </div>;
+}
+
+export function ResearchSota() {
+  return <ResearchExplorer view="leaders" />;
+}
+
+export function ResearchMetricRelationships({ initialCohortId }: { initialCohortId?: string }) {
+  return <ResearchExplorer view="relationships" initialCohortId={initialCohortId} />;
 }

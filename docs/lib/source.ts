@@ -85,11 +85,14 @@ function researchFolders(): Folder[] {
   const problem = children.find((node) =>
     node.type === 'page' && node.url === '/research/problems');
   const sota = children.find((node) => node.type === 'page' && node.url === '/research/sota');
+  const relationships = children.find((node) => node.type === 'page' && node.url === '/research/relationships');
   if (!problem) throw new Error('Missing private inference problem guide');
   if (!sota) throw new Error('Missing measured SOTA table');
+  if (!relationships) throw new Error('Missing metric relationships explorer');
   return [
     { type: 'folder', name: 'The problem', root: true, children: [problem] },
     { type: 'folder', name: 'Measured SOTA', root: true, children: [sota] },
+    { type: 'folder', name: 'Metric relationships', root: true, children: [relationships] },
     researchDocument('PLLM Whitepaper', '/research/whitepaper'),
     researchDocument('PLLM Research Paper', '/research/paper'),
     researchPapers(),

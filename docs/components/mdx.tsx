@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { withBasePath } from '@/lib/paths.mjs';
 import { CapabilityStatus } from './capability-status';
 import { ResearchScorecard } from './research-scorecard';
-import { ResearchSota } from './research-sota';
+import { ResearchMetricRelationships, ResearchSota } from './research-sota';
 import { PaperTimeline } from './paper-timeline';
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
@@ -13,6 +13,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     CapabilityStatus,
     ResearchScorecard,
     ResearchSota,
+    ResearchMetricRelationships,
     PaperTimeline,
     a: ({ href = '', children, ...props }) => {
       if (href.startsWith('/')) {

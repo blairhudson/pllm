@@ -1,8 +1,11 @@
 # Low/Medium frontier and metric relationships
 
 This is a read-only analysis of existing, hash-checked scorecard cohorts. The
-interactive matrix and scatter plots live on **Research → SOTA**. No new serving
-samples are collected by this analysis.
+interactive matrix and scatter plots live on **Research → Metric relationships**
+(`/research/relationships/`) and inside **Research → SOTA**. The dedicated page
+opens the seven-prepared-configuration tier confirmation with Low RAM selected;
+model, cohort, topology and RAM controls reuse the same checked scorecard.
+No new serving samples are collected by this analysis.
 
 ## Current frontier
 

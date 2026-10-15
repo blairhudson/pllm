@@ -1,0 +1,52 @@
+---
+title: "Metric relationships"
+description: "Interactive correlation matrices and scatter plots for client RAM, CPU, traffic and generation speed within matched research cohorts."
+---
+
+Explore how memory, compute, traffic and responsiveness move together across
+measured SDK configurations. Select **Low**, **Medium** or **High** client RAM,
+then click any matrix cell to plot that pair in its original units.
+
+The starting view contains **seven prepared configurations** from the same
+Qwen2.5 **150+8-token** confirmation. All fit Low's **256 MiB** ceiling, so Medium
+shows the same population. Each point represents one configuration summary.
+
+## Explore the measurements
+
+<ResearchMetricRelationships initialCohortId="qwen25-private-boundary-tiers-150-8" />
+
+## Comparisons to try
+
+- **Traffic × decode:** the initial scatter shows lower traffic accompanying
+  faster decode among the seven prepared configurations. Enable **Compare
+  topologies within this cohort** to add the original coupled-boundary choice:
+  Pearson changes from **−0.999 to +0.825**. Boundary offload reduces cold delivery
+  while adding per-token head exchanges; a different population changes the answer.
+- **Client RAM × traffic:** Pearson is **+0.021**, but Spearman is **−0.679** in
+  the prepared-only view. Switch between linear and rank association, then open
+  **Exact plotted values** to see how tiny byte differences affect ranks.
+- **Traffic × request latency:** prepared-only Pearson is **+0.102**; adding the
+  boundary changes it to **+0.962**. Complete-request latency and decode speed
+  capture different phases of the same response.
+
+These examples describe the initial cohort. Other workloads, builds and topology
+choices retain their own points and measurement windows.
+
+## Read the plots
+
+**Pearson r** describes a linear relationship; **Spearman ρ** compares ranks.
+Positive means both raw values rise together, negative means they move oppositely.
+Lower RAM, CPU, latency and traffic are preferable; higher decode throughput is
+preferable. A positive coefficient is therefore not automatically an improvement.
+
+The matrix shows each pair's configuration count. Fewer than five paired
+configurations still produce a scatter plot, with the coefficient left undefined.
+Missing measurements stay missing. The **leave-one-configuration-out** range shows
+sensitivity to individual recipes, not a confidence interval. These deliberately
+selected configurations establish associations, not causal effects.
+
+Use [SOTA by model and RAM budget](/research/sota/) for metric leaders and exact
+component combinations, or the [scorecard](/research/papers/) to follow each recipe
+across multiple axes. The
+[analysis and read-only replay](https://github.com/blairhudson/pllm/blob/main/docs/research/metric-relationships-reference.md)
+retain the evidence sources and full comparison contract.
