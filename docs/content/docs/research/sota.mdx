@@ -65,6 +65,16 @@ remain separate. Source/tokenizer distribution, physical wire and Internet RTT
 remain excluded.
 [Exact contracts, evidence and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-byte-dot-sdk.md)
 
+Separate six-client **HTTP/pacing attribution** preserves **52,561,920** checked
+logit/KV values with zero observed swap growth. A **109.74 ms** paired decode-head
+exchange includes **92.68 ms** of overlapping pacing waits. Each worker sends
+**475,153 TCP-stream bytes** per head; its **40 Mbps upload** dominates the
+recorded limiting-bucket decisions. Actual transfer is close to the
+**91.75 ms** burst-adjusted upload floor. Tracing includes timer wakeup and keeps
+role clocks separate; these measurements identify a bottleneck without revising
+serving rankings or establishing an optimization.
+[Original traces and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-pacing-profile.md)
+
 ## Independent boundary decode confirmation
 
 Nine fresh Qwen2.5 clients confirm the selected head choices at **150+8 tokens**

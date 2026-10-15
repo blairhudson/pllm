@@ -6,6 +6,10 @@ Per-role native dispatch occupies about 13.3 ms; paired client exchange about
 109 ms. This is instrumented attribution with charged overhead, not a serving
 speed improvement or an isolated network measurement.
 
+The follow-up [HTTP and pacing profile](private-boundary-pacing-profile.md)
+directly observes original shared-pacer waits and client HTTP phases, with its
+own control/probe cohort and additional trace admission.
+
 ## Cohort and bootstrap
 
 Identity: `pllm.private_boundary_role_profile.parallel_residues.v1`.
@@ -251,3 +255,8 @@ Original bytes: `docs/evidence/private-boundary-roles-qwen25.json`, `.plan.json`
 summary, including numerical ordinary/research/audit/relay charges. Source/tokenizer
 distribution, physical wire, Internet RTT and independent operators remain outside
 the source-present local cohort.
+
+The subsequent independent [HTTP/pacing cohort](private-boundary-pacing-profile.md)
+directly observes reservation decisions: 92.68 ms of overlapping pacing sleep
+inside a 109.74 ms paired exchange, with roughly 90 ms per worker limited by its
+40 Mbps upload bucket. It preserves the original scope of this role-only profile.

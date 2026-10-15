@@ -1,0 +1,13 @@
+{
+  "schema": "pllm.private_boundary_pacing_profile.parallel_residues.v1.archive",
+  "files": {
+    "report": "private-boundary-pacing-qwen25.json.gz",
+    "plan": "private-boundary-pacing-qwen25.plan.json.gz",
+    "summary": "private-boundary-pacing-qwen25.summary.json.gz"
+  },
+  "sha256": {
+    "report": "62ad2b087bf7b0ceeb5905c43d9e4dcef3a4490e29cab741747b17a3b30d469c",
+    "plan": "10875a7eb91b57b367bcce0a06cb4795bef42b675e6f83cd59a749a264f1cd0f",
+    "summary": "984d91271643841c2fe6e10da3b5b3f2fc06848793b2cb881a606c163eafe217"
+  }
+}

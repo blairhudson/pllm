@@ -343,6 +343,20 @@ values with zero observed swap growth. Per-role native dispatch occupies about
 Role-local handling and client HTTP have different endpoints; their roughly
 93 ms duration difference remains mixed transport, pacing, queueing and client
 work. Full admission prices research, state-audit and relay owners separately.
+The separate bounded pacing profiler observes original head HTTP phases and
+shared-relay reservations on one client clock. It recomputes limiting bucket
+deficits from public rate/token observations and conserves framed bytes against
+SDK bodies and relay counters. Parallel waits use interval unions; actual sleep
+includes event-loop wakeup, while HTTP outside reservations remains mixed work.
+Control and probe both price an additional 32 MiB client trace owner beyond the
+role profiler. Six fresh pinned Qwen2.5 150+8 control/probe clients preserve
+52,561,920 checked logit/KV values with zero observed swap growth. A 109.74 ms
+paired decode-head exchange includes 92.68 ms of overlapping pacing sleeps;
+each worker's 475,153-byte reply stream is principally limited by its 40 Mbps
+upload. First-to-last reply reservations take about 92 ms against a 91.75 ms
+burst-adjusted upload floor. These traces identify the local emulator bottleneck,
+not an Internet delay or serving-speed improvement. Contract and replay:
+`docs/research/private-boundary-pacing-profile.md`.
 Three full-geometry native fusion workers additionally lower isolated lookup/head
 CPU 20.22%, or reconstructed two-worker service CPU 10.12%, with complete integer
 oracles. Their joint-response analytical schedule delays body start and finish

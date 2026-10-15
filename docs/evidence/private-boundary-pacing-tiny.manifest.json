@@ -1,0 +1,13 @@
+{
+  "schema": "pllm.private_boundary_pacing_profile.parallel_residues.v1.archive",
+  "files": {
+    "report": "private-boundary-pacing-tiny.json.gz",
+    "plan": "private-boundary-pacing-tiny.plan.json.gz",
+    "summary": "private-boundary-pacing-tiny.summary.json.gz"
+  },
+  "sha256": {
+    "report": "12205d0859fa96b3463b2448bc47a31ccf1c943b00eb91b762480e095be5eb45",
+    "plan": "12faafc4da2776a00fad378fc640be345abea30c9defdf6e3cd2aebac8ec26c8",
+    "summary": "5fa9554bda3c6fc89bcb9f0b2d571d51f6bf2a4ec28d2ef99db538b0eaab6cf4"
+  }
+}
