@@ -1,0 +1,2237 @@
+{
+  "status": "public_checkpoint_pilot_not_serving_qualification",
+  "source": {
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "files": {
+      "config.json": {
+        "sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "bytes": 659
+      },
+      "model.safetensors": {
+        "sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+        "bytes": 988097824
+      },
+      "tokenizer.json": {
+        "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+        "bytes": 7031645
+      },
+      "tokenizer_config.json": {
+        "sha256": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583",
+        "bytes": 7305
+      }
+    },
+    "numeric": "W8A8-prefix_f32-local-clear",
+    "pilot": {
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "files": {
+        "config.json": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "model.safetensors": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+      }
+    }
+  },
+  "parameters": {
+    "ranker_including_bias": 264,
+    "frozen_backbone": 0,
+    "vocabulary_embedding": 0,
+    "vocabulary_head": 0
+  },
+  "artifact_bytes": 5251,
+  "cold_additional_client_artifact_bytes": 5251,
+  "teacher_training": [
+    {
+      "id": "57111992b654c5140001fb43",
+      "candidates": [
+        {
+          "text": "The French Protestant Church of London",
+          "eos": false,
+          "input_tokens": 134,
+          "selected_tokens": 6,
+          "executed_sequence_rows": 139,
+          "stage_rows": 13344,
+          "stage_calls": 576,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 91806720,
+            "inference_to_client": 129810432,
+            "preparation_to_inference": 129810432
+          },
+          "input_digest": "b60b09c5dea0b2414781357a3260bbeeaf8f1b3e38b645217db3498ce771e17c",
+          "plan_digest": "cdca9c56d04a109f0fb09d0dc6c6328aaf46abd66009324d10860f8bd68f7849",
+          "cpu_seconds": 8.42697,
+          "wall_seconds": 5.259187875315547,
+          "answer_nll": 0.06446864378695788
+        },
+        {
+          "text": "The French Protestant Church of London",
+          "eos": false,
+          "input_tokens": 173,
+          "selected_tokens": 6,
+          "executed_sequence_rows": 178,
+          "stage_rows": 17088,
+          "stage_calls": 576,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 117565440,
+            "inference_to_client": 166232064,
+            "preparation_to_inference": 166232064
+          },
+          "input_digest": "a6566d4d0d8c20cbd15911ec671708014b98b46ed1af6f744b6c611f6b337c32",
+          "plan_digest": "831eec066ebd00a7143ec96923871d5b73b64398a1ef1cb66ba047d5f66f6ea4",
+          "cpu_seconds": 10.287229,
+          "wall_seconds": 6.1301810424774885,
+          "answer_nll": 3.49654041351001
+        },
+        {
+          "text": "The French Protestant Church of London",
+          "eos": false,
+          "input_tokens": 147,
+          "selected_tokens": 6,
+          "executed_sequence_rows": 152,
+          "stage_rows": 14592,
+          "stage_calls": 576,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 100392960,
+            "inference_to_client": 141950976,
+            "preparation_to_inference": 141950976
+          },
+          "input_digest": "5ef2d7e3ca625ad3402ab9820ef2a06bb59dc552757bfae3e7739575b4287cfa",
+          "plan_digest": "d4929b6dfa8ae1a72f93ae975d7fe1aaaff0b3c846ded5dd51c9e0a4996d29a4",
+          "cpu_seconds": 8.925902000000004,
+          "wall_seconds": 5.410929124802351,
+          "answer_nll": 0.09125955818311153
+        }
+      ]
+    },
+    {
+      "id": "57339902d058e614000b5e70",
+      "candidates": [
+        {
+          "text": "1816",
+          "eos": false,
+          "input_tokens": 121,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 124,
+          "stage_rows": 11904,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 81899520,
+            "inference_to_client": 115802112,
+            "preparation_to_inference": 115802112
+          },
+          "input_digest": "0b44a7f69b2b19fa8c1664829d0c70ff8935aabe06a0b7a5c67cd424620aefcf",
+          "plan_digest": "4e06ffd11e0dd47a145b7fd84bb87f4af1926a19ccce458594c5913c59622871",
+          "cpu_seconds": 7.496063999999997,
+          "wall_seconds": 4.687037957832217,
+          "answer_nll": 0.013739266049036873
+        },
+        {
+          "text": "1816",
+          "eos": false,
+          "input_tokens": 165,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 168,
+          "stage_rows": 16128,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 110960640,
+            "inference_to_client": 156893184,
+            "preparation_to_inference": 156893184
+          },
+          "input_digest": "c9941927b63466937eb8852021876eaaa83f05b0e41d123aa55dac04dbff0062",
+          "plan_digest": "21c2bcf36ca4dc63923a9e892d2953c79478dbd669e2fbaa30d5abbed4e24d3a",
+          "cpu_seconds": 9.581348999999996,
+          "wall_seconds": 5.769328291527927,
+          "answer_nll": 3.6472977161888984
+        },
+        {
+          "text": "1816",
+          "eos": false,
+          "input_tokens": 142,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 145,
+          "stage_rows": 13920,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 95769600,
+            "inference_to_client": 135413760,
+            "preparation_to_inference": 135413760
+          },
+          "input_digest": "1e942e66f4299964c3bd181a4d52f047cbda37e2f9aeb63c00a26548b250e64b",
+          "plan_digest": "17fb76259bb27995301d59b858461d3a53e946dc790e4ad9ade8cbddcf7de7f7",
+          "cpu_seconds": 8.772471000000003,
+          "wall_seconds": 5.3374509159475565,
+          "answer_nll": 0.010445396887552949
+        }
+      ]
+    },
+    {
+      "id": "57111b95a58dae1900cd6c53",
+      "candidates": [
+        {
+          "text": "Lothar de Maizi\u00e8re",
+          "eos": false,
+          "input_tokens": 184,
+          "selected_tokens": 7,
+          "executed_sequence_rows": 190,
+          "stage_rows": 18240,
+          "stage_calls": 672,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 125491200,
+            "inference_to_client": 177438720,
+            "preparation_to_inference": 177438720
+          },
+          "input_digest": "e73b24d495458beddf979f0e3f4d336d6692b4afcaef2b96a39bca08fd0c6297",
+          "plan_digest": "366a0e3b0a98f3082cfd1b4a25dbd88bfed32db27c3abd5198677a3b6c9be7b7",
+          "cpu_seconds": 10.787905000000002,
+          "wall_seconds": 6.430698124691844,
+          "answer_nll": 3.698543781215444
+        },
+        {
+          "text": "Lothar de Maizi\u00e8re",
+          "eos": false,
+          "input_tokens": 195,
+          "selected_tokens": 7,
+          "executed_sequence_rows": 201,
+          "stage_rows": 19296,
+          "stage_calls": 672,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 132756480,
+            "inference_to_client": 187711488,
+            "preparation_to_inference": 187711488
+          },
+          "input_digest": "937002cb389533cd2f1d1ca437d52484f21f2286f1fce5f7a073b6ff3faa8fe5",
+          "plan_digest": "61bfcb3cbe108c742b56883008719dee4d2513742b80fce8a18f341c7156f378",
+          "cpu_seconds": 11.259532000000007,
+          "wall_seconds": 6.67403629142791,
+          "answer_nll": 0.169001063934227
+        },
+        {
+          "text": "Lothar de Maizi\u00e8re",
+          "eos": false,
+          "input_tokens": 195,
+          "selected_tokens": 7,
+          "executed_sequence_rows": 201,
+          "stage_rows": 19296,
+          "stage_calls": 672,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 132756480,
+            "inference_to_client": 187711488,
+            "preparation_to_inference": 187711488
+          },
+          "input_digest": "937002cb389533cd2f1d1ca437d52484f21f2286f1fce5f7a073b6ff3faa8fe5",
+          "plan_digest": "61bfcb3cbe108c742b56883008719dee4d2513742b80fce8a18f341c7156f378",
+          "cpu_seconds": 11.28688000000001,
+          "wall_seconds": 6.694314207881689,
+          "answer_nll": 0.169001063934227
+        }
+      ]
+    },
+    {
+      "id": "5729f9953f37b31900478622",
+      "candidates": [
+        {
+          "text": "immunosuppressive",
+          "eos": false,
+          "input_tokens": 129,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 132,
+          "stage_rows": 12672,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 87183360,
+            "inference_to_client": 123273216,
+            "preparation_to_inference": 123273216
+          },
+          "input_digest": "d9269498b2384fe31242cb9299c6905f3b370090f5ff63048c82d56cd0acd270",
+          "plan_digest": "29c2fa81f2c201baa8bf8dd04bff9b33f22d5b81119398a9ca8c9369e5a9a907",
+          "cpu_seconds": 8.105330999999993,
+          "wall_seconds": 4.991691875271499,
+          "answer_nll": 1.9667430980227716
+        },
+        {
+          "text": "immunosuppressive",
+          "eos": false,
+          "input_tokens": 129,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 132,
+          "stage_rows": 12672,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 87183360,
+            "inference_to_client": 123273216,
+            "preparation_to_inference": 123273216
+          },
+          "input_digest": "b2936e21b0a4764889d2a7fc71911d38bdc4f5174745d8954e7e1a8646816497",
+          "plan_digest": "29c2fa81f2c201baa8bf8dd04bff9b33f22d5b81119398a9ca8c9369e5a9a907",
+          "cpu_seconds": 7.842419000000007,
+          "wall_seconds": 4.854667833074927,
+          "answer_nll": 2.1515532721626176
+        },
+        {
+          "text": "immunosuppressive",
+          "eos": false,
+          "input_tokens": 126,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 129,
+          "stage_rows": 12384,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 85201920,
+            "inference_to_client": 120471552,
+            "preparation_to_inference": 120471552
+          },
+          "input_digest": "9deabd2cb7836c284869550d698dae3e044845902df855910f3c9dc7efa6b7be",
+          "plan_digest": "9631a2961e8cbc8a9741a91db64ade7dbeea08e5d41ab498f28272a1a0204153",
+          "cpu_seconds": 7.719166000000001,
+          "wall_seconds": 4.794409125111997,
+          "answer_nll": 3.0201241832517094
+        }
+      ]
+    },
+    {
+      "id": "56e765ba00c9c71400d770a6",
+      "candidates": [
+        {
+          "text": "effective",
+          "eos": false,
+          "input_tokens": 112,
+          "selected_tokens": 1,
+          "executed_sequence_rows": 112,
+          "stage_rows": 10752,
+          "stage_calls": 96,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 73973760,
+            "inference_to_client": 104595456,
+            "preparation_to_inference": 104595456
+          },
+          "input_digest": "a38ce56ccc369170b081742569bced017bc7a99efed9a58fc01b299f8f5e9d7b",
+          "plan_digest": "1511f46d81cd45ac295117192b2721f10ab950e861e697919e643714434a7dc1",
+          "cpu_seconds": 6.8691340000000025,
+          "wall_seconds": 4.388185459189117,
+          "answer_nll": 8.238306234962655
+        },
+        {
+          "text": "effective",
+          "eos": false,
+          "input_tokens": 111,
+          "selected_tokens": 1,
+          "executed_sequence_rows": 111,
+          "stage_rows": 10656,
+          "stage_calls": 96,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 73313280,
+            "inference_to_client": 103661568,
+            "preparation_to_inference": 103661568
+          },
+          "input_digest": "f20d6aac87aa9d92a25c07cb46670312c444e1ab50a02a1fe8321939db2d6741",
+          "plan_digest": "0168c391c2d5d6629f4bee7d46e518f37661665c0b21dd3798e20654bd22c00b",
+          "cpu_seconds": 6.752711999999988,
+          "wall_seconds": 4.318821250461042,
+          "answer_nll": 1.6354492630975535
+        },
+        {
+          "text": "effective",
+          "eos": false,
+          "input_tokens": 118,
+          "selected_tokens": 1,
+          "executed_sequence_rows": 118,
+          "stage_rows": 11328,
+          "stage_calls": 96,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 77936640,
+            "inference_to_client": 110198784,
+            "preparation_to_inference": 110198784
+          },
+          "input_digest": "93ef9d1cd9711f104d617765b3b4f8c051a2bbc8e1588cfe05c428113a32495f",
+          "plan_digest": "8506616d442ba0aca4602eacda3ffcf81731b649b150034e4ca55cd14ce39aa1",
+          "cpu_seconds": 7.061515000000014,
+          "wall_seconds": 4.485843166708946,
+          "answer_nll": 2.1070771768900283
+        }
+      ]
+    },
+    {
+      "id": "572a04d51d046914007796d0",
+      "candidates": [
+        {
+          "text": "free radical production",
+          "eos": false,
+          "input_tokens": 149,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 151,
+          "stage_rows": 14496,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 99732480,
+            "inference_to_client": 141017088,
+            "preparation_to_inference": 141017088
+          },
+          "input_digest": "bf1a2519335c63b685188a4d87ba64c970d3c610e6953952573e66125b2f65b0",
+          "plan_digest": "7590582a2703861498a119c33e49953a7effebb0ebaa07e3c2f29d858c01c44b",
+          "cpu_seconds": 8.747488000000004,
+          "wall_seconds": 5.353429375216365,
+          "answer_nll": 7.763269910260692
+        },
+        {
+          "text": "free radical production",
+          "eos": false,
+          "input_tokens": 131,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 133,
+          "stage_rows": 12768,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 87843840,
+            "inference_to_client": 124207104,
+            "preparation_to_inference": 124207104
+          },
+          "input_digest": "624f286c293f501b08b0764b9a1be193eea3d35f0059b5ffd5f79b5a83422600",
+          "plan_digest": "075e892c29e093b6a05e20523f642d470c1e0e32774e7ccdf786f8f58cdebc89",
+          "cpu_seconds": 8.057864000000023,
+          "wall_seconds": 4.996740457601845,
+          "answer_nll": 1.224942776329516
+        },
+        {
+          "text": "free radical production",
+          "eos": false,
+          "input_tokens": 128,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 130,
+          "stage_rows": 12480,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 85862400,
+            "inference_to_client": 121405440,
+            "preparation_to_inference": 121405440
+          },
+          "input_digest": "906b1303f413ac868e63ce0f24c396a48e417edf343c27bbf7734af42a1c58b0",
+          "plan_digest": "c42c453c2ef9ba23902f924a449b5d49980fb57248ca9c788df278df9a9c8d10",
+          "cpu_seconds": 8.232542999999993,
+          "wall_seconds": 5.0756921246647835,
+          "answer_nll": 0.747327633887331
+        }
+      ]
+    },
+    {
+      "id": "5705e63175f01819005e7721",
+      "candidates": [
+        {
+          "text": "3,792,621",
+          "eos": false,
+          "input_tokens": 121,
+          "selected_tokens": 9,
+          "executed_sequence_rows": 129,
+          "stage_rows": 12384,
+          "stage_calls": 864,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 85201920,
+            "inference_to_client": 120471552,
+            "preparation_to_inference": 120471552
+          },
+          "input_digest": "39a1825ee509b5dcc4295e54c8d7760c40ecefebb323288a50d3aad6e6ee13e9",
+          "plan_digest": "4e06ffd11e0dd47a145b7fd84bb87f4af1926a19ccce458594c5913c59622871",
+          "cpu_seconds": 8.237343999999979,
+          "wall_seconds": 5.083106458187103,
+          "answer_nll": 0.031702986357841946
+        },
+        {
+          "text": "3,792,621",
+          "eos": false,
+          "input_tokens": 133,
+          "selected_tokens": 9,
+          "executed_sequence_rows": 141,
+          "stage_rows": 13536,
+          "stage_calls": 864,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 93127680,
+            "inference_to_client": 131678208,
+            "preparation_to_inference": 131678208
+          },
+          "input_digest": "220d62b3dfd8fddfdad7794cc7b6d9cdcf2916ad5759ece32adc0caca3934c04",
+          "plan_digest": "34f67c2a594c620ba39d2445e401a1e5827a49e58366a4e3dc9a4c67ff20bf8a",
+          "cpu_seconds": 8.701694000000003,
+          "wall_seconds": 5.26500504091382,
+          "answer_nll": 0.01606817513107225
+        },
+        {
+          "text": "3,792,621",
+          "eos": false,
+          "input_tokens": 121,
+          "selected_tokens": 9,
+          "executed_sequence_rows": 129,
+          "stage_rows": 12384,
+          "stage_calls": 864,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 85201920,
+            "inference_to_client": 120471552,
+            "preparation_to_inference": 120471552
+          },
+          "input_digest": "39a1825ee509b5dcc4295e54c8d7760c40ecefebb323288a50d3aad6e6ee13e9",
+          "plan_digest": "4e06ffd11e0dd47a145b7fd84bb87f4af1926a19ccce458594c5913c59622871",
+          "cpu_seconds": 8.227166000000011,
+          "wall_seconds": 5.032348833978176,
+          "answer_nll": 0.031702986357841946
+        }
+      ]
+    },
+    {
+      "id": "56de52614396321400ee27fb",
+      "candidates": [
+        {
+          "text": "southern Italy",
+          "eos": false,
+          "input_tokens": 125,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 128,
+          "stage_rows": 12288,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 84541440,
+            "inference_to_client": 119537664,
+            "preparation_to_inference": 119537664
+          },
+          "input_digest": "87e53560585b2f5d245739e5ffe465f753a3258145ac79f04ec85110e9c5aa29",
+          "plan_digest": "fbef7037bb9f0fc18d5b86185565a69cb8092af681bbae0ba449c930e65792c1",
+          "cpu_seconds": 7.706364000000008,
+          "wall_seconds": 4.787911707535386,
+          "answer_nll": 0.6539055829757051
+        },
+        {
+          "text": "southern Italy",
+          "eos": false,
+          "input_tokens": 111,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 114,
+          "stage_rows": 10944,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 75294720,
+            "inference_to_client": 106463232,
+            "preparation_to_inference": 106463232
+          },
+          "input_digest": "517177264b7e051403ec653e94cd8d59be3cea878b64e42b8f797f3032db3fc1",
+          "plan_digest": "0168c391c2d5d6629f4bee7d46e518f37661665c0b21dd3798e20654bd22c00b",
+          "cpu_seconds": 7.106280999999996,
+          "wall_seconds": 4.499257916584611,
+          "answer_nll": 0.6982572927901256
+        },
+        {
+          "text": "southern Italy",
+          "eos": false,
+          "input_tokens": 125,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 128,
+          "stage_rows": 12288,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 84541440,
+            "inference_to_client": 119537664,
+            "preparation_to_inference": 119537664
+          },
+          "input_digest": "87e53560585b2f5d245739e5ffe465f753a3258145ac79f04ec85110e9c5aa29",
+          "plan_digest": "fbef7037bb9f0fc18d5b86185565a69cb8092af681bbae0ba449c930e65792c1",
+          "cpu_seconds": 7.847133000000014,
+          "wall_seconds": 4.895199542865157,
+          "answer_nll": 0.6539055829757051
+        }
+      ]
+    },
+    {
+      "id": "stress-train-rare_copy",
+      "candidates": [
+        {
+          "text": "ZX-ace7a5a90236d7",
+          "eos": false,
+          "input_tokens": 80,
+          "selected_tokens": 14,
+          "executed_sequence_rows": 93,
+          "stage_rows": 8928,
+          "stage_calls": 1344,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 61424640,
+            "inference_to_client": 86851584,
+            "preparation_to_inference": 86851584
+          },
+          "input_digest": "eb6da28bd8384360e01402405da9594aa2c118ba3116fde776fe0073f4cc8f82",
+          "plan_digest": "1cb09f01e578d30a5a9ee046e4a2f1e789f990e4d3a1ac4d8de3817245aa3b80",
+          "cpu_seconds": 7.423834999999997,
+          "wall_seconds": 4.517867208458483,
+          "answer_nll": 0.001431602114397075
+        },
+        {
+          "text": "ZX-ace7a5a90236d7",
+          "eos": false,
+          "input_tokens": 81,
+          "selected_tokens": 14,
+          "executed_sequence_rows": 94,
+          "stage_rows": 9024,
+          "stage_calls": 1344,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 87785472
+          },
+          "input_digest": "e6d4e0fd3fcbd48dc94c2ae134fd26450bff523f4d051e53df1c606f48d9c41c",
+          "plan_digest": "a7cad729d9a9989af7e3c8d4139bc5728cc0ee10a665d8ce138bb30ec676b346",
+          "cpu_seconds": 8.150259000000005,
+          "wall_seconds": 5.689160084351897,
+          "answer_nll": 4.496468117856036
+        },
+        {
+          "text": "ZX-ace7a5a90236d7",
+          "eos": false,
+          "input_tokens": 80,
+          "selected_tokens": 14,
+          "executed_sequence_rows": 93,
+          "stage_rows": 8928,
+          "stage_calls": 1344,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 61424640,
+            "inference_to_client": 86851584,
+            "preparation_to_inference": 86851584
+          },
+          "input_digest": "eb6da28bd8384360e01402405da9594aa2c118ba3116fde776fe0073f4cc8f82",
+          "plan_digest": "1cb09f01e578d30a5a9ee046e4a2f1e789f990e4d3a1ac4d8de3817245aa3b80",
+          "cpu_seconds": 6.841082999999998,
+          "wall_seconds": 4.292196583002806,
+          "answer_nll": 0.001431602114397075
+        }
+      ]
+    },
+    {
+      "id": "stress-train-order",
+      "candidates": [
+        {
+          "text": "Lima",
+          "eos": false,
+          "input_tokens": 71,
+          "selected_tokens": 2,
+          "executed_sequence_rows": 72,
+          "stage_rows": 6912,
+          "stage_calls": 192,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 47554560,
+            "inference_to_client": 67239936,
+            "preparation_to_inference": 67239936
+          },
+          "input_digest": "1b955d94cfe2e3deff4fda9c743bbc16593a4f77b3b5b798c1d34de2b662c72d",
+          "plan_digest": "7ecfa748051849a9ac5e67b9dcfea3d4d1c99bae6b51816053da340421dd50bb",
+          "cpu_seconds": 5.129845000000017,
+          "wall_seconds": 3.504044583067298,
+          "answer_nll": 0.061295325677613054
+        },
+        {
+          "text": "Lima",
+          "eos": false,
+          "input_tokens": 69,
+          "selected_tokens": 2,
+          "executed_sequence_rows": 70,
+          "stage_rows": 6720,
+          "stage_calls": 192,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 46233600,
+            "inference_to_client": 65372160,
+            "preparation_to_inference": 65372160
+          },
+          "input_digest": "62d6074b25c460c081c87ddcda04d0e138210715b1aa41a6b4a1291416e1b1e1",
+          "plan_digest": "92a049b8efbfc58b1a2ae48b7f8ccb00cb20d51e309d7f4ea24a411e6159bb04",
+          "cpu_seconds": 5.106540999999993,
+          "wall_seconds": 3.5104750422760844,
+          "answer_nll": 1.9105912112521006
+        },
+        {
+          "text": "Lima",
+          "eos": false,
+          "input_tokens": 71,
+          "selected_tokens": 2,
+          "executed_sequence_rows": 72,
+          "stage_rows": 6912,
+          "stage_calls": 192,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 47554560,
+            "inference_to_client": 67239936,
+            "preparation_to_inference": 67239936
+          },
+          "input_digest": "1b955d94cfe2e3deff4fda9c743bbc16593a4f77b3b5b798c1d34de2b662c72d",
+          "plan_digest": "7ecfa748051849a9ac5e67b9dcfea3d4d1c99bae6b51816053da340421dd50bb",
+          "cpu_seconds": 5.1584880000000055,
+          "wall_seconds": 3.511888916604221,
+          "answer_nll": 0.061295325677613054
+        }
+      ]
+    }
+  ],
+  "evaluation": [
+    {
+      "id": "57265e11708984140094c3bb",
+      "split": "dev",
+      "kind": "public_qa",
+      "helper_work": {
+        "cpu_seconds": 0.0002990000000124837,
+        "wall_seconds": 0.00029624998569488525
+      },
+      "results": {
+        "full": {
+          "text": "1981",
+          "eos": true,
+          "input_tokens": 204,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 208,
+          "stage_rows": 19968,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 137379840,
+            "inference_to_client": 194248704,
+            "preparation_to_inference": 211992576
+          },
+          "input_digest": "78bd5be6327eddae5e2a60b0f55883754a85d32c88ba7102dbf0663d8e8d285d",
+          "plan_digest": "90e6d98caac114c177c20576b276aaba0d251c881a653775bd83f349ccbbd978",
+          "cpu_seconds": 11.607372999999967,
+          "wall_seconds": 6.8724491242319345,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "1981",
+          "eos": true,
+          "input_tokens": 125,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 129,
+          "stage_rows": 12384,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 85201920,
+            "inference_to_client": 120471552,
+            "preparation_to_inference": 138215424
+          },
+          "input_digest": "0813eed52c4cb899521db175ebef7c85530fc66651607391b8dd1481f80de12e",
+          "plan_digest": "fbef7037bb9f0fc18d5b86185565a69cb8092af681bbae0ba449c930e65792c1",
+          "cpu_seconds": 8.442991000000006,
+          "wall_seconds": 5.298550374805927,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "tail": {
+          "text": "1979",
+          "eos": true,
+          "input_tokens": 142,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 146,
+          "stage_rows": 14016,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 96430080,
+            "inference_to_client": 136347648,
+            "preparation_to_inference": 154091520
+          },
+          "input_digest": "4c2a6bba55ce85ae0e03fa2aeaf924ab4fe131a5c4ff0a694d230033c22076e9",
+          "plan_digest": "17fb76259bb27995301d59b858461d3a53e946dc790e4ad9ade8cbddcf7de7f7",
+          "cpu_seconds": 8.643339000000026,
+          "wall_seconds": 5.264072249643505,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "lexical": {
+          "text": "1981",
+          "eos": true,
+          "input_tokens": 135,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 139,
+          "stage_rows": 13344,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 91806720,
+            "inference_to_client": 129810432,
+            "preparation_to_inference": 147554304
+          },
+          "input_digest": "c9c42fe7d5ca7719143b4a08f4c2ae4a3844e675e9fc3de65db4c9c4c8ecdb54",
+          "plan_digest": "d277d4128e3f3e0785811d38c5ef4b35d91105547558270c3515502aa4a33ba4",
+          "cpu_seconds": 8.268890999999996,
+          "wall_seconds": 5.096624041907489,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "1981",
+          "eos": true,
+          "input_tokens": 125,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 129,
+          "stage_rows": 12384,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 85201920,
+            "inference_to_client": 120471552,
+            "preparation_to_inference": 138215424
+          },
+          "input_digest": "0813eed52c4cb899521db175ebef7c85530fc66651607391b8dd1481f80de12e",
+          "plan_digest": "fbef7037bb9f0fc18d5b86185565a69cb8092af681bbae0ba449c930e65792c1",
+          "cpu_seconds": 7.794013000000007,
+          "wall_seconds": 4.83027945831418,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": false,
+          "retry": null,
+          "em": true,
+          "eos": true,
+          "literal_exact": true,
+          "cpu_seconds": 7.794312000000019,
+          "wall_seconds": 4.830575708299875,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 85201920,
+            "inference_to_client": 120471552,
+            "preparation_to_inference": 138215424
+          }
+        }
+      }
+    },
+    {
+      "id": "572825714b864d1900164594",
+      "split": "dev",
+      "kind": "public_qa",
+      "helper_work": {
+        "cpu_seconds": 0.0004989999999907013,
+        "wall_seconds": 0.0004961667582392693
+      },
+      "results": {
+        "full": {
+          "text": "Judith Merril",
+          "eos": true,
+          "input_tokens": 244,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 248,
+          "stage_rows": 23808,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 163799040,
+            "inference_to_client": 231604224,
+            "preparation_to_inference": 249348096
+          },
+          "input_digest": "bf068d48072d62e2b7b843fa9dd5b3e3f2a7544e8bd0a6881a2463ce04f28a20",
+          "plan_digest": "62e6a476e027fc352023b65ed8abddbcc846f1c4c802efe65dcf89900e62cd71",
+          "cpu_seconds": 13.97649899999999,
+          "wall_seconds": 8.18969058431685,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "Judith Merril",
+          "eos": true,
+          "input_tokens": 213,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 217,
+          "stage_rows": 20832,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 143324160,
+            "inference_to_client": 202653696,
+            "preparation_to_inference": 220397568
+          },
+          "input_digest": "18271ebd6a65c7aedf1331c2fc7ded9efba2d527c94f8e9d281dd8d4434ec2c2",
+          "plan_digest": "4dfd38b6cd7c1a4aa112a8e02d1bed26c9c8398682c85222b3a80f77615313f1",
+          "cpu_seconds": 11.844812999999988,
+          "wall_seconds": 6.988102708011866,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "tail": {
+          "text": "The Talons of Weng-Chiang",
+          "eos": true,
+          "input_tokens": 142,
+          "selected_tokens": 9,
+          "executed_sequence_rows": 150,
+          "stage_rows": 14400,
+          "stage_calls": 864,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 99072000,
+            "inference_to_client": 140083200,
+            "preparation_to_inference": 154091520
+          },
+          "input_digest": "b835bfca4cedb1bf527f8c411bf5717e05765d70f4053e7b0bd67810386a135a",
+          "plan_digest": "17fb76259bb27995301d59b858461d3a53e946dc790e4ad9ade8cbddcf7de7f7",
+          "cpu_seconds": 9.285337999999967,
+          "wall_seconds": 5.564161458052695,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "lexical": {
+          "text": "Judith Merril",
+          "eos": true,
+          "input_tokens": 213,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 217,
+          "stage_rows": 20832,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 143324160,
+            "inference_to_client": 202653696,
+            "preparation_to_inference": 220397568
+          },
+          "input_digest": "18271ebd6a65c7aedf1331c2fc7ded9efba2d527c94f8e9d281dd8d4434ec2c2",
+          "plan_digest": "4dfd38b6cd7c1a4aa112a8e02d1bed26c9c8398682c85222b3a80f77615313f1",
+          "cpu_seconds": 11.853848000000028,
+          "wall_seconds": 6.996814833022654,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "Judith Merril",
+          "eos": true,
+          "input_tokens": 213,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 217,
+          "stage_rows": 20832,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 143324160,
+            "inference_to_client": 202653696,
+            "preparation_to_inference": 220397568
+          },
+          "input_digest": "18271ebd6a65c7aedf1331c2fc7ded9efba2d527c94f8e9d281dd8d4434ec2c2",
+          "plan_digest": "4dfd38b6cd7c1a4aa112a8e02d1bed26c9c8398682c85222b3a80f77615313f1",
+          "cpu_seconds": 11.85394599999995,
+          "wall_seconds": 6.985101709142327,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": false,
+          "retry": null,
+          "em": true,
+          "eos": true,
+          "literal_exact": true,
+          "cpu_seconds": 11.854444999999942,
+          "wall_seconds": 6.985597875900567,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 143324160,
+            "inference_to_client": 202653696,
+            "preparation_to_inference": 220397568
+          }
+        }
+      }
+    },
+    {
+      "id": "stress-dev-rare_copy",
+      "split": "dev",
+      "kind": "rare_copy",
+      "helper_work": {
+        "cpu_seconds": 0.00015500000000656655,
+        "wall_seconds": 0.00015037506818771362
+      },
+      "results": {
+        "full": {
+          "text": "ZX-e5355fae7a5586",
+          "eos": true,
+          "input_tokens": 102,
+          "selected_tokens": 15,
+          "executed_sequence_rows": 116,
+          "stage_rows": 11136,
+          "stage_calls": 1440,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 76615680,
+            "inference_to_client": 108331008,
+            "preparation_to_inference": 116736000
+          },
+          "input_digest": "223030442530cbc9dc1a4fe24ee0b3672d63511ee202627e7396654f4598b237",
+          "plan_digest": "84c7502c08fa43c1a5f6b3d25536eb8bd14bc13de5c9cbf637f2be3ed39b14e5",
+          "cpu_seconds": 7.726696000000004,
+          "wall_seconds": 4.681829707697034,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "ZX-e5355fae7a5586",
+          "eos": true,
+          "input_tokens": 80,
+          "selected_tokens": 15,
+          "executed_sequence_rows": 94,
+          "stage_rows": 9024,
+          "stage_calls": 1440,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 96190464
+          },
+          "input_digest": "2123c221e25371f86c8a5c0f2fbfdd9b6dc5ff6f560d66c35ac7847cb4f600d8",
+          "plan_digest": "1cb09f01e578d30a5a9ee046e4a2f1e789f990e4d3a1ac4d8de3817245aa3b80",
+          "cpu_seconds": 6.782424999999989,
+          "wall_seconds": 4.20354391541332,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "tail": {
+          "text": "QJ-6855a7eaf5535e",
+          "eos": true,
+          "input_tokens": 82,
+          "selected_tokens": 17,
+          "executed_sequence_rows": 98,
+          "stage_rows": 9408,
+          "stage_calls": 1632,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 64727040,
+            "inference_to_client": 91521024,
+            "preparation_to_inference": 98058240
+          },
+          "input_digest": "e13de9ecb03764d4341f3e99cd194f45f6d9d7f1126af3b1fe677381b6064735",
+          "plan_digest": "d3c90b7b2b495be2d38e9312563d90e691ebfb5bf71bf9a45fb4f81407eddf30",
+          "cpu_seconds": 7.217354999999998,
+          "wall_seconds": 4.403595916926861,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "lexical": {
+          "text": "ZX-e5355fae7a5586",
+          "eos": true,
+          "input_tokens": 80,
+          "selected_tokens": 15,
+          "executed_sequence_rows": 94,
+          "stage_rows": 9024,
+          "stage_calls": 1440,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 96190464
+          },
+          "input_digest": "2123c221e25371f86c8a5c0f2fbfdd9b6dc5ff6f560d66c35ac7847cb4f600d8",
+          "plan_digest": "1cb09f01e578d30a5a9ee046e4a2f1e789f990e4d3a1ac4d8de3817245aa3b80",
+          "cpu_seconds": 6.814641999999992,
+          "wall_seconds": 4.229137833230197,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "ZX-e5355fae7a5586",
+          "eos": true,
+          "input_tokens": 80,
+          "selected_tokens": 15,
+          "executed_sequence_rows": 94,
+          "stage_rows": 9024,
+          "stage_calls": 1440,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 96190464
+          },
+          "input_digest": "2123c221e25371f86c8a5c0f2fbfdd9b6dc5ff6f560d66c35ac7847cb4f600d8",
+          "plan_digest": "1cb09f01e578d30a5a9ee046e4a2f1e789f990e4d3a1ac4d8de3817245aa3b80",
+          "cpu_seconds": 6.75574899999998,
+          "wall_seconds": 4.182898583821952,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": false,
+          "retry": null,
+          "em": true,
+          "eos": true,
+          "literal_exact": true,
+          "cpu_seconds": 6.755903999999987,
+          "wall_seconds": 4.18304895889014,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 96190464
+          }
+        }
+      }
+    },
+    {
+      "id": "stress-dev-order",
+      "split": "dev",
+      "kind": "order",
+      "helper_work": {
+        "cpu_seconds": 0.00013400000000274304,
+        "wall_seconds": 0.0001293746754527092
+      },
+      "results": {
+        "full": {
+          "text": "Accra",
+          "eos": true,
+          "input_tokens": 77,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 79,
+          "stage_rows": 7584,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 52177920,
+            "inference_to_client": 73777152,
+            "preparation_to_inference": 93388800
+          },
+          "input_digest": "b539e965e30ad947330bba08af82f635b49b457a47d3a6b2ba0fc569f8ce7c84",
+          "plan_digest": "08c946b90a6d1d2ed8f0cb667cc146e83c8f10e5c025047a56d2f9e8916eeb04",
+          "cpu_seconds": 5.461350999999979,
+          "wall_seconds": 3.6565915001556277,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "Bern",
+          "eos": true,
+          "input_tokens": 71,
+          "selected_tokens": 2,
+          "executed_sequence_rows": 72,
+          "stage_rows": 6912,
+          "stage_calls": 192,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 47554560,
+            "inference_to_client": 67239936,
+            "preparation_to_inference": 87785472
+          },
+          "input_digest": "97d3e3f2057f17c401153f084d923970df252282b166cb3cf85a18f9ad24f219",
+          "plan_digest": "7ecfa748051849a9ac5e67b9dcfea3d4d1c99bae6b51816053da340421dd50bb",
+          "cpu_seconds": 5.111616000000026,
+          "wall_seconds": 3.49448012560606,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "tail": {
+          "text": "Accra",
+          "eos": true,
+          "input_tokens": 70,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 72,
+          "stage_rows": 6912,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 47554560,
+            "inference_to_client": 67239936,
+            "preparation_to_inference": 86851584
+          },
+          "input_digest": "26a89feae0086811fd894a67b86d1a3b7029d615b23dc4bfafb13cd3743d8733",
+          "plan_digest": "016c95e09d3408493ea617ea7bf8ba1913bb7fa966ad13c17c4ad58864e802cb",
+          "cpu_seconds": 5.20844900000003,
+          "wall_seconds": 3.550734667107463,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "lexical": {
+          "text": "Bern",
+          "eos": true,
+          "input_tokens": 71,
+          "selected_tokens": 2,
+          "executed_sequence_rows": 72,
+          "stage_rows": 6912,
+          "stage_calls": 192,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 47554560,
+            "inference_to_client": 67239936,
+            "preparation_to_inference": 87785472
+          },
+          "input_digest": "97d3e3f2057f17c401153f084d923970df252282b166cb3cf85a18f9ad24f219",
+          "plan_digest": "7ecfa748051849a9ac5e67b9dcfea3d4d1c99bae6b51816053da340421dd50bb",
+          "cpu_seconds": 5.067308999999966,
+          "wall_seconds": 3.4533927496522665,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "Bern",
+          "eos": true,
+          "input_tokens": 71,
+          "selected_tokens": 2,
+          "executed_sequence_rows": 72,
+          "stage_rows": 6912,
+          "stage_calls": 192,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 47554560,
+            "inference_to_client": 67239936,
+            "preparation_to_inference": 87785472
+          },
+          "input_digest": "97d3e3f2057f17c401153f084d923970df252282b166cb3cf85a18f9ad24f219",
+          "plan_digest": "7ecfa748051849a9ac5e67b9dcfea3d4d1c99bae6b51816053da340421dd50bb",
+          "cpu_seconds": 5.1149690000000305,
+          "wall_seconds": 3.4955775821581483,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": false,
+          "retry": null,
+          "em": true,
+          "eos": true,
+          "literal_exact": true,
+          "cpu_seconds": 5.115103000000033,
+          "wall_seconds": 3.495706956833601,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 47554560,
+            "inference_to_client": 67239936,
+            "preparation_to_inference": 87785472
+          }
+        }
+      }
+    },
+    {
+      "id": "572fdc34a23a5019007fca95",
+      "split": "heldout",
+      "kind": "public_qa",
+      "helper_work": {
+        "cpu_seconds": 0.0003350000000068576,
+        "wall_seconds": 0.000331624411046505
+      },
+      "results": {
+        "full": {
+          "text": "The Conservatives suffered a net loss of five seats.",
+          "eos": true,
+          "input_tokens": 162,
+          "selected_tokens": 11,
+          "executed_sequence_rows": 172,
+          "stage_rows": 16512,
+          "stage_calls": 1056,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 113602560,
+            "inference_to_client": 160628736,
+            "preparation_to_inference": 172769280
+          },
+          "input_digest": "68d4e7cffd095d698bccfed1a753387bb4bfb070e847ab0f90388672caabb9d6",
+          "plan_digest": "700d763a53e381aa7e6536b7ba60de1258ee44732f91c5de07b2ab5ef2346681",
+          "cpu_seconds": 10.207625000000007,
+          "wall_seconds": 6.0284903747960925,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "The Conservatives suffered a net loss of five seats.",
+          "eos": true,
+          "input_tokens": 128,
+          "selected_tokens": 11,
+          "executed_sequence_rows": 138,
+          "stage_rows": 13248,
+          "stage_calls": 1056,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 91146240,
+            "inference_to_client": 128876544,
+            "preparation_to_inference": 141017088
+          },
+          "input_digest": "571b4931f150326480f30c888fa97c58f5027af0945cd6916c3fa2d1190d0ada",
+          "plan_digest": "c42c453c2ef9ba23902f924a449b5d49980fb57248ca9c788df278df9a9c8d10",
+          "cpu_seconds": 8.493298999999979,
+          "wall_seconds": 5.114807582460344,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "tail": {
+          "text": "The Conservatives suffered a net loss.",
+          "eos": true,
+          "input_tokens": 95,
+          "selected_tokens": 8,
+          "executed_sequence_rows": 102,
+          "stage_rows": 9792,
+          "stage_calls": 768,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 67368960,
+            "inference_to_client": 95256576,
+            "preparation_to_inference": 110198784
+          },
+          "input_digest": "acf6a5d229fb6013df27096fce3008d53a0c7fc8e9dbb18f18ff711009fa5715",
+          "plan_digest": "4f0f54332c38f239189c1ec4588fb320ae210a67ebbc1b700452e756d49ef2ed",
+          "cpu_seconds": 6.752182000000005,
+          "wall_seconds": 4.265031750313938,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "lexical": {
+          "text": "The Conservatives suffered a net loss of five seats.",
+          "eos": true,
+          "input_tokens": 128,
+          "selected_tokens": 11,
+          "executed_sequence_rows": 138,
+          "stage_rows": 13248,
+          "stage_calls": 1056,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 91146240,
+            "inference_to_client": 128876544,
+            "preparation_to_inference": 141017088
+          },
+          "input_digest": "571b4931f150326480f30c888fa97c58f5027af0945cd6916c3fa2d1190d0ada",
+          "plan_digest": "c42c453c2ef9ba23902f924a449b5d49980fb57248ca9c788df278df9a9c8d10",
+          "cpu_seconds": 8.886806000000036,
+          "wall_seconds": 5.308799333870411,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "The Conservatives suffered a net loss of five seats.",
+          "eos": true,
+          "input_tokens": 128,
+          "selected_tokens": 11,
+          "executed_sequence_rows": 138,
+          "stage_rows": 13248,
+          "stage_calls": 1056,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 91146240,
+            "inference_to_client": 128876544,
+            "preparation_to_inference": 141017088
+          },
+          "input_digest": "571b4931f150326480f30c888fa97c58f5027af0945cd6916c3fa2d1190d0ada",
+          "plan_digest": "c42c453c2ef9ba23902f924a449b5d49980fb57248ca9c788df278df9a9c8d10",
+          "cpu_seconds": 8.516462000000047,
+          "wall_seconds": 5.139279332943261,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": true,
+          "retry": {
+            "text": "The Conservatives suffered a net loss of five seats.",
+            "eos": true,
+            "input_tokens": 162,
+            "selected_tokens": 11,
+            "executed_sequence_rows": 172,
+            "stage_rows": 16512,
+            "stage_calls": 1056,
+            "projected_arithmetic_bytes": {
+              "client_to_inference": 113602560,
+              "inference_to_client": 160628736,
+              "preparation_to_inference": 172769280
+            },
+            "input_digest": "68d4e7cffd095d698bccfed1a753387bb4bfb070e847ab0f90388672caabb9d6",
+            "plan_digest": "700d763a53e381aa7e6536b7ba60de1258ee44732f91c5de07b2ab5ef2346681",
+            "cpu_seconds": 10.112393999999995,
+            "wall_seconds": 5.982002416625619,
+            "answer_nll": null
+          },
+          "em": false,
+          "eos": true,
+          "literal_exact": false,
+          "cpu_seconds": 18.62919100000005,
+          "wall_seconds": 11.121613373979926,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 204748800,
+            "inference_to_client": 289505280,
+            "preparation_to_inference": 313786368
+          }
+        }
+      }
+    },
+    {
+      "id": "56d6f1190d65d21400198273",
+      "split": "heldout",
+      "kind": "public_qa",
+      "helper_work": {
+        "cpu_seconds": 0.0004150000000322507,
+        "wall_seconds": 0.0004114992916584015
+      },
+      "results": {
+        "full": {
+          "text": "Denver Broncos",
+          "eos": true,
+          "input_tokens": 202,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 204,
+          "stage_rows": 19584,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 134737920,
+            "inference_to_client": 190513152,
+            "preparation_to_inference": 210124800
+          },
+          "input_digest": "8d1992967ba22ccb1b65e8e82b61b2e8ba9c4d29e6c4e623ffbda307a2fbe224",
+          "plan_digest": "4a1d59fcd1846d1bb23bffce937bdb68ef2985cd2973bd4c55d6ad1c26d6660c",
+          "cpu_seconds": 11.131691999999987,
+          "wall_seconds": 6.617457999847829,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "The Denver Broncos were the seed.",
+          "eos": true,
+          "input_tokens": 135,
+          "selected_tokens": 8,
+          "executed_sequence_rows": 142,
+          "stage_rows": 13632,
+          "stage_calls": 768,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 93788160,
+            "inference_to_client": 132612096,
+            "preparation_to_inference": 147554304
+          },
+          "input_digest": "5903ea6d86750003b3a4bb175b7f47c7ff768aa18b75ddcb5ea7f21b7fc00111",
+          "plan_digest": "d277d4128e3f3e0785811d38c5ef4b35d91105547558270c3515502aa4a33ba4",
+          "cpu_seconds": 8.583011999999997,
+          "wall_seconds": 5.215947458520532,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "tail": {
+          "text": "The Denver Broncos were the seed.",
+          "eos": true,
+          "input_tokens": 127,
+          "selected_tokens": 8,
+          "executed_sequence_rows": 134,
+          "stage_rows": 12864,
+          "stage_calls": 768,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 88504320,
+            "inference_to_client": 125140992,
+            "preparation_to_inference": 140083200
+          },
+          "input_digest": "47fa5716a76bd296e73cf8bed0654baf289f32254f1a984eff5cbfb6aa1d8d2c",
+          "plan_digest": "e0da2a4d45a1a485f51339e4667e74c25aa72ffadcd8179830c4d8441b854bfe",
+          "cpu_seconds": 8.134622999999976,
+          "wall_seconds": 4.957143791951239,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "lexical": {
+          "text": "The Denver Broncos were the seed.",
+          "eos": true,
+          "input_tokens": 159,
+          "selected_tokens": 8,
+          "executed_sequence_rows": 166,
+          "stage_rows": 15936,
+          "stage_calls": 768,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 109639680,
+            "inference_to_client": 155025408,
+            "preparation_to_inference": 169967616
+          },
+          "input_digest": "911f95b8b4463880c98e860092cbd428ffa5b12f580562a848804976e6d94463",
+          "plan_digest": "95017aab195d9aa042297a35d14324e876f3cc193abf8b11ed16cb4061e39092",
+          "cpu_seconds": 9.632285999999965,
+          "wall_seconds": 5.753103958442807,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "The Denver Broncos were the seed.",
+          "eos": true,
+          "input_tokens": 135,
+          "selected_tokens": 8,
+          "executed_sequence_rows": 142,
+          "stage_rows": 13632,
+          "stage_calls": 768,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 93788160,
+            "inference_to_client": 132612096,
+            "preparation_to_inference": 147554304
+          },
+          "input_digest": "5903ea6d86750003b3a4bb175b7f47c7ff768aa18b75ddcb5ea7f21b7fc00111",
+          "plan_digest": "d277d4128e3f3e0785811d38c5ef4b35d91105547558270c3515502aa4a33ba4",
+          "cpu_seconds": 8.540652999999963,
+          "wall_seconds": 5.177992957644165,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": true,
+          "retry": {
+            "text": "Denver Broncos",
+            "eos": true,
+            "input_tokens": 202,
+            "selected_tokens": 3,
+            "executed_sequence_rows": 204,
+            "stage_rows": 19584,
+            "stage_calls": 288,
+            "projected_arithmetic_bytes": {
+              "client_to_inference": 134737920,
+              "inference_to_client": 190513152,
+              "preparation_to_inference": 210124800
+            },
+            "input_digest": "8d1992967ba22ccb1b65e8e82b61b2e8ba9c4d29e6c4e623ffbda307a2fbe224",
+            "plan_digest": "4a1d59fcd1846d1bb23bffce937bdb68ef2985cd2973bd4c55d6ad1c26d6660c",
+            "cpu_seconds": 11.098525999999993,
+            "wall_seconds": 6.582679874263704,
+            "answer_nll": null
+          },
+          "em": false,
+          "eos": true,
+          "literal_exact": false,
+          "cpu_seconds": 19.63959399999999,
+          "wall_seconds": 11.761084331199527,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 228526080,
+            "inference_to_client": 323125248,
+            "preparation_to_inference": 357679104
+          }
+        }
+      }
+    },
+    {
+      "id": "56f8cc399e9bad19000a0517",
+      "split": "heldout",
+      "kind": "public_qa",
+      "helper_work": {
+        "cpu_seconds": 0.0005120000000715663,
+        "wall_seconds": 0.0005090832710266113
+      },
+      "results": {
+        "full": {
+          "text": "The image of Luther was a contrast to the life of the medieval religious orders.",
+          "eos": true,
+          "input_tokens": 240,
+          "selected_tokens": 17,
+          "executed_sequence_rows": 256,
+          "stage_rows": 24576,
+          "stage_calls": 1632,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 169082880,
+            "inference_to_client": 239075328,
+            "preparation_to_inference": 245612544
+          },
+          "input_digest": "7998f1cdd539d755e5a3e9a105ea6b05a3ac77c9e31809db0b65c1155f4788f1",
+          "plan_digest": "4b1cc8bb57b9aec7c13132fbde06aed9c3269565ec96d4847cecc34db54a368f",
+          "cpu_seconds": 14.585740999999985,
+          "wall_seconds": 8.399780583567917,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "frail Catholic saints",
+          "eos": true,
+          "input_tokens": 167,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 171,
+          "stage_rows": 16416,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 112942080,
+            "inference_to_client": 159694848,
+            "preparation_to_inference": 177438720
+          },
+          "input_digest": "63b182260f50133191ef6e8cd0310fd7ac8addec2900cf43febcd31c3682e9d7",
+          "plan_digest": "867d2a7a8d40a28639a2c5cb47360f967e3f7ca254874bf03ce242af7713b4a7",
+          "cpu_seconds": 9.74429699999996,
+          "wall_seconds": 5.848246166482568,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "tail": {
+          "text": "ascetic life",
+          "eos": true,
+          "input_tokens": 139,
+          "selected_tokens": 4,
+          "executed_sequence_rows": 142,
+          "stage_rows": 13632,
+          "stage_calls": 384,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 93788160,
+            "inference_to_client": 132612096,
+            "preparation_to_inference": 151289856
+          },
+          "input_digest": "64ffc5fcac2e079a1110ae2626c94d810b036f51fcee88bd2003f9a299379f86",
+          "plan_digest": "04d645ce65b19aaf70be6af112952767fdf12878c04d8b98eccdafefbfea2a81",
+          "cpu_seconds": 8.353568999999993,
+          "wall_seconds": 5.14229020755738,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "lexical": {
+          "text": "Frail Catholic saints",
+          "eos": true,
+          "input_tokens": 169,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 173,
+          "stage_rows": 16608,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 114263040,
+            "inference_to_client": 161562624,
+            "preparation_to_inference": 179306496
+          },
+          "input_digest": "16ac78b3551581bbca738af9e518c2c3b7e3867c838842e6da29abc332e0e95e",
+          "plan_digest": "bf0342ebaa2a74b05d35d5611109b07c8a15fdff1955590a0a57ba817f75c5d4",
+          "cpu_seconds": 9.79704700000002,
+          "wall_seconds": 5.876300999894738,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "frail Catholic saints",
+          "eos": true,
+          "input_tokens": 167,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 171,
+          "stage_rows": 16416,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 112942080,
+            "inference_to_client": 159694848,
+            "preparation_to_inference": 177438720
+          },
+          "input_digest": "63b182260f50133191ef6e8cd0310fd7ac8addec2900cf43febcd31c3682e9d7",
+          "plan_digest": "867d2a7a8d40a28639a2c5cb47360f967e3f7ca254874bf03ce242af7713b4a7",
+          "cpu_seconds": 10.052551999999991,
+          "wall_seconds": 6.040105124935508,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "learned_then_full": {
+          "fallback": false,
+          "retry": null,
+          "em": false,
+          "eos": true,
+          "literal_exact": false,
+          "cpu_seconds": 10.053064000000063,
+          "wall_seconds": 6.040614208206534,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 112942080,
+            "inference_to_client": 159694848,
+            "preparation_to_inference": 177438720
+          }
+        }
+      }
+    },
+    {
+      "id": "57302efe04bcaa1900d772f9",
+      "split": "heldout",
+      "kind": "public_qa",
+      "helper_work": {
+        "cpu_seconds": 0.0003600000000005821,
+        "wall_seconds": 0.00035666581243276596
+      },
+      "results": {
+        "full": {
+          "text": "Terrorist groups",
+          "eos": true,
+          "input_tokens": 188,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 192,
+          "stage_rows": 18432,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 126812160,
+            "inference_to_client": 179306496,
+            "preparation_to_inference": 197050368
+          },
+          "input_digest": "31aa1839a1cf36f7e2239b35bbf2fe1abe891c7bc86ed48b4a1f34b9f3cde81e",
+          "plan_digest": "e166250adb17171ba0c1cea87e0606f67f3f644da6191d4e8736e9063778d635",
+          "cpu_seconds": 10.68453199999999,
+          "wall_seconds": 6.358959125354886,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "elite",
+          "eos": true,
+          "input_tokens": 164,
+          "selected_tokens": 2,
+          "executed_sequence_rows": 165,
+          "stage_rows": 15840,
+          "stage_calls": 192,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 108979200,
+            "inference_to_client": 154091520,
+            "preparation_to_inference": 174637056
+          },
+          "input_digest": "177d0b0279d8e6c8cd7b6f766c89b3b846764c123c0d717ae8de988490b81bf9",
+          "plan_digest": "40f3b4587f3a4dbf8414f1add0f0b48405a0690969c540704b775bd150ee10d8",
+          "cpu_seconds": 9.337702000000036,
+          "wall_seconds": 5.693601792678237,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "tail": {
+          "text": "Terrorist groups",
+          "eos": true,
+          "input_tokens": 127,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 131,
+          "stage_rows": 12576,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 86522880,
+            "inference_to_client": 122339328,
+            "preparation_to_inference": 140083200
+          },
+          "input_digest": "e8e41a83f6c9a3e8bd508b830a73b6bf85d08384ef4558bae6be8651d469f525",
+          "plan_digest": "e0da2a4d45a1a485f51339e4667e74c25aa72ffadcd8179830c4d8441b854bfe",
+          "cpu_seconds": 7.856920000000059,
+          "wall_seconds": 4.8521377090364695,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "lexical": {
+          "text": "Terrorist groups",
+          "eos": true,
+          "input_tokens": 147,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 151,
+          "stage_rows": 14496,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 99732480,
+            "inference_to_client": 141017088,
+            "preparation_to_inference": 158760960
+          },
+          "input_digest": "e1399d75436658704086a138073eb06c074f4bae83dea254c1563fba7b0b8f3e",
+          "plan_digest": "d4929b6dfa8ae1a72f93ae975d7fe1aaaff0b3c846ded5dd51c9e0a4996d29a4",
+          "cpu_seconds": 8.789029000000028,
+          "wall_seconds": 5.338296750560403,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "Terrorist groups",
+          "eos": true,
+          "input_tokens": 147,
+          "selected_tokens": 5,
+          "executed_sequence_rows": 151,
+          "stage_rows": 14496,
+          "stage_calls": 480,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 99732480,
+            "inference_to_client": 141017088,
+            "preparation_to_inference": 158760960
+          },
+          "input_digest": "e1399d75436658704086a138073eb06c074f4bae83dea254c1563fba7b0b8f3e",
+          "plan_digest": "d4929b6dfa8ae1a72f93ae975d7fe1aaaff0b3c846ded5dd51c9e0a4996d29a4",
+          "cpu_seconds": 8.822817999999984,
+          "wall_seconds": 5.371836042031646,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": true,
+          "retry": {
+            "text": "Terrorist groups",
+            "eos": true,
+            "input_tokens": 188,
+            "selected_tokens": 5,
+            "executed_sequence_rows": 192,
+            "stage_rows": 18432,
+            "stage_calls": 480,
+            "projected_arithmetic_bytes": {
+              "client_to_inference": 126812160,
+              "inference_to_client": 179306496,
+              "preparation_to_inference": 197050368
+            },
+            "input_digest": "31aa1839a1cf36f7e2239b35bbf2fe1abe891c7bc86ed48b4a1f34b9f3cde81e",
+            "plan_digest": "e166250adb17171ba0c1cea87e0606f67f3f644da6191d4e8736e9063778d635",
+            "cpu_seconds": 10.69218699999999,
+            "wall_seconds": 6.364376457408071,
+            "answer_nll": null
+          },
+          "em": true,
+          "eos": true,
+          "literal_exact": false,
+          "cpu_seconds": 19.515364999999974,
+          "wall_seconds": 11.736569165252149,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 226544640,
+            "inference_to_client": 320323584,
+            "preparation_to_inference": 355811328
+          }
+        }
+      }
+    },
+    {
+      "id": "stress-heldout-rare_copy",
+      "split": "heldout",
+      "kind": "rare_copy",
+      "helper_work": {
+        "cpu_seconds": 0.00015599999994719838,
+        "wall_seconds": 0.00015262514352798462
+      },
+      "results": {
+        "full": {
+          "text": "ZX-3cdb5c397f5782",
+          "eos": true,
+          "input_tokens": 102,
+          "selected_tokens": 15,
+          "executed_sequence_rows": 116,
+          "stage_rows": 11136,
+          "stage_calls": 1440,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 76615680,
+            "inference_to_client": 108331008,
+            "preparation_to_inference": 116736000
+          },
+          "input_digest": "377e7592dc796e07ff019dcf9f76f0ad1f952218646268f6af5a061db194fffc",
+          "plan_digest": "84c7502c08fa43c1a5f6b3d25536eb8bd14bc13de5c9cbf637f2be3ed39b14e5",
+          "cpu_seconds": 7.737681000000066,
+          "wall_seconds": 4.690935207530856,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "ZX-3cdb5c397f5782",
+          "eos": true,
+          "input_tokens": 80,
+          "selected_tokens": 15,
+          "executed_sequence_rows": 94,
+          "stage_rows": 9024,
+          "stage_calls": 1440,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 96190464
+          },
+          "input_digest": "b89844a91f3986c8300feecfbecb01dcaa677144654533c317690a01d3650a87",
+          "plan_digest": "1cb09f01e578d30a5a9ee046e4a2f1e789f990e4d3a1ac4d8de3817245aa3b80",
+          "cpu_seconds": 6.756111000000033,
+          "wall_seconds": 4.187171374447644,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "tail": {
+          "text": "QJ-2875f793c5bdc3",
+          "eos": true,
+          "input_tokens": 82,
+          "selected_tokens": 17,
+          "executed_sequence_rows": 98,
+          "stage_rows": 9408,
+          "stage_calls": 1632,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 64727040,
+            "inference_to_client": 91521024,
+            "preparation_to_inference": 98058240
+          },
+          "input_digest": "ad2e801cea39d09f43ebc1b8f857283a69207b3e7182b865cf84a24ea5bcc87a",
+          "plan_digest": "d3c90b7b2b495be2d38e9312563d90e691ebfb5bf71bf9a45fb4f81407eddf30",
+          "cpu_seconds": 7.046647000000007,
+          "wall_seconds": 4.314695999957621,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": false
+        },
+        "lexical": {
+          "text": "ZX-3cdb5c397f5782",
+          "eos": true,
+          "input_tokens": 80,
+          "selected_tokens": 15,
+          "executed_sequence_rows": 94,
+          "stage_rows": 9024,
+          "stage_calls": 1440,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 96190464
+          },
+          "input_digest": "b89844a91f3986c8300feecfbecb01dcaa677144654533c317690a01d3650a87",
+          "plan_digest": "1cb09f01e578d30a5a9ee046e4a2f1e789f990e4d3a1ac4d8de3817245aa3b80",
+          "cpu_seconds": 6.780336000000034,
+          "wall_seconds": 4.212118041701615,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "ZX-3cdb5c397f5782",
+          "eos": true,
+          "input_tokens": 80,
+          "selected_tokens": 15,
+          "executed_sequence_rows": 94,
+          "stage_rows": 9024,
+          "stage_calls": 1440,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 96190464
+          },
+          "input_digest": "b89844a91f3986c8300feecfbecb01dcaa677144654533c317690a01d3650a87",
+          "plan_digest": "1cb09f01e578d30a5a9ee046e4a2f1e789f990e4d3a1ac4d8de3817245aa3b80",
+          "cpu_seconds": 6.759251000000063,
+          "wall_seconds": 4.185170750133693,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": false,
+          "retry": null,
+          "em": true,
+          "eos": true,
+          "literal_exact": true,
+          "cpu_seconds": 6.75940700000001,
+          "wall_seconds": 4.185323375277221,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 62085120,
+            "inference_to_client": 87785472,
+            "preparation_to_inference": 96190464
+          }
+        }
+      }
+    },
+    {
+      "id": "stress-heldout-order",
+      "split": "heldout",
+      "kind": "order",
+      "helper_work": {
+        "cpu_seconds": 0.0001310000000103173,
+        "wall_seconds": 0.00012675020843744278
+      },
+      "results": {
+        "full": {
+          "text": "Quito",
+          "eos": true,
+          "input_tokens": 78,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 80,
+          "stage_rows": 7680,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 52838400,
+            "inference_to_client": 74711040,
+            "preparation_to_inference": 94322688
+          },
+          "input_digest": "967b46707164b83ff83575294441c6dfd17e8e1753aa76078f87efa284608a44",
+          "plan_digest": "807d77cf6e8e2b2b7dfca2cf9a27ecdfe9d24e497a9c0c2736b8c4d6bf1dbd15",
+          "cpu_seconds": 5.532104000000004,
+          "wall_seconds": 3.699224540963769,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "head": {
+          "text": "Quito",
+          "eos": true,
+          "input_tokens": 73,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 75,
+          "stage_rows": 7200,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 49536000,
+            "inference_to_client": 70041600,
+            "preparation_to_inference": 89653248
+          },
+          "input_digest": "8b640ac22dc4fbc7ce7f4f2645e99f880421ecd46a469fc00effe9b82ec85b9e",
+          "plan_digest": "49bba75794f3e17d231bb0c64d151104cdbd1acd1367b533668dda3ff5da44dc",
+          "cpu_seconds": 5.636925000000019,
+          "wall_seconds": 3.723959165625274,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "tail": {
+          "text": "Dover",
+          "eos": true,
+          "input_tokens": 70,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 72,
+          "stage_rows": 6912,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 47554560,
+            "inference_to_client": 67239936,
+            "preparation_to_inference": 86851584
+          },
+          "input_digest": "41c4dbc1e9a396f89e60679675188c998c98e65e95ec7da6a91d762680000ac5",
+          "plan_digest": "016c95e09d3408493ea617ea7bf8ba1913bb7fa966ad13c17c4ad58864e802cb",
+          "cpu_seconds": 5.161091000000056,
+          "wall_seconds": 3.499912166967988,
+          "answer_nll": null,
+          "em": false,
+          "literal_exact": false,
+          "answer_retention": true
+        },
+        "lexical": {
+          "text": "Quito",
+          "eos": true,
+          "input_tokens": 73,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 75,
+          "stage_rows": 7200,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 49536000,
+            "inference_to_client": 70041600,
+            "preparation_to_inference": 89653248
+          },
+          "input_digest": "8b640ac22dc4fbc7ce7f4f2645e99f880421ecd46a469fc00effe9b82ec85b9e",
+          "plan_digest": "49bba75794f3e17d231bb0c64d151104cdbd1acd1367b533668dda3ff5da44dc",
+          "cpu_seconds": 5.3130259999999225,
+          "wall_seconds": 3.57860045786947,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned": {
+          "text": "Quito",
+          "eos": true,
+          "input_tokens": 73,
+          "selected_tokens": 3,
+          "executed_sequence_rows": 75,
+          "stage_rows": 7200,
+          "stage_calls": 288,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 49536000,
+            "inference_to_client": 70041600,
+            "preparation_to_inference": 89653248
+          },
+          "input_digest": "8b640ac22dc4fbc7ce7f4f2645e99f880421ecd46a469fc00effe9b82ec85b9e",
+          "plan_digest": "49bba75794f3e17d231bb0c64d151104cdbd1acd1367b533668dda3ff5da44dc",
+          "cpu_seconds": 5.262851000000069,
+          "wall_seconds": 3.543859042227268,
+          "answer_nll": null,
+          "em": true,
+          "literal_exact": true,
+          "answer_retention": true
+        },
+        "learned_then_full": {
+          "fallback": false,
+          "retry": null,
+          "em": true,
+          "eos": true,
+          "literal_exact": true,
+          "cpu_seconds": 5.262982000000079,
+          "wall_seconds": 3.5439857924357057,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": 49536000,
+            "inference_to_client": 70041600,
+            "preparation_to_inference": 89653248
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "dev": {
+      "full": {
+        "qa_em": 1.0,
+        "qa_count": 2,
+        "qa_correct": 2,
+        "stress_count": 2,
+        "stress_literal_correct": 1,
+        "stress_literal_exact": 0.5,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 1709399040
+      },
+      "head": {
+        "qa_em": 1.0,
+        "qa_count": 2,
+        "qa_correct": 2,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 1358905344
+      },
+      "tail": {
+        "qa_em": 0.0,
+        "qa_count": 2,
+        "qa_correct": 0,
+        "stress_count": 2,
+        "stress_literal_correct": 0,
+        "stress_literal_exact": 0.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 1236068352
+      },
+      "lexical": {
+        "qa_em": 1.0,
+        "qa_count": 2,
+        "qa_correct": 2,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 1384187904
+      },
+      "learned": {
+        "qa_em": 1.0,
+        "qa_count": 2,
+        "qa_correct": 2,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 1358905344
+      },
+      "learned_then_full": {
+        "qa_em": 1.0,
+        "qa_count": 2,
+        "qa_correct": 2,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 1358905344
+      },
+      "gate": {
+        "arithmetic_ratio": 0.7949608676508909,
+        "screen_pass": true,
+        "learned_adds_value_over_lexical": true
+      }
+    },
+    "heldout": {
+      "full": {
+        "qa_em": 0.25,
+        "qa_count": 4,
+        "qa_correct": 1,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 2662871040
+      },
+      "head": {
+        "qa_em": 0.0,
+        "qa_count": 4,
+        "qa_correct": 0,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 2078069760
+      },
+      "tail": {
+        "qa_em": 0.25,
+        "qa_count": 4,
+        "qa_correct": 1,
+        "stress_count": 2,
+        "stress_literal_correct": 0,
+        "stress_literal_exact": 0.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 1809140736
+      },
+      "lexical": {
+        "qa_em": 0.25,
+        "qa_count": 4,
+        "qa_correct": 1,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 2105607168
+      },
+      "learned": {
+        "qa_em": 0.25,
+        "qa_count": 4,
+        "qa_correct": 1,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 2039872512
+      },
+      "learned_then_full": {
+        "qa_em": 0.25,
+        "qa_count": 4,
+        "qa_correct": 1,
+        "stress_count": 2,
+        "stress_literal_correct": 2,
+        "stress_literal_exact": 1.0,
+        "all_eos": true,
+        "projected_arithmetic_bytes": 3525417984
+      },
+      "gate": {
+        "arithmetic_ratio": 1.3239161532959554,
+        "screen_pass": false,
+        "learned_adds_value_over_lexical": true
+      }
+    }
+  },
+  "lifetime_cpu_seconds": 695.454217,
+  "worker_cpu_seconds": 695.286962,
+  "worker_wall_seconds": 430.7921379171312,
+  "memory": {
+    "rss_bytes": 854130688,
+    "lifetime_peak_rss_bytes": 1172668416
+  },
+  "cost_scope": "local-clear + three directed arithmetic projections; NOT full transport",
+  "unpriced": [
+    "cold target client bundle/tokenizer delivery",
+    "publisher/provider weights if cold",
+    "seed requests/tickets/control/TLS",
+    "artifact import/serialization peak buffers",
+    "private transport and preparation CPU/RSS",
+    "padding/discarded correlation renewal"
+  ],
+  "identity": "changed-input: no original logits/KV/sampling equivalence; no protected execution",
+  "schema": "pllm.checkpoint_tiny_model.v1",
+  "manifest_digest": "fd08355e97cdff5707532f65c45cf286db74a3b48de1acc35e79bd0b9a7b3d0f",
+  "host": {
+    "total": 34359738368,
+    "available": 11761795072,
+    "swap_used": 3450929152,
+    "disk_free": 34315055104
+  },
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "expected_digest": "58c8ac5cac66e6b918678d77efff0bf6b30dbee47f402e7967e334b1b0ae3fa0"
+  },
+  "maximum_swap_growth_bytes": 0,
+  "artifact_sha256": "29392cbbf430f5a072586cdd68cf414ea915c0fd4055a81e396231037c6a051e"
+}

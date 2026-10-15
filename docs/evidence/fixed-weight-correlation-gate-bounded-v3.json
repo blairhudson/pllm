@@ -1,0 +1,1687 @@
+{
+  "checked_outputs": 84,
+  "conclusion": "No cheap-client construction admitted. Zero correction can hide inputs but does not remove masked-image production cost.",
+  "implementation_hashes": {
+    "docs/research/fixed-weight-correlation-gate.md": "29b9d4d06bbae1fb1dde80a7e5bb6f6b322d0ef5534dd779732df662b8ecf8c3",
+    "scripts/probe_fixed_weight_correlation_gate.py": "7d85d4a744198b190590d295701283d99c5520c92883c954d883d600a19d885d",
+    "tests/test_fixed_weight_correlation_gate.py": "f0e1dd9fd74ce0f172cdcacbb3ef2218c1c0f9a7dc8eb0234db86948c9a76710"
+  },
+  "leakage": {
+    "cross_column_relation_tv": "1",
+    "even_multiplier_tv": "1",
+    "fresh_two_column_zero_correction_tv": "0",
+    "ideal_full_view_tv": "0",
+    "kernel_mask_tv": "1",
+    "production_security_certified": false,
+    "public_low_rank_tv": "1",
+    "q0_ideal_distribution_distinguisher": "q is always zero, not uniform",
+    "q0_is_ideal_independent_s": false,
+    "reused_r_reveals_delta": true,
+    "zero_correction_full_view_tv": "0"
+  },
+  "ledgers": {
+    "small": {
+      "direct_weight": {
+        "all_link_bytes": 1471,
+        "authentication_proof_bytes": null,
+        "capacity": 4,
+        "client_PRG_output_bytes": 224,
+        "client_PRG_output_words": 56,
+        "client_W_bytes": 15,
+        "client_dense_MACs": 105,
+        "client_external_tape_read_bytes": 0,
+        "client_external_tape_write_bytes": 0,
+        "client_logical_streaming_workspace_bytes": 76,
+        "client_paged_W_read_bytes": 105,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 64,
+        "client_vector_additions": 77,
+        "directed_bytes": {
+          "client_to_inference": 420,
+          "inference_to_client": 364,
+          "preparation_to_client": 399,
+          "preparation_to_inference": 288
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": false,
+          "no_added_dense_client_product": false,
+          "not_a_client_output_tape": true,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": true
+        },
+        "inference_PRG_output_bytes": 84,
+        "inference_W_read_bytes": 105,
+        "inference_tape_read_bytes": 0,
+        "inference_tape_write_bytes": 0,
+        "issued_columns": 12,
+        "mode": "direct_weight",
+        "preparation_PRG_output_bytes": 0,
+        "preparation_dense_MACs": 0,
+        "preparation_paged_W_read_bytes": 0,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 0,
+        "secret_tape_owner": null,
+        "shape": [
+          3,
+          5
+        ],
+        "successful_rows": 7,
+        "timing_seconds": null,
+        "unused_or_burned_columns": 5
+      },
+      "prepared": {
+        "all_link_bytes": 1504,
+        "authentication_proof_bytes": null,
+        "capacity": 4,
+        "client_PRG_output_bytes": 224,
+        "client_PRG_output_words": 56,
+        "client_W_bytes": 0,
+        "client_dense_MACs": 0,
+        "client_external_tape_read_bytes": 0,
+        "client_external_tape_write_bytes": 0,
+        "client_logical_streaming_workspace_bytes": 76,
+        "client_paged_W_read_bytes": 0,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 64,
+        "client_vector_additions": 56,
+        "directed_bytes": {
+          "client_to_inference": 420,
+          "inference_to_client": 364,
+          "preparation_to_client": 384,
+          "preparation_to_inference": 336
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": true,
+          "no_added_dense_client_product": true,
+          "not_a_client_output_tape": true,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": false
+        },
+        "inference_PRG_output_bytes": 0,
+        "inference_W_read_bytes": 105,
+        "inference_tape_read_bytes": 84,
+        "inference_tape_write_bytes": 144,
+        "issued_columns": 12,
+        "mode": "prepared",
+        "preparation_PRG_output_bytes": 384,
+        "preparation_dense_MACs": 180,
+        "preparation_paged_W_read_bytes": 180,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 48,
+        "secret_tape_owner": "Inference",
+        "shape": [
+          3,
+          5
+        ],
+        "successful_rows": 7,
+        "timing_seconds": null,
+        "unused_or_burned_columns": 5
+      },
+      "zero_local": {
+        "all_link_bytes": 1279,
+        "authentication_proof_bytes": null,
+        "capacity": 4,
+        "client_PRG_output_bytes": 140,
+        "client_PRG_output_words": 35,
+        "client_W_bytes": 15,
+        "client_dense_MACs": 105,
+        "client_external_tape_read_bytes": 0,
+        "client_external_tape_write_bytes": 0,
+        "client_logical_streaming_workspace_bytes": 76,
+        "client_paged_W_read_bytes": 105,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 32,
+        "client_vector_additions": 56,
+        "directed_bytes": {
+          "client_to_inference": 420,
+          "inference_to_client": 364,
+          "preparation_to_client": 303,
+          "preparation_to_inference": 192
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": true,
+          "no_added_dense_client_product": false,
+          "not_a_client_output_tape": true,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": true
+        },
+        "inference_PRG_output_bytes": 0,
+        "inference_W_read_bytes": 105,
+        "inference_tape_read_bytes": 0,
+        "inference_tape_write_bytes": 0,
+        "issued_columns": 12,
+        "mode": "zero_local",
+        "preparation_PRG_output_bytes": 0,
+        "preparation_dense_MACs": 0,
+        "preparation_paged_W_read_bytes": 0,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 0,
+        "secret_tape_owner": null,
+        "shape": [
+          3,
+          5
+        ],
+        "successful_rows": 7,
+        "timing_seconds": null,
+        "unused_or_burned_columns": 5
+      },
+      "zero_lookup": {
+        "all_link_bytes": 1480,
+        "authentication_proof_bytes": null,
+        "capacity": 4,
+        "client_PRG_output_bytes": 140,
+        "client_PRG_output_words": 35,
+        "client_W_bytes": 0,
+        "client_dense_MACs": 0,
+        "client_external_public_table_read_bytes": 5376,
+        "client_external_public_table_write_bytes": 216,
+        "client_external_tape_read_bytes": 0,
+        "client_external_tape_write_bytes": 0,
+        "client_logical_streaming_workspace_bytes": 76,
+        "client_paged_W_read_bytes": 0,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 32,
+        "client_subset_index_bit_extractions": 1120,
+        "client_subset_output_shifts": 1344,
+        "client_vector_additions": 1400,
+        "directed_bytes": {
+          "client_to_inference": 420,
+          "inference_to_client": 364,
+          "preparation_to_client": 504,
+          "preparation_to_inference": 192
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": false,
+          "no_added_dense_client_product": true,
+          "not_a_client_output_tape": true,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": true
+        },
+        "inference_PRG_output_bytes": 0,
+        "inference_W_read_bytes": 105,
+        "inference_tape_read_bytes": 0,
+        "inference_tape_write_bytes": 0,
+        "issued_columns": 12,
+        "mode": "zero_lookup",
+        "preparation_PRG_output_bytes": 0,
+        "preparation_dense_MACs": 0,
+        "preparation_paged_W_read_bytes": 0,
+        "preparation_table_W_read_bytes": 15,
+        "preparation_table_additions": 48,
+        "public_subset_table_bytes": 216,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 0,
+        "secret_tape_owner": null,
+        "shape": [
+          3,
+          5
+        ],
+        "successful_rows": 7,
+        "table_access_leakage": "client-local table I/O only; external observer obliviousness not provided",
+        "timing_seconds": null,
+        "unused_or_burned_columns": 5
+      },
+      "zero_tape": {
+        "all_link_bytes": 1408,
+        "authentication_proof_bytes": null,
+        "capacity": 4,
+        "client_PRG_output_bytes": 140,
+        "client_PRG_output_words": 35,
+        "client_W_bytes": 0,
+        "client_dense_MACs": 0,
+        "client_external_tape_read_bytes": 84,
+        "client_external_tape_write_bytes": 144,
+        "client_logical_streaming_workspace_bytes": 76,
+        "client_paged_W_read_bytes": 0,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 32,
+        "client_vector_additions": 56,
+        "directed_bytes": {
+          "client_to_inference": 420,
+          "inference_to_client": 364,
+          "preparation_to_client": 432,
+          "preparation_to_inference": 192
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": true,
+          "no_added_dense_client_product": true,
+          "not_a_client_output_tape": false,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": true
+        },
+        "inference_PRG_output_bytes": 0,
+        "inference_W_read_bytes": 105,
+        "inference_tape_read_bytes": 0,
+        "inference_tape_write_bytes": 0,
+        "issued_columns": 12,
+        "mode": "zero_tape",
+        "preparation_PRG_output_bytes": 240,
+        "preparation_dense_MACs": 180,
+        "preparation_paged_W_read_bytes": 180,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 48,
+        "secret_tape_owner": "Client",
+        "shape": [
+          3,
+          5
+        ],
+        "successful_rows": 7,
+        "timing_seconds": null,
+        "unused_or_burned_columns": 5
+      }
+    },
+    "stage_analytic_only": {
+      "direct_weight": {
+        "all_link_bytes": 20978848,
+        "authentication_proof_bytes": null,
+        "capacity": 128,
+        "client_PRG_output_bytes": 12238848,
+        "client_PRG_output_words": 3059712,
+        "client_W_bytes": 8716288,
+        "client_dense_MACs": 2510290944,
+        "client_external_tape_read_bytes": 0,
+        "client_external_tape_write_bytes": 0,
+        "client_logical_streaming_workspace_bytes": 123904,
+        "client_paged_W_read_bytes": 2510290944,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 64,
+        "client_vector_additions": 5861376,
+        "directed_bytes": {
+          "client_to_inference": 1043712,
+          "inference_to_client": 11218176,
+          "preparation_to_client": 8716672,
+          "preparation_to_inference": 288
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": false,
+          "no_added_dense_client_product": false,
+          "not_a_client_output_tape": true,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": true
+        },
+        "inference_PRG_output_bytes": 11206656,
+        "inference_W_read_bytes": 2510290944,
+        "inference_tape_read_bytes": 0,
+        "inference_tape_write_bytes": 0,
+        "issued_columns": 384,
+        "mode": "direct_weight",
+        "preparation_PRG_output_bytes": 0,
+        "preparation_dense_MACs": 0,
+        "preparation_paged_W_read_bytes": 0,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 0,
+        "secret_tape_owner": null,
+        "shape": [
+          9728,
+          896
+        ],
+        "successful_rows": 288,
+        "timing_seconds": null,
+        "unused_or_burned_columns": 96
+      },
+      "prepared": {
+        "all_link_bytes": 27204672,
+        "authentication_proof_bytes": null,
+        "capacity": 128,
+        "client_PRG_output_bytes": 12238848,
+        "client_PRG_output_words": 3059712,
+        "client_W_bytes": 0,
+        "client_dense_MACs": 0,
+        "client_external_tape_read_bytes": 0,
+        "client_external_tape_write_bytes": 0,
+        "client_logical_streaming_workspace_bytes": 123904,
+        "client_paged_W_read_bytes": 0,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 64,
+        "client_vector_additions": 3059712,
+        "directed_bytes": {
+          "client_to_inference": 1043712,
+          "inference_to_client": 11218176,
+          "preparation_to_client": 384,
+          "preparation_to_inference": 14942400
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": true,
+          "no_added_dense_client_product": true,
+          "not_a_client_output_tape": true,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": false
+        },
+        "inference_PRG_output_bytes": 0,
+        "inference_W_read_bytes": 2510290944,
+        "inference_tape_read_bytes": 11206656,
+        "inference_tape_write_bytes": 14942208,
+        "issued_columns": 384,
+        "mode": "prepared",
+        "preparation_PRG_output_bytes": 16318464,
+        "preparation_dense_MACs": 3347054592,
+        "preparation_paged_W_read_bytes": 3347054592,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 4980736,
+        "secret_tape_owner": "Inference",
+        "shape": [
+          9728,
+          896
+        ],
+        "successful_rows": 288,
+        "timing_seconds": null,
+        "unused_or_burned_columns": 96
+      },
+      "zero_local": {
+        "all_link_bytes": 20978656,
+        "authentication_proof_bytes": null,
+        "capacity": 128,
+        "client_PRG_output_bytes": 1032192,
+        "client_PRG_output_words": 258048,
+        "client_W_bytes": 8716288,
+        "client_dense_MACs": 2510290944,
+        "client_external_tape_read_bytes": 0,
+        "client_external_tape_write_bytes": 0,
+        "client_logical_streaming_workspace_bytes": 123904,
+        "client_paged_W_read_bytes": 2510290944,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 32,
+        "client_vector_additions": 3059712,
+        "directed_bytes": {
+          "client_to_inference": 1043712,
+          "inference_to_client": 11218176,
+          "preparation_to_client": 8716576,
+          "preparation_to_inference": 192
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": true,
+          "no_added_dense_client_product": false,
+          "not_a_client_output_tape": true,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": true
+        },
+        "inference_PRG_output_bytes": 0,
+        "inference_W_read_bytes": 2510290944,
+        "inference_tape_read_bytes": 0,
+        "inference_tape_write_bytes": 0,
+        "issued_columns": 384,
+        "mode": "zero_local",
+        "preparation_PRG_output_bytes": 0,
+        "preparation_dense_MACs": 0,
+        "preparation_paged_W_read_bytes": 0,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 0,
+        "secret_tape_owner": null,
+        "shape": [
+          9728,
+          896
+        ],
+        "successful_rows": 288,
+        "timing_seconds": null,
+        "unused_or_burned_columns": 96
+      },
+      "zero_lookup": {
+        "all_link_bytes": 151722976,
+        "authentication_proof_bytes": null,
+        "capacity": 128,
+        "client_PRG_output_bytes": 1032192,
+        "client_PRG_output_words": 258048,
+        "client_W_bytes": 0,
+        "client_dense_MACs": 0,
+        "client_external_public_table_read_bytes": 80329310208,
+        "client_external_public_table_write_bytes": 139460608,
+        "client_external_tape_read_bytes": 0,
+        "client_external_tape_write_bytes": 0,
+        "client_logical_streaming_workspace_bytes": 123904,
+        "client_paged_W_read_bytes": 0,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 32,
+        "client_subset_index_bit_extractions": 8257536,
+        "client_subset_output_shifts": 20082327552,
+        "client_vector_additions": 20085387264,
+        "directed_bytes": {
+          "client_to_inference": 1043712,
+          "inference_to_client": 11218176,
+          "preparation_to_client": 139460896,
+          "preparation_to_inference": 192
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": false,
+          "no_added_dense_client_product": true,
+          "not_a_client_output_tape": true,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": false
+        },
+        "inference_PRG_output_bytes": 0,
+        "inference_W_read_bytes": 2510290944,
+        "inference_tape_read_bytes": 0,
+        "inference_tape_write_bytes": 0,
+        "issued_columns": 384,
+        "mode": "zero_lookup",
+        "preparation_PRG_output_bytes": 0,
+        "preparation_dense_MACs": 0,
+        "preparation_paged_W_read_bytes": 0,
+        "preparation_table_W_read_bytes": 8716288,
+        "preparation_table_additions": 32686080,
+        "public_subset_table_bytes": 139460608,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 0,
+        "secret_tape_owner": null,
+        "shape": [
+          9728,
+          896
+        ],
+        "successful_rows": 288,
+        "table_access_leakage": "client-local table I/O only; external observer obliviousness not provided",
+        "timing_seconds": null,
+        "unused_or_burned_columns": 96
+      },
+      "zero_tape": {
+        "all_link_bytes": 27204576,
+        "authentication_proof_bytes": null,
+        "capacity": 128,
+        "client_PRG_output_bytes": 1032192,
+        "client_PRG_output_words": 258048,
+        "client_W_bytes": 0,
+        "client_dense_MACs": 0,
+        "client_external_tape_read_bytes": 11206656,
+        "client_external_tape_write_bytes": 14942208,
+        "client_logical_streaming_workspace_bytes": 123904,
+        "client_paged_W_read_bytes": 0,
+        "client_process_RSS_bytes": null,
+        "client_root_live_bytes": 32,
+        "client_vector_additions": 3059712,
+        "directed_bytes": {
+          "client_to_inference": 1043712,
+          "inference_to_client": 11218176,
+          "preparation_to_client": 14942496,
+          "preparation_to_inference": 192
+        },
+        "directed_totals_exclude_failed_attempt_online_traffic": true,
+        "epochs": 3,
+        "external_storage_authentication_bytes": null,
+        "failed_attempt_online_bytes": {
+          "client_to_inference": null,
+          "inference_to_client": null
+        },
+        "failed_post_expansion_client_work": null,
+        "gate": {
+          "client_ring_additions_no_greater_than_baseline": true,
+          "no_added_dense_client_product": true,
+          "not_a_client_output_tape": false,
+          "scale_admitted": false,
+          "secure_fixed_W_generator_implemented": false,
+          "traffic_strictly_beats_baseline": true
+        },
+        "inference_PRG_output_bytes": 0,
+        "inference_W_read_bytes": 2510290944,
+        "inference_tape_read_bytes": 0,
+        "inference_tape_write_bytes": 0,
+        "issued_columns": 384,
+        "mode": "zero_tape",
+        "preparation_PRG_output_bytes": 1376256,
+        "preparation_dense_MACs": 3347054592,
+        "preparation_paged_W_read_bytes": 3347054592,
+        "renewal_overlap_extra_bytes": null,
+        "scope": "prepaid setup plus successful-row payload/framing only; failed-attempt online traffic, authenticated transport, durable authority and runtime overhead unpriced",
+        "secret_tape_live_bytes": 4980736,
+        "secret_tape_owner": "Client",
+        "shape": [
+          9728,
+          896
+        ],
+        "successful_rows": 288,
+        "timing_seconds": null,
+        "unused_or_burned_columns": 96
+      }
+    }
+  },
+  "lookup_control": {
+    "small": {
+      "admission": "not cheap merely because MAC count is zero",
+      "client_MACs_per_row": 0,
+      "client_additions_per_row": 192,
+      "dense_W_MACs_per_row": 15,
+      "group": 4,
+      "logical_table_read_bytes_per_row": 768,
+      "setup_vector_additions": 48,
+      "table_bytes": 216,
+      "table_distribution_bytes": 216
+    },
+    "stage_analytic_only": {
+      "admission": "not cheap merely because MAC count is zero",
+      "client_MACs_per_row": 0,
+      "client_additions_per_row": 69730304,
+      "dense_W_MACs_per_row": 8716288,
+      "group": 4,
+      "logical_table_read_bytes_per_row": 278921216,
+      "setup_vector_additions": 32686080,
+      "table_bytes": 139460608,
+      "table_distribution_bytes": 139460608
+    }
+  },
+  "matrix": [
+    [
+      -128,
+      127,
+      -3,
+      19,
+      0
+    ],
+    [
+      7,
+      -11,
+      0,
+      1,
+      23
+    ],
+    [
+      2,
+      5,
+      -17,
+      31,
+      -9
+    ]
+  ],
+  "production_crypto_implemented": false,
+  "public_linear_mask_controls": {
+    "even_full_rational_rank": {
+      "input_dimension": 2,
+      "rank_mod2": 0,
+      "scope": "public linear masks with uniform ring coefficients only",
+      "surjective_ring32": false
+    },
+    "public_rank_one": {
+      "input_dimension": 2,
+      "rank_mod2": 1,
+      "scope": "public linear masks with uniform ring coefficients only",
+      "surjective_ring32": false
+    },
+    "surjective_control": {
+      "input_dimension": 2,
+      "rank_mod2": 2,
+      "scope": "public linear masks with uniform ring coefficients only",
+      "surjective_ring32": true
+    }
+  },
+  "ring_bits": 32,
+  "schema": "pllm.fixed_weight_correlation_gate.v1",
+  "serving_saving_measured": false,
+  "source_provenance": {
+    "abstracts_used_for_construction_claims": false,
+    "available_revisions_only": true,
+    "latest_PDF_verification": "blocked: HTTP 403 for all four PDF URLs on 2026-10-15",
+    "papers": [
+      {
+        "id": "2025/1223",
+        "pdf": "papers/2025-1223.pdf",
+        "pdf_bytes": 1220637,
+        "pdf_sha256": "130178519ec48cbbe64b201e42bb581b513f77503f671e1a56e4b0909b4aa375",
+        "reviewed_excerpts": [
+          {
+            "excerpt": "   m\u22121\n   (\u03b6, \u03b6 p , . . . , \u03b6 p     ) of GR(pk , m) over Zpk .\n   PUBLIC INPUT: A uniformly random a \u2208 R.\n                                                                        (j)    (j)\n   CORRELATION: After expansion, outputs for all j \u2208 [0, m), (x0 , z0 ) \u2208 Z2N             pk\n            (j)   (j)                               (j)     (j)        (j)         (j)\n   and (x1 , z1 ) \u2208 Z2N\n                     pk such that x0 \u2217 x1 = z0 + z1 .\n   Gen: On input 1\u03bb :\n    1. For ",
+            "page_text_sha256": "2004892a05c5b0cd113c877b984e6a6505362b100ed480bed23c981ffc8c0574",
+            "pdf_page": 28
+          },
+          {
+            "excerpt": "t2 (log N \u2212 log t + 1)(\u03bb +\n   2) + \u03bb + km log p + 2t(log N + km log p) bits.\n \u2013 The computation of Expand can be done with at most (2+\u2308(km log p)/\u03bb\u2309)4mN t\n   PRG operations and O(m2 N log N ) operations in GR(pk , m).\n\nRemark 5.5. Regarding the size of the different parameters, we also follow op-\ntimizations of [BCG+ 20b, BCCD23, LXYY25], e.g., assuming the QA-SD as-\nsumption holds also for a regular noise distributions. Then the seed size and\ncomputations can be obtained by ",
+            "page_text_sha256": "fec56d24c284f088ca5cb4d08f0e7a071d09f258051b379878c6f19bc970fd0f",
+            "pdf_page": 29
+          },
+          {
+            "excerpt": " where \u03c1\u03b8 =\n(A0\u03b8 , A1\u03b8 , s\u03b8 , e\u03b8 ), for \u03b8 \u2208 {0, 1}. Note that \u03c1\u03b8 corresponds to two t-sparse elements\ns\u03b8 , e\u03b8 of R as well as an element b\u03b8 := a \u00b7 s\u03b8 + e\u03b8 \u2208 R. According to Eq.(3),\n                                             0              m\u22121\nparty P\u03b8 can locally compute (Tr(\u03b6 p b\u03b8 ), . . . , Tr(\u03b6 p       b\u03b8 )) \u2208 ZmN\n                                                                         pk from \u03c1\u03b8 . This\nessentially proves the programmability. Correctness follows that of ",
+            "page_text_sha256": "763bdce861bf208c0fc2f28f9fb0a41addf3c5b6240bf173e66f7f3719e1e6ff",
+            "pdf_page": 30
+          },
+          {
+            "excerpt": "0 +Z1 ) mod 2\u2113 . Directly using such correlations\nin the SPDZ2k online protocol would leak information when reconstructing\noutputs. This issue can be easily solved by masking the higher \u2113 \u2212 k bits of the\nshares in the opening procedure as similar to [BBMS22].\n\n\n                                                                    33\n",
+            "page_text_sha256": "bb6a20400a609e700af7401cb72d750ae4c91ae818e5c0895a557f0d215833a6",
+            "pdf_page": 33
+          },
+          {
+            "excerpt": " 9.53\n         Regular 80 6 15 GR(264 , 4) 8 158 226.29  233.26 129.41\n         Regular   128 5 27 GR(264 , 2) 15 315   226.60   224.77    0.28\n         Regular   128 5 27 GR(264 , 2) 16 316   226.70   226.36    0.79\n         Regular   128 6 27 GR(264 , 2) 17 317   227.33   227.94    1.53\n         Regular   128 6 27 GR(264 , 2) 18 318   227.42   229.53    4.33\n         Regular   128 3 49 GR(264 , 3) 10 710   227.66   229.66    3.99\n         Regular   128 3 49 GR(264 , 3) 11 7",
+            "page_text_sha256": "29cbfb6c39d7858d03bd55ede7444db8f11c2474aefeddf010877497021cb15d",
+            "pdf_page": 35
+          },
+          {
+            "excerpt": "ults with respect\nto c = 3, t = 27 over GR(Z2k , 2) are only for benchmark, and should never be\nused in practice since it suffers from a recent attack by [BDHV25]. \u201cNaN\u201d means\nthat the program ran out of memory.\n\n\n\n\nAcknowledgment. The authors would like to thank Charles Bouillaguet for\nproviding concrete attacks on QA-SD assumptions for several parameters that\nwere used in the previous version. They also thank Yi Kuang and Jielong Zhang\nfor assistance in running the programs",
+            "page_text_sha256": "8db11fce49954f8b78e39a0dccc656f9bd2ec79855466db0da9e2e2db69a218d",
+            "pdf_page": 36
+          },
+          {
+            "excerpt": "bilinear 2-party correlation C satisfies programmability, if PCG.Gen(1\u03bb )\ntakes additional random inputs \u03c10 , \u03c11 \u2208 {0, 1}\u2113 , for a poly(\u03bb) size \u2113, such that:\n\n \u2013 Programmability. There exist public efficiently computable functions \u03c80 :\n   {0, 1}\u2113 \u2192 GN              \u2113   N\n              1 , \u03c81 : {0, 1} \u2192 G2 such that\n\n                  $                      $\n       \uf8ee\n        \u03c10 , \u03c11 \u2190 {0, 1}\u03bb , (k0 , k1 ) \u2190 PCG.Gen(1\u03bb , \u03c10 , \u03c11 ) R = \u03c8 (\u03c1 ) \u0015\n    Pr (R0 , S0 ) \u2190 PCG.Expand(0, ",
+            "page_text_sha256": "f6b378a2196ffba13cad10694cad9b0169e4576569c6bea5ecff9c6996656030",
+            "pdf_page": 42
+          }
+        ],
+        "text_path": "target/compact-setup-fulltext/2025-1223.txt",
+        "text_sha256": "4a91404c17a157c0449f625c2c3532bcb722447ad23d03d9e58b53d2262b5821",
+        "url": "https://eprint.iacr.org/2025/1223"
+      },
+      {
+        "id": "2026/2030",
+        "pdf": "papers/2026-2030.pdf",
+        "pdf_bytes": 1000347,
+        "pdf_sha256": "9848639354d583747228f82be06fc984925104626f3a5fe43533eb9c50445304",
+        "reviewed_excerpts": [
+          {
+            "excerpt": "odGen output \ud835\udc41 = \ud835\udc5d\ud835\udc5e where \ud835\udc5d, \ud835\udc5e are superpolynomial\nin \ud835\udf06 and gcd(\ud835\udc41 , \ud835\udf11(\ud835\udc41 )) = 1. Assume DCR and the Generalized Riemann hypothesis. Then Sparse-Power DCR\n(Assumption 3) holds for (\ud835\udc47 , \ud835\udc35, \ue230\ud835\udc38 , \ue230\u0394 ) with \ue230\ud835\udc38 as in Definition 7, for every index set \ud835\udc47 with max(\ud835\udc47 ) = poly(\ud835\udf06),\nevery support set \ud835\udc35 \u2286 \ud835\udc47 (with 0 \u2209 \ud835\udc35 if 0 \u2208 \ud835\udc47 ), and every efficiently samplable offset distribution \ue230\u0394 .\n",
+            "page_text_sha256": "506d0e323a6e21cdf09fd093a677c78cef9832002db30da8a51e379351dc8d53",
+            "pdf_page": 14
+          },
+          {
+            "excerpt": "                         \ud835\udc39 IPM = {\ud835\udc39\ud835\udc67IPM \u2236 {0, 1}\ud835\udc5b \u2192 {0, 1}}\ud835\udc67\u2208{0,1}\ud835\udc5b\nbe a binary inner-product-membership weak PRF for a public support set \ud835\udc46 \u2286 {0, \u2026 , \ud835\udc5b}, as in Definition 1. We\nassume throughout this section that 0 \u2209 \ud835\udc46, which is satisfied by the BIPSW support \ud835\udc46BIPSW = [0, \ud835\udc5b] \u2229 (6\u2124 +\n{3, 4, 5}). Further, let\n                                       \ud835\udc39 = {\ud835\udc39\ud835\udc58 \u2236 {0, 1}\ud835\udc5b \u2192 \u2124\ud835\udc41 }\ud835\udc58\u2208\ue237\nbe a weak PRF with range \u2124\ud835\udc41 . The construction realizes the fixed-offset correlated-OT correlation over",
+            "page_text_sha256": "020105ba3dfff3c605ac6d695f400fd9398312158d3924cf4a32b9149287837c",
+            "pdf_page": 15
+          },
+          {
+            "excerpt": "d OT over \u2124\ud835\udc41 , we can additionally build a PCF for oblivious linear evaluation\n(OLE) over \ud835\udd3d2 . Since two OLE correlations can be locally converted into a multiplication triple, this also\nimmediately yields a PCF for multiplication triples over \ud835\udd3d2 . Although the PCF for random OT from [BCM+ 24]\nalso implies OLE and triples (since random OT is equivalent to OLE over \ud835\udd3d2 ), our approach additionally\nsatisfies a programmable feature, meaning that a portion of the PCF keys can be r",
+            "page_text_sha256": "67fbf7da9949d915da5378dbc7d66898f869e962eecc8ad3547618e1ae6ed145",
+            "pdf_page": 17
+          }
+        ],
+        "text_path": "target/compact-setup-fulltext/2026-2030.txt",
+        "text_sha256": "aec7fd02840d18d286315d7a63c1b5f8a3a05e1fc212efe7fe84ad1480eba86e",
+        "url": "https://eprint.iacr.org/2026/2030"
+      },
+      {
+        "id": "2025/1637",
+        "pdf": "papers/2025-1637.pdf",
+        "pdf_bytes": 840618,
+        "pdf_sha256": "81775c10aa2375daf7374dbb9640e945d98cce710eeae40404b1a5f569c49e52",
+        "reviewed_excerpts": [
+          {
+            "excerpt": "    time\n                  64\n                 2       90   5   1765 s   74 s   1839 s   278 h (543\u00d7)   28 h (55\u00d7)\n                 2128    90   5   1765 s   92 s   1857 s   417 h (808\u00d7)   60 h (116\u00d7)\n\n\n\n\n6.6   Runtime Evaluation\n\n\nIn our PCF we apply BFV.LrBts to evaluate the R-LWR-based WPRF from Section 5.1\nunder threshold BFV. Table 3 presents runtime estimates for the BFV.LrBts evaluation of\nthe R-LWR-based WPRF and for naively evaluating the same WPRF, i.e., using its b",
+            "page_text_sha256": "504881b4ba783a539c7fe1dd8a45704348dea12d1a7417bd3c0b166cdb16839c",
+            "pdf_page": 22
+          },
+          {
+            "excerpt": " Sections 5.1 and 6 to receive ni pseudo-ciphertexts cti with low\n  noise. Then homomorphically evaluate C on these and decrypt the no output ciphertexts\n  using secret key s\u03c3 5 , obtaining shares d\u03c3 \u2208 Rnt o . For all i \u2208 [no ], compute the mask\n  \u00b5i := W.Evalwk (ri ), and let \u00b5 := (\u00b5i )i\u2208[no ] . Party P0 outputs d0 + \u00b5 and party P1 outputs\n  d1 \u2212 \u00b5.\n\n    Note that, in Evals\u03c3 , each party P\u03c3 decrypts the computed ciphertexts using her own\nshare of the secret key s\u03c3 . In Secti",
+            "page_text_sha256": "6b75aa87ac4cb351897816b8518c344070fa2e3b23343a4f774a64328bc6a49d",
+            "pdf_page": 23
+          },
+          {
+            "excerpt": "\u03b4.\n\n\nCorollary 7.1. Let ct = (c0 , c1 ) be a ciphertext under secret key s with relative noise bound\n                                              $\nnegligible in the security parameter, let s0 \u2190  Rq , s1 := s \u2212 s0 \u2208 Rq , and ct\u2032 := (0, c1 ). Then\n                                  \u2032\nDecs (ct) = Decs0 (ct) + Decs1 (ct ) with overwhelming probability.\n",
+            "page_text_sha256": "a0c907794ac53dda764e3707515270f9607b7b5684cef4b13edecafe2fbb5dc3",
+            "pdf_page": 24
+          }
+        ],
+        "text_path": "target/compact-setup-fulltext/2025-1637.txt",
+        "text_sha256": "921ff8447f56f84fd738b0d9c6f2bd9f2848bab333d11fe30f82ad224b55c0e1",
+        "url": "https://eprint.iacr.org/2025/1637"
+      },
+      {
+        "id": "2026/2298",
+        "pdf": "papers/2026-2298.pdf",
+        "pdf_bytes": 808543,
+        "pdf_sha256": "744e311e462746192951d27046242561db6b085bac64664076b331cfebc148cb",
+        "reviewed_excerpts": [
+          {
+            "excerpt": "t to follow naturally by porting the techniques of\n[LXYY25b] to our setting. We leave this extension to future work.\n\n7.2    Batched and Iterative Matrix Computations\nA single matrix\u2013vector multiplication makes poor use of a square matrix triple. If\n                                           \u00d7k\n                                    X \u2208 Fm\n                                         q            and        v \u2208 Fkq ,\nthen embedding v into an n \u00d7 n matrix is naturally wasteful. The s",
+            "page_text_sha256": "7857501dc645e3869e0bfa91c815521431ceb11a29f7701006ee9ab3e9099453",
+            "pdf_page": 72
+          },
+          {
+            "excerpt": "     \u03b1AB\n    for the MAC key \u03b1. This is a separate vector-OLE-type correlation, which we do not price here. Our\ncalculation therefore isolates the matrix multiplication preprocessing supplied by the PCG: for MAYO2,\n29 81 \u00d7 81 triples per attempt reduce the corresponding Beaver openings by a factor of about 13.9.\n\n\nAI Disclosure\nAll ideas, results, and proofs of this paper are from the authors. A first draft of the technical overview,\nproduced by Claude Fable 5.1 from a prompt",
+            "page_text_sha256": "4f2faa4d15dbec67c69ecc73f2787937b71b121b2ad60bf74f7af8c24612640d",
+            "pdf_page": 75
+          }
+        ],
+        "text_path": "target/compact-setup-fulltext/2026-2298.txt",
+        "text_sha256": "c6642f525f8f96394b93dc5e65998790d37674dc36bb2597a29950fc92879b93",
+        "url": "https://eprint.iacr.org/2026/2298"
+      }
+    ]
+  },
+  "transcripts": {
+    "direct_weight": {
+      "client_key_fields": [
+        "context",
+        "mode",
+        "r_root",
+        "pad_root",
+        "output_tape",
+        "weights"
+      ],
+      "inference_key_fields": [
+        "context",
+        "mode",
+        "q_root",
+        "correction_tape",
+        "weights"
+      ],
+      "public_fixture_only": true,
+      "rows": [
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -902788996,
+            -667055418,
+            1680393407,
+            -1146960789,
+            3240081636
+          ],
+          "client_to_inference": [
+            649353624,
+            170556259,
+            4145994342,
+            437500763,
+            570235415
+          ],
+          "index": 0,
+          "inference_to_client": [
+            2158363616,
+            3320059024,
+            671918562
+          ],
+          "reconstructed": [
+            4007518190,
+            1378559433,
+            360185624
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -2341928618,
+            1095336189,
+            -3956357516,
+            -1340001189,
+            -2196285275
+          ],
+          "client_to_inference": [
+            2570093313,
+            3841573055,
+            993559440,
+            2490898646,
+            2410298877
+          ],
+          "index": 1,
+          "inference_to_client": [
+            767632690,
+            3079664343,
+            1494726920
+          ],
+          "reconstructed": [
+            81846760,
+            1307617705,
+            3327759137
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            1137473878,
+            -2155416867,
+            747479031,
+            891487981,
+            -714461588
+          ],
+          "client_to_inference": [
+            1226452943,
+            2920089872,
+            2807096298,
+            1855731021,
+            3889533922
+          ],
+          "index": 2,
+          "inference_to_client": [
+            3151514280,
+            1351876509,
+            2894482478
+          ],
+          "reconstructed": [
+            3383129173,
+            3245872252,
+            4267067005
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            329902052,
+            1765526374,
+            -3806234558,
+            -4231327204,
+            -3663808929
+          ],
+          "client_to_inference": [
+            3298412835,
+            1098056053,
+            2367218189,
+            193661441,
+            4048921459
+          ],
+          "index": 3,
+          "inference_to_client": [
+            1248038782,
+            2094213314,
+            266480535
+          ],
+          "reconstructed": [
+            1348723944,
+            1763774079,
+            1766364273
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -1254696374,
+            -2087091393,
+            -3222045765,
+            -1057677746,
+            4001454733
+          ],
+          "client_to_inference": [
+            1524425909,
+            1285190536,
+            1517995656,
+            3606293985,
+            1669302624
+          ],
+          "index": 4,
+          "inference_to_client": [
+            1317862145,
+            3647867331,
+            2862260804
+          ],
+          "reconstructed": [
+            1074906074,
+            2071696714,
+            3093596641
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -3448590827,
+            3112083962,
+            3254919781,
+            2243200298,
+            328481617
+          ],
+          "client_to_inference": [
+            3472796239,
+            2547487117,
+            504427947,
+            2615888642,
+            495511691
+          ],
+          "index": 5,
+          "inference_to_client": [
+            2702057814,
+            3999463591,
+            2110989526
+          ],
+          "reconstructed": [
+            1926941557,
+            2964825670,
+            2732607380
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -3413399881,
+            2250983485,
+            1321061668,
+            2736007777,
+            1073781593
+          ],
+          "client_to_inference": [
+            2141820772,
+            480181131,
+            1283430474,
+            2558153658,
+            2806866050
+          ],
+          "index": 6,
+          "inference_to_client": [
+            2405745711,
+            173010447,
+            121770154
+          ],
+          "reconstructed": [
+            2011904138,
+            253203394,
+            1287701209
+          ]
+        }
+      ]
+    },
+    "prepared": {
+      "client_key_fields": [
+        "context",
+        "mode",
+        "r_root",
+        "pad_root",
+        "output_tape",
+        "weights"
+      ],
+      "inference_key_fields": [
+        "context",
+        "mode",
+        "q_root",
+        "correction_tape",
+        "weights"
+      ],
+      "public_fixture_only": true,
+      "rows": [
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -1228871369,
+            -93670356,
+            2140215098,
+            2718392774,
+            825980281
+          ],
+          "client_to_inference": [
+            1371500517,
+            3480818417,
+            952370643,
+            635137735,
+            3716797195
+          ],
+          "index": 0,
+          "inference_to_client": [
+            1794400809,
+            575169560,
+            1513205491
+          ],
+          "reconstructed": [
+            1649656408,
+            1259311682,
+            3166863913
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -3370869570,
+            2988933800,
+            -135728992,
+            -577748526,
+            -3767635931
+          ],
+          "client_to_inference": [
+            3430496070,
+            1935443469,
+            43754493,
+            1181806614,
+            2672782533
+          ],
+          "index": 1,
+          "inference_to_client": [
+            450367835,
+            3145351349,
+            802837857
+          ],
+          "reconstructed": [
+            1631945486,
+            2321154335,
+            739038021
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -1334341047,
+            -2889723772,
+            -4168693503,
+            4192931442,
+            1593878496
+          ],
+          "client_to_inference": [
+            1016999246,
+            3156361066,
+            166360122,
+            2775405211,
+            4031289233
+          ],
+          "index": 2,
+          "inference_to_client": [
+            2737132350,
+            3943174542,
+            2647349071
+          ],
+          "reconstructed": [
+            3346695279,
+            3169168869,
+            1882732291
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            3485592066,
+            -397578444,
+            906810889,
+            3159905168,
+            1960363837
+          ],
+          "client_to_inference": [
+            1970912030,
+            981852902,
+            2616726879,
+            1824541504,
+            2618201224
+          ],
+          "index": 3,
+          "inference_to_client": [
+            2657231873,
+            72215959,
+            3445758257
+          ],
+          "reconstructed": [
+            3051150177,
+            4006336733,
+            1161815738
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            716177212,
+            -2423866690,
+            3804147847,
+            1924910784,
+            -1728064934
+          ],
+          "client_to_inference": [
+            1088930747,
+            493198223,
+            2599444037,
+            3189638159,
+            803749574
+          ],
+          "index": 4,
+          "inference_to_client": [
+            3921358316,
+            362628128,
+            3773600969
+          ],
+          "reconstructed": [
+            3616230637,
+            2445125968,
+            4162293581
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            3697713286,
+            -1931201777,
+            -649147888,
+            -2911874317,
+            275676921
+          ],
+          "client_to_inference": [
+            3483886299,
+            2418372761,
+            2732645219,
+            2459095209,
+            1320985340
+          ],
+          "index": 5,
+          "inference_to_client": [
+            3878300488,
+            1815446170,
+            3889565390
+          ],
+          "reconstructed": [
+            1146018634,
+            3311267159,
+            1925081587
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            1669820524,
+            -2475901924,
+            -3753114006,
+            3971051294,
+            -2062314739
+          ],
+          "client_to_inference": [
+            4015320768,
+            930311256,
+            2155404286,
+            1700396912,
+            745511597
+          ],
+          "index": 6,
+          "inference_to_client": [
+            413729885,
+            1814443802,
+            4190084313
+          ],
+          "reconstructed": [
+            914376672,
+            4051411721,
+            3152963975
+          ]
+        }
+      ]
+    },
+    "zero_local": {
+      "client_key_fields": [
+        "context",
+        "mode",
+        "r_root",
+        "pad_root",
+        "output_tape",
+        "weights"
+      ],
+      "inference_key_fields": [
+        "context",
+        "mode",
+        "q_root",
+        "correction_tape",
+        "weights"
+      ],
+      "public_fixture_only": true,
+      "rows": [
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            1327733934,
+            3476938242,
+            -4199271122,
+            2244165553,
+            -1750764387
+          ],
+          "client_to_inference": [
+            1493325284,
+            1748573849,
+            857300594,
+            384328464,
+            934235776
+          ],
+          "index": 0,
+          "inference_to_client": [
+            1293843137,
+            205814073,
+            661470115
+          ],
+          "reconstructed": [
+            440657559,
+            1743878264,
+            660120642
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -1214244591,
+            1990821982,
+            136002164,
+            -1230183314,
+            -3449895047
+          ],
+          "client_to_inference": [
+            3815722470,
+            1119778563,
+            3343846351,
+            2203884738,
+            2631934747
+          ],
+          "index": 1,
+          "inference_to_client": [
+            3469252214,
+            4116432984,
+            1017963943
+          ],
+          "reconstructed": [
+            2224120560,
+            692626362,
+            2421923925
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            1247285606,
+            1979367316,
+            475068896,
+            1377481129,
+            1700634761
+          ],
+          "client_to_inference": [
+            362237320,
+            268287080,
+            2487314866,
+            310949948,
+            1160528573
+          ],
+          "index": 2,
+          "inference_to_client": [
+            3332055798,
+            817806711,
+            1925921509
+          ],
+          "reconstructed": [
+            509909335,
+            1680235622,
+            1646667638
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            2526711473,
+            -403176505,
+            3578438892,
+            -430638497,
+            -2726876661
+          ],
+          "client_to_inference": [
+            4115039757,
+            417361390,
+            2049191031,
+            306739087,
+            2581564678
+          ],
+          "index": 3,
+          "inference_to_client": [
+            2701647050,
+            2292651066,
+            410174196
+          ],
+          "reconstructed": [
+            1597058434,
+            1922793126,
+            640816055
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            2320265427,
+            1917189707,
+            2130065773,
+            -1483702455,
+            -3413664679
+          ],
+          "client_to_inference": [
+            1354050850,
+            1757898606,
+            3637910005,
+            3733077308,
+            857616313
+          ],
+          "index": 4,
+          "inference_to_client": [
+            2575170599,
+            714821903,
+            1825399528
+          ],
+          "reconstructed": [
+            2102887385,
+            1054127060,
+            1398272918
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            670188836,
+            3054366460,
+            -3966478840,
+            1222628926,
+            3028374300
+          ],
+          "client_to_inference": [
+            4069996804,
+            1369873882,
+            3210034906,
+            2472494603,
+            3651279223
+          ],
+          "index": 5,
+          "inference_to_client": [
+            3894297449,
+            1089033850,
+            4204589302
+          ],
+          "reconstructed": [
+            2242306438,
+            3313822954,
+            199197746
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -2976772708,
+            -2402410032,
+            -312383602,
+            -3866072106,
+            -1087852952
+          ],
+          "client_to_inference": [
+            1265878857,
+            152707027,
+            292634639,
+            1655158996,
+            3569446540
+          ],
+          "index": 6,
+          "inference_to_client": [
+            3895532732,
+            739490902,
+            325544818
+          ],
+          "reconstructed": [
+            3402613352,
+            2472215170,
+            1841418524
+          ]
+        }
+      ]
+    },
+    "zero_tape": {
+      "client_key_fields": [
+        "context",
+        "mode",
+        "r_root",
+        "pad_root",
+        "output_tape",
+        "weights"
+      ],
+      "inference_key_fields": [
+        "context",
+        "mode",
+        "q_root",
+        "correction_tape",
+        "weights"
+      ],
+      "public_fixture_only": true,
+      "rows": [
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            1474277162,
+            -16141630,
+            -2525217450,
+            -3265084776,
+            717421298
+          ],
+          "client_to_inference": [
+            1036173905,
+            3219273459,
+            3950843646,
+            3234231446,
+            2342319438
+          ],
+          "index": 0,
+          "inference_to_client": [
+            3692788789,
+            3178984030,
+            119901935
+          ],
+          "reconstructed": [
+            3889681028,
+            2258266662,
+            2546632526
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -63624843,
+            -1598310929,
+            2465083626,
+            1916226138,
+            -962280693
+          ],
+          "client_to_inference": [
+            942442525,
+            888677821,
+            2403967909,
+            2163101434,
+            1671822506
+          ],
+          "index": 1,
+          "inference_to_client": [
+            346659810,
+            3076922348,
+            290692418
+          ],
+          "reconstructed": [
+            1675262209,
+            1214783813,
+            858441358
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            1643535531,
+            573774647,
+            1982734229,
+            3850116594,
+            -2892410238
+          ],
+          "client_to_inference": [
+            405071533,
+            2658874488,
+            3456629952,
+            3281356827,
+            577541905
+          ],
+          "index": 2,
+          "inference_to_client": [
+            2796344521,
+            3037603893,
+            326383262
+          ],
+          "reconstructed": [
+            2715288832,
+            2647450864,
+            1870651968
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            4022337120,
+            -1654169558,
+            -3595683058,
+            -4265823976,
+            4245348339
+          ],
+          "client_to_inference": [
+            1579608176,
+            609379610,
+            3228459156,
+            2971365226,
+            2441262122
+          ],
+          "index": 3,
+          "inference_to_client": [
+            3576304392,
+            3344933410,
+            4283402474
+          ],
+          "reconstructed": [
+            3661625460,
+            2290459327,
+            2120909825
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            3448443452,
+            1647864947,
+            -2419998274,
+            -4120654527,
+            -1671973226
+          ],
+          "client_to_inference": [
+            2651173383,
+            1529076709,
+            4097072596,
+            1729432131,
+            4277709690
+          ],
+          "index": 4,
+          "inference_to_client": [
+            4259560600,
+            3070877075,
+            1360177990
+          ],
+          "reconstructed": [
+            1788323238,
+            2091256686,
+            3713193138
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -3957480785,
+            -2220735861,
+            603604773,
+            1924659739,
+            3440894600
+          ],
+          "client_to_inference": [
+            2734885519,
+            1762876449,
+            103901276,
+            148727539,
+            3122725517
+          ],
+          "index": 5,
+          "inference_to_client": [
+            888133588,
+            3004495388,
+            1908757535
+          ],
+          "reconstructed": [
+            1583769095,
+            481553187,
+            3711445789
+          ]
+        },
+        {
+          "binding": "9202dc704578acc146e0e1f6a93fd20db2fa4a5f0b088d38b6d7fa42b4db6b7b",
+          "chosen_input": [
+            -2579373416,
+            875476048,
+            3359051333,
+            -678977584,
+            -1734340887
+          ],
+          "client_to_inference": [
+            1269727680,
+            73665176,
+            10740955,
+            2616190154,
+            3135416957
+          ],
+          "index": 6,
+          "inference_to_client": [
+            3879906773,
+            1204178365,
+            4068719614
+          ],
+          "reconstructed": [
+            1755699537,
+            464808311,
+            1100033066
+          ]
+        }
+      ]
+    }
+  }
+}

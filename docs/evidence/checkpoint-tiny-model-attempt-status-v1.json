@@ -1,0 +1,16 @@
+{
+  "schema": "pllm.checkpoint-tiny-model-parent-attempt.v1",
+  "status": "complete",
+  "pilot_output": "target/checkpoint-tiny-model-qwen25-pilot-v1.json",
+  "stderr_log": "target/checkpoint-tiny-model-qwen25-pilot-v1.log",
+  "external_dependency": {
+    "path": "scripts/decoder_probe_support.py",
+    "sha256": "6b102bd674403a431e898ef1d6d411e74a663f063555e021ac56a1159a8a0d3e",
+    "matches_tracked_HEAD": true,
+    "observed_unix_seconds": 1792065740.701157,
+    "scope": "external check acquired after launch; verify unchanged on completion; original manifest omits this dependency"
+  },
+  "exit_code": 0,
+  "report_sha256": "f431bf5b83c06ca65ee446ec7e709f020b0e457aeac69993b4b5c58587bc3bcd",
+  "dependency_unchanged_at_completion": true
+}

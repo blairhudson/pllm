@@ -1,0 +1,1338 @@
+{
+  "schema": "pllm.checkpoint_tiny_model.v1",
+  "data": {
+    "url": "https://raw.githubusercontent.com/rajpurkar/SQuAD-explorer/240e165ab706d95bd4323653bb92421f446208cf/dataset/dev-v1.1.json",
+    "git_blob": "e9a3f913ad1468ebe105b891334ca7b0bc0e2510",
+    "sha256": "95aa6a52d5d6a735563366753ca50492a658031da74f301ac5238b03966972c9",
+    "rows": [
+      {
+        "id": "57111992b654c5140001fb43",
+        "group": "Huguenot",
+        "split": "train",
+        "kind": "public_qa",
+        "context": "The French Protestant Church of London was established by Royal Charter in 1550. It is now located at Soho Square. Huguenot refugees flocked to Shoreditch, London. They established a major weaving industry in and around Spitalfields (see Petticoat Lane and the Tenterground) in East London. In Wandsworth, their gardening skills benefited the Battersea market gardens. The Old Truman Brewery, then known as the Black Eagle Brewery, was founded in 1724. The flight of Huguenot refugees from Tours, France drew off most of the workers of its great silk mills which they had built.[citation needed] Some of these immigrants moved to Norwich, which had accommodated an earlier settlement of Walloon weavers. The French added to the existing immigrant population, then comprising about a third of the population of the city.",
+        "question": "What early Huguenot Church was established in England?",
+        "answers": [
+          "The French Protestant Church of London"
+        ]
+      },
+      {
+        "id": "57339902d058e614000b5e70",
+        "group": "Warsaw",
+        "split": "train",
+        "kind": "public_qa",
+        "context": "Another important library \u2013 the University Library, founded in 1816, is home to over two million items. The building was designed by architects Marek Budzy\u0144ski and Zbigniew Badowski and opened on 15 December 1999. It is surrounded by green. The University Library garden, designed by Irena Bajerska, was opened on 12 June 2002. It is one of the largest and most beautiful roof gardens in Europe with an area of more than 10,000 m2 (107,639.10 sq ft), and plants covering 5,111 m2 (55,014.35 sq ft). As the university garden it is open to the public every day.",
+        "question": "When was the University Library founded?",
+        "answers": [
+          "1816"
+        ]
+      },
+      {
+        "id": "57111b95a58dae1900cd6c53",
+        "group": "Huguenot",
+        "split": "train",
+        "kind": "public_qa",
+        "context": "Frederick William, Elector of Brandenburg, invited Huguenots to settle in his realms, and a number of their descendants rose to positions of prominence in Prussia. Several prominent German military, cultural, and political figures were ethnic Huguenot, including poet Theodor Fontane, General Hermann von Fran\u00e7ois, the hero of the First World War Battle of Tannenberg, Luftwaffe General and fighter ace Adolf Galland, Luftwaffe flying ace Hans-Joachim Marseille, and famed U-boat captain Lothar von Arnauld de la Peri\u00e8re. The last Prime Minister of the (East) German Democratic Republic, Lothar de Maizi\u00e8re, is also a descendant of a Huguenot family, as is the German Federal Minister of the Interior, Thomas de Maizi\u00e8re.",
+        "question": "Who was the final Prime Minister of East Germany?",
+        "answers": [
+          "Lothar de Maizi\u00e8re"
+        ]
+      },
+      {
+        "id": "5729f9953f37b31900478622",
+        "group": "Immune_system",
+        "split": "train",
+        "kind": "public_qa",
+        "context": "Hormones can act as immunomodulators, altering the sensitivity of the immune system. For example, female sex hormones are known immunostimulators of both adaptive and innate immune responses. Some autoimmune diseases such as lupus erythematosus strike women preferentially, and their onset often coincides with puberty. By contrast, male sex hormones such as testosterone seem to be immunosuppressive. Other hormones appear to regulate the immune system as well, most notably prolactin, growth hormone and vitamin D.",
+        "question": "What is the effect of testosterone on the male immune system?",
+        "answers": [
+          "immunosuppressive"
+        ]
+      },
+      {
+        "id": "56e765ba00c9c71400d770a6",
+        "group": "Teacher",
+        "split": "train",
+        "kind": "public_qa",
+        "context": "Students are likely to build stronger relations with teachers who are friendly and supportive and will show more interest in courses taught by these teachers. Teachers that spend more time interacting and working directly with students are perceived as supportive and effective teachers. Effective teachers have been shown to invite student participation and decision making, allow humor into their classroom, and demonstrate a willingness to play.",
+        "question": "Humor is a part of the classroom for what type of teacher?",
+        "answers": [
+          "effective",
+          "Effective"
+        ]
+      },
+      {
+        "id": "572a04d51d046914007796d0",
+        "group": "Immune_system",
+        "split": "train",
+        "kind": "public_qa",
+        "context": "In contrast, during wake periods differentiated effector cells, such as cytotoxic natural killer cells and CTLs (cytotoxic T lymphocytes), peak in order to elicit an effective response against any intruding pathogens. As well during awake active times, anti-inflammatory molecules, such as cortisol and catecholamines, peak. There are two theories as to why the pro-inflammatory state is reserved for sleep time. First, inflammation would cause serious cognitive and physical impairments if it were to occur during wake times. Second, inflammation may occur during sleep times due to the presence of melatonin. Inflammation causes a great deal of oxidative stress and the presence of melatonin during sleep times could actively counteract free radical production during this time.",
+        "question": "Melatonin during sleep can actively counteract the production of what?",
+        "answers": [
+          "free radical production",
+          "free radical"
+        ]
+      },
+      {
+        "id": "5705e63175f01819005e7721",
+        "group": "Southern_California",
+        "split": "train",
+        "kind": "public_qa",
+        "context": "Within southern California are two major cities, Los Angeles and San Diego, as well as three of the country's largest metropolitan areas. With a population of 3,792,621, Los Angeles is the most populous city in California and the second most populous in the United States. To the south and with a population of 1,307,402 is San Diego, the second most populous city in the state and the eighth most populous in the nation.",
+        "question": "What is the population of Los Angeles?",
+        "answers": [
+          "3,792,621"
+        ]
+      },
+      {
+        "id": "56de52614396321400ee27fb",
+        "group": "Normans",
+        "split": "train",
+        "kind": "public_qa",
+        "context": "At Saint Evroul, a tradition of singing had developed and the choir achieved fame in Normandy. Under the Norman abbot Robert de Grantmesnil, several monks of Saint-Evroul fled to southern Italy, where they were patronised by Robert Guiscard and established a Latin monastery at Sant'Eufemia. There they continued the tradition of singing.",
+        "question": "Where did the monks flee to?",
+        "answers": [
+          "southern Italy"
+        ]
+      },
+      {
+        "id": "stress-train-rare_copy",
+        "group": "stress-train",
+        "split": "train",
+        "kind": "rare_copy",
+        "context": "The first parcel code is ZX-ace7a5a90236d7. The second parcel code is QJ-7d63209a5a7eca. ",
+        "question": "Copy the first parcel code exactly.",
+        "answers": [
+          "ZX-ace7a5a90236d7"
+        ]
+      },
+      {
+        "id": "stress-train-order",
+        "group": "stress-train",
+        "split": "train",
+        "kind": "order",
+        "context": "The ordered route starts at Oslo. It then visits Lima. It ends at Kyoto. ",
+        "question": "Which city is visited second?",
+        "answers": [
+          "Lima"
+        ]
+      },
+      {
+        "id": "57265e11708984140094c3bb",
+        "group": "1973_oil_crisis",
+        "split": "dev",
+        "kind": "public_qa",
+        "context": "OPEC soon lost its preeminent position, and in 1981, its production was surpassed by that of other countries. Additionally, its own member nations were divided. Saudi Arabia, trying to recover market share, increased production, pushing prices down, shrinking or eliminating profits for high-cost producers. The world price, which had peaked during the 1979 energy crisis at nearly $40 per barrel, decreased during the 1980s to less than $10 per barrel. Adjusted for inflation, oil briefly fell back to pre-1973 levels. This \"sale\" price was a windfall for oil-importing nations, both developing and developed.",
+        "question": "When was OPEC production of oil being surpassed?",
+        "answers": [
+          "1981"
+        ]
+      },
+      {
+        "id": "572825714b864d1900164594",
+        "group": "Doctor_Who",
+        "split": "dev",
+        "kind": "public_qa",
+        "context": "TVOntario picked up the show in 1976 beginning with The Three Doctors and aired each series (several years late) through to series 24 in 1991. From 1979 to 1981, TVO airings were bookended by science-fiction writer Judith Merril who would introduce the episode and then, after the episode concluded, try to place it in an educational context in keeping with TVO's status as an educational channel. Its airing of The Talons of Weng-Chiang was cancelled as a result of accusations that the story was racist; the story was later broadcast in the 1990s on cable station YTV. CBC began showing the series again in 2005. The series moved to the Canadian cable channel Space in 2009.[citation needed]",
+        "question": "What science fiction writer introduced the Doctor Who episodes for a period of time?",
+        "answers": [
+          "Judith Merril"
+        ]
+      },
+      {
+        "id": "stress-dev-rare_copy",
+        "group": "stress-dev",
+        "split": "dev",
+        "kind": "rare_copy",
+        "context": "The first parcel code is ZX-e5355fae7a5586. The second parcel code is QJ-6855a7eaf5535e. ",
+        "question": "Copy the first parcel code exactly.",
+        "answers": [
+          "ZX-e5355fae7a5586"
+        ]
+      },
+      {
+        "id": "stress-dev-order",
+        "group": "stress-dev",
+        "split": "dev",
+        "kind": "order",
+        "context": "The ordered route starts at Perth. It then visits Bern. It ends at Accra. ",
+        "question": "Which city is visited second?",
+        "answers": [
+          "Bern"
+        ]
+      },
+      {
+        "id": "572fdc34a23a5019007fca95",
+        "group": "Scottish_Parliament",
+        "split": "heldout",
+        "kind": "public_qa",
+        "context": "For the Conservatives, the main disappointment was the loss of Edinburgh Pentlands, the seat of former party leader David McLetchie, to the SNP. McLetchie was elected on the Lothian regional list and the Conservatives suffered a net loss of five seats, with leader Annabel Goldie claiming that their support had held firm. Nevertheless, she too announced she would step down as leader of the party. Cameron congratulated the SNP on their victory but vowed to campaign for the Union in the independence referendum.",
+        "question": "What net loss did the Conservatives suffer?",
+        "answers": [
+          "five seats"
+        ]
+      },
+      {
+        "id": "56d6f1190d65d21400198273",
+        "group": "Super_Bowl_50",
+        "split": "heldout",
+        "kind": "public_qa",
+        "context": "For the third straight season, the number one seeds from both conferences met in the Super Bowl. The Carolina Panthers became one of only ten teams to have completed a regular season with only one loss, and one of only six teams to have acquired a 15\u20131 record, while the Denver Broncos became one of four teams to have made eight appearances in the Super Bowl. The Broncos made their second Super Bowl appearance in three years, having reached Super Bowl XLVIII, while the Panthers made their second Super Bowl appearance in franchise history, their other appearance being Super Bowl XXXVIII. Coincidentally, both teams were coached by John Fox in their last Super Bowl appearance prior to Super Bowl 50.",
+        "question": "What seed was the Denver Broncos?",
+        "answers": [
+          "number one",
+          "one"
+        ]
+      },
+      {
+        "id": "56f8cc399e9bad19000a0517",
+        "group": "Martin_Luther",
+        "split": "heldout",
+        "kind": "public_qa",
+        "context": "In the 1530s and 1540s, printed images of Luther that emphasized his monumental size were crucial to the spread of Protestantism. In contrast to images of frail Catholic saints, Luther was presented as a stout man with a \"double chin, strong mouth, piercing deep-set eyes, fleshy face, and squat neck.\" He was shown to be physically imposing, an equal in stature to the secular German princes with whom he would join forces to spread Lutheranism. His large body also let the viewer know that he did not shun earthly pleasures like drinking\u2014behavior that was a stark contrast to the ascetic life of the medieval religious orders. Famous images from this period include the woodcuts by Hans Brosamer (1530) and Lucas Cranach the Elder and Lucas Cranach the Younger (1546).",
+        "question": "What was the image of Luther a contrast to the life of?",
+        "answers": [
+          "religious orders",
+          "medieval religious orders",
+          "ascetic life of the medieval religious orders"
+        ]
+      },
+      {
+        "id": "57302efe04bcaa1900d772f9",
+        "group": "Islamism",
+        "split": "heldout",
+        "kind": "public_qa",
+        "context": "HT does not engage in armed jihad or work for a democratic system, but works to take power through \"ideological struggle\" to change Muslim public opinion, and in particular through elites who will \"facilitate\" a \"change of the government,\" i.e., launch a \"bloodless\" coup. It allegedly attempted and failed such coups in 1968 and 1969 in Jordan, and in 1974 in Egypt, and is now banned in both countries. But many HT members have gone on to join terrorist groups and many jihadi terrorists have cited HT as their key influence.",
+        "question": "What have many HT members graduated to joining?",
+        "answers": [
+          "terrorist groups"
+        ]
+      },
+      {
+        "id": "stress-heldout-rare_copy",
+        "group": "stress-heldout",
+        "split": "heldout",
+        "kind": "rare_copy",
+        "context": "The first parcel code is ZX-3cdb5c397f5782. The second parcel code is QJ-2875f793c5bdc3. ",
+        "question": "Copy the first parcel code exactly.",
+        "answers": [
+          "ZX-3cdb5c397f5782"
+        ]
+      },
+      {
+        "id": "stress-heldout-order",
+        "group": "stress-heldout",
+        "split": "heldout",
+        "kind": "order",
+        "context": "The ordered route starts at Riga. It then visits Quito. It ends at Dover. ",
+        "question": "Which city is visited second?",
+        "answers": [
+          "Quito"
+        ]
+      }
+    ],
+    "split_digest": "75d326cd5db9c32b24257bdb85e6399a9ad87dde326a0ab22107b6cacb51013f",
+    "policy": {
+      "split": "sha256(article title), first 8 hex modulo 10: 0..5 train, 6..7 dev, 8..9 heldout",
+      "counts": {
+        "train": 8,
+        "dev": 2,
+        "heldout": 4
+      },
+      "max_input_tokens": 512,
+      "max_output_tokens": 24,
+      "max_answer_tokens": 16,
+      "epochs": 80,
+      "learning_rate": 0.05,
+      "seed": 6104,
+      "candidate_policy": "head-half,tail-half,query-overlap-half; sorted original sentence indices",
+      "fallback": "once if no EOS or stripped output is not a nonempty substring of retained context",
+      "gates": {
+        "minimum_qa_em": 0.75,
+        "max_em_drop_vs_full": 0.0,
+        "minimum_stress_em": 1.0,
+        "max_projected_arithmetic_ratio": 0.8
+      }
+    }
+  },
+  "data_path": "/Users/blairhudson/workspace/pllm/target/checkpoint-tiny-model-squad-dev-v1.1.json",
+  "preflight": {
+    "pilot": {
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "files": {
+        "config.json": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "model.safetensors": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+      }
+    },
+    "files": {
+      "config.json": {
+        "sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "bytes": 659
+      },
+      "model.safetensors": {
+        "sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+        "bytes": 988097824
+      },
+      "tokenizer.json": {
+        "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+        "bytes": 7031645
+      },
+      "tokenizer_config.json": {
+        "sha256": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583",
+        "bytes": 7305
+      }
+    },
+    "host": {
+      "total": 34359738368,
+      "available": 11852677120,
+      "swap_used": 3450929152,
+      "disk_free": 34313797632
+    },
+    "reserve_bytes": 4294967296,
+    "memory_budget_bytes": 4294967296,
+    "data_sha256": "95aa6a52d5d6a735563366753ca50492a658031da74f301ac5238b03966972c9",
+    "parameter_inventory": {
+      "helper_total": 264,
+      "target_all_checkpoint_tensors_including_embedding_head_norm_bias": 494032768,
+      "pilot_local_target_plus_helper": 494033032
+    },
+    "helper_resource_bound": {
+      "runtime_weight_bytes": 2112,
+      "training_and_feature_workspace_allowance_bytes": 4194304
+    },
+    "target_placement": "local-clear pilot only; provider-owned target in proposed serving contract"
+  },
+  "support": {
+    "capability_source_sha256": "fc26d32c0f7df4ae89c50dfc8ac84d46b694f13994d5fd8ea36fa0cd803f4efc",
+    "rows": [
+      {
+        "checkpoint": "Dense Qwen2 (Qwen2.5-0.5B-Instruct)",
+        "adapter": "pllm.qwen2.v1",
+        "real_checkpoint_runtime": true,
+        "tiny_artifact_status": "untrained",
+        "source_fixture": null,
+        "config": {
+          "model_type": "qwen2",
+          "hidden_size": 896,
+          "intermediate_size": 4864,
+          "num_hidden_layers": 24,
+          "num_attention_heads": 14,
+          "num_key_value_heads": 2,
+          "vocab_size": 151936,
+          "max_position_embeddings": 32768,
+          "hidden_act": "silu",
+          "rms_norm_eps": 1e-06,
+          "rope_theta": 1000000.0,
+          "tie_word_embeddings": true
+        },
+        "config_sha256": null,
+        "runtime_evidence": "Pinned Qwen2.5-0.5B local prefill/decode functionality test; tiny compiled two-role protocol test. The historical baseline cohort predates compiler-bound live execution",
+        "requires": [
+          "gqa",
+          "rotary",
+          "qkv-bias",
+          "rmsnorm",
+          "gated-silu",
+          "kv-cache"
+        ],
+        "source_lock": {
+          "model": "Qwen/Qwen2.5-0.5B-Instruct",
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "files": {
+            "config.json": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+            "model.safetensors": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+          }
+        },
+        "source_lock_status": "tensor_hashes_known_tokenizer_lock_pending",
+        "training_admission": "pilot_only_after_preflight"
+      },
+      {
+        "checkpoint": "Dense Qwen3 (Qwen3-0.6B)",
+        "adapter": "pllm.qwen3.v1",
+        "real_checkpoint_runtime": true,
+        "tiny_artifact_status": "untrained",
+        "source_fixture": "crates/pllm-models/tests/fixtures/Qwen3-0.6B-c1899de-config.json",
+        "config": {
+          "architectures": [
+            "Qwen3ForCausalLM"
+          ],
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "bos_token_id": 151643,
+          "eos_token_id": 151645,
+          "head_dim": 128,
+          "hidden_act": "silu",
+          "hidden_size": 1024,
+          "initializer_range": 0.02,
+          "intermediate_size": 3072,
+          "max_position_embeddings": 40960,
+          "max_window_layers": 28,
+          "model_type": "qwen3",
+          "num_attention_heads": 16,
+          "num_hidden_layers": 28,
+          "num_key_value_heads": 8,
+          "rms_norm_eps": 1e-06,
+          "rope_scaling": null,
+          "rope_theta": 1000000,
+          "sliding_window": null,
+          "tie_word_embeddings": true,
+          "torch_dtype": "bfloat16",
+          "transformers_version": "4.51.0",
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 151936
+        },
+        "config_sha256": "cfbd7059ee9d6c98b5c742823bd9d375f5b516f7948a09b95e741cfcc81b645b",
+        "runtime_evidence": "Pinned Qwen3-0.6B checkpoint imported and executed through 114 compiled baseline stages, prefill and decode; tiny compiled two-role protocol test and scoped clear-reference probes, no real-checkpoint provider benchmark",
+        "requires": [
+          "gqa",
+          "rotary",
+          "rmsnorm",
+          "gated-silu",
+          "kv-cache",
+          "head-width",
+          "qk-norm"
+        ],
+        "source_lock": {
+          "model": "Qwen/Qwen3-0.6B",
+          "revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+        },
+        "source_lock_status": "incomplete_training_source_lock",
+        "training_admission": "blocked_unimplemented_per_checkpoint_pilot"
+      },
+      {
+        "checkpoint": "Bounded dense bias-free decoder (tiny Llama-style fixtures)",
+        "adapter": "pllm.dense_gated_decoder.v1",
+        "real_checkpoint_runtime": false,
+        "tiny_artifact_status": "blocked_no_real_checkpoint_runtime",
+        "source_fixture": "crates/pllm-models/tests/fixtures/bounded-dense-gated-llama-config.json",
+        "config": {
+          "model_type": "llama",
+          "hidden_size": 32,
+          "intermediate_size": 64,
+          "num_hidden_layers": 2,
+          "num_attention_heads": 4,
+          "num_key_value_heads": 2,
+          "head_dim": 8,
+          "vocab_size": 258,
+          "max_position_embeddings": 256,
+          "hidden_act": "silu",
+          "rms_norm_eps": 1e-06,
+          "rope_theta": 10000.0,
+          "tie_word_embeddings": false,
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "use_cache": true,
+          "rope_scaling": null
+        },
+        "config_sha256": "e398ccb2e64e46bf6a8dbadace2132f5adf599e5e8b63e5ca975b4eb2da659b5",
+        "runtime_evidence": "A pinned public Llama 3.1 8B configuration mirror lowers and compiles for a bounded 8+2 token workload without loading weights. Generated tiny bias-free checkpoints pass unscaled tied/untied parity and bounded wavelength-transition scaling: scaled W8A8 prefill/decode matches PyTorch selections with less than 0.05 worst logit error; prepared and client-only SDK/gateway requests complete",
+        "requires": [
+          "gqa",
+          "rotary",
+          "rope-scaling",
+          "rmsnorm",
+          "gated-silu",
+          "kv-cache",
+          "untied-head"
+        ],
+        "source_lock": null,
+        "source_lock_status": "incomplete_training_source_lock",
+        "training_admission": "blocked_unimplemented_per_checkpoint_pilot"
+      },
+      {
+        "checkpoint": "SmolLM2-135M-Instruct (bounded dense bias-free decoder)",
+        "adapter": "pllm.dense_gated_decoder.v1",
+        "real_checkpoint_runtime": true,
+        "tiny_artifact_status": "untrained",
+        "source_fixture": "crates/pllm-models/tests/fixtures/SmolLM2-135M-Instruct-12fd25f-config.json",
+        "config": {
+          "architectures": [
+            "LlamaForCausalLM"
+          ],
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "bos_token_id": 1,
+          "eos_token_id": 2,
+          "hidden_act": "silu",
+          "hidden_size": 576,
+          "initializer_range": 0.041666666666666664,
+          "intermediate_size": 1536,
+          "is_llama_config": true,
+          "max_position_embeddings": 8192,
+          "mlp_bias": false,
+          "model_type": "llama",
+          "num_attention_heads": 9,
+          "num_hidden_layers": 30,
+          "num_key_value_heads": 3,
+          "pad_token_id": 2,
+          "pretraining_tp": 1,
+          "rms_norm_eps": 1e-05,
+          "rope_interleaved": false,
+          "rope_scaling": null,
+          "rope_theta": 100000,
+          "tie_word_embeddings": true,
+          "torch_dtype": "bfloat16",
+          "transformers_version": "4.42.3",
+          "transformers.js_config": {
+            "kv_cache_dtype": {
+              "q4f16": "float16",
+              "fp16": "float16"
+            }
+          },
+          "use_cache": true,
+          "vocab_size": 49152
+        },
+        "config_sha256": "8eb740e8bbe4cff95ea7b4588d17a2432deb16e8075bc5828ff7ba9be94d982a",
+        "runtime_evidence": "Pinned @12fd25f source imports through the generic dense bias-free decoder and 120 compiled stages. One 39+32 prepared SDK response completes with two local role children, masked stage traffic and zero plaintext prompt/token-ID bytes sent. An independent twelve-prompt local W8A8 prefill cohort matches its own float32 top token 11/12 times with 3.8734 worst absolute logit error; a separate three-layer/all-layer rank-output oracle fails held-out decode quality. The two-sample cold prepared cohort records 120.08 MB covered bodies and 23.48 s median aggregate CPU with cached source snapshots",
+        "requires": [
+          "gqa",
+          "rotary",
+          "rmsnorm",
+          "gated-silu",
+          "kv-cache"
+        ],
+        "source_lock": {
+          "model": "HuggingFaceTB/SmolLM2-135M-Instruct",
+          "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+          "files": {
+            "config.json": "8eb740e8bbe4cff95ea7b4588d17a2432deb16e8075bc5828ff7ba9be94d982a",
+            "model.safetensors": "5af571cbf074e6d21a03528d2330792e532ca608f24ac70a143f6b369968ab8c"
+          }
+        },
+        "source_lock_status": "tensor_hashes_known_tokenizer_lock_pending",
+        "training_admission": "blocked_unimplemented_per_checkpoint_pilot"
+      },
+      {
+        "checkpoint": "Qwen3.5-4B text decoder",
+        "adapter": "pllm.qwen3_5_text.v1",
+        "real_checkpoint_runtime": true,
+        "tiny_artifact_status": "untrained",
+        "source_fixture": "crates/pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json",
+        "config": {
+          "architectures": [
+            "Qwen3_5ForConditionalGeneration"
+          ],
+          "image_token_id": 248056,
+          "model_type": "qwen3_5",
+          "text_config": {
+            "attention_bias": false,
+            "attention_dropout": 0.0,
+            "attn_output_gate": true,
+            "dtype": "bfloat16",
+            "eos_token_id": 248044,
+            "full_attention_interval": 4,
+            "head_dim": 256,
+            "hidden_act": "silu",
+            "hidden_size": 2560,
+            "initializer_range": 0.02,
+            "intermediate_size": 9216,
+            "layer_types": [
+              "linear_attention",
+              "linear_attention",
+              "linear_attention",
+              "full_attention",
+              "linear_attention",
+              "linear_attention",
+              "linear_attention",
+              "full_attention",
+              "linear_attention",
+              "linear_attention",
+              "linear_attention",
+              "full_attention",
+              "linear_attention",
+              "linear_attention",
+              "linear_attention",
+              "full_attention",
+              "linear_attention",
+              "linear_attention",
+              "linear_attention",
+              "full_attention",
+              "linear_attention",
+              "linear_attention",
+              "linear_attention",
+              "full_attention",
+              "linear_attention",
+              "linear_attention",
+              "linear_attention",
+              "full_attention",
+              "linear_attention",
+              "linear_attention",
+              "linear_attention",
+              "full_attention"
+            ],
+            "linear_conv_kernel_dim": 4,
+            "linear_key_head_dim": 128,
+            "linear_num_key_heads": 16,
+            "linear_num_value_heads": 32,
+            "linear_value_head_dim": 128,
+            "max_position_embeddings": 262144,
+            "mlp_only_layers": [],
+            "model_type": "qwen3_5_text",
+            "mtp_num_hidden_layers": 1,
+            "mtp_use_dedicated_embeddings": false,
+            "num_attention_heads": 16,
+            "num_hidden_layers": 32,
+            "num_key_value_heads": 4,
+            "rms_norm_eps": 1e-06,
+            "tie_word_embeddings": true,
+            "use_cache": true,
+            "vocab_size": 248320,
+            "mamba_ssm_dtype": "float32",
+            "rope_parameters": {
+              "mrope_interleaved": true,
+              "mrope_section": [
+                11,
+                11,
+                10
+              ],
+              "rope_type": "default",
+              "rope_theta": 10000000,
+              "partial_rotary_factor": 0.25
+            }
+          },
+          "tie_word_embeddings": true,
+          "transformers_version": "4.57.0.dev0",
+          "video_token_id": 248057,
+          "vision_config": {
+            "deepstack_visual_indexes": [],
+            "depth": 24,
+            "hidden_act": "gelu_pytorch_tanh",
+            "hidden_size": 1024,
+            "in_channels": 3,
+            "initializer_range": 0.02,
+            "intermediate_size": 4096,
+            "model_type": "qwen3_5",
+            "num_heads": 16,
+            "num_position_embeddings": 2304,
+            "out_hidden_size": 2560,
+            "patch_size": 16,
+            "spatial_merge_size": 2,
+            "temporal_patch_size": 2
+          },
+          "vision_end_token_id": 248054,
+          "vision_start_token_id": 248053
+        },
+        "config_sha256": "4d02c8384ab8bd5f38244ee3fb5c227e38ac23ba466faa369bd8080af0f9df45",
+        "runtime_evidence": "Pinned official Qwen3.5-4B text checkpoint binds 426 required BF16/F32 artifacts to 130 compiled stages. Two real-checkpoint prefill/decode prefixes score 2/4 same-token W8A8 top-1 against upstream BF16 (3.66 worst absolute logit error); a float32-body diagnostic with W8 token/head boundary scores 3/4 (0.46 worst error). A real-checkpoint prepared SDK and gateway request each completes through two local role children with masked stage traffic and zero plaintext prompt/token-ID bytes sent. A generated tiny checkpoint independently matches the upstream float32 Torch reference below 0.05 W8A8 worst logit error. Text-only partial MRoPE matches checked Torch positions",
+        "requires": [
+          "gqa",
+          "rotary",
+          "rmsnorm",
+          "gated-silu",
+          "kv-cache",
+          "qk-norm",
+          "gated-delta",
+          "causal-convolution",
+          "partial-mrope"
+        ],
+        "source_lock": {
+          "model": "Qwen/Qwen3.5-4B",
+          "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+        },
+        "source_lock_status": "incomplete_training_source_lock",
+        "training_admission": "blocked_unimplemented_per_checkpoint_pilot"
+      },
+      {
+        "checkpoint": "Phi-4-mini-instruct",
+        "adapter": "pllm.phi4_mini.v1",
+        "real_checkpoint_runtime": true,
+        "tiny_artifact_status": "untrained",
+        "source_fixture": "crates/pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json",
+        "config": {
+          "_name_or_path": "Phi-4-mini-instruct",
+          "architectures": [
+            "Phi3ForCausalLM"
+          ],
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "auto_map": {
+            "AutoConfig": "configuration_phi3.Phi3Config",
+            "AutoModelForCausalLM": "modeling_phi3.Phi3ForCausalLM",
+            "AutoTokenizer": "Xenova/gpt-4o"
+          },
+          "bos_token_id": 199999,
+          "embd_pdrop": 0.0,
+          "eos_token_id": 199999,
+          "full_attn_mod": 1,
+          "hidden_act": "silu",
+          "hidden_size": 3072,
+          "initializer_range": 0.02,
+          "intermediate_size": 8192,
+          "interpolate_factor": 1,
+          "lm_head_bias": false,
+          "max_position_embeddings": 131072,
+          "mlp_bias": false,
+          "model_type": "phi3",
+          "num_attention_heads": 24,
+          "num_hidden_layers": 32,
+          "num_key_value_heads": 8,
+          "original_max_position_embeddings": 4096,
+          "pad_token_id": 199999,
+          "partial_rotary_factor": 0.75,
+          "resid_pdrop": 0.0,
+          "rms_norm_eps": 1e-05,
+          "rope_scaling": {
+            "long_factor": [
+              1,
+              1.118320672,
+              1.250641126,
+              1.398617824,
+              1.564103225,
+              1.74916897,
+              1.956131817,
+              2.187582649,
+              2.446418898,
+              2.735880826,
+              3.059592084,
+              3.421605075,
+              3.826451687,
+              4.279200023,
+              4.785517845,
+              5.351743533,
+              5.984965424,
+              6.693110555,
+              7.485043894,
+              8.370679318,
+              9.36110372,
+              10.4687158,
+              11.70738129,
+              13.09260651,
+              14.64173252,
+              16.37415215,
+              18.31155283,
+              20.47818807,
+              22.90118105,
+              25.61086418,
+              28.64115884,
+              32.03,
+              32.1,
+              32.13,
+              32.23,
+              32.6,
+              32.61,
+              32.64,
+              32.66,
+              32.7,
+              32.71,
+              32.93,
+              32.97,
+              33.28,
+              33.49,
+              33.5,
+              44.16,
+              47.77
+            ],
+            "short_factor": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "type": "longrope"
+          },
+          "rope_theta": 10000.0,
+          "sliding_window": 262144,
+          "tie_word_embeddings": true,
+          "torch_dtype": "bfloat16",
+          "transformers_version": "4.45.0",
+          "use_cache": true,
+          "vocab_size": 200064
+        },
+        "config_sha256": "ac65d86061d3d0d704ee2511fd0eb8713ef19eb6eedba17c3080a4165d5b933b",
+        "runtime_evidence": "Pinned official BF16 checkpoint imports all 194 required artifacts into 130 compiled stages and executes original-context prefill/decode locally. On the same two-prompt float32 reference cohort, W4A4 scores 0/2, W8A8 1/2 (29.90 worst logit error), and checkpoint-bound public equalized W8A8 2/2 (9.59); five other prompts score 3/5 for both W8A8 choices. A separate two-child local prepared request completes 128 masked remote stages, with zero plaintext prompt/token-ID traffic and 1.63 MB fewer covered online bodies than matched W8A8, while increasing client bundle bytes. Tiny generated weights also pass reference parity and SDK/gateway requests. Extended-context crossing fails closed",
+        "requires": [
+          "gqa",
+          "rotary",
+          "rmsnorm",
+          "gated-silu",
+          "kv-cache",
+          "fused-qkv",
+          "longrope"
+        ],
+        "source_lock": {
+          "model": "microsoft/Phi-4-mini-instruct",
+          "revision": "cfbefacb99257ffa30c83adab238a50856ac3083"
+        },
+        "source_lock_status": "incomplete_training_source_lock",
+        "training_admission": "blocked_unimplemented_per_checkpoint_pilot"
+      },
+      {
+        "checkpoint": "Gemma 4 E2B text decoder",
+        "adapter": "pllm.gemma4_e2b_text.v1",
+        "real_checkpoint_runtime": true,
+        "tiny_artifact_status": "untrained",
+        "source_fixture": "crates/pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json",
+        "config": {
+          "architectures": [
+            "Gemma4ForConditionalGeneration"
+          ],
+          "audio_config": {
+            "_name_or_path": "",
+            "architectures": null,
+            "attention_chunk_size": 12,
+            "attention_context_left": 13,
+            "attention_context_right": 0,
+            "attention_invalid_logits_value": -1000000000.0,
+            "attention_logit_cap": 50.0,
+            "chunk_size_feed_forward": 0,
+            "conv_kernel_size": 5,
+            "dtype": "bfloat16",
+            "gradient_clipping": 10000000000.0,
+            "hidden_act": "silu",
+            "hidden_size": 1024,
+            "id2label": {
+              "0": "LABEL_0",
+              "1": "LABEL_1"
+            },
+            "initializer_range": 0.02,
+            "is_encoder_decoder": false,
+            "label2id": {
+              "LABEL_0": 0,
+              "LABEL_1": 1
+            },
+            "model_type": "gemma4_audio",
+            "num_attention_heads": 8,
+            "num_hidden_layers": 12,
+            "output_attentions": false,
+            "output_hidden_states": false,
+            "output_proj_dims": 1536,
+            "problem_type": null,
+            "residual_weight": 0.5,
+            "return_dict": true,
+            "rms_norm_eps": 1e-06,
+            "subsampling_conv_channels": [
+              128,
+              32
+            ],
+            "use_clipped_linears": true
+          },
+          "audio_token_id": 258881,
+          "boa_token_id": 256000,
+          "boi_token_id": 255999,
+          "dtype": "bfloat16",
+          "eoa_token_id": 258883,
+          "eoa_token_index": 258883,
+          "eoi_token_id": 258882,
+          "eos_token_id": [
+            1,
+            106
+          ],
+          "image_token_id": 258880,
+          "initializer_range": 0.02,
+          "model_type": "gemma4",
+          "text_config": {
+            "attention_bias": false,
+            "attention_dropout": 0.0,
+            "attention_k_eq_v": false,
+            "bos_token_id": 2,
+            "dtype": "bfloat16",
+            "enable_moe_block": false,
+            "eos_token_id": 1,
+            "expert_intermediate_size": null,
+            "final_logit_softcapping": 30.0,
+            "global_head_dim": 512,
+            "head_dim": 256,
+            "hidden_activation": "gelu_pytorch_tanh",
+            "hidden_size": 1536,
+            "hidden_size_per_layer_input": 256,
+            "initializer_range": 0.02,
+            "intermediate_size": 6144,
+            "layer_types": [
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention"
+            ],
+            "max_position_embeddings": 131072,
+            "model_type": "gemma4_text",
+            "num_attention_heads": 8,
+            "num_experts": null,
+            "num_global_key_value_heads": null,
+            "num_hidden_layers": 35,
+            "num_key_value_heads": 1,
+            "num_kv_shared_layers": 20,
+            "pad_token_id": 0,
+            "rms_norm_eps": 1e-06,
+            "rope_parameters": {
+              "full_attention": {
+                "partial_rotary_factor": 0.25,
+                "rope_theta": 1000000.0,
+                "rope_type": "proportional"
+              },
+              "sliding_attention": {
+                "rope_theta": 10000.0,
+                "rope_type": "default"
+              }
+            },
+            "sliding_window": 512,
+            "tie_word_embeddings": true,
+            "top_k_experts": null,
+            "use_bidirectional_attention": null,
+            "use_cache": true,
+            "use_double_wide_mlp": true,
+            "vocab_size": 262144,
+            "vocab_size_per_layer_input": 262144
+          },
+          "tie_word_embeddings": true,
+          "transformers_version": "5.5.0.dev0",
+          "video_token_id": 258884,
+          "vision_config": {
+            "_name_or_path": "",
+            "architectures": null,
+            "attention_bias": false,
+            "attention_dropout": 0.0,
+            "chunk_size_feed_forward": 0,
+            "default_output_length": 280,
+            "dtype": "bfloat16",
+            "global_head_dim": 64,
+            "head_dim": 64,
+            "hidden_activation": "gelu_pytorch_tanh",
+            "hidden_size": 768,
+            "id2label": {
+              "0": "LABEL_0",
+              "1": "LABEL_1"
+            },
+            "initializer_range": 0.02,
+            "intermediate_size": 3072,
+            "is_encoder_decoder": false,
+            "label2id": {
+              "LABEL_0": 0,
+              "LABEL_1": 1
+            },
+            "max_position_embeddings": 131072,
+            "model_type": "gemma4_vision",
+            "num_attention_heads": 12,
+            "num_hidden_layers": 16,
+            "num_key_value_heads": 12,
+            "output_attentions": false,
+            "output_hidden_states": false,
+            "patch_size": 16,
+            "pooling_kernel_size": 3,
+            "position_embedding_size": 10240,
+            "problem_type": null,
+            "return_dict": true,
+            "rms_norm_eps": 1e-06,
+            "rope_parameters": {
+              "rope_theta": 100.0,
+              "rope_type": "default"
+            },
+            "standardize": false,
+            "use_clipped_linears": true
+          },
+          "vision_soft_tokens_per_image": 280
+        },
+        "config_sha256": "1b28f3d2c3100f6c594754b81107428bd7b822a7f48272ca681dae9d2ec38330",
+        "runtime_evidence": "Pinned E2B: 213 checkpoint-bound compiled stages, two local-clear W8A8 prefill-to-decode runs; 2/2 same-token top-1, 0.70 mean top-5 recall and 3.5625 worst logit error against BF16; one prepared HTTP request completes through separate in-process inference and preparation services with masked online traffic",
+        "requires": [
+          "gqa",
+          "rotary",
+          "rmsnorm",
+          "kv-cache",
+          "qk-norm",
+          "local-global",
+          "shared-kv",
+          "gelu-tanh",
+          "bf16-operator-composition",
+          "checkpoint-scalar-binding",
+          "branch-norm",
+          "ple",
+          "softcap"
+        ],
+        "source_lock": {
+          "model": "google/gemma-4-E2B-it",
+          "revision_prefix_only": "3e22461f"
+        },
+        "source_lock_status": "incomplete_training_source_lock",
+        "training_admission": "blocked_unimplemented_per_checkpoint_pilot"
+      },
+      {
+        "checkpoint": "Gemma 4 E4B text decoder",
+        "adapter": "pllm.gemma4_e4b_text.v1",
+        "real_checkpoint_runtime": false,
+        "tiny_artifact_status": "blocked_no_real_checkpoint_runtime",
+        "source_fixture": "crates/pllm-models/tests/fixtures/gemma-4-E4B-it-ee0ef602-config.json",
+        "config": {
+          "architectures": [
+            "Gemma4ForConditionalGeneration"
+          ],
+          "audio_config": {
+            "_name_or_path": "",
+            "architectures": null,
+            "attention_chunk_size": 12,
+            "attention_context_left": 13,
+            "attention_context_right": 0,
+            "attention_invalid_logits_value": -1000000000.0,
+            "attention_logit_cap": 50.0,
+            "chunk_size_feed_forward": 0,
+            "conv_kernel_size": 5,
+            "dtype": "bfloat16",
+            "gradient_clipping": 10000000000.0,
+            "hidden_act": "silu",
+            "hidden_size": 1024,
+            "id2label": {
+              "0": "LABEL_0",
+              "1": "LABEL_1"
+            },
+            "initializer_range": 0.02,
+            "is_encoder_decoder": false,
+            "label2id": {
+              "LABEL_0": 0,
+              "LABEL_1": 1
+            },
+            "model_type": "gemma4_audio",
+            "num_attention_heads": 8,
+            "num_hidden_layers": 12,
+            "output_attentions": false,
+            "output_hidden_states": false,
+            "output_proj_dims": 1536,
+            "problem_type": null,
+            "residual_weight": 0.5,
+            "return_dict": true,
+            "rms_norm_eps": 1e-06,
+            "subsampling_conv_channels": [
+              128,
+              32
+            ],
+            "use_clipped_linears": true
+          },
+          "audio_token_id": 258881,
+          "boa_token_id": 256000,
+          "boi_token_id": 255999,
+          "dtype": "bfloat16",
+          "eoa_token_id": 258883,
+          "eoa_token_index": 258883,
+          "eoi_token_id": 258882,
+          "eos_token_id": [
+            1,
+            106
+          ],
+          "image_token_id": 258880,
+          "initializer_range": 0.02,
+          "model_type": "gemma4",
+          "text_config": {
+            "attention_bias": false,
+            "attention_dropout": 0.0,
+            "attention_k_eq_v": false,
+            "bos_token_id": 2,
+            "dtype": "bfloat16",
+            "enable_moe_block": false,
+            "eos_token_id": 1,
+            "expert_intermediate_size": null,
+            "final_logit_softcapping": 30.0,
+            "global_head_dim": 512,
+            "head_dim": 256,
+            "hidden_activation": "gelu_pytorch_tanh",
+            "hidden_size": 2560,
+            "hidden_size_per_layer_input": 256,
+            "initializer_range": 0.02,
+            "intermediate_size": 10240,
+            "layer_types": [
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "sliding_attention",
+              "full_attention"
+            ],
+            "max_position_embeddings": 131072,
+            "model_type": "gemma4_text",
+            "num_attention_heads": 8,
+            "num_experts": null,
+            "num_global_key_value_heads": null,
+            "num_hidden_layers": 42,
+            "num_key_value_heads": 2,
+            "num_kv_shared_layers": 18,
+            "pad_token_id": 0,
+            "rms_norm_eps": 1e-06,
+            "rope_parameters": {
+              "full_attention": {
+                "partial_rotary_factor": 0.25,
+                "rope_theta": 1000000.0,
+                "rope_type": "proportional"
+              },
+              "sliding_attention": {
+                "rope_theta": 10000.0,
+                "rope_type": "default"
+              }
+            },
+            "sliding_window": 512,
+            "tie_word_embeddings": true,
+            "top_k_experts": null,
+            "use_bidirectional_attention": null,
+            "use_cache": true,
+            "use_double_wide_mlp": false,
+            "vocab_size": 262144,
+            "vocab_size_per_layer_input": 262144
+          },
+          "tie_word_embeddings": true,
+          "transformers_version": "5.5.0.dev0",
+          "video_token_id": 258884,
+          "vision_config": {
+            "_name_or_path": "",
+            "architectures": null,
+            "attention_bias": false,
+            "attention_dropout": 0.0,
+            "chunk_size_feed_forward": 0,
+            "default_output_length": 280,
+            "dtype": "bfloat16",
+            "global_head_dim": 64,
+            "head_dim": 64,
+            "hidden_activation": "gelu_pytorch_tanh",
+            "hidden_size": 768,
+            "id2label": {
+              "0": "LABEL_0",
+              "1": "LABEL_1"
+            },
+            "initializer_range": 0.02,
+            "intermediate_size": 3072,
+            "is_encoder_decoder": false,
+            "label2id": {
+              "LABEL_0": 0,
+              "LABEL_1": 1
+            },
+            "max_position_embeddings": 131072,
+            "model_type": "gemma4_vision",
+            "num_attention_heads": 12,
+            "num_hidden_layers": 16,
+            "num_key_value_heads": 12,
+            "output_attentions": false,
+            "output_hidden_states": false,
+            "patch_size": 16,
+            "pooling_kernel_size": 3,
+            "position_embedding_size": 10240,
+            "problem_type": null,
+            "return_dict": true,
+            "rms_norm_eps": 1e-06,
+            "rope_parameters": {
+              "rope_theta": 100.0,
+              "rope_type": "default"
+            },
+            "standardize": false,
+            "use_clipped_linears": true
+          },
+          "vision_soft_tokens_per_image": 280
+        },
+        "config_sha256": "33b10c02df3c2e8536cf323d29d53262aaa2f4d11dbe19bc729373fbe90295d4",
+        "runtime_evidence": "Pinned complete compiler prefill/decode schedule and isolated BF16 tests; E2B checkpoint executes locally but E4B has no checkpoint execution",
+        "requires": [
+          "gqa",
+          "rotary",
+          "rmsnorm",
+          "kv-cache",
+          "qk-norm",
+          "local-global",
+          "shared-kv",
+          "gelu-tanh",
+          "bf16-operator-composition",
+          "checkpoint-scalar-binding",
+          "branch-norm",
+          "ple",
+          "softcap"
+        ],
+        "source_lock": {
+          "model": "google/gemma-4-E4B-it",
+          "revision_prefix_only": "ee0ef602"
+        },
+        "source_lock_status": "incomplete_training_source_lock",
+        "training_admission": "blocked_unimplemented_per_checkpoint_pilot"
+      },
+      {
+        "checkpoint": "Qwen/Qwen3-4B",
+        "adapter": "pllm.qwen3.v1",
+        "source_lock": {
+          "model": "Qwen/Qwen3-4B",
+          "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+          "source_lock_digest": "308249a17bc5540401ce8ee373e24232036de08601b13e215fbb312943b8fdf1",
+          "checkpoint_digest": "75a83dc4d370f01ae8e62e060c02d2a16316ef7638f9dfbc3b920be9882bc586"
+        },
+        "config_reference": "https://huggingface.co/Qwen/Qwen3-4B/raw/1cfa9a7208912126459214e8b04321603b3df60c/config.json",
+        "config_sha256": "8ba006f74fecfaaeb392872a60f4a480e7ec9860153d2e1b769ec81f9a147f8a",
+        "config": {
+          "architectures": [
+            "Qwen3ForCausalLM"
+          ],
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "bos_token_id": 151643,
+          "eos_token_id": 151645,
+          "head_dim": 128,
+          "hidden_act": "silu",
+          "hidden_size": 2560,
+          "initializer_range": 0.02,
+          "intermediate_size": 9728,
+          "max_position_embeddings": 40960,
+          "max_window_layers": 36,
+          "model_type": "qwen3",
+          "num_attention_heads": 32,
+          "num_hidden_layers": 36,
+          "num_key_value_heads": 8,
+          "rms_norm_eps": 1e-06,
+          "rope_scaling": null,
+          "rope_theta": 1000000,
+          "sliding_window": null,
+          "tie_word_embeddings": true,
+          "torch_dtype": "bfloat16",
+          "transformers_version": "4.51.0",
+          "use_cache": true,
+          "use_sliding_window": false,
+          "vocab_size": 151936
+        },
+        "requires": [
+          "gqa",
+          "rotary",
+          "rmsnorm",
+          "gated-silu",
+          "kv-cache",
+          "head-width",
+          "qk-norm"
+        ],
+        "runtime_evidence": "Pinned real-checkpoint native SDK responses, resident/paged client memory and indexed-tokenizer controls; output-text agreement, not full-logit/KV or representative quality. Separate float32-reference quality probe memory-rejected.",
+        "references": [
+          "docs/research/qwen3-client-memory.md",
+          "docs/research/qwen3-sdk-artifacts.md",
+          "docs/evidence/research-qwen3-client-memory.json",
+          "docs/evidence/research-qwen3-client-memory-publisher.json",
+          "docs/evidence/research-qwen3-client-memory-quality.json",
+          "docs/evidence/research-qwen3-client-memory-configurations.json",
+          "docs/evidence/research-qwen3-sdk-artifacts.json"
+        ],
+        "lock_reference": "docs/evidence/research-qwen3-client-memory-publisher.json",
+        "quality_reference": "docs/evidence/research-qwen3-client-memory-quality.json",
+        "real_checkpoint_runtime": true,
+        "tiny_artifact_status": "untrained",
+        "source_fixture": null,
+        "source_lock_status": "retained_runtime_lock_training_files_not_frozen",
+        "training_admission": "blocked_unimplemented_per_checkpoint_pilot",
+        "quality_status": "memory-rejected",
+        "evidence_sha256": {
+          "docs/research/qwen3-client-memory.md": "4de910c8cced782e6fe1be95f49d5ef374984207a34f7a4a1af19fa23f7a8526",
+          "docs/research/qwen3-sdk-artifacts.md": "5cec5a32677e7d5317b0e99c26a8306b67375a214d11f575980973454acf7676",
+          "docs/evidence/research-qwen3-client-memory.json": "3ebe715a7482b5e5d91f26b1895e1d9a9004bb638a144a8f8204b44c12809654",
+          "docs/evidence/research-qwen3-client-memory-publisher.json": "4bb041b18640a498813507f5f40853908cbf814eebc8f08ad1fdeda5eb979409",
+          "docs/evidence/research-qwen3-client-memory-quality.json": "815ab62f3c78e03d728ebeee13c144f35a19b86ced154b13ba482a38ea6780c4",
+          "docs/evidence/research-qwen3-client-memory-configurations.json": "ede0473cf2f199b5509ab9ef53a72d763d7fc2a85fd2048e191d5ee082c90502",
+          "docs/evidence/research-qwen3-sdk-artifacts.json": "411b8ea411189242b8af4483360747175842906606ec17976e574bfaf1b38ecd"
+        }
+      }
+    ],
+    "inventory_scope": "adapter summary plus explicit checkpoint evidence; not an exhaustive family/source catalog"
+  },
+  "code": {
+    "scripts/train_checkpoint_tiny_model.py": "d7e9c076e7df318f020894c9d14f4ead4b3c8ff2b46f3b7148bc5038a268b595",
+    "benchmarks/research/checkpoint_tiny_model.py": "3fa854c35e361a0de71bc3690ada7ae390f8e8816e3ac6fb0a1aaa464e130daf"
+  },
+  "manifest_digest": "fd08355e97cdff5707532f65c45cf286db74a3b48de1acc35e79bd0b9a7b3d0f"
+}

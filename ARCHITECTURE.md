@@ -363,6 +363,22 @@ oracles. Their joint-response analytical schedule delays body start and finish
 about 9.5 ms; no serving benefit or client-memory tier follows. Contracts and replay:
 `docs/research/private-boundary-role-profile.md` and
 `docs/research/boundary-scan-fusion-full-reference.md`.
+A separate four-track frontier screen checks source-specific head coding,
+cross-stage MLP transport, fixed-weight correlations and checkpoint-specific tiny
+helpers. All 151,936 pinned Qwen head rows are scanned twice; 759,680 native
+reconstruction values preserve exact integers. Mostly 23-bit row replies reduce
+modeled payload 8.31% versus uniform 25-bit replies, with a 7.88 ms/head analytical
+upload-floor difference. Thin-client certificate admission remains open. Six
+fresh synthetic 150/288-row conveyor workers conserve outputs and 86.14 MB of
+framed bodies with zero observed swap growth; fixed-order single samples establish
+no causal speedup. Exact small-matrix correlation controls still relocate work
+into masked-image production or client expansion. A real Qwen-guided 264-parameter
+extractive helper fails its frozen held-out gate: full, lexical and learned inputs
+each answer one of four QA items correctly, while fallback-inclusive projected
+arithmetic bodies rise 32.39%. Six other recorded checkpoint helpers remain
+untrained. These separate construction, transport and quality results establish
+no serving SOTA or whole-client memory tier. Contracts, original attempts and
+replay: `docs/research/sota-breakthrough-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

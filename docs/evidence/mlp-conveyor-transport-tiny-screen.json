@@ -1,0 +1,2767 @@
+{
+  "cases": [
+    {
+      "canceled": false,
+      "client_burned_rows": 0,
+      "client_claimed_rows": 34,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.000898292288184166,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0009242082014679909,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0018622921779751778,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0018899580463767052,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0019604582339525223,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0020392928272485733,
+          "sequence": 1,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0020552920177578926,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0023524584248661995,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0023741256445646286,
+          "sequence": 1
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0024626674130558968,
+          "sequence": 1
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.002529042772948742,
+          "sequence": 2,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0025447923690080643,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0028175003826618195,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.002830957993865013,
+          "sequence": 2
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.002897125668823719,
+          "sequence": 2
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0029577920213341713,
+          "sequence": 3,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0029713334515690804,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0032108332961797714,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0032220836728811264,
+          "sequence": 3
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0032864585518836975,
+          "sequence": 3
+        },
+        {
+          "event": "client_send_start",
+          "row": 14,
+          "seconds": 0.003336292691528797,
+          "sequence": 4,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.003347208723425865,
+          "sequence": 4
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.003552917391061783,
+          "sequence": 4
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.003563542850315571,
+          "sequence": 4
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.00362550001591444,
+          "sequence": 4
+        },
+        {
+          "event": "client_send_start",
+          "row": 14,
+          "seconds": 0.003677207976579666,
+          "sequence": 5,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0036870427429676056,
+          "sequence": 5
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0038866251707077026,
+          "sequence": 5
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.003900500014424324,
+          "sequence": 5
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.003965292125940323,
+          "sequence": 5
+        }
+      ],
+      "exact_bits": true,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 1,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 2750,
+        "client_tx": 1866,
+        "server_rx": 1866,
+        "server_tx": 2750
+      },
+      "mode": "serial",
+      "output_sha256": "003e7fc344179c630f9f87d73084ad7c0c3120b5da9a87f0471d4cbaf985f67f",
+      "pacer": null,
+      "provider_burned_rows": 0,
+      "provider_claimed_rows": 34,
+      "region_nonprovider_cpu_seconds": 0.0030259170000000012,
+      "region_process_cpu_seconds": 0.003262000000000001,
+      "region_seconds": 0.004284458234906197,
+      "remote_fixture_body_mac_fraction": 1.0,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 6,
+        "inflight": 0,
+        "peak_frame_credits": 1,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 728,
+        "peak_tile_owners": 1,
+        "provider_calls": 6,
+        "provider_cpu_seconds": 0.000236083,
+        "reply_frames": 6,
+        "request_frames": 6,
+        "submitted_frames": 6
+      },
+      "success": true,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 0,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 42827776,
+      "wire_binding_sha256": "ac06e2c0f9e22c35a243789b3a5801a821b7edc852bf678f4d2c9aceff444a7d",
+      "wire_parts": {
+        "client_rx": {
+          "body": 2312,
+          "header": 438
+        },
+        "client_tx": {
+          "body": 1428,
+          "header": 438
+        },
+        "server_rx": {
+          "body": 1428,
+          "header": 438
+        },
+        "server_tx": {
+          "body": 2312,
+          "header": 438
+        }
+      },
+      "wire_reconciled": true
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 0,
+      "client_claimed_rows": 34,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0005399994552135468,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0005547916516661644,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0006118742749094963,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0006224578246474266,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0008196244016289711,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0008304165676236153,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0009370418265461922,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0010057073086500168,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0010172920301556587,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0010457495227456093,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0010555824264883995,
+          "sequence": 1
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.001128416508436203,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.001242249272763729,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0012539997696876526,
+          "sequence": 2
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0013127494603395462,
+          "sequence": 2
+        },
+        {
+          "event": "client_send_start",
+          "row": 14,
+          "seconds": 0.0013751666992902756,
+          "sequence": 3,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.001385582610964775,
+          "sequence": 3
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0014145411550998688,
+          "sequence": 4,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0014243749901652336,
+          "sequence": 4
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0015938328579068184,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0016049165278673172,
+          "sequence": 3
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0016986243426799774,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0017588743939995766,
+          "sequence": 4
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0017688330262899399,
+          "sequence": 4
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0018267491832375526,
+          "sequence": 4
+        },
+        {
+          "event": "client_send_start",
+          "row": 14,
+          "seconds": 0.0018807072192430496,
+          "sequence": 5,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.001890791580080986,
+          "sequence": 5
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0020788321271538734,
+          "sequence": 5
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0020897919312119484,
+          "sequence": 5
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0021713748574256897,
+          "sequence": 5
+        }
+      ],
+      "exact_bits": true,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 2750,
+        "client_tx": 1866,
+        "server_rx": 1866,
+        "server_tx": 2750
+      },
+      "mode": "conveyor",
+      "output_sha256": "003e7fc344179c630f9f87d73084ad7c0c3120b5da9a87f0471d4cbaf985f67f",
+      "pacer": null,
+      "provider_burned_rows": 0,
+      "provider_claimed_rows": 34,
+      "region_nonprovider_cpu_seconds": 0.0015757060000000103,
+      "region_process_cpu_seconds": 0.0017310000000000103,
+      "region_seconds": 0.0024567916989326477,
+      "remote_fixture_body_mac_fraction": 1.0,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 6,
+        "inflight": 0,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 6,
+        "provider_cpu_seconds": 0.00015529399999999997,
+        "reply_frames": 6,
+        "request_frames": 6,
+        "submitted_frames": 6
+      },
+      "success": true,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 0,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 42860544,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 2312,
+          "header": 438
+        },
+        "client_tx": {
+          "body": 1428,
+          "header": 438
+        },
+        "server_rx": {
+          "body": 1428,
+          "header": 438
+        },
+        "server_tx": {
+          "body": 2312,
+          "header": 438
+        }
+      },
+      "wire_reconciled": true
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 0,
+      "client_claimed_rows": 34,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0005555832758545876,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0005742078647017479,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 16,
+          "seconds": 0.0006085829809308052,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0006210003048181534,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0008432082831859589,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0008568326011300087,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0009752921760082245,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.00104629248380661,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0010618334636092186,
+          "sequence": 1
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0011308752000331879,
+          "sequence": 1
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0011983327567577362,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0012109996750950813,
+          "sequence": 2
+        },
+        {
+          "event": "client_send_start",
+          "row": 16,
+          "seconds": 0.0012400830164551735,
+          "sequence": 3,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0012499168515205383,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0014527924358844757,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0014646248891949654,
+          "sequence": 2
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.001562708057463169,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0016135834157466888,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0016229581087827682,
+          "sequence": 3
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0016858326271176338,
+          "sequence": 3
+        }
+      ],
+      "exact_bits": true,
+      "frames_expected": 4,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 1,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 17
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 2604,
+        "client_tx": 1720,
+        "server_rx": 1720,
+        "server_tx": 2604
+      },
+      "mode": "full",
+      "output_sha256": "003e7fc344179c630f9f87d73084ad7c0c3120b5da9a87f0471d4cbaf985f67f",
+      "pacer": null,
+      "provider_burned_rows": 0,
+      "provider_claimed_rows": 34,
+      "region_nonprovider_cpu_seconds": 0.0013079600000000075,
+      "region_process_cpu_seconds": 0.0014230000000000076,
+      "region_seconds": 0.0019489172846078873,
+      "remote_fixture_body_mac_fraction": 1.0,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 2,
+        "inflight": 0,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1768,
+        "peak_tile_owners": 1,
+        "provider_calls": 4,
+        "provider_cpu_seconds": 0.00011504,
+        "reply_frames": 4,
+        "request_frames": 4,
+        "submitted_frames": 4
+      },
+      "success": true,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 0,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 42893312,
+      "wire_binding_sha256": "67d789319d18732254af5e05eee5d4684114f51612f642f7a585aec1bfe5c955",
+      "wire_parts": {
+        "client_rx": {
+          "body": 2312,
+          "header": 292
+        },
+        "client_tx": {
+          "body": 1428,
+          "header": 292
+        },
+        "server_rx": {
+          "body": 1428,
+          "header": 292
+        },
+        "server_tx": {
+          "body": 2312,
+          "header": 292
+        }
+      },
+      "wire_reconciled": true
+    },
+    {
+      "canceled": true,
+      "client_burned_rows": 20,
+      "client_claimed_rows": 14,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.00046075042337179184,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0004724999889731407,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0005022920668125153,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0005118334665894508,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.000706750899553299,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0007170420140028,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0008251257240772247,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0008982503786683083,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.000908208079636097,
+          "sequence": 1
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0009685000404715538,
+          "sequence": 1
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 1602,
+        "client_tx": 594,
+        "server_rx": 594,
+        "server_tx": 1602
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 20,
+      "provider_claimed_rows": 14,
+      "region_nonprovider_cpu_seconds": 0.0007934589999999877,
+      "region_process_cpu_seconds": 0.0008479999999999877,
+      "region_seconds": 0.0023712506517767906,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": true,
+        "completed_stages": 1,
+        "inflight": 0,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 2,
+        "provider_cpu_seconds": 5.4541000000000005e-05,
+        "reply_frames": 2,
+        "request_frames": 2,
+        "submitted_frames": 2
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 0,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 42893312,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 1456,
+          "header": 146
+        },
+        "client_tx": {
+          "body": 448,
+          "header": 146
+        },
+        "server_rx": {
+          "body": 448,
+          "header": 146
+        },
+        "server_tx": {
+          "body": 1456,
+          "header": 146
+        }
+      },
+      "wire_reconciled": true
+    },
+    {
+      "canceled": true,
+      "client_burned_rows": 13,
+      "client_claimed_rows": 21,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0004905415698885918,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0005030417814850807,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0005326252430677414,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0005424171686172485,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0007461672648787498,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0007565831765532494,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0008632494136691093,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0009287921711802483,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0009393328800797462,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0009601665660738945,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.000971292145550251,
+          "sequence": 1
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0010456666350364685,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0011764168739318848,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0011895829811692238,
+          "sequence": 2
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0012569166719913483,
+          "sequence": 2
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 1899,
+        "client_tx": 1031,
+        "server_rx": 1031,
+        "server_tx": 1899
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 13,
+      "provider_claimed_rows": 21,
+      "region_nonprovider_cpu_seconds": 0.001011583999999978,
+      "region_process_cpu_seconds": 0.0010879999999999779,
+      "region_seconds": 0.0015413332730531693,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": true,
+        "completed_stages": 2,
+        "inflight": 0,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 3,
+        "provider_cpu_seconds": 7.641600000000002e-05,
+        "reply_frames": 3,
+        "request_frames": 3,
+        "submitted_frames": 3
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 0,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 42909696,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 1680,
+          "header": 219
+        },
+        "client_tx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_rx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_tx": {
+          "body": 1680,
+          "header": 219
+        }
+      },
+      "wire_reconciled": true
+    },
+    {
+      "canceled": true,
+      "client_burned_rows": 10,
+      "client_claimed_rows": 24,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0004559578374028206,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.00046891625970602036,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0004970831796526909,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0005074581131339073,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0007050829008221626,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0007154578343033791,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.000818583182990551,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.000898207537829876,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0009085824713110924,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0009294161573052406,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0009398749098181725,
+          "sequence": 1
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0010127909481525421,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0011133328080177307,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0011224579066038132,
+          "sequence": 2
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.001183750107884407,
+          "sequence": 2
+        },
+        {
+          "event": "client_send_start",
+          "row": 14,
+          "seconds": 0.00123570766299963,
+          "sequence": 3,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0012456662952899933,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0014410000294446945,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0014520827680826187,
+          "sequence": 3
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0015159575268626213,
+          "sequence": 3
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 2284,
+        "client_tx": 1200,
+        "server_rx": 1200,
+        "server_tx": 2284
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 10,
+      "provider_claimed_rows": 24,
+      "region_nonprovider_cpu_seconds": 0.0011484580000000238,
+      "region_process_cpu_seconds": 0.0012450000000000239,
+      "region_seconds": 0.002734249457716942,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": true,
+        "completed_stages": 3,
+        "inflight": 0,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 4,
+        "provider_cpu_seconds": 9.6542e-05,
+        "reply_frames": 4,
+        "request_frames": 4,
+        "submitted_frames": 4
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 0,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 42942464,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 1992,
+          "header": 292
+        },
+        "client_tx": {
+          "body": 908,
+          "header": 292
+        },
+        "server_rx": {
+          "body": 908,
+          "header": 292
+        },
+        "server_tx": {
+          "body": 1992,
+          "header": 292
+        }
+      },
+      "wire_reconciled": true
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 13,
+      "client_claimed_rows": 21,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [
+        "ValueError: frame/session/binding/sequence/stage/row/width mismatch"
+      ],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0004242919385433197,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.00043629202991724014,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0004660002887248993,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0004761256277561188,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0006471248343586922,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0006573749706149101,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.000764000229537487,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0008261250331997871,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0008364589884877205,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0008606249466538429,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0008705845102667809,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0010701250284910202,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0010814592242240906,
+          "sequence": 2
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 874,
+        "client_tx": 1031,
+        "server_rx": 1031,
+        "server_tx": 1899
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 13,
+      "provider_claimed_rows": 21,
+      "region_nonprovider_cpu_seconds": 0.0008459170000000042,
+      "region_process_cpu_seconds": 0.0009200000000000041,
+      "region_seconds": 0.0012416252866387367,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 1,
+        "inflight": 2,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 3,
+        "provider_cpu_seconds": 7.4083e-05,
+        "reply_frames": 1,
+        "request_frames": 3,
+        "submitted_frames": 3
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 1025,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 42975232,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 728,
+          "header": 146
+        },
+        "client_tx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_rx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_tx": {
+          "body": 1680,
+          "header": 219
+        }
+      },
+      "wire_reconciled": false
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 13,
+      "client_claimed_rows": 21,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [
+        "ValueError: frame/session/binding/sequence/stage/row/width mismatch"
+      ],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0004787081852555275,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0004902919754385948,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0005201669409871101,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0005311248824000359,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0007267920300364494,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0007406668737530708,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0008504167199134827,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0009176246821880341,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0009303325787186623,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0009546251967549324,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0009646667167544365,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0011610416695475578,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0011762920767068863,
+          "sequence": 2
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 874,
+        "client_tx": 1031,
+        "server_rx": 1031,
+        "server_tx": 1899
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 13,
+      "provider_claimed_rows": 21,
+      "region_nonprovider_cpu_seconds": 0.0008964589999999956,
+      "region_process_cpu_seconds": 0.0009669999999999956,
+      "region_seconds": 0.0013397494331002235,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 1,
+        "inflight": 2,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 3,
+        "provider_cpu_seconds": 7.0541e-05,
+        "reply_frames": 1,
+        "request_frames": 3,
+        "submitted_frames": 3
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 1025,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 42991616,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 728,
+          "header": 146
+        },
+        "client_tx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_rx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_tx": {
+          "body": 1680,
+          "header": 219
+        }
+      },
+      "wire_reconciled": false
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 13,
+      "client_claimed_rows": 21,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [
+        "ValueError: frame/session/binding/sequence/stage/row/width mismatch"
+      ],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0004414590075612068,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.00045420974493026733,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.00048304256051778793,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0004947502166032791,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0007013753056526184,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0007135001942515373,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0008145840838551521,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.000876166857779026,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0008872095495462418,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0009181676432490349,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.000929499976336956,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.001118750311434269,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0011338749900460243,
+          "sequence": 2
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 874,
+        "client_tx": 1031,
+        "server_rx": 1031,
+        "server_tx": 1899
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 13,
+      "provider_claimed_rows": 21,
+      "region_nonprovider_cpu_seconds": 0.0008844990000000094,
+      "region_process_cpu_seconds": 0.0009530000000000094,
+      "region_seconds": 0.0012843748554587364,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 1,
+        "inflight": 2,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 3,
+        "provider_cpu_seconds": 6.8501e-05,
+        "reply_frames": 1,
+        "request_frames": 3,
+        "submitted_frames": 3
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 1025,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 43089920,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 728,
+          "header": 146
+        },
+        "client_tx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_rx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_tx": {
+          "body": 1680,
+          "header": 219
+        }
+      },
+      "wire_reconciled": false
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 13,
+      "client_claimed_rows": 21,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [
+        "ConnectionResetError: [Errno 54] Connection reset by peer"
+      ],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0004209587350487709,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.00043187476694583893,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.00046195928007364273,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.000472167506814003,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0006442917510867119,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0006584590300917625,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0007711248472332954,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.000828959047794342,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.000846625305712223,
+          "sequence": 2
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 874,
+        "client_tx": 1031,
+        "server_rx": 594,
+        "server_tx": 1601
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 20,
+      "provider_claimed_rows": 14,
+      "region_nonprovider_cpu_seconds": 0.0007671249999999854,
+      "region_process_cpu_seconds": 0.0008179999999999854,
+      "region_seconds": 0.0011112922802567482,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 1,
+        "inflight": 2,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 2,
+        "provider_cpu_seconds": 5.0874999999999997e-05,
+        "reply_frames": 1,
+        "request_frames": 2,
+        "submitted_frames": 3
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 727,
+      "unread_request_bytes": 437,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 43122688,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 728,
+          "header": 146
+        },
+        "client_tx": {
+          "body": 812,
+          "header": 219
+        },
+        "server_rx": {
+          "body": 448,
+          "header": 146
+        },
+        "server_tx": {
+          "body": 1455,
+          "header": 146
+        }
+      },
+      "wire_reconciled": false
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 20,
+      "client_claimed_rows": 14,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [
+        "RuntimeError: injected provider failure after claim"
+      ],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0006838329136371613,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0006999578326940536,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0007300823926925659,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0007407907396554947,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.000936540775001049,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.000946415588259697,
+          "sequence": 0
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 0,
+        "client_tx": 594,
+        "server_rx": 594,
+        "server_tx": 801
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 20,
+      "provider_claimed_rows": 14,
+      "region_nonprovider_cpu_seconds": 0.0008491669999999869,
+      "region_process_cpu_seconds": 0.0008749999999999869,
+      "region_seconds": 0.0011485405266284943,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 0,
+        "inflight": 2,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 1,
+        "provider_cpu_seconds": 2.5833e-05,
+        "reply_frames": 0,
+        "request_frames": 2,
+        "submitted_frames": 2
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 801,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 43139072,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 0,
+          "header": 0
+        },
+        "client_tx": {
+          "body": 448,
+          "header": 146
+        },
+        "server_rx": {
+          "body": 448,
+          "header": 146
+        },
+        "server_tx": {
+          "body": 728,
+          "header": 73
+        }
+      },
+      "wire_reconciled": false
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 20,
+      "client_claimed_rows": 14,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [
+        "ValueError: frame/session/binding/sequence/stage/row/width mismatch"
+      ],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.00042962469160556793,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.00044170767068862915,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0004754578694701195,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0004864577203989029,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0006784172728657722,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0006925417110323906,
+          "sequence": 0
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 0,
+        "client_tx": 594,
+        "server_rx": 370,
+        "server_tx": 801
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 27,
+      "provider_claimed_rows": 7,
+      "region_nonprovider_cpu_seconds": 0.0005969590000000125,
+      "region_process_cpu_seconds": 0.0006230000000000124,
+      "region_seconds": 0.0008877497166395187,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 0,
+        "inflight": 2,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 1,
+        "provider_cpu_seconds": 2.6041e-05,
+        "reply_frames": 0,
+        "request_frames": 1,
+        "submitted_frames": 2
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 801,
+      "unread_request_bytes": 224,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 43171840,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 0,
+          "header": 0
+        },
+        "client_tx": {
+          "body": 448,
+          "header": 146
+        },
+        "server_rx": {
+          "body": 224,
+          "header": 146
+        },
+        "server_tx": {
+          "body": 728,
+          "header": 73
+        }
+      },
+      "wire_reconciled": false
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 20,
+      "client_claimed_rows": 14,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [
+        "ValueError: frame/session/binding/sequence/stage/row/width mismatch"
+      ],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.00042391661554574966,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.00043454207479953766,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0004657916724681854,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0004754578694701195,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0006502922624349594,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0006647920235991478,
+          "sequence": 0
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 0,
+        "client_tx": 594,
+        "server_rx": 370,
+        "server_tx": 801
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 27,
+      "provider_claimed_rows": 7,
+      "region_nonprovider_cpu_seconds": 0.0005975000000000124,
+      "region_process_cpu_seconds": 0.0006230000000000124,
+      "region_seconds": 0.0008856672793626785,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 0,
+        "inflight": 2,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 1,
+        "provider_cpu_seconds": 2.5499999999999996e-05,
+        "reply_frames": 0,
+        "request_frames": 1,
+        "submitted_frames": 2
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 801,
+      "unread_request_bytes": 224,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 43171840,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 0,
+          "header": 0
+        },
+        "client_tx": {
+          "body": 448,
+          "header": 146
+        },
+        "server_rx": {
+          "body": 224,
+          "header": 146
+        },
+        "server_tx": {
+          "body": 728,
+          "header": 73
+        }
+      },
+      "wire_reconciled": false
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 20,
+      "client_claimed_rows": 14,
+      "compiler_contract_sha256": null,
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [
+        "ValueError: frame/session/binding/sequence/stage/row/width mismatch"
+      ],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.00042683258652687073,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.00043891556560993195,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.00046891532838344574,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.00047958269715309143,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0006719576194882393,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0006847493350505829,
+          "sequence": 0
+        }
+      ],
+      "exact_bits": null,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 0,
+        "client_tx": 594,
+        "server_rx": 370,
+        "server_tx": 801
+      },
+      "mode": "conveyor",
+      "output_sha256": null,
+      "pacer": null,
+      "provider_burned_rows": 27,
+      "provider_claimed_rows": 7,
+      "region_nonprovider_cpu_seconds": 0.0005618340000000042,
+      "region_process_cpu_seconds": 0.0005870000000000042,
+      "region_seconds": 0.0008755829185247421,
+      "remote_fixture_body_mac_fraction": null,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 0,
+        "inflight": 2,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 1,
+        "provider_cpu_seconds": 2.5166000000000003e-05,
+        "reply_frames": 0,
+        "request_frames": 1,
+        "submitted_frames": 2
+      },
+      "success": false,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 801,
+      "unread_request_bytes": 224,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 43171840,
+      "wire_binding_sha256": "8f88a133557643584263faec5de18e10e1775e6d7479a7a641360d1c7a4fd6b2",
+      "wire_parts": {
+        "client_rx": {
+          "body": 0,
+          "header": 0
+        },
+        "client_tx": {
+          "body": 448,
+          "header": 146
+        },
+        "server_rx": {
+          "body": 224,
+          "header": 146
+        },
+        "server_tx": {
+          "body": 728,
+          "header": 73
+        }
+      },
+      "wire_reconciled": false
+    },
+    {
+      "canceled": false,
+      "client_burned_rows": 0,
+      "client_claimed_rows": 34,
+      "compiler_contract_sha256": "5858f93ff1fac5a1fc4ff48889ce5e4f71a3d4a62400371e1244db9e67ce58db",
+      "cross_stage_upload_reply_write_overlap_seconds": 0.0,
+      "errors": [],
+      "events": [
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0006451243534684181,
+          "sequence": 0,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0006647501140832901,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0006989995017647743,
+          "sequence": 1,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.000710291787981987,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0009638341143727303,
+          "sequence": 0
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0009780414402484894,
+          "sequence": 0
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.001103959046304226,
+          "sequence": 0
+        },
+        {
+          "event": "client_send_start",
+          "row": 0,
+          "seconds": 0.0011768750846385956,
+          "sequence": 2,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0011879587545990944,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0012109996750950813,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0012216251343488693,
+          "sequence": 1
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0013031670823693275,
+          "sequence": 1
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0014229584485292435,
+          "sequence": 2
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0014349166303873062,
+          "sequence": 2
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0015018749982118607,
+          "sequence": 2
+        },
+        {
+          "event": "client_send_start",
+          "row": 14,
+          "seconds": 0.001569291576743126,
+          "sequence": 3,
+          "stage": "G"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0015801666304469109,
+          "sequence": 3
+        },
+        {
+          "event": "client_send_start",
+          "row": 7,
+          "seconds": 0.0016117086634039879,
+          "sequence": 4,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0016219587996602058,
+          "sequence": 4
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0018123751506209373,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.001821291632950306,
+          "sequence": 3
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0019123749807476997,
+          "sequence": 3
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.0019704168662428856,
+          "sequence": 4
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.001980000175535679,
+          "sequence": 4
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0020387088879942894,
+          "sequence": 4
+        },
+        {
+          "event": "client_send_start",
+          "row": 14,
+          "seconds": 0.0020944997668266296,
+          "sequence": 5,
+          "stage": "D"
+        },
+        {
+          "event": "client_send_end",
+          "seconds": 0.0021041249856352806,
+          "sequence": 5
+        },
+        {
+          "event": "provider_reply_start",
+          "seconds": 0.002293666824698448,
+          "sequence": 5
+        },
+        {
+          "event": "provider_reply_end",
+          "seconds": 0.0023031244054436684,
+          "sequence": 5
+        },
+        {
+          "event": "client_reply_done",
+          "seconds": 0.0023645833134651184,
+          "sequence": 5
+        }
+      ],
+      "exact_bits": true,
+      "frames_expected": 6,
+      "generated_provider_weight_bytes": 312,
+      "geometry": {
+        "chunk": 16,
+        "depth": 2,
+        "frame_cap": 16777216,
+        "frame_overhead": 1024,
+        "hidden": 8,
+        "input_bits": 32,
+        "intermediate": 13,
+        "output_bits": 32,
+        "rows": 17,
+        "tile": 7
+      },
+      "header_bytes_per_frame": 73,
+      "ledger": {
+        "client_rx": 2750,
+        "client_tx": 1866,
+        "server_rx": 1866,
+        "server_tx": 2750
+      },
+      "mode": "conveyor",
+      "output_sha256": "003e7fc344179c630f9f87d73084ad7c0c3120b5da9a87f0471d4cbaf985f67f",
+      "pacer": null,
+      "provider_burned_rows": 0,
+      "provider_claimed_rows": 34,
+      "region_nonprovider_cpu_seconds": 0.0017574579999999921,
+      "region_process_cpu_seconds": 0.001906999999999992,
+      "region_seconds": 0.0026287920773029327,
+      "remote_fixture_body_mac_fraction": 1.0,
+      "reply_body_bytes_expected": 2312,
+      "request_body_bytes_expected": 1428,
+      "retained_oracle_output_bytes": 544,
+      "retained_source_output_residual_bytes": 1632,
+      "scalar_integer_oracle": true,
+      "scope": "generated plaintext single-process loopback TCP operator fixture",
+      "sdk_remote_body_mac_fraction": null,
+      "session_replay_rejected": true,
+      "state": {
+        "canceled": false,
+        "completed_stages": 6,
+        "inflight": 0,
+        "peak_frame_credits": 2,
+        "peak_request_queue": 1,
+        "peak_retained_gate_product_bytes": 1456,
+        "peak_tile_owners": 2,
+        "provider_calls": 6,
+        "provider_cpu_seconds": 0.00014954199999999996,
+        "reply_frames": 6,
+        "request_frames": 6,
+        "submitted_frames": 6
+      },
+      "success": true,
+      "terminal_product_owners": 0,
+      "timing_privacy": "unpadded plaintext fixture; not private deployment",
+      "unknown_owners": [
+        "SDK KV/state and other operators",
+        "real correlations/corrections/inventory",
+        "real checkpoint and preparation",
+        "separate process topology and relay",
+        "kernel socket buffers / IP ACKs and retransmissions"
+      ],
+      "unread_reply_bytes": 0,
+      "unread_request_bytes": 0,
+      "weakref_retirement": true,
+      "whole_client_admitted": false,
+      "whole_fixture_peak_rss_bytes": 51494912,
+      "wire_binding_sha256": "0ee5dd0d63bd486d3db7c3b3c358c971747f936271eadbe5d718c19d3e554817",
+      "wire_parts": {
+        "client_rx": {
+          "body": 2312,
+          "header": 438
+        },
+        "client_tx": {
+          "body": 1428,
+          "header": 438
+        },
+        "server_rx": {
+          "body": 1428,
+          "header": 438
+        },
+        "server_tx": {
+          "body": 2312,
+          "header": 438
+        }
+      },
+      "wire_reconciled": true
+    }
+  ],
+  "measured_cohort": false,
+  "schema": "pllm.mlp_conveyor_transport.v1",
+  "serving_claim": false,
+  "source_sha256": {
+    "crates/pllm-compiler/src/mlp_tiling.rs": "77f876b0407b809af69baee5d753a51366025b9f64568fa4c356281bdb0b072a",
+    "python/pllm/runtime/native_wan.py": "08cb749dd1f38f5c96d932861c0e97621f169504297c1d4adffa9caa8e6b418b",
+    "scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+    "scripts/probe_mlp_conveyor.py": "bb59d3175337ed379fe8ab1be5ea84f50afafe6a9eff0eff89c3b96f8d7341fb",
+    "scripts/probe_mlp_conveyor_transport.py": "63ae0b531f7dafa542e196c97e20911d9691f8f7b66a0e4549e63e184821ace3",
+    "tests/test_mlp_conveyor_transport.py": "63989639621d3265bfc03cd176138ec8a4995f157872cd6c2f5362f5d0c1ffdf"
+  },
+  "tiny_compiler_eligibility": {
+    "contract": {
+      "composition_digest": "71c57d7048639edcbeda4fdb49b0c6886b8f59e17ddef10e9b67aa06c43c3902",
+      "regions": [
+        {
+          "end_step": 25,
+          "first_step": 21,
+          "hidden_width": 8,
+          "input_id": "layer.0.post_norm",
+          "intermediate_width": 13,
+          "layer": 0,
+          "operation_ids": [
+            "layer.0.gate_proj",
+            "layer.0.up_proj",
+            "layer.0.silu",
+            "layer.0.gated_multiply",
+            "layer.0.down_proj"
+          ],
+          "output_id": "layer.0.down_proj"
+        }
+      ],
+      "schema": "pllm.client_mlp_tiling.v1",
+      "source_plan_digest": "b294c2bb843818b17bab723e05c5b205cbaeb00e8a505cfec62778e9440327db",
+      "source_schedule_digest": "cb0b64382f005c3d4640826cf10c1088f9c9b96e25639fe8a2d021d80f5f9e76",
+      "tile_rows": 7
+    },
+    "scope": "generated public region eligibility only; fixture arithmetic is not SDK numeric",
+    "sha256": "5858f93ff1fac5a1fc4ff48889ce5e4f71a3d4a62400371e1244db9e67ce58db"
+  }
+}

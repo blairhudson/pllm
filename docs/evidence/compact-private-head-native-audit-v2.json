@@ -1,0 +1,39 @@
+{
+  "auditor_sha256": "1f5290782a1a1844d513b742636829d89f6b156fd0e743d5a9fe1b1c28561d21",
+  "baseline_payload_bytes_both": 949600,
+  "certificate_sha256": "449e7d88f4f52ccc97bfb7e923679ec7c96bd4906b39fc178f7db80de69cd8c0",
+  "checked_integer_outputs": 759680,
+  "cold_net_saved_bytes_estimate": 597562,
+  "fixture": "zero, positive/negative/alternating endpoints, public-seed random per-row values",
+  "framed_saved_bytes_both_per_head_estimate": 78812,
+  "native_build": {
+    "expected_digest": "58c8ac5cac66e6b918678d77efff0bf6b30dbee47f402e7967e334b1b0ae3fa0",
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python"
+  },
+  "output_sha256": [
+    "be9509bd0b15da645773c7b001eb5fa963acfd7f0393f02d0d3ccc4ef4b252ef",
+    "6a0cc30f1aac4813bc1090eb48badd2ed530b122fc39e936f789f24249405428",
+    "a5116c50b64e48b65f48f279373be8a8d02cd2e5ce82eaa2a617e00375fa423c",
+    "151598b7768aa5ea121048518c95468c0f2c62fd33906b2ac8a6ba886668cc2c",
+    "f1bd1ca62206e9608bbd5a8c413cc698d3b543ebd892da263df22ad8b5bbe525"
+  ],
+  "payload_bytes_both": 870724,
+  "payload_reduction_percent": 8.306234203875317,
+  "scan_sha256": "5b482e1b96ab73a4cae02f856f082e910e3d6c7debfebd4338f29c7f5d769126",
+  "schema": "pllm.compact-private-head-native-audit.v1",
+  "scope": "source-bound per-row domain codec checks; no full decoder, protocol, measured latency or RSS",
+  "source_pin": {
+    "activation_quantizer": "symmetric-per-row-i8-qmax127-v1",
+    "checkpoint_sha256": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "descriptor_sha256": "919ddaad8c1d864f5380374f96abfab915930aeb879bc604f5e5550d28e80719",
+    "hidden": 896,
+    "model_config_sha256": "c3f15d3ec0180623ac2f54236c022490dd79bc6a00b5fbc4a1ffd038a43f7668",
+    "qmax": 127,
+    "scales_sha256": "7717b3190c09c2e38eabd11884e4c83a48103089cab01aa9d2d7011d1a9b67e5",
+    "source_lock_sha256": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "vocabulary": 151936,
+    "weight_dtype": "i8",
+    "weight_sha256": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed"
+  },
+  "worker_40Mbps_floor_difference_seconds": 0.0078812
+}

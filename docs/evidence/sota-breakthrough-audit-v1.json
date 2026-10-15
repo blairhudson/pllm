@@ -1,0 +1,127 @@
+{
+  "auditor_sha256": "86a821e1010cc979e9c12d98b178be683287e11a4a0eb5a60e4dde159cc7e5f0",
+  "conveyor": {
+    "cases": [
+      {
+        "directed_bytes": 9833320,
+        "frames": 20,
+        "mode": "serial",
+        "narrow_overlap_seconds": 0.0,
+        "rows": 150
+      },
+      {
+        "directed_bytes": 9833320,
+        "frames": 20,
+        "mode": "conveyor",
+        "narrow_overlap_seconds": 0.0,
+        "rows": 150
+      },
+      {
+        "directed_bytes": 9833320,
+        "frames": 20,
+        "mode": "full",
+        "narrow_overlap_seconds": 0.0,
+        "rows": 150
+      },
+      {
+        "directed_bytes": 18879624,
+        "frames": 36,
+        "mode": "serial",
+        "narrow_overlap_seconds": 0.0,
+        "rows": 288
+      },
+      {
+        "directed_bytes": 18879624,
+        "frames": 36,
+        "mode": "conveyor",
+        "narrow_overlap_seconds": 0.0,
+        "rows": 288
+      },
+      {
+        "directed_bytes": 18879624,
+        "frames": 36,
+        "mode": "full",
+        "narrow_overlap_seconds": 0.0,
+        "rows": 288
+      }
+    ],
+    "initial_swap_used_bytes": 3450929152,
+    "maximum_swap_growth_bytes": 0,
+    "original_v1": "Retained/hash-bound only; original pre-repair driver is not the v2 archived source.",
+    "scope": "Six fixed-order single observations; v2 owner/counter/hash replay, no numerical kernel rerun or speedup inference."
+  },
+  "correlation": {
+    "checked_outputs": 84,
+    "normalized_reproduction": true,
+    "production_crypto_implemented": false,
+    "scope": "No cheap-client construction admitted. Zero correction can hide inputs but does not remove masked-image production cost."
+  },
+  "head": {
+    "checked_integer_outputs": 759680,
+    "cold_net_saved_bytes_estimate": 597562,
+    "native_replayed": true,
+    "payload_bytes_both": 870724,
+    "saved_framed_bytes_per_head_estimate": 78812,
+    "scope": "source-bound per-row domain codec checks; no full decoder, protocol, measured latency or RSS"
+  },
+  "memory_tier_qualified": false,
+  "pilot": {
+    "dependency_caveat": "Numeric helper hash first observed after launch; unchanged through completion, not a prelaunch freeze.",
+    "parameters": 264,
+    "refit_exact": true,
+    "scope": "Original frozen manifest rows/teacher losses; corpus bytes, logits/KV and causal target execution not rerun.",
+    "splits": {
+      "dev": {
+        "arithmetic_ratio": 0.7949608676508909,
+        "fallbacks": 0,
+        "final_projected_bytes": 1358905344,
+        "full_projected_bytes": 1709399040,
+        "learned_adds_value_over_lexical": true,
+        "qa_correct": 2,
+        "qa_count": 2,
+        "screen_pass": true
+      },
+      "heldout": {
+        "arithmetic_ratio": 1.3239161532959554,
+        "fallbacks": 3,
+        "final_projected_bytes": 3525417984,
+        "full_projected_bytes": 2662871040,
+        "learned_adds_value_over_lexical": true,
+        "qa_correct": 1,
+        "qa_count": 4,
+        "screen_pass": false
+      }
+    }
+  },
+  "pilot_log": {
+    "sha256": null,
+    "status": "not_archived"
+  },
+  "report_sha256": {
+    "checkpoint-tiny-model-attempt-status-v1.json": "b41c78b6dcb2bf9d19417e17a88cf200c1f7b16570459c908c367ca0391c6f55",
+    "checkpoint-tiny-model-pilot-manifest-v1.json": "740ca7839ba611223c7f9a5f784628a7f8f4bd765b8901df321ceb7006cfae0b",
+    "checkpoint-tiny-model-qwen25-helper-v1.json": "29392cbbf430f5a072586cdd68cf414ea915c0fd4055a81e396231037c6a051e",
+    "checkpoint-tiny-model-qwen25-pilot-v1.json": "f431bf5b83c06ca65ee446ec7e709f020b0e457aeac69993b4b5c58587bc3bcd",
+    "compact-private-head-native-audit-v2.json": "bf4e16222f29781530f37df6124080c085b3de677885abc11726f4f8d314d417",
+    "compact-private-head-qwen25-v1.json": "5b482e1b96ab73a4cae02f856f082e910e3d6c7debfebd4338f29c7f5d769126",
+    "fixed-weight-correlation-gate-bounded-v3.json": "4badc4a4327c98bd2b43ec6b8a8dca1511b8aa4b0acc284b0293458b8c396a5c",
+    "mlp-conveyor-transport-qwen150-288-v1.json": "bd7c15d35f0653c7a6a9c7069737da8a50f373d7faf07b3ddca83ea6558a34ba",
+    "mlp-conveyor-transport-qwen150-288-v2.json": "f0d4e0c108261a8ca712f34ff8cd48b8e0d74186e84f91699b3b351f4fe6213e",
+    "mlp-conveyor-transport-tiny-screen-v2.json": "307e6d5c245504e62ea6e8f6e2584c7ec735b81944ea1db81a9492903656d0fc",
+    "mlp-conveyor-transport-tiny-screen.json": "7294ebd461740238f7db63cde94ef19b979f54d59d66725464f40aba7fb2536a"
+  },
+  "schema": "pllm.sota-breakthrough-independent-audit.v1",
+  "serving_qualified": false,
+  "status": "verified_bounded_evidence",
+  "trusted_snapshot_sha256": {
+    "audit_compact_private_head.py": "1f5290782a1a1844d513b742636829d89f6b156fd0e743d5a9fe1b1c28561d21",
+    "checkpoint_tiny_model.py": "3fa854c35e361a0de71bc3690ada7ae390f8e8816e3ac6fb0a1aaa464e130daf",
+    "decoder_probe_support.py": "6b102bd674403a431e898ef1d6d411e74a663f063555e021ac56a1159a8a0d3e",
+    "frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+    "probe_compact_private_head.py": "8078bf03a2ad13a7e6cadd551ec51b4434ab3c9ab859adef54f4def6fc462f20",
+    "probe_fixed_weight_correlation_gate.py": "7d85d4a744198b190590d295701283d99c5520c92883c954d883d600a19d885d",
+    "probe_mlp_conveyor.py": "bb59d3175337ed379fe8ab1be5ea84f50afafe6a9eff0eff89c3b96f8d7341fb",
+    "probe_mlp_conveyor_transport.py": "10ee1a648df45ff40b93286a1981a474eb320c338356abadf7534b0b988122d2",
+    "train_checkpoint_tiny_model.py": "d7e9c076e7df318f020894c9d14f4ead4b3c8ff2b46f3b7148bc5038a268b595"
+  }
+}

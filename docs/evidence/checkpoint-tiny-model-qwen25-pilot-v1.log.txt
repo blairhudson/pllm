@@ -1,0 +1,136 @@
+{
+  "dev": {
+    "full": {
+      "qa_em": 1.0,
+      "qa_count": 2,
+      "qa_correct": 2,
+      "stress_count": 2,
+      "stress_literal_correct": 1,
+      "stress_literal_exact": 0.5,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 1709399040
+    },
+    "head": {
+      "qa_em": 1.0,
+      "qa_count": 2,
+      "qa_correct": 2,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 1358905344
+    },
+    "tail": {
+      "qa_em": 0.0,
+      "qa_count": 2,
+      "qa_correct": 0,
+      "stress_count": 2,
+      "stress_literal_correct": 0,
+      "stress_literal_exact": 0.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 1236068352
+    },
+    "lexical": {
+      "qa_em": 1.0,
+      "qa_count": 2,
+      "qa_correct": 2,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 1384187904
+    },
+    "learned": {
+      "qa_em": 1.0,
+      "qa_count": 2,
+      "qa_correct": 2,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 1358905344
+    },
+    "learned_then_full": {
+      "qa_em": 1.0,
+      "qa_count": 2,
+      "qa_correct": 2,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 1358905344
+    },
+    "gate": {
+      "arithmetic_ratio": 0.7949608676508909,
+      "screen_pass": true,
+      "learned_adds_value_over_lexical": true
+    }
+  },
+  "heldout": {
+    "full": {
+      "qa_em": 0.25,
+      "qa_count": 4,
+      "qa_correct": 1,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 2662871040
+    },
+    "head": {
+      "qa_em": 0.0,
+      "qa_count": 4,
+      "qa_correct": 0,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 2078069760
+    },
+    "tail": {
+      "qa_em": 0.25,
+      "qa_count": 4,
+      "qa_correct": 1,
+      "stress_count": 2,
+      "stress_literal_correct": 0,
+      "stress_literal_exact": 0.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 1809140736
+    },
+    "lexical": {
+      "qa_em": 0.25,
+      "qa_count": 4,
+      "qa_correct": 1,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 2105607168
+    },
+    "learned": {
+      "qa_em": 0.25,
+      "qa_count": 4,
+      "qa_correct": 1,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 2039872512
+    },
+    "learned_then_full": {
+      "qa_em": 0.25,
+      "qa_count": 4,
+      "qa_correct": 1,
+      "stress_count": 2,
+      "stress_literal_correct": 2,
+      "stress_literal_exact": 1.0,
+      "all_eos": true,
+      "projected_arithmetic_bytes": 3525417984
+    },
+    "gate": {
+      "arithmetic_ratio": 1.3239161532959554,
+      "screen_pass": false,
+      "learned_adds_value_over_lexical": true
+    }
+  }
+}
