@@ -40,7 +40,7 @@ impl Executor {
     pub fn simd(&self) -> bool {
         self.simd
     }
-    fn rows<T: Send, F: Fn(usize, &mut [T]) + Send + Sync>(
+    pub(crate) fn rows<T: Send, F: Fn(usize, &mut [T]) + Send + Sync>(
         &self,
         data: &mut [T],
         width: usize,
@@ -209,6 +209,12 @@ impl Matrix {
             }
         });
         transpose_result(transposed, self.rows, batch)
+    }
+    /// Opt-in single-row ring32 API. Packs four balanced signed-byte limbs per
+    /// call and returns owned output, borrowing the same immutable weights.
+    /// Runtime ARM dotprod dispatch; the executor's SIMD-off mode forces scalar.
+    pub fn wrap32_byte_dot(&self, executor: &Executor, x: &[u32]) -> Result<Vec<u32>, String> {
+        crate::byte_dot::multiply(self, executor, x)
     }
     pub fn wrap64(&self, executor: &Executor, x: &[u64], batch: usize) -> Result<Vec<u64>, String> {
         let size = self.output_size(x.len(), batch)?;

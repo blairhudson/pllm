@@ -530,8 +530,11 @@ test('canonical attribution rejects stale counters, wrong windows, output denomi
 });
 
 test('all metrics sort unknown last in both directions; leaders remain local', () => {
-  const views = specs.flatMap((spec) => adaptedCohorts(spec, read, helpers));
-  assert.equal(views.length, 23);
+  const views = specs.flatMap((spec) => {
+    const result = adaptedCohorts(spec, read, helpers);
+    assert.ok(result.length > 0, `Missing registered cohort: ${spec.id}`);
+    return result;
+  });
   for (const view of views) for (const metric of metrics) {
     const table = sotaTable(view, 'Prepared', [metric]);
     assert.ok(table.leaders[metric.id].every((id) => view.rows.some((row) => row.id === id)));

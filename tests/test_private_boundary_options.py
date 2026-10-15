@@ -27,7 +27,7 @@ def pipeline(**params):
 
 def test_defaults_keep_historical_component_and_pipeline_bytes():
     baseline = pipeline()
-    explicit = pipeline(head_dispatch="serial", head_output_encoding="u32")
+    explicit = pipeline(head_dispatch="serial", head_output_encoding="u32", head_kernel="existing")
     assert PrivateLookupAndFullHead().to_spec() == {
         "component": "pllm/private-lookup-full-head/v1", "params": {}}
     assert explicit.canonical_bytes() == baseline.canonical_bytes()
@@ -36,14 +36,17 @@ def test_defaults_keep_historical_component_and_pipeline_bytes():
 
 @pytest.mark.parametrize("dispatch", ["serial", "parallel"])
 @pytest.mark.parametrize("encoding", ["u32", "uniform_residues"])
-def test_choices_roundtrip_and_admit(dispatch, encoding):
-    selected = pipeline(head_dispatch=dispatch, head_output_encoding=encoding)
+@pytest.mark.parametrize("kernel", ["existing", "byte_dot"])
+def test_choices_roundtrip_and_admit(dispatch, encoding, kernel):
+    selected = pipeline(head_dispatch=dispatch, head_output_encoding=encoding, head_kernel=kernel)
     boundary = selected.components["boundary"]
     expected = {}
     if dispatch != "serial":
         expected["head_dispatch"] = dispatch
     if encoding != "u32":
         expected["head_output_encoding"] = encoding
+    if kernel != "existing":
+        expected["head_kernel"] = kernel
     assert dict(boundary.params) == expected
     assert create_component(boundary.component, expected) == boundary
     restored = Pipeline.from_spec(selected.to_spec())
@@ -56,6 +59,7 @@ def test_choices_roundtrip_and_admit(dispatch, encoding):
     {"head_dispatch": "striped"}, {"head_dispatch": True}, {"head_dispatch": None},
     {"head_output_encoding": "row_residues"}, {"head_output_encoding": 32},
     {"head_output_encoding": []}, {"unknown": "parallel"},
+    {"head_kernel": "sdot"}, {"head_kernel": True}, {"head_kernel": None},
 ])
 def test_invalid_choices_fail_closed(params):
     with pytest.raises((ConfigurationError, TypeError)):
@@ -73,6 +77,8 @@ def test_invalid_choices_fail_closed(params):
 @pytest.mark.parametrize("params", [
     {}, {"head_dispatch": "parallel"}, {"head_output_encoding": "uniform_residues"},
     {"head_dispatch": "parallel", "head_output_encoding": "uniform_residues"},
+    {"head_kernel": "byte_dot"},
+    {"head_dispatch": "parallel", "head_output_encoding": "uniform_residues", "head_kernel": "byte_dot"},
 ])
 def test_native_contract_choices_require_independent_selection(boundary_plan, params):
     plan, document, contract = boundary_plan
@@ -105,30 +111,32 @@ def test_delivery_choices_do_not_change_state_numeric_identity():
             _bundle=SimpleNamespace(privacy={}))
         return _state_numeric_contract(binding)
     assert numeric(pipeline()) == numeric(pipeline(
-        head_dispatch="parallel", head_output_encoding="uniform_residues"))
+        head_dispatch="parallel", head_output_encoding="uniform_residues", head_kernel="byte_dot"))
 
 
 @pytest.mark.parametrize("params", [{}, {
-    "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}])
+    "head_dispatch": "parallel", "head_output_encoding": "uniform_residues", "head_kernel": "byte_dot"}])
 def test_client_descriptor_ignores_untrusted_bundle_choices(boundary_plan, monkeypatch, params):
     binding, contract = source_binding(boundary_plan)
     contract.update(params)
     binding._bundle.privacy["private_boundary"].update(
-        head_dispatch="forged", head_output_encoding="forged")
+        head_dispatch="forged", head_output_encoding="forged", head_kernel="forged")
     monkeypatch.setattr(CompiledRuntimeModel, "_validated_schedule",
                         lambda self: {"private_boundary": contract})
     descriptor = binding.private_boundary_descriptor()
     assert descriptor.head_dispatch == params.get("head_dispatch", "serial")
     assert descriptor.head_output_encoding == params.get("head_output_encoding", "u32")
+    assert descriptor.head_kernel == params.get("head_kernel", "existing")
 
 
 @pytest.mark.parametrize("dispatch,encoding", [
     ("serial", "u32"), ("parallel", "u32"),
     ("serial", "uniform_residues"), ("parallel", "uniform_residues"),
 ])
+@pytest.mark.parametrize("kernel", ["existing", "byte_dot"])
 def test_loader_derives_choices_only_after_exact_native_comparison(
-        experiment, imported_boundary, dispatch, encoding):
-    params = dict(PrivateLookupAndFullHead(dispatch, encoding).params)
+        experiment, imported_boundary, dispatch, encoding, kernel):
+    params = dict(PrivateLookupAndFullHead(dispatch, encoding, head_kernel=kernel).params)
     spec = experiment.to_spec()
     spec["pipeline"]["components"]["boundary"]["params"] = params
     selected = type(experiment).from_spec(spec)
@@ -140,8 +148,11 @@ def test_loader_derives_choices_only_after_exact_native_comparison(
     schedule.to_dict = lambda: document
     descriptor, _ = build_private_boundary_contract(imported_boundary, selected)
     assert (descriptor.head_dispatch, descriptor.head_output_encoding) == (dispatch, encoding)
+    assert descriptor.head_kernel == kernel
     assert BoundaryDescriptor.from_dict(descriptor.to_dict()) == descriptor
-    forged = {**document["private_boundary"], "head_dispatch": "parallel" if dispatch == "serial" else "serial"}
-    document["private_boundary"] = forged
-    with pytest.raises(BoundaryError, match="contract differs"):
-        build_private_boundary_contract(imported_boundary, selected)
+    trusted = document["private_boundary"]
+    for key, value in (("head_dispatch", "parallel" if dispatch == "serial" else "serial"),
+                       ("head_kernel", "byte_dot" if kernel == "existing" else "existing")):
+        document["private_boundary"] = {**trusted, key: value}
+        with pytest.raises(BoundaryError, match="contract differs"):
+            build_private_boundary_contract(imported_boundary, selected)

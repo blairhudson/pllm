@@ -162,16 +162,19 @@ class PrivateLookupAndFullHead(BoundaryPlacement):
         parameter_schema={"type": "object", "additionalProperties": False, "properties": {
             "head_dispatch": {"type": "string", "enum": ["serial", "parallel"]},
             "head_output_encoding": {"type": "string", "enum": ["u32", "uniform_residues"]},
+            "head_kernel": {"type": "string", "enum": ["existing", "byte_dot"]},
         }},
         capabilities=("private-packed128-token-lookup", "two-party-full-vocabulary-head"),
         role_eligibility=("client", "boundary_a", "boundary_b"),
     )
 
-    def __init__(self, head_dispatch: str = "serial", head_output_encoding: str = "u32") -> None:
+    def __init__(self, head_dispatch: str = "serial", head_output_encoding: str = "u32",
+                 *, head_kernel: str = "existing") -> None:
         params = {}
         for name, value, default, allowed in (
             ("head_dispatch", head_dispatch, "serial", ("serial", "parallel")),
             ("head_output_encoding", head_output_encoding, "u32", ("u32", "uniform_residues")),
+            ("head_kernel", head_kernel, "existing", ("existing", "byte_dot")),
         ):
             if type(value) is not str or value not in allowed:
                 raise ConfigurationError(f"{name} must be one of {allowed}")

@@ -96,9 +96,20 @@ def boundary_workers(engine, compiled, admission):
 @pytest.mark.parametrize("reduction", [None, "prefix_f32"])
 @pytest.mark.parametrize("boundary_options", [{}, {"head_dispatch": "parallel"},
     {"head_output_encoding": "uniform_residues"},
-    {"head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}],
-    ids=["serial-u32", "parallel-u32", "serial-residues", "parallel-residues"])
-def test_full_logits_kv_tokens_rng_and_repeated_feedback(tmp_path, family, reduction, boundary_options):
+    {"head_dispatch": "parallel", "head_output_encoding": "uniform_residues"},
+    {"head_kernel": "byte_dot"},
+    {"head_kernel": "byte_dot", "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}],
+    ids=["serial-u32", "parallel-u32", "serial-residues", "parallel-residues", "byte-dot", "byte-dot-parallel-residues"])
+def test_full_logits_kv_tokens_rng_and_repeated_feedback(tmp_path, family, reduction, boundary_options, monkeypatch):
+    from pllm.runtime.native import CompiledMatrix
+    integer_outputs = []
+    native_byte_dot = CompiledMatrix.wrap32_byte_dot
+    def checked_byte_dot(matrix, share):
+        result = native_byte_dot(matrix, share)
+        np.testing.assert_array_equal(result, matrix.wrap32(share))
+        integer_outputs.append(result.copy())
+        return result
+    monkeypatch.setattr(CompiledMatrix, "wrap32_byte_dot", checked_byte_dot)
     engine, original, document, plan, composition = generated_boundary(tmp_path, family, reduction,
         boundary_options=boundary_options)
     if not hasattr(_native.PrivatePageServer, "bind_context"):
@@ -130,6 +141,7 @@ def test_full_logits_kv_tokens_rng_and_repeated_feedback(tmp_path, family, reduc
                     logits = candidate.forward_ids([token])[-1]
             traces.append(phases)
         assert traces[0] == traces[1]
+        assert len(integer_outputs) == (8 if boundary_options.get("head_kernel") == "byte_dot" else 0)
         assert boundary.operation_counters["lookup"]["rows"] == 8
         assert boundary.operation_counters["head"]["rows"] == 4
         assert runtime.token_cache == {}  # Repetition and generated feedback never deduplicate.

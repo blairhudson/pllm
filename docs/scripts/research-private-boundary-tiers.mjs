@@ -299,17 +299,18 @@ function confirmationBodies(report, values, boundary, early, chunk, helpers) {
     bound: 8 * (Math.ceil(rows / chunk) + p.inference_stage_calls - 1) };
 }
 
-function confirmationMeasurements(result) {
+function confirmationMeasurements(result, strict = false) {
   const e = result.execution, report = e.details.report, run = report.runs[0], d = run.durations;
   const output = run.tokens.output_tokens, records = new Map(result.metrics.map((m) => [m.id, m]));
+  const checked = new Set();
   const kinds = { seconds: ['pllm/latency', 'seconds'], cpu: ['pllm/cpu-time/v1', 'seconds'],
     memory: ['pllm/memory', 'bytes'], bytes: ['pllm/communication', 'bytes'], throughput: ['pllm/throughput', 'per_second'] };
   const add = (id, value, { kind = 'seconds', role = 'client', window = 'execution', scope = 'target',
-    statistic = 'median', phase = 'full', denominator = null } = {}) => {
+    statistic = 'median', phase = 'full', denominator = null, unitDetail = null } = {}) => {
     const [component, unit] = kinds[kind];
     const parameters = { seconds: { statistic, phase }, cpu: {}, memory: { kind: 'peak_rss' },
       bytes: { direction: 'total', phase }, throughput: { basis: 'tokens' } }[kind];
-    const expected = { id, component, parameters, unit, unit_detail: kind === 'throughput' ? 'tokens_per_second' : null,
+    const expected = { id, component, parameters, unit, unit_detail: kind === 'throughput' ? 'tokens_per_second' : unitDetail,
       statistic, phase, role, origin: value === null ? 'not_available' : 'measured',
       unavailable_reason: value === null ? 'measurement unavailable' : null, sample_count: value === null ? 0 : 1,
       window, measurement_scope: scope, denominator, owners: [role] };
@@ -318,6 +319,7 @@ function confirmationMeasurements(result) {
     const { value: observed, ...metadata } = actual;
     same(metadata, expected, `Confirmation explicit measurement contract changed: ${id}`);
     equalNumbers(observed, value, `Confirmation metric differs from raw observation: ${id}`);
+    checked.add(id);
   };
   const wall = e.details.timings.wall_seconds;
   check(wall.length === 1 && Number.isFinite(wall[0]) && wall[0] >= 0, 'Confirmation raw target sample missing');
@@ -353,35 +355,182 @@ function confirmationMeasurements(result) {
   // scenario/child RSS. Validate its explicit owner/window; keep max-rep gating.
   add('process.peak_rss', records.get('process.peak_rss').value,
     { kind: 'memory', window: 'process_birth_through_target', scope: 'process_lifetime_high_water' });
+  if (strict) {
+    const targetCpu = e.details.timings.cpu_seconds;
+    check(targetCpu.length === 1 && Number.isFinite(targetCpu[0]) && targetCpu[0] >= 0, 'Byte-dot raw target CPU missing');
+    add('target.cpu', targetCpu[0], { kind: 'cpu' });
+    // Like finalized RSS, process.cpu is itself the finalized worker observation;
+    // no independent cleanup CPU sample exists. Never use it as cold topology CPU.
+    const processCpu = records.get('process.cpu')?.value;
+    check(Number.isFinite(processCpu) && processCpu >= Math.max(cpu.client, targetCpu[0]), 'Byte-dot finalized worker CPU invalid');
+    add('process.cpu', processCpu, { kind: 'cpu', window: 'process_birth_through_target' });
+    add('request.0.preparation', d.preparation_seconds,
+      { phase: 'offline', window: 'request_initial_preparation', scope: 'ordinary_response_initial_setup' });
+    const pauseNs = run.privacy.decode_epoch_pause_ns;
+    check(integer(pauseNs) && run.privacy.decode_epochs_started === 0 && pauseNs === 0, 'Byte-dot unexpected or missing epoch work');
+    const pause = pauseNs / 1e9;
+    for (const id of ['request.0.epoch_pause', 'response.epoch_pause']) add(id, pause,
+      { statistic: 'sum', window: id.startsWith('request.') ? 'request_epoch_pauses' : 'request_windows', scope: 'runtime_idle_epoch_pause' });
+    add('network.startup_body_bytes', report.topology_accounting.startup.all_link_serialized_body_bytes,
+      { kind: 'bytes', role: 'all-links', statistic: 'sum', window: 'ordinary_startup',
+        scope: `covered_application_bodies:${report.topology_accounting.runs[0].body_counter_coverage}` });
+    const traffic = byteDotTraffic(report, e.details.traffic_decomposition);
+    const scope = 'covered_application_bodies:pllm.benchmark_traffic_decomposition.v1';
+    for (const [prefix, window, basis, unitDetail] of [
+      ['network', 'measured_request_windows', traffic.summary, 'bytes_per_requests'],
+      ['network.cold_first_request', 'startup_through_first_response', traffic.cold_first_request, 'bytes_per_request'],
+    ]) {
+      add(`${prefix}.base_body_bytes_per_request`, basis.base_all_link_mb_per_request === null ? null : basis.base_all_link_mb_per_request * 1e6,
+        { kind: 'bytes', role: 'all-links', statistic: 'measurement', window, scope, unitDetail,
+          denominator: { unit: 'requests', value: 1 } });
+      add(`${prefix}.output_dependent_body_bytes_per_generated_token`, basis.incremental_all_link_mb_per_generated_output === null
+        ? null : basis.incremental_all_link_mb_per_generated_output * 1e6,
+      { kind: 'bytes', role: 'all-links', statistic: 'measurement', window, scope,
+        unitDetail: prefix === 'network' ? 'bytes_per_generated_tokens' : 'bytes_per_generated_token',
+        denominator: { unit: 'generated_tokens', value: output } });
+    }
+    add('network.unattributed_body_bytes', traffic.covered_lifecycle.unattributed_all_link_body_bytes,
+      { kind: 'bytes', role: 'all-links', statistic: 'sum', window: 'setup_through_scenario', scope });
+    same([...checked].sort(), [...records.keys()].sort(), 'Byte-dot missing or unknown metric contract');
+  }
+}
+
+const byteDotRoles = ['client', 'inference', 'preparation', 'boundary_a', 'boundary_b'];
+function byteDotColdCpu(report) {
+  const record = report.process_cpu_accounting, cpu = record.cold_first_response_cpu_seconds_by_role;
+  check(record.schema === 'pllm.topology_process_cpu.v1', 'Byte-dot CPU schema changed');
+  same(Object.keys(cpu).sort(), [...byteDotRoles].sort(), 'Byte-dot cold CPU owner missing');
+  check(Object.values(cpu).every((value) => Number.isFinite(value) && value >= 0), 'Byte-dot invalid cold CPU');
+  const total = Object.values(cpu).reduce((sum, value) => sum + value, 0);
+  equalNumbers(record.aggregate_cold_first_response_cpu_seconds, total, 'Byte-dot cold CPU sum differs');
+  return record.aggregate_cold_first_response_cpu_seconds;
+}
+
+function checkByteDotRecipe(experiment, suite, report, execution) {
+  const baseline = suite.cases[0].target.parameters.model.experiment;
+  const { boundary, ...components } = experiment.pipeline.components;
+  const { boundary: ignored, ...baselineComponents } = baseline.pipeline.components;
+  same(components, baselineComponents, 'Byte-dot non-kernel components changed');
+  same({ ...experiment, pipeline: { ...experiment.pipeline, components: {} } },
+    { ...baseline, pipeline: { ...baseline.pipeline, components: {} } }, 'Byte-dot non-kernel experiment changed');
+  same(components.topology, { component: 'pllm/prepared-body-two-online-boundary/v1', params: {} }, 'Byte-dot topology changed');
+  same([...report.configuration.roles].sort(), [...byteDotRoles].sort(), 'Byte-dot five-role topology changed');
+  check(components.kernels.component === 'pllm/cpu' && components.kernels.params.threads === 1 &&
+    components.quantization.params.weight_bits === 8 && components.quantization.params.activation_bits === 8 &&
+    execution.fixture.metadata.cached_checkpoint === true, 'Byte-dot source-present native W8A8 contract changed');
+  check(report.experiment.pipeline_digest === hash('pllm.pipeline.v2\0' + canonical(experiment.pipeline)), 'Byte-dot executed pipeline hash differs');
+  const numeric = Object.fromEntries(Object.entries(experiment.pipeline.components).filter(([key]) =>
+    ['quantization', 'nonlinear', 'scheduler'].includes(key)));
+  check(numeric.scheduler === undefined, 'Byte-dot unexpected numeric scheduler');
+  const run = report.runs[0], comparison = execution.comparison;
+  same(comparison.numeric_digest, sdkDigest({ bodies: [run.model_fingerprint], contract: numeric }), 'Byte-dot numeric commitment changed');
+  same(comparison.state_digest, sdkDigest({ lifecycle: execution.case.target.parameters.scenario }), 'Byte-dot lifecycle commitment changed');
+  same(comparison.output_digest, sdkDigest({ output: sdkDigest([run.generation.output_text_digest]),
+    state: execution.details.response_state_audit.bindings }), 'Byte-dot full output/state commitment changed');
+}
+
+/** Rebuild the partial body split from raw phase counters, not cached metrics. */
+function byteDotTraffic(report, detail) {
+  const traffic = report.traffic_decomposition;
+  same(detail, traffic, 'Byte-dot traffic decomposition copies differ');
+  check(traffic.schema === 'pllm.benchmark_traffic_decomposition.v1' && traffic.windows_aligned === true &&
+    traffic.physical_wire_bytes === null && traffic.tcp_stream_bytes === null && traffic.warmups.length === 0 &&
+    traffic.runs.length === 1 && traffic.repeat_requests.length === 0, 'Byte-dot traffic windows changed');
+  const windows = [traffic.startup, traffic.runs[0]], ledgers = [report.topology_accounting.startup, report.topology_accounting.runs[0]];
+  let base = 0, dependent = 0, residual = 0, total = 0;
+  for (const [index, window] of windows.entries()) {
+    const p = index === 0 ? ledgers[0].traffic_attribution.audit_counters : report.runs[0].privacy;
+    const attribution = window.attribution;
+    same(attribution, ledgers[index].traffic_attribution, 'Byte-dot phase attribution differs from ledger');
+    check(Object.entries(attribution.audit_counters).every(([key, value]) => value === p[key]), 'Byte-dot phase counter snapshot differs');
+    const boundary = ['boundary_a', 'boundary_b'].flatMap((role) => ['setup', 'teardown'].flatMap((phase) =>
+      ['upload', 'download'].map((direction) => p[`role_link.${role}.${phase}_${direction}_bytes`]))).reduce((a, b) => a + b, 0);
+    const freshBase = p.bundle_network_bytes + p.session_authorization_upload_bytes + p.session_authorization_download_bytes +
+      p.preparation_prefill_material_body_bytes + (p.generation_prefill_online_body_bytes ?? 0) + boundary;
+    const freshDependent = p.preparation_decode_material_body_bytes + (p.generation_decode_online_body_bytes ?? 0);
+    const freshTotal = ledgers[index].all_link_serialized_body_bytes, freshResidual = freshTotal - freshBase - freshDependent;
+    check([freshBase, freshDependent, freshResidual].every(integer), 'Byte-dot phase material conservation failed');
+    for (const row of [window, attribution]) {
+      same(select(row, ['known_base_all_link_body_bytes', 'known_output_dependent_all_link_body_bytes',
+        'unattributed_all_link_body_bytes', 'total_all_link_body_bytes']), {
+        known_base_all_link_body_bytes: freshBase, known_output_dependent_all_link_body_bytes: freshDependent,
+        unattributed_all_link_body_bytes: freshResidual, total_all_link_body_bytes: freshTotal }, 'Byte-dot raw phase split differs');
+    }
+    base += freshBase; dependent += freshDependent; residual += freshResidual; total += freshTotal;
+  }
+  // This source contract deliberately keeps mixed-envelope residual unallocated.
+  for (const row of [traffic.cold_first_request, traffic.covered_lifecycle]) {
+    same(select(row, ['known_base_all_link_body_bytes', 'known_output_dependent_all_link_body_bytes',
+      'unattributed_all_link_body_bytes', 'total_all_link_body_bytes']), {
+      known_base_all_link_body_bytes: base, known_output_dependent_all_link_body_bytes: dependent,
+      unattributed_all_link_body_bytes: residual, total_all_link_body_bytes: total }, 'Byte-dot lifecycle phase conservation failed');
+  }
+  for (const row of [traffic.summary, traffic.cold_first_request]) check(row.base_all_link_mb_per_request === null &&
+    row.incremental_all_link_mb_per_generated_output === null, 'Byte-dot partial attribution became a headline');
+  return traffic;
 }
 
 /** New three-arm read-only confirmation adapter; no legacy contract relaxation. */
 export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, read, helpers) {
+  return auditedBoundaryCohorts(spec, document, plan, read, helpers, false);
+}
+
+/** Independent two-arm contract; never rewrite byte-dot inputs as confirmation data. */
+export function privateBoundaryByteDotCohorts(spec, document, plan, read, helpers) {
+  return auditedBoundaryCohorts(spec, document, plan, read, helpers, true);
+}
+
+function auditedBoundaryCohorts(spec, document, plan, read, helpers, byteDot) {
   const summaryRaw = read(spec.summary), summary = JSON.parse(summaryRaw), suite = document.suite;
+  const names = byteDot ? ['parallel-residues-native', 'parallel-residues-byte-dot'] : confirmationNames;
+  const priorities = byteDot ? [...confirmationMetrics, 'topology.cold_cpu'] : confirmationMetrics;
+  const adapter = byteDot ? 'private-boundary-byte-dot-v1' : 'private-boundary-decode-confirmation-v1';
+  const schema = byteDot ? 'pllm.private_boundary_byte_dot' : 'pllm.private_boundary_decode_confirmation';
   const cap = summary.output_cap;
-  check(spec.adapter === 'private-boundary-decode-confirmation-v1' && hash(summaryRaw) === spec.summary_sha256 &&
-    plan.schema === 'pllm.private_boundary_decode_confirmation_plan.v1' && plan.tiny === false &&
-    summary.schema === 'pllm.private_boundary_decode_confirmation.v1' && summary.tiny === false &&
+  check(spec.adapter === adapter && hash(summaryRaw) === spec.summary_sha256 &&
+    plan.schema === `${schema}_plan.v1` && plan.tiny === false &&
+    summary.schema === `${schema}.v1` && summary.tiny === false &&
     summary.complete === true && summary.all_logits_active_kv_positions_selections_rng_and_outputs_match === true &&
-    summary.cohort === document.cohort && digest(document.cohort) && [8, 32, 64].includes(cap) && plan.output_cap === cap &&
-    document.schema === 'pllm.benchmark_run.v1' && document.complete === true && document.results.length === 9 &&
-    summary.clients === 9 && summary.replicates === 3, 'Incomplete confirmation schema/cohort');
+    summary.cohort === document.cohort && digest(document.cohort) && (byteDot
+      ? cap === 8 && (plan.output_cap === undefined || plan.output_cap === 8)
+      : [8, 32, 64].includes(cap) && plan.output_cap === cap) &&
+    document.schema === 'pllm.benchmark_run.v1' && document.complete === true && document.results.length === names.length * 3 &&
+    summary.clients === names.length * 3 && summary.replicates === 3, 'Incomplete confirmation schema/cohort');
   same(suite, plan.suite, 'Confirmation frozen suite changed');
-  same(suite.cases.map(({ name }) => name), confirmationNames, 'Confirmation case membership changed');
+  same(suite.cases.map(({ name }) => name), names, 'Confirmation case membership changed');
   same(suite.sampling, { processes: 3, order: 'balanced', threads: 1, repetitions: 1, warmups: 0,
     timeout_seconds: 3600, memory_bytes: 8 * 2 ** 30 }, 'Confirmation sampling changed');
-  check(suite.schema === 'pllm.benchmark_suite.v1' && suite.name === 'private-boundary-decode-confirmation-v1' &&
-    plan.preflight.length === 3 && plan.preflight.every((row) => row.admission.admitted === true), 'Confirmation admission incomplete');
+  check(suite.schema === 'pllm.benchmark_suite.v1' && suite.name === adapter &&
+    plan.preflight.length === names.length && plan.preflight.every((row) => row.admission.admitted === true), 'Confirmation admission incomplete');
   same(plan.public_input_counts, { '150': 150 }, 'Confirmation public prompt bound changed');
-  same(plan.preflight.map(({ case: name }) => name), confirmationNames, 'Confirmation preflight cells changed');
-  same(Object.keys(summary.groups).sort(), [...confirmationNames].sort(), 'Confirmation summary groups changed');
+  same(plan.preflight.map(({ case: name }) => name), names, 'Confirmation preflight cells changed');
+  same(Object.keys(summary.groups).sort(), [...names].sort(), 'Confirmation summary groups changed');
   check(plan.frozen_sources && Object.values(plan.frozen_sources).every(digest), 'Confirmation frozen source hashes missing');
   // One explicitly registered historical exception; never discover snapshots,
   // rewrite plan paths, or fall back from a mismatching live helper implicitly.
-  const factoryPath = 'benchmarks/research/private_boundary_decode_confirmation.py';
+  const factoryPath = byteDot ? 'benchmarks/research/private_boundary_byte_dot.py' : 'benchmarks/research/private_boundary_decode_confirmation.py';
   const snapshotPath = 'docs/evidence/private-boundary-confirmation-initial-auditor.py';
   const initialHash = '2720640b8928f044cc65b6f2b361b5d88882202a323de4fe34a28f2fd007772c';
   const snapshots = spec.source_snapshots;
+  if (byteDot) {
+    check(snapshots === undefined && spec.replay_file === 'scripts/benchmark_private_boundary_byte_dot.py',
+      'Byte-dot has no registered historical source snapshot exception');
+    for (const [path, expected] of [[spec.report, spec.sha256], [spec.plan, spec.plan_sha256],
+      [spec.replay_file, spec.replay_sha256], [spec.frozen_factory.file, spec.frozen_factory.sha256]]) {
+      check(digest(expected) && hash(read(path)) === expected, 'Byte-dot registered evidence/source hash changed');
+    }
+    for (const file of ['scripts/benchmark_private_boundary_byte_dot.py', factoryPath,
+      'benchmarks/research/private_boundary_decode_confirmation.py', 'benchmarks/research/private_boundary_decode.py',
+      'benchmarks/research/private_boundary_tiers.py', 'benchmarks/research/historical_evidence.py',
+      'benchmarks/research/sota_combinations.py', 'scripts/benchmark_sota_combinations.py',
+      'examples/prepared_sdk.py', 'docs/evidence/private-boundary-qwen-control.json']) {
+      check(Object.entries(plan.frozen_sources).filter(([name, expected]) =>
+        (name === file || name.endsWith(`/${file}`)) && digest(expected)).length === 1, 'Byte-dot required frozen source absent');
+    }
+    for (const file of ['prompt.txt', 'indexed.json']) check(Object.entries(plan.frozen_sources)
+      .filter(([name, expected]) => (name === file || name.endsWith(`/${file}`)) && digest(expected)).length === 1,
+    'Byte-dot source-present public artifact pin absent');
+  }
   const usedSnapshots = new Set();
   if (snapshots !== undefined) {
     check(snapshots !== null && typeof snapshots === 'object' && !Array.isArray(snapshots), 'Confirmation snapshot map invalid');
@@ -416,7 +565,7 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
     check(!path.startsWith('/') && hash(readSource(path)) === expected, 'Confirmation frozen helper changed');
   }
   same([...usedSnapshots], snapshots === undefined ? [] : [factoryPath], 'Confirmation snapshot map has unused entries');
-  const seen = new Set(), groups = new Map(confirmationNames.map((name) => [name, []]));
+  const seen = new Set(), groups = new Map(names.map((name) => [name, []]));
   let common = null, states = null, contracts = null, checkedValues = 0;
   const ownerNames = ['sdk', 'dashboard', 'native_wan_relay', 'audit', 'role_supervision'];
   const sampleContract = { effective_temperature: 0, mode: 'greedy', requested_temperature: 0, top_p: null };
@@ -454,8 +603,10 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
     same(p.wan, { download_mbps: 100, upload_mbps: 40, parties: [], role_parties: [], schema: 'pllm.wan_conditions.v1' }, 'Confirmation WAN caps changed');
     if (name === 'maintained') check(!experiment.pipeline.components.boundary &&
       experiment.pipeline.components.cache.params.fixed_input_tokens === 150, 'Confirmation maintained recipe changed');
-    else same(experiment.pipeline.components.boundary, { component: 'pllm/private-lookup-full-head/v1', params: name === confirmationNames[1]
-      ? {} : { head_dispatch: 'parallel', head_output_encoding: 'uniform_residues' } }, 'Confirmation head algorithm changed');
+    else same(experiment.pipeline.components.boundary, { component: 'pllm/private-lookup-full-head/v1', params: byteDot
+      ? { head_dispatch: 'parallel', head_output_encoding: 'uniform_residues', ...(name === names[1] ? { head_kernel: 'byte_dot' } : {}) }
+      : name === names[1] ? {} : { head_dispatch: 'parallel', head_output_encoding: 'uniform_residues' } }, 'Confirmation head algorithm changed');
+    if (byteDot) checkByteDotRecipe(experiment, suite, report, e);
     check(selected.target.kind === 'response' && p.backend === 'native' && p.state_audit === true && p.scenario.kind === 'cold' &&
       p.scenario.count === 1 && p.scenario.max_output_tokens === cap && !p.concurrent_requests &&
       report.schema_version === 'pllm.loopback_benchmark.v1' && report.runs.length === 1 && report.warmup_runs.length === 0 &&
@@ -480,7 +631,7 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
     same(report.configuration.sampling, sampleContract, 'Confirmation configured sampler changed');
     same(run.sampling, sampleContract, 'Confirmation requested sampler changed');
     const output = run.tokens.output_tokens, early = output < cap, selections = binding.selections.length;
-    confirmationMeasurements(result);
+    confirmationMeasurements(result, byteDot);
     check(run.generation.response_status === (early ? 'completed' : 'incomplete') && selections === output + Number(early) &&
       selections <= cap && run.privacy.generation_requested_output_tokens === cap && run.privacy.generation_output_tokens === output &&
       run.privacy.generation_executed_decode_steps === selections - 1, 'Confirmation EOS/output/selection work differs');
@@ -507,11 +658,13 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
       ...select(e.comparison, ['numeric_digest', 'state_digest', 'workload_digest', 'output_digest']) };
     if (common) same(comparison, common, 'Confirmation cross-replicate environment/numeric/state/workload/output changed');
     common = comparison;
+    if (byteDot) check(result.environment.attributes.threads === 1, 'Byte-dot environment thread contract changed');
     if (states) same(audit.bindings, states, 'Confirmation logits/KV/history/RNG mismatch');
     states = audit.bindings;
     const records = new Map(result.metrics.map((metric) => [metric.id, metric]));
     check(records.size === result.metrics.length, 'Confirmation duplicate metric');
     const values = Object.fromEntries([...records].map(([id, metric]) => [id, metric.value]));
+    if (byteDot) values['topology.cold_cpu'] = byteDotColdCpu(report);
     const metricContracts = result.metrics.map(({ value, ...contract }) => {
       const unknown = value === null;
       check(contract.sample_count === Number(!unknown) && contract.origin === (unknown ? 'not_available' : 'measured') &&
@@ -526,10 +679,10 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
     });
     if (contracts) same(metricContracts, contracts, 'Confirmation metric owner/unit/window/denominator differs');
     contracts = metricContracts;
-    for (const id of confirmationMetrics) {
+    for (const id of priorities) {
       check(id === 'response.decode_tps' && output === 1 && values[id] === null ||
         typeof values[id] === 'number' && Number.isFinite(values[id]) && values[id] >= 0, 'Confirmation priority metric missing');
-      check(records.get(id).unit === (id.endsWith('rss') || id.startsWith('network.') ? 'bytes'
+      check(id === 'topology.cold_cpu' || records.get(id).unit === (id.endsWith('rss') || id.startsWith('network.') ? 'bytes'
         : id === 'response.decode_tps' ? 'per_second' : 'seconds'), 'Confirmation priority metric unit changed');
     }
     same(records.get('response.decode_tps').denominator, { unit: 'generated_tokens', value: output - 1 }, 'Confirmation decode denominator changed');
@@ -582,9 +735,9 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
     groups.get(name).push({ result, report, experiment, values, peak, wan, body, work });
   }
   check(checkedValues === summary.checked_values && summary.maximum_observed_swap_growth_bytes === 0 &&
-    summary.state_commitment === hash(canonical(states, true)) && summary.long_output_cap_reached === (summary.identity.tokens.output_tokens === cap),
+    summary.state_commitment === hash(canonical(states, true)) && (byteDot || summary.long_output_cap_reached === (summary.identity.tokens.output_tokens === cap)),
   'Confirmation summary state/swap/EOS totals changed');
-  const rows = confirmationNames.map((name) => {
+  const rows = names.map((name) => {
     const samples = groups.get(name).sort((a, b) => a.result.execution.replicate - b.result.execution.replicate), recorded = summary.groups[name];
     check(samples.length === 3, 'Confirmation replicate missing');
     const first = samples[0];
@@ -598,8 +751,10 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
     }
     same(recorded.samples, samples.map((sample) => sample.values), 'Confirmation cached samples changed');
     same(recorded.executed_work, samples.map((sample) => sample.work), 'Confirmation cached executed work changed');
-    same(Object.keys(recorded.medians).sort(), [...confirmationMetrics].sort(), 'Confirmation median metric set changed');
-    for (const id of confirmationMetrics) same(recorded.medians[id], samples.some((sample) => sample.values[id] === null)
+    if (byteDot) same(recorded.cold_first_cpu_seconds_by_role, samples.map(({ report }) =>
+      report.process_cpu_accounting.cold_first_response_cpu_seconds_by_role), 'Byte-dot cached per-role cold CPU changed');
+    same(Object.keys(recorded.medians).sort(), [...priorities].sort(), 'Confirmation median metric set changed');
+    for (const id of priorities) same(recorded.medians[id], samples.some((sample) => sample.values[id] === null)
       ? null : median(samples.map((sample) => sample.values[id])), 'Confirmation cached median changed');
     const maximum = Math.max(...samples.map((sample) => sample.peak));
     check(recorded.maximum_client_peak_bytes === maximum, 'Confirmation hid whole-worker outlier');
@@ -629,14 +784,18 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
       buildDigest: first.result.execution.build.digest, frozenSources: plan.frozen_sources,
       comparisonCommitments: first.result.execution.comparison, recordedCase: first.result.execution.case, samplingContract: suite.sampling,
       experimentBindings: samples.map(({ result, report }) => ({ replicate: result.execution.replicate, ...report.experiment })),
-      measurementContracts: first.result.metrics.map(({ value, ...contract }) => contract),
+       measurementContracts: first.result.metrics.map(({ value, ...contract }) => contract),
+       ...(byteDot ? { derivedMeasurementContracts: [{ id: 'topology.cold_cpu', unit: 'seconds',
+         owners: [...byteDotRoles], window: 'role_birth_or_client_benchmark_start_through_first_response',
+         measurement_scope: 'sum_of_all_five_role_process_cpu', source: 'process_cpu_accounting.cold_first_response_cpu_seconds_by_role',
+         cleanup_included: false }] } : {}),
       replay: { originalDriver: spec.replay_file, originalDriverSha256: spec.replay_sha256,
         sourceSnapshots: structuredClone(snapshots ?? {}), requiresRegisteredSourceSnapshots: snapshots !== undefined,
         source: spec.report.split('/').at(-1).replace(/\.json$/, ''), case: name,
         callable: 'pllm.metrics.BenchmarkCase.from_spec', argument: 'recordedCase', requiresOriginalBuildAndLifecycle: true },
       scopedTimings: { completeTargetSeconds: recorded.medians['target.latency'] } };
   });
-  const winner = confirmationNames[2], control = confirmationNames[1], reconciled = [];
+  const winner = names.at(-1), control = names[byteDot ? 0 : 1], reconciled = [];
   for (let rep = 0; rep < 3; rep++) {
     const a = groups.get(control)[rep].body, b = groups.get(winner)[rep].body;
     for (const key of ['prepared', 'fixed', 'boundary']) same(a[key], b[key], 'Confirmation fixed boundary-arm work changed');
@@ -646,7 +805,7 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
       for (const edge of Object.keys(a.stages[stage])) if (edge !== 'inference->client') same(a.stages[stage][edge], b.stages[stage][edge], 'Confirmation fixed stage work changed');
       variation += Math.abs(b.stages[stage]['inference->client'] - a.stages[stage]['inference->client']);
     }
-    check(a.bound === b.bound && variation <= a.bound && b.head < a.head, 'Confirmation server_ns bound/head reply changed');
+    check(a.bound === b.bound && variation <= a.bound && (byteDot ? b.head === a.head : b.head < a.head), 'Confirmation server_ns bound/head reply changed');
     const total = b.total - a.total, head = b.head - a.head, controls = b.controls - a.controls, metadata = b.reply - a.reply;
     reconciled.push({ replicate: rep, covered_body_delta_bytes: total, head_reply_delta_bytes: head,
       lifecycle_control_delta_bytes: controls, prepared_stage_reply_delta_bytes: metadata,
@@ -655,9 +814,9 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
   }
   same(summary.body_reconciliation, { [winner]: reconciled }, 'Confirmation cached body savings changed');
   const comparisons = {};
-  for (const name of [control, 'maintained']) {
+  for (const name of byteDot ? [control] : [control, 'maintained']) {
     comparisons[name] = {};
-    for (const id of confirmationMetrics) {
+    for (const id of priorities) {
       const left = summary.groups[name].medians[id], right = summary.groups[winner].medians[id];
       const known = left !== null && right !== null, min = id !== 'response.decode_tps';
       comparisons[name][id] = { control: left, candidate: right, delta: known ? right - left : null,
@@ -668,8 +827,8 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
     }
   }
   equalNumbers(summary.comparisons, { [winner]: comparisons }, 'Confirmation cached comparison/win changed');
-  const first = groups.get('maintained')[0], pipeline = rows[0].pipeline, output = first.work.output_tokens;
-  return [{ ...spec, baseline: 'maintained', model: pipeline.model.source,
+  const first = groups.get(byteDot ? control : 'maintained')[0], pipeline = rows[0].pipeline, output = first.work.output_tokens;
+  return [{ ...spec, baseline: byteDot ? control : 'maintained', model: pipeline.model.source,
     identity: { model: pipeline.model.source, source: pipeline.model, body: summary.identity.body,
       prompt: summary.identity.prompt_digest, quantization: pipeline.components.quantization, inputs: 150, outputs: output, cap,
       warm: false, output: summary.identity.output, nonlinear: null, state: null, verification: null,
@@ -680,7 +839,8 @@ export function privateBoundaryDecodeConfirmationCohorts(spec, document, plan, r
     measurement: { requestScope: 'single audited cold request', phase: 'cold', sampleCount: 3,
       clientRssLabel: 'Client RAM · complete worker lifetime', clientCpuLabel: 'Client CPU · cold first response',
       preparationCpuLabel: 'Prep CPU · birth to cold first response',
-      cpu: 'SDK, supervisor, dashboard, native relay and full-state audit charged to fresh worker',
+       cpu: byteDot ? 'All five role process CPU totals through cold first response; cleanup excluded; SDK, supervisor, dashboard, relay and full-state audit charged'
+         : 'SDK, supervisor, dashboard, native relay and full-state audit charged to fresh worker',
       rss: 'Largest finalized complete-worker lifetime peak across all three replicates qualifies observed tiers; admission unchanged',
       timing: 'Online TTFT and actual emitted N−1 decode; natural EOS selection is not emitted output; one-token TPS unknown',
       traffic: 'Source-present original bodies and directed TCP streams; variable MessagePack server_ns stays charged; no physical wire or checkpoint/tokenizer distribution claim' }, rows }];

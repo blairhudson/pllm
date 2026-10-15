@@ -54,12 +54,13 @@ def encode_pair(codec, raw, kw):
 def test_default_digest_and_wire_are_historical():
     d = descriptor(head_output_encoding="u32")
     old = asdict(d)
-    del old["head_output_encoding"], old["head_dispatch"]
+    del old["head_output_encoding"], old["head_dispatch"], old["head_kernel"]
     expected = {"schema": SCHEMA + ".descriptor", **old}
     assert d.to_dict() == expected
     assert d.digest == hashlib.sha256(b"pllm/private-boundary-descriptor/v1\0" + canonical(expected)).hexdigest()
     assert BoundaryDescriptor.from_dict(expected) == d
     assert BoundaryDescriptor.from_dict({**expected, "head_dispatch": "serial", "head_output_encoding": "u32"}) == d
+    assert BoundaryDescriptor.from_dict({**expected, "head_kernel": "existing"}) == d
     codec = HeadOutputCodec(d)
     raw = shares([0, -1, 123, -(1 << 31), (1 << 31) - 1])
     assert encode_pair(codec, raw, args(d)) == raw

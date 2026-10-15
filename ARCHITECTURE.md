@@ -259,6 +259,23 @@ A separate six-worker allocating-output comparison observes 35.44% lower median
 packing-inclusive byte-dot API CPU. Native internal allocation/transposition still
 differs; this does not isolate SDOT instructions or measure SDK acceleration.
 Frozen v3 evidence: `docs/research/boundary-head-dotprod-probe.md`.
+The explicit `PrivateLookupAndFullHead(head_kernel="byte_dot")` additionally
+selects bounded exact four-limb ring32 head products over each boundary worker's
+existing immutable weights. Runtime-detected ARM dot-product instructions and a
+scalar fallback share the same complete integer-output contract. Native source,
+schedule and worker commitments bind the selector; the existing default retains
+its identity. Geometry and live-payload admission precede conversion and execution,
+with scratch covered by the original conservative worker allowance. Generated
+Qwen2/Qwen3/Llama decoder and SDK checks preserve complete logits and active KV,
+including parallel/residue delivery. Historical API timings remain separate from
+matched whole-response evidence. Contract: `docs/research/private-boundary-byte-dot-sdk.md`.
+A separate six-client pinned Qwen2.5 150+8 screen preserves 52,561,920 checked
+logit/KV values and complete state/output commitments with zero observed swap growth.
+Byte-dot decode falls 0.65%, request time rises 0.13% and five-role cold-first CPU
+rises 0.39%; arithmetic bodies remain identical. Largest complete-client peak is
+222.42 MiB, within observed Low, but the 2.43% lower median RSS has mixed paired
+changes and establishes no causal memory gain. This non-winning speed screen
+retains its build/cohort and leaves automatic kernel selection unimplemented.
 The boundary component now admits optional parallel head dispatch and exact
 uniform-residue head replies. Native source/schedule commitments bind both choices;
 the original serial/u32 defaults retain their identity. Paired authenticated calls
@@ -320,6 +337,18 @@ float32 logits match and observed swap growth is zero, but baseline integer
 evidence and per-arm RSS are absent. Borrowed immutable row-range execution and
 whole-SDK parity/resource evidence remain promotion gates. Results and replay
 stay separate in `docs/research/private-boundary-decode-followup.md`.
+A separate six-client role-timing cohort preserves 52,561,920 checked logit/KV
+values with zero observed swap growth. Per-role native dispatch occupies about
+13.3 ms and reply codec about 1.0 ms, versus about 109 ms paired client exchange.
+Role-local handling and client HTTP have different endpoints; their roughly
+93 ms duration difference remains mixed transport, pacing, queueing and client
+work. Full admission prices research, state-audit and relay owners separately.
+Three full-geometry native fusion workers additionally lower isolated lookup/head
+CPU 20.22%, or reconstructed two-worker service CPU 10.12%, with complete integer
+oracles. Their joint-response analytical schedule delays body start and finish
+about 9.5 ms; no serving benefit or client-memory tier follows. Contracts and replay:
+`docs/research/private-boundary-role-profile.md` and
+`docs/research/boundary-scan-fusion-full-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

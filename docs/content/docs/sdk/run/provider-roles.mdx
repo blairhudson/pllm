@@ -84,6 +84,10 @@ residues transmit exact smaller output shares under a compiler-checked public
 bound; every vocabulary logit and the original sampler remain client-owned.
 Defaults are serial dispatch and u32 replies. These choices add priced thread,
 frame and codec owners; measured RAM and timing remain workload-specific.
+The separately selected [`head_kernel="byte_dot"`](/sdk/components/roles/private-lookup-full-head/#exact-head-kernel-choice)
+reuses immutable worker weights for exact balanced-byte ring32 products. Its
+runtime-detected ARM implementation and scalar fallback retain the same complete
+logit contract; whole-response comparisons require their own matched cohort.
 
 The same Experiment works with `BenchmarkTarget.response`, `benchmark_suite` and
 `pllm benchmark run`. The generated-checkpoint example runs local-boundary and

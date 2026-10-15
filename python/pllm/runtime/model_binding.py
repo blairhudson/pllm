@@ -545,6 +545,7 @@ class CompiledRuntimeModel:
             activation_bits=contract["activation_bits"],
             head_dispatch=contract.get("head_dispatch", "serial"),
             head_output_encoding=contract.get("head_output_encoding", "u32"),
+            head_kernel=contract.get("head_kernel", "existing"),
             signed_output_bound=self._bundle.stages[head.stage_id].seeded_profile.signed_output_bound)
 
     def private_boundary_admission(self, prefill_rows: int, decode_steps: int, *, full_prefill_head: bool = False):
@@ -1228,6 +1229,9 @@ def _validate_private_boundary_contract(contract, document, *, plan_digest, comp
             {} if boundary_params is None else boundary_params).params)
     except ValueError as exc:
         raise RuntimeBindingError("private boundary options are unsupported") from exc
+    if boundary_options.get("head_kernel") == "byte_dot" and (
+            hidden > 131071 or vocabulary * hidden > 256 << 20):
+        raise RuntimeBindingError("private boundary byte-dot geometry exceeds native bounds")
     phases = {}
     weights = set()
     for phase in ("prefill", "decode"):

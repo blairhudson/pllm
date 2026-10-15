@@ -62,7 +62,10 @@ def test_tiny_source_identity_survives_supervised_roles(tmp_path):
     pytest.param((family, options), id=f"{family}-{label}")
     for family in ("qwen2", "qwen3", "llama")
     for label, options in (("serial-u32", {}), ("parallel-residues", {
-        "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}))
+        "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}),
+        ("byte-dot", {"head_kernel": "byte_dot"}),
+        ("byte-dot-parallel-residues", {"head_kernel": "byte_dot", "head_dispatch": "parallel",
+                                       "head_output_encoding": "uniform_residues"}))
 ])
 def roles(request, tmp_path_factory):
     family, boundary_options = request.param

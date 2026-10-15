@@ -79,6 +79,8 @@ def create_private_boundary_worker_app(
         raise BoundaryError("invalid idle timeout")
     if type(head) is not CompiledMatrix or head._matrix is None or head.shape != (descriptor.vocabulary, descriptor.hidden):
         raise BoundaryError("boundary requires an immutable native compiled head")
+    if descriptor.head_kernel == "byte_dot" and not callable(getattr(head.owner._executor, "wrap32_byte_dot", None)):
+        raise BoundaryError("native byte-dot head API unavailable")
     # Hash the immutable native view, without serializing a second matrix.
     weights = head.weight_view()
     if hashlib.sha256(memoryview(weights).cast("B")).hexdigest() != descriptor.head_weight_digest:
@@ -277,7 +279,8 @@ def create_private_boundary_worker_app(
                 if row["operation"] == "lookup":
                     return child.evaluate_batch(row["frames"])
                 share = np.frombuffer(row["frames"][0], "<u4").reshape(1, descriptor.hidden)
-                result = head.wrap32(share)
+                result = (head.wrap32_byte_dot(share) if descriptor.head_kernel == "byte_dot"
+                          else head.wrap32(share))
                 if result.shape != (1, descriptor.vocabulary) or result.dtype != np.uint32:
                     raise BoundaryError("native head result geometry differs")
                 return [head_codec.encode(result.astype("<u4", copy=False).tobytes(),

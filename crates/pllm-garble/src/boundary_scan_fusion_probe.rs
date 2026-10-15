@@ -1,4 +1,8 @@
 //! Test-only fused reference. No public mask API or selectable SDK path.
+#[cfg(test)]
+#[path = "boundary_scan_fusion_full_probe.rs"]
+mod full_probe;
+
 use super::*;
 use pllm_core::kernels::{Executor, Matrix};
 use serde_json::json;

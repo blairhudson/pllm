@@ -6,6 +6,7 @@
 pub mod activation;
 mod attention;
 mod attention_values;
+mod byte_dot;
 pub mod cache_selection_reference;
 pub mod ckks_layout;
 pub mod codec;

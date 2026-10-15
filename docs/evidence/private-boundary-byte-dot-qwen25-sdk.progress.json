@@ -1,0 +1,7 @@
+{
+  "schema": "pllm.private_boundary_byte_dot_progress.v1",
+  "status": "completed",
+  "measurement_complete": true,
+  "clients": 6,
+  "maximum_swap_growth_bytes": 0
+}

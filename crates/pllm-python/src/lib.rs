@@ -1428,6 +1428,22 @@ impl Executor {
             .map_err(invalid)?;
         Ok(PyBytes::new(py, &bytes_u32(&out)))
     }
+    fn wrap32_byte_dot<'py>(
+        &self,
+        py: Python<'py>,
+        matrix: PyRef<'_, Matrix>,
+        input: &Bound<'_, PyBytes>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        if input.as_bytes().len() > 4 * 131071 {
+            return Err(invalid("byte-dot input exceeds width bound".into()));
+        }
+        let input = codec::u32s(input.as_bytes()).map_err(invalid)?;
+        let m = &matrix.inner;
+        let out = py
+            .detach(|| m.wrap32_byte_dot(&self.inner, &input))
+            .map_err(invalid)?;
+        Ok(PyBytes::new(py, &bytes_u32(&out)))
+    }
     fn wrap64<'py>(
         &self,
         py: Python<'py>,

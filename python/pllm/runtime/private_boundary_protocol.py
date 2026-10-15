@@ -111,8 +111,11 @@ class BoundaryDescriptor:
     leaf_bits: int = 128
     head_dispatch: str = "serial"
     head_output_encoding: str = "u32"
+    head_kernel: str = "existing"
 
     def __post_init__(self):
+        if type(self.head_kernel) is not str or self.head_kernel not in ("existing", "byte_dot"):
+            raise BoundaryError("invalid head kernel")
         if type(self.head_dispatch) is not str or self.head_dispatch not in ("serial", "parallel"):
             raise BoundaryError("invalid head dispatch")
         if type(self.head_output_encoding) is not str or self.head_output_encoding not in ("u32", "uniform_residues"):
@@ -122,6 +125,8 @@ class BoundaryDescriptor:
                 digest(getattr(self, field.name), field.name)
         integer(self.vocabulary, 1, 262144, "vocabulary")
         integer(self.hidden, 1, 65532, "hidden")
+        if self.head_kernel == "byte_dot" and self.vocabulary * self.hidden > 256 * 1024 * 1024:
+            raise BoundaryError("byte-dot matrix exceeds native bound")
         if self.vocabulary * (self.hidden + 4) > 512 * 1024 * 1024:
             raise BoundaryError("boundary exceeds native private table capacity")
         if self.vocabulary * 4 + 8192 > MAX_BODY_BYTES or 64 * (self.hidden + 4 + 256) > MAX_BODY_BYTES:
@@ -143,14 +148,15 @@ class BoundaryDescriptor:
 
     def to_dict(self) -> dict:
         row = {"schema": SCHEMA + ".descriptor", **asdict(self)}
-        for name, default in (("head_dispatch", "serial"), ("head_output_encoding", "u32")):
+        for name, default in (("head_dispatch", "serial"), ("head_output_encoding", "u32"),
+                              ("head_kernel", "existing")):
             if row[name] == default:
                 del row[name]
         return row
 
     @classmethod
     def from_dict(cls, value: Any):
-        optional = {"head_dispatch", "head_output_encoding"}
+        optional = {"head_dispatch", "head_output_encoding", "head_kernel"}
         required = {"schema", *(f.name for f in fields(cls))} - optional
         if type(value) is not dict or not required <= set(value) or set(value) - required - optional:
             raise BoundaryError("boundary fields differ")

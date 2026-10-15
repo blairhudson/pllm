@@ -85,4 +85,29 @@ Against maintained prepared execution, traffic falls 23.70% and full requests
 24.19%, but decode remains 32.78% slower. See the
 [head-choice screen](/research/sota/#exact-boundary-decode-screen) for scope and replay.
 
+## Exact head kernel choice
+
+```python
+from pllm.roles import PrivateLookupAndFullHead
+
+boundary = PrivateLookupAndFullHead(
+    head_dispatch="parallel", head_output_encoding="uniform_residues",
+    head_kernel="byte_dot",
+)
+assert boundary.params["head_kernel"] == "byte_dot"
+```
+
+The opt-in kernel decomposes each full-ring input into four balanced signed-byte
+limbs and reconstructs every original ring32 output. It reuses the boundary
+worker's immutable weights, detects ARM dot-product support at runtime and uses
+an exact scalar fallback where unavailable. Source and schedule commitments bind
+the choice before worker admission. Geometry and live-payload limits precede
+input conversion, limb allocation and execution.
+
+The default `head_kernel="existing"` retains the original configuration identity.
+`scripts/benchmark_private_boundary_byte_dot.py` compares both kernels through
+ordinary fresh-client SDK responses, with exact state auditing and complete
+client resource accounting. Historical synthetic byte-dot API measurements have
+separate allocation contracts and do not establish SDK acceleration.
+
 API: [`PrivateLookupAndFullHead`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

@@ -33,6 +33,11 @@ pub struct PrivateBoundaryContract {
     pub head_dispatch: String,
     #[serde(default = "u32_encoding", skip_serializing_if = "is_u32_encoding")]
     pub head_output_encoding: String,
+    #[serde(
+        default = "existing_kernel",
+        skip_serializing_if = "is_existing_kernel"
+    )]
+    pub head_kernel: String,
     pub weight_bits: u64,
     pub activation_bits: u64,
     pub head_ring_bits: u64,
@@ -62,16 +67,25 @@ fn is_u32_encoding(value: &str) -> bool {
     value == "u32"
 }
 
-fn options(pipeline: &ExperimentPipeline) -> Result<(String, String), String> {
+fn existing_kernel() -> String {
+    "existing".into()
+}
+fn is_existing_kernel(value: &str) -> bool {
+    value == "existing"
+}
+
+fn options(pipeline: &ExperimentPipeline) -> Result<(String, String, String), String> {
     let params = &pipeline
         .components
         .get("boundary")
         .ok_or("private boundary component is absent")?
         .params;
-    if params
-        .keys()
-        .any(|key| !matches!(key.as_str(), "head_dispatch" | "head_output_encoding"))
-    {
+    if params.keys().any(|key| {
+        !matches!(
+            key.as_str(),
+            "head_dispatch" | "head_output_encoding" | "head_kernel"
+        )
+    }) {
         return Err("unknown private boundary option".into());
     }
     let choice = |key: &str, default: &str, allowed: &[&str]| -> Result<String, String> {
@@ -87,6 +101,7 @@ fn options(pipeline: &ExperimentPipeline) -> Result<(String, String), String> {
     Ok((
         choice("head_dispatch", "serial", &["serial", "parallel"])?,
         choice("head_output_encoding", "u32", &["u32", "uniform_residues"])?,
+        choice("head_kernel", "existing", &["existing", "byte_dot"])?,
     ))
 }
 
@@ -251,7 +266,7 @@ pub(crate) fn lower(
     let pipeline: ExperimentPipeline = serde_json::from_slice(composition)
         .map_err(|error| format!("invalid private boundary composition: {error}"))?;
     validate_composition(&pipeline)?;
-    let (head_dispatch, head_output_encoding) = options(&pipeline)?;
+    let (head_dispatch, head_output_encoding, head_kernel) = options(&pipeline)?;
     if !plan.transformations.is_empty() || !plan.token_feedback {
         return Err("private boundary requires original full-vocabulary token feedback".into());
     }
@@ -268,6 +283,9 @@ pub(crate) fn lower(
     let scale_bytes = vocabulary
         .checked_mul(4)
         .ok_or("private boundary scale size overflow")?;
+    if head_kernel == "byte_dot" && (hidden_width > 131071 || matrix_bytes > 256 * 1024 * 1024) {
+        return Err("private boundary byte-dot geometry exceeds native bounds".into());
+    }
     let lookup_scratch_bytes = vocabulary
         .checked_mul(64)
         .ok_or("private boundary scratch size overflow")?;
@@ -309,6 +327,7 @@ pub(crate) fn lower(
         head_protocol: "two_party_additive_full_head_v1".into(),
         head_dispatch,
         head_output_encoding,
+        head_kernel,
         weight_bits: 8,
         activation_bits: 8,
         head_ring_bits,
@@ -371,10 +390,12 @@ mod tests {
             serde_json::to_value(baseline.private_boundary.as_ref().unwrap()).unwrap();
         assert!(baseline_value.get("head_dispatch").is_none());
         assert!(baseline_value.get("head_output_encoding").is_none());
+        assert!(baseline_value.get("head_kernel").is_none());
         let restored: PrivateBoundaryContract =
             serde_json::from_value(baseline_value.clone()).unwrap();
         assert_eq!(restored.head_dispatch, "serial");
         assert_eq!(restored.head_output_encoding, "u32");
+        assert_eq!(restored.head_kernel, "existing");
         assert_eq!(serde_json::to_value(restored).unwrap(), baseline_value);
         for dispatch in ["serial", "parallel"] {
             for encoding in ["u32", "uniform_residues"] {
@@ -419,6 +440,9 @@ mod tests {
             json!({"head_dispatch":null}),
             json!({"head_output_encoding":"row_residues"}),
             json!({"head_output_encoding":32}),
+            json!({"head_kernel":"sdot"}),
+            json!({"head_kernel":true}),
+            json!({"head_kernel":null}),
             json!({"unknown":"parallel"}),
         ] {
             let mut composition = composition();
@@ -428,6 +452,45 @@ mod tests {
                     .is_err()
             );
             assert!(lower(&plan, &canonical_bytes(&composition)).is_err());
+        }
+    }
+
+    #[test]
+    fn byte_dot_binds_model_neutral_schedule_without_changing_steps() {
+        for family in ["qwen2", "qwen3", "llama"] {
+            let plan = plan(family, true);
+            let baseline =
+                crate::lower_decoder_runtime_schedule(&plan, &canonical_bytes(&composition()))
+                    .unwrap();
+            for dispatch in ["serial", "parallel"] {
+                for encoding in ["u32", "uniform_residues"] {
+                    let mut selected = composition();
+                    selected["components"]["boundary"]["params"] = json!({
+                        "head_dispatch":dispatch, "head_output_encoding":encoding, "head_kernel":"byte_dot"});
+                    let schedule =
+                        crate::lower_decoder_runtime_schedule(&plan, &canonical_bytes(&selected))
+                            .unwrap();
+                    assert_eq!(
+                        schedule.private_boundary.as_ref().unwrap().head_kernel,
+                        "byte_dot"
+                    );
+                    assert_eq!(schedule.prefill, baseline.prefill);
+                    assert_eq!(schedule.decode, baseline.decode);
+                    assert_ne!(schedule.digest(), baseline.digest());
+                    assert_ne!(
+                        schedule
+                            .private_boundary
+                            .as_ref()
+                            .unwrap()
+                            .composition_digest,
+                        baseline
+                            .private_boundary
+                            .as_ref()
+                            .unwrap()
+                            .composition_digest
+                    );
+                }
+            }
         }
     }
 

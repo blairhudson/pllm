@@ -1,0 +1,4941 @@
+{
+  "schema": "pllm.private_boundary_role_profile.parallel_residues.v1",
+  "clients": 6,
+  "complete": true,
+  "all_logits_active_kv_positions_selections_rng_and_outputs_match": true,
+  "state_commitment": "77aede3dc304e623e5c2e27c614d56a55e508ef0e48df3372d7c4369838b64cf",
+  "overhead_pairs": {
+    "coupled-parallel-uniform_residues": [
+      {
+        "replicate": 0,
+        "metric_deltas_probe_minus_control": {
+          "request.0.full": 1.1675037499999945,
+          "response.decode_tps": -0.011830446046951604,
+          "client.cold_cpu": 0.8405490000000029,
+          "process.peak_rss": -29884416.0
+        }
+      },
+      {
+        "replicate": 1,
+        "metric_deltas_probe_minus_control": {
+          "request.0.full": -0.18329950000000395,
+          "response.decode_tps": -0.02319684778498443,
+          "client.cold_cpu": -0.16181900000000127,
+          "process.peak_rss": 4014080.0
+        }
+      },
+      {
+        "replicate": 2,
+        "metric_deltas_probe_minus_control": {
+          "request.0.full": -0.15813912500000527,
+          "response.decode_tps": -0.004865110757845237,
+          "client.cold_cpu": -0.1312810000000013,
+          "process.peak_rss": -3571712.0
+        }
+      }
+    ]
+  },
+  "profiles": [
+    {
+      "case": "coupled-parallel-uniform_residues",
+      "replicate": 0,
+      "timing": {
+        "after_first_output": {
+          "diagnostic_nonadditive": {
+            "frame_pack": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 391541
+            },
+            "frame_unpack": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 733666
+            },
+            "http_exchange": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 848088002
+            },
+            "http_exchange_a": {
+              "clipped_call_count": 14,
+              "union_wall_ns": 800245709
+            },
+            "http_exchange_b": {
+              "clipped_call_count": 14,
+              "union_wall_ns": 801428917
+            },
+            "lookup_exchange": {
+              "clipped_call_count": 7,
+              "union_wall_ns": 87560543
+            },
+            "sampler": {
+              "clipped_call_count": 7,
+              "union_wall_ns": 694918
+            }
+          },
+          "elapsed_ns": 2555261125,
+          "exclusive_wall_ns": {
+            "audit_and_sampler": 23834459,
+            "body_execution_excluding_lookup_and_head": 1651259707,
+            "head_codec_decode": 9611750,
+            "head_dequantization": 971375,
+            "head_quantization": 194417,
+            "head_unclassified": 1170959,
+            "paired_exchange": 762904417,
+            "token_lookup": 88317042,
+            "unclassified": 16996999
+          },
+          "partition_reconciled": true
+        },
+        "request": {
+          "diagnostic_nonadditive": {
+            "frame_pack": {
+              "clipped_call_count": 36,
+              "union_wall_ns": 577999
+            },
+            "frame_unpack": {
+              "clipped_call_count": 36,
+              "union_wall_ns": 1082874
+            },
+            "http_exchange": {
+              "clipped_call_count": 40,
+              "union_wall_ns": 2431418376
+            },
+            "http_exchange_a": {
+              "clipped_call_count": 20,
+              "union_wall_ns": 1675908375
+            },
+            "http_exchange_b": {
+              "clipped_call_count": 20,
+              "union_wall_ns": 1631784709
+            },
+            "lookup_exchange": {
+              "clipped_call_count": 10,
+              "union_wall_ns": 1520546251
+            },
+            "sampler": {
+              "clipped_call_count": 8,
+              "union_wall_ns": 795752
+            }
+          },
+          "elapsed_ns": 83122846791,
+          "exclusive_wall_ns": {
+            "audit_and_sampler": 27252584,
+            "body_execution_excluding_lookup_and_head": 40285726499,
+            "head_codec_decode": 11091833,
+            "head_dequantization": 1170000,
+            "head_quantization": 308459,
+            "head_unclassified": 1464208,
+            "paired_exchange": 894347209,
+            "token_lookup": 1523736792,
+            "unclassified": 40377749207
+          },
+          "partition_reconciled": true
+        },
+        "role_cpu_attribution": null,
+        "schema": "pllm.private_boundary_role_profile.parallel_residues.v1",
+        "scope": "Client process only; calling-thread CPU spans overlap and are not additive. HTTP wait includes remote compute, network, pacing and client overhead; not role CPU. Head residual includes share generation, u32 reconstruction, checks and wiping. Audit bin includes sampler and audit wrapper; no overhead correction.",
+        "share_generation_attribution": null,
+        "spans": [
+          {
+            "calling_thread_cpu_ns": 904750,
+            "end_ns": 36444374583,
+            "label": "http_exchange_a",
+            "start_ns": 36435041666
+          },
+          {
+            "calling_thread_cpu_ns": 594459,
+            "end_ns": 36451021833,
+            "label": "http_exchange_b",
+            "start_ns": 36444457375
+          },
+          {
+            "calling_thread_cpu_ns": 29709,
+            "end_ns": 40340833708,
+            "label": "frame_pack",
+            "start_ns": 40340804041
+          },
+          {
+            "calling_thread_cpu_ns": 927416,
+            "end_ns": 40700235541,
+            "label": "http_exchange_a",
+            "start_ns": 40340838125
+          },
+          {
+            "calling_thread_cpu_ns": 66708,
+            "end_ns": 40700310916,
+            "label": "frame_unpack",
+            "start_ns": 40700241708
+          },
+          {
+            "calling_thread_cpu_ns": 21333,
+            "end_ns": 40700340708,
+            "label": "frame_pack",
+            "start_ns": 40700319375
+          },
+          {
+            "calling_thread_cpu_ns": 735709,
+            "end_ns": 41025951500,
+            "label": "http_exchange_b",
+            "start_ns": 40700344958
+          },
+          {
+            "calling_thread_cpu_ns": 48542,
+            "end_ns": 41026007875,
+            "label": "frame_unpack",
+            "start_ns": 41025959500
+          },
+          {
+            "calling_thread_cpu_ns": 1874000,
+            "end_ns": 41026014833,
+            "label": "lookup_exchange",
+            "start_ns": 40340795375
+          },
+          {
+            "calling_thread_cpu_ns": 22792,
+            "end_ns": 41027048041,
+            "label": "frame_pack",
+            "start_ns": 41027025291
+          },
+          {
+            "calling_thread_cpu_ns": 947500,
+            "end_ns": 41305630125,
+            "label": "http_exchange_a",
+            "start_ns": 41027051708
+          },
+          {
+            "calling_thread_cpu_ns": 47875,
+            "end_ns": 41305683958,
+            "label": "frame_unpack",
+            "start_ns": 41305636083
+          },
+          {
+            "calling_thread_cpu_ns": 20708,
+            "end_ns": 41305710750,
+            "label": "frame_pack",
+            "start_ns": 41305690083
+          },
+          {
+            "calling_thread_cpu_ns": 803458,
+            "end_ns": 41584162541,
+            "label": "http_exchange_b",
+            "start_ns": 41305714833
+          },
+          {
+            "calling_thread_cpu_ns": 44708,
+            "end_ns": 41584213208,
+            "label": "frame_unpack",
+            "start_ns": 41584168583
+          },
+          {
+            "calling_thread_cpu_ns": 1924542,
+            "end_ns": 41584218958,
+            "label": "lookup_exchange",
+            "start_ns": 41027018125
+          },
+          {
+            "calling_thread_cpu_ns": 16584,
+            "end_ns": 41584821791,
+            "label": "frame_pack",
+            "start_ns": 41584805250
+          },
+          {
+            "calling_thread_cpu_ns": 573542,
+            "end_ns": 41680049416,
+            "label": "http_exchange_a",
+            "start_ns": 41584825250
+          },
+          {
+            "calling_thread_cpu_ns": 27916,
+            "end_ns": 41680082083,
+            "label": "frame_unpack",
+            "start_ns": 41680054166
+          },
+          {
+            "calling_thread_cpu_ns": 12583,
+            "end_ns": 41680099125,
+            "label": "frame_pack",
+            "start_ns": 41680086541
+          },
+          {
+            "calling_thread_cpu_ns": 603833,
+            "end_ns": 41775329583,
+            "label": "http_exchange_b",
+            "start_ns": 41680102208
+          },
+          {
+            "calling_thread_cpu_ns": 26375,
+            "end_ns": 41775361625,
+            "label": "frame_unpack",
+            "start_ns": 41775335250
+          },
+          {
+            "calling_thread_cpu_ns": 1290375,
+            "end_ns": 41775366250,
+            "label": "lookup_exchange",
+            "start_ns": 41584800833
+          },
+          {
+            "calling_thread_cpu_ns": 7523208,
+            "end_ns": 41775580500,
+            "label": "token_lookup",
+            "start_ns": 40340160750
+          },
+          {
+            "calling_thread_cpu_ns": 113916,
+            "end_ns": 80405940000,
+            "label": "head_quantization",
+            "start_ns": 80405825958
+          },
+          {
+            "calling_thread_cpu_ns": 50167,
+            "end_ns": 80406250083,
+            "label": "frame_pack",
+            "start_ns": 80406200000
+          },
+          {
+            "calling_thread_cpu_ns": 12792,
+            "end_ns": 80406614083,
+            "label": "frame_pack",
+            "start_ns": 80406601250
+          },
+          {
+            "calling_thread_cpu_ns": 2705125,
+            "end_ns": 80529305750,
+            "label": "http_exchange_b",
+            "start_ns": 80406617666
+          },
+          {
+            "calling_thread_cpu_ns": 53625,
+            "end_ns": 80529364458,
+            "label": "frame_unpack",
+            "start_ns": 80529310916
+          },
+          {
+            "calling_thread_cpu_ns": 2895083,
+            "end_ns": 80537336875,
+            "label": "http_exchange_a",
+            "start_ns": 80406260500
+          },
+          {
+            "calling_thread_cpu_ns": 31375,
+            "end_ns": 80537374791,
+            "label": "frame_unpack",
+            "start_ns": 80537343500
+          },
+          {
+            "calling_thread_cpu_ns": 269125,
+            "end_ns": 80537501750,
+            "label": "paired_exchange",
+            "start_ns": 80406058958
+          },
+          {
+            "calling_thread_cpu_ns": 1480417,
+            "end_ns": 80539000291,
+            "label": "head_codec_decode",
+            "start_ns": 80537520208
+          },
+          {
+            "calling_thread_cpu_ns": 198584,
+            "end_ns": 80539285916,
+            "label": "head_dequantization",
+            "start_ns": 80539087291
+          },
+          {
+            "calling_thread_cpu_ns": 2353708,
+            "end_ns": 80539317166,
+            "label": "head",
+            "start_ns": 80405788375
+          },
+          {
+            "calling_thread_cpu_ns": 3049950167,
+            "end_ns": 80543222416,
+            "label": "forward",
+            "start_ns": 40339807083
+          },
+          {
+            "calling_thread_cpu_ns": 100709,
+            "end_ns": 80546660500,
+            "label": "sampler",
+            "start_ns": 80546559666
+          },
+          {
+            "calling_thread_cpu_ns": 3418208,
+            "end_ns": 80546680666,
+            "label": "audit_and_sampler",
+            "start_ns": 80543262541
+          },
+          {
+            "calling_thread_cpu_ns": 17125,
+            "end_ns": 80551330041,
+            "label": "frame_pack",
+            "start_ns": 80551312875
+          },
+          {
+            "calling_thread_cpu_ns": 534750,
+            "end_ns": 80557601208,
+            "label": "http_exchange_a",
+            "start_ns": 80551333416
+          },
+          {
+            "calling_thread_cpu_ns": 17125,
+            "end_ns": 80557621541,
+            "label": "frame_unpack",
+            "start_ns": 80557604416
+          },
+          {
+            "calling_thread_cpu_ns": 9792,
+            "end_ns": 80557635375,
+            "label": "frame_pack",
+            "start_ns": 80557625583
+          },
+          {
+            "calling_thread_cpu_ns": 439417,
+            "end_ns": 80563708208,
+            "label": "http_exchange_b",
+            "start_ns": 80557638458
+          },
+          {
+            "calling_thread_cpu_ns": 12875,
+            "end_ns": 80563723666,
+            "label": "frame_unpack",
+            "start_ns": 80563710833
+          },
+          {
+            "calling_thread_cpu_ns": 1055083,
+            "end_ns": 80563726958,
+            "label": "lookup_exchange",
+            "start_ns": 80551308041
+          },
+          {
+            "calling_thread_cpu_ns": 1185459,
+            "end_ns": 80563775083,
+            "label": "token_lookup",
+            "start_ns": 80551225916
+          },
+          {
+            "calling_thread_cpu_ns": 30125,
+            "end_ns": 80805566583,
+            "label": "head_quantization",
+            "start_ns": 80805536458
+          },
+          {
+            "calling_thread_cpu_ns": 15500,
+            "end_ns": 80805721291,
+            "label": "frame_pack",
+            "start_ns": 80805705583
+          },
+          {
+            "calling_thread_cpu_ns": 13542,
+            "end_ns": 80805994750,
+            "label": "frame_pack",
+            "start_ns": 80805981208
+          },
+          {
+            "calling_thread_cpu_ns": 2478833,
+            "end_ns": 80913712916,
+            "label": "http_exchange_a",
+            "start_ns": 80805725583
+          },
+          {
+            "calling_thread_cpu_ns": 43875,
+            "end_ns": 80913764583,
+            "label": "frame_unpack",
+            "start_ns": 80913720875
+          },
+          {
+            "calling_thread_cpu_ns": 2371958,
+            "end_ns": 80914473958,
+            "label": "http_exchange_b",
+            "start_ns": 80805998208
+          },
+          {
+            "calling_thread_cpu_ns": 31042,
+            "end_ns": 80914507541,
+            "label": "frame_unpack",
+            "start_ns": 80914476541
+          },
+          {
+            "calling_thread_cpu_ns": 273375,
+            "end_ns": 80914683541,
+            "label": "paired_exchange",
+            "start_ns": 80805613833
+          },
+          {
+            "calling_thread_cpu_ns": 1363833,
+            "end_ns": 80916053458,
+            "label": "head_codec_decode",
+            "start_ns": 80914689958
+          },
+          {
+            "calling_thread_cpu_ns": 140292,
+            "end_ns": 80916268083,
+            "label": "head_dequantization",
+            "start_ns": 80916127958
+          },
+          {
+            "calling_thread_cpu_ns": 1977416,
+            "end_ns": 80916298625,
+            "label": "head",
+            "start_ns": 80805523333
+          },
+          {
+            "calling_thread_cpu_ns": 60737833,
+            "end_ns": 80920334583,
+            "label": "forward",
+            "start_ns": 80550403833
+          },
+          {
+            "calling_thread_cpu_ns": 98625,
+            "end_ns": 80923444000,
+            "label": "sampler",
+            "start_ns": 80923345166
+          },
+          {
+            "calling_thread_cpu_ns": 3120083,
+            "end_ns": 80923464166,
+            "label": "audit_and_sampler",
+            "start_ns": 80920344125
+          },
+          {
+            "calling_thread_cpu_ns": 16000,
+            "end_ns": 80926363041,
+            "label": "frame_pack",
+            "start_ns": 80926347083
+          },
+          {
+            "calling_thread_cpu_ns": 522000,
+            "end_ns": 80932644333,
+            "label": "http_exchange_a",
+            "start_ns": 80926366916
+          },
+          {
+            "calling_thread_cpu_ns": 16708,
+            "end_ns": 80932664666,
+            "label": "frame_unpack",
+            "start_ns": 80932648000
+          },
+          {
+            "calling_thread_cpu_ns": 10125,
+            "end_ns": 80932678875,
+            "label": "frame_pack",
+            "start_ns": 80932668750
+          },
+          {
+            "calling_thread_cpu_ns": 460417,
+            "end_ns": 80938699958,
+            "label": "http_exchange_b",
+            "start_ns": 80932681958
+          },
+          {
+            "calling_thread_cpu_ns": 12416,
+            "end_ns": 80938715625,
+            "label": "frame_unpack",
+            "start_ns": 80938703208
+          },
+          {
+            "calling_thread_cpu_ns": 1062875,
+            "end_ns": 80938719250,
+            "label": "lookup_exchange",
+            "start_ns": 80926342750
+          },
+          {
+            "calling_thread_cpu_ns": 1161625,
+            "end_ns": 80938769250,
+            "label": "token_lookup",
+            "start_ns": 80926294000
+          },
+          {
+            "calling_thread_cpu_ns": 26041,
+            "end_ns": 81166655833,
+            "label": "head_quantization",
+            "start_ns": 81166629875
+          },
+          {
+            "calling_thread_cpu_ns": 16542,
+            "end_ns": 81166812291,
+            "label": "frame_pack",
+            "start_ns": 81166795541
+          },
+          {
+            "calling_thread_cpu_ns": 14709,
+            "end_ns": 81167191666,
+            "label": "frame_pack",
+            "start_ns": 81167176541
+          },
+          {
+            "calling_thread_cpu_ns": 2471041,
+            "end_ns": 81274908875,
+            "label": "http_exchange_a",
+            "start_ns": 81166816208
+          },
+          {
+            "calling_thread_cpu_ns": 41625,
+            "end_ns": 81274955541,
+            "label": "frame_unpack",
+            "start_ns": 81274914000
+          },
+          {
+            "calling_thread_cpu_ns": 2386208,
+            "end_ns": 81275614875,
+            "label": "http_exchange_b",
+            "start_ns": 81167195708
+          },
+          {
+            "calling_thread_cpu_ns": 32375,
+            "end_ns": 81275650875,
+            "label": "frame_unpack",
+            "start_ns": 81275618625
+          },
+          {
+            "calling_thread_cpu_ns": 202792,
+            "end_ns": 81275748291,
+            "label": "paired_exchange",
+            "start_ns": 81166699708
+          },
+          {
+            "calling_thread_cpu_ns": 1369708,
+            "end_ns": 81277122875,
+            "label": "head_codec_decode",
+            "start_ns": 81275753375
+          },
+          {
+            "calling_thread_cpu_ns": 136042,
+            "end_ns": 81277334291,
+            "label": "head_dequantization",
+            "start_ns": 81277198291
+          },
+          {
+            "calling_thread_cpu_ns": 1896291,
+            "end_ns": 81277364875,
+            "label": "head",
+            "start_ns": 81166618541
+          },
+          {
+            "calling_thread_cpu_ns": 58077041,
+            "end_ns": 81281102541,
+            "label": "forward",
+            "start_ns": 80925736916
+          },
+          {
+            "calling_thread_cpu_ns": 100833,
+            "end_ns": 81284243000,
+            "label": "sampler",
+            "start_ns": 81284141958
+          },
+          {
+            "calling_thread_cpu_ns": 3147417,
+            "end_ns": 81284259708,
+            "label": "audit_and_sampler",
+            "start_ns": 81281112416
+          },
+          {
+            "calling_thread_cpu_ns": 16166,
+            "end_ns": 81287150541,
+            "label": "frame_pack",
+            "start_ns": 81287134333
+          },
+          {
+            "calling_thread_cpu_ns": 559417,
+            "end_ns": 81293548750,
+            "label": "http_exchange_a",
+            "start_ns": 81287154000
+          },
+          {
+            "calling_thread_cpu_ns": 17583,
+            "end_ns": 81293571083,
+            "label": "frame_unpack",
+            "start_ns": 81293553541
+          },
+          {
+            "calling_thread_cpu_ns": 10834,
+            "end_ns": 81293586000,
+            "label": "frame_pack",
+            "start_ns": 81293575125
+          },
+          {
+            "calling_thread_cpu_ns": 485125,
+            "end_ns": 81299789458,
+            "label": "http_exchange_b",
+            "start_ns": 81293589833
+          },
+          {
+            "calling_thread_cpu_ns": 12291,
+            "end_ns": 81299804958,
+            "label": "frame_unpack",
+            "start_ns": 81299792666
+          },
+          {
+            "calling_thread_cpu_ns": 1127875,
+            "end_ns": 81299808333,
+            "label": "lookup_exchange",
+            "start_ns": 81287130083
+          },
+          {
+            "calling_thread_cpu_ns": 1243125,
+            "end_ns": 81299876000,
+            "label": "token_lookup",
+            "start_ns": 81287079333
+          },
+          {
+            "calling_thread_cpu_ns": 26834,
+            "end_ns": 81528655000,
+            "label": "head_quantization",
+            "start_ns": 81528628208
+          },
+          {
+            "calling_thread_cpu_ns": 15208,
+            "end_ns": 81528800291,
+            "label": "frame_pack",
+            "start_ns": 81528784958
+          },
+          {
+            "calling_thread_cpu_ns": 11958,
+            "end_ns": 81529153208,
+            "label": "frame_pack",
+            "start_ns": 81529141083
+          },
+          {
+            "calling_thread_cpu_ns": 2602042,
+            "end_ns": 81636872833,
+            "label": "http_exchange_a",
+            "start_ns": 81528804166
+          },
+          {
+            "calling_thread_cpu_ns": 42000,
+            "end_ns": 81636923125,
+            "label": "frame_unpack",
+            "start_ns": 81636881166
+          },
+          {
+            "calling_thread_cpu_ns": 2332000,
+            "end_ns": 81637490250,
+            "label": "http_exchange_b",
+            "start_ns": 81529156708
+          },
+          {
+            "calling_thread_cpu_ns": 26666,
+            "end_ns": 81637519625,
+            "label": "frame_unpack",
+            "start_ns": 81637493000
+          },
+          {
+            "calling_thread_cpu_ns": 214542,
+            "end_ns": 81637614958,
+            "label": "paired_exchange",
+            "start_ns": 81528699750
+          },
+          {
+            "calling_thread_cpu_ns": 1379375,
+            "end_ns": 81638996458,
+            "label": "head_codec_decode",
+            "start_ns": 81637620208
+          },
+          {
+            "calling_thread_cpu_ns": 141916,
+            "end_ns": 81639214958,
+            "label": "head_dequantization",
+            "start_ns": 81639073125
+          },
+          {
+            "calling_thread_cpu_ns": 1925125,
+            "end_ns": 81639246250,
+            "label": "head",
+            "start_ns": 81528619125
+          },
+          {
+            "calling_thread_cpu_ns": 58160083,
+            "end_ns": 81643196750,
+            "label": "forward",
+            "start_ns": 81286511250
+          },
+          {
+            "calling_thread_cpu_ns": 97542,
+            "end_ns": 81646347916,
+            "label": "sampler",
+            "start_ns": 81646250208
+          },
+          {
+            "calling_thread_cpu_ns": 3160083,
+            "end_ns": 81646365250,
+            "label": "audit_and_sampler",
+            "start_ns": 81643205166
+          },
+          {
+            "calling_thread_cpu_ns": 17666,
+            "end_ns": 81647569583,
+            "label": "frame_pack",
+            "start_ns": 81647551875
+          },
+          {
+            "calling_thread_cpu_ns": 574458,
+            "end_ns": 81653792416,
+            "label": "http_exchange_a",
+            "start_ns": 81647573166
+          },
+          {
+            "calling_thread_cpu_ns": 17125,
+            "end_ns": 81653812458,
+            "label": "frame_unpack",
+            "start_ns": 81653795333
+          },
+          {
+            "calling_thread_cpu_ns": 8959,
+            "end_ns": 81653825250,
+            "label": "frame_pack",
+            "start_ns": 81653816250
+          },
+          {
+            "calling_thread_cpu_ns": 457875,
+            "end_ns": 81660041208,
+            "label": "http_exchange_b",
+            "start_ns": 81653828166
+          },
+          {
+            "calling_thread_cpu_ns": 15667,
+            "end_ns": 81660060791,
+            "label": "frame_unpack",
+            "start_ns": 81660045083
+          },
+          {
+            "calling_thread_cpu_ns": 1117375,
+            "end_ns": 81660064375,
+            "label": "lookup_exchange",
+            "start_ns": 81647546666
+          },
+          {
+            "calling_thread_cpu_ns": 1223375,
+            "end_ns": 81660118416,
+            "label": "token_lookup",
+            "start_ns": 81647494541
+          },
+          {
+            "calling_thread_cpu_ns": 28750,
+            "end_ns": 81893798125,
+            "label": "head_quantization",
+            "start_ns": 81893769500
+          },
+          {
+            "calling_thread_cpu_ns": 15459,
+            "end_ns": 81893950250,
+            "label": "frame_pack",
+            "start_ns": 81893934750
+          },
+          {
+            "calling_thread_cpu_ns": 11417,
+            "end_ns": 81894334958,
+            "label": "frame_pack",
+            "start_ns": 81894323375
+          },
+          {
+            "calling_thread_cpu_ns": 2470750,
+            "end_ns": 82001987625,
+            "label": "http_exchange_a",
+            "start_ns": 81893954333
+          },
+          {
+            "calling_thread_cpu_ns": 48250,
+            "end_ns": 82002042625,
+            "label": "frame_unpack",
+            "start_ns": 82001994458
+          },
+          {
+            "calling_thread_cpu_ns": 2368125,
+            "end_ns": 82002879000,
+            "label": "http_exchange_b",
+            "start_ns": 81894337750
+          },
+          {
+            "calling_thread_cpu_ns": 33000,
+            "end_ns": 82002915666,
+            "label": "frame_unpack",
+            "start_ns": 82002882666
+          },
+          {
+            "calling_thread_cpu_ns": 215000,
+            "end_ns": 82003019458,
+            "label": "paired_exchange",
+            "start_ns": 81893842416
+          },
+          {
+            "calling_thread_cpu_ns": 1376042,
+            "end_ns": 82004396750,
+            "label": "head_codec_decode",
+            "start_ns": 82003024083
+          },
+          {
+            "calling_thread_cpu_ns": 138417,
+            "end_ns": 82004610208,
+            "label": "head_dequantization",
+            "start_ns": 82004471708
+          },
+          {
+            "calling_thread_cpu_ns": 1921750,
+            "end_ns": 82004645333,
+            "label": "head",
+            "start_ns": 81893757583
+          },
+          {
+            "calling_thread_cpu_ns": 58979750,
+            "end_ns": 82008383208,
+            "label": "forward",
+            "start_ns": 81646922333
+          },
+          {
+            "calling_thread_cpu_ns": 100292,
+            "end_ns": 82011552166,
+            "label": "sampler",
+            "start_ns": 82011451833
+          },
+          {
+            "calling_thread_cpu_ns": 3177583,
+            "end_ns": 82011569250,
+            "label": "audit_and_sampler",
+            "start_ns": 82008391750
+          },
+          {
+            "calling_thread_cpu_ns": 17709,
+            "end_ns": 82014457750,
+            "label": "frame_pack",
+            "start_ns": 82014440041
+          },
+          {
+            "calling_thread_cpu_ns": 575958,
+            "end_ns": 82020649291,
+            "label": "http_exchange_a",
+            "start_ns": 82014461166
+          },
+          {
+            "calling_thread_cpu_ns": 14792,
+            "end_ns": 82020667458,
+            "label": "frame_unpack",
+            "start_ns": 82020652708
+          },
+          {
+            "calling_thread_cpu_ns": 10583,
+            "end_ns": 82020682208,
+            "label": "frame_pack",
+            "start_ns": 82020671583
+          },
+          {
+            "calling_thread_cpu_ns": 485292,
+            "end_ns": 82026719583,
+            "label": "http_exchange_b",
+            "start_ns": 82020685708
+          },
+          {
+            "calling_thread_cpu_ns": 15375,
+            "end_ns": 82026738000,
+            "label": "frame_unpack",
+            "start_ns": 82026722666
+          },
+          {
+            "calling_thread_cpu_ns": 1144833,
+            "end_ns": 82026741458,
+            "label": "lookup_exchange",
+            "start_ns": 82014435375
+          },
+          {
+            "calling_thread_cpu_ns": 1239583,
+            "end_ns": 82026785500,
+            "label": "token_lookup",
+            "start_ns": 82014384666
+          },
+          {
+            "calling_thread_cpu_ns": 27000,
+            "end_ns": 82256999666,
+            "label": "head_quantization",
+            "start_ns": 82256972875
+          },
+          {
+            "calling_thread_cpu_ns": 16792,
+            "end_ns": 82257143916,
+            "label": "frame_pack",
+            "start_ns": 82257127125
+          },
+          {
+            "calling_thread_cpu_ns": 11167,
+            "end_ns": 82257522250,
+            "label": "frame_pack",
+            "start_ns": 82257510916
+          },
+          {
+            "calling_thread_cpu_ns": 2573792,
+            "end_ns": 82365036083,
+            "label": "http_exchange_a",
+            "start_ns": 82257147708
+          },
+          {
+            "calling_thread_cpu_ns": 38042,
+            "end_ns": 82365080666,
+            "label": "frame_unpack",
+            "start_ns": 82365042666
+          },
+          {
+            "calling_thread_cpu_ns": 2358166,
+            "end_ns": 82365738250,
+            "label": "http_exchange_b",
+            "start_ns": 82257525458
+          },
+          {
+            "calling_thread_cpu_ns": 33333,
+            "end_ns": 82365775333,
+            "label": "frame_unpack",
+            "start_ns": 82365742041
+          },
+          {
+            "calling_thread_cpu_ns": 204083,
+            "end_ns": 82365874666,
+            "label": "paired_exchange",
+            "start_ns": 82257042916
+          },
+          {
+            "calling_thread_cpu_ns": 1378666,
+            "end_ns": 82367255166,
+            "label": "head_codec_decode",
+            "start_ns": 82365879708
+          },
+          {
+            "calling_thread_cpu_ns": 138125,
+            "end_ns": 82367469416,
+            "label": "head_dequantization",
+            "start_ns": 82367331375
+          },
+          {
+            "calling_thread_cpu_ns": 1906084,
+            "end_ns": 82367499250,
+            "label": "head",
+            "start_ns": 82256963625
+          },
+          {
+            "calling_thread_cpu_ns": 58603167,
+            "end_ns": 82371256583,
+            "label": "forward",
+            "start_ns": 82013838583
+          },
+          {
+            "calling_thread_cpu_ns": 96958,
+            "end_ns": 82374394083,
+            "label": "sampler",
+            "start_ns": 82374297041
+          },
+          {
+            "calling_thread_cpu_ns": 3145625,
+            "end_ns": 82374410458,
+            "label": "audit_and_sampler",
+            "start_ns": 82371264958
+          },
+          {
+            "calling_thread_cpu_ns": 19084,
+            "end_ns": 82379180583,
+            "label": "frame_pack",
+            "start_ns": 82379161541
+          },
+          {
+            "calling_thread_cpu_ns": 548333,
+            "end_ns": 82385348791,
+            "label": "http_exchange_a",
+            "start_ns": 82379184916
+          },
+          {
+            "calling_thread_cpu_ns": 15209,
+            "end_ns": 82385367541,
+            "label": "frame_unpack",
+            "start_ns": 82385352375
+          },
+          {
+            "calling_thread_cpu_ns": 10542,
+            "end_ns": 82385382000,
+            "label": "frame_pack",
+            "start_ns": 82385371500
+          },
+          {
+            "calling_thread_cpu_ns": 471667,
+            "end_ns": 82391465166,
+            "label": "http_exchange_b",
+            "start_ns": 82385385500
+          },
+          {
+            "calling_thread_cpu_ns": 12000,
+            "end_ns": 82391479916,
+            "label": "frame_unpack",
+            "start_ns": 82391467916
+          },
+          {
+            "calling_thread_cpu_ns": 1102125,
+            "end_ns": 82391483125,
+            "label": "lookup_exchange",
+            "start_ns": 82379156833
+          },
+          {
+            "calling_thread_cpu_ns": 1196292,
+            "end_ns": 82391526041,
+            "label": "token_lookup",
+            "start_ns": 82379105583
+          },
+          {
+            "calling_thread_cpu_ns": 24875,
+            "end_ns": 82617911208,
+            "label": "head_quantization",
+            "start_ns": 82617886416
+          },
+          {
+            "calling_thread_cpu_ns": 15542,
+            "end_ns": 82618060625,
+            "label": "frame_pack",
+            "start_ns": 82618045083
+          },
+          {
+            "calling_thread_cpu_ns": 10625,
+            "end_ns": 82618443041,
+            "label": "frame_pack",
+            "start_ns": 82618432291
+          },
+          {
+            "calling_thread_cpu_ns": 2501500,
+            "end_ns": 82726173666,
+            "label": "http_exchange_a",
+            "start_ns": 82618064458
+          },
+          {
+            "calling_thread_cpu_ns": 49167,
+            "end_ns": 82726232333,
+            "label": "frame_unpack",
+            "start_ns": 82726183250
+          },
+          {
+            "calling_thread_cpu_ns": 2414333,
+            "end_ns": 82726893541,
+            "label": "http_exchange_b",
+            "start_ns": 82618446333
+          },
+          {
+            "calling_thread_cpu_ns": 32166,
+            "end_ns": 82726929125,
+            "label": "frame_unpack",
+            "start_ns": 82726897000
+          },
+          {
+            "calling_thread_cpu_ns": 212500,
+            "end_ns": 82727036125,
+            "label": "paired_exchange",
+            "start_ns": 82617957916
+          },
+          {
+            "calling_thread_cpu_ns": 1378541,
+            "end_ns": 82728416125,
+            "label": "head_codec_decode",
+            "start_ns": 82727040708
+          },
+          {
+            "calling_thread_cpu_ns": 141792,
+            "end_ns": 82728633375,
+            "label": "head_dequantization",
+            "start_ns": 82728491666
+          },
+          {
+            "calling_thread_cpu_ns": 1919208,
+            "end_ns": 82728664750,
+            "label": "head",
+            "start_ns": 82617878166
+          },
+          {
+            "calling_thread_cpu_ns": 58442208,
+            "end_ns": 82732486750,
+            "label": "forward",
+            "start_ns": 82378431875
+          },
+          {
+            "calling_thread_cpu_ns": 100000,
+            "end_ns": 82737313666,
+            "label": "sampler",
+            "start_ns": 82737213541
+          },
+          {
+            "calling_thread_cpu_ns": 3358333,
+            "end_ns": 82737333250,
+            "label": "audit_and_sampler",
+            "start_ns": 82732499791
+          },
+          {
+            "calling_thread_cpu_ns": 19083,
+            "end_ns": 82741336125,
+            "label": "frame_pack",
+            "start_ns": 82741317041
+          },
+          {
+            "calling_thread_cpu_ns": 554209,
+            "end_ns": 82747952541,
+            "label": "http_exchange_a",
+            "start_ns": 82741339708
+          },
+          {
+            "calling_thread_cpu_ns": 16875,
+            "end_ns": 82747973791,
+            "label": "frame_unpack",
+            "start_ns": 82747956916
+          },
+          {
+            "calling_thread_cpu_ns": 10583,
+            "end_ns": 82747990583,
+            "label": "frame_pack",
+            "start_ns": 82747980000
+          },
+          {
+            "calling_thread_cpu_ns": 495125,
+            "end_ns": 82754225375,
+            "label": "http_exchange_b",
+            "start_ns": 82747994458
+          },
+          {
+            "calling_thread_cpu_ns": 16500,
+            "end_ns": 82754245166,
+            "label": "frame_unpack",
+            "start_ns": 82754228666
+          },
+          {
+            "calling_thread_cpu_ns": 1141709,
+            "end_ns": 82754248625,
+            "label": "lookup_exchange",
+            "start_ns": 82741311833
+          },
+          {
+            "calling_thread_cpu_ns": 1255625,
+            "end_ns": 82754296916,
+            "label": "token_lookup",
+            "start_ns": 82741246125
+          },
+          {
+            "calling_thread_cpu_ns": 31375,
+            "end_ns": 82985951500,
+            "label": "head_quantization",
+            "start_ns": 82985920166
+          },
+          {
+            "calling_thread_cpu_ns": 16083,
+            "end_ns": 82986106000,
+            "label": "frame_pack",
+            "start_ns": 82986089958
+          },
+          {
+            "calling_thread_cpu_ns": 10959,
+            "end_ns": 82986494291,
+            "label": "frame_pack",
+            "start_ns": 82986483250
+          },
+          {
+            "calling_thread_cpu_ns": 2540416,
+            "end_ns": 83094051916,
+            "label": "http_exchange_a",
+            "start_ns": 82986109791
+          },
+          {
+            "calling_thread_cpu_ns": 44000,
+            "end_ns": 83094103666,
+            "label": "frame_unpack",
+            "start_ns": 83094059750
+          },
+          {
+            "calling_thread_cpu_ns": 2320500,
+            "end_ns": 83094651458,
+            "label": "http_exchange_b",
+            "start_ns": 82986497125
+          },
+          {
+            "calling_thread_cpu_ns": 26708,
+            "end_ns": 83094680500,
+            "label": "frame_unpack",
+            "start_ns": 83094653833
+          },
+          {
+            "calling_thread_cpu_ns": 214958,
+            "end_ns": 83094778583,
+            "label": "paired_exchange",
+            "start_ns": 82985994666
+          },
+          {
+            "calling_thread_cpu_ns": 1382125,
+            "end_ns": 83096162666,
+            "label": "head_codec_decode",
+            "start_ns": 83094783708
+          },
+          {
+            "calling_thread_cpu_ns": 135208,
+            "end_ns": 83096372958,
+            "label": "head_dequantization",
+            "start_ns": 83096237791
+          },
+          {
+            "calling_thread_cpu_ns": 1920959,
+            "end_ns": 83096402791,
+            "label": "head",
+            "start_ns": 82985908583
+          },
+          {
+            "calling_thread_cpu_ns": 59044625,
+            "end_ns": 83100164333,
+            "label": "forward",
+            "start_ns": 82740650291
+          },
+          {
+            "calling_thread_cpu_ns": 99750,
+            "end_ns": 83103398250,
+            "label": "sampler",
+            "start_ns": 83103298416
+          },
+          {
+            "calling_thread_cpu_ns": 3250584,
+            "end_ns": 83103425708,
+            "label": "audit_and_sampler",
+            "start_ns": 83100175125
+          },
+          {
+            "calling_thread_cpu_ns": 469875,
+            "end_ns": 83120526916,
+            "label": "http_exchange_a",
+            "start_ns": 83118473541
+          },
+          {
+            "calling_thread_cpu_ns": 444333,
+            "end_ns": 83122389958,
+            "label": "http_exchange_b",
+            "start_ns": 83120568333
+          }
+        ],
+        "windows_relative_ns": {
+          "after_first_output": [
+            80550387833,
+            83105648958
+          ],
+          "request": [
+            0,
+            83122846791
+          ]
+        }
+      }
+    },
+    {
+      "case": "coupled-parallel-uniform_residues",
+      "replicate": 1,
+      "timing": {
+        "after_first_output": {
+          "diagnostic_nonadditive": {
+            "frame_pack": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 393499
+            },
+            "frame_unpack": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 770208
+            },
+            "http_exchange": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 849084124
+            },
+            "http_exchange_a": {
+              "clipped_call_count": 14,
+              "union_wall_ns": 800667667
+            },
+            "http_exchange_b": {
+              "clipped_call_count": 14,
+              "union_wall_ns": 802681165
+            },
+            "lookup_exchange": {
+              "clipped_call_count": 7,
+              "union_wall_ns": 87149126
+            },
+            "sampler": {
+              "clipped_call_count": 7,
+              "union_wall_ns": 694461
+            }
+          },
+          "elapsed_ns": 2559786875,
+          "exclusive_wall_ns": {
+            "audit_and_sampler": 24165416,
+            "body_execution_excluding_lookup_and_head": 1651626459,
+            "head_codec_decode": 9746918,
+            "head_dequantization": 969458,
+            "head_quantization": 193916,
+            "head_unclassified": 1262539,
+            "paired_exchange": 764404251,
+            "token_lookup": 87835835,
+            "unclassified": 19582083
+          },
+          "partition_reconciled": true
+        },
+        "request": {
+          "diagnostic_nonadditive": {
+            "frame_pack": {
+              "clipped_call_count": 36,
+              "union_wall_ns": 551584
+            },
+            "frame_unpack": {
+              "clipped_call_count": 36,
+              "union_wall_ns": 1080835
+            },
+            "http_exchange": {
+              "clipped_call_count": 40,
+              "union_wall_ns": 2288794958
+            },
+            "http_exchange_a": {
+              "clipped_call_count": 20,
+              "union_wall_ns": 1575624126
+            },
+            "http_exchange_b": {
+              "clipped_call_count": 20,
+              "union_wall_ns": 1581822457
+            },
+            "lookup_exchange": {
+              "clipped_call_count": 10,
+              "union_wall_ns": 1399232001
+            },
+            "sampler": {
+              "clipped_call_count": 8,
+              "union_wall_ns": 793294
+            }
+          },
+          "elapsed_ns": 82131991708,
+          "exclusive_wall_ns": {
+            "audit_and_sampler": 27367791,
+            "body_execution_excluding_lookup_and_head": 40153608376,
+            "head_codec_decode": 11164626,
+            "head_dequantization": 1110916,
+            "head_quantization": 242791,
+            "head_unclassified": 1449914,
+            "paired_exchange": 880178001,
+            "token_lookup": 1402323752,
+            "unclassified": 39654545541
+          },
+          "partition_reconciled": true
+        },
+        "role_cpu_attribution": null,
+        "schema": "pllm.private_boundary_role_profile.parallel_residues.v1",
+        "scope": "Client process only; calling-thread CPU spans overlap and are not additive. HTTP wait includes remote compute, network, pacing and client overhead; not role CPU. Head residual includes share generation, u32 reconstruction, checks and wiping. Audit bin includes sampler and audit wrapper; no overhead correction.",
+        "share_generation_attribution": null,
+        "spans": [
+          {
+            "calling_thread_cpu_ns": 801625,
+            "end_ns": 35715809375,
+            "label": "http_exchange_a",
+            "start_ns": 35709561458
+          },
+          {
+            "calling_thread_cpu_ns": 585833,
+            "end_ns": 35718787541,
+            "label": "http_exchange_b",
+            "start_ns": 35715885375
+          },
+          {
+            "calling_thread_cpu_ns": 31208,
+            "end_ns": 39618849458,
+            "label": "frame_pack",
+            "start_ns": 39618818250
+          },
+          {
+            "calling_thread_cpu_ns": 827417,
+            "end_ns": 39898212250,
+            "label": "http_exchange_a",
+            "start_ns": 39618854250
+          },
+          {
+            "calling_thread_cpu_ns": 48417,
+            "end_ns": 39898266333,
+            "label": "frame_unpack",
+            "start_ns": 39898218125
+          },
+          {
+            "calling_thread_cpu_ns": 22666,
+            "end_ns": 39898296875,
+            "label": "frame_pack",
+            "start_ns": 39898274125
+          },
+          {
+            "calling_thread_cpu_ns": 762250,
+            "end_ns": 40184242750,
+            "label": "http_exchange_b",
+            "start_ns": 39898301083
+          },
+          {
+            "calling_thread_cpu_ns": 51500,
+            "end_ns": 40184300458,
+            "label": "frame_unpack",
+            "start_ns": 40184249083
+          },
+          {
+            "calling_thread_cpu_ns": 1789458,
+            "end_ns": 40184307541,
+            "label": "lookup_exchange",
+            "start_ns": 39618806791
+          },
+          {
+            "calling_thread_cpu_ns": 21041,
+            "end_ns": 40185325125,
+            "label": "frame_pack",
+            "start_ns": 40185304083
+          },
+          {
+            "calling_thread_cpu_ns": 790750,
+            "end_ns": 40463440666,
+            "label": "http_exchange_a",
+            "start_ns": 40185328916
+          },
+          {
+            "calling_thread_cpu_ns": 45208,
+            "end_ns": 40463491458,
+            "label": "frame_unpack",
+            "start_ns": 40463446291
+          },
+          {
+            "calling_thread_cpu_ns": 18583,
+            "end_ns": 40463515583,
+            "label": "frame_pack",
+            "start_ns": 40463497041
+          },
+          {
+            "calling_thread_cpu_ns": 696125,
+            "end_ns": 40741692333,
+            "label": "http_exchange_b",
+            "start_ns": 40463519458
+          },
+          {
+            "calling_thread_cpu_ns": 50417,
+            "end_ns": 40741747750,
+            "label": "frame_unpack",
+            "start_ns": 40741697416
+          },
+          {
+            "calling_thread_cpu_ns": 1655792,
+            "end_ns": 40741752916,
+            "label": "lookup_exchange",
+            "start_ns": 40185298541
+          },
+          {
+            "calling_thread_cpu_ns": 15208,
+            "end_ns": 40742356625,
+            "label": "frame_pack",
+            "start_ns": 40742341416
+          },
+          {
+            "calling_thread_cpu_ns": 548708,
+            "end_ns": 40837321416,
+            "label": "http_exchange_a",
+            "start_ns": 40742360166
+          },
+          {
+            "calling_thread_cpu_ns": 22292,
+            "end_ns": 40837350750,
+            "label": "frame_unpack",
+            "start_ns": 40837328541
+          },
+          {
+            "calling_thread_cpu_ns": 12500,
+            "end_ns": 40837367750,
+            "label": "frame_pack",
+            "start_ns": 40837355291
+          },
+          {
+            "calling_thread_cpu_ns": 532959,
+            "end_ns": 40932429875,
+            "label": "http_exchange_b",
+            "start_ns": 40837370791
+          },
+          {
+            "calling_thread_cpu_ns": 25792,
+            "end_ns": 40932460333,
+            "label": "frame_unpack",
+            "start_ns": 40932434583
+          },
+          {
+            "calling_thread_cpu_ns": 1188167,
+            "end_ns": 40932465000,
+            "label": "lookup_exchange",
+            "start_ns": 40742337250
+          },
+          {
+            "calling_thread_cpu_ns": 7038583,
+            "end_ns": 40932668333,
+            "label": "token_lookup",
+            "start_ns": 39618180416
+          },
+          {
+            "calling_thread_cpu_ns": 49000,
+            "end_ns": 79430618500,
+            "label": "head_quantization",
+            "start_ns": 79430569625
+          },
+          {
+            "calling_thread_cpu_ns": 19375,
+            "end_ns": 79430801708,
+            "label": "frame_pack",
+            "start_ns": 79430781958
+          },
+          {
+            "calling_thread_cpu_ns": 16833,
+            "end_ns": 79431100250,
+            "label": "frame_pack",
+            "start_ns": 79431083125
+          },
+          {
+            "calling_thread_cpu_ns": 2863000,
+            "end_ns": 79545491625,
+            "label": "http_exchange_a",
+            "start_ns": 79430806333
+          },
+          {
+            "calling_thread_cpu_ns": 40833,
+            "end_ns": 79545539000,
+            "label": "frame_unpack",
+            "start_ns": 79545498291
+          },
+          {
+            "calling_thread_cpu_ns": 2655166,
+            "end_ns": 79546314375,
+            "label": "http_exchange_b",
+            "start_ns": 79431104708
+          },
+          {
+            "calling_thread_cpu_ns": 26917,
+            "end_ns": 79546344000,
+            "label": "frame_unpack",
+            "start_ns": 79546317125
+          },
+          {
+            "calling_thread_cpu_ns": 202916,
+            "end_ns": 79546448833,
+            "label": "paired_exchange",
+            "start_ns": 79430675083
+          },
+          {
+            "calling_thread_cpu_ns": 1420750,
+            "end_ns": 79547874333,
+            "label": "head_codec_decode",
+            "start_ns": 79546456625
+          },
+          {
+            "calling_thread_cpu_ns": 141584,
+            "end_ns": 79548095166,
+            "label": "head_dequantization",
+            "start_ns": 79547953708
+          },
+          {
+            "calling_thread_cpu_ns": 1996875,
+            "end_ns": 79548127041,
+            "label": "head",
+            "start_ns": 79430557875
+          },
+          {
+            "calling_thread_cpu_ns": 3135177958,
+            "end_ns": 79551858916,
+            "label": "forward",
+            "start_ns": 39617819916
+          },
+          {
+            "calling_thread_cpu_ns": 98708,
+            "end_ns": 79555051708,
+            "label": "sampler",
+            "start_ns": 79554952875
+          },
+          {
+            "calling_thread_cpu_ns": 3202375,
+            "end_ns": 79555071625,
+            "label": "audit_and_sampler",
+            "start_ns": 79551869250
+          },
+          {
+            "calling_thread_cpu_ns": 17791,
+            "end_ns": 79556358875,
+            "label": "frame_pack",
+            "start_ns": 79556341083
+          },
+          {
+            "calling_thread_cpu_ns": 590750,
+            "end_ns": 79562455250,
+            "label": "http_exchange_a",
+            "start_ns": 79556362375
+          },
+          {
+            "calling_thread_cpu_ns": 12667,
+            "end_ns": 79562471208,
+            "label": "frame_unpack",
+            "start_ns": 79562458541
+          },
+          {
+            "calling_thread_cpu_ns": 10708,
+            "end_ns": 79562486041,
+            "label": "frame_pack",
+            "start_ns": 79562475291
+          },
+          {
+            "calling_thread_cpu_ns": 475125,
+            "end_ns": 79568538583,
+            "label": "http_exchange_b",
+            "start_ns": 79562490000
+          },
+          {
+            "calling_thread_cpu_ns": 11542,
+            "end_ns": 79568553041,
+            "label": "frame_unpack",
+            "start_ns": 79568541458
+          },
+          {
+            "calling_thread_cpu_ns": 1143792,
+            "end_ns": 79568556125,
+            "label": "lookup_exchange",
+            "start_ns": 79556336083
+          },
+          {
+            "calling_thread_cpu_ns": 1243000,
+            "end_ns": 79568604250,
+            "label": "token_lookup",
+            "start_ns": 79556285166
+          },
+          {
+            "calling_thread_cpu_ns": 29542,
+            "end_ns": 79801267375,
+            "label": "head_quantization",
+            "start_ns": 79801238041
+          },
+          {
+            "calling_thread_cpu_ns": 17750,
+            "end_ns": 79801433250,
+            "label": "frame_pack",
+            "start_ns": 79801415083
+          },
+          {
+            "calling_thread_cpu_ns": 12458,
+            "end_ns": 79801788875,
+            "label": "frame_pack",
+            "start_ns": 79801776291
+          },
+          {
+            "calling_thread_cpu_ns": 2568167,
+            "end_ns": 79909598541,
+            "label": "http_exchange_a",
+            "start_ns": 79801437833
+          },
+          {
+            "calling_thread_cpu_ns": 42875,
+            "end_ns": 79909646916,
+            "label": "frame_unpack",
+            "start_ns": 79909604166
+          },
+          {
+            "calling_thread_cpu_ns": 2513208,
+            "end_ns": 79911182666,
+            "label": "http_exchange_b",
+            "start_ns": 79801792125
+          },
+          {
+            "calling_thread_cpu_ns": 31667,
+            "end_ns": 79911218541,
+            "label": "frame_unpack",
+            "start_ns": 79911186875
+          },
+          {
+            "calling_thread_cpu_ns": 197792,
+            "end_ns": 79911317541,
+            "label": "paired_exchange",
+            "start_ns": 79801312541
+          },
+          {
+            "calling_thread_cpu_ns": 1381208,
+            "end_ns": 79912706125,
+            "label": "head_codec_decode",
+            "start_ns": 79911325291
+          },
+          {
+            "calling_thread_cpu_ns": 138917,
+            "end_ns": 79912921041,
+            "label": "head_dequantization",
+            "start_ns": 79912782208
+          },
+          {
+            "calling_thread_cpu_ns": 1917916,
+            "end_ns": 79912953541,
+            "label": "head",
+            "start_ns": 79801226916
+          },
+          {
+            "calling_thread_cpu_ns": 59936625,
+            "end_ns": 79916749625,
+            "label": "forward",
+            "start_ns": 79555615208
+          },
+          {
+            "calling_thread_cpu_ns": 101166,
+            "end_ns": 79919906250,
+            "label": "sampler",
+            "start_ns": 79919802291
+          },
+          {
+            "calling_thread_cpu_ns": 3161958,
+            "end_ns": 79919924291,
+            "label": "audit_and_sampler",
+            "start_ns": 79916762333
+          },
+          {
+            "calling_thread_cpu_ns": 16500,
+            "end_ns": 79923671166,
+            "label": "frame_pack",
+            "start_ns": 79923654666
+          },
+          {
+            "calling_thread_cpu_ns": 583834,
+            "end_ns": 79930396041,
+            "label": "http_exchange_a",
+            "start_ns": 79923674875
+          },
+          {
+            "calling_thread_cpu_ns": 15250,
+            "end_ns": 79930415333,
+            "label": "frame_unpack",
+            "start_ns": 79930400041
+          },
+          {
+            "calling_thread_cpu_ns": 10833,
+            "end_ns": 79930430458,
+            "label": "frame_pack",
+            "start_ns": 79930419625
+          },
+          {
+            "calling_thread_cpu_ns": 483625,
+            "end_ns": 79936573750,
+            "label": "http_exchange_b",
+            "start_ns": 79930434291
+          },
+          {
+            "calling_thread_cpu_ns": 11875,
+            "end_ns": 79936588750,
+            "label": "frame_unpack",
+            "start_ns": 79936576916
+          },
+          {
+            "calling_thread_cpu_ns": 1149041,
+            "end_ns": 79936592083,
+            "label": "lookup_exchange",
+            "start_ns": 79923649250
+          },
+          {
+            "calling_thread_cpu_ns": 1248958,
+            "end_ns": 79936643500,
+            "label": "token_lookup",
+            "start_ns": 79923600666
+          },
+          {
+            "calling_thread_cpu_ns": 29708,
+            "end_ns": 80166893500,
+            "label": "head_quantization",
+            "start_ns": 80166863833
+          },
+          {
+            "calling_thread_cpu_ns": 16375,
+            "end_ns": 80167173041,
+            "label": "frame_pack",
+            "start_ns": 80167156541
+          },
+          {
+            "calling_thread_cpu_ns": 11292,
+            "end_ns": 80167448041,
+            "label": "frame_pack",
+            "start_ns": 80167436666
+          },
+          {
+            "calling_thread_cpu_ns": 2546542,
+            "end_ns": 80275207000,
+            "label": "http_exchange_a",
+            "start_ns": 80167176875
+          },
+          {
+            "calling_thread_cpu_ns": 43000,
+            "end_ns": 80275255291,
+            "label": "frame_unpack",
+            "start_ns": 80275212375
+          },
+          {
+            "calling_thread_cpu_ns": 2283750,
+            "end_ns": 80275939416,
+            "label": "http_exchange_b",
+            "start_ns": 80167451083
+          },
+          {
+            "calling_thread_cpu_ns": 32708,
+            "end_ns": 80275975916,
+            "label": "frame_unpack",
+            "start_ns": 80275943250
+          },
+          {
+            "calling_thread_cpu_ns": 213167,
+            "end_ns": 80276076666,
+            "label": "paired_exchange",
+            "start_ns": 80167038833
+          },
+          {
+            "calling_thread_cpu_ns": 1382417,
+            "end_ns": 80277464125,
+            "label": "head_codec_decode",
+            "start_ns": 80276082083
+          },
+          {
+            "calling_thread_cpu_ns": 139417,
+            "end_ns": 80277678083,
+            "label": "head_dequantization",
+            "start_ns": 80277538666
+          },
+          {
+            "calling_thread_cpu_ns": 1948833,
+            "end_ns": 80277710333,
+            "label": "head",
+            "start_ns": 80166853375
+          },
+          {
+            "calling_thread_cpu_ns": 58652084,
+            "end_ns": 80281516083,
+            "label": "forward",
+            "start_ns": 79923033041
+          },
+          {
+            "calling_thread_cpu_ns": 99708,
+            "end_ns": 80284664250,
+            "label": "sampler",
+            "start_ns": 80284564541
+          },
+          {
+            "calling_thread_cpu_ns": 3155000,
+            "end_ns": 80284681166,
+            "label": "audit_and_sampler",
+            "start_ns": 80281526208
+          },
+          {
+            "calling_thread_cpu_ns": 17000,
+            "end_ns": 80287612916,
+            "label": "frame_pack",
+            "start_ns": 80287595875
+          },
+          {
+            "calling_thread_cpu_ns": 561167,
+            "end_ns": 80293828875,
+            "label": "http_exchange_a",
+            "start_ns": 80287616708
+          },
+          {
+            "calling_thread_cpu_ns": 16333,
+            "end_ns": 80293848458,
+            "label": "frame_unpack",
+            "start_ns": 80293832166
+          },
+          {
+            "calling_thread_cpu_ns": 8875,
+            "end_ns": 80293861416,
+            "label": "frame_pack",
+            "start_ns": 80293852541
+          },
+          {
+            "calling_thread_cpu_ns": 466708,
+            "end_ns": 80299828833,
+            "label": "http_exchange_b",
+            "start_ns": 80293864375
+          },
+          {
+            "calling_thread_cpu_ns": 14083,
+            "end_ns": 80299846000,
+            "label": "frame_unpack",
+            "start_ns": 80299831958
+          },
+          {
+            "calling_thread_cpu_ns": 1109167,
+            "end_ns": 80299849500,
+            "label": "lookup_exchange",
+            "start_ns": 80287591041
+          },
+          {
+            "calling_thread_cpu_ns": 1195666,
+            "end_ns": 80299890708,
+            "label": "token_lookup",
+            "start_ns": 80287545666
+          },
+          {
+            "calling_thread_cpu_ns": 26709,
+            "end_ns": 80531048166,
+            "label": "head_quantization",
+            "start_ns": 80531021583
+          },
+          {
+            "calling_thread_cpu_ns": 15667,
+            "end_ns": 80531215416,
+            "label": "frame_pack",
+            "start_ns": 80531199666
+          },
+          {
+            "calling_thread_cpu_ns": 11500,
+            "end_ns": 80531597708,
+            "label": "frame_pack",
+            "start_ns": 80531586041
+          },
+          {
+            "calling_thread_cpu_ns": 2391500,
+            "end_ns": 80639309750,
+            "label": "http_exchange_a",
+            "start_ns": 80531219416
+          },
+          {
+            "calling_thread_cpu_ns": 42250,
+            "end_ns": 80639357416,
+            "label": "frame_unpack",
+            "start_ns": 80639315208
+          },
+          {
+            "calling_thread_cpu_ns": 2315667,
+            "end_ns": 80640207333,
+            "label": "http_exchange_b",
+            "start_ns": 80531601375
+          },
+          {
+            "calling_thread_cpu_ns": 27209,
+            "end_ns": 80640237083,
+            "label": "frame_unpack",
+            "start_ns": 80640209916
+          },
+          {
+            "calling_thread_cpu_ns": 232083,
+            "end_ns": 80640346791,
+            "label": "paired_exchange",
+            "start_ns": 80531092166
+          },
+          {
+            "calling_thread_cpu_ns": 1383083,
+            "end_ns": 80641734500,
+            "label": "head_codec_decode",
+            "start_ns": 80640351708
+          },
+          {
+            "calling_thread_cpu_ns": 134000,
+            "end_ns": 80641940916,
+            "label": "head_dequantization",
+            "start_ns": 80641806916
+          },
+          {
+            "calling_thread_cpu_ns": 1934167,
+            "end_ns": 80641971041,
+            "label": "head",
+            "start_ns": 80531010583
+          },
+          {
+            "calling_thread_cpu_ns": 58878375,
+            "end_ns": 80645775500,
+            "label": "forward",
+            "start_ns": 80286985875
+          },
+          {
+            "calling_thread_cpu_ns": 99042,
+            "end_ns": 80650805000,
+            "label": "sampler",
+            "start_ns": 80650705541
+          },
+          {
+            "calling_thread_cpu_ns": 3337500,
+            "end_ns": 80650824583,
+            "label": "audit_and_sampler",
+            "start_ns": 80645783791
+          },
+          {
+            "calling_thread_cpu_ns": 16334,
+            "end_ns": 80653858125,
+            "label": "frame_pack",
+            "start_ns": 80653841833
+          },
+          {
+            "calling_thread_cpu_ns": 501458,
+            "end_ns": 80660216500,
+            "label": "http_exchange_a",
+            "start_ns": 80653861750
+          },
+          {
+            "calling_thread_cpu_ns": 16291,
+            "end_ns": 80660236541,
+            "label": "frame_unpack",
+            "start_ns": 80660220250
+          },
+          {
+            "calling_thread_cpu_ns": 8208,
+            "end_ns": 80660248666,
+            "label": "frame_pack",
+            "start_ns": 80660240500
+          },
+          {
+            "calling_thread_cpu_ns": 464292,
+            "end_ns": 80666332625,
+            "label": "http_exchange_b",
+            "start_ns": 80660251958
+          },
+          {
+            "calling_thread_cpu_ns": 15000,
+            "end_ns": 80666351333,
+            "label": "frame_unpack",
+            "start_ns": 80666336291
+          },
+          {
+            "calling_thread_cpu_ns": 1047917,
+            "end_ns": 80666355125,
+            "label": "lookup_exchange",
+            "start_ns": 80653837041
+          },
+          {
+            "calling_thread_cpu_ns": 1144834,
+            "end_ns": 80666398250,
+            "label": "token_lookup",
+            "start_ns": 80653783208
+          },
+          {
+            "calling_thread_cpu_ns": 26542,
+            "end_ns": 80901124583,
+            "label": "head_quantization",
+            "start_ns": 80901098125
+          },
+          {
+            "calling_thread_cpu_ns": 17167,
+            "end_ns": 80901293791,
+            "label": "frame_pack",
+            "start_ns": 80901276208
+          },
+          {
+            "calling_thread_cpu_ns": 14042,
+            "end_ns": 80901569666,
+            "label": "frame_pack",
+            "start_ns": 80901555541
+          },
+          {
+            "calling_thread_cpu_ns": 2508125,
+            "end_ns": 81009257125,
+            "label": "http_exchange_a",
+            "start_ns": 80901298583
+          },
+          {
+            "calling_thread_cpu_ns": 50000,
+            "end_ns": 81009313833,
+            "label": "frame_unpack",
+            "start_ns": 81009263875
+          },
+          {
+            "calling_thread_cpu_ns": 2301792,
+            "end_ns": 81010032708,
+            "label": "http_exchange_b",
+            "start_ns": 80901573250
+          },
+          {
+            "calling_thread_cpu_ns": 27250,
+            "end_ns": 81010062541,
+            "label": "frame_unpack",
+            "start_ns": 81010035333
+          },
+          {
+            "calling_thread_cpu_ns": 214208,
+            "end_ns": 81010168875,
+            "label": "paired_exchange",
+            "start_ns": 80901168541
+          },
+          {
+            "calling_thread_cpu_ns": 1381584,
+            "end_ns": 81011552416,
+            "label": "head_codec_decode",
+            "start_ns": 81010173958
+          },
+          {
+            "calling_thread_cpu_ns": 140375,
+            "end_ns": 81011769541,
+            "label": "head_dequantization",
+            "start_ns": 81011629166
+          },
+          {
+            "calling_thread_cpu_ns": 1924042,
+            "end_ns": 81011800583,
+            "label": "head",
+            "start_ns": 80901088875
+          },
+          {
+            "calling_thread_cpu_ns": 59049041,
+            "end_ns": 81015617625,
+            "label": "forward",
+            "start_ns": 80653212208
+          },
+          {
+            "calling_thread_cpu_ns": 97167,
+            "end_ns": 81018804375,
+            "label": "sampler",
+            "start_ns": 81018706958
+          },
+          {
+            "calling_thread_cpu_ns": 3197125,
+            "end_ns": 81018822291,
+            "label": "audit_and_sampler",
+            "start_ns": 81015625166
+          },
+          {
+            "calling_thread_cpu_ns": 16583,
+            "end_ns": 81022578791,
+            "label": "frame_pack",
+            "start_ns": 81022562166
+          },
+          {
+            "calling_thread_cpu_ns": 658084,
+            "end_ns": 81028918458,
+            "label": "http_exchange_a",
+            "start_ns": 81022582041
+          },
+          {
+            "calling_thread_cpu_ns": 19083,
+            "end_ns": 81028942125,
+            "label": "frame_unpack",
+            "start_ns": 81028923041
+          },
+          {
+            "calling_thread_cpu_ns": 11333,
+            "end_ns": 81028958541,
+            "label": "frame_pack",
+            "start_ns": 81028947208
+          },
+          {
+            "calling_thread_cpu_ns": 526041,
+            "end_ns": 81035086458,
+            "label": "http_exchange_b",
+            "start_ns": 81028962500
+          },
+          {
+            "calling_thread_cpu_ns": 13875,
+            "end_ns": 81035104041,
+            "label": "frame_unpack",
+            "start_ns": 81035090125
+          },
+          {
+            "calling_thread_cpu_ns": 1272792,
+            "end_ns": 81035107833,
+            "label": "lookup_exchange",
+            "start_ns": 81022557625
+          },
+          {
+            "calling_thread_cpu_ns": 1369917,
+            "end_ns": 81035154708,
+            "label": "token_lookup",
+            "start_ns": 81022507375
+          },
+          {
+            "calling_thread_cpu_ns": 27250,
+            "end_ns": 81266097541,
+            "label": "head_quantization",
+            "start_ns": 81266070375
+          },
+          {
+            "calling_thread_cpu_ns": 16333,
+            "end_ns": 81266269500,
+            "label": "frame_pack",
+            "start_ns": 81266252791
+          },
+          {
+            "calling_thread_cpu_ns": 11125,
+            "end_ns": 81266579625,
+            "label": "frame_pack",
+            "start_ns": 81266568375
+          },
+          {
+            "calling_thread_cpu_ns": 2482250,
+            "end_ns": 81374136916,
+            "label": "http_exchange_a",
+            "start_ns": 81266274041
+          },
+          {
+            "calling_thread_cpu_ns": 46334,
+            "end_ns": 81374190000,
+            "label": "frame_unpack",
+            "start_ns": 81374143750
+          },
+          {
+            "calling_thread_cpu_ns": 2328459,
+            "end_ns": 81374862708,
+            "label": "http_exchange_b",
+            "start_ns": 81266582541
+          },
+          {
+            "calling_thread_cpu_ns": 28791,
+            "end_ns": 81374894458,
+            "label": "frame_unpack",
+            "start_ns": 81374865666
+          },
+          {
+            "calling_thread_cpu_ns": 205042,
+            "end_ns": 81374994708,
+            "label": "paired_exchange",
+            "start_ns": 81266140791
+          },
+          {
+            "calling_thread_cpu_ns": 1378375,
+            "end_ns": 81376374833,
+            "label": "head_codec_decode",
+            "start_ns": 81374999458
+          },
+          {
+            "calling_thread_cpu_ns": 137834,
+            "end_ns": 81376587291,
+            "label": "head_dequantization",
+            "start_ns": 81376449583
+          },
+          {
+            "calling_thread_cpu_ns": 1906667,
+            "end_ns": 81376618333,
+            "label": "head",
+            "start_ns": 81266059333
+          },
+          {
+            "calling_thread_cpu_ns": 59269416,
+            "end_ns": 81380400333,
+            "label": "forward",
+            "start_ns": 81021937083
+          },
+          {
+            "calling_thread_cpu_ns": 99709,
+            "end_ns": 81383584875,
+            "label": "sampler",
+            "start_ns": 81383485166
+          },
+          {
+            "calling_thread_cpu_ns": 3194375,
+            "end_ns": 81383602750,
+            "label": "audit_and_sampler",
+            "start_ns": 81380408375
+          },
+          {
+            "calling_thread_cpu_ns": 16583,
+            "end_ns": 81386556833,
+            "label": "frame_pack",
+            "start_ns": 81386540250
+          },
+          {
+            "calling_thread_cpu_ns": 552416,
+            "end_ns": 81392702333,
+            "label": "http_exchange_a",
+            "start_ns": 81386561041
+          },
+          {
+            "calling_thread_cpu_ns": 17042,
+            "end_ns": 81392723375,
+            "label": "frame_unpack",
+            "start_ns": 81392706333
+          },
+          {
+            "calling_thread_cpu_ns": 10458,
+            "end_ns": 81392738083,
+            "label": "frame_pack",
+            "start_ns": 81392727583
+          },
+          {
+            "calling_thread_cpu_ns": 465833,
+            "end_ns": 81398816041,
+            "label": "http_exchange_b",
+            "start_ns": 81392741500
+          },
+          {
+            "calling_thread_cpu_ns": 14542,
+            "end_ns": 81398833791,
+            "label": "frame_unpack",
+            "start_ns": 81398819291
+          },
+          {
+            "calling_thread_cpu_ns": 1104292,
+            "end_ns": 81398837791,
+            "label": "lookup_exchange",
+            "start_ns": 81386535208
+          },
+          {
+            "calling_thread_cpu_ns": 1217875,
+            "end_ns": 81398902583,
+            "label": "token_lookup",
+            "start_ns": 81386486458
+          },
+          {
+            "calling_thread_cpu_ns": 28083,
+            "end_ns": 81630257666,
+            "label": "head_quantization",
+            "start_ns": 81630229666
+          },
+          {
+            "calling_thread_cpu_ns": 15167,
+            "end_ns": 81630415458,
+            "label": "frame_pack",
+            "start_ns": 81630400250
+          },
+          {
+            "calling_thread_cpu_ns": 11208,
+            "end_ns": 81630802958,
+            "label": "frame_pack",
+            "start_ns": 81630791583
+          },
+          {
+            "calling_thread_cpu_ns": 2669500,
+            "end_ns": 81738658416,
+            "label": "http_exchange_a",
+            "start_ns": 81630419250
+          },
+          {
+            "calling_thread_cpu_ns": 44834,
+            "end_ns": 81738711375,
+            "label": "frame_unpack",
+            "start_ns": 81738666708
+          },
+          {
+            "calling_thread_cpu_ns": 2316916,
+            "end_ns": 81739289208,
+            "label": "http_exchange_b",
+            "start_ns": 81630805875
+          },
+          {
+            "calling_thread_cpu_ns": 32042,
+            "end_ns": 81739324916,
+            "label": "frame_unpack",
+            "start_ns": 81739292916
+          },
+          {
+            "calling_thread_cpu_ns": 232958,
+            "end_ns": 81739425333,
+            "label": "paired_exchange",
+            "start_ns": 81630301583
+          },
+          {
+            "calling_thread_cpu_ns": 1394209,
+            "end_ns": 81740822083,
+            "label": "head_codec_decode",
+            "start_ns": 81739430791
+          },
+          {
+            "calling_thread_cpu_ns": 137958,
+            "end_ns": 81741036416,
+            "label": "head_dequantization",
+            "start_ns": 81740898500
+          },
+          {
+            "calling_thread_cpu_ns": 1954833,
+            "end_ns": 81741067708,
+            "label": "head",
+            "start_ns": 81630220625
+          },
+          {
+            "calling_thread_cpu_ns": 59647750,
+            "end_ns": 81744764166,
+            "label": "forward",
+            "start_ns": 81385925958
+          },
+          {
+            "calling_thread_cpu_ns": 97333,
+            "end_ns": 81747962916,
+            "label": "sampler",
+            "start_ns": 81747865416
+          },
+          {
+            "calling_thread_cpu_ns": 3207583,
+            "end_ns": 81747979166,
+            "label": "audit_and_sampler",
+            "start_ns": 81744771625
+          },
+          {
+            "calling_thread_cpu_ns": 17625,
+            "end_ns": 81752676208,
+            "label": "frame_pack",
+            "start_ns": 81752658583
+          },
+          {
+            "calling_thread_cpu_ns": 574916,
+            "end_ns": 81758962416,
+            "label": "http_exchange_a",
+            "start_ns": 81752679958
+          },
+          {
+            "calling_thread_cpu_ns": 14875,
+            "end_ns": 81758980500,
+            "label": "frame_unpack",
+            "start_ns": 81758965625
+          },
+          {
+            "calling_thread_cpu_ns": 10625,
+            "end_ns": 81758995833,
+            "label": "frame_pack",
+            "start_ns": 81758985208
+          },
+          {
+            "calling_thread_cpu_ns": 469625,
+            "end_ns": 81764993250,
+            "label": "http_exchange_b",
+            "start_ns": 81758999500
+          },
+          {
+            "calling_thread_cpu_ns": 11625,
+            "end_ns": 81765007625,
+            "label": "frame_unpack",
+            "start_ns": 81764995958
+          },
+          {
+            "calling_thread_cpu_ns": 1124709,
+            "end_ns": 81765010583,
+            "label": "lookup_exchange",
+            "start_ns": 81752653666
+          },
+          {
+            "calling_thread_cpu_ns": 1218042,
+            "end_ns": 81765055791,
+            "label": "token_lookup",
+            "start_ns": 81752605416
+          },
+          {
+            "calling_thread_cpu_ns": 26708,
+            "end_ns": 81995056291,
+            "label": "head_quantization",
+            "start_ns": 81995029583
+          },
+          {
+            "calling_thread_cpu_ns": 17625,
+            "end_ns": 81995231708,
+            "label": "frame_pack",
+            "start_ns": 81995213750
+          },
+          {
+            "calling_thread_cpu_ns": 13584,
+            "end_ns": 81995514666,
+            "label": "frame_pack",
+            "start_ns": 81995500958
+          },
+          {
+            "calling_thread_cpu_ns": 2560708,
+            "end_ns": 82103421250,
+            "label": "http_exchange_a",
+            "start_ns": 81995236458
+          },
+          {
+            "calling_thread_cpu_ns": 56583,
+            "end_ns": 82103486666,
+            "label": "frame_unpack",
+            "start_ns": 82103430208
+          },
+          {
+            "calling_thread_cpu_ns": 2296541,
+            "end_ns": 82104066000,
+            "label": "http_exchange_b",
+            "start_ns": 81995518041
+          },
+          {
+            "calling_thread_cpu_ns": 61375,
+            "end_ns": 82104129833,
+            "label": "frame_unpack",
+            "start_ns": 82104068458
+          },
+          {
+            "calling_thread_cpu_ns": 206333,
+            "end_ns": 82104228375,
+            "label": "paired_exchange",
+            "start_ns": 81995099583
+          },
+          {
+            "calling_thread_cpu_ns": 1456333,
+            "end_ns": 82105691208,
+            "label": "head_codec_decode",
+            "start_ns": 82104235083
+          },
+          {
+            "calling_thread_cpu_ns": 141333,
+            "end_ns": 82105905250,
+            "label": "head_dequantization",
+            "start_ns": 82105764041
+          },
+          {
+            "calling_thread_cpu_ns": 1991209,
+            "end_ns": 82105935875,
+            "label": "head",
+            "start_ns": 81995020625
+          },
+          {
+            "calling_thread_cpu_ns": 59320084,
+            "end_ns": 82109947250,
+            "label": "forward",
+            "start_ns": 81752021833
+          },
+          {
+            "calling_thread_cpu_ns": 96584,
+            "end_ns": 82113147166,
+            "label": "sampler",
+            "start_ns": 82113050458
+          },
+          {
+            "calling_thread_cpu_ns": 3208708,
+            "end_ns": 82113164208,
+            "label": "audit_and_sampler",
+            "start_ns": 82109955541
+          },
+          {
+            "calling_thread_cpu_ns": 487292,
+            "end_ns": 82129641166,
+            "label": "http_exchange_a",
+            "start_ns": 82128048916
+          },
+          {
+            "calling_thread_cpu_ns": 430666,
+            "end_ns": 82131539458,
+            "label": "http_exchange_b",
+            "start_ns": 82129683625
+          }
+        ],
+        "windows_relative_ns": {
+          "after_first_output": [
+            79555602333,
+            82115389208
+          ],
+          "request": [
+            0,
+            82131991708
+          ]
+        }
+      }
+    },
+    {
+      "case": "coupled-parallel-uniform_residues",
+      "replicate": 2,
+      "timing": {
+        "after_first_output": {
+          "diagnostic_nonadditive": {
+            "frame_pack": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 377706
+            },
+            "frame_unpack": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 745209
+            },
+            "http_exchange": {
+              "clipped_call_count": 28,
+              "union_wall_ns": 846713374
+            },
+            "http_exchange_a": {
+              "clipped_call_count": 14,
+              "union_wall_ns": 801131417
+            },
+            "http_exchange_b": {
+              "clipped_call_count": 14,
+              "union_wall_ns": 799137667
+            },
+            "lookup_exchange": {
+              "clipped_call_count": 7,
+              "union_wall_ns": 86390000
+            },
+            "sampler": {
+              "clipped_call_count": 7,
+              "union_wall_ns": 684501
+            }
+          },
+          "elapsed_ns": 2546411250,
+          "exclusive_wall_ns": {
+            "audit_and_sampler": 22405083,
+            "body_execution_excluding_lookup_and_head": 1643924417,
+            "head_codec_decode": 10220874,
+            "head_dequantization": 970457,
+            "head_quantization": 186833,
+            "head_unclassified": 1195795,
+            "paired_exchange": 762676543,
+            "token_lookup": 87022749,
+            "unclassified": 17808499
+          },
+          "partition_reconciled": true
+        },
+        "request": {
+          "diagnostic_nonadditive": {
+            "frame_pack": {
+              "clipped_call_count": 36,
+              "union_wall_ns": 530663
+            },
+            "frame_unpack": {
+              "clipped_call_count": 36,
+              "union_wall_ns": 1049877
+            },
+            "http_exchange": {
+              "clipped_call_count": 40,
+              "union_wall_ns": 2273807666
+            },
+            "http_exchange_a": {
+              "clipped_call_count": 20,
+              "union_wall_ns": 1570686917
+            },
+            "http_exchange_b": {
+              "clipped_call_count": 20,
+              "union_wall_ns": 1567994959
+            },
+            "lookup_exchange": {
+              "clipped_call_count": 10,
+              "union_wall_ns": 1392665708
+            },
+            "sampler": {
+              "clipped_call_count": 8,
+              "union_wall_ns": 784001
+            }
+          },
+          "elapsed_ns": 82003462583,
+          "exclusive_wall_ns": {
+            "audit_and_sampler": 25585041,
+            "body_execution_excluding_lookup_and_head": 40131121042,
+            "head_codec_decode": 11630832,
+            "head_dequantization": 1104832,
+            "head_quantization": 232042,
+            "head_unclassified": 1372420,
+            "paired_exchange": 875237501,
+            "token_lookup": 1395688624,
+            "unclassified": 39561490249
+          },
+          "partition_reconciled": true
+        },
+        "role_cpu_attribution": null,
+        "schema": "pllm.private_boundary_role_profile.parallel_residues.v1",
+        "scope": "Client process only; calling-thread CPU spans overlap and are not additive. HTTP wait includes remote compute, network, pacing and client overhead; not role CPU. Head residual includes share generation, u32 reconstruction, checks and wiping. Audit bin includes sampler and audit wrapper; no overhead correction.",
+        "share_generation_attribution": null,
+        "spans": [
+          {
+            "calling_thread_cpu_ns": 774917,
+            "end_ns": 35670621333,
+            "label": "http_exchange_a",
+            "start_ns": 35667445375
+          },
+          {
+            "calling_thread_cpu_ns": 485958,
+            "end_ns": 35673461458,
+            "label": "http_exchange_b",
+            "start_ns": 35670692583
+          },
+          {
+            "calling_thread_cpu_ns": 31000,
+            "end_ns": 39525406000,
+            "label": "frame_pack",
+            "start_ns": 39525375042
+          },
+          {
+            "calling_thread_cpu_ns": 838042,
+            "end_ns": 39805745375,
+            "label": "http_exchange_a",
+            "start_ns": 39525410625
+          },
+          {
+            "calling_thread_cpu_ns": 46500,
+            "end_ns": 39805797042,
+            "label": "frame_unpack",
+            "start_ns": 39805750625
+          },
+          {
+            "calling_thread_cpu_ns": 19375,
+            "end_ns": 39805823875,
+            "label": "frame_pack",
+            "start_ns": 39805804500
+          },
+          {
+            "calling_thread_cpu_ns": 719250,
+            "end_ns": 40085770042,
+            "label": "http_exchange_b",
+            "start_ns": 39805827750
+          },
+          {
+            "calling_thread_cpu_ns": 47333,
+            "end_ns": 40085822417,
+            "label": "frame_unpack",
+            "start_ns": 40085775208
+          },
+          {
+            "calling_thread_cpu_ns": 1739917,
+            "end_ns": 40085829000,
+            "label": "lookup_exchange",
+            "start_ns": 39525368167
+          },
+          {
+            "calling_thread_cpu_ns": 20542,
+            "end_ns": 40086839500,
+            "label": "frame_pack",
+            "start_ns": 40086818958
+          },
+          {
+            "calling_thread_cpu_ns": 740000,
+            "end_ns": 40364980667,
+            "label": "http_exchange_a",
+            "start_ns": 40086842917
+          },
+          {
+            "calling_thread_cpu_ns": 46208,
+            "end_ns": 40365031250,
+            "label": "frame_unpack",
+            "start_ns": 40364985042
+          },
+          {
+            "calling_thread_cpu_ns": 18417,
+            "end_ns": 40365054833,
+            "label": "frame_pack",
+            "start_ns": 40365036333
+          },
+          {
+            "calling_thread_cpu_ns": 688584,
+            "end_ns": 40642723542,
+            "label": "http_exchange_b",
+            "start_ns": 40365058375
+          },
+          {
+            "calling_thread_cpu_ns": 39583,
+            "end_ns": 40642767917,
+            "label": "frame_unpack",
+            "start_ns": 40642728458
+          },
+          {
+            "calling_thread_cpu_ns": 1585375,
+            "end_ns": 40642774125,
+            "label": "lookup_exchange",
+            "start_ns": 40086813333
+          },
+          {
+            "calling_thread_cpu_ns": 16750,
+            "end_ns": 40643379125,
+            "label": "frame_pack",
+            "start_ns": 40643362375
+          },
+          {
+            "calling_thread_cpu_ns": 576542,
+            "end_ns": 40738248958,
+            "label": "http_exchange_a",
+            "start_ns": 40643382875
+          },
+          {
+            "calling_thread_cpu_ns": 28875,
+            "end_ns": 40738282250,
+            "label": "frame_unpack",
+            "start_ns": 40738253333
+          },
+          {
+            "calling_thread_cpu_ns": 14166,
+            "end_ns": 40738301083,
+            "label": "frame_pack",
+            "start_ns": 40738286875
+          },
+          {
+            "calling_thread_cpu_ns": 511375,
+            "end_ns": 40833179708,
+            "label": "http_exchange_b",
+            "start_ns": 40738304708
+          },
+          {
+            "calling_thread_cpu_ns": 24250,
+            "end_ns": 40833207750,
+            "label": "frame_unpack",
+            "start_ns": 40833183542
+          },
+          {
+            "calling_thread_cpu_ns": 1200000,
+            "end_ns": 40833212000,
+            "label": "lookup_exchange",
+            "start_ns": 40643357917
+          },
+          {
+            "calling_thread_cpu_ns": 6915542,
+            "end_ns": 40833402583,
+            "label": "token_lookup",
+            "start_ns": 39524736708
+          },
+          {
+            "calling_thread_cpu_ns": 45291,
+            "end_ns": 79316509542,
+            "label": "head_quantization",
+            "start_ns": 79316464333
+          },
+          {
+            "calling_thread_cpu_ns": 16000,
+            "end_ns": 79316667333,
+            "label": "frame_pack",
+            "start_ns": 79316651292
+          },
+          {
+            "calling_thread_cpu_ns": 16333,
+            "end_ns": 79316962458,
+            "label": "frame_pack",
+            "start_ns": 79316945875
+          },
+          {
+            "calling_thread_cpu_ns": 2810708,
+            "end_ns": 79428285417,
+            "label": "http_exchange_a",
+            "start_ns": 79316671208
+          },
+          {
+            "calling_thread_cpu_ns": 40708,
+            "end_ns": 79428334917,
+            "label": "frame_unpack",
+            "start_ns": 79428294292
+          },
+          {
+            "calling_thread_cpu_ns": 2655458,
+            "end_ns": 79428989458,
+            "label": "http_exchange_b",
+            "start_ns": 79316966917
+          },
+          {
+            "calling_thread_cpu_ns": 31666,
+            "end_ns": 79429027667,
+            "label": "frame_unpack",
+            "start_ns": 79428996042
+          },
+          {
+            "calling_thread_cpu_ns": 204875,
+            "end_ns": 79429124875,
+            "label": "paired_exchange",
+            "start_ns": 79316563917
+          },
+          {
+            "calling_thread_cpu_ns": 1410291,
+            "end_ns": 79430541583,
+            "label": "head_codec_decode",
+            "start_ns": 79429131625
+          },
+          {
+            "calling_thread_cpu_ns": 134375,
+            "end_ns": 79430750667,
+            "label": "head_dequantization",
+            "start_ns": 79430616292
+          },
+          {
+            "calling_thread_cpu_ns": 1969667,
+            "end_ns": 79430780875,
+            "label": "head",
+            "start_ns": 79316453750
+          },
+          {
+            "calling_thread_cpu_ns": 3144964375,
+            "end_ns": 79434542458,
+            "label": "forward",
+            "start_ns": 39524352833
+          },
+          {
+            "calling_thread_cpu_ns": 99291,
+            "end_ns": 79437715542,
+            "label": "sampler",
+            "start_ns": 79437616042
+          },
+          {
+            "calling_thread_cpu_ns": 3180042,
+            "end_ns": 79437734458,
+            "label": "audit_and_sampler",
+            "start_ns": 79434554500
+          },
+          {
+            "calling_thread_cpu_ns": 18375,
+            "end_ns": 79441677208,
+            "label": "frame_pack",
+            "start_ns": 79441658875
+          },
+          {
+            "calling_thread_cpu_ns": 538000,
+            "end_ns": 79447690000,
+            "label": "http_exchange_a",
+            "start_ns": 79441680667
+          },
+          {
+            "calling_thread_cpu_ns": 12958,
+            "end_ns": 79447705917,
+            "label": "frame_unpack",
+            "start_ns": 79447693000
+          },
+          {
+            "calling_thread_cpu_ns": 9708,
+            "end_ns": 79447719333,
+            "label": "frame_pack",
+            "start_ns": 79447709583
+          },
+          {
+            "calling_thread_cpu_ns": 455458,
+            "end_ns": 79453776375,
+            "label": "http_exchange_b",
+            "start_ns": 79447722750
+          },
+          {
+            "calling_thread_cpu_ns": 14458,
+            "end_ns": 79453793792,
+            "label": "frame_unpack",
+            "start_ns": 79453779375
+          },
+          {
+            "calling_thread_cpu_ns": 1073000,
+            "end_ns": 79453797417,
+            "label": "lookup_exchange",
+            "start_ns": 79441654083
+          },
+          {
+            "calling_thread_cpu_ns": 1166500,
+            "end_ns": 79453838375,
+            "label": "token_lookup",
+            "start_ns": 79441601667
+          },
+          {
+            "calling_thread_cpu_ns": 30208,
+            "end_ns": 79684983375,
+            "label": "head_quantization",
+            "start_ns": 79684953292
+          },
+          {
+            "calling_thread_cpu_ns": 15792,
+            "end_ns": 79685134125,
+            "label": "frame_pack",
+            "start_ns": 79685118292
+          },
+          {
+            "calling_thread_cpu_ns": 11709,
+            "end_ns": 79685446833,
+            "label": "frame_pack",
+            "start_ns": 79685435042
+          },
+          {
+            "calling_thread_cpu_ns": 2417750,
+            "end_ns": 79793015875,
+            "label": "http_exchange_a",
+            "start_ns": 79685137792
+          },
+          {
+            "calling_thread_cpu_ns": 37750,
+            "end_ns": 79793060958,
+            "label": "frame_unpack",
+            "start_ns": 79793023250
+          },
+          {
+            "calling_thread_cpu_ns": 2306792,
+            "end_ns": 79793810167,
+            "label": "http_exchange_b",
+            "start_ns": 79685449583
+          },
+          {
+            "calling_thread_cpu_ns": 26667,
+            "end_ns": 79793839250,
+            "label": "frame_unpack",
+            "start_ns": 79793812625
+          },
+          {
+            "calling_thread_cpu_ns": 207667,
+            "end_ns": 79793929417,
+            "label": "paired_exchange",
+            "start_ns": 79685028083
+          },
+          {
+            "calling_thread_cpu_ns": 1385708,
+            "end_ns": 79795321167,
+            "label": "head_codec_decode",
+            "start_ns": 79793935542
+          },
+          {
+            "calling_thread_cpu_ns": 138708,
+            "end_ns": 79795536250,
+            "label": "head_dequantization",
+            "start_ns": 79795397583
+          },
+          {
+            "calling_thread_cpu_ns": 1932333,
+            "end_ns": 79795567667,
+            "label": "head",
+            "start_ns": 79684937583
+          },
+          {
+            "calling_thread_cpu_ns": 58690542,
+            "end_ns": 79799338208,
+            "label": "forward",
+            "start_ns": 79440938792
+          },
+          {
+            "calling_thread_cpu_ns": 96958,
+            "end_ns": 79802459625,
+            "label": "sampler",
+            "start_ns": 79802362667
+          },
+          {
+            "calling_thread_cpu_ns": 3130209,
+            "end_ns": 79802477583,
+            "label": "audit_and_sampler",
+            "start_ns": 79799347333
+          },
+          {
+            "calling_thread_cpu_ns": 13125,
+            "end_ns": 79805313375,
+            "label": "frame_pack",
+            "start_ns": 79805300208
+          },
+          {
+            "calling_thread_cpu_ns": 512625,
+            "end_ns": 79811313042,
+            "label": "http_exchange_a",
+            "start_ns": 79805316667
+          },
+          {
+            "calling_thread_cpu_ns": 13375,
+            "end_ns": 79811330000,
+            "label": "frame_unpack",
+            "start_ns": 79811316625
+          },
+          {
+            "calling_thread_cpu_ns": 8833,
+            "end_ns": 79811342250,
+            "label": "frame_pack",
+            "start_ns": 79811333417
+          },
+          {
+            "calling_thread_cpu_ns": 450042,
+            "end_ns": 79817234792,
+            "label": "http_exchange_b",
+            "start_ns": 79811344917
+          },
+          {
+            "calling_thread_cpu_ns": 15625,
+            "end_ns": 79817254125,
+            "label": "frame_unpack",
+            "start_ns": 79817238458
+          },
+          {
+            "calling_thread_cpu_ns": 1037500,
+            "end_ns": 79817257625,
+            "label": "lookup_exchange",
+            "start_ns": 79805295750
+          },
+          {
+            "calling_thread_cpu_ns": 1126000,
+            "end_ns": 79817301333,
+            "label": "token_lookup",
+            "start_ns": 79805251000
+          },
+          {
+            "calling_thread_cpu_ns": 25625,
+            "end_ns": 80046169750,
+            "label": "head_quantization",
+            "start_ns": 80046144250
+          },
+          {
+            "calling_thread_cpu_ns": 16500,
+            "end_ns": 80046333625,
+            "label": "frame_pack",
+            "start_ns": 80046317083
+          },
+          {
+            "calling_thread_cpu_ns": 12583,
+            "end_ns": 80046712583,
+            "label": "frame_pack",
+            "start_ns": 80046699917
+          },
+          {
+            "calling_thread_cpu_ns": 2555375,
+            "end_ns": 80154285292,
+            "label": "http_exchange_a",
+            "start_ns": 80046337250
+          },
+          {
+            "calling_thread_cpu_ns": 37250,
+            "end_ns": 80154326958,
+            "label": "frame_unpack",
+            "start_ns": 80154289750
+          },
+          {
+            "calling_thread_cpu_ns": 2316584,
+            "end_ns": 80154976042,
+            "label": "http_exchange_b",
+            "start_ns": 80046716000
+          },
+          {
+            "calling_thread_cpu_ns": 27167,
+            "end_ns": 80155005542,
+            "label": "frame_unpack",
+            "start_ns": 80154978417
+          },
+          {
+            "calling_thread_cpu_ns": 229125,
+            "end_ns": 80155112500,
+            "label": "paired_exchange",
+            "start_ns": 80046213208
+          },
+          {
+            "calling_thread_cpu_ns": 1402833,
+            "end_ns": 80156988625,
+            "label": "head_codec_decode",
+            "start_ns": 80155117792
+          },
+          {
+            "calling_thread_cpu_ns": 137375,
+            "end_ns": 80157246833,
+            "label": "head_dequantization",
+            "start_ns": 80157109500
+          },
+          {
+            "calling_thread_cpu_ns": 1973833,
+            "end_ns": 80157277375,
+            "label": "head",
+            "start_ns": 80046136625
+          },
+          {
+            "calling_thread_cpu_ns": 58068500,
+            "end_ns": 80161103167,
+            "label": "forward",
+            "start_ns": 79804691750
+          },
+          {
+            "calling_thread_cpu_ns": 97292,
+            "end_ns": 80164222375,
+            "label": "sampler",
+            "start_ns": 80164125083
+          },
+          {
+            "calling_thread_cpu_ns": 3127583,
+            "end_ns": 80164239000,
+            "label": "audit_and_sampler",
+            "start_ns": 80161111458
+          },
+          {
+            "calling_thread_cpu_ns": 15083,
+            "end_ns": 80167106917,
+            "label": "frame_pack",
+            "start_ns": 80167091875
+          },
+          {
+            "calling_thread_cpu_ns": 553792,
+            "end_ns": 80173355042,
+            "label": "http_exchange_a",
+            "start_ns": 80167110542
+          },
+          {
+            "calling_thread_cpu_ns": 16417,
+            "end_ns": 80173374750,
+            "label": "frame_unpack",
+            "start_ns": 80173358250
+          },
+          {
+            "calling_thread_cpu_ns": 8083,
+            "end_ns": 80173386625,
+            "label": "frame_pack",
+            "start_ns": 80173378542
+          },
+          {
+            "calling_thread_cpu_ns": 405834,
+            "end_ns": 80179299333,
+            "label": "http_exchange_b",
+            "start_ns": 80173389417
+          },
+          {
+            "calling_thread_cpu_ns": 12375,
+            "end_ns": 80179314083,
+            "label": "frame_unpack",
+            "start_ns": 80179301750
+          },
+          {
+            "calling_thread_cpu_ns": 1034667,
+            "end_ns": 80179317083,
+            "label": "lookup_exchange",
+            "start_ns": 80167087125
+          },
+          {
+            "calling_thread_cpu_ns": 1123791,
+            "end_ns": 80179359083,
+            "label": "token_lookup",
+            "start_ns": 80167039875
+          },
+          {
+            "calling_thread_cpu_ns": 25667,
+            "end_ns": 80409500083,
+            "label": "head_quantization",
+            "start_ns": 80409474458
+          },
+          {
+            "calling_thread_cpu_ns": 14709,
+            "end_ns": 80409658875,
+            "label": "frame_pack",
+            "start_ns": 80409644083
+          },
+          {
+            "calling_thread_cpu_ns": 11417,
+            "end_ns": 80410032333,
+            "label": "frame_pack",
+            "start_ns": 80410020792
+          },
+          {
+            "calling_thread_cpu_ns": 2562625,
+            "end_ns": 80517639917,
+            "label": "http_exchange_a",
+            "start_ns": 80409662708
+          },
+          {
+            "calling_thread_cpu_ns": 42292,
+            "end_ns": 80517690167,
+            "label": "frame_unpack",
+            "start_ns": 80517648000
+          },
+          {
+            "calling_thread_cpu_ns": 2307834,
+            "end_ns": 80518322542,
+            "label": "http_exchange_b",
+            "start_ns": 80410036833
+          },
+          {
+            "calling_thread_cpu_ns": 28458,
+            "end_ns": 80518353208,
+            "label": "frame_unpack",
+            "start_ns": 80518324792
+          },
+          {
+            "calling_thread_cpu_ns": 216458,
+            "end_ns": 80518447625,
+            "label": "paired_exchange",
+            "start_ns": 80409543292
+          },
+          {
+            "calling_thread_cpu_ns": 1392542,
+            "end_ns": 80519841625,
+            "label": "head_codec_decode",
+            "start_ns": 80518452083
+          },
+          {
+            "calling_thread_cpu_ns": 139125,
+            "end_ns": 80520059417,
+            "label": "head_dequantization",
+            "start_ns": 80519920292
+          },
+          {
+            "calling_thread_cpu_ns": 1935542,
+            "end_ns": 80520091542,
+            "label": "head",
+            "start_ns": 80409466500
+          },
+          {
+            "calling_thread_cpu_ns": 58402125,
+            "end_ns": 80523922167,
+            "label": "forward",
+            "start_ns": 80166426125
+          },
+          {
+            "calling_thread_cpu_ns": 97958,
+            "end_ns": 80527206750,
+            "label": "sampler",
+            "start_ns": 80527108333
+          },
+          {
+            "calling_thread_cpu_ns": 3228208,
+            "end_ns": 80527225125,
+            "label": "audit_and_sampler",
+            "start_ns": 80523930000
+          },
+          {
+            "calling_thread_cpu_ns": 19625,
+            "end_ns": 80531180833,
+            "label": "frame_pack",
+            "start_ns": 80531161250
+          },
+          {
+            "calling_thread_cpu_ns": 561750,
+            "end_ns": 80537322958,
+            "label": "http_exchange_a",
+            "start_ns": 80531185083
+          },
+          {
+            "calling_thread_cpu_ns": 18500,
+            "end_ns": 80537345542,
+            "label": "frame_unpack",
+            "start_ns": 80537327083
+          },
+          {
+            "calling_thread_cpu_ns": 10084,
+            "end_ns": 80537359375,
+            "label": "frame_pack",
+            "start_ns": 80537349292
+          },
+          {
+            "calling_thread_cpu_ns": 473166,
+            "end_ns": 80543542042,
+            "label": "http_exchange_b",
+            "start_ns": 80537362833
+          },
+          {
+            "calling_thread_cpu_ns": 12500,
+            "end_ns": 80543558000,
+            "label": "frame_unpack",
+            "start_ns": 80543545458
+          },
+          {
+            "calling_thread_cpu_ns": 1122625,
+            "end_ns": 80543561625,
+            "label": "lookup_exchange",
+            "start_ns": 80531156333
+          },
+          {
+            "calling_thread_cpu_ns": 1214125,
+            "end_ns": 80543604750,
+            "label": "token_lookup",
+            "start_ns": 80531107833
+          },
+          {
+            "calling_thread_cpu_ns": 26542,
+            "end_ns": 80777695250,
+            "label": "head_quantization",
+            "start_ns": 80777668875
+          },
+          {
+            "calling_thread_cpu_ns": 15208,
+            "end_ns": 80777842083,
+            "label": "frame_pack",
+            "start_ns": 80777826833
+          },
+          {
+            "calling_thread_cpu_ns": 11209,
+            "end_ns": 80778208250,
+            "label": "frame_pack",
+            "start_ns": 80778197042
+          },
+          {
+            "calling_thread_cpu_ns": 2425167,
+            "end_ns": 80885897000,
+            "label": "http_exchange_a",
+            "start_ns": 80777846000
+          },
+          {
+            "calling_thread_cpu_ns": 44334,
+            "end_ns": 80885947833,
+            "label": "frame_unpack",
+            "start_ns": 80885903500
+          },
+          {
+            "calling_thread_cpu_ns": 2243833,
+            "end_ns": 80886439708,
+            "label": "http_exchange_b",
+            "start_ns": 80778211458
+          },
+          {
+            "calling_thread_cpu_ns": 33458,
+            "end_ns": 80886476500,
+            "label": "frame_unpack",
+            "start_ns": 80886443083
+          },
+          {
+            "calling_thread_cpu_ns": 232541,
+            "end_ns": 80886599667,
+            "label": "paired_exchange",
+            "start_ns": 80777738333
+          },
+          {
+            "calling_thread_cpu_ns": 1377375,
+            "end_ns": 80887980875,
+            "label": "head_codec_decode",
+            "start_ns": 80886603750
+          },
+          {
+            "calling_thread_cpu_ns": 138750,
+            "end_ns": 80888191375,
+            "label": "head_dequantization",
+            "start_ns": 80888052792
+          },
+          {
+            "calling_thread_cpu_ns": 1930375,
+            "end_ns": 80888221000,
+            "label": "head",
+            "start_ns": 80777658208
+          },
+          {
+            "calling_thread_cpu_ns": 59051584,
+            "end_ns": 80892077000,
+            "label": "forward",
+            "start_ns": 80530497375
+          },
+          {
+            "calling_thread_cpu_ns": 95458,
+            "end_ns": 80895263667,
+            "label": "sampler",
+            "start_ns": 80895168208
+          },
+          {
+            "calling_thread_cpu_ns": 3196167,
+            "end_ns": 80895280333,
+            "label": "audit_and_sampler",
+            "start_ns": 80892084208
+          },
+          {
+            "calling_thread_cpu_ns": 14875,
+            "end_ns": 80898141083,
+            "label": "frame_pack",
+            "start_ns": 80898126208
+          },
+          {
+            "calling_thread_cpu_ns": 573708,
+            "end_ns": 80904437667,
+            "label": "http_exchange_a",
+            "start_ns": 80898144542
+          },
+          {
+            "calling_thread_cpu_ns": 16875,
+            "end_ns": 80904457875,
+            "label": "frame_unpack",
+            "start_ns": 80904441042
+          },
+          {
+            "calling_thread_cpu_ns": 10792,
+            "end_ns": 80904473250,
+            "label": "frame_pack",
+            "start_ns": 80904462542
+          },
+          {
+            "calling_thread_cpu_ns": 498250,
+            "end_ns": 80910550458,
+            "label": "http_exchange_b",
+            "start_ns": 80904476542
+          },
+          {
+            "calling_thread_cpu_ns": 14333,
+            "end_ns": 80910567833,
+            "label": "frame_unpack",
+            "start_ns": 80910553458
+          },
+          {
+            "calling_thread_cpu_ns": 1153583,
+            "end_ns": 80910571333,
+            "label": "lookup_exchange",
+            "start_ns": 80898121958
+          },
+          {
+            "calling_thread_cpu_ns": 1239875,
+            "end_ns": 80910612458,
+            "label": "token_lookup",
+            "start_ns": 80898076667
+          },
+          {
+            "calling_thread_cpu_ns": 25625,
+            "end_ns": 81137851833,
+            "label": "head_quantization",
+            "start_ns": 81137826333
+          },
+          {
+            "calling_thread_cpu_ns": 16166,
+            "end_ns": 81138010042,
+            "label": "frame_pack",
+            "start_ns": 81137993458
+          },
+          {
+            "calling_thread_cpu_ns": 13750,
+            "end_ns": 81138236250,
+            "label": "frame_pack",
+            "start_ns": 81138222375
+          },
+          {
+            "calling_thread_cpu_ns": 2373375,
+            "end_ns": 81246016000,
+            "label": "http_exchange_b",
+            "start_ns": 81138239667
+          },
+          {
+            "calling_thread_cpu_ns": 41916,
+            "end_ns": 81246066167,
+            "label": "frame_unpack",
+            "start_ns": 81246024250
+          },
+          {
+            "calling_thread_cpu_ns": 2407958,
+            "end_ns": 81246749750,
+            "label": "http_exchange_a",
+            "start_ns": 81138014292
+          },
+          {
+            "calling_thread_cpu_ns": 33625,
+            "end_ns": 81246786667,
+            "label": "frame_unpack",
+            "start_ns": 81246753125
+          },
+          {
+            "calling_thread_cpu_ns": 183500,
+            "end_ns": 81246889542,
+            "label": "paired_exchange",
+            "start_ns": 81137895000
+          },
+          {
+            "calling_thread_cpu_ns": 1376708,
+            "end_ns": 81248270208,
+            "label": "head_codec_decode",
+            "start_ns": 81246893750
+          },
+          {
+            "calling_thread_cpu_ns": 139750,
+            "end_ns": 81248482167,
+            "label": "head_dequantization",
+            "start_ns": 81248342417
+          },
+          {
+            "calling_thread_cpu_ns": 1882041,
+            "end_ns": 81248512875,
+            "label": "head",
+            "start_ns": 81137818500
+          },
+          {
+            "calling_thread_cpu_ns": 58214166,
+            "end_ns": 81252206292,
+            "label": "forward",
+            "start_ns": 80897521375
+          },
+          {
+            "calling_thread_cpu_ns": 97334,
+            "end_ns": 81255392000,
+            "label": "sampler",
+            "start_ns": 81255294625
+          },
+          {
+            "calling_thread_cpu_ns": 3193875,
+            "end_ns": 81255407958,
+            "label": "audit_and_sampler",
+            "start_ns": 81252214167
+          },
+          {
+            "calling_thread_cpu_ns": 15875,
+            "end_ns": 81258397667,
+            "label": "frame_pack",
+            "start_ns": 81258381792
+          },
+          {
+            "calling_thread_cpu_ns": 556500,
+            "end_ns": 81265012583,
+            "label": "http_exchange_a",
+            "start_ns": 81258401708
+          },
+          {
+            "calling_thread_cpu_ns": 16833,
+            "end_ns": 81265033250,
+            "label": "frame_unpack",
+            "start_ns": 81265016375
+          },
+          {
+            "calling_thread_cpu_ns": 10250,
+            "end_ns": 81265047542,
+            "label": "frame_pack",
+            "start_ns": 81265037292
+          },
+          {
+            "calling_thread_cpu_ns": 467167,
+            "end_ns": 81271031250,
+            "label": "http_exchange_b",
+            "start_ns": 81265052250
+          },
+          {
+            "calling_thread_cpu_ns": 13750,
+            "end_ns": 81271047625,
+            "label": "frame_unpack",
+            "start_ns": 81271033875
+          },
+          {
+            "calling_thread_cpu_ns": 1107000,
+            "end_ns": 81271050958,
+            "label": "lookup_exchange",
+            "start_ns": 81258377208
+          },
+          {
+            "calling_thread_cpu_ns": 1195292,
+            "end_ns": 81271092417,
+            "label": "token_lookup",
+            "start_ns": 81258330292
+          },
+          {
+            "calling_thread_cpu_ns": 27125,
+            "end_ns": 81497733083,
+            "label": "head_quantization",
+            "start_ns": 81497706083
+          },
+          {
+            "calling_thread_cpu_ns": 15625,
+            "end_ns": 81497891208,
+            "label": "frame_pack",
+            "start_ns": 81497875583
+          },
+          {
+            "calling_thread_cpu_ns": 11958,
+            "end_ns": 81498259292,
+            "label": "frame_pack",
+            "start_ns": 81498247292
+          },
+          {
+            "calling_thread_cpu_ns": 2491708,
+            "end_ns": 81605939500,
+            "label": "http_exchange_a",
+            "start_ns": 81497895083
+          },
+          {
+            "calling_thread_cpu_ns": 52833,
+            "end_ns": 81605998542,
+            "label": "frame_unpack",
+            "start_ns": 81605945750
+          },
+          {
+            "calling_thread_cpu_ns": 2294334,
+            "end_ns": 81606725625,
+            "label": "http_exchange_b",
+            "start_ns": 81498262333
+          },
+          {
+            "calling_thread_cpu_ns": 29375,
+            "end_ns": 81606757750,
+            "label": "frame_unpack",
+            "start_ns": 81606728500
+          },
+          {
+            "calling_thread_cpu_ns": 213500,
+            "end_ns": 81606857417,
+            "label": "paired_exchange",
+            "start_ns": 81497777167
+          },
+          {
+            "calling_thread_cpu_ns": 1370916,
+            "end_ns": 81608229875,
+            "label": "head_codec_decode",
+            "start_ns": 81606862042
+          },
+          {
+            "calling_thread_cpu_ns": 138334,
+            "end_ns": 81608443583,
+            "label": "head_dequantization",
+            "start_ns": 81608305250
+          },
+          {
+            "calling_thread_cpu_ns": 1909375,
+            "end_ns": 81608475000,
+            "label": "head",
+            "start_ns": 81497695083
+          },
+          {
+            "calling_thread_cpu_ns": 58364834,
+            "end_ns": 81612218167,
+            "label": "forward",
+            "start_ns": 81257769625
+          },
+          {
+            "calling_thread_cpu_ns": 100875,
+            "end_ns": 81615439750,
+            "label": "sampler",
+            "start_ns": 81615338792
+          },
+          {
+            "calling_thread_cpu_ns": 3229625,
+            "end_ns": 81615455708,
+            "label": "audit_and_sampler",
+            "start_ns": 81612226083
+          },
+          {
+            "calling_thread_cpu_ns": 17208,
+            "end_ns": 81619383875,
+            "label": "frame_pack",
+            "start_ns": 81619366708
+          },
+          {
+            "calling_thread_cpu_ns": 649792,
+            "end_ns": 81625835333,
+            "label": "http_exchange_a",
+            "start_ns": 81619387708
+          },
+          {
+            "calling_thread_cpu_ns": 13708,
+            "end_ns": 81625852333,
+            "label": "frame_unpack",
+            "start_ns": 81625838625
+          },
+          {
+            "calling_thread_cpu_ns": 10500,
+            "end_ns": 81625867583,
+            "label": "frame_pack",
+            "start_ns": 81625857083
+          },
+          {
+            "calling_thread_cpu_ns": 461041,
+            "end_ns": 81631870708,
+            "label": "http_exchange_b",
+            "start_ns": 81625870792
+          },
+          {
+            "calling_thread_cpu_ns": 11375,
+            "end_ns": 81631885000,
+            "label": "frame_unpack",
+            "start_ns": 81631873625
+          },
+          {
+            "calling_thread_cpu_ns": 1189041,
+            "end_ns": 81631888083,
+            "label": "lookup_exchange",
+            "start_ns": 81619361667
+          },
+          {
+            "calling_thread_cpu_ns": 1284125,
+            "end_ns": 81631933667,
+            "label": "token_lookup",
+            "start_ns": 81619312000
+          },
+          {
+            "calling_thread_cpu_ns": 26750,
+            "end_ns": 81867293917,
+            "label": "head_quantization",
+            "start_ns": 81867267167
+          },
+          {
+            "calling_thread_cpu_ns": 16125,
+            "end_ns": 81867443750,
+            "label": "frame_pack",
+            "start_ns": 81867427542
+          },
+          {
+            "calling_thread_cpu_ns": 11458,
+            "end_ns": 81867803375,
+            "label": "frame_pack",
+            "start_ns": 81867791833
+          },
+          {
+            "calling_thread_cpu_ns": 2369542,
+            "end_ns": 81975484708,
+            "label": "http_exchange_b",
+            "start_ns": 81867806708
+          },
+          {
+            "calling_thread_cpu_ns": 42334,
+            "end_ns": 81975534583,
+            "label": "frame_unpack",
+            "start_ns": 81975492333
+          },
+          {
+            "calling_thread_cpu_ns": 2417583,
+            "end_ns": 81976204958,
+            "label": "http_exchange_a",
+            "start_ns": 81867447458
+          },
+          {
+            "calling_thread_cpu_ns": 65333,
+            "end_ns": 81976274083,
+            "label": "frame_unpack",
+            "start_ns": 81976208750
+          },
+          {
+            "calling_thread_cpu_ns": 216708,
+            "end_ns": 81976373083,
+            "label": "paired_exchange",
+            "start_ns": 81867337625
+          },
+          {
+            "calling_thread_cpu_ns": 1453791,
+            "end_ns": 81977832375,
+            "label": "head_codec_decode",
+            "start_ns": 81976378917
+          },
+          {
+            "calling_thread_cpu_ns": 138709,
+            "end_ns": 81978044583,
+            "label": "head_dequantization",
+            "start_ns": 81977905917
+          },
+          {
+            "calling_thread_cpu_ns": 1997042,
+            "end_ns": 81978076542,
+            "label": "head",
+            "start_ns": 81867259000
+          },
+          {
+            "calling_thread_cpu_ns": 58943208,
+            "end_ns": 81981869792,
+            "label": "forward",
+            "start_ns": 81618692083
+          },
+          {
+            "calling_thread_cpu_ns": 97875,
+            "end_ns": 81985093625,
+            "label": "sampler",
+            "start_ns": 81984995583
+          },
+          {
+            "calling_thread_cpu_ns": 3232625,
+            "end_ns": 81985109708,
+            "label": "audit_and_sampler",
+            "start_ns": 81981877083
+          },
+          {
+            "calling_thread_cpu_ns": 453667,
+            "end_ns": 82001465417,
+            "label": "http_exchange_a",
+            "start_ns": 82000038667
+          },
+          {
+            "calling_thread_cpu_ns": 398292,
+            "end_ns": 82003089917,
+            "label": "http_exchange_b",
+            "start_ns": 82001506500
+          }
+        ],
+        "windows_relative_ns": {
+          "after_first_output": [
+            79440926792,
+            81987338042
+          ],
+          "request": [
+            0,
+            82003462583
+          ]
+        }
+      }
+    }
+  ],
+  "scope": "Research-only timings; probe overhead charged, not corrected. No historical SOTA update or causal attribution from comparator subtraction.",
+  "role_profiles": [
+    {
+      "replicate": 0,
+      "paired_roles": {
+        "boundary_a": {
+          "heads": [
+            {
+              "head_ordinal": 0,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 31281500,
+                  "reply_codec": 1426708,
+                  "reply_frame": 57625,
+                  "handling_unclassified": 2808333
+                },
+                "handler_process_cpu_ns": 35541000,
+                "handler_thread_cpu_ns": 2394791,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 31281416,
+                  "reply_codec": 1426709,
+                  "reply_frame": 57625
+                }
+              },
+              "client_http_wall_ns": 131076375,
+              "unaligned_http_minus_handling_ns": 95502209
+            },
+            {
+              "head_ordinal": 1,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13287584,
+                  "reply_codec": 999250,
+                  "reply_frame": 47334,
+                  "handling_unclassified": 689165
+                },
+                "handler_process_cpu_ns": 14984000,
+                "handler_thread_cpu_ns": 598291,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13287834,
+                  "reply_codec": 999375,
+                  "reply_frame": 47292
+                }
+              },
+              "client_http_wall_ns": 107987333,
+              "unaligned_http_minus_handling_ns": 92964000
+            },
+            {
+              "head_ordinal": 2,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13271083,
+                  "reply_codec": 1072917,
+                  "reply_frame": 49625,
+                  "handling_unclassified": 752542
+                },
+                "handler_process_cpu_ns": 15094000,
+                "handler_thread_cpu_ns": 647833,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13271125,
+                  "reply_codec": 1073125,
+                  "reply_frame": 49333
+                }
+              },
+              "client_http_wall_ns": 108092667,
+              "unaligned_http_minus_handling_ns": 92946500
+            },
+            {
+              "head_ordinal": 3,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13273834,
+                  "reply_codec": 955625,
+                  "reply_frame": 84584,
+                  "handling_unclassified": 906457
+                },
+                "handler_process_cpu_ns": 15177000,
+                "handler_thread_cpu_ns": 829125,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13274083,
+                  "reply_codec": 955958,
+                  "reply_frame": 84500
+                }
+              },
+              "client_http_wall_ns": 108068667,
+              "unaligned_http_minus_handling_ns": 92848167
+            },
+            {
+              "head_ordinal": 4,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13368667,
+                  "reply_codec": 964666,
+                  "reply_frame": 53333,
+                  "handling_unclassified": 731292
+                },
+                "handler_process_cpu_ns": 15072000,
+                "handler_thread_cpu_ns": 646750,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13368666,
+                  "reply_codec": 965166,
+                  "reply_frame": 53000
+                }
+              },
+              "client_http_wall_ns": 108033292,
+              "unaligned_http_minus_handling_ns": 92915334
+            },
+            {
+              "head_ordinal": 5,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13345125,
+                  "reply_codec": 945958,
+                  "reply_frame": 50667,
+                  "handling_unclassified": 659541
+                },
+                "handler_process_cpu_ns": 15018000,
+                "handler_thread_cpu_ns": 635042,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13345458,
+                  "reply_codec": 946000,
+                  "reply_frame": 50333
+                }
+              },
+              "client_http_wall_ns": 107888375,
+              "unaligned_http_minus_handling_ns": 92887084
+            },
+            {
+              "head_ordinal": 6,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13404917,
+                  "reply_codec": 975083,
+                  "reply_frame": 53000,
+                  "handling_unclassified": 769000
+                },
+                "handler_process_cpu_ns": 15149000,
+                "handler_thread_cpu_ns": 672166,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13405084,
+                  "reply_codec": 975250,
+                  "reply_frame": 52750
+                }
+              },
+              "client_http_wall_ns": 108109208,
+              "unaligned_http_minus_handling_ns": 92907208
+            },
+            {
+              "head_ordinal": 7,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13270833,
+                  "reply_codec": 987917,
+                  "reply_frame": 51750,
+                  "handling_unclassified": 726875
+                },
+                "handler_process_cpu_ns": 14992000,
+                "handler_thread_cpu_ns": 631542,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13270792,
+                  "reply_codec": 988416,
+                  "reply_frame": 51291
+                }
+              },
+              "client_http_wall_ns": 107942125,
+              "unaligned_http_minus_handling_ns": 92904750
+            }
+          ],
+          "decode_head_ordinals": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "decode_denominator": 7
+        },
+        "boundary_b": {
+          "heads": [
+            {
+              "head_ordinal": 0,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 23366084,
+                  "reply_codec": 1449917,
+                  "reply_frame": 68166,
+                  "handling_unclassified": 2735125
+                },
+                "handler_process_cpu_ns": 27589000,
+                "handler_thread_cpu_ns": 2342792,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 23365959,
+                  "reply_codec": 1449666,
+                  "reply_frame": 68208
+                }
+              },
+              "client_http_wall_ns": 122688084,
+              "unaligned_http_minus_handling_ns": 95068792
+            },
+            {
+              "head_ordinal": 1,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13269125,
+                  "reply_codec": 998958,
+                  "reply_frame": 48708,
+                  "handling_unclassified": 751418
+                },
+                "handler_process_cpu_ns": 15024000,
+                "handler_thread_cpu_ns": 642250,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13269125,
+                  "reply_codec": 999042,
+                  "reply_frame": 48708
+                }
+              },
+              "client_http_wall_ns": 108475750,
+              "unaligned_http_minus_handling_ns": 93407541
+            },
+            {
+              "head_ordinal": 2,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13288375,
+                  "reply_codec": 1071125,
+                  "reply_frame": 46958,
+                  "handling_unclassified": 643792
+                },
+                "handler_process_cpu_ns": 15015000,
+                "handler_thread_cpu_ns": 559792,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13288334,
+                  "reply_codec": 1071333,
+                  "reply_frame": 46916
+                }
+              },
+              "client_http_wall_ns": 108419167,
+              "unaligned_http_minus_handling_ns": 93368917
+            },
+            {
+              "head_ordinal": 3,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13281250,
+                  "reply_codec": 955667,
+                  "reply_frame": 61042,
+                  "handling_unclassified": 781082
+                },
+                "handler_process_cpu_ns": 15046000,
+                "handler_thread_cpu_ns": 696459,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13281334,
+                  "reply_codec": 955792,
+                  "reply_frame": 61041
+                }
+              },
+              "client_http_wall_ns": 108333542,
+              "unaligned_http_minus_handling_ns": 93254501
+            },
+            {
+              "head_ordinal": 4,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13285750,
+                  "reply_codec": 1073209,
+                  "reply_frame": 49875,
+                  "handling_unclassified": 715833
+                },
+                "handler_process_cpu_ns": 15080000,
+                "handler_thread_cpu_ns": 628459,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13285750,
+                  "reply_codec": 1073375,
+                  "reply_frame": 49709
+                }
+              },
+              "client_http_wall_ns": 108541250,
+              "unaligned_http_minus_handling_ns": 93416583
+            },
+            {
+              "head_ordinal": 5,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13282459,
+                  "reply_codec": 948541,
+                  "reply_frame": 51125,
+                  "handling_unclassified": 757125
+                },
+                "handler_process_cpu_ns": 14998000,
+                "handler_thread_cpu_ns": 634083,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13282459,
+                  "reply_codec": 948750,
+                  "reply_frame": 51042
+                }
+              },
+              "client_http_wall_ns": 108212792,
+              "unaligned_http_minus_handling_ns": 93173542
+            },
+            {
+              "head_ordinal": 6,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13410125,
+                  "reply_codec": 926208,
+                  "reply_frame": 46583,
+                  "handling_unclassified": 662084
+                },
+                "handler_process_cpu_ns": 15011000,
+                "handler_thread_cpu_ns": 571750,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13410209,
+                  "reply_codec": 926375,
+                  "reply_frame": 46500
+                }
+              },
+              "client_http_wall_ns": 108447208,
+              "unaligned_http_minus_handling_ns": 93402208
+            },
+            {
+              "head_ordinal": 7,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13267583,
+                  "reply_codec": 922125,
+                  "reply_frame": 49208,
+                  "handling_unclassified": 686293
+                },
+                "handler_process_cpu_ns": 14894000,
+                "handler_thread_cpu_ns": 604042,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13265500,
+                  "reply_codec": 922375,
+                  "reply_frame": 48875
+                }
+              },
+              "client_http_wall_ns": 108154333,
+              "unaligned_http_minus_handling_ns": 93229124
+            }
+          ],
+          "decode_head_ordinals": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "decode_denominator": 7
+        }
+      }
+    },
+    {
+      "replicate": 1,
+      "paired_roles": {
+        "boundary_a": {
+          "heads": [
+            {
+              "head_ordinal": 0,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13399500,
+                  "reply_codec": 992917,
+                  "reply_frame": 51958,
+                  "handling_unclassified": 744709
+                },
+                "handler_process_cpu_ns": 15154000,
+                "handler_thread_cpu_ns": 643583,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13393791,
+                  "reply_codec": 993084,
+                  "reply_frame": 51833
+                }
+              },
+              "client_http_wall_ns": 114685292,
+              "unaligned_http_minus_handling_ns": 99496208
+            },
+            {
+              "head_ordinal": 1,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13450750,
+                  "reply_codec": 987500,
+                  "reply_frame": 51125,
+                  "handling_unclassified": 816167
+                },
+                "handler_process_cpu_ns": 15254000,
+                "handler_thread_cpu_ns": 705666,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13451041,
+                  "reply_codec": 987584,
+                  "reply_frame": 51042
+                }
+              },
+              "client_http_wall_ns": 108160708,
+              "unaligned_http_minus_handling_ns": 92855166
+            },
+            {
+              "head_ordinal": 2,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13280500,
+                  "reply_codec": 972833,
+                  "reply_frame": 51334,
+                  "handling_unclassified": 739625
+                },
+                "handler_process_cpu_ns": 14994000,
+                "handler_thread_cpu_ns": 643958,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13280458,
+                  "reply_codec": 973000,
+                  "reply_frame": 51083
+                }
+              },
+              "client_http_wall_ns": 108030125,
+              "unaligned_http_minus_handling_ns": 92985833
+            },
+            {
+              "head_ordinal": 3,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13327375,
+                  "reply_codec": 1074875,
+                  "reply_frame": 47667,
+                  "handling_unclassified": 715749
+                },
+                "handler_process_cpu_ns": 15120000,
+                "handler_thread_cpu_ns": 616667,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13327291,
+                  "reply_codec": 1075000,
+                  "reply_frame": 47583
+                }
+              },
+              "client_http_wall_ns": 108090334,
+              "unaligned_http_minus_handling_ns": 92924668
+            },
+            {
+              "head_ordinal": 4,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13272875,
+                  "reply_codec": 970250,
+                  "reply_frame": 52250,
+                  "handling_unclassified": 713083
+                },
+                "handler_process_cpu_ns": 14962000,
+                "handler_thread_cpu_ns": 625917,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13272833,
+                  "reply_codec": 970417,
+                  "reply_frame": 51917
+                }
+              },
+              "client_http_wall_ns": 107958542,
+              "unaligned_http_minus_handling_ns": 92950084
+            },
+            {
+              "head_ordinal": 5,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13269125,
+                  "reply_codec": 970458,
+                  "reply_frame": 51375,
+                  "handling_unclassified": 715834
+                },
+                "handler_process_cpu_ns": 14962000,
+                "handler_thread_cpu_ns": 629833,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13269167,
+                  "reply_codec": 970750,
+                  "reply_frame": 51083
+                }
+              },
+              "client_http_wall_ns": 107862875,
+              "unaligned_http_minus_handling_ns": 92856083
+            },
+            {
+              "head_ordinal": 6,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13272417,
+                  "reply_codec": 979208,
+                  "reply_frame": 51500,
+                  "handling_unclassified": 864125
+                },
+                "handler_process_cpu_ns": 15113000,
+                "handler_thread_cpu_ns": 768834,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13272625,
+                  "reply_codec": 979459,
+                  "reply_frame": 51292
+                }
+              },
+              "client_http_wall_ns": 108239166,
+              "unaligned_http_minus_handling_ns": 93071916
+            },
+            {
+              "head_ordinal": 7,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13272583,
+                  "reply_codec": 1078167,
+                  "reply_frame": 53917,
+                  "handling_unclassified": 767417
+                },
+                "handler_process_cpu_ns": 15127000,
+                "handler_thread_cpu_ns": 679666,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13272542,
+                  "reply_codec": 1078458,
+                  "reply_frame": 53584
+                }
+              },
+              "client_http_wall_ns": 108184792,
+              "unaligned_http_minus_handling_ns": 93012708
+            }
+          ],
+          "decode_head_ordinals": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "decode_denominator": 7
+        },
+        "boundary_b": {
+          "heads": [
+            {
+              "head_ordinal": 0,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13393416,
+                  "reply_codec": 1026250,
+                  "reply_frame": 54500,
+                  "handling_unclassified": 773084
+                },
+                "handler_process_cpu_ns": 15207000,
+                "handler_thread_cpu_ns": 645375,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13393334,
+                  "reply_codec": 1026375,
+                  "reply_frame": 54084
+                }
+              },
+              "client_http_wall_ns": 115209667,
+              "unaligned_http_minus_handling_ns": 99962417
+            },
+            {
+              "head_ordinal": 1,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13472583,
+                  "reply_codec": 966041,
+                  "reply_frame": 46458,
+                  "handling_unclassified": 679584
+                },
+                "handler_process_cpu_ns": 15127000,
+                "handler_thread_cpu_ns": 587916,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13472833,
+                  "reply_codec": 966209,
+                  "reply_frame": 46375
+                }
+              },
+              "client_http_wall_ns": 109390541,
+              "unaligned_http_minus_handling_ns": 94225875
+            },
+            {
+              "head_ordinal": 2,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13260791,
+                  "reply_codec": 989500,
+                  "reply_frame": 49833,
+                  "handling_unclassified": 653334
+                },
+                "handler_process_cpu_ns": 14921000,
+                "handler_thread_cpu_ns": 574708,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13260750,
+                  "reply_codec": 989750,
+                  "reply_frame": 49583
+                }
+              },
+              "client_http_wall_ns": 108488333,
+              "unaligned_http_minus_handling_ns": 93534875
+            },
+            {
+              "head_ordinal": 3,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13271541,
+                  "reply_codec": 979583,
+                  "reply_frame": 49708,
+                  "handling_unclassified": 699834
+                },
+                "handler_process_cpu_ns": 14965000,
+                "handler_thread_cpu_ns": 615208,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13271542,
+                  "reply_codec": 979709,
+                  "reply_frame": 49333
+                }
+              },
+              "client_http_wall_ns": 108605958,
+              "unaligned_http_minus_handling_ns": 93605292
+            },
+            {
+              "head_ordinal": 4,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13280291,
+                  "reply_codec": 1070125,
+                  "reply_frame": 51958,
+                  "handling_unclassified": 663376
+                },
+                "handler_process_cpu_ns": 15029000,
+                "handler_thread_cpu_ns": 588959,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13280292,
+                  "reply_codec": 1070292,
+                  "reply_frame": 51625
+                }
+              },
+              "client_http_wall_ns": 108459458,
+              "unaligned_http_minus_handling_ns": 93393708
+            },
+            {
+              "head_ordinal": 5,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13300750,
+                  "reply_codec": 983834,
+                  "reply_frame": 51750,
+                  "handling_unclassified": 661125
+                },
+                "handler_process_cpu_ns": 14964000,
+                "handler_thread_cpu_ns": 587375,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13300750,
+                  "reply_codec": 984084,
+                  "reply_frame": 51500
+                }
+              },
+              "client_http_wall_ns": 108280167,
+              "unaligned_http_minus_handling_ns": 93282708
+            },
+            {
+              "head_ordinal": 6,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13268000,
+                  "reply_codec": 995084,
+                  "reply_frame": 49458,
+                  "handling_unclassified": 739875
+                },
+                "handler_process_cpu_ns": 15018000,
+                "handler_thread_cpu_ns": 659084,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13268334,
+                  "reply_codec": 995250,
+                  "reply_frame": 49333
+                }
+              },
+              "client_http_wall_ns": 108483333,
+              "unaligned_http_minus_handling_ns": 93430916
+            },
+            {
+              "head_ordinal": 7,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13282834,
+                  "reply_codec": 1069416,
+                  "reply_frame": 54375,
+                  "handling_unclassified": 733708
+                },
+                "handler_process_cpu_ns": 15109000,
+                "handler_thread_cpu_ns": 653500,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13282833,
+                  "reply_codec": 1069500,
+                  "reply_frame": 54041
+                }
+              },
+              "client_http_wall_ns": 108547959,
+              "unaligned_http_minus_handling_ns": 93407626
+            }
+          ],
+          "decode_head_ordinals": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "decode_denominator": 7
+        }
+      }
+    },
+    {
+      "replicate": 2,
+      "paired_roles": {
+        "boundary_a": {
+          "heads": [
+            {
+              "head_ordinal": 0,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13346166,
+                  "reply_codec": 995833,
+                  "reply_frame": 53959,
+                  "handling_unclassified": 683834
+                },
+                "handler_process_cpu_ns": 15042000,
+                "handler_thread_cpu_ns": 598875,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13346166,
+                  "reply_codec": 996042,
+                  "reply_frame": 53542
+                }
+              },
+              "client_http_wall_ns": 111614209,
+              "unaligned_http_minus_handling_ns": 96534417
+            },
+            {
+              "head_ordinal": 1,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13281417,
+                  "reply_codec": 972541,
+                  "reply_frame": 52625,
+                  "handling_unclassified": 735083
+                },
+                "handler_process_cpu_ns": 15045000,
+                "handler_thread_cpu_ns": 692416,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13281459,
+                  "reply_codec": 972709,
+                  "reply_frame": 52250
+                }
+              },
+              "client_http_wall_ns": 107878083,
+              "unaligned_http_minus_handling_ns": 92836417
+            },
+            {
+              "head_ordinal": 2,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13270250,
+                  "reply_codec": 999625,
+                  "reply_frame": 53208,
+                  "handling_unclassified": 698417
+                },
+                "handler_process_cpu_ns": 14974000,
+                "handler_thread_cpu_ns": 618875,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13270250,
+                  "reply_codec": 999875,
+                  "reply_frame": 52916
+                }
+              },
+              "client_http_wall_ns": 107948042,
+              "unaligned_http_minus_handling_ns": 92926542
+            },
+            {
+              "head_ordinal": 3,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13274750,
+                  "reply_codec": 935583,
+                  "reply_frame": 50166,
+                  "handling_unclassified": 750626
+                },
+                "handler_process_cpu_ns": 14955000,
+                "handler_thread_cpu_ns": 646750,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13274458,
+                  "reply_codec": 935708,
+                  "reply_frame": 49833
+                }
+              },
+              "client_http_wall_ns": 107977209,
+              "unaligned_http_minus_handling_ns": 92966084
+            },
+            {
+              "head_ordinal": 4,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13282583,
+                  "reply_codec": 974500,
+                  "reply_frame": 51125,
+                  "handling_unclassified": 731084
+                },
+                "handler_process_cpu_ns": 14988000,
+                "handler_thread_cpu_ns": 636208,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13282625,
+                  "reply_codec": 974709,
+                  "reply_frame": 50833
+                }
+              },
+              "client_http_wall_ns": 108051000,
+              "unaligned_http_minus_handling_ns": 93011708
+            },
+            {
+              "head_ordinal": 5,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13275917,
+                  "reply_codec": 1082834,
+                  "reply_frame": 53625,
+                  "handling_unclassified": 713707
+                },
+                "handler_process_cpu_ns": 15076000,
+                "handler_thread_cpu_ns": 629375,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13275750,
+                  "reply_codec": 1083000,
+                  "reply_frame": 53250
+                }
+              },
+              "client_http_wall_ns": 108735458,
+              "unaligned_http_minus_handling_ns": 93609375
+            },
+            {
+              "head_ordinal": 6,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13279875,
+                  "reply_codec": 1077125,
+                  "reply_frame": 47833,
+                  "handling_unclassified": 632917
+                },
+                "handler_process_cpu_ns": 15008000,
+                "handler_thread_cpu_ns": 558333,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13280083,
+                  "reply_codec": 1077250,
+                  "reply_frame": 47708
+                }
+              },
+              "client_http_wall_ns": 108044417,
+              "unaligned_http_minus_handling_ns": 93006667
+            },
+            {
+              "head_ordinal": 7,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13270708,
+                  "reply_codec": 1083166,
+                  "reply_frame": 50250,
+                  "handling_unclassified": 716585
+                },
+                "handler_process_cpu_ns": 15073000,
+                "handler_thread_cpu_ns": 626666,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13270708,
+                  "reply_codec": 1083375,
+                  "reply_frame": 49958
+                }
+              },
+              "client_http_wall_ns": 108757500,
+              "unaligned_http_minus_handling_ns": 93636791
+            }
+          ],
+          "decode_head_ordinals": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "decode_denominator": 7
+        },
+        "boundary_b": {
+          "heads": [
+            {
+              "head_ordinal": 0,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13386250,
+                  "reply_codec": 988375,
+                  "reply_frame": 54375,
+                  "handling_unclassified": 675792
+                },
+                "handler_process_cpu_ns": 15068000,
+                "handler_thread_cpu_ns": 587334,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13386334,
+                  "reply_codec": 988375,
+                  "reply_frame": 54083
+                }
+              },
+              "client_http_wall_ns": 112022541,
+              "unaligned_http_minus_handling_ns": 96917749
+            },
+            {
+              "head_ordinal": 1,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13270458,
+                  "reply_codec": 980250,
+                  "reply_frame": 51541,
+                  "handling_unclassified": 697418
+                },
+                "handler_process_cpu_ns": 14954000,
+                "handler_thread_cpu_ns": 602667,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13270500,
+                  "reply_codec": 980333,
+                  "reply_frame": 51333
+                }
+              },
+              "client_http_wall_ns": 108360584,
+              "unaligned_http_minus_handling_ns": 93360917
+            },
+            {
+              "head_ordinal": 2,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13265500,
+                  "reply_codec": 968792,
+                  "reply_frame": 50084,
+                  "handling_unclassified": 659707
+                },
+                "handler_process_cpu_ns": 14908000,
+                "handler_thread_cpu_ns": 577791,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13265542,
+                  "reply_codec": 968917,
+                  "reply_frame": 49833
+                }
+              },
+              "client_http_wall_ns": 108260042,
+              "unaligned_http_minus_handling_ns": 93315959
+            },
+            {
+              "head_ordinal": 3,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13356000,
+                  "reply_codec": 974500,
+                  "reply_frame": 53500,
+                  "handling_unclassified": 807583
+                },
+                "handler_process_cpu_ns": 15142000,
+                "handler_thread_cpu_ns": 658625,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13348667,
+                  "reply_codec": 974625,
+                  "reply_frame": 53208
+                }
+              },
+              "client_http_wall_ns": 108285709,
+              "unaligned_http_minus_handling_ns": 93094126
+            },
+            {
+              "head_ordinal": 4,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13270500,
+                  "reply_codec": 959500,
+                  "reply_frame": 51500,
+                  "handling_unclassified": 671875
+                },
+                "handler_process_cpu_ns": 14920000,
+                "handler_thread_cpu_ns": 595791,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13270333,
+                  "reply_codec": 959625,
+                  "reply_frame": 51125
+                }
+              },
+              "client_http_wall_ns": 108228250,
+              "unaligned_http_minus_handling_ns": 93274875
+            },
+            {
+              "head_ordinal": 5,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13276542,
+                  "reply_codec": 963667,
+                  "reply_frame": 51459,
+                  "handling_unclassified": 669332
+                },
+                "handler_process_cpu_ns": 14926000,
+                "handler_thread_cpu_ns": 591125,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13277042,
+                  "reply_codec": 963833,
+                  "reply_frame": 51167
+                }
+              },
+              "client_http_wall_ns": 107776333,
+              "unaligned_http_minus_handling_ns": 92815333
+            },
+            {
+              "head_ordinal": 6,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13273209,
+                  "reply_codec": 965750,
+                  "reply_frame": 51875,
+                  "handling_unclassified": 662000
+                },
+                "handler_process_cpu_ns": 14975000,
+                "handler_thread_cpu_ns": 643708,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13273208,
+                  "reply_codec": 965875,
+                  "reply_frame": 51333
+                }
+              },
+              "client_http_wall_ns": 108463292,
+              "unaligned_http_minus_handling_ns": 93510458
+            },
+            {
+              "head_ordinal": 7,
+              "role_local": {
+                "exclusive_wall_ns": {
+                  "native_head_dispatch": 13272875,
+                  "reply_codec": 959542,
+                  "reply_frame": 50084,
+                  "handling_unclassified": 669916
+                },
+                "handler_process_cpu_ns": 14915000,
+                "handler_thread_cpu_ns": 588125,
+                "owner_calling_thread_cpu_ns": {
+                  "native_head_dispatch": 13272959,
+                  "reply_codec": 959708,
+                  "reply_frame": 49750
+                }
+              },
+              "client_http_wall_ns": 107678000,
+              "unaligned_http_minus_handling_ns": 92725583
+            }
+          ],
+          "decode_head_ordinals": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "decode_denominator": 7
+        }
+      }
+    }
+  ],
+  "admission_contract": {
+    "ordinary_baseline": "exact raw dashboard memory_preflight estimate",
+    "research_client_bytes": 8388608,
+    "research_per_boundary_bytes": 4194304,
+    "research_native_total_bytes": 16777216,
+    "state_audit_client_and_native_bytes": 33554432,
+    "relay_required_host_bytes_outside_estimate": 33554432,
+    "runtime_order": "research_then_audit",
+    "all_numerical_owner_charges_reconciled": true
+  },
+  "role_scope": "Role-local durations only; no shared monotonic epoch asserted. Native dispatch excludes input/output conversion. Handling includes ASGI send, not socket drain. HTTP-minus-handling is an unaligned diagnostic including transport, pacing, queueing and client work; not pure network time. Parallel role spans and CPUs must not be added to client wall time. Decode role calls 1..N-1 are whole calls, not clipped shared-clock window attribution."
+}

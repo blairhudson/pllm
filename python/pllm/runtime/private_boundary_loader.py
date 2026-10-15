@@ -157,6 +157,9 @@ def build_private_boundary_contract(loaded: LoadedPrivateBoundary, experiment: E
         raise BoundaryError("native private boundary plan or composition differs")
     head = loaded.head
     hidden, vocabulary = head.spec.in_features, head.spec.out_features
+    if boundary_options.get("head_kernel") == "byte_dot" and (
+            hidden > 131071 or vocabulary * hidden > 256 << 20):
+        raise BoundaryError("private boundary byte-dot geometry exceeds native bounds")
     theoretical_bound = hidden * 127 * 127
     ring_bits = next((bits for bits in (16, 24, 32)
                       if theoretical_bound < 1 << (bits - 1)), None)
@@ -228,6 +231,7 @@ def build_private_boundary_contract(loaded: LoadedPrivateBoundary, experiment: E
         vocabulary=vocabulary, hidden=hidden, signed_output_bound=head.signed_output_bound,
         head_dispatch=contract.get("head_dispatch", "serial"),
         head_output_encoding=contract.get("head_output_encoding", "u32"),
+        head_kernel=contract.get("head_kernel", "existing"),
     )
     plan_digest = loaded.plan.digest
 

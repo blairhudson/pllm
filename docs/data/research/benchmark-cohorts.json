@@ -3,6 +3,25 @@
   "historical_factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
   "adapted_cohorts": [
     {
+      "id": "qwen25-private-boundary-byte-dot-sdk-150-8",
+      "adapter": "private-boundary-byte-dot-v1",
+      "evidenceTier": "screen",
+      "title": "Private-boundary byte-dot screen · 150+8 · 3 clients/arm",
+      "report": "docs/evidence/private-boundary-byte-dot-qwen25-sdk.json",
+      "sha256": "29a232ad77d77589d82eb9ff48b100937d52f5239f93a25b0c536723aff32bb6",
+      "plan": "docs/evidence/private-boundary-byte-dot-qwen25-sdk.plan.json",
+      "plan_sha256": "c4971c17f57739d5d87fcf83337416dd85d2023b05a2001791d49818064e642e",
+      "summary": "docs/evidence/private-boundary-byte-dot-qwen25-sdk.summary.json",
+      "summary_sha256": "9422b0753bce43ca9c18d3477f3473e03bdbbfb304ce697ee836bf2537caec14",
+      "replay_file": "scripts/benchmark_private_boundary_byte_dot.py",
+      "replay_sha256": "bcd8907682442b23f12a62cdacd3d3850e204e0d70a0087e14d6dd083dbb0a24",
+      "frozen_factory": {
+        "file": "benchmarks/research/private_boundary_byte_dot.py",
+        "sha256": "982f26392c19b0aa0970fc44aaf5ddfebce68a121290d37a5d3c564543dee665"
+      },
+      "scope": "Six fresh pinned Qwen2.5 150+8 clients compare existing and opt-in byte-dot head kernels with identical parallel/uniform-residue delivery under shared native 100/40 caps. All 52,561,920 checked logit/KV values and complete state/output commitments agree with zero observed swap growth. Median decode falls 2.7452 to 2.7275 tokens/s (0.65%); full request time rises 0.13% and five-role cold-first CPU rises 0.39%. Median client RSS falls 2.43%, but one paired sample rises; largest whole-client peaks are 225.625/222.422 MiB, qualifying observed Low/Medium without establishing a causal memory gain. Head and prepared arithmetic bodies match; one lifecycle-control byte accounts for the only application-body difference. This non-winning speed screen retains its own build and private cohort; historical API timings and separate role/fusion profiles supply no samples. Checkpoint/tokenizer distribution, physical wire, Internet RTT, independent operators and representative quality remain unmeasured. Complete costs and replay: docs/research/private-boundary-byte-dot-sdk.md."
+    },
+    {
       "id": "qwen25-private-boundary-decode-long-output-150-64",
       "evidenceTier": "screen",
       "title": "Boundary decode long-output screen · 150+64 · 3 clients/recipe",

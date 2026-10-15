@@ -45,6 +45,26 @@ The network-configured SDK accepts `OpenAI(max_client_memory="low")`,
 the maximum keeps automatic headroom-based admission. See
 [maximum client RAM in the SDK](/sdk/run/deployment/#maximum-client-ram).
 
+## Byte-dot head screen
+
+Six fresh Qwen2.5 **150+8** clients compare existing and opt-in byte-dot heads with
+the same parallel/residue delivery. All **52,561,920** checked logit/KV values and
+complete state/output commitments match; observed swap growth is zero.
+
+| Choice | N−1 decode tokens/s | Full request | Largest complete-client peak |
+| --- | ---: | ---: | ---: |
+| Existing head | **2.7452** | **82.561 s** | 225.625 MiB |
+| Byte-dot head | 2.7275 | 82.664 s | 222.422 MiB |
+
+Decode falls **0.65%**, with nearly unchanged request time and **0.39%** higher
+five-role cold-first CPU. Arithmetic bodies match. Median client RSS falls 2.43%
+with mixed paired changes; both arms fit observed Low/Medium, but no causal memory
+or serving-speed gain follows. Select **Private-boundary byte-dot screen** for
+this cohort's complete costs; historical controls and isolated kernel timings
+remain separate. Source/tokenizer distribution, physical wire and Internet RTT
+remain excluded.
+[Exact contracts, evidence and replay](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-byte-dot-sdk.md)
+
 ## Independent boundary decode confirmation
 
 Nine fresh Qwen2.5 clients confirm the selected head choices at **150+8 tokens**

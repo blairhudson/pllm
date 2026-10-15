@@ -128,6 +128,28 @@ class CompiledMatrix:
         totals = x.astype(object) @ self._reference.astype(object).T
         return np.asarray(totals % (1 << 32), dtype=np.uint32)
 
+    def wrap32_byte_dot(self, inputs: np.ndarray) -> np.ndarray:
+        """Opt-in exact single-row signed-byte-limb kernel; SIMD-off forces scalar."""
+        rows, width = self.shape
+        if (not isinstance(inputs, np.ndarray) or inputs.ndim != 2
+                or inputs.shape != (1, width)):
+            raise NativeKernelError("byte-dot requires one integer input row matching matrix width")
+        if (width > 131071 or self.weight_bytes > 256 << 20
+                or self.weight_bytes + 8 * width + 4 * rows > 512 << 20):
+            raise NativeKernelError("byte-dot geometry exceeds native bounds")
+        x = self._inputs(inputs, "<u4", 0, 2**32 - 1, bounded=False)
+        if self._matrix is None:
+            # Scalar correctness reference keeps the same bounded owners, rather
+            # than expanding the complete weight matrix to Python object arrays.
+            result = np.empty((1, rows), dtype=np.uint32)
+            for index, weights in enumerate(self._reference):
+                result[0, index] = sum(int(w) * int(v) for w, v in zip(weights, x[0])) & 0xffffffff
+            return result
+        if not callable(getattr(self.owner._executor, "wrap32_byte_dot", None)):
+            raise NativeKernelError("native byte-dot API unavailable; rebuild installed extension")
+        data = self._execute("wrap32_byte_dot", x.tobytes())
+        return np.frombuffer(data, dtype="<u4").reshape(1, self.shape[0])
+
     def digit8(self, inputs: np.ndarray, bits: int = 32) -> np.ndarray:
         """Experimental exact CPU SGEMM lifting; bounded, Apple Silicon only."""
         if type(bits) is not int or bits not in (16, 24, 32) or self._matrix is None:

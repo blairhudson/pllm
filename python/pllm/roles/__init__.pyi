@@ -41,7 +41,8 @@ class BoundaryPlacement(ComponentRef):
 
 class PrivateLookupAndFullHead(BoundaryPlacement):
     descriptor: ComponentDescriptor
-    def __init__(self) -> None: ...
+    def __init__(self, head_dispatch: str = "serial", head_output_encoding: str = "u32",
+                 *, head_kernel: str = "existing") -> None: ...
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
 
