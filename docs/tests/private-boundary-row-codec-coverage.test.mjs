@@ -138,7 +138,11 @@ test('tiny archived summary cannot become serving evidence through router', () =
 
 test('Research landing exposes owned evidence page without ranking it', () => {
   const page = read('docs/app/research/page.tsx').toString();
-  assert.match(page, /rowCodecCoverage\(registry\.row_codec_coverage\)/);
+  assert.match(page, /import scorecard from '@\/data\/research\/scorecard\.json'/);
+  assert.match(page, /const coverage = scorecard\.rowCodecCoverage/);
+  assert.doesNotMatch(page, /from ['"].*scripts\/research-/);
+  assert.deepEqual(JSON.parse(read('docs/data/research/scorecard.json')).rowCodecCoverage,
+    rowCodecCoverage(registry().row_codec_coverage));
   assert.match(page, /github\.com\/blairhudson\/pllm\/blob\/main\/docs\/research\/private-boundary-row-codec-evidence\.md/);
   assert.match(read('docs/scripts/research-scorecard.mjs').toString(), /rowCodecCoverage: rowCodecCoverage\(manifest\.row_codec_coverage\)/);
 });

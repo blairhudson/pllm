@@ -16,6 +16,46 @@ DOWNLOADS = ROOT / "docs/public/downloads"
 
 
 class PaperBuildTests(unittest.TestCase):
+    def test_abstracts_use_full_width_and_body_typography(self) -> None:
+        for name, body_prefix in (
+            ("paper", "Language-model applications"),
+            ("low-memory", "A client can use providers"),
+        ):
+            with self.subTest(paper=name):
+                layout = ET.fromstring(subprocess.check_output([
+                    "pdftohtml", "-xml", "-stdout", "-zoom", "1", "-i",
+                    "-fontfullname", "-f", "1", "-l", "1",
+                    str(DOWNLOADS / f"{name}.pdf"),
+                ]))
+                page = layout.find("page")
+                self.assertIsNotNone(page)
+                fonts = {font.attrib["id"]: font.attrib for font in page.findall("fontspec")}
+                rows = [(line, "".join(line.itertext())) for line in page.findall("text")]
+                start = next(i for i, (_, text) in enumerate(rows) if text == "Abstract") + 1
+                end = next(i for i, (_, text) in enumerate(rows)
+                           if text.startswith("This manuscript is a draft."))
+                abstract = [line for line, _ in rows[start:end]]
+                body = next(line for line, text in rows if text.startswith(body_prefix))
+                body_font = fonts[body.attrib["font"]]
+                self.assertTrue(abstract)
+                for line in abstract:
+                    font = fonts[line.attrib["font"]]
+                    self.assertEqual((font["family"], font["size"]),
+                                     (body_font["family"], body_font["size"]))
+                left = min(float(line.attrib["left"]) for line in abstract)
+                right = max(float(line.attrib["left"]) + float(line.attrib["width"])
+                            for line in abstract)
+                body_right = max(float(line.attrib["left"]) + float(line.attrib["width"])
+                                 for line, _ in rows[end:])
+                self.assertAlmostEqual(left, float(body.attrib["left"]), delta=1.5)
+                self.assertGreater(right - left, 0.95 * (body_right - left))
+                self.assertLess(
+                    max(float(line.attrib["top"]) + float(line.attrib["height"])
+                        for line in abstract),
+                    float(rows[end][0].attrib["top"]),
+                    "Full-width abstract must not overlap either body column",
+                )
+
     def test_web_citations_remain_markdown_links(self) -> None:
         for name in ("paper", "low-memory"):
             with self.subTest(paper=name):
@@ -70,12 +110,13 @@ class PaperBuildTests(unittest.TestCase):
         )
         pages = [page for page in text.split("\f") if page.strip()]
         self.assertEqual(len(pages), 2)
-        self.assertIn("Keep sensitive context", pages[0])
-        self.assertIn("not collude", pages[0])
-        self.assertIn("Progress is a scorecard", pages[1])
-        self.assertIn("Client peak memory needs a fresh-process", pages[1])
+        page_text = [" ".join(page.split()) for page in pages]
+        self.assertIn("Keep private context local", page_text[0])
+        self.assertIn("Their private protocol information must stay separate", page_text[0])
+        self.assertIn("Progress has several measures", page_text[1])
+        self.assertIn("Comparisons of peak client memory with new processes are still necessary", page_text[1])
         self.assertIn("266.91 MB", pages[1])
-        self.assertIn("full physical wire", pages[1])
+        self.assertIn("not full physical-wire traffic or model downloads", page_text[1])
         layout = ET.fromstring(subprocess.check_output([
             "pdftotext", "-bbox-layout", str(DOWNLOADS / "whitepaper.pdf"), "-",
         ]))
@@ -111,6 +152,11 @@ class PaperBuildTests(unittest.TestCase):
                 for _ in range(passes):
                     result = subprocess.run(command, cwd=directory, capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertNotRegex(
+                        result.stdout + result.stderr,
+                        r"(?:Overfull|Underfull) \\[hv]box|Invalid UTF-8 byte or sequence",
+                        "Publication PDFs must compile without text overflow, spacing, or encoding warnings",
+                    )
                 info = subprocess.check_output(["pdfinfo", str(directory / "main.pdf")], text=True)
                 pages = next(line.split(":")[1] for line in info.splitlines() if line.startswith("Pages:"))
                 self.assertLessEqual(int(pages), limit)

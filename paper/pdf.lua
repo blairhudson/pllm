@@ -94,8 +94,24 @@ local function attach_table_captions(blocks)
 end
 
 function Code(element)
-  if FORMAT:match("latex") and element.text:match("^[%w_.%-]+%.json$") then
+  if not FORMAT:match("latex") then return nil end
+  local digest = element.text:match("^%x+$")
+    and (#element.text == 40 or #element.text == 64)
+  if element.text:match("^[%w_.%-]+%.json$") or digest then
     return pandoc.RawInline("latex", "\\nolinkurl{" .. element.text .. "}")
+  end
+  -- Preserve simple commands, with breaks at spaces and within path tokens.
+  -- A long path can otherwise cross the gutter even with breakable spaces.
+  if element.text:match("^[%w_./%-]+ [%w_./ %-]+$")
+      and not element.text:find("  ", 1, true) and not element.text:match(" $") then
+    local words = {}
+    for word in element.text:gmatch("%S+") do
+      local rendered = word:find("/", 1, true)
+        and "\\texttt{\\nolinkurl{" .. word .. "}}"
+        or latex({ pandoc.Plain({ pandoc.Code(word) }) })
+      table.insert(words, rendered)
+    end
+    return pandoc.RawInline("latex", table.concat(words, " "))
   end
 end
 

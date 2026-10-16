@@ -147,7 +147,7 @@ State the reuse horizon and separately price pre-positioned artifacts.
 
 ### Title
 
-**PLLM: A Framework and Benchmark for Resource-Constrained Private LLM Inference**
+**PLLM: a high-performance private multi-party inference runtime and extensible autonomous research harness**
 
 ### Abstract scaffold
 

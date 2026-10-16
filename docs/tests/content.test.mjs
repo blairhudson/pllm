@@ -1204,7 +1204,8 @@ test('technical draft preserves archived evidence and explicit unfinished gates'
   assert.equal(generated.result.families, 3);
   assert.ok(paper.includes(generated.result.bit_exact_values.toLocaleString('en-US')));
   assert.ok(paper.includes('[E1: generated implementation checks recorded]'));
-  assert.ok(paper.includes('Working manuscript; evidence placeholders remain explicit.'));
+  assert.ok(paper.includes('This manuscript is a draft.'));
+  assert.ok(paper.includes('Placeholders identify evidence that is necessary for publication.'));
   assert.ok(paper.includes('54605c1bcc699d801bc3b62d9b02c17d69a56f0e'));
   assert.ok(!fs.existsSync(path.join(root, 'pllm-paper-v2.md')));
   assert.doesNotMatch(whitepaper, /\$\$/);
@@ -1236,7 +1237,7 @@ test('whitepaper scores bind to the matched cohort and historical figures remain
     assert.ok(web.includes(`${bytes.toFixed(2)} MB`), row.id);
   }
   assert.match(web, /public artifacts add 12.25 MB/);
-  assert.match(web, /Client peak memory needs a fresh-process comparison/);
+  assert.match(web, /Comparisons of peak client memory with new processes are still necessary/);
   assert.doesNotMatch(web, /<img/);
   for (const result of record.results) {
     assert.ok(svg.includes(`${result.median.full_seconds.toFixed(3)} s`));

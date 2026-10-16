@@ -3,7 +3,7 @@ import { markdownPathForRoute } from '@/lib/paths.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import styles from './research.module.css';
-import { rowCodecCoverage, type RowCodecCoverageEntry } from '@/scripts/research-row-codec-coverage.mjs';
+import scorecard from '@/data/research/scorecard.json';
 
 export const metadata = {
   title: 'PLLM research',
@@ -11,10 +11,9 @@ export const metadata = {
   alternates: { canonical: '/research/', types: { 'text/markdown': markdownPathForRoute('/research/') } },
 };
 export default function Research() {
-  const registry = JSON.parse(readFileSync(join(process.cwd(), 'data/research/benchmark-cohorts.json'), 'utf8')) as {
-    row_codec_coverage?: RowCodecCoverageEntry[];
-  };
-  const coverage = rowCodecCoverage(registry.row_codec_coverage);
+  // Generation verifies original archive bytes before publishing this artifact.
+  // Keep repository IO/auditors out of the server-component module graph.
+  const coverage = scorecard.rowCodecCoverage;
   return <main id="main-content" className={styles.researchPage}>
     <div dangerouslySetInnerHTML={{ __html: prefixHtml(readFileSync(join(process.cwd(), 'content/research.html'), 'utf8')) }} />
     <section aria-labelledby="row-codec-coverage">

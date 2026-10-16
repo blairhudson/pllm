@@ -18,7 +18,7 @@ keywords:
   - offline correlations
 preferred-citation:
   type: article
-  title: "PLLM: A Framework and Benchmark for Resource-Constrained Private LLM Inference"
+  title: "PLLM: a high-performance private multi-party inference runtime and extensible autonomous research harness"
   authors:
     - family-names: Hudson
       given-names: Blair

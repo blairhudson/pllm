@@ -32,6 +32,25 @@ The committed `package-lock.json` is the dependency source for repeatable builds
 Use `npm install` only when intentionally changing dependencies, then review the
 lockfile diff.
 
+`postinstall` applies a version-checked Tailwind 4.3.0 compatibility patch before
+Fumadocs generation. It replaces deprecated `module.register()` with synchronous
+`module.registerHooks()` where available, preserving transitive cache IDs and
+the older-Node fallback. Remove the patch when upgrading to an upstream fix;
+unknown package versions fail closed rather than silently dropping the patch.
+
+To exercise actual Turbopack requests alongside another dev server:
+
+```bash
+NEXT_DIST_DIR=.next-runtime-check bun run dev --port 3127
+# In another terminal, after startup:
+PLLM_DOCS_TEST_ORIGIN=http://localhost:3127 node --test tests/research-runtime.test.mjs
+```
+
+Use a sibling `.next-*` directory, not a child of `.next`: production builds clean
+the latter. The optional HTTP test checks every research route, publication
+navigation, and that a missing favicon remains a normal 404 instead of a build
+500. Regular tests still audit all original evidence before publication.
+
 ## Validate current content
 
 ```bash

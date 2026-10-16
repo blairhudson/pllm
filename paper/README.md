@@ -12,6 +12,7 @@ The technical manuscripts are working drafts, not completed publications.
 `PUBLICATION-PLAN.md` saves the complete strategy, scaffolds, critique and
 milestones. `CLAIMS-AND-EVIDENCE.md` maps placeholders to existing evidence and
 remaining work; `IMPLEMENTATION-STATUS.md` records progress.
+`WRITING-GUIDE.md` defines the ASD-STE100 Issue 9 rules and technical terms for all three documents.
 
 Publication evidence has separate, auditable owners:
 

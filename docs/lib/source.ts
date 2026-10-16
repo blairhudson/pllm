@@ -74,10 +74,20 @@ function researchPapers(): Folder {
   return { ...folder, name: 'Private Inference Papers', root: true };
 }
 
-function researchDocument(name: string, url: string): Folder {
-  const page = researchSource.getPageTree().children.find((node) => nodeUrls(node).includes(url));
-  if (!page) throw new Error(`Missing research document ${url}`);
-  return { type: 'folder', name, root: true, children: [page] };
+function researchPublications(): Folder {
+  const documents = [
+    ['paper', 'PLLM framework paper (academic draft)'],
+    ['low-memory', 'Low-memory method paper (academic draft)'],
+    ['whitepaper', 'PLLM introduction (non-academic whitepaper)'],
+  ];
+  return {
+    type: 'folder', name: 'Publications', root: true,
+    children: documents.map(([slug, name]) => {
+      const page = researchSource.getPage([slug]);
+      if (!page) throw new Error(`Missing research publication /research/${slug}`);
+      return { type: 'page', name, url: page.url };
+    }),
+  };
 }
 
 function researchFolders(): Folder[] {
@@ -93,8 +103,7 @@ function researchFolders(): Folder[] {
     { type: 'folder', name: 'The problem', root: true, children: [problem] },
     { type: 'folder', name: 'Measured SOTA', root: true, children: [sota] },
     { type: 'folder', name: 'Metric relationships', root: true, children: [relationships] },
-    researchDocument('PLLM Whitepaper', '/research/whitepaper'),
-    researchDocument('PLLM Research Paper', '/research/paper'),
+    researchPublications(),
     researchPapers(),
   ];
 }

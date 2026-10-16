@@ -4,25 +4,31 @@
 \usepackage{tabularx}
 \usepackage{cuted}
 \usepackage{ragged2e}
+% The bundled legacy lineno has a Latin-1 author name in a comment. Decode
+% that dependency correctly in XeTeX/Tectonic, then restore UTF-8 inputs.
+\ifXeTeX
+  \XeTeXdefaultencoding "ISO-8859-1"
+  \usepackage{lineno}
+  \XeTeXdefaultencoding "UTF-8"
+\fi
 \usepackage{fvextra}
 \fvset{breaklines=true,breakanywhere=true,fontsize=\footnotesize}
 \DefineVerbatimEnvironment{verbatim}{Verbatim}{breaklines=true,fontsize=\footnotesize}
 \setlength{\columnsep}{0.22in}
 \setlength{\parindent}{0.9em}
+\setlength{\RaggedRightParindent}{0.9em}
+\setlength{\RaggedRightRightskip}{0pt plus 1fil}
+\AtBeginDocument{\RaggedRight}
 \raggedbottom
 
 \renewenvironment{abstract}{%
-  \begin{strip}
-  \vspace{-1.2em}
-  \begin{center}
-  \begin{minipage}{0.94\textwidth}
-  \centering\textbf{Abstract}\par\smallskip
-  \begin{minipage}{0.96\linewidth}\small\justifying
+  \begin{strip}\par\noindent
+  \begin{minipage}{\textwidth}
+  {\centering\normalfont\normalsize\bfseries Abstract\par}\smallskip
+  \normalfont\normalsize\RaggedRight
   \setlength{\parindent}{0pt}
+  \setlength{\parskip}{0.5\baselineskip}
 }{%
-  \end{minipage}
-  \end{minipage}
-  \end{center}
-  \vspace{-0.8em}
+  \end{minipage}\par
   \end{strip}
 }

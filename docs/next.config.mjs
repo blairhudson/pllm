@@ -2,6 +2,9 @@ import { createMDX } from 'fumadocs-mdx/next';
 import { normalizeBasePath } from './lib/paths.mjs';
 const withMDX = createMDX();
 const config = {
+  // Isolate dev locks/cache. With static export, a custom production distDir
+  // changes the export destination rather than isolating the build cache.
+  distDir: process.env.NODE_ENV === 'development' ? process.env.NEXT_DIST_DIR ?? '.next' : '.next',
   trailingSlash: true,
   reactStrictMode: true,
   allowedDevOrigins: ['127.0.0.1', 'macbookblair.local', 'macbookblair.tail858b09.ts.net'],

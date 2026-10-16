@@ -7,7 +7,7 @@ body { color: var(--ink); background: #fff; font: 14.3px/1.58 Georgia, "Times Ne
 .sheet:last-child { break-after: auto; }
 .sheet::before { content: "PLLM  /  PRIVATE INFERENCE, MEASURED"; position: absolute; bottom: 32px; left: 61px; width: 624px; padding-top: 12px; border-top: 1px solid var(--rule); color: var(--muted); font: 9px Arial, sans-serif; letter-spacing: .1em; }
 .sheet::after { content: attr(data-page); position: absolute; right: 61px; bottom: 31px; font: 11px Arial, sans-serif; }
-.cover-hero { margin-bottom: 35px; }
+.cover-hero { margin-bottom: 18px; }
 .cover-top, .cover-bottom { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .wordmark { font: 700 26px Arial, sans-serif; letter-spacing: -.065em; }
 .wordmark-dot { color: var(--accent); }

@@ -65,13 +65,26 @@ assert.ok(page.includes('class="paper-timeline"'), 'Paper timeline did not rende
 assert.ok(!page.includes('Back to the chronological bibliography'));
 
 const whitepaper = rendered('research/whitepaper').page;
-assert.ok(whitepaper.includes('Progress is a scorecard, not one number.'));
+assert.ok(whitepaper.includes('Progress has several measures'));
 assert.ok(whitepaper.includes('266.91 MB'), 'Whitepaper must retain its measured cohort');
 assert.ok(whitepaper.includes('href="/downloads/whitepaper.pdf"'));
 assert.ok(page.includes('aria-label="Measured SDK performance"'), 'Interactive scorecard must render above the chronology');
 assert.ok(page.includes('Hide unimplemented papers'));
 assert.ok(rendered('research/paper').page.includes('href="/downloads/paper-arxiv-source.zip"'),
   'Technical paper must link its standalone arXiv source archive');
+for (const publication of ['paper', 'low-memory', 'whitepaper']) {
+  const { sidebar } = rendered(`research/${publication}`);
+  assert.match(sidebar, />Publications</, 'Research navigation needs a named Publications group');
+  for (const document of ['paper', 'low-memory', 'whitepaper']) {
+    assert.ok(sidebar.includes(`href="/research/${document}/"`),
+      `${publication}: missing publication sibling ${document}`);
+  }
+  assert.match(sidebar, /PLLM framework paper \(academic draft\)/);
+  assert.match(sidebar, /Low-memory method paper \(academic draft\)/);
+  assert.match(sidebar, /PLLM introduction \(non-academic whitepaper\)/);
+}
+const overview = rendered('research').page;
+assert.match(overview, /<h2 id="paper-title">Publications<\/h2>/);
 
 const experimentGuide = rendered('sdk/experiments').page;
 const exampleCode = [...experimentGuide.matchAll(/<code\b[^>]*>([\s\S]*?)<\/code>/g)].map((match) => match[1]);
