@@ -1,0 +1,26 @@
+{
+  "cost_scope": "partial worker window after validation/import; NOT entire child lifetime; unknown interrupted work never zero",
+  "ids": [
+    "5725ceb989a1e219009abf0e",
+    "57283f014b864d19001647e8",
+    "572975511d046914007794a8",
+    "56e1ba41cd28a01900c67ae1",
+    "5725e6f6ec44d21400f3d72a",
+    "56e1ee4de3433e1400423211",
+    "572975073f37b31900478418",
+    "56e1dc62cd28a01900c67bce"
+  ],
+  "items": {},
+  "manifest_digest": "14402f3e35997316366edb9f93126b2cabc9d0f167d69ae4230b281b9683b6e7",
+  "outcome": "parent_aborted",
+  "parent_cpu_seconds": 3.9461720000000002,
+  "parent_error": {
+    "message": "frontier probe exceeds post-reserve headroom",
+    "type": "RuntimeError"
+  },
+  "parent_wall_seconds": 4.404301124624908,
+  "provenance_invalid": false,
+  "stage": "baseline",
+  "started": 1792107092.091625,
+  "status": "incomplete"
+}

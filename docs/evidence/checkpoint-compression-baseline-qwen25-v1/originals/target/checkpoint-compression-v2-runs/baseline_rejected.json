@@ -1,0 +1,24 @@
+{
+  "gate": {
+    "admitted": false,
+    "optimistic": {
+      "baseline_rejected": true,
+      "impossible_kinds": [
+        "public_qa"
+      ],
+      "reason": "optimistic all-remaining-success cannot pass",
+      "rule": "quality_only_optimistic_all_remaining_success_v1",
+      "valid_completed_quality_errors": {
+        "copy": 0,
+        "long_context": 0,
+        "order": 0,
+        "public_qa": 17,
+        "rare": 0
+      }
+    },
+    "reason": "missing/incompatible baseline cohort",
+    "status": "baseline_rejected"
+  },
+  "manifest_digest": "14402f3e35997316366edb9f93126b2cabc9d0f167d69ae4230b281b9683b6e7",
+  "status": "baseline_rejected"
+}

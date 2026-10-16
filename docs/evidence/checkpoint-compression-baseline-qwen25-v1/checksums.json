@@ -1,0 +1,252 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "audit.json": {
+      "bytes": 6768,
+      "kind": "derived_not_original_execution_output",
+      "sha256": "5b6d85f3744c9248795452458c8d641553f5deaafd991f4d1521423493d4a2dc"
+    },
+    "external-artifacts.json": {
+      "bytes": 3272,
+      "kind": "derived_not_original_execution_output",
+      "sha256": "895a00213e3f5ec01510d8bc3d2486a133010a978cb9d061297e4927f928a3d6"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-01.log": {
+      "bytes": 156,
+      "original_path": "target/checkpoint-compression-v2-baseline-01.log",
+      "sha256": "206a85d9fd08e19ed1f082b9d1ac9863a8d86a4e9ccaacf4c4fad7d381c9cec9"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-02.log": {
+      "bytes": 156,
+      "original_path": "target/checkpoint-compression-v2-baseline-02.log",
+      "sha256": "e871b23b6a0d5c1c4bb71f82a1576f73447cfddbfdfbc29c04b77e53e40a0cd7"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-03.log": {
+      "bytes": 1647,
+      "original_path": "target/checkpoint-compression-v2-baseline-03.log",
+      "sha256": "16f486c51b5ed785c919373ef916115a1a143bdedfc3a8bc064420c29c211299"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-04.log": {
+      "bytes": 156,
+      "original_path": "target/checkpoint-compression-v2-baseline-04.log",
+      "sha256": "72030e324c23c1f829dd0911e934756a3581e2e7778bdbfc50740fcdafe46af2"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-05.log": {
+      "bytes": 531,
+      "original_path": "target/checkpoint-compression-v2-baseline-05.log",
+      "sha256": "64f48824301c70d38d4d18bf20d40c3676518cd071e07c33d47b8914ff51cda7"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-report-01.json": {
+      "bytes": 18736,
+      "original_path": "target/checkpoint-compression-v2-baseline-report-01.json",
+      "sha256": "cee1cf5be8d5e146ae9a3000ff9f3321291655a6d0b6bcd0a93c3097d3f69b97"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-report-01.log": {
+      "bytes": 11356,
+      "original_path": "target/checkpoint-compression-v2-baseline-report-01.log",
+      "sha256": "5833d31a299cd0f958780f5fe6c9389e4f225bbad73f776fc42eb8eeee6a14fc"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-report-02.json": {
+      "bytes": 18768,
+      "original_path": "target/checkpoint-compression-v2-baseline-report-02.json",
+      "sha256": "0b3301c3644f1972423ebdd28212280a465c41e22785e4eb50104b98b9137623"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-report-04.json": {
+      "bytes": 18716,
+      "original_path": "target/checkpoint-compression-v2-baseline-report-04.json",
+      "sha256": "7256086d1435424bbda178783f615fd8295cca3a914fb97e4101b64c2b6f6c14"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-report-04.log": {
+      "bytes": 11336,
+      "original_path": "target/checkpoint-compression-v2-baseline-report-04.log",
+      "sha256": "d541f388e420f70db3be309eeb8cd862d71a3464b7221dea20d47e8ff93d5f78"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-report-05.json": {
+      "bytes": 18750,
+      "original_path": "target/checkpoint-compression-v2-baseline-report-05.json",
+      "sha256": "6607193bc54ff091e73b28250bb2f6825691b0438aa22431e723a6c74ee53e85"
+    },
+    "originals/target/checkpoint-compression-v2-baseline-report-05.log": {
+      "bytes": 11354,
+      "original_path": "target/checkpoint-compression-v2-baseline-report-05.log",
+      "sha256": "c2ebe246ecd755a43d2c5ff88368a04f5b75228b05abb965f9299c34bb01e5c7"
+    },
+    "originals/target/checkpoint-compression-v2-manifest.json": {
+      "bytes": 735821,
+      "original_path": "target/checkpoint-compression-v2-manifest.json",
+      "sha256": "3e79be02d6273081c1f2c58016a482d6314502eb137bdd439660d0d4834a7807"
+    },
+    "originals/target/checkpoint-compression-v2-preflight.json": {
+      "bytes": 295,
+      "original_path": "target/checkpoint-compression-v2-preflight.json",
+      "sha256": "e104690536a3324f2c4c8b4eb0c3960a0f3e33bfec1f7203e21de9ad055d64c5"
+    },
+    "originals/target/checkpoint-compression-v2-preflight.log": {
+      "bytes": 265,
+      "original_path": "target/checkpoint-compression-v2-preflight.log",
+      "sha256": "6b171f6d81bea6263f1606b00c605fcf96ec85599453b4acbe4b7f46010095fb"
+    },
+    "originals/target/checkpoint-compression-v2-prepare.log": {
+      "bytes": 121,
+      "original_path": "target/checkpoint-compression-v2-prepare.log",
+      "sha256": "9222690fec9131a9039e12e02ac96d04a77bb58a7abd19585eb59ee0b4e56e22"
+    },
+    "originals/target/checkpoint-compression-v2-runs/baseline-01174cd96c67439cb5655c056875f893.json": {
+      "bytes": 17957,
+      "original_path": "target/checkpoint-compression-v2-runs/baseline-01174cd96c67439cb5655c056875f893.json",
+      "sha256": "1dab23c9e3f562fd2de2a6dc1f65890474b09caad916e2852f9cc016c5d1e023"
+    },
+    "originals/target/checkpoint-compression-v2-runs/baseline-2949390de8514b10944c6106c2022321.json": {
+      "bytes": 17807,
+      "original_path": "target/checkpoint-compression-v2-runs/baseline-2949390de8514b10944c6106c2022321.json",
+      "sha256": "c28bb61b977a30d14dc9069284ba374c52ad18510ec967ab85fec25f9ddb8898"
+    },
+    "originals/target/checkpoint-compression-v2-runs/baseline-4e26eacd402c45278f1bee6092cbaab1.json": {
+      "bytes": 17827,
+      "original_path": "target/checkpoint-compression-v2-runs/baseline-4e26eacd402c45278f1bee6092cbaab1.json",
+      "sha256": "077fc4d689a31511595f528eb7b46f3f21389f9ce059f88d5a10e91bb33d96f5"
+    },
+    "originals/target/checkpoint-compression-v2-runs/baseline-5360735bc4d9476f9590144564065a2e.json": {
+      "bytes": 14765,
+      "original_path": "target/checkpoint-compression-v2-runs/baseline-5360735bc4d9476f9590144564065a2e.json",
+      "sha256": "d650e23a02ff1e8508abaa1143f26353dbb069dfc32f3e1f3658487ead8a88b5"
+    },
+    "originals/target/checkpoint-compression-v2-runs/baseline-85fd76bca785443c9da81932ab0cd4dd.json": {
+      "bytes": 853,
+      "original_path": "target/checkpoint-compression-v2-runs/baseline-85fd76bca785443c9da81932ab0cd4dd.json",
+      "sha256": "7a988fdefa621b9bf6431a6fce8d3f994b21040fe1d8d7f97908052b0f9b3027"
+    },
+    "originals/target/checkpoint-compression-v2-runs/baseline_rejected.json": {
+      "bytes": 659,
+      "original_path": "target/checkpoint-compression-v2-runs/baseline_rejected.json",
+      "sha256": "ca1290ef70b09a35806d55b43659e5c124be56de604756a4a282aeb2b7db57ad"
+    },
+    "originals/target/checkpoint-compression-v2-runs/lineage.json": {
+      "bytes": 168,
+      "original_path": "target/checkpoint-compression-v2-runs/lineage.json",
+      "sha256": "1dfd21de4669e303bf78653b028557aa54b36617749f46934068f0050dc6dc40"
+    },
+    "sources/installed-sdk/pllm/__init__.py": {
+      "bytes": 7713,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+      "sha256": "8a27dcd4029a5ca29905c8ecb7ef30a542d95ec8c08ac867b00834dbd58c106c"
+    },
+    "sources/installed-sdk/pllm/_benchmark_build.py": {
+      "bytes": 4298,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_build.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_build.py",
+      "sha256": "ce5bf4763fa01895e7c73a71e920b325a910e6ff35e8e169f60f6f2b8557d43b"
+    },
+    "sources/installed-sdk/pllm/_benchmark_contract.py": {
+      "bytes": 29889,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+      "sha256": "3d869d8c32dde595b103655e4d976fbf2a3d76d05ed427124aac77ed9bda451e"
+    },
+    "sources/installed-sdk/pllm/metrics/benchmark_runner.py": {
+      "bytes": 16459,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/metrics/benchmark_runner.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/metrics/benchmark_runner.py",
+      "sha256": "8516364c5569fdce957b329300f633862cd46a35a7d11c73a496b7389ec1aad7"
+    },
+    "sources/installed-sdk/pllm/model_loader.py": {
+      "bytes": 16148,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/model_loader.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/model_loader.py",
+      "sha256": "9a11733dd60df26af7f5033f0f28f9d39886c6301ee1266253e58351ec5ef11d"
+    },
+    "sources/installed-sdk/pllm/profiles/__init__.py": {
+      "bytes": 50090,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/profiles/__init__.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/profiles/__init__.py",
+      "sha256": "cfc8f9be92476b42becf7efd4dbd5302af0acf582376dc718db6a8b390573b21"
+    },
+    "sources/installed-sdk/pllm/quantization/__init__.py": {
+      "bytes": 4885,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/quantization/__init__.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/quantization/__init__.py",
+      "sha256": "8d73ae0128ffd773e799bc9343ad1a5710b9f42a2de21c44a35794f297bdc7f4"
+    },
+    "sources/installed-sdk/pllm/runtime/benchmark_memory.py": {
+      "bytes": 48731,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py",
+      "sha256": "34b4a8e15cba4aeb541e0db269bf28cf58608ab8a0c9f8bf31e12e8822c0cfb0"
+    },
+    "sources/installed-sdk/pllm/runtime/model_binding.py": {
+      "bytes": 129654,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/model_binding.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/model_binding.py",
+      "sha256": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a"
+    },
+    "sources/installed-sdk/pllm/runtime/quantization.py": {
+      "bytes": 10047,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/quantization.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/quantization.py",
+      "sha256": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412"
+    },
+    "sources/installed-sdk/pllm/runtime/shutdown.py": {
+      "bytes": 925,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/shutdown.py",
+      "sha256": "8e8b22125d067d9dcf3d5bba630e58fbd66d71e92ebfbbc41b9bdc8bde99914f"
+    },
+    "sources/installed-sdk/pllm/runtime/transformer_client.py": {
+      "bytes": 107020,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/transformer_client.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/transformer_client.py",
+      "sha256": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574"
+    },
+    "sources/installed-sdk/pllm/runtime/transformer_engine.py": {
+      "bytes": 108229,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/transformer_engine.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/transformer_engine.py",
+      "sha256": "cb9f61d93f9d9f02d4019911a56ccf1aa2daea6b9c4563f1e40f747f9a08a88f"
+    },
+    "sources/repo/benchmarks/research/checkpoint_compression.py": {
+      "bytes": 18919,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/benchmarks/research/checkpoint_compression.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/benchmarks/research/checkpoint_compression.py",
+      "sha256": "578b9b16a36c7c6c9c51321c4383c9d11bc23e75663edfc690f4fa840b38460d"
+    },
+    "sources/repo/benchmarks/research/checkpoint_tiny_model.py": {
+      "bytes": 21775,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/benchmarks/research/checkpoint_tiny_model.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/benchmarks/research/checkpoint_tiny_model.py",
+      "sha256": "fdddab969c314642e67b23751ff57011abd80789ace6573711313ff1b78cc6a6"
+    },
+    "sources/repo/docs/evidence/checkpoint-tiny-model-pilot-manifest-v1.json": {
+      "bytes": 57134,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/docs/evidence/checkpoint-tiny-model-pilot-manifest-v1.json",
+      "original_path": "/Users/blairhudson/workspace/pllm/docs/evidence/checkpoint-tiny-model-pilot-manifest-v1.json",
+      "sha256": "740ca7839ba611223c7f9a5f784628a7f8f4bd765b8901df321ceb7006cfae0b"
+    },
+    "sources/repo/scripts/benchmark_checkpoint_compression.py": {
+      "bytes": 37277,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/scripts/benchmark_checkpoint_compression.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/scripts/benchmark_checkpoint_compression.py",
+      "sha256": "d6ad81c3c0f64f7041759bba13cd0591918352fee87304112fdfc64641bb779b"
+    },
+    "sources/repo/scripts/decoder_probe_support.py": {
+      "bytes": 4456,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/scripts/decoder_probe_support.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/scripts/decoder_probe_support.py",
+      "sha256": "6b102bd674403a431e898ef1d6d411e74a663f063555e021ac56a1159a8a0d3e"
+    },
+    "sources/repo/scripts/frontier_probe_support.py": {
+      "bytes": 3683,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/scripts/frontier_probe_support.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/scripts/frontier_probe_support.py",
+      "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+    },
+    "sources/repo/scripts/train_checkpoint_tiny_model.py": {
+      "bytes": 25196,
+      "manifest_code_path": "/Users/blairhudson/workspace/pllm/scripts/train_checkpoint_tiny_model.py",
+      "original_path": "/Users/blairhudson/workspace/pllm/scripts/train_checkpoint_tiny_model.py",
+      "sha256": "19dae68ad06db2743e5150048ba8cde8574aaff20e30dead3e16538aa3153d4a"
+    }
+  },
+  "schema": "pllm.checkpoint_compression.archive_checksums.v1",
+  "scope": "All archive files except checksums.json itself; original_path records are byte-for-byte copies; manifest_code_path binds source snapshots to original frozen environment."
+}

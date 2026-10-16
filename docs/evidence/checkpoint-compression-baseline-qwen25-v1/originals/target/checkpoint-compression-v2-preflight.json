@@ -1,0 +1,11 @@
+{
+  "host": {
+    "available": 10573004800,
+    "disk_free": 39026122752,
+    "swap_used": 2417623040,
+    "total": 34359738368
+  },
+  "manifest_digest": "14402f3e35997316366edb9f93126b2cabc9d0f167d69ae4230b281b9683b6e7",
+  "resource_admitted_now": true,
+  "status": "metadata_only_no_values"
+}

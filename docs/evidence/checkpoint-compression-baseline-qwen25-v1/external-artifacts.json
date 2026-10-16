@@ -1,0 +1,41 @@
+{
+  "schema": "pllm.checkpoint_compression.external_references.v1",
+  "scope": "References only: no checkpoint, native binary, full interpreter, dataset file or entire SDK copied into this bounded slice.",
+  "original_manifest": "originals/target/checkpoint-compression-v2-manifest.json",
+  "dataset": {
+    "original_path": "/Users/blairhudson/workspace/pllm/target/checkpoint-tiny-model-squad-dev-v1.1.json",
+    "url": "https://raw.githubusercontent.com/rajpurkar/SQuAD-explorer/240e165ab706d95bd4323653bb92421f446208cf/dataset/dev-v1.1.json",
+    "git_blob": "e9a3f913ad1468ebe105b891334ca7b0bc0e2510",
+    "sha256": "95aa6a52d5d6a735563366753ca50492a658031da74f301ac5238b03966972c9",
+    "bytes": 4854279,
+    "license": "SQuAD v1.1 CC BY-SA 4.0; Rajpurkar et al.",
+    "audit_hash_verified": true,
+    "canonical_selected_public_rows": "original manifest /data/rows"
+  },
+  "model_snapshot": {
+    "repo": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "original_cache_snapshot": "/Users/blairhudson/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775",
+    "sha256_and_bytes_each_file": "original manifest /source/files (all eight files, including public equalization msgpack)",
+    "source_lock": "original manifest /source/resolved_source_lock",
+    "model_safetensors_sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+    "model_safetensors_bytes": 988097824,
+    "snapshot_total_bytes": 1000315874,
+    "audit_weight_stream_rehashed": false
+  },
+  "execution_environment": {
+    "original_launcher_python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "resolved_interpreter": "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/bin/python3.13",
+    "resolved_interpreter_sha256": "7710b0490e6af648676d7ad163fa1d54bffb75d8505162609a1c3c9b76e1929d",
+    "sdk_root": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm",
+    "native_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+    "native_sha256": "536b0b444a15c6a7d4bbf55bf47f10c93c95db269b64bd333a52edf3d8c11921",
+    "sha256_each_interpreter_sdk_native_and_dependency_file": "original manifest /environment/code_native (1009 absolute-path SHA256 entries)",
+    "versions_platform_and_numeric": "original manifest /environment",
+    "recorded_worker_build_digest": "db5b5374935fa41416a869383495ed68ac391ecb3535537d262110504e4a5f10",
+    "audit_all_1009_listed_hashes_verified": true,
+    "not_complete_environment_backup": true,
+    "limits": "Selected installed SDK Python sources are explanatory snapshots, not an importable standalone SDK. Full numeric replay additionally needs original unarchived SDK/native/dependencies, Python runtime/stdlib, platform and model source artifacts. Hash identity is not a portable replay guarantee."
+  },
+  "privacy": "Public corpus, public model identity, source and local execution paths only. No private prompts, credentials or environment-variable values intentionally collected. Original frozen public rows and failures preserved without redaction or rewriting."
+}

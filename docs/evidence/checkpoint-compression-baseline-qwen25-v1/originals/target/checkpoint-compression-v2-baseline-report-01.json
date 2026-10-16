@@ -1,0 +1,644 @@
+{
+  "baseline": {
+    "admitted": false,
+    "optimistic": {
+      "baseline_rejected": false,
+      "impossible_kinds": [],
+      "reason": "quality still mathematically attainable",
+      "rule": "quality_only_optimistic_all_remaining_success_v1",
+      "valid_completed_quality_errors": {
+        "copy": 0,
+        "long_context": 0,
+        "order": 0,
+        "public_qa": 5,
+        "rare": 0
+      }
+    },
+    "reason": "missing/incompatible baseline cohort",
+    "status": "pending_or_weak"
+  },
+  "costs": {
+    "actual_passes": 8,
+    "all_passes_including_invalid_and_failed_attempts": {
+      "attempted_passes": 8,
+      "completed_passes": 8,
+      "counts": {
+        "cpu_seconds": {
+          "known_subtotal": 110.876466,
+          "missing_records": 0,
+          "total": 110.876466
+        },
+        "executed_sequence_rows": {
+          "known_subtotal": 1844,
+          "missing_records": 0,
+          "total": 1844
+        },
+        "input_tokens": {
+          "known_subtotal": 1775,
+          "missing_records": 0,
+          "total": 1775
+        },
+        "selected_tokens": {
+          "known_subtotal": 77,
+          "missing_records": 0,
+          "total": 77
+        },
+        "stage_calls": {
+          "known_subtotal": 7392,
+          "missing_records": 0,
+          "total": 7392
+        },
+        "stage_rows": {
+          "known_subtotal": 177024,
+          "missing_records": 0,
+          "total": 177024
+        },
+        "wall_seconds": {
+          "known_subtotal": 65.79369195736945,
+          "missing_records": 0,
+          "total": 65.79369195736945
+        }
+      },
+      "incomplete_passes_unknown_not_zero": 0,
+      "projected_arithmetic_bytes": {
+        "client_to_inference": {
+          "known_subtotal": 1217925120,
+          "missing_records": 0,
+          "total": 1217925120
+        },
+        "inference_to_client": {
+          "known_subtotal": 1722089472,
+          "missing_records": 0,
+          "total": 1722089472
+        },
+        "preparation_to_inference": {
+          "known_subtotal": 1829486592,
+          "missing_records": 0,
+          "total": 1829486592
+        }
+      }
+    },
+    "attempts": 1,
+    "child_full_lifetime_cpu_seconds": null,
+    "child_full_lifetime_wall_seconds": null,
+    "failed_attempts": 0,
+    "helper_artifacts": [],
+    "helper_local_cpu_seconds": {
+      "known_subtotal": 0,
+      "missing_records": 0,
+      "total": 0
+    },
+    "incomplete_passes_unknown_not_zero": 0,
+    "largest_observed_child_lifetime_peak_rss_bytes": 1181761536,
+    "parent_partial_window_cpu_seconds": {
+      "known_subtotal": 4.066672,
+      "missing_records": 0,
+      "total": 4.066672
+    },
+    "parent_partial_window_wall_seconds_including_child": {
+      "known_subtotal": 85.05367058422416,
+      "missing_records": 0,
+      "total": 85.05367058422416
+    },
+    "peak_rss_missing_attempts": 0,
+    "per_arm_all_attempts": {
+      "full": {
+        "fallback_inclusive": {
+          "attempted_passes": 0,
+          "completed_passes": 0,
+          "counts": {
+            "cpu_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "executed_sequence_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "input_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "selected_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_calls": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "wall_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          },
+          "incomplete_passes_unknown_not_zero": 0,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "inference_to_client": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "preparation_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          }
+        },
+        "local_selection_cpu_seconds": {
+          "known_subtotal": 0,
+          "missing_records": 0,
+          "total": 0
+        },
+        "raw": {
+          "attempted_passes": 0,
+          "completed_passes": 0,
+          "counts": {
+            "cpu_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "executed_sequence_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "input_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "selected_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_calls": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "wall_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          },
+          "incomplete_passes_unknown_not_zero": 0,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "inference_to_client": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "preparation_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          }
+        },
+        "scope": "target pass totals below; local selection CPU separately charged; not complete serving cost"
+      },
+      "learned": {
+        "fallback_inclusive": {
+          "attempted_passes": 0,
+          "completed_passes": 0,
+          "counts": {
+            "cpu_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "executed_sequence_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "input_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "selected_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_calls": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "wall_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          },
+          "incomplete_passes_unknown_not_zero": 0,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "inference_to_client": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "preparation_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          }
+        },
+        "local_selection_cpu_seconds": {
+          "known_subtotal": 0,
+          "missing_records": 0,
+          "total": 0
+        },
+        "raw": {
+          "attempted_passes": 0,
+          "completed_passes": 0,
+          "counts": {
+            "cpu_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "executed_sequence_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "input_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "selected_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_calls": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "wall_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          },
+          "incomplete_passes_unknown_not_zero": 0,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "inference_to_client": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "preparation_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          }
+        },
+        "scope": "target pass totals below; local selection CPU separately charged; not complete serving cost"
+      },
+      "lexical": {
+        "fallback_inclusive": {
+          "attempted_passes": 0,
+          "completed_passes": 0,
+          "counts": {
+            "cpu_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "executed_sequence_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "input_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "selected_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_calls": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "wall_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          },
+          "incomplete_passes_unknown_not_zero": 0,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "inference_to_client": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "preparation_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          }
+        },
+        "local_selection_cpu_seconds": {
+          "known_subtotal": 0,
+          "missing_records": 0,
+          "total": 0
+        },
+        "raw": {
+          "attempted_passes": 0,
+          "completed_passes": 0,
+          "counts": {
+            "cpu_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "executed_sequence_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "input_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "selected_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_calls": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "wall_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          },
+          "incomplete_passes_unknown_not_zero": 0,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "inference_to_client": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "preparation_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          }
+        },
+        "scope": "target pass totals below; local selection CPU separately charged; not complete serving cost"
+      },
+      "untrained": {
+        "fallback_inclusive": {
+          "attempted_passes": 0,
+          "completed_passes": 0,
+          "counts": {
+            "cpu_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "executed_sequence_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "input_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "selected_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_calls": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "wall_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          },
+          "incomplete_passes_unknown_not_zero": 0,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "inference_to_client": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "preparation_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          }
+        },
+        "local_selection_cpu_seconds": {
+          "known_subtotal": 0,
+          "missing_records": 0,
+          "total": 0
+        },
+        "raw": {
+          "attempted_passes": 0,
+          "completed_passes": 0,
+          "counts": {
+            "cpu_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "executed_sequence_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "input_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "selected_tokens": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_calls": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "stage_rows": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "wall_seconds": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          },
+          "incomplete_passes_unknown_not_zero": 0,
+          "projected_arithmetic_bytes": {
+            "client_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "inference_to_client": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            },
+            "preparation_to_inference": {
+              "known_subtotal": 0,
+              "missing_records": 0,
+              "total": 0
+            }
+          }
+        },
+        "scope": "target pass totals below; local selection CPU separately charged; not complete serving cost"
+      }
+    },
+    "preparation": {
+      "cpu_seconds": 2.063385,
+      "download_cost": "prepositioned; prior download/setup unknown, not zero",
+      "public_data_bytes": 4854279,
+      "source_prepositioned_bytes": 1000315874,
+      "wall_seconds": 2.339915250428021
+    },
+    "provenance_invalid_attempts": 0,
+    "worker_partial_window_cpu_seconds": {
+      "known_subtotal": 122.43408699999999,
+      "missing_records": 0,
+      "total": 122.43408699999999
+    },
+    "worker_partial_window_wall_seconds": {
+      "known_subtotal": 77.9297318328172,
+      "missing_records": 0,
+      "total": 77.9297318328172
+    },
+    "worker_unknown_tail_attempts": 0
+  },
+  "heldout_complete": false,
+  "learned_value_pass": false,
+  "manifest_digest": "14402f3e35997316366edb9f93126b2cabc9d0f167d69ae4230b281b9683b6e7",
+  "schema": "pllm.checkpoint_compression.v1",
+  "serving_qualified": false,
+  "traffic_target_status": "future measured >=20% net H=1 reduction; arithmetic is not admission",
+  "unmeasured": [
+    "private full cold traffic",
+    "whole-client Low/Medium RSS",
+    "prior provider source setup/delivery",
+    "transport/one-use preparation",
+    "uncatchable post-snapshot interrupted work"
+  ],
+  "useful_quality_pass": false
+}
