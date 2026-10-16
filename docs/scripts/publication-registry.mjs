@@ -182,6 +182,7 @@ const declaredPublicationRegistry = {
 
     page('pllm.research', 'content/research.html', '/research', 'research-landing'),
     page('pllm.research.paper', 'content/research/paper.mdx', '/research/paper', 'research-paper'),
+    page('pllm.research.low-memory', 'content/research/low-memory.mdx', '/research/low-memory', 'research-paper'),
     {
       ...page('pllm.research.whitepaper', 'content/research/whitepaper.mdx', '/research/whitepaper', 'whitepaper'),
       citationLinks: ['/learn/concepts/architecture/', '/learn/concepts/privacy-assurance/'],

@@ -3,6 +3,7 @@
   "pages": [
     "[Private Inference Papers](/research/papers/)",
     "whitepaper",
-    "paper"
+    "paper",
+    "low-memory"
   ]
 }

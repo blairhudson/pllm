@@ -1,6 +1,44 @@
 # Implementation and evidence status
 
-The paper describes the current public-weight runtime:
+## Two-paper publication work — 16 October 2026
+
+The complete strategy is saved in `PUBLICATION-PLAN.md`; per-claim evidence and
+the initial comparator qualification queue are in `CLAIMS-AND-EVIDENCE.md`.
+
+- Drafted the framework introduction, private multi-party vocabulary, three
+  research questions, tiers, numerical/security tracks and lifecycle rules in
+  `manuscript.md`. Tier rationale/sensitivity remains P1-A work.
+- Preserved the old measurements in historical appendices. E1/E2/E3/A1 map to
+  P1-B/P1-D/P1-E; none is silently marked completed by rewriting prose.
+- Created `low-memory.md` with the coupled-boundary design, linear reconstruction
+  argument, resource ownership and matched-evaluation scaffold. P2-A through
+  P2-F remain open; pairwise non-collusion does not close the four-provider analysis.
+- Added separate PDF/MDX/rebuild and standalone arXiv-source outputs for the two
+  technical manuscripts. Both are visibly working drafts.
+
+Validation for this slice:
+
+- `npm --prefix docs run papers`: framework PDF seven pages, method PDF four
+  pages, whitepaper two pages; all US Letter. First-page layouts inspected.
+- Full documentation workflow: 263 Node tests and six Python paper-build tests
+  pass; all 439 publication records pass the content/link check.
+- Both extracted arXiv archives compile with cached Tectonic resources, without
+  repository inputs. Tests also verify distinct canonical rebuild sources,
+  resolved citations, PDF copies, and untracked generated outputs.
+- Both extracted Markdown source archives independently rebuild their own
+  technical PDF with the documented `--pdf-only` command.
+- `npm --prefix docs run typecheck` and Ruff on the builder/tests pass.
+- Two optional checkpoint-dependent paper network tests skip because their pinned
+  cached-source prerequisite is unavailable in the selected test environment.
+
+Next substantive work: finalize P1-A's comparison specification and P2-A's
+primary-source novelty/competitor review. Then select P1-C's small main-text
+mechanism set and freeze the publication campaigns. This slice collects no new
+checkpoint, serving, security or model-quality measurements.
+
+## Historical implementation and evidence notes
+
+The earlier paper described the prepared public-weight baseline:
 
 - client-owned plaintext, token boundaries, nonlinear state, and sampling;
 - offline Preparation computation and acknowledged correction upload;
@@ -9,7 +47,7 @@ The paper describes the current public-weight runtime:
 - native exact-ring matrix execution; and
 - immutable text-free dashboard records.
 
-The rewritten October 5 papers use distinct case studies:
+The October 5 papers used distinct case studies:
 
 - `docs/evidence/wan-tps-qwen25-2026-10-04.json`: one matched four-candidate
   Qwen2.5 cohort under enforced 100/40 Mbps access and 40 ms added round-trip

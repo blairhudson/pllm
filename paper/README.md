@@ -1,7 +1,19 @@
 # PLLM papers
 
-`manuscript.md` and `whitepaper.md` are the canonical sources. Pandoc produces
-both website articles and the technical PDF. The whitepaper uses Pandoc plus
+The canonical sources and their roles are:
+
+| Source | Role | Build target |
+| --- | --- | --- |
+| `manuscript.md` | Framework and benchmark paper | `paper` |
+| `low-memory.md` | Low-tier coupled-boundary method paper | `low-memory` |
+| `whitepaper.md` | Accessible two-page introduction | `whitepaper` |
+
+The technical manuscripts are working drafts, not completed publications.
+`PUBLICATION-PLAN.md` saves the complete strategy, scaffolds, critique and
+milestones. `CLAIMS-AND-EVIDENCE.md` maps placeholders to existing evidence and
+remaining work; `IMPLEMENTATION-STATUS.md` records progress.
+
+Pandoc produces website articles and both technical PDFs. The whitepaper uses Pandoc plus
 its dedicated HTML/CSS print layout, rendered to PDF by headless Chrome or
 Chromium. `header.tex` and `pdf.lua` remain technical-paper-only.
 
@@ -14,14 +26,16 @@ Chrome or Chromium, and either Tectonic or pdfLaTeX. Run from the repository roo
 npm --prefix docs run papers
 ```
 
-Pass `-- paper` or `-- whitepaper` to build one document. Use `-- --browser PATH` to
+Pass `-- paper`, `-- low-memory`, or `-- whitepaper` to build one document. Use `-- --browser PATH` to
 select a browser binary, `--pdf-engine PATH` to select the technical PDF engine,
 or `--pdf-only` when building an extracted source archive without the docs tree.
 An extracted archive can run its included builder directly:
 `python docs/scripts/build-papers.py whitepaper --pdf-only`.
 
-The build enforces US Letter output and page limits of four pages for the
-technical paper and two pages for the whitepaper. It writes PDFs under `docs/build/papers/`,
+The build enforces US Letter output with total-document guards of 20 pages for
+the framework paper, 16 for the method paper, and two for the whitepaper. The
+technical limits include references/appendices and are not arXiv requirements;
+main-text writing targets are 10–12 and 8–10 pages respectively. It writes PDFs under `docs/build/papers/`,
 copies downloadable PDFs and deterministic source archives to
 `docs/public/downloads/`, and renders the website pages under
 `docs/content/research/`. All these outputs are ignored by Git. The ordinary
@@ -29,11 +43,18 @@ copies downloadable PDFs and deterministic source archives to
 building the site; no prebuilt paper assets are needed in a clean checkout.
 Missing citations and other Pandoc warnings fail the build.
 
-The technical build also exports `docs/public/downloads/paper-arxiv-source.zip`.
-It contains standalone `main.tex` with resolved references and the complete
+Each technical build also exports `docs/public/downloads/<target>-arxiv-source.zip`,
+where `<target>` is `paper` or `low-memory`. Each contains standalone `main.tex` with resolved references and the complete
 header embedded. Extract it and compile with pdfLaTeX twice; Pandoc, Python,
 BibTeX, and repository-relative assets are unnecessary for that archive.
-Submission metadata and arXiv category selection remain author responsibilities.
+Buildability does not establish submission readiness. Novelty, evidence,
+submission metadata, license approval and arXiv category selection remain open
+until their gates and author review complete. Paper 2 currently cites Paper 1 as
+a working manuscript; no arXiv identifier has been invented.
+
+The matching `<target>-source.zip` retains Markdown and rebuild inputs. To rebuild
+an extracted technical source archive, run its included builder with its own
+target, for example `python docs/scripts/build-papers.py low-memory --pdf-only`.
 
 The whitepaper's two diagrams come from `docs/scripts/render-paper-figures.py`.
 The paper build renders SVGs and PNGs into `docs/build/papers/figures/` and copies
@@ -44,11 +65,17 @@ and generated figure snapshots for distribution, without committing those output
 
 ## Scope boundary
 
-The technical paper introduces private inference, the prepared and two-worker
-controls, and an evidence-bound workflow for external research agents. Its
-distinct case studies cover emulated WAN scheduling, cold aggregate CPU, and
-Qwen3-4B client/Preparation memory. The whitepaper explains the same motivation
-and findings for a business/technical audience. Figures and reduction factors
-retain their measurement scopes; these studies do not establish independent
-providers, Internet performance, broad quality, autonomous discovery rates, or
-tenfold whole-system improvement.
+Paper 1 introduces private multi-party inference, the need for comparable
+execution/evidence contracts, client-memory tiers, and independent mechanism
+implementations. Its older WAN, CPU, paging and quality case studies remain in a
+historical appendix with their original scope. New matched findings remain gated.
+
+Paper 2 studies coupled private lookup and full-head sharing under Low's 256 MiB
+ceiling. Communication is primary; complete-request latency is secondary. Privacy
+composition, current competitors, provider-capacity normalization and independent
+confirmation remain required. Historical cold-request gains do not establish a
+warm/source-cold win, lowest memory, or a field-wide SOTA result.
+
+The whitepaper remains a short introduction. No paper build supplies independent
+operators, Internet performance, broad quality, physical wire or an unmeasured
+tenfold gain. Generated PDFs, archives, figures and MDX remain untracked.

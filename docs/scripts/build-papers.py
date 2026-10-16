@@ -33,7 +33,9 @@ class Paper:
 
 
 PAPERS = {
-    "paper": Paper("manuscript.md", "paper.pdf", "paper.mdx", 5, True),
+    # Total-document guards include references/appendices, not venue page limits.
+    "paper": Paper("manuscript.md", "paper.pdf", "paper.mdx", 20, True),
+    "low-memory": Paper("low-memory.md", "low-memory.pdf", "low-memory.mdx", 16, True),
     "whitepaper": Paper("whitepaper.md", "whitepaper.pdf", "whitepaper.mdx", 2),
 }
 
@@ -233,9 +235,9 @@ def source_archive(name: str, spec: Paper) -> Path:
     return output
 
 
-def arxiv_archive(spec: Paper) -> Path:
+def arxiv_archive(name: str, spec: Paper) -> Path:
     """Export standalone, citeproc-resolved TeX; arXiv need not run Pandoc."""
-    output = DOWNLOADS / "paper-arxiv-source.zip"
+    output = DOWNLOADS / f"{name}-arxiv-source.zip"
     with tempfile.TemporaryDirectory(prefix="pllm-arxiv-") as temporary:
         source = Path(temporary) / "main.tex"
         run([
@@ -247,17 +249,19 @@ def arxiv_archive(spec: Paper) -> Path:
             "main.tex": source.read_bytes(),
             "LICENSE": (ROOT / "LICENSE").read_bytes(),
             "README.txt": (
-                "PLLM technical paper: standalone arXiv source\n\n"
+                f"PLLM {name}: standalone arXiv source\n\n"
                 "Compile main.tex with pdfLaTeX twice. References are already\n"
                 "resolved and embedded; no Pandoc, Python, BibTeX, external\n"
                 "bibliography, or generated figures are required.\n\n"
-                "Canonical authoring source: paper/manuscript.md in the PLLM\n"
-                "repository, https://github.com/blairhudson/pllm\n"
+                f"Canonical authoring source: paper/{spec.source} in the PLLM\n"
+                "repository, https://github.com/blairhudson/pllm\n\n"
+                "A buildable archive does not establish submission readiness.\n"
+                "Working-draft evidence placeholders remain in main.tex.\n"
             ).encode(),
         }
         with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-            for name, content in sorted(files.items()):
-                info = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
+            for relative, content in sorted(files.items()):
+                info = zipfile.ZipInfo(relative, (1980, 1, 1, 0, 0, 0))
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = 0o100644 << 16
                 archive.writestr(info, content)
@@ -273,7 +277,7 @@ def main() -> None:
     args = parser.parse_args()
 
     names = PAPERS if args.target == "all" else (args.target,)
-    engine = pdf_engine(args.pdf_engine) if "paper" in names else None
+    engine = pdf_engine(args.pdf_engine) if any(PAPERS[name].bibliography for name in names) else None
     browser = browser_engine(args.browser) if "whitepaper" in names else None
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     if "whitepaper" in names:
@@ -299,8 +303,8 @@ def main() -> None:
                                     figure_downloads / f"{figure}.png")
             build_web(spec)
             source_archive(name, spec)
-            if name == "paper":
-                arxiv_archive(spec)
+            if spec.bibliography:
+                arxiv_archive(name, spec)
         print(f"Built {name} from paper/{spec.source}")
 
 

@@ -2904,15 +2904,19 @@ do not change with the packaging layout.
 ## Repository boundaries
 
 Fumadocs lives in `docs` and has its own npm manifest. It is deployed as a static
-site and is not bundled into the Python wheel. `paper/manuscript.md` and
-`paper/whitepaper.md` are the canonical Pandoc Markdown paper sources. Builders
+site and is not bundled into the Python wheel. `paper/manuscript.md` is the
+canonical framework/benchmark manuscript; `paper/low-memory.md` is the separate
+Low-tier method draft, and `paper/whitepaper.md` is the two-page introduction.
+The publication strategy and claim/evidence gates live in `paper/PUBLICATION-PLAN.md`
+and `paper/CLAIMS-AND-EVIDENCE.md`. The technical drafts retain unresolved evidence
+placeholders; buildability does not establish novelty, SOTA or submission readiness. Builders
 live in `docs/scripts/` and run as part of the docs build. PDFs, source archives,
 figure outputs, rendered publication MDX and download copies are generated and
 ignored by Git; intermediate paper assets live in `docs/build/papers/`. Pandoc
-generates both website articles and the technical PDF, using Tectonic locally or
+generates website articles and both technical PDFs, using Tectonic locally or
 pdfLaTeX in CI for the latter. The two-page whitepaper PDF uses a dedicated Pandoc HTML/CSS
 print layout rendered by Chrome or Chromium; only technical-paper layout details
-remain in TeX. The technical build also emits a standalone, citeproc-resolved TeX
+remain in TeX. Each technical build emits its own standalone, citeproc-resolved TeX
 archive for arXiv without a Pandoc build dependency. Historical measurements are kept
 under `docs/evidence` and are not rewritten as native Rust results.
 
