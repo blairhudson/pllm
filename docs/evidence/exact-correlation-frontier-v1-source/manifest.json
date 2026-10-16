@@ -1,0 +1,10 @@
+{
+  "scope": "Byte-identical v1 source snapshots, archived before v2 edits. Restore original relative paths in an isolated tree with the five source-locked metadata files to replay bounded-v1.",
+  "original_paths_sha256": {
+    "scripts/probe_exact_correlation_frontier.py": "758ea6e74e4dc3f0b0f53c246f6279a3804d0d7231dca79dbc85f1f98df87c3f",
+    "tests/test_exact_correlation_frontier.py": "888952a3401f7c04b04ef5fe4362d730297775cee33012e9cd906eae4e2032c5",
+    "docs/research/exact-correlation-frontier-reference.md": "f6c48ded2db9f6ef6fef54ac8d7e2daf351a1cb98545998d66cabbbba7b8ab21"
+  },
+  "preserved_evidence": "docs/evidence/exact-correlation-frontier-bounded-v1.json",
+  "preserved_evidence_sha256": "4d70194a439d3c67beac2484ddb4cd1977d1a5b8099e05d0220be33b5b6606c7"
+}

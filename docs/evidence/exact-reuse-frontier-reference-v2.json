@@ -1,0 +1,1630 @@
+{
+  "application_receipt_retry": {
+    "best_installed_control_ledger": {
+      "actual_runtime_controls_bytes": null,
+      "all_link_bytes": 5763,
+      "burned": 0,
+      "claimed": 6,
+      "client_cpu_seconds": null,
+      "complete_runtime_ledger": false,
+      "disk_read_bytes": 2032,
+      "disk_written_bytes": 1016,
+      "hits": 8,
+      "issued": 6,
+      "links": {
+        "application->client": 369,
+        "artifact->client": 4096,
+        "client->application": 786,
+        "client->inference": 128,
+        "client->preparation": 32,
+        "client->storage": 0,
+        "inference->client": 176,
+        "preparation->client": 32,
+        "preparation->inference": 144,
+        "storage->client": 0
+      },
+      "lookups": 8,
+      "misses": 0,
+      "peak_logical_state_bytes": 420,
+      "physical_disk_bytes": null,
+      "retained_disk_bytes": 1016,
+      "rss_bytes": null,
+      "sessions": 1,
+      "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+      "unmodeled_runtime_directed_bytes": {
+        "inference->preparation_acknowledgement": null
+      },
+      "validation_bytes": 2032,
+      "validation_cpu_seconds": null,
+      "whole_client_256_mib_qualified": false
+    },
+    "calls": 3,
+    "control_scope": "optimistic cold ordinary + warm exact-hit lower bound; includes application links",
+    "incremental_all_link_bytes_saved": 0,
+    "ledger": {
+      "actual_runtime_controls_bytes": null,
+      "all_link_bytes": 5763,
+      "burned": 0,
+      "claimed": 6,
+      "client_cpu_seconds": null,
+      "complete_runtime_ledger": false,
+      "disk_read_bytes": 524,
+      "disk_written_bytes": 262,
+      "hits": 0,
+      "issued": 6,
+      "links": {
+        "application->client": 369,
+        "artifact->client": 4096,
+        "client->application": 786,
+        "client->inference": 128,
+        "client->preparation": 32,
+        "client->storage": 0,
+        "inference->client": 176,
+        "preparation->client": 32,
+        "preparation->inference": 144,
+        "storage->client": 0
+      },
+      "lookups": 0,
+      "misses": 0,
+      "peak_logical_state_bytes": 0,
+      "physical_disk_bytes": null,
+      "retained_disk_bytes": 262,
+      "rss_bytes": null,
+      "sessions": 1,
+      "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+      "unmodeled_runtime_directed_bytes": {
+        "inference->preparation_acknowledgement": null
+      },
+      "validation_bytes": 524,
+      "validation_cpu_seconds": null,
+      "whole_client_256_mib_qualified": false
+    },
+    "logical_operations": 1,
+    "new_invocation_rng_replay_allowed": false
+  },
+  "boundary_screen": [
+    {
+      "candidate_extra_capture_and_metadata_cpu": null,
+      "explicit_prefix_control_extra_cost": null,
+      "gross_additional_rows_per_sibling_ceiling": 0,
+      "installed_nearest_retained_rows": 8,
+      "net_runtime_all_link_bytes_saved": null,
+      "prompt_rows": 10,
+      "shared_rows": 8
+    },
+    {
+      "candidate_extra_capture_and_metadata_cpu": null,
+      "explicit_prefix_control_extra_cost": null,
+      "gross_additional_rows_per_sibling_ceiling": 0,
+      "installed_nearest_retained_rows": 48,
+      "net_runtime_all_link_bytes_saved": null,
+      "prompt_rows": 50,
+      "shared_rows": 48
+    },
+    {
+      "candidate_extra_capture_and_metadata_cpu": null,
+      "explicit_prefix_control_extra_cost": null,
+      "gross_additional_rows_per_sibling_ceiling": 5,
+      "installed_nearest_retained_rows": 40,
+      "net_runtime_all_link_bytes_saved": null,
+      "prompt_rows": 47,
+      "shared_rows": 45
+    }
+  ],
+  "conditional_sibling_scaling_not_measurements": [
+    {
+      "bytes_saved": 0,
+      "candidate_all_link_bytes": 8000,
+      "control_all_link_bytes": 8000,
+      "fraction_saved": 0.0,
+      "shared_prompt_rows": 48,
+      "siblings": 2
+    },
+    {
+      "bytes_saved": 0,
+      "candidate_all_link_bytes": 8768,
+      "control_all_link_bytes": 8768,
+      "fraction_saved": 0.0,
+      "shared_prompt_rows": 48,
+      "siblings": 4
+    },
+    {
+      "bytes_saved": 0,
+      "candidate_all_link_bytes": 10304,
+      "control_all_link_bytes": 10304,
+      "fraction_saved": 0.0,
+      "shared_prompt_rows": 48,
+      "siblings": 8
+    },
+    {
+      "bytes_saved": 0,
+      "candidate_all_link_bytes": 13440,
+      "control_all_link_bytes": 13440,
+      "fraction_saved": 0.0,
+      "shared_prompt_rows": 48,
+      "siblings": 16
+    }
+  ],
+  "evidence_class": "bounded synthetic simulator; corrected installed-prefix control",
+  "installed_evidence_separate_not_pooled": {
+    "largest_observed_client_rss_bytes": {
+      "decode": 177831936,
+      "fixed1": 166576128,
+      "ordinary": 159105024
+    },
+    "new_candidate_256_mib_qualification": false,
+    "new_candidate_rss_bytes": null
+  },
+  "logical_ownership": {
+    "max_decode_fixture_state_owner_bytes": 5844992,
+    "max_numeric_state_payload_bytes": 1068,
+    "max_store_node_serialization_bytes": 16384,
+    "prefix_owner_additional_envelope_bytes": 68214784,
+    "prefix_owner_scope": "conservative synthetic shared-block/reference/path metadata and copy envelope; additional to decode/receipt/interpreter/runtime, not measured RSS",
+    "production_largest_admissible_whole_client_bytes": null,
+    "receipt_owner_bound_bytes": 1441792,
+    "scope": "conservative fixture raw/HMAC/tuple-int/metadata and two snapshot envelope; excludes interpreter, application receipts, source/model/runtime and allocator/RSS"
+  },
+  "prefix_policy": {
+    "admission": "fixture assumes compiled prefix_f32 full-KV completed owner-free lineage with verification-none; real compiled admission not executed",
+    "block_rows": 8,
+    "cache_payload_budget_bytes": 32768,
+    "capture_cost_scope": "prepare/immutable-copy/restore payloads and publications counted separately in both arms; upstream runtime.snapshot overlap, CPU and Python/native allocation unknown",
+    "concurrent_control": "wait for completed producer prefill/response under existing serial prepared queue; same reusable cuts, no additional bytes attributed to earlier publication",
+    "max_entries": 4096,
+    "public_boundary_disclosure": "length and scheduling are public; all token/path matching remains caller-local",
+    "retention": "shared full blocks, clipped references, LRU eviction; full logits optional for proper prefixes",
+    "same_in_both_arms": true,
+    "selection": "powers of two, every eight rows, total-1, budget-limited cut"
+  },
+  "real_geometry": {
+    "all_stage_u32_row_ceiling_by_link": {
+      "client->inference": 724992,
+      "inference->client": 1216512,
+      "preparation->inference": 1216512
+    },
+    "ceiling_scope": "unpruned u32 geometry only, NOT optimized serving traffic or a saving estimate",
+    "geometry_source": "decode-cache-sdk-reference.md: 24 layers, 2 KV heads, dimension 64, vocabulary 151936",
+    "kv_row_bytes": 24576,
+    "lock": {
+      "binding_digest": "14403f9679197e7da0099f2b4e4106637c50a391bf3c9b7afa5ce9412b429a72",
+      "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "schedule_digest": "3863ad8d51760f05d77201539bd0c9132cd22f8f85dcd92594469e6645918aba",
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+    },
+    "logit_bytes": 607744,
+    "optimized_checkpoint_bytes_saved": null,
+    "stage_count": 96
+  },
+  "schema": "pllm.exact_reuse_frontier.v2",
+  "source_sha256": {
+    "docs/evidence/decode-cache-sdk-qwen25-2026-10-06-summary.json": "00efef86b3611bd6c6f3051c179862588efce80c7c5956c7d088e9efe1a04e50",
+    "docs/evidence/research-narrow-ingress.json": "8c55c563422a38ddc0c6d0187379c38450b0702b4031912166e7f4bd4c7e105d",
+    "docs/research/decode-cache-sdk-reference.md": "8d4546311b332f4daef71e3e41cebb96fdd0af67d62e955c76f6ff6caf00ed15",
+    "docs/research/exact-reuse-frontier-reference.md": "efe47b90d9da6d64dd8707be2a165b7a63a770890a0b8a83c5782f1c578041cc",
+    "python/pllm/runtime/client.py": "3f977dfc023af0172316d56832c0fd045a7259be532b7bb3d446f79deef04996",
+    "python/pllm/runtime/conversation.py": "b192da2d8d40c4bd68a87a29070aa247e22dc3a719db5ce7cb6b2d66d812b144",
+    "python/pllm/runtime/decode_store.py": "8f22fa801071a02bbaf65573dc968728efcd5d38f4228c614fc03234454e439f",
+    "python/pllm/runtime/model_binding.py": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a",
+    "python/pllm/runtime/prefill_cache.py": "af842c9cc589747922fccc059163d1437b8c84a07e1930cb8f821056ea84ede2",
+    "python/pllm/runtime/transformer_client.py": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574",
+    "scripts/probe_exact_reuse_frontier.py": "fc05ad320f75d3767d89dc460fb663bf5f21447cb6f3ff8575dfd8e4411a889e",
+    "tests/test_exact_reuse_frontier.py": "fd2f8f619177ca6660873534916062c257c17945f606228c44d81fb0de1b13de"
+  },
+  "superseded_v1": {
+    "current_source_mismatches": {
+      "docs/research/exact-reuse-frontier-reference.md": {
+        "current_sha256": "efe47b90d9da6d64dd8707be2a165b7a63a770890a0b8a83c5782f1c578041cc",
+        "v1_recorded_sha256": "78ac8a6d9dcdaa5789c634ad69da817d4f23899cfcf1cd00e04bf6f9432f5a29"
+      },
+      "scripts/probe_exact_reuse_frontier.py": {
+        "current_sha256": "fc05ad320f75d3767d89dc460fb663bf5f21447cb6f3ff8575dfd8e4411a889e",
+        "v1_recorded_sha256": "74c00f8ff42bb9bdb1288c0903658586deffba25f44af63426e381a211574a68"
+      },
+      "tests/test_exact_reuse_frontier.py": {
+        "current_sha256": "fd2f8f619177ca6660873534916062c257c17945f606228c44d81fb0de1b13de",
+        "v1_recorded_sha256": "722e42a7d3dde73ea7ab442fbc96cb59520a0bd5f7adb3de3bd5a4ac349e5ad4"
+      }
+    },
+    "observed_revision_start": "on-disk v1 already routed corrections to inference and matched pre-v2 source hashes; earlier auditor snapshot not recovered",
+    "path": "docs/evidence/exact-reuse-frontier-reference.json",
+    "sha256": "fb1e62c8c2b579658f355aa75aa06a32dd0ccfbf67153291f8a05827836e56c2",
+    "status": "rejected baseline; retained byte-identically, not a v2 replay target",
+    "v1_source_reproduction": "not asserted; original code bundle not archived",
+    "withdrawn_claims": [
+      "1024 incremental fixture bytes",
+      "27.59\u201376.27% incremental sibling savings",
+      "new native cut ability required"
+    ]
+  },
+  "synthetic_topology": {
+    "actual_runtime_control_and_framing_bytes": null,
+    "cold_artifact_bytes": 4096,
+    "encryption_executed": false,
+    "fixture_control_bytes_by_link_per_session": {
+      "client->inference": 32,
+      "client->preparation": 32,
+      "inference->client": 32,
+      "preparation->client": 32
+    },
+    "fixture_controls_bytes_per_session": 128,
+    "inference_to_preparation_acknowledgement_bytes": null,
+    "max_nodes": 128,
+    "max_receipts": 32,
+    "max_tokens": 128,
+    "protected_remote_lookup_bytes": 0,
+    "remote_lookup_enabled": false,
+    "restart": "synthetic index rebind; public artifact cache persists; no real process spawned",
+    "row_correction_bytes": 24,
+    "row_correction_link": "preparation->inference",
+    "row_reply_bytes": 24,
+    "row_upload_bytes": 16
+  },
+  "thresholds": {
+    "branch": "scheduled boundaries: incremental network ceiling zero; unscheduled gross <=7 causal rows per subsequent sibling if nearest scheduled cut survives; subtract candidate and explicit-control costs",
+    "delta": "network ceiling=0 locally; hit disk saving=(parent_rows*8) in fixture; metadata unchanged",
+    "first_unique_request": "zero incremental network gain established, including scheduled-boundary sibling batch; cold setup always charged",
+    "receipt": "retry_probability > publication_cost/(avoided_retry_cost - lookup_cost), if denominator positive; compare optimized full-hit decode, not replay"
+  },
+  "unknown": [
+    "net benefit of unscheduled boundary selection",
+    "real hit rates",
+    "new CPU/RSS/timing",
+    "actual runtime controls/framing including inference->preparation acknowledgements",
+    "checkpoint all-link incremental bytes",
+    "physical wire/filesystem amplification",
+    "whole-client admission",
+    "remote-MAC fraction measurement"
+  ],
+  "workloads": {
+    "branch": {
+      "candidate": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 7104,
+            "burned": 0,
+            "claimed": 23,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 4654,
+            "hits": 0,
+            "issued": 23,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 752,
+              "client->preparation": 384,
+              "client->storage": 0,
+              "inference->client": 936,
+              "preparation->client": 384,
+              "preparation->inference": 552,
+              "storage->client": 0
+            },
+            "lookups": 9,
+            "misses": 9,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 4654,
+            "rss_bytes": null,
+            "sessions": 12,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5952,
+            "burned": 0,
+            "claimed": 23,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 4654,
+            "hits": 0,
+            "issued": 23,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 464,
+              "client->preparation": 96,
+              "client->storage": 0,
+              "inference->client": 648,
+              "preparation->client": 96,
+              "preparation->inference": 552,
+              "storage->client": 0
+            },
+            "lookups": 0,
+            "misses": 0,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 4654,
+            "rss_bytes": null,
+            "sessions": 3,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5952,
+          "burned": 0,
+          "claimed": 23,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 0,
+          "disk_written_bytes": 4654,
+          "hits": 0,
+          "issued": 23,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 464,
+            "client->preparation": 96,
+            "client->storage": 0,
+            "inference->client": 648,
+            "preparation->client": 96,
+            "preparation->inference": 552,
+            "storage->client": 0
+          },
+          "lookups": 0,
+          "misses": 0,
+          "peak_logical_state_bytes": 0,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 4654,
+          "rss_bytes": null,
+          "sessions": 3,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 0,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "ordinary-full-inventory",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 480,
+          "immutable_copy_bytes": 244,
+          "payload_bytes": 244,
+          "peak_payload_bytes": 244,
+          "publications": 18,
+          "restore_copy_bytes": 128
+        },
+        "result_commitments": [
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb",
+          "7efa92068b5c1ac8f81f54f65bc47eba9f971b0327f6b0db8031a4c6875a1735",
+          "0eaabb27fc36ada10a95a43022e07adb4ba3861516ef26630672650c3eb42278"
+        ]
+      },
+      "incremental_all_link_bytes_saved": 0,
+      "incremental_validation_bytes_saved": 0,
+      "optimized_control": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 7104,
+            "burned": 0,
+            "claimed": 23,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 4654,
+            "hits": 0,
+            "issued": 23,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 752,
+              "client->preparation": 384,
+              "client->storage": 0,
+              "inference->client": 936,
+              "preparation->client": 384,
+              "preparation->inference": 552,
+              "storage->client": 0
+            },
+            "lookups": 9,
+            "misses": 9,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 4654,
+            "rss_bytes": null,
+            "sessions": 12,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5952,
+            "burned": 0,
+            "claimed": 23,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 4654,
+            "hits": 0,
+            "issued": 23,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 464,
+              "client->preparation": 96,
+              "client->storage": 0,
+              "inference->client": 648,
+              "preparation->client": 96,
+              "preparation->inference": 552,
+              "storage->client": 0
+            },
+            "lookups": 0,
+            "misses": 0,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 4654,
+            "rss_bytes": null,
+            "sessions": 3,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5952,
+          "burned": 0,
+          "claimed": 23,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 0,
+          "disk_written_bytes": 4654,
+          "hits": 0,
+          "issued": 23,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 464,
+            "client->preparation": 96,
+            "client->storage": 0,
+            "inference->client": 648,
+            "preparation->client": 96,
+            "preparation->inference": 552,
+            "storage->client": 0
+          },
+          "lookups": 0,
+          "misses": 0,
+          "peak_logical_state_bytes": 0,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 4654,
+          "rss_bytes": null,
+          "sessions": 3,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 0,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "ordinary-full-inventory",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 480,
+          "immutable_copy_bytes": 244,
+          "payload_bytes": 244,
+          "peak_payload_bytes": 244,
+          "publications": 18,
+          "restore_copy_bytes": 128
+        },
+        "result_commitments": [
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb",
+          "7efa92068b5c1ac8f81f54f65bc47eba9f971b0327f6b0db8031a4c6875a1735",
+          "0eaabb27fc36ada10a95a43022e07adb4ba3861516ef26630672650c3eb42278"
+        ]
+      }
+    },
+    "fresh": {
+      "candidate": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5440,
+            "burned": 0,
+            "claimed": 13,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 1548,
+            "hits": 0,
+            "issued": 13,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 336,
+              "client->preparation": 128,
+              "client->storage": 0,
+              "inference->client": 440,
+              "preparation->client": 128,
+              "preparation->inference": 312,
+              "storage->client": 0
+            },
+            "lookups": 3,
+            "misses": 3,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 4,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5056,
+            "burned": 0,
+            "claimed": 13,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 1548,
+            "hits": 0,
+            "issued": 13,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 240,
+              "client->preparation": 32,
+              "client->storage": 0,
+              "inference->client": 344,
+              "preparation->client": 32,
+              "preparation->inference": 312,
+              "storage->client": 0
+            },
+            "lookups": 0,
+            "misses": 0,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 1,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5056,
+          "burned": 0,
+          "claimed": 13,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 0,
+          "disk_written_bytes": 1548,
+          "hits": 0,
+          "issued": 13,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 240,
+            "client->preparation": 32,
+            "client->storage": 0,
+            "inference->client": 344,
+            "preparation->client": 32,
+            "preparation->inference": 312,
+            "storage->client": 0
+          },
+          "lookups": 0,
+          "misses": 0,
+          "peak_logical_state_bytes": 0,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 1548,
+          "rss_bytes": null,
+          "sessions": 1,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 0,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "ordinary-full-inventory",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 160,
+          "immutable_copy_bytes": 124,
+          "payload_bytes": 124,
+          "peak_payload_bytes": 124,
+          "publications": 6,
+          "restore_copy_bytes": 0
+        },
+        "result_commitments": [
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb"
+        ]
+      },
+      "incremental_all_link_bytes_saved": 0,
+      "incremental_validation_bytes_saved": 0,
+      "optimized_control": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5440,
+            "burned": 0,
+            "claimed": 13,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 1548,
+            "hits": 0,
+            "issued": 13,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 336,
+              "client->preparation": 128,
+              "client->storage": 0,
+              "inference->client": 440,
+              "preparation->client": 128,
+              "preparation->inference": 312,
+              "storage->client": 0
+            },
+            "lookups": 3,
+            "misses": 3,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 4,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5056,
+            "burned": 0,
+            "claimed": 13,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 1548,
+            "hits": 0,
+            "issued": 13,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 240,
+              "client->preparation": 32,
+              "client->storage": 0,
+              "inference->client": 344,
+              "preparation->client": 32,
+              "preparation->inference": 312,
+              "storage->client": 0
+            },
+            "lookups": 0,
+            "misses": 0,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 1,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5056,
+          "burned": 0,
+          "claimed": 13,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 0,
+          "disk_written_bytes": 1548,
+          "hits": 0,
+          "issued": 13,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 240,
+            "client->preparation": 32,
+            "client->storage": 0,
+            "inference->client": 344,
+            "preparation->client": 32,
+            "preparation->inference": 312,
+            "storage->client": 0
+          },
+          "lookups": 0,
+          "misses": 0,
+          "peak_logical_state_bytes": 0,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 1548,
+          "rss_bytes": null,
+          "sessions": 1,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 0,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "ordinary-full-inventory",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 160,
+          "immutable_copy_bytes": 124,
+          "payload_bytes": 124,
+          "peak_payload_bytes": 124,
+          "publications": 6,
+          "restore_copy_bytes": 0
+        },
+        "result_commitments": [
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb"
+        ]
+      }
+    },
+    "repeat": {
+      "candidate": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5440,
+            "burned": 0,
+            "claimed": 13,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 2568,
+            "disk_written_bytes": 1548,
+            "hits": 8,
+            "issued": 13,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 336,
+              "client->preparation": 128,
+              "client->storage": 0,
+              "inference->client": 440,
+              "preparation->client": 128,
+              "preparation->inference": 312,
+              "storage->client": 0
+            },
+            "lookups": 11,
+            "misses": 3,
+            "peak_logical_state_bytes": 607,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 4,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 2568,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5696,
+            "burned": 0,
+            "claimed": 19,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 716,
+            "disk_written_bytes": 1548,
+            "hits": 2,
+            "issued": 19,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 400,
+              "client->preparation": 96,
+              "client->storage": 0,
+              "inference->client": 552,
+              "preparation->client": 96,
+              "preparation->inference": 456,
+              "storage->client": 0
+            },
+            "lookups": 2,
+            "misses": 0,
+            "peak_logical_state_bytes": 526,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 3,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 716,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5440,
+          "burned": 0,
+          "claimed": 13,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 2568,
+          "disk_written_bytes": 1548,
+          "hits": 8,
+          "issued": 13,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 336,
+            "client->preparation": 128,
+            "client->storage": 0,
+            "inference->client": 440,
+            "preparation->client": 128,
+            "preparation->inference": 312,
+            "storage->client": 0
+          },
+          "lookups": 11,
+          "misses": 3,
+          "peak_logical_state_bytes": 607,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 1548,
+          "rss_bytes": null,
+          "sessions": 4,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 2568,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "installed-one-selection-cache",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 160,
+          "immutable_copy_bytes": 124,
+          "payload_bytes": 124,
+          "peak_payload_bytes": 124,
+          "publications": 6,
+          "restore_copy_bytes": 248
+        },
+        "result_commitments": [
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb",
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb",
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb"
+        ]
+      },
+      "incremental_all_link_bytes_saved": 0,
+      "incremental_validation_bytes_saved": 528,
+      "optimized_control": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5440,
+            "burned": 0,
+            "claimed": 13,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 3096,
+            "disk_written_bytes": 1548,
+            "hits": 8,
+            "issued": 13,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 336,
+              "client->preparation": 128,
+              "client->storage": 0,
+              "inference->client": 440,
+              "preparation->client": 128,
+              "preparation->inference": 312,
+              "storage->client": 0
+            },
+            "lookups": 11,
+            "misses": 3,
+            "peak_logical_state_bytes": 607,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 4,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 3096,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5696,
+            "burned": 0,
+            "claimed": 19,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 716,
+            "disk_written_bytes": 1548,
+            "hits": 2,
+            "issued": 19,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 400,
+              "client->preparation": 96,
+              "client->storage": 0,
+              "inference->client": 552,
+              "preparation->client": 96,
+              "preparation->inference": 456,
+              "storage->client": 0
+            },
+            "lookups": 2,
+            "misses": 0,
+            "peak_logical_state_bytes": 526,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 3,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 716,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5440,
+          "burned": 0,
+          "claimed": 13,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 3096,
+          "disk_written_bytes": 1548,
+          "hits": 8,
+          "issued": 13,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 336,
+            "client->preparation": 128,
+            "client->storage": 0,
+            "inference->client": 440,
+            "preparation->client": 128,
+            "preparation->inference": 312,
+            "storage->client": 0
+          },
+          "lookups": 11,
+          "misses": 3,
+          "peak_logical_state_bytes": 607,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 1548,
+          "rss_bytes": null,
+          "sessions": 4,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 3096,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "installed-one-selection-cache",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 160,
+          "immutable_copy_bytes": 124,
+          "payload_bytes": 124,
+          "peak_payload_bytes": 124,
+          "publications": 6,
+          "restore_copy_bytes": 248
+        },
+        "result_commitments": [
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb",
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb",
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb"
+        ]
+      }
+    },
+    "restart": {
+      "candidate": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5440,
+            "burned": 0,
+            "claimed": 13,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 1404,
+            "disk_written_bytes": 1548,
+            "hits": 4,
+            "issued": 13,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 336,
+              "client->preparation": 128,
+              "client->storage": 0,
+              "inference->client": 440,
+              "preparation->client": 128,
+              "preparation->inference": 312,
+              "storage->client": 0
+            },
+            "lookups": 7,
+            "misses": 3,
+            "peak_logical_state_bytes": 607,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 4,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 1404,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5376,
+            "burned": 0,
+            "claimed": 16,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 478,
+            "disk_written_bytes": 1548,
+            "hits": 1,
+            "issued": 16,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 320,
+              "client->preparation": 64,
+              "client->storage": 0,
+              "inference->client": 448,
+              "preparation->client": 64,
+              "preparation->inference": 384,
+              "storage->client": 0
+            },
+            "lookups": 1,
+            "misses": 0,
+            "peak_logical_state_bytes": 526,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 2,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 478,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5376,
+          "burned": 0,
+          "claimed": 16,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 478,
+          "disk_written_bytes": 1548,
+          "hits": 1,
+          "issued": 16,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 320,
+            "client->preparation": 64,
+            "client->storage": 0,
+            "inference->client": 448,
+            "preparation->client": 64,
+            "preparation->inference": 384,
+            "storage->client": 0
+          },
+          "lookups": 1,
+          "misses": 0,
+          "peak_logical_state_bytes": 526,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 1548,
+          "rss_bytes": null,
+          "sessions": 2,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 478,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "ordinary-full-inventory",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 0,
+          "immutable_copy_bytes": 0,
+          "payload_bytes": 0,
+          "peak_payload_bytes": 0,
+          "publications": 0,
+          "restore_copy_bytes": 0
+        },
+        "result_commitments": [
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb",
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb"
+        ]
+      },
+      "incremental_all_link_bytes_saved": 0,
+      "incremental_validation_bytes_saved": 0,
+      "optimized_control": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5440,
+            "burned": 0,
+            "claimed": 13,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 1668,
+            "disk_written_bytes": 1548,
+            "hits": 4,
+            "issued": 13,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 336,
+              "client->preparation": 128,
+              "client->storage": 0,
+              "inference->client": 440,
+              "preparation->client": 128,
+              "preparation->inference": 312,
+              "storage->client": 0
+            },
+            "lookups": 7,
+            "misses": 3,
+            "peak_logical_state_bytes": 607,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 4,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 1668,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5376,
+            "burned": 0,
+            "claimed": 16,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 478,
+            "disk_written_bytes": 1548,
+            "hits": 1,
+            "issued": 16,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 320,
+              "client->preparation": 64,
+              "client->storage": 0,
+              "inference->client": 448,
+              "preparation->client": 64,
+              "preparation->inference": 384,
+              "storage->client": 0
+            },
+            "lookups": 1,
+            "misses": 0,
+            "peak_logical_state_bytes": 526,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 1548,
+            "rss_bytes": null,
+            "sessions": 2,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 478,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5376,
+          "burned": 0,
+          "claimed": 16,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 478,
+          "disk_written_bytes": 1548,
+          "hits": 1,
+          "issued": 16,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 320,
+            "client->preparation": 64,
+            "client->storage": 0,
+            "inference->client": 448,
+            "preparation->client": 64,
+            "preparation->inference": 384,
+            "storage->client": 0
+          },
+          "lookups": 1,
+          "misses": 0,
+          "peak_logical_state_bytes": 526,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 1548,
+          "rss_bytes": null,
+          "sessions": 2,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 478,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "ordinary-full-inventory",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 0,
+          "immutable_copy_bytes": 0,
+          "payload_bytes": 0,
+          "peak_payload_bytes": 0,
+          "publications": 0,
+          "restore_copy_bytes": 0
+        },
+        "result_commitments": [
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb",
+          "0d40b2cac6d51b4c7e6fba5f925c8a4622aac5c2589b1702739ff8e367c243cb"
+        ]
+      }
+    },
+    "unrelated": {
+      "candidate": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 6784,
+            "burned": 0,
+            "claimed": 18,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 3108,
+            "hits": 0,
+            "issued": 18,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 672,
+              "client->preparation": 384,
+              "client->storage": 0,
+              "inference->client": 816,
+              "preparation->client": 384,
+              "preparation->inference": 432,
+              "storage->client": 0
+            },
+            "lookups": 9,
+            "misses": 9,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 3108,
+            "rss_bytes": null,
+            "sessions": 12,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5632,
+            "burned": 0,
+            "claimed": 18,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 3108,
+            "hits": 0,
+            "issued": 18,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 384,
+              "client->preparation": 96,
+              "client->storage": 0,
+              "inference->client": 528,
+              "preparation->client": 96,
+              "preparation->inference": 432,
+              "storage->client": 0
+            },
+            "lookups": 0,
+            "misses": 0,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 3108,
+            "rss_bytes": null,
+            "sessions": 3,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5632,
+          "burned": 0,
+          "claimed": 18,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 0,
+          "disk_written_bytes": 3108,
+          "hits": 0,
+          "issued": 18,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 384,
+            "client->preparation": 96,
+            "client->storage": 0,
+            "inference->client": 528,
+            "preparation->client": 96,
+            "preparation->inference": 432,
+            "storage->client": 0
+          },
+          "lookups": 0,
+          "misses": 0,
+          "peak_logical_state_bytes": 0,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 3108,
+          "rss_bytes": null,
+          "sessions": 3,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 0,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "ordinary-full-inventory",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 144,
+          "immutable_copy_bytes": 204,
+          "payload_bytes": 204,
+          "peak_payload_bytes": 204,
+          "publications": 9,
+          "restore_copy_bytes": 0
+        },
+        "result_commitments": [
+          "4c7c8c4d0dba1d0a57fffd2205668636defa84616743aba4b1a87c91e1d351f6",
+          "100103b37265343cfbb589a71fe44e7f8f7fb54e51b210a9d03916a4c410ac63",
+          "02cc14445410efb820ba7bbd616a677a0deae6a05c41e3cd0ad11c47ee41bb5c"
+        ]
+      },
+      "incremental_all_link_bytes_saved": 0,
+      "incremental_validation_bytes_saved": 0,
+      "optimized_control": {
+        "all_policy_ledgers": {
+          "installed-one-selection-cache": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 6784,
+            "burned": 0,
+            "claimed": 18,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 3108,
+            "hits": 0,
+            "issued": 18,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 672,
+              "client->preparation": 384,
+              "client->storage": 0,
+              "inference->client": 816,
+              "preparation->client": 384,
+              "preparation->inference": 432,
+              "storage->client": 0
+            },
+            "lookups": 9,
+            "misses": 9,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 3108,
+            "rss_bytes": null,
+            "sessions": 12,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          },
+          "ordinary-full-inventory": {
+            "actual_runtime_controls_bytes": null,
+            "all_link_bytes": 5632,
+            "burned": 0,
+            "claimed": 18,
+            "client_cpu_seconds": null,
+            "complete_runtime_ledger": false,
+            "disk_read_bytes": 0,
+            "disk_written_bytes": 3108,
+            "hits": 0,
+            "issued": 18,
+            "links": {
+              "application->client": 0,
+              "artifact->client": 4096,
+              "client->application": 0,
+              "client->inference": 384,
+              "client->preparation": 96,
+              "client->storage": 0,
+              "inference->client": 528,
+              "preparation->client": 96,
+              "preparation->inference": 432,
+              "storage->client": 0
+            },
+            "lookups": 0,
+            "misses": 0,
+            "peak_logical_state_bytes": 0,
+            "physical_disk_bytes": null,
+            "retained_disk_bytes": 3108,
+            "rss_bytes": null,
+            "sessions": 3,
+            "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+            "unmodeled_runtime_directed_bytes": {
+              "inference->preparation_acknowledgement": null
+            },
+            "validation_bytes": 0,
+            "validation_cpu_seconds": null,
+            "whole_client_256_mib_qualified": false
+          }
+        },
+        "ledger": {
+          "actual_runtime_controls_bytes": null,
+          "all_link_bytes": 5632,
+          "burned": 0,
+          "claimed": 18,
+          "client_cpu_seconds": null,
+          "complete_runtime_ledger": false,
+          "disk_read_bytes": 0,
+          "disk_written_bytes": 3108,
+          "hits": 0,
+          "issued": 18,
+          "links": {
+            "application->client": 0,
+            "artifact->client": 4096,
+            "client->application": 0,
+            "client->inference": 384,
+            "client->preparation": 96,
+            "client->storage": 0,
+            "inference->client": 528,
+            "preparation->client": 96,
+            "preparation->inference": 432,
+            "storage->client": 0
+          },
+          "lookups": 0,
+          "misses": 0,
+          "peak_logical_state_bytes": 0,
+          "physical_disk_bytes": null,
+          "retained_disk_bytes": 3108,
+          "rss_bytes": null,
+          "sessions": 3,
+          "traffic_scope": "declared fixture payloads and stipulated controls only; not complete runtime traffic",
+          "unmodeled_runtime_directed_bytes": {
+            "inference->preparation_acknowledgement": null
+          },
+          "validation_bytes": 0,
+          "validation_cpu_seconds": null,
+          "whole_client_256_mib_qualified": false
+        },
+        "policy": "ordinary-full-inventory",
+        "policy_selection": "oracle lower-byte envelope; not a deployable predictor",
+        "prefix_owner": {
+          "capture_copy_bytes": 144,
+          "immutable_copy_bytes": 204,
+          "payload_bytes": 204,
+          "peak_payload_bytes": 204,
+          "publications": 9,
+          "restore_copy_bytes": 0
+        },
+        "result_commitments": [
+          "4c7c8c4d0dba1d0a57fffd2205668636defa84616743aba4b1a87c91e1d351f6",
+          "100103b37265343cfbb589a71fe44e7f8f7fb54e51b210a9d03916a4c410ac63",
+          "02cc14445410efb820ba7bbd616a677a0deae6a05c41e3cd0ad11c47ee41bb5c"
+        ]
+      }
+    }
+  }
+}

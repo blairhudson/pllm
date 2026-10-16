@@ -1,0 +1,248 @@
+{
+  "checkpoint_duplicate_count": null,
+  "checkpoint_rounding_certificate_hit_rate": null,
+  "checkpoint_tensor_loading": false,
+  "controls": {
+    "boundary_forces_exact_fallback": true,
+    "lift_states": 128,
+    "lift_steps_full_state_logits_selection_rng_exact": 768,
+    "nonzero_tail_skipped": true,
+    "ordered_quotient_fixtures_exact": 3,
+    "rank_one_reduction_order_witness_bits": [
+      0,
+      1065353216
+    ],
+    "rounding_certified_tail_cases": 13,
+    "rounding_rejected_tail_cases": 162,
+    "signed_zero_distinct_classes": 2,
+    "source_compiled_quotient_input_cases_exact": 12,
+    "source_compiled_quotient_widths": [
+      4,
+      2
+    ],
+    "synthetic_program_source_digest": "4d510e68ae123cbe000331133c88a55fa3690726a17da539bac39642abcee881",
+    "unsafe_reassociation_witness_bits": [
+      0,
+      1065353216
+    ]
+  },
+  "decision": "no whole-model adapter admitted; only tighter source-certified rounded-block equivalence remains open",
+  "finite_lift": {
+    "both_worker_output_tables_uint16_bytes": 3584,
+    "both_worker_transition_tables_uint16_bytes": 512,
+    "client_target_bytes": 268435456,
+    "client_to_each_worker_initial_share_bytes": 256,
+    "dense_raw_float32_pair_initial_shares_bytes": 147573952589676412928,
+    "dense_raw_float32_unary_initial_shares_bytes": 34359738368,
+    "each_worker_to_client_final_observable_share_bytes": 14,
+    "extra_costs": [
+      "source/state indexing",
+      "authentication/framing",
+      "both-worker source artifacts",
+      "private entry decoding",
+      "failure retirement",
+      "real checkpoint reachability proof"
+    ],
+    "field_word_bytes": 2,
+    "one_use_initial_mask_words": 128,
+    "security": "ideal independent uniform shares; deterministic fixture RNG is not cryptographic",
+    "toy_states": 128
+  },
+  "frozen_algebra_source_identity": {
+    "binding_digest": "2395ffab8188d85cb363ad9e7d31b94b2c8978e6ac45801f303f0e85f7d097a5",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "159e35f75f01d5ee0a2167dde11082e6f52f5c7b3c539310dbf90d27f61dcd23",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "schedule_digest": "f07191ffa2f51132e6723096fc3e387c5ca63501b7dcf0e13ea049cbdfc1b529",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "frozen_geometry_and_vetoes": {
+    "all_body_integer_tail_veto": {
+      "activation_abs_bound": 127,
+      "any_nonzero_tail_vetoed": true,
+      "input_width": 4864,
+      "max_abs_integer_dot": 79069184,
+      "max_rounding_cell_width_integer_units": 8,
+      "minimum_nonzero_tail_interval_width": 254,
+      "scope": "symmetric full-domain public L1 tail bound, one integer RN32 cast only",
+      "weight_abs_bound": 128
+    },
+    "gate_up_integer_tail_veto": {
+      "activation_abs_bound": 127,
+      "any_nonzero_tail_vetoed": true,
+      "input_width": 896,
+      "max_abs_integer_dot": 14565376,
+      "max_rounding_cell_width_integer_units": 1,
+      "minimum_nonzero_tail_interval_width": 254,
+      "scope": "symmetric full-domain public L1 tail bound, one integer RN32 cast only",
+      "weight_abs_bound": 128
+    },
+    "hidden_width": 896,
+    "historical_body_stage_count": 96,
+    "historically_omitted_signed_duplicate_rows": 0,
+    "intermediate_width": 4864,
+    "layers": 24,
+    "max_body_input_width": 4864
+  },
+  "frozen_source_identity": {
+    "activation_bits": 8,
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "configuration_digest": "cff25efde2ea4c9d8691572151bab5bdc422670103a334725e7c3c5158ee3069",
+    "input_tokens": 39,
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "pipeline_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "public_default_prompt_token_cohort_digest": "19e0ccffc29480aa183584bd478a9e95af2257f3334357a1c1b9579e08256d9e",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "separate_benchmark_prompt_digests": "per-invocation salted; exact default CLI prompt and pinned tokenizer identify the common cohort",
+    "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+    "token_cohort_digest_domain": "pllm.latent.token_cohort.v1\\0; signed IDs encoded as 4-byte unsigned little-endian integers",
+    "weight_bits": 8
+  },
+  "full_wire_bytes": null,
+  "quotient_synthetic_ledger": {
+    "component_net_saving_bytes": 52684,
+    "fresh_client_random_words": 314,
+    "gross_saving_per_request_bytes": 52752,
+    "priced_component_total_bytes": 17652,
+    "repeated_links_bytes": {
+      "client_to_worker_0": 1256,
+      "client_to_worker_1": 1256,
+      "preparation_to_both_workers_material": 10048,
+      "worker_0_to_client": 2512,
+      "worker_1_to_client": 2512
+    },
+    "setup_links_bytes": {
+      "source_to_client_width": 4,
+      "source_to_worker_0_map": 32,
+      "source_to_worker_1_map": 32
+    },
+    "unpriced": [
+      "unchanged body and checkpoint delivery to both workers",
+      "source certificate",
+      "framing/authentication",
+      "protected float/share conversions",
+      "failures and fallback",
+      "complete client RSS and scratch",
+      "preprocessing beyond explicit mu"
+    ],
+    "whole_response_promotion": false
+  },
+  "qwen_geometry": [
+    {
+      "cut_payload_6_ring32_words_per_element_bytes": 422467584,
+      "executed_rows_per_unpruned_layer": 157,
+      "input_tokens": 150,
+      "layers": 24,
+      "one_and_per_lane_half_gate_material_bytes": 563290112,
+      "output_tokens": 8,
+      "scope": "analytical components, not all-link total or float backend admission",
+      "terminal_pruned_gated_elements": 17602816,
+      "two_ring32_input_openings_both_workers_bytes": 281645056,
+      "unpruned_gated_elements": 18327552,
+      "width": 4864
+    },
+    {
+      "cut_payload_6_ring32_words_per_element_bytes": 579360768,
+      "executed_rows_per_unpruned_layer": 213,
+      "input_tokens": 150,
+      "layers": 24,
+      "one_and_per_lane_half_gate_material_bytes": 772481024,
+      "output_tokens": 64,
+      "scope": "analytical components, not all-link total or float backend admission",
+      "terminal_pruned_gated_elements": 24140032,
+      "two_ring32_input_openings_both_workers_bytes": 386240512,
+      "unpruned_gated_elements": 24864768,
+      "width": 4864
+    }
+  ],
+  "rounding_certificate": {
+    "checkpoint_admission": false,
+    "fixed_padding_worst_case_saving_bytes": 0,
+    "map": "prefix P and public tail bound B -> unique RN32 integer cell, else exact fallback",
+    "optimistic_expected_component_bytes": "A + V + (1-h)*F; beats F iff A+V < h*F",
+    "private_certificate_cost": null,
+    "source_contract": "exact integer dot then one RN32 cast; not arbitrary ordered float dot",
+    "unpadded_miss_pattern_disclosure": true,
+    "worst_case_component_bytes": "A + V + F; add artifacts, setup, failures and RNG/state rollback"
+  },
+  "schema": "pllm.exact_adapter_frontier.v1",
+  "scope": "synthetic exact controls and analytical conditional ledgers; no secure backend",
+  "source_snapshot": {
+    "ARCHITECTURE.md": {
+      "bytes": 219428,
+      "sha256": "7d12d90e2b46e875b057a6983c1cf15d84133060782b122150810fbf3a9be12c"
+    },
+    "docs/evidence/affine-residual-oracle-qwen25-2026-09-29.json": {
+      "bytes": 3424,
+      "sha256": "f4aac6b7acc02313185ba09e3747640865dc4bd137168bc57c26e1a8df12b308"
+    },
+    "docs/evidence/extracted-mlp-channels-qwen25-2026-09-29.json": {
+      "bytes": 5856,
+      "sha256": "66cb736f27ef37214fc565c28230cbcf89b7b07ed903fdcede9a688a1f3e7b8f"
+    },
+    "docs/evidence/network-algebra-qwen25-2026-10-06.json": {
+      "bytes": 189986,
+      "sha256": "8c276df98557694ae5c54ee97d7d42e78b3fa146a5bf272b3f1826fb0bb23e3e"
+    },
+    "docs/evidence/rank-interface-output-oracle-qwen25-2026-09-29.json": {
+      "bytes": 4698,
+      "sha256": "0dd348a5b9dd713e6c8058b8a2220bd4a6c87e303dc7ae12bb001b72b08e0379"
+    },
+    "docs/evidence/research-prepared-region-gate.json": {
+      "bytes": 88657,
+      "sha256": "f171092f35ff80849dba7e35252a28b06caef6732f1dd7ad5341fb8fdaac17fe"
+    },
+    "docs/research/exact-adapter-frontier-reference.md": {
+      "bytes": 16125,
+      "sha256": "1fda151fc06028a835182f25094cef6c6705d44c3e6c8c8020f00b2d05eb5bc4"
+    },
+    "docs/research/fixed-weight-correlation-gate.md": {
+      "bytes": 16730,
+      "sha256": "29b9d4d06bbae1fb1dde80a7e5bb6f6b322d0ef5534dd779732df662b8ecf8c3"
+    },
+    "docs/research/joint-gated-reference.md": {
+      "bytes": 10298,
+      "sha256": "f0482ace599db2b2b199c67851417262b595e64280059bf03eee4612d0b002f7"
+    },
+    "docs/research/network-algebra.md": {
+      "bytes": 10723,
+      "sha256": "bb4e6ae1d954b108159f26d465ea7000a1724ff0e3f474df083d752e707526ea"
+    },
+    "docs/research/network-first-principles.md": {
+      "bytes": 21566,
+      "sha256": "3836382b9d48529fd92f1ba1c5cb04b1f7a20762fcb77061ee15e9872666cede"
+    },
+    "docs/research/prepared-region-gate.md": {
+      "bytes": 5262,
+      "sha256": "ce53569c852ba2a792f24b60303c15da8fd8396d57ba03c90bae68f73377119f"
+    },
+    "docs/research/residual-delegation-reference.md": {
+      "bytes": 11355,
+      "sha256": "beb1800fed3636a53c1d51c8852541ab3e29c5f716e02df6b25d64922020da49"
+    },
+    "docs/research/sota-breakthrough-reference.md": {
+      "bytes": 13706,
+      "sha256": "4f165888f48af1c5fb71c7cb430e9bc4e9f4179d644b17e0511a2f443f5a0da0"
+    },
+    "python/pllm/runtime/mlp_channel_extraction.py": {
+      "bytes": 12529,
+      "sha256": "f4d22aacce9c74b393e7380f7f474b1afa04afe8e3c60152b13fbbad4d38e304"
+    },
+    "python/pllm/runtime/rank_interface_reference.py": {
+      "bytes": 5588,
+      "sha256": "88497a252940c8139922207dda7e73863909dd9246993edfbd1b904a20e5d30f"
+    },
+    "scripts/probe_exact_adapter_frontier.py": {
+      "bytes": 24118,
+      "sha256": "720ccd014551a39204a8da0391e9998597c9654a58e30f61f1d8173e40b5a43c"
+    },
+    "tests/test_exact_adapter_frontier.py": {
+      "bytes": 10199,
+      "sha256": "411867101a9b901280d477efc2828813fd56caf2740678d8a8f6151b92188c31"
+    }
+  },
+  "whole_client_peak_bytes": null
+}
