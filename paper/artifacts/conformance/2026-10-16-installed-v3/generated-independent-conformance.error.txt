@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 458, in main
+    result = run()
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 449, in <lambda>
+    ("generated-independent-conformance", lambda: generated_conformance(output, args.reference_python)),
+                                                  ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 221, in generated_conformance
+    assert values.shape == expected.shape, (key, values.shape, expected.shape)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('logits_0', (1, 258), (33, 258))

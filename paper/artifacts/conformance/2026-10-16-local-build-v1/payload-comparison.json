@@ -1,0 +1,43 @@
+{
+  "conformance_transfer": "No relabeling or fresh execution of rebuilt wheel; v4 retains original wheel identity. Runtime package byte equality is a supplemental local fact only.",
+  "differing_entries": {
+    "pllm_run-0.1.0a2.dist-info/RECORD": {
+      "after": "8e482f294e57cbc4c0111f911cc0ea6e7d2288de6247db164c958a66763ab870",
+      "before": "7c933c73b0d041b43b2f5c939668bd739e6fc344dfc7f11eb0f9abdfd58e9f33"
+    },
+    "pllm_run-0.1.0a2.dist-info/sboms/pllm-python.cyclonedx.json": {
+      "after": "1674e69abf7a5dd654c00f9b6a2ed23285c5566cdd28ca266e0c1dacf2339686",
+      "before": "926ccaf15bde8f0f4a77dc7207a9a8dd28cf5938b51a6bafa82191c56c1d68ae"
+    }
+  },
+  "full_wheel_payload_identical": false,
+  "namespace_package_files": 355,
+  "namespace_package_identical": true,
+  "native_identical": true,
+  "next_gate": "Fresh environment installation/replay for the new complete wheel, plus clean independent build and immutable publication archive.",
+  "receipt_sha256": "b7d332fd599f7166f2b28d87012956b785b928cafa0b42e1b3bba60bd58a42fb",
+  "record_unified_diff": [
+    "--- historical/RECORD\n",
+    "+++ rebuilt/RECORD\n",
+    "@@ -357,5 +357,5 @@\n",
+    " pllm_run-0.1.0a2.dist-info/WHEEL,sha256=EE3lfYKbVlsoQj6NIHwcMnoHBlOsqkOvMwLkfEaNxpg,104",
+    " pllm_run-0.1.0a2.dist-info/entry_points.txt,sha256=CwSD409YeFHva0zp9CUQNksTqJeI8yyPvmPl2vrCbJs,37",
+    " pllm_run-0.1.0a2.dist-info/licenses/LICENSE,sha256=MDfUh7cLHM55nDrvW3jfhwFmyGtrINNAraZSp3adExw,11343",
+    "-pllm_run-0.1.0a2.dist-info/sboms/pllm-python.cyclonedx.json,sha256=kmzK8Vvejw9Kd9xyB6mo3SjPWTi1GmuvqCGRxWwdaK4,90434",
+    "+pllm_run-0.1.0a2.dist-info/sboms/pllm-python.cyclonedx.json,sha256=FnTmmr96XdZUwA-bai7SMoXFVmzdKMombgwdrPIzloY,90434",
+    " pllm_run-0.1.0a2.dist-info/RECORD,,"
+  ],
+  "sbom_json_differences": [
+    {
+      "after": "2026-10-16T04:41:43.106033000Z",
+      "before": "2026-10-15T23:11:46.381297000Z",
+      "path": "/metadata/timestamp"
+    },
+    {
+      "after": "urn:uuid:99cc65ed-48bb-4db3-b1b9-8e7e0b8aed6e",
+      "before": "urn:uuid:7f09863e-864e-43c1-930e-193a21a70901",
+      "path": "/serialNumber"
+    }
+  ],
+  "schema": "pllm.local_wheel_payload_comparison.v1"
+}

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
+import json
 
 import numpy as np
 import pytest
+from public_equalization_accounting import account_response, assert_matched_accounting
 
 from pllm import Deployment, ExecutionBudget, Experiment, Model, lower_model
 from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu
@@ -161,17 +163,40 @@ def test_calibrated_sdk_and_gateway_follow_experiment_roles(tmp_path, client_own
             assert response.json()["usage"]["input_tokens"] > 0
 
 
-def test_prepared_numeric_choices_have_matched_online_stage_body_sizes(tmp_path):
+def test_prepared_numeric_choices_have_matched_online_stage_body_sizes(tmp_path, monkeypatch):
     from pllm.runtime import build_roles
+    from pllm.runtime.transformer_client import PreparedRemoteLinear
 
     root, source = _source(tmp_path)
     profile = fit_public_equalization_profile(source, ((0, 3, 5), (0, 2, 4, 6)))
     profile_path(root, profile.digest).write_bytes(profile.pack())
     bodies = []
+    responses, records = [], []
+    decode_reply = PreparedRemoteLinear._decode_reply
+
+    def capture_reply(self, payload, stage, output_mask, batch_id, attempt_id, scales=None):
+        # Retain actual wire bytes before decoding, including on a failed assertion.
+        path = tmp_path / f"response-{len(responses) - 1}-{len(responses[-1])}.bin"
+        path.write_bytes(payload)
+        assert stage.output_residue_bits is None, "this test selects raw stage responses"
+        frame = account_response(
+            payload, stage_id=stage.id, shape=(output_mask.shape[0], stage.out_features),
+            wire_bits=stage.seeded_profile.wire_bits, batch_id=batch_id, attempt_id=attempt_id,
+        )
+        responses[-1].append(frame)
+        records.append({"file": path.name, "choice": len(responses) - 1, "stage_id": frame.stage_id,
+                        "shape": frame.shape, "wire_bits": frame.wire_bits,
+                        "arithmetic_payload_bytes": len(frame.arithmetic_payload),
+                        "full_frame_bytes": len(frame.payload), "server_ns_encoding": frame.server_ns_encoding.hex(),
+                        "non_timing_frame_bytes": len(frame.non_timing_framing)})
+        return decode_reply(self, payload, stage, output_mask, batch_id, attempt_id, scales)
+
+    monkeypatch.setattr(PreparedRemoteLinear, "_decode_reply", capture_reply)
     for index, quantization in enumerate((
         SymmetricPerRow(weight_bits=8, activation_bits=8),
         PublicPerChannelEqualized(profile.digest),
     )):
+        responses.append([])
         experiment = Experiment(
             name=f"Public numeric choice {index}",
             pipeline=MaskedLinearCpu(source, quantization=quantization),
@@ -189,8 +214,9 @@ def test_prepared_numeric_choices_have_matched_online_stage_body_sizes(tmp_path)
                 audit.inference_stage_calls, audit.inference_upload_bytes,
                 audit.inference_download_bytes,
             ))
-    assert bodies[0] == bodies[1]
-    assert bodies[0][0] > 0
+    (tmp_path / "response-accounting.json").write_text(json.dumps(
+        {"bodies": bodies, "responses": records}, indent=2, sort_keys=True) + "\n")
+    assert_matched_accounting(bodies, responses)
 
 
 @pytest.mark.parametrize("preparation", [False, True])

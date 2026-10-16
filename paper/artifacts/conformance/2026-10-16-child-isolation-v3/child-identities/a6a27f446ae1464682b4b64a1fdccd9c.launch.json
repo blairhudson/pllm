@@ -1,0 +1,20 @@
+{
+  "entry": {
+    "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "code_sha256": "b6f7c65ff44691e42fd6a3b68284b4da2c36aac1190261df6f76ed3bc80b7b69",
+    "entry": "<inline-code>",
+    "mode": "c"
+  },
+  "environment_values_recorded": false,
+  "expected_sha256": "d85d2f9582cb9670c1575391453700ae0e348d04926237470b63ff63a95ffb7d",
+  "helper_sha256": "c28e1be6e70647a74c38ba972703b4e9f858b38e31b6a25e1173e5c1a5ddcae4",
+  "isolated_flag_enforced": true,
+  "launcher_pid": 18141,
+  "removed_environment_keys": [
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "PYTHONSTARTUP",
+    "PYTHONUSERBASE"
+  ],
+  "schema": "pllm.paper_python_launch.v2"
+}

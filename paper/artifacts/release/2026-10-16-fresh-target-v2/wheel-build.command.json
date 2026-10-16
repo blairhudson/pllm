@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "-I",
+    "-m",
+    "maturin",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "--verbose",
+    "--interpreter",
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "--out",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/release/2026-10-16-fresh-target-v2/wheels"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 55.62307416647673,
+  "exit_code": 0,
+  "log": "wheel-build.log",
+  "log_sha256": "a8efc1fd8e93559d37808f428fcdde0a32c722e5f13f713430ac4808c7afcb32",
+  "started_utc": "2026-10-16T05:07:32.092631+00:00",
+  "stop_reason": null
+}

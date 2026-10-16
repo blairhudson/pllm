@@ -1,0 +1,58 @@
+    The verification procedure does not impose any additional overhead on the
+servers. The client’s work is dominated by a single multi-exponentiation, which
+incurs a cost of (m + n)/ log(m + n) group exponentiations. For large enough
+m, n, this is significantly less than the cost of the O(mn) arithmetic operations
+needed to compute the matrix-vector product. More importantly, the memory
+requirements of the client are reduced from O(mn) to O(m + n).
+
+
+                                            ΠV
+           ′
+  Setup(m ):
+
+   1. Sample r1 , r2 , . . . , rm′ ← Zp
+   2. For i ∈ [m′ ], set Ri = g ri
+   3. Store {ri } and publish {Ri }
+
+  PublishMVP ({ri }, M ∈ Zm×n
+                          N   ):
+
+   1. Let r = (r1 , r2 , . . . , rm ) and compute s = MT · r
+   2. For i ∈ [n], set Si = g si . Publish {Si }i∈[n]
+
+                           m
+  VerifyMVP (x ∈ Zn
+                  N , y ∈ ZN , {Ri }, {Si }):
+
+                     n
+   1. Compute a = Πi=1   Sixi and b = Πi=1
+                                       m
+                                           Riyi
+   2. Output Accept if a = b, and Reject otherwise
+
+
+                     Fig. 2. Verification of a matrix-vector product.
+
+
+
+Soundness. As in the analysis of Freivalds’s algorithm, finding M, x, y ̸= Mx
+for which verification succeeds implies finding a nonzero vector d = y − Mx for
+which
+                            Ym         m
+                                       Y          d
+                                Ridi =     (g ri ) i = 1.
+                                i=1        i=1
+
+(Note that the {Si } can be written in terms of the {Ri } given M.) In the original
+setting of Freivalds’s algorithm finding such a d is (information-theoretically)
+hard to do when r = (r1 , . . . , rm′ ) is chosen after M, x, y are fixed, but easy to
+do if y can be selected adaptively based on r. In our setting, it involves finding
+a non-trivial representation of 1 relative to the basis {Ri }, which is known to be
+equivalent to solving the discrete-logarithm problem. Thus, it is computationally
+infeasible for the servers to cause the client to output an incorrect result (except
+with negligible probability) even when the servers may choose y adaptively based
+on the {Ri } (and the {Si }).
+Batching. Instead of verifying each matrix-vector product, we perform batch
+verification of multiple products. To verify k query-response pairs {yi = Mxi }ki=1
+using the same matrix M, the client picks uniform α1 , . . . , αk ∈ Zp and verifies
+

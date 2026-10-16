@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/usr/bin/xcrun",
+    "--find",
+    "ld"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "log": "linker-path.log",
+  "name": "linker-path",
+  "started_utc": "2026-10-16T05:44:02.651816+00:00"
+}

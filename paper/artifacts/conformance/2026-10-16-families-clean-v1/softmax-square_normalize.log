@@ -1,0 +1,1 @@
+{"case": "softmax-square_normalize", "initial_checked": 2, "fresh_replay_checked": 2, "resources_equal": true, "numeric_identity_equal": true}

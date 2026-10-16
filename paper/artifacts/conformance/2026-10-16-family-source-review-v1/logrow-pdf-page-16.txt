@@ -1,0 +1,49 @@
+    • Parameters: Parties agree on input size n and output size m.
+    • Input:
+        – G inputs a function f : {0, 1}n → {0, 1}m .
+        – Parties input a shared function input JaK where a ∈ {0, 1}n .
+    • Output: Parties output a sharing Jf (a)K.
+    • Communication : G sends to E (2n − 1)κ + nmκ + 2n m bits.
+    • Computation: Parties use O(2n cκ + 2n mκ + nmcκ + 2n mcκ /κ) computation.
+
+    • Procedure:
+        – Let ⟨⟨A, A ⊕ a∆⟩⟩ = JaK.
+        – G computes α ≜ lsb(A). Let x = a ⊕ α. E computes:
+
+                                        lsb(A ⊕ a∆) = lsb(A) ⊕ a · lsb(∆) = α ⊕ a = x
+
+        – G injects ⟨⟨α∆, 0⟩⟩ = JαK as input. Parties compute JxK = JaK ⊕ JαK.
+        – Parties use one-hot garbling (Figure 1) to compute JH(x)K.
+        – Parties use Figure 5 to compute Jr(x)K where r : {0, 1}n → {0, 1}m is a uniformly random
+          function. As a side-effect, G now holds r.
+        – Let f ′ be a function that computes the following:
+
+                                                  f ′ (x) ≜ f (x ⊕ α) ⊕ r(x)
+
+        – G computes the truth table T (f ′ ) for f ′ and sends T (f ′ ) to E.
+        – Parties compute and output:
+                                    ⊺
+                          (T (f ′ ) · JH(x)K) ⊕ Jr(x)K
+                        = Jf ′ (x)K ⊕ Jr(x)K                                            Lemma 1
+                             ′
+                        = Jf (a ⊕ α)K ⊕ Jr(a ⊕ α)K                                  Definition x
+                        = Jf ((a ⊕ α) ⊕ α) ⊕ r(a ⊕ α)K ⊕ Jr(a ⊕ α)K                 Definition f ′
+                        = Jf (a)K
+
+Figure 3: Garbled LUT Evaluation. We reduce the evaluation Jf (a)K for arbitrary f to the evaluation
+Jr(a ⊕ α)K for random r (see Figure 4).
+
+
+       – Uniformly sample ∆ ∈$ 1{0, 1}κ−1 .
+       – For each circuit input x[i], sample uniform zero label X[i] ∈$ {0, 1}κ .
+       – Assemble the input encoding string e as a vector of pairs of labels:
+                                                    e[i] = (X[i], X[i] ⊕ ∆)
+          This choice of e is consistent with projectivity.
+       – Step through the circuit gate by gate. For each XOR gate, XOR the gate’s input zero labels and
+         place the result on the output wire [25]. For each AND gate, run the AND gate garbling procedure
+         formalized by [41]. For each LUT gate, run G’s procedure described in Figure 3. Let M be the
+         string of material concatenated from all “messages sent to E”.
+
+
+                                                        16
+

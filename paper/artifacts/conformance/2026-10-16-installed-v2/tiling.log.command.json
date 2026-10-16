@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "-I",
+    "-c",
+    "import pllm,pytest,sys; print('IMPLEMENTATION', pllm.__file__, flush=True); sys.exit(pytest.main(sys.argv[1:]))",
+    "-o",
+    "pythonpath=",
+    "-o",
+    "addopts=",
+    "-p",
+    "no:cacheprovider",
+    "-vv",
+    "--junitxml=/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-installed-v2/tiling.xml",
+    "tests/test_mlp_tiling.py",
+    "-k",
+    "component or selected_scheduler"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 13.23106937482953,
+  "exit_code": 0,
+  "log": "tiling.log",
+  "log_sha256": "430b3489f56cfd7b14f06e1649ef6cd12576a5689725b571eee67b9657537b8d"
+}

@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "vm_stat"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "log": "vm-stat-before.log",
+  "name": "vm-stat-before",
+  "started_utc": "2026-10-16T05:42:57.583467+00:00"
+}

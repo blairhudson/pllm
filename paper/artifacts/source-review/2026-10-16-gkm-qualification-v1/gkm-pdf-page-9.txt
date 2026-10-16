@@ -1,0 +1,51 @@
+                                          Pk                     Pk
+the single matrix-vector multiplication i=1 αi · yi = M · i=1 αi · xi mod p as
+above. The number of group operations here is independent of k.
+    To verify query-response pairs {yi = Mi xi }ki=1 for different matrices, the
+client samples uniform α1 , . . . , αk ∈ Zp and verifies the (larger) matrix-vector
+product
+                                                             
+                                                             x1
+                                                             .. 
+                 α1 y1 + · · · + αk yk = [M1 | · · · | Mk ]  .  .
+                                                              xk
+
+This again involves only a single multi-exponentiation, albeit of larger size. This
+saves runtime as the computational cost of multi-exponentiations scale sublin-
+early in the input size.
+    Note that these techniques can be combined, namely, the client can reduce
+all equations involving the same matrix to a single matrix-vector product with-
+out increasing the dimension, and then combine equations involving different
+matrices to obtain a matrix-vector product of larger dimension.
+
+
+4.3     Handling the Embedding Layer
+
+LLMs also use an embedding layer, which converts an input token w into its cor-
+responding embedding T [w] using a lookup in a (public) table T . For vocabulary
+size V and embedding dimension d, the table T consists of V entries in Rd . For,
+e.g., Llama 70B, V = 128000 and d = 8192 which results in a table of size 2GB.
+In principle, then, the embedding operation could be done locally by the client
+as long as they have 2GB of memory. Nevertheless, we provide a private, veri-
+fiable outsourcing protocol for the embedding layer to support devices that do
+not have this much memory, or to support future models with larger tables.
+
+
+                                        ΠEmbedding
+  Inputs: C has w ∈ [V ]; the servers S0 , S1 have a public table T ∈ RV ×d
+  Outputs: C outputs y = T [w]
+
+      1. Let x ∈ {0, 1}V be such that xw = 1 and xj = 0 for all j ̸= w
+      2. C samples x(0) ← {0, 1}V and sets x(1) = x ⊕ x(1)
+      3. C sends x(0) to S0 and x(1) to S1L
+                                                         (b)
+      4. For b ∈ {0, 1}, Sb returns y(b) = Vj=1 T [j] · xj
+      5. C outputs y(0) ⊕ y(1)
+
+
+                       Fig. 3. Delegation of the embedding layer.
+
+
+    To perform this lookup, we use a simple private-information retrieval (PIR)
+[4] protocol. The client converts its token w into a one-hot vector x ∈ {0, 1}V ,
+

@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/.venv/bin/python",
+    "-I",
+    "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py",
+    "--reference-model",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-clean-local-v1/fixtures/qwen3",
+    "--reference-output",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-clean-local-v1/reference-qwen3.npz"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 4.212276958860457,
+  "exit_code": 0,
+  "log": "reference-qwen3.log",
+  "log_sha256": "0484b7f07ad67a13fd16a83609e6d6504208209e449d2919585ce044e089bb86"
+}

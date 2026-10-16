@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "rustup",
+    "which",
+    "rustc"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.015391167253255844,
+  "exit_code": 0,
+  "log": "rustc-path.log",
+  "log_sha256": "45d7107dcf965f123368ebd6f05b8dd549ec3abc60b1a4eb218f2736023a830b",
+  "name": "rustc-path",
+  "started_utc": "2026-10-16T04:41:40.690114+00:00"
+}

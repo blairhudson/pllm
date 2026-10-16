@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "/opt/homebrew/bin/uv",
+    "--offline",
+    "--no-config",
+    "pip",
+    "install",
+    "--python",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python",
+    "--no-index",
+    "--cache-dir",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/uv-install-cache",
+    "--require-hashes",
+    "--no-build",
+    "--no-deps",
+    "--link-mode",
+    "copy",
+    "--requirements",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/frozen-dependencies.txt",
+    "--verbose"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "log": "dependencies-install.log",
+  "name": "dependencies-install",
+  "started_utc": "2026-10-16T05:43:32.083207+00:00"
+}

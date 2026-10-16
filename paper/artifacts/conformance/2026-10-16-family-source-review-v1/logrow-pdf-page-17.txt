@@ -1,0 +1,48 @@
+    • Parameters: Parties agree on input size n and output size m.
+    • Input:
+         – Parties input a sharing JxK where x ∈ {0, 1}n .
+         – Parties input a shared one-hot vector JH(x)K.
+         – E inputs x.
+    • Output:
+         – G outputs a function r : {0, 1}n → {0, 1}m that has a uniform truth table.
+         – Parties output a sharing Jr(x)K.
+    • Communication: G sends to E nmκ bits.
+    • Computation: Each party uses O(2n mκ + nmcκ + 2n mcκ /κ) computation.
+    • Procedure:
+
+         – If n = 0:
+              ∗ G samples uniform s ∈$ {0, 1}m as the output of r : ∅ → {0, 1}m .
+              ∗ Parties output Jr(x)K = ⟨⟨s∆, 0⟩⟩ and halt.
+         – Parties evaluate a half-hidden uniform function Jr̂(x)K (Figure 5), where r̂ ∈ {0, 1}n → {0, 1}m .
+           G learns r̂ during evaluation. As a side effect, E learns “half” of r̂.
+         – Parties evaluate another uniform function Jr′ (x[0 : n − 1])K by recursively invoking this proce-
+           dure, where r′ ∈ {0, 1}n−1 → {0, 1}m , with the following specification:
+              ∗ Parties agree on input size n − 1 and output size m.
+              ∗ Parties input Jx[0 : n − 1]K.
+              ∗ Parties input JH(x[0 : n − 1])K = JH(x)K[0:2n−1 ] ⊕ JH(x)K[2n−1 :2n ].
+              ∗ E inputs x[0 : n − 1].
+              ∗ Parties receive Jr′ (x[0 : n − 1])K, and G learns r′ .
+         – G computes and outputs:
+                                              T (r) ≜ T (r̂) ⊕ (T (r′ )||T (r′ ))
+            The concatenation T (r′ )||T (r′ ) is along the rows.
+         – Parties compute and output:
+
+                                           Jr(x)K ≜ Jr̂(x)K ⊕ Jr′ (x[0 : n − 1])K
+
+Figure 4: The core of our approach allows G and E to efficiently evaluate a uniformly random function r
+such that E does not know r. We compose r from n “half-hidden” uniform functions r̂ (see Figure 5). For
+each function r̂, E learns half of the corresponding truth table, but these tables are XORed together in such
+a way that E learns nothing about r.
+
+
+        – For each output wire y[i], let Y [i] be the output zero label. Assemble the output decoding string d
+          as a vector of pairs, where for each index i the pair is specified as:
+
+                             d[i] = (H(ν, Y [i]) || lsb(Y [i]), H(ν, Y [i] ⊕ ∆) || lsb(Y [i] ⊕ ∆))
+
+          Here, ν is a fresh nonce. This choice of d ensures that E will be able to compute only one entry
+          of each pair. (We include the least significant bit of each label to ensure perfect correctness.)
+
+
+                                                        17
+

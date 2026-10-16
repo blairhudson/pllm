@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/opt/homebrew/bin/uv",
+    "cache",
+    "dir"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "uv-cache-dir.log",
+  "name": "uv-cache-dir",
+  "started_utc": "2026-10-16T05:07:18.832920+00:00"
+}

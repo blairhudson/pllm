@@ -1,0 +1,2 @@
+# Preserve local build/environment state without adding generated trees to Git.
+*/work/

@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "-I",
+    "-m",
+    "venv",
+    "--without-pip",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-target-67feb9081b564f65aa83754b992ea53b/venv"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.055748166516423225,
+  "exit_code": 0,
+  "log": "venv-create.log",
+  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "started_utc": "2026-10-16T05:08:29.069422+00:00",
+  "stop_reason": null
+}

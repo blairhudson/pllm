@@ -1,0 +1,42 @@
+{
+  "checked_matrix_outputs": 12,
+  "checked_scales": 6,
+  "expected_scales": [
+    0.015625,
+    0.06680797785520554,
+    0.2640817165374756,
+    2.1126537322998047,
+    40.19812774658203,
+    64.0
+  ],
+  "matrix_output_absolute_tolerance": 1e-06,
+  "maximum_matrix_output_absolute_error": 9.172864245954315e-09,
+  "maximum_scale_absolute_error": 0.0,
+  "observed_scales": [
+    0.015625,
+    0.06680797785520554,
+    0.2640817165374756,
+    2.1126537322998047,
+    40.19812774658203,
+    64.0
+  ],
+  "oracle": "Python scalar powers/logs and float64 matrix multiplication; no native quantizer oracle",
+  "public_activation_maxima": [
+    0.0,
+    9.999999747378752e-05,
+    0.125,
+    1.0,
+    32.0,
+    10000.0
+  ],
+  "public_weight_maxima": [
+    2.0,
+    0.0,
+    8.0,
+    1.0,
+    0.25,
+    0.0010000000474974513
+  ],
+  "scale_relative_tolerance": 3e-07,
+  "scope": "unquantized redistribution algebra only; quantized model quality is separate"
+}

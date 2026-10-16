@@ -1,0 +1,17 @@
+{
+  "files": {
+    "paper/artifacts/conformance/audit-child-isolation.py": "32c52466c9f9fcf732e515f179d5e0d656b2b4ba0d142278513b80b426cfda53",
+    "paper/artifacts/conformance/audit-family-cards.py": "4442b0981c8b64c3b39a76ec2d35de5b18a3f51c245a9932473bac391b15e8b7",
+    "paper/artifacts/conformance/equalization-wire-accounting.py": "80c6ce951495ddabcc66ae445aee5160e5934447ad0d968a812645e9d430d074",
+    "paper/artifacts/conformance/python-child-isolation.py": "5f812b2def6f9af8cd2943a41dbf0880583a121c1a6ecef3586e0daf9ab7877b",
+    "python/pllm/metrics/benchmark_runner.py": "8516364c5569fdce957b329300f633862cd46a35a7d11c73a496b7389ec1aad7",
+    "python/pllm/runtime/servers.py": "d5858242789ac8f319fc28d1c876ccd91bc9705a620672399e46f630a198fec8",
+    "python/pllm/runtime/stage_protocol.py": "bf22cc5031abb1c28da8f4f0678d490f20e373406f6ffbca7427f3ad434a4d12",
+    "python/pllm/runtime/transformer_client.py": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574",
+    "scripts/audit_paper_conformance.py": "bface38587716e18201c4adf76b43f63bb99f27e1a2fa1c4a50b575ba64e3549",
+    "tests/conftest.py": "53ec4f17cddb87325b7f927f122ec7fb1e1589dc95b5ad8b2957f41280890edc",
+    "tests/test_public_equalization.py": "2e2aaf7f8daa0d1008bbcd343cea8e6475f8fd50a67cb718752f091be379d67d"
+  },
+  "runtime_python_files_match_v4_wheel": true,
+  "source_checkout": "99e10e2c1e0e3dbeddc5f56dcc830e549cb1f2a5"
+}

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/usr/bin/xcrun",
+    "clang",
+    "--version"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "clang-version.log",
+  "name": "clang-version",
+  "started_utc": "2026-10-16T05:41:40.836489+00:00"
+}

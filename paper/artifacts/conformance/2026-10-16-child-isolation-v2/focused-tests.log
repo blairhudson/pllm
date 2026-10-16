@@ -1,0 +1,12 @@
+test_01_unisolated_control_imports_pythonpath_canary (__main__.FocusedChecks.test_01_unisolated_control_imports_pythonpath_canary) ... ok
+test_02_actual_role_spawn_boundary_enforces_isolation (__main__.FocusedChecks.test_02_actual_role_spawn_boundary_enforces_isolation) ... ok
+test_03_nested_launch_keeps_policy_after_environment_replacement (__main__.FocusedChecks.test_03_nested_launch_keeps_policy_after_environment_replacement) ... ok
+test_04_wrong_native_identity_rejects_before_entry (__main__.FocusedChecks.test_04_wrong_native_identity_rejects_before_entry) ... ok
+test_05_missing_exit_receipt_keeps_identity_gate_failed (__main__.FocusedChecks.test_05_missing_exit_receipt_keeps_identity_gate_failed) ... ok
+test_06_ambiguous_shell_launch_rejected_before_spawn (__main__.FocusedChecks.test_06_ambiguous_shell_launch_rejected_before_spawn) ... ok
+test_07_accounting_ignores_only_timing_value_width (__main__.FocusedChecks.test_07_accounting_ignores_only_timing_value_width) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.367s
+
+OK

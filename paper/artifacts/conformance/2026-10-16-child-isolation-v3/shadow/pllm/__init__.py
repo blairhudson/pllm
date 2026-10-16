@@ -1,0 +1,1 @@
+raise RuntimeError('PYTHONPATH_CANARY_EXECUTED')

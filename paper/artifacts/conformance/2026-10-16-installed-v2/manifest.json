@@ -1,0 +1,189 @@
+{
+  "argv": [
+    "scripts/audit_paper_conformance.py",
+    "--output",
+    "paper/artifacts/conformance/2026-10-16-installed-v2",
+    "--wheel",
+    "target/certified-head-sdk-build-v3/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+    "--reference-python",
+    "/Users/blairhudson/workspace/pllm/.venv/bin/python"
+  ],
+  "artifacts": {
+    "binding.log": "4f6f8f271ff69639876739988202ac7fda1b3de49c27d614b083b8d8f8ab04b1",
+    "binding.log.command.json": "5359366d61f4f3ab8a8aeb4258e4e02d6f03b87635d5cff193a370568219ba32",
+    "binding.xml": "8e641f210406ba5ab87339f3c323dce0eb97e0a340aeb7274ddc0ce9ef4b37dc",
+    "driver.py": "f4e7c9e166aab2a63250427ad16c21481721f452e6769e203f38dc8ba1218865",
+    "fixtures/qwen2/config.json": "22178ed39253494860506372745b15115f1a2fe471f1ed3275c18c54f966167c",
+    "fixtures/qwen2/model.safetensors": "30bdec2280e2728ab8d4ee36a02adf6f46fe59060898c4860da26436a84deb63",
+    "fixtures/qwen2/tokenizer_config.json": "1ab39d52691752c51b6cbaedf9db4e58c5cf4e5efe8c6518ce276fdc69e4abdb",
+    "generated-independent-conformance.error.txt": "3177d8e88ce28a054df1a4db22c16d2674c63855aec061dc7d006abeee8d5b71",
+    "installed-build.json": "d26de02872fce1ed8a109115c0796db50facbabbe88d9befd7f9e97d42664529",
+    "operator-replay.json": "b4b972561e8beb92acb6101cad7cb930a5d06ea7eb7d2fe006d991fb1d05d16b",
+    "operators.log": "c6e834627579a0ebf49eecfe1826d388ae36e0537bd3ee59360e2432c196f4d1",
+    "operators.log.command.json": "3ff7ce33255525148c3fd8542cb4823a0fb0b23da7ebb1391f8a383e5fd39d22",
+    "operators.xml": "eeaaf6e89abf4926e555f90a3194d751e089c5c2e18a304855eae916c44925de",
+    "prepared-sdk.log": "d9414dd2e8246afa29539d9fcf264cca6b7094d78581f5fde2ddc7b70dfa1345",
+    "prepared-sdk.log.command.json": "3c945dbdf7e82747da484991a66cf947b9a444fc782965b02aaf714c6c684f52",
+    "provenance.json": "5a9ff8d4e8e228c61dfe06fc478906399f0b823ebbb4362c2e933c0faa86fd6d",
+    "published-generated-experiment.json": "68ae4db93dde9cb6365a6dd8adba3057fb1ca35314e19012c35b2b0458f61486",
+    "published-requests.json": "972e7d5a3eda7bfbacfa9c9647e71975de645c88e140de715311e0b042fee5b1",
+    "reference-qwen2.log": "14fb06d8b055dd2633fd1466fc71ffd92d25dd8ae8fdba9b17a608df90e5d988",
+    "reference-qwen2.log.command.json": "758b06d2d53662c67ad01eee03488ac2a079aed26cd59fbc4c570d9fb7d25581",
+    "reference-qwen2.npz": "5a50a6d3dee443a3b895a9a6c2d8e337324a25d4fc87eec11b3a7252c8391056",
+    "reference-qwen2.npz.environment.json": "f567b8d20b4039a95697d5a665510bde8dacce3f4760677caae4c8f9070c8b2c",
+    "source-evidence-lock.json": "9510b23fd9390d2c5e89a46c5346b755dac7d20210c3acaeabb37f0f0265528e",
+    "tiling.log": "430b3489f56cfd7b14f06e1649ef6cd12576a5689725b571eee67b9657537b8d",
+    "tiling.log.command.json": "48a65f314b7b67b9ec9b3df8ea79d5249ff9596b4b9d653758f2d9811680d14d",
+    "tiling.xml": "3b35d258121bf438dcbbf6c0b4226ab16638d408265e7496f55b1ca4c7e29b7f"
+  },
+  "cases": [
+    {
+      "elapsed_seconds": 1.1921619158238173,
+      "name": "provenance",
+      "result": {
+        "build_digest": "db5b5374935fa41416a869383495ed68ac391ecb3535537d262110504e4a5f10",
+        "different_sdk_files": 0,
+        "import_scope": "installed wheel",
+        "wheel_sha256": "55bc8e2b1f760fc4f96c9e88ea322e01408e24fe25c9154850c40e3748c21a50"
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 0.014477957971394062,
+      "name": "source-evidence-lock",
+      "result": {
+        "historical_records": 5,
+        "locked_files": 53
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 3.928516541607678,
+      "error": "",
+      "name": "generated-independent-conformance",
+      "status": "failed",
+      "traceback": "generated-independent-conformance.error.txt"
+    },
+    {
+      "elapsed_seconds": 15.920073041692376,
+      "name": "focused-current-test-sources",
+      "result": {
+        "binding": {
+          "argv": [
+            "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "-I",
+            "-c",
+            "import pllm,pytest,sys; print('IMPLEMENTATION', pllm.__file__, flush=True); sys.exit(pytest.main(sys.argv[1:]))",
+            "-o",
+            "pythonpath=",
+            "-o",
+            "addopts=",
+            "-p",
+            "no:cacheprovider",
+            "-vv",
+            "--junitxml=/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-installed-v2/binding.xml",
+            "tests/test_runtime_model_binding.py::test_compiled_binding_rejects_another_model_source",
+            "tests/test_runtime_model_binding.py::test_plan_mismatch_rejected",
+            "tests/test_runtime_model_binding.py::test_bundle_tamper_rejected",
+            "tests/test_runtime_model_binding.py::test_runtime_rejects_post_bind_mutation",
+            "tests/test_runtime_model_binding.py::test_stage_spec_drift_rejected",
+            "tests/test_runtime_model_binding.py::test_fused_weight_order_is_bound_to_semantic_outputs",
+            "tests/test_live_compiled_execution.py::test_provider_checks_semantic_plan_before_reserving_material"
+          ],
+          "cwd": "/Users/blairhudson/workspace/pllm",
+          "elapsed_seconds": 2.335745041258633,
+          "exit_code": 0,
+          "log": "binding.log",
+          "log_sha256": "4f6f8f271ff69639876739988202ac7fda1b3de49c27d614b083b8d8f8ab04b1"
+        },
+        "operators": {
+          "argv": [
+            "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "-I",
+            "-c",
+            "import pllm,pytest,sys; print('IMPLEMENTATION', pllm.__file__, flush=True); sys.exit(pytest.main(sys.argv[1:]))",
+            "-o",
+            "pythonpath=",
+            "-o",
+            "addopts=",
+            "-p",
+            "no:cacheprovider",
+            "-vv",
+            "--junitxml=/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-installed-v2/operators.xml",
+            "tests/test_wavelet_gated.py::test_inputs_and_invalid_configurations_reject_before_any_material",
+            "tests/test_wavelet_gated.py::test_native_boundary_range_frame_and_commitment_validation",
+            "tests/test_wavelet_gated.py::test_saved_cost_and_quality_keep_source_numeric_and_execution_scopes",
+            "tests/test_logrow_product.py::test_invalid_inputs_reject_before_any_garbling",
+            "tests/test_logrow_product.py::test_native_frame_and_range_validation",
+            "tests/test_logrow_product.py::test_retained_cost_cohort_conserves_roles_and_existing_quality_scope",
+            "tests/test_compact_product.py::test_input_and_calibration_admission_precedes_native_material",
+            "tests/test_compact_product.py::test_native_malformed_frames_and_resource_limits",
+            "tests/test_compact_product.py::test_retained_evidence_binds_frozen_profiles_complete_costs_and_quality_scope"
+          ],
+          "cwd": "/Users/blairhudson/workspace/pllm",
+          "elapsed_seconds": 0.35183804109692574,
+          "exit_code": 0,
+          "log": "operators.log",
+          "log_sha256": "c6e834627579a0ebf49eecfe1826d388ae36e0537bd3ee59360e2432c196f4d1"
+        },
+        "tiling": {
+          "argv": [
+            "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+            "-I",
+            "-c",
+            "import pllm,pytest,sys; print('IMPLEMENTATION', pllm.__file__, flush=True); sys.exit(pytest.main(sys.argv[1:]))",
+            "-o",
+            "pythonpath=",
+            "-o",
+            "addopts=",
+            "-p",
+            "no:cacheprovider",
+            "-vv",
+            "--junitxml=/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-installed-v2/tiling.xml",
+            "tests/test_mlp_tiling.py",
+            "-k",
+            "component or selected_scheduler"
+          ],
+          "cwd": "/Users/blairhudson/workspace/pllm",
+          "elapsed_seconds": 13.23106937482953,
+          "exit_code": 0,
+          "log": "tiling.log",
+          "log_sha256": "430b3489f56cfd7b14f06e1649ef6cd12576a5689725b571eee67b9657537b8d"
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 2.568468874320388,
+      "name": "published-sdk-gateway",
+      "result": {
+        "gateway_status": 200,
+        "standalone_example": "completed"
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 0.5418820418417454,
+      "name": "bounded-complete-operators",
+      "result": {
+        "additional_replay_checked_outputs": 32,
+        "checked_outputs": 32,
+        "operators": 4
+      },
+      "status": "passed"
+    }
+  ],
+  "schema": "pllm.paper_conformance.v1",
+  "scope": "Generated functionality and bounded operator checks; no real checkpoint or resource-tier qualification",
+  "status": "failed",
+  "thread_environment": {
+    "HF_HUB_OFFLINE": "1",
+    "MKL_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "TOKENIZERS_PARALLELISM": "false",
+    "TRANSFORMERS_OFFLINE": "1",
+    "VECLIB_MAXIMUM_THREADS": "1"
+  }
+}

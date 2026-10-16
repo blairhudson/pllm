@@ -1,0 +1,4 @@
+# RustCrypto AES 0.8 requires this opt-in on ARM. Runtime detection retains the
+# portable constant-time fallback; do not force CPU features into portable wheels.
+[target.'cfg(all(target_arch = "aarch64", any(target_os = "macos", target_os = "linux")))']
+rustflags = ["--cfg", "aes_armv8"]

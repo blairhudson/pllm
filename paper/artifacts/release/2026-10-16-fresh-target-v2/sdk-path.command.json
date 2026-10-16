@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/usr/bin/xcrun",
+    "--show-sdk-path"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.06170216668397188,
+  "exit_code": 0,
+  "log": "sdk-path.log",
+  "log_sha256": "5cb2cff3541ae65432805aa9d9bbfa3454381ef60694cc7b47eed0e2bf973aaf",
+  "started_utc": "2026-10-16T05:07:29.211776+00:00",
+  "stop_reason": null
+}

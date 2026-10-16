@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "cargo",
+    "metadata",
+    "--format-version",
+    "1",
+    "--locked",
+    "--offline"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.26519662514328957,
+  "environment_file": "build-environment.json",
+  "environment_overrides": {
+    "CARGO_TARGET_DIR": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/metadata-target"
+  },
+  "exit_code": 0,
+  "log": "cargo-metadata.log",
+  "log_sha256": "776a11e9b54edebf6f8f3d162b3c3c386f0c4c48bbe8bf9cfa38f7e128327b3c",
+  "name": "cargo-metadata",
+  "started_utc": "2026-10-16T05:44:03.062959+00:00"
+}

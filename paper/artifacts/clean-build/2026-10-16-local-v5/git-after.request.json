@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "git",
+    "status",
+    "--short"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "log": "git-after.log",
+  "name": "git-after",
+  "started_utc": "2026-10-16T05:45:56.730415+00:00"
+}

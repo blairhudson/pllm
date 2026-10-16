@@ -1,0 +1,337 @@
+{
+  "attestation": "Local recorded evidence, not independent/CI attestation or whole-OS hermetic reproducibility",
+  "blocker": "Traceback (most recent call last):\n  File \"/Users/blairhudson/workspace/pllm/scripts/build_paper_release.py\", line 342, in execute_release\n    run(\"wheel-install\", [\"uv\", \"--no-config\", \"--offline\", \"pip\", \"install\", \"--python\", fresh_python,\n    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n                          \"--no-build\", \"--strict\", \"--link-mode\", \"copy\", \"--requirements\", output / \"requirements.txt\", wheel], timeout=300)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/blairhudson/workspace/pllm/scripts/build_paper_release.py\", line 213, in run\n    raise RuntimeError(f\"{name} failed: exit={code}, reason={reason}; log retained\")\nRuntimeError: wheel-install failed: exit=1, reason=None; log retained\n",
+  "cache_distinction": "New empty Cargo target; installed registry source/archive cache reused offline. New venv; prebuilt Python wheel cache reused offline with copy installation.",
+  "cargo_dependencies_unchanged": true,
+  "cargo_target_dir": "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-target-67feb9081b564f65aa83754b992ea53b/cargo-target",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.05226454231888056,
+      "exit_code": 0,
+      "log": "git-commit.log",
+      "log_sha256": "09ec88c11789a2d876d38d857f43f0d0b6140ff7fa23b48bb15230534b8070c6",
+      "started_utc": "2026-10-16T05:07:28.312853+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.061898333951830864,
+      "exit_code": 0,
+      "log": "git-before.log",
+      "log_sha256": "dcd99f92a2f2b40101fd686c0c20883f424d52bc01afabb62ec15b46a87d2909",
+      "started_utc": "2026-10-16T05:07:28.365693+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.16966270841658115,
+      "exit_code": 0,
+      "log": "rustc-version.log",
+      "log_sha256": "c4daff6ff615863600926bc149a5b0d92907859a57e352c39fa035a86dff05ff",
+      "started_utc": "2026-10-16T05:07:28.472915+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "cargo",
+        "--version",
+        "--verbose"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.055404833517968655,
+      "exit_code": 0,
+      "log": "cargo-version.log",
+      "log_sha256": "9b5a34f85fd5381ed84b1f2026b591265467215ba627e7d90a21dfd1648066c5",
+      "started_utc": "2026-10-16T05:07:28.643012+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "rustup",
+        "show",
+        "active-toolchain"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.06139154080301523,
+      "exit_code": 0,
+      "log": "rustup-toolchain.log",
+      "log_sha256": "011338c6cf3419b63b7b891c624178afa66041704b98a4f0a8788adc704053a0",
+      "started_utc": "2026-10-16T05:07:28.698771+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "rustup",
+        "which",
+        "rustc"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.05728662479668856,
+      "exit_code": 0,
+      "log": "rustc-path.log",
+      "log_sha256": "45d7107dcf965f123368ebd6f05b8dd549ec3abc60b1a4eb218f2736023a830b",
+      "started_utc": "2026-10-16T05:07:28.760573+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "rustup",
+        "which",
+        "cargo"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.053793041966855526,
+      "exit_code": 0,
+      "log": "cargo-path.log",
+      "log_sha256": "862e9f2caa4fdcc275527c0754130765aabf4fa1068a2f4d3419ab25ef4a3b1b",
+      "started_utc": "2026-10-16T05:07:28.818276+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "rustc",
+        "--print",
+        "sysroot"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.052433665841817856,
+      "exit_code": 0,
+      "log": "rust-sysroot.log",
+      "log_sha256": "76fabdcdb3b34f2934c350df7d73f5fa7f0a3f067b59c5d59b623d5676146cec",
+      "started_utc": "2026-10-16T05:07:28.872497+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "-I",
+        "-m",
+        "maturin",
+        "--version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.05412175040692091,
+      "exit_code": 0,
+      "log": "maturin-version.log",
+      "log_sha256": "971f1005e6ea40cc978deb0baba53e0a2b4a1e5f9af63ae5b2276cd93de51d00",
+      "started_utc": "2026-10-16T05:07:28.925312+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "uv",
+        "--version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.05750666651874781,
+      "exit_code": 0,
+      "log": "uv-version.log",
+      "log_sha256": "442e7e7123e1a4426e42637e821d1ece6d4d9abc51fed11c0d2b47779c72cba9",
+      "started_utc": "2026-10-16T05:07:28.979802+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "clang",
+        "--version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.06164570804685354,
+      "exit_code": 0,
+      "log": "clang-version.log",
+      "log_sha256": "ea3037e0630fa16798079372fdc24f6542d021dadda4915cc979799682d78295",
+      "started_utc": "2026-10-16T05:07:29.037785+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "--find",
+        "clang"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.05236941762268543,
+      "exit_code": 0,
+      "log": "clang-path.log",
+      "log_sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+      "started_utc": "2026-10-16T05:07:29.099813+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "--find",
+        "ld"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.058604917488992214,
+      "exit_code": 0,
+      "log": "linker-path.log",
+      "log_sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+      "started_utc": "2026-10-16T05:07:29.152628+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "--show-sdk-path"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.06170216668397188,
+      "exit_code": 0,
+      "log": "sdk-path.log",
+      "log_sha256": "5cb2cff3541ae65432805aa9d9bbfa3454381ef60694cc7b47eed0e2bf973aaf",
+      "started_utc": "2026-10-16T05:07:29.211776+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "--show-sdk-version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.06279204040765762,
+      "exit_code": 0,
+      "log": "sdk-version.log",
+      "log_sha256": "25205f2e2f02dc71036ee827e19c49b893b231a3d1af240e35a3ac55aa8cdcb6",
+      "started_utc": "2026-10-16T05:07:29.274236+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "cargo",
+        "metadata",
+        "--format-version",
+        "1",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.16973337531089783,
+      "exit_code": 0,
+      "log": "cargo-metadata.log",
+      "log_sha256": "529592c88ceac815c62d29faaf45cc0aeddcfb450bda3b0cf81bc5f3c2fa0388",
+      "started_utc": "2026-10-16T05:07:29.347533+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "-I",
+        "-m",
+        "maturin",
+        "build",
+        "--release",
+        "--locked",
+        "--offline",
+        "--verbose",
+        "--interpreter",
+        "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "--out",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/release/2026-10-16-fresh-target-v2/wheels"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 55.62307416647673,
+      "exit_code": 0,
+      "log": "wheel-build.log",
+      "log_sha256": "a8efc1fd8e93559d37808f428fcdde0a32c722e5f13f713430ac4808c7afcb32",
+      "started_utc": "2026-10-16T05:07:32.092631+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "-I",
+        "-m",
+        "venv",
+        "--without-pip",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-target-67feb9081b564f65aa83754b992ea53b/venv"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.055748166516423225,
+      "exit_code": 0,
+      "log": "venv-create.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "started_utc": "2026-10-16T05:08:29.069422+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-target-67feb9081b564f65aa83754b992ea53b/venv/bin/python",
+        "-I",
+        "-c",
+        "import importlib.metadata as m,importlib.util as u,json,sys,site; print(json.dumps({'prefix':sys.prefix,'base_prefix':sys.base_prefix,'distributions':[(d.metadata['Name'],d.version) for d in m.distributions()],'pllm_spec':str(u.find_spec('pllm')),'user_site':site.ENABLE_USER_SITE})); assert not list(m.distributions()); assert u.find_spec('pllm') is None; assert not site.ENABLE_USER_SITE"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.05511841643601656,
+      "exit_code": 0,
+      "log": "venv-empty.log",
+      "log_sha256": "0509d25011a578b7417e18c7efde878037f123c7b28107e05bb7b91a6fedcda2",
+      "started_utc": "2026-10-16T05:08:29.125566+00:00",
+      "stop_reason": null
+    },
+    {
+      "argv": [
+        "uv",
+        "--no-config",
+        "--offline",
+        "pip",
+        "install",
+        "--python",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-target-67feb9081b564f65aa83754b992ea53b/venv/bin/python",
+        "--no-build",
+        "--strict",
+        "--link-mode",
+        "copy",
+        "--requirements",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/release/2026-10-16-fresh-target-v2/requirements.txt",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/release/2026-10-16-fresh-target-v2/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.061505915597081184,
+      "exit_code": 1,
+      "log": "wheel-install.log",
+      "log_sha256": "5833a12eb7bf652a337868eaf17b3747069b49a7bf4be7ace82a461512e78bf1",
+      "started_utc": "2026-10-16T05:08:29.181234+00:00",
+      "stop_reason": null
+    }
+  ],
+  "compiled_crates": 68,
+  "finished_utc": "2026-10-16T05:08:30.298289+00:00",
+  "fresh_environment": "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-target-67feb9081b564f65aa83754b992ea53b/venv",
+  "historical_execution_relabelled": false,
+  "native_files": {
+    "pllm/_native.abi3.so": "cb607aa0b3776b21882a6363a3cedf055caf6e41ae71ed913127fb467ba3cba9"
+  },
+  "package_digest": "af581eddf511344e2cdeff49ce295153662350bf58bc9b84f287025d9a430963",
+  "previous_conformance_files_checked": 287,
+  "previous_conformance_files_unchanged": true,
+  "rustc_invocations": 91,
+  "schema": "pllm.fresh_target_release.v1",
+  "scratch": "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-target-67feb9081b564f65aa83754b992ea53b",
+  "source_commit": "99e10e2c1e0e3dbeddc5f56dcc830e549cb1f2a5",
+  "sources_unchanged": true,
+  "started_utc": "2026-10-16T05:07:27.277255+00:00",
+  "status": "blocked",
+  "tools_unchanged": true,
+  "wheel": "wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+  "wheel_bytes": 4080979,
+  "wheel_sha256": "3b63ae30631f0b54773d708c0921b75dbf951142f14dfb80dd9eedac145043b6"
+}

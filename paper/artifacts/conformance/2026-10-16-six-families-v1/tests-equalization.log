@@ -1,0 +1,93 @@
+IMPLEMENTATION /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py
+.....F..                                                                 [100%]
+=================================== FAILURES ===================================
+______ test_prepared_numeric_choices_have_matched_online_stage_body_sizes ______
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3755/test_prepared_numeric_choices_0')
+
+    def test_prepared_numeric_choices_have_matched_online_stage_body_sizes(tmp_path):
+        from pllm.runtime import build_roles
+    
+        root, source = _source(tmp_path)
+        profile = fit_public_equalization_profile(source, ((0, 3, 5), (0, 2, 4, 6)))
+        profile_path(root, profile.digest).write_bytes(profile.pack())
+        bodies = []
+        for index, quantization in enumerate((
+            SymmetricPerRow(weight_bits=8, activation_bits=8),
+            PublicPerChannelEqualized(profile.digest),
+        )):
+            experiment = Experiment(
+                name=f"Public numeric choice {index}",
+                pipeline=MaskedLinearCpu(source, quantization=quantization),
+                deployment=Deployment.local(root=str(tmp_path / f"deployment-{index}")),
+                budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+            )
+            with build_roles(experiment) as topology, topology.client() as client:
+                result = client.responses.create(
+                    model="public-calibrated-tiny", input="A", max_output_tokens=1,
+                )
+                assert result.usage.input_tokens > 0
+                audit = client.privacy_audit
+                assert audit.plaintext_prompt_bytes_sent == 0
+                bodies.append((
+                    audit.inference_stage_calls, audit.inference_upload_bytes,
+                    audit.inference_download_bytes,
+                ))
+>       assert bodies[0] == bodies[1]
+E       assert (4, 11580, 16289) == (4, 11580, 16291)
+E         
+E         At index 2 diff: 16289 != 16291
+E         Use -v to get more diff
+
+tests/test_public_equalization.py:192: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO:     Started server process [6556]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:56135 (Press CTRL+C to quit)
+INFO:     Started server process [6557]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:56136 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56150 - "WebSocket /v1/runtime/corrections/ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6556]
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6557]
+INFO:     Started server process [6570]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:56151 (Press CTRL+C to quit)
+INFO:     Started server process [6580]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:56152 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56166 - "WebSocket /v1/runtime/corrections/ws" [accepted]
+INFO:     connection open
+INFO:     Shutting down
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6570]
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6580]
+=============================== warnings summary ===============================
+target/frontier-sdk-env/lib/python3.13/site-packages/_pytest/config/__init__.py:1464
+  /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_public_equalization.py::test_calibrated_sdk_and_gateway_follow_experiment_roles[True]
+  /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_public_equalization.py::test_prepared_numeric_choices_have_matched_online_stage_body_sizes
+1 failed, 7 passed, 2 warnings in 4.50s

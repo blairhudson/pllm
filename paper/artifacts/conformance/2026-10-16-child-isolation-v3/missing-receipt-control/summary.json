@@ -1,0 +1,22 @@
+{
+  "captured_python_processes": 1,
+  "entries": [
+    {
+      "entry": {
+        "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "code_sha256": "3a298cfe74d195638f1ae073c6b57d7464c0fe597c0090134260f490f150e10b",
+        "entry": "<inline-code>",
+        "mode": "c"
+      },
+      "key": "5ba830ab4aa34e6f84851d154d1f90de",
+      "pid": 18183
+    }
+  ],
+  "expected_sha256": "d85d2f9582cb9670c1575391453700ae0e348d04926237470b63ff63a95ffb7d",
+  "failures": [
+    "missing 5ba830ab4aa34e6f84851d154d1f90de.end receipt"
+  ],
+  "roles": {},
+  "schema": "pllm.paper_python_identity_summary.v1",
+  "status": "failed"
+}

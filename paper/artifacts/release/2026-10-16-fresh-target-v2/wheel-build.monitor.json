@@ -1,0 +1,1006 @@
+[
+  {
+    "children": [],
+    "elapsed_seconds": 0.012194499373435974,
+    "memory_available_bytes": 10396418048
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 41615360
+      },
+      {
+        "name": "build-script-build",
+        "pid": 33967,
+        "rss": 1671168
+      },
+      {
+        "name": "rustc",
+        "pid": 33968,
+        "rss": 61636608
+      },
+      {
+        "name": "rustup",
+        "pid": 33971,
+        "rss": 7061504
+      }
+    ],
+    "elapsed_seconds": 1.0171259585767984,
+    "memory_available_bytes": 10446979072
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 41648128
+      },
+      {
+        "name": "rustc",
+        "pid": 34019,
+        "rss": 106840064
+      },
+      {
+        "name": "build-script-build",
+        "pid": 34058,
+        "rss": 32768
+      },
+      {
+        "name": "clang",
+        "pid": 34059,
+        "rss": 16826368
+      },
+      {
+        "name": "ld",
+        "pid": 34060,
+        "rss": 50954240
+      }
+    ],
+    "elapsed_seconds": 2.0317391250282526,
+    "memory_available_bytes": 10403921920
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 41648128
+      },
+      {
+        "name": "rustc",
+        "pid": 34077,
+        "rss": 210124800
+      },
+      {
+        "name": "rustc",
+        "pid": 34164,
+        "rss": 86507520
+      }
+    ],
+    "elapsed_seconds": 3.0458530420437455,
+    "memory_available_bytes": 10457563136
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 41664512
+      },
+      {
+        "name": "rustc",
+        "pid": 34181,
+        "rss": 229146624
+      },
+      {
+        "name": "rustc",
+        "pid": 34211,
+        "rss": 120373248
+      }
+    ],
+    "elapsed_seconds": 4.0516742914915085,
+    "memory_available_bytes": 10450337792
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 41730048
+      },
+      {
+        "name": "build-script-build",
+        "pid": 34291,
+        "rss": 32768
+      }
+    ],
+    "elapsed_seconds": 5.062203958630562,
+    "memory_available_bytes": 10494083072
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 41730048
+      },
+      {
+        "name": "rustc",
+        "pid": 34335,
+        "rss": 143474688
+      },
+      {
+        "name": "rustc",
+        "pid": 34349,
+        "rss": 121470976
+      }
+    ],
+    "elapsed_seconds": 6.070955916307867,
+    "memory_available_bytes": 10410786816
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 41762816
+      },
+      {
+        "name": "rustc",
+        "pid": 34353,
+        "rss": 159678464
+      },
+      {
+        "name": "rustc",
+        "pid": 34369,
+        "rss": 68599808
+      }
+    ],
+    "elapsed_seconds": 7.081427083350718,
+    "memory_available_bytes": 10431070208
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24625152
+      },
+      {
+        "name": "rustc",
+        "pid": 34372,
+        "rss": 267386880
+      },
+      {
+        "name": "rustc",
+        "pid": 34396,
+        "rss": 42205184
+      }
+    ],
+    "elapsed_seconds": 8.101270124316216,
+    "memory_available_bytes": 9664643072
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24821760
+      },
+      {
+        "name": "rustc",
+        "pid": 34475,
+        "rss": 125403136
+      },
+      {
+        "name": "rustc",
+        "pid": 34478,
+        "rss": 4194304
+      }
+    ],
+    "elapsed_seconds": 9.114097542129457,
+    "memory_available_bytes": 10793369600
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24821760
+      },
+      {
+        "name": "rustc",
+        "pid": 34478,
+        "rss": 356433920
+      },
+      {
+        "name": "rustc",
+        "pid": 34500,
+        "rss": 201293824
+      }
+    ],
+    "elapsed_seconds": 10.124648249708116,
+    "memory_available_bytes": 10813833216
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24821760
+      },
+      {
+        "name": "rustc",
+        "pid": 34478,
+        "rss": 360890368
+      },
+      {
+        "name": "rustc",
+        "pid": 34500,
+        "rss": 326598656
+      }
+    ],
+    "elapsed_seconds": 11.137925166636705,
+    "memory_available_bytes": 11041112064
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24838144
+      },
+      {
+        "name": "rustc",
+        "pid": 34478,
+        "rss": 363888640
+      },
+      {
+        "name": "rustc",
+        "pid": 34575,
+        "rss": 226557952
+      }
+    ],
+    "elapsed_seconds": 12.145516791380942,
+    "memory_available_bytes": 11181375488
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24854528
+      },
+      {
+        "name": "rustc",
+        "pid": 34585,
+        "rss": 275775488
+      },
+      {
+        "name": "rustc",
+        "pid": 34602,
+        "rss": 93077504
+      }
+    ],
+    "elapsed_seconds": 13.159300958737731,
+    "memory_available_bytes": 11297734656
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24854528
+      },
+      {
+        "name": "rustc",
+        "pid": 34585,
+        "rss": 488275968
+      },
+      {
+        "name": "rustc",
+        "pid": 34602,
+        "rss": 340033536
+      }
+    ],
+    "elapsed_seconds": 14.17329949978739,
+    "memory_available_bytes": 11160731648
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24854528
+      },
+      {
+        "name": "rustc",
+        "pid": 34585,
+        "rss": 494665728
+      },
+      {
+        "name": "rustc",
+        "pid": 34602,
+        "rss": 377929728
+      }
+    ],
+    "elapsed_seconds": 15.178945874795318,
+    "memory_available_bytes": 11147657216
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24854528
+      },
+      {
+        "name": "rustc",
+        "pid": 34585,
+        "rss": 497352704
+      },
+      {
+        "name": "rustc",
+        "pid": 34602,
+        "rss": 385089536
+      }
+    ],
+    "elapsed_seconds": 16.19284866657108,
+    "memory_available_bytes": 11214684160
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24854528
+      },
+      {
+        "name": "rustc",
+        "pid": 34585,
+        "rss": 498155520
+      },
+      {
+        "name": "rustc",
+        "pid": 34602,
+        "rss": 406683648
+      }
+    ],
+    "elapsed_seconds": 17.197599374689162,
+    "memory_available_bytes": 11156176896
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24870912
+      },
+      {
+        "name": "rustc",
+        "pid": 34585,
+        "rss": 507461632
+      },
+      {
+        "name": "build-script-build",
+        "pid": 34748,
+        "rss": 32768
+      }
+    ],
+    "elapsed_seconds": 18.211828249506652,
+    "memory_available_bytes": 11316101120
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24870912
+      },
+      {
+        "name": "rustc",
+        "pid": 34585,
+        "rss": 509640704
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 295747584
+      }
+    ],
+    "elapsed_seconds": 19.226166875101626,
+    "memory_available_bytes": 11146067968
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24870912
+      },
+      {
+        "name": "rustc",
+        "pid": 34585,
+        "rss": 517537792
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 443564032
+      }
+    ],
+    "elapsed_seconds": 20.240468291565776,
+    "memory_available_bytes": 11150475264
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24969216
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 744390656
+      },
+      {
+        "name": "rustc",
+        "pid": 34888,
+        "rss": 73662464
+      }
+    ],
+    "elapsed_seconds": 21.25452983379364,
+    "memory_available_bytes": 11205591040
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24969216
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 872693760
+      },
+      {
+        "name": "rustc",
+        "pid": 34888,
+        "rss": 202326016
+      }
+    ],
+    "elapsed_seconds": 22.2685969164595,
+    "memory_available_bytes": 11222466560
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24969216
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 873775104
+      },
+      {
+        "name": "rustc",
+        "pid": 34888,
+        "rss": 321470464
+      }
+    ],
+    "elapsed_seconds": 23.279812708497047,
+    "memory_available_bytes": 11139547136
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24969216
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 878067712
+      },
+      {
+        "name": "rustc",
+        "pid": 34958,
+        "rss": 197345280
+      }
+    ],
+    "elapsed_seconds": 24.284681417047977,
+    "memory_available_bytes": 11222286336
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24969216
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 878116864
+      },
+      {
+        "name": "rustc",
+        "pid": 34994,
+        "rss": 146472960
+      }
+    ],
+    "elapsed_seconds": 25.297198999673128,
+    "memory_available_bytes": 11111268352
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24952832
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 780566528
+      }
+    ],
+    "elapsed_seconds": 26.309915041550994,
+    "memory_available_bytes": 11218419712
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24952832
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 784760832
+      }
+    ],
+    "elapsed_seconds": 27.3209639582783,
+    "memory_available_bytes": 11207802880
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24952832
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 784826368
+      }
+    ],
+    "elapsed_seconds": 28.33492137491703,
+    "memory_available_bytes": 11207589888
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24952832
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 789069824
+      }
+    ],
+    "elapsed_seconds": 29.348895084112883,
+    "memory_available_bytes": 11262722048
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24952832
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 789151744
+      }
+    ],
+    "elapsed_seconds": 30.362907958216965,
+    "memory_available_bytes": 11201495040
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24952832
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 794525696
+      }
+    ],
+    "elapsed_seconds": 31.367157584056258,
+    "memory_available_bytes": 11067457536
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24952832
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 800997376
+      }
+    ],
+    "elapsed_seconds": 32.380663791671395,
+    "memory_available_bytes": 11120607232
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24952832
+      },
+      {
+        "name": "rustc",
+        "pid": 34761,
+        "rss": 813940736
+      }
+    ],
+    "elapsed_seconds": 33.3944088332355,
+    "memory_available_bytes": 11092049920
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 202735616
+      }
+    ],
+    "elapsed_seconds": 34.40395504143089,
+    "memory_available_bytes": 11413979136
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 386826240
+      }
+    ],
+    "elapsed_seconds": 35.408150875009596,
+    "memory_available_bytes": 11397267456
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 474152960
+      }
+    ],
+    "elapsed_seconds": 36.42241216637194,
+    "memory_available_bytes": 11104894976
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 474234880
+      }
+    ],
+    "elapsed_seconds": 37.42932266648859,
+    "memory_available_bytes": 11115003904
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 474644480
+      }
+    ],
+    "elapsed_seconds": 38.44326129183173,
+    "memory_available_bytes": 11128471552
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 480313344
+      }
+    ],
+    "elapsed_seconds": 39.448175333440304,
+    "memory_available_bytes": 11133452288
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 488226816
+      }
+    ],
+    "elapsed_seconds": 40.45285320840776,
+    "memory_available_bytes": 11125997568
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 618872832
+      }
+    ],
+    "elapsed_seconds": 41.45785829145461,
+    "memory_available_bytes": 11061395456
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24985600
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 648347648
+      }
+    ],
+    "elapsed_seconds": 42.472135124728084,
+    "memory_available_bytes": 11100962816
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24903680
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 652673024
+      }
+    ],
+    "elapsed_seconds": 43.488230667077005,
+    "memory_available_bytes": 10895572992
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 697122816
+      }
+    ],
+    "elapsed_seconds": 44.49508558399975,
+    "memory_available_bytes": 10888019968
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 679542784
+      }
+    ],
+    "elapsed_seconds": 45.509564999490976,
+    "memory_available_bytes": 10783408128
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 538132480
+      }
+    ],
+    "elapsed_seconds": 46.515764833427966,
+    "memory_available_bytes": 10797285376
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 587464704
+      }
+    ],
+    "elapsed_seconds": 47.53063412476331,
+    "memory_available_bytes": 10741186560
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 649412608
+      }
+    ],
+    "elapsed_seconds": 48.54519316647202,
+    "memory_available_bytes": 10614718464
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 792920064
+      }
+    ],
+    "elapsed_seconds": 49.55947612505406,
+    "memory_available_bytes": 10592190464
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 684392448
+      }
+    ],
+    "elapsed_seconds": 50.57365862466395,
+    "memory_available_bytes": 10723524608
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 415596544
+      }
+    ],
+    "elapsed_seconds": 51.5878977086395,
+    "memory_available_bytes": 10766532608
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 435994624
+      }
+    ],
+    "elapsed_seconds": 52.601917958818376,
+    "memory_available_bytes": 10766172160
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 475136000
+      }
+    ],
+    "elapsed_seconds": 53.60715933330357,
+    "memory_available_bytes": 10787241984
+  },
+  {
+    "children": [
+      {
+        "name": "cargo",
+        "pid": 33879,
+        "rss": 24772608
+      },
+      {
+        "name": "rustc",
+        "pid": 35282,
+        "rss": 337362944
+      }
+    ],
+    "elapsed_seconds": 54.612758833914995,
+    "memory_available_bytes": 10841735168
+  }
+]

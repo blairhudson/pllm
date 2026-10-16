@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/importlib/metadata/__init__.py", line 407, in from_name
+    return next(iter(cls.discover(name=name)))
+StopIteration
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 464, in main
+    result = run()
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 452, in <lambda>
+    cases = [("provenance", lambda: provenance(output, args.wheel.absolute())),
+                                    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 155, in provenance
+    "torch": dependency_lock("torch"),
+             ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 51, in dependency_lock
+    dist = metadata.distribution(name)
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/importlib/metadata/__init__.py", line 960, in distribution
+    return Distribution.from_name(distribution_name)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/importlib/metadata/__init__.py", line 409, in from_name
+    raise PackageNotFoundError(name)
+importlib.metadata.PackageNotFoundError: No package metadata was found for torch

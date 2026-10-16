@@ -1,0 +1,69 @@
+{
+  "admission": {
+    "cargo_jobs": 2,
+    "maximum_cpu_percent": 90,
+    "minimum_available_bytes": 4294967296,
+    "minimum_disk_free_bytes": 8589934592
+  },
+  "cpu_count": 10,
+  "cpu_percent_1s": 25.6,
+  "disk_free_bytes": 35854921728,
+  "largest_processes": [
+    {
+      "name": "opencode.exe",
+      "pid": 95222,
+      "rss": 10137255936
+    },
+    {
+      "name": "plugin-container",
+      "pid": 83572,
+      "rss": 866467840
+    },
+    {
+      "name": "plugin-container",
+      "pid": 79803,
+      "rss": 840400896
+    },
+    {
+      "name": "opencode.exe",
+      "pid": 95819,
+      "rss": 721436672
+    },
+    {
+      "name": "Orca Helper (Renderer)",
+      "pid": 92399,
+      "rss": 422264832
+    },
+    {
+      "name": "plugin-container",
+      "pid": 67196,
+      "rss": 417775616
+    },
+    {
+      "name": "firefox",
+      "pid": 24993,
+      "rss": 417349632
+    },
+    {
+      "name": "Orca",
+      "pid": 92350,
+      "rss": 319586304
+    }
+  ],
+  "loadavg": [
+    3.6572265625,
+    2.9228515625,
+    2.36181640625
+  ],
+  "memory_available_bytes": 11356405760,
+  "memory_total_bytes": 34359738368,
+  "observed_utc": "2026-10-16T05:40:15.810449+00:00",
+  "swap": {
+    "free": 649330688,
+    "percent": 87.9,
+    "sin": 11598278262784,
+    "sout": 188211478528,
+    "total": 5368709120,
+    "used": 4719378432
+  }
+}

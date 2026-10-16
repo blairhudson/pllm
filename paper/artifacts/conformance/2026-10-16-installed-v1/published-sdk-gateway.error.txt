@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 411, in main
+    result = run()
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 405, in <lambda>
+    ("published-sdk-gateway", lambda: published_requests(output, work)),
+                                      ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 290, in published_requests
+    assert reply.status_code == 200, reply.text
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {"error":{"message":"model must be a non-empty string","type":"invalid_request_error","param":"model","code":"invalid_request_error"}}

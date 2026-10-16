@@ -1,0 +1,24 @@
+{
+  "accounting": "PreparedRemoteLinear sums complete payload lengths, including variable-width MessagePack server_ns",
+  "cases": [
+    {
+      "frame_bytes": 2151,
+      "server_ns": 65535,
+      "sha256": "546a7d1969c57ce3644aa2a2a4ea50c87aedbacd283ce4577155ac598a75fe7c"
+    },
+    {
+      "frame_bytes": 2153,
+      "server_ns": 65536,
+      "sha256": "b4bdcb25a380821417a5c42388a31e46e60632f680cf3a5b940b67933d165fdc"
+    }
+  ],
+  "extra_encoded_bytes": 2,
+  "fixed_geometry": [
+    33,
+    32
+  ],
+  "fixed_wire_bits": 16,
+  "only_changed_field": "server_ns",
+  "original_test_status": "failed; original payloads were not retained; this mechanism does not retroactively prove their exact differing fields",
+  "scope": "deterministic installed framing diagnostic; not captured frames from the earlier failed test"
+}

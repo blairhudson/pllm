@@ -1,0 +1,9 @@
+{
+  "archive": "/Users/blairhudson/workspace/pllm/paper/artifacts/release/2026-10-16-fresh-target-v2",
+  "manifest_sha256": "45b879dc33a4fe3e3db20c44698059a7754a7b51176e67b539b7be16ab55883c",
+  "meaning": "New replay of this completed fresh-target build; original failed installation and historical execution labels remain unchanged",
+  "original_blocker": "Traceback (most recent call last):\n  File \"/Users/blairhudson/workspace/pllm/scripts/build_paper_release.py\", line 342, in execute_release\n    run(\"wheel-install\", [\"uv\", \"--no-config\", \"--offline\", \"pip\", \"install\", \"--python\", fresh_python,\n    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n                          \"--no-build\", \"--strict\", \"--link-mode\", \"copy\", \"--requirements\", output / \"requirements.txt\", wheel], timeout=300)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/blairhudson/workspace/pllm/scripts/build_paper_release.py\", line 213, in run\n    raise RuntimeError(f\"{name} failed: exit={code}, reason={reason}; log retained\")\nRuntimeError: wheel-install failed: exit=1, reason=None; log retained\n",
+  "original_status": "blocked",
+  "receipt_sha256": "899e6baba75acb868686d83e853d9d8a79e91cd78b5cfb0093ce97ac450f4c1d",
+  "wheel_sha256": "3b63ae30631f0b54773d708c0921b75dbf951142f14dfb80dd9eedac145043b6"
+}

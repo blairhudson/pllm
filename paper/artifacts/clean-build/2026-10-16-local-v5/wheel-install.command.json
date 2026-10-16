@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "/opt/homebrew/bin/uv",
+    "--offline",
+    "--no-config",
+    "pip",
+    "install",
+    "--python",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python",
+    "--require-hashes",
+    "--no-deps",
+    "--no-build",
+    "--link-mode",
+    "copy",
+    "--requirements",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/wheel-install.txt",
+    "--verbose"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.40379508305341005,
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "exit_code": 0,
+  "log": "wheel-install.log",
+  "log_sha256": "f34ad3949e29ea85212f2d7245af68d5f5a3de017470f0a6affb76d2af1450bb",
+  "name": "wheel-install",
+  "started_utc": "2026-10-16T05:45:45.376555+00:00"
+}

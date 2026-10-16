@@ -1,0 +1,58 @@
+{
+  "build_environment": {
+    "AR": null,
+    "ARCHFLAGS": null,
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_NET_OFFLINE": "true",
+    "CC": null,
+    "CFLAGS": null,
+    "CXX": null,
+    "CXXFLAGS": null,
+    "DEVELOPER_DIR": null,
+    "LDFLAGS": null,
+    "MACOSX_DEPLOYMENT_TARGET": null,
+    "PATH": "/Users/blairhudson/.local/bin:/opt/homebrew/opt/rustup/bin:/Users/blairhudson/Library/Android/sdk/platform-tools:/Users/blairhudson/Library/Android/sdk/emulator:/Users/blairhudson/Library/Android/sdk/cmdline-tools/latest/bin:/Users/blairhudson/.bun/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/blairhudson/.local/bin:/Applications/Orca.app/Contents/Resources/bin:/opt/homebrew/opt/rustup/bin:/Users/blairhudson/Library/Android/sdk/platform-tools:/Users/blairhudson/Library/Android/sdk/emulator:/Users/blairhudson/Library/Android/sdk/cmdline-tools/latest/bin:/Users/blairhudson/.bun/bin:/opt/homebrew/sbin:/Users/blairhudson/.volta/bin:/Users/blairhudson/.asdf/shims:/Users/blairhudson/.fnm/aliases/default/bin:/Users/blairhudson/.local/share/mise/shims:/Users/blairhudson/Library/pnpm:/Users/blairhudson/.yarn/bin:/usr/local/sbin:/nix/var/nix/profiles/default/bin:/Users/blairhudson/bin:/Users/blairhudson/.nix-profile/bin:/Users/blairhudson/.opencode/bin:/Users/blairhudson/.vite-plus/bin",
+    "RANLIB": null,
+    "SDKROOT": null,
+    "SOURCE_DATE_EPOCH": null,
+    "VIRTUAL_ENV": null
+  },
+  "maturin_files": {
+    "../../../bin/maturin": "28a8045b972e2861317b6985c6f8c4c7921b1da2e6100bb548fae97be3661495",
+    "maturin-1.15.0.dist-info/INSTALLER": "e6184ce10e266134fdcfa401e8f1a95005bcd4f18d16b62b757323e2833fe9a9",
+    "maturin-1.15.0.dist-info/METADATA": "7dace5eb197f1598b0b641a577c17f1fd6058c4b41ba17a4b0a1da08c6764aa7",
+    "maturin-1.15.0.dist-info/RECORD": "5f5ce8a528cc9f56d35adacbc70d14083e69ef172016c9bcde111449fb08713f",
+    "maturin-1.15.0.dist-info/REQUESTED": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "maturin-1.15.0.dist-info/WHEEL": "6564ddcdedf0c8467741747b5f5a1db6056fc5cd250cf7cf9ab3675db777ee5a",
+    "maturin-1.15.0.dist-info/licenses/license-apache": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "maturin-1.15.0.dist-info/licenses/license-mit": "ea7882c559733766ad08343bde1d1ec80a4967c03a738fb8e0058ef6289f7b7c",
+    "maturin-1.15.0.dist-info/sboms/maturin.cyclonedx.json": "84a6ec28276594a3121ab52958ccd420914a717a23f1122d142a3ad1d37d0492",
+    "maturin/__init__.py": "15ffe176b260cf842dc82045cfeb5782dc0d3c398d779ad84788f7bb53261763",
+    "maturin/__main__.py": "b5a940d3c2bedf23acf64a08e2af9a978171c06c02a331c302148fb16b1e8e12",
+    "maturin/bootstrap.py": "2cc46d04e9cd2dc1854ba900bee0d6718172844cd839dde9befcadddbc1a17bb"
+  },
+  "maturin_version": "1.15.0",
+  "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+  "tool_binary_sha256": {
+    "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang": "7def90dd8829726686213a747fc5bff1583df933dae5edc55d755479e0bfe00a",
+    "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld": "5897b275efd93b201b6df5832dd541262b3f20f290859ba78f2200a6a66ef38b",
+    "/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/cargo": "ca274de824f0741d809e115eab77c40208c5ad6484646c381c04f12ec49e6a79",
+    "/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/rustc": "731d78259541b7e845568083df94b541176af5669509d077ee23a88d81f27d41",
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python": "7710b0490e6af648676d7ad163fa1d54bffb75d8505162609a1c3c9b76e1929d",
+    "/usr/bin/strip": "179301dcb41ea78accc3fa0048a7e6f6710d891945a751a34addd622020c1818",
+    "/usr/bin/xcrun": "a439970aea2b4e435eac6518ff62c97fd1c57d8c731974027ad211b515c7a7b8"
+  },
+  "tools": {
+    "cargo-path": "/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/cargo",
+    "cargo-version": "cargo 1.85.1 (d73d2caf9 2024-12-31)\nrelease: 1.85.1\ncommit-hash: d73d2caf9e41a39daf2a8d6ce60ec80bf354d2a7\ncommit-date: 2024-12-31\nhost: aarch64-apple-darwin\nlibgit2: 1.8.1 (sys:0.19.0 vendored)\nlibcurl: 8.7.1 (sys:0.4.74+curl-8.9.0 system ssl:(SecureTransport) LibreSSL/3.3.6)\nssl: OpenSSL 1.1.1w  11 Sep 2023\nos: Mac OS 26.5.2 [64-bit]",
+    "clang-path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+    "clang-version": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "linker-path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+    "maturin-version": "maturin 1.15.0",
+    "rustc-path": "/Users/blairhudson/.rustup/toolchains/1.85.1-aarch64-apple-darwin/bin/rustc",
+    "rustc-version": "rustc 1.85.1 (4eb161250 2025-03-15)\nbinary: rustc\ncommit-hash: 4eb161250e340c8f48f66e2b929ef4a5bed7c181\ncommit-date: 2025-03-15\nhost: aarch64-apple-darwin\nrelease: 1.85.1\nLLVM version: 19.1.7",
+    "rustup-toolchain": "1.85.1-aarch64-apple-darwin (overridden by '/Users/blairhudson/workspace/pllm/rust-toolchain.toml')",
+    "sdk-path": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+    "sdk-version": "26.5"
+  }
+}

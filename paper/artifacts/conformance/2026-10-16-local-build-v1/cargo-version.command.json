@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "cargo",
+    "--version",
+    "--verbose"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.04817175026983023,
+  "exit_code": 0,
+  "log": "cargo-version.log",
+  "log_sha256": "9b5a34f85fd5381ed84b1f2026b591265467215ba627e7d90a21dfd1648066c5",
+  "name": "cargo-version",
+  "started_utc": "2026-10-16T04:41:40.468707+00:00"
+}

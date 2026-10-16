@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "/Users/blairhudson/.cache/uv/wheels-v6/pypi/uv/0.11.8-py3-none-macosx_11_0_arm64/uv-0.11.8.data/scripts/uv",
+    "--version"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "uv-version.log",
+  "name": "uv-version",
+  "started_utc": "2026-10-16T05:37:29.297794+00:00"
+}

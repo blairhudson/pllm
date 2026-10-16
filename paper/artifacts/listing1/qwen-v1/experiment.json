@@ -1,0 +1,39 @@
+{
+  "budget": {
+    "max_input_tokens": 64,
+    "max_new_tokens": 8,
+    "requests": 4
+  },
+  "deployment": {
+    "kind": "local",
+    "root": "local://paper"
+  },
+  "name": "prepared-qwen",
+  "pipeline": {
+    "components": {
+      "inference": {
+        "component": "pllm/inference",
+        "params": {}
+      },
+      "kernels": {
+        "component": "pllm/cpu",
+        "params": {
+          "threads": 4
+        }
+      },
+      "linear": {
+        "component": "pllm/masked-linear",
+        "params": {}
+      },
+      "preparation": {
+        "component": "pllm/model-aware-corrections",
+        "params": {}
+      }
+    },
+    "model": {
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "source": "Qwen/Qwen2.5-0.5B-Instruct"
+    }
+  },
+  "schema": "pllm.experiment.v2"
+}

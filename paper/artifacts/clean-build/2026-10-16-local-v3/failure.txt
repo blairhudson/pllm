@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_clean_build.py", line 283, in build
+    run("dependencies-install", [uv, "--offline", "--no-config", "pip", "install",
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "--python", python, "--require-hashes", "--no-build", "--no-deps", "--link-mode", "copy",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "--requirements", requirements_path, "--verbose"], timeout=600)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_clean_build.py", line 205, in run
+    raise RuntimeError(f"{name} exited {record['exit_code']}; preserved {record['log']}")
+RuntimeError: dependencies-install exited 1; preserved dependencies-install.log

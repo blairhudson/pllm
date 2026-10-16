@@ -1,0 +1,5 @@
+{
+  "path": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/venv/pyvenv.cfg",
+  "sha256": "523023da191fe25abdf95e4f22d81278b97ca4e5fdb954e1a494cc9ab189f740",
+  "text": "home = /Users/blairhudson/.local/share/uv/python/cpython-3.13-macos-aarch64-none/bin\ninclude-system-site-packages = false\nversion = 3.13.15\nexecutable = /Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/bin/python3.13\ncommand = /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python -m venv --without-pip /Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/venv\n"
+}

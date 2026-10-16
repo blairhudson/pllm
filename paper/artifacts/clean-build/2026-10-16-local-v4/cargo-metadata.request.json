@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "cargo",
+    "metadata",
+    "--format-version",
+    "1",
+    "--locked",
+    "--offline"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "cargo-metadata.log",
+  "name": "cargo-metadata",
+  "started_utc": "2026-10-16T05:41:41.286460+00:00"
+}

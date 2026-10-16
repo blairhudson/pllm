@@ -1,0 +1,27 @@
+ M docs/tests/content.test.mjs
+ M docs/tests/test_paper_build.py
+ M paper/CLAIMS-AND-EVIDENCE.md
+ M paper/IMPLEMENTATION-STATUS.md
+ M paper/PUBLICATION-PLAN.md
+ M paper/README.md
+ M paper/header.tex
+ M paper/low-memory.md
+ M paper/manuscript.md
+ M paper/pdf.lua
+ M paper/references.bib
+?? docs/tests/publication-evidence.test.mjs
+?? paper/COMPARISON-CONTRACT.md
+?? paper/HISTORICAL-RESULTS.md
+?? paper/IMPLEMENTATION-EVIDENCE.md
+?? paper/PRIOR-ART-REVIEW.md
+?? paper/SECURITY-AND-CORRECTNESS.md
+?? paper/artifacts/
+?? paper/comparison-contract.v1.json
+?? paper/prior-art-sources.json
+?? scripts/audit_paper_clean_build.py
+?? scripts/audit_paper_conformance.py
+?? scripts/audit_publication_evidence.mjs
+?? scripts/build_paper_release.py
+?? scripts/replay_paper_listing.py
+?? tests/test_paper_boundary_security.py
+?? tests/test_paper_listing_replay.py

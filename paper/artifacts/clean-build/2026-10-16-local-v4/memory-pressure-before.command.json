@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "memory_pressure",
+    "-Q"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.006448875181376934,
+  "environment_file": "build-environment.json",
+  "exit_code": 0,
+  "log": "memory-pressure-before.log",
+  "log_sha256": "21274995076c3e9b899a278d006977798d247367d38687fdc7cd72a546ef8f4f",
+  "name": "memory-pressure-before",
+  "started_utc": "2026-10-16T05:40:28.259448+00:00"
+}

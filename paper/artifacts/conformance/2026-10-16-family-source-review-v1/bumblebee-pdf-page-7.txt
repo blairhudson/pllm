@@ -1,0 +1,91 @@
+ Input: {âj ∈ Rq }j∈[2r ] for an odd q and 1 ≤ 2r ≤ N .                    Algorithm 1 Proposed Oblivious Linear Transform ΠOLT
+ Output: ĉ ∈ Rq such that ĉ[i] = âi mod 2r [⌊i/2r ⌋ · 2r ].              Inputs: Sender S: Q ∈ Zk×m2ℓ
+                                                                                                            and sk. Receiver R: V ∈
+                                                                            Z2m×n  .
+   1: Compute b̂j := 2−r · âj mod q for ∀j ∈ [2r ].
+                                                                               ℓ
+
+                                                                            Output: JUK such that U ≡ℓ Q · V.
+   2: for k = 0, 1, · · · , r − 1 and h := 2r−k /2 do in
+                                                                            Public Params: pp = (HE.pp, pk, (kw , mw , nw ))
+      sequence
+                                                                            • The size mw is a 2-power value, and 1 ≤ kw mw nw ≤ N .
+   3:     for ∀j ∈ [h] do in parallel                                            ′   k     ′     m     ′     n               k ′ n′
+                                                                            • k = ⌈ k ⌉, m = ⌈ m ⌉, n = ⌈ n ⌉, and m̃ = ⌈ m ⌉.
+   4:         Right-shift first b̂j,h := b̂j+h · X h ∈ Rq .                          w
+                                                                                        ′    ′
+                                                                                                  w           w                  w
+                                                                            • Note: If k > n then flip the role of sender and receiver.
+   5:         Bilinear b̂j := b̂j +b̂j,h +Auto(b̂j −b̂j,h , N
+                                                            h +1).
+   6:     end for                                                            1: S  first partitions the matrix Q into block matrices
+   7: end for                                                                   Qα,β ∈ Zkℓ w ×mw . Then S encodes each block matrices
+   8: return b̂0 as ĉ.                                                         as a polynomial q̂α,β := πlhs (Qα,β ) for α ∈ [k ′ ] and
+                                                                                                                                  ℓ
+                                                                                β ∈ [m′ ]. After that S sends {ct′α,β := RLWEq,2pk (q̂α,β )}
+Figure 6: Optimized InterLeave using a FFT-style algorithm.
+                                                                                to R.
+                                                                             2: R first partitions the matrix V into block matrices
+                                                                                             w ×nw
+interleaved polynomials and constructing the result matrix is                   Vβ,γ ∈ Zm  ℓ       . Then R encodes each block matrices
+explained in Figure 8 in the Appendix.                                          as a polynomial v̂β,γ := πrhs (Vβ,γ ) for β ∈ [m′ ] and
+   To achieve a good balance between computation and com-                       γ ∈ [n′ ].
+                                                                             3: On receiving {ct′α,β } from S, R computes a vector of
+munication overhead, it is essential to choose an appropriate
+partition window mw . A smaller value of mw might increase                      RLWE                 denoted as c, where c[αn′ + γ] :=
+                                                                                         ciphertexts, 
+                                                                                             ′
+the communication overhead in Step 1 excessively while a                        ⊞β∈[m′ ] ctα,β ⊠ v̂β,α for α ∈ [k ′ ], γ ∈ [n′ ],
+larger value of mw results in more homomorphic automor-                      4: To compress the the vector c of k ′ n′ ciphertexts into m̃
+phisms in Step 4. Given the matrix shape (k, m, n) and the                      ciphertexts without touching the needed coefficients, R
+partition windows (kw , mw , nw ), the number of ciphertexts                    runs InterLeave on subvectors of c. For example
+sent in Step 1 is n1 := m′ ·min(k ′ , n′ ). The total number of ho-
+                                                                                    c̃[θ] := InterLeave([c[θ · mw ], c[θ · mw + 1], · · ·]),
+momorphic automorphisms to perform InterLeave in Step 4                                                  |             {z              }
+                                                             k ′ n′                                                      mw
+is n2 := ⌈k ′ n′ /mw ⌉mw . After the interleaving, n3 := ⌈          ⌉
+                                                             mw                 for θ ∈ [m̃]. ▷ Pad with zero(s) when k ′ n′ ∤ mw .
+ciphertexts are sent in Step 5. To choose the proper partition
+                                                                             5: Call ĉi,0 , ĉi,1 ← FH2A (c̃[i]) on each ciphertext in c̃,
+window, we can minimize argmin PC · n2 + PB · (n1 + n3 )
+                              kw ,mw ,nw                                        where S obtains ĉi,0 ∈ R2ℓ and R obtains ĉi,1 ∈ R2ℓ , re-
+under the constrain that mw is a 2-power value and 1 ≤                          spectively. After that both S and R can derive their share
+kw mw nw ≤ N . Here PC models the price for computing                           using a local procedure JUKl := ParseMat(ĉ0,l , ĉ1,l , · · · )
+one homomorphic automorphism and PB models the price for                        in Appendix.
+sending one ciphertext. A smaller ratio PC /PB can indicate
+the scenario of powerful computing or constraint bandwidth
+condition. For such cases, we prefer to set a larger mw .                   Theorem 1. The protocol ΠOLT in Algorithm 1 privately
+Conversely, if an ample amount of bandwidth is accessible,                  realizes the OLT functionality in presence of a semi-honest
+a smaller value for mw can be chosen to lighten the time                    adversary under the FH2A hybrid.
+taken for ciphertext interleaving.
+Complexity. Based√ on our empirical results, it appears that
+selecting mw ≈ N is a viable choice.√ Then the protocol in                  E. Further Optimizations
+Algorithm 1 requires about O(kn/ N ) homomorphic auto-
+                                                                               1) Batched Matrix Multiplications: Recall that each multi-
+morphisms for the ciphertexts interleaving. To compare, the
+                                                                            head attention in a transformer model involves H > 1 parallel
+KRDY+ baseline needs O(kn) homomorphic automorphisms.
+                                                                            matrix multiplications, e.g., Qj · Kj for j ∈ [H]. When each
+As an example, let mw = 26 with N = 213 . Under this
+                                                                            of these resultant matrix is small, i.e., |Qj · Kj | ≤ N/2, we
+setting, the ciphertext compression time of our protocol is
+                                                                            prefer to apply InterLeave to compress the ciphertexts from
+approximately 1/26 ≈ 1.6% of the ciphertext compression
+                                                                            the batch multiplications. Briefly, the O(H) RLWE ciphertexts
+time of KRDY+ . The communication overhead of KRDY+ and
+                                                                            of the batch multiplications are further packed into O((H ·
+ours are both O(kn/N ) ciphertexts. Note that BOLT’s prime-
+                                                                            kn)/N ) ciphertexts.
+modulus OLT might require less homomorphic automorphisms
+   p
+O( k 2 m2 n/N 2 ) according to the matrix dimensions [58].                     2) Dynamic Compression Strategy: We adopt a dynamic
+Security. We only add a ciphertext compression step to reduce               strategy for ciphertext compression that allows us to strike a
+the communication overhead, the information we send are a                   balance between reducing communication costs and incurring
+subset of KRDY protocols, so we have the same security level.               additional computation costs. Specifically, we do not use
+The proof of Theoreom 1 follows [54], [36].                                 any ciphertext compression when there is only one RLWE
+                                                                            ciphertext to send, i.e., ⌈k/kw ⌉ · ⌈n/nw ⌉ = 1. Also when
+
+
+
+                                                                        7
+

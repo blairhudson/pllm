@@ -1,0 +1,218 @@
+{
+  "schema": "pllm.paper_competitor_local_locators.v1",
+  "captured_utc": "2026-10-16T06:28:32.181723+00:00",
+  "scope": "Current working-tree source bytes, read only; not an installed-build or runtime claim",
+  "files": [
+    {
+      "path": "crates/pllm-compiler/src/decoder_boundary.rs",
+      "sha256": "555a80f191039413f86ced4298a5b4f3b5b31c2471f93a114f0cc30b61ca7a91",
+      "bytes": 31366,
+      "line_count": 760
+    },
+    {
+      "path": "crates/pllm-compiler/src/lib.rs",
+      "sha256": "d0ff08dec381912cb5f4400f998e518950523d5aa7172686bbf36e7d44ce984e",
+      "bytes": 306177,
+      "line_count": 7716
+    },
+    {
+      "path": "crates/pllm-compiler/src/network_placement.rs",
+      "sha256": "5c0c590047083d69ae388d66be02c1c0bcaa9012f38e1e0f3a9d804a48bc2d47",
+      "bytes": 54807,
+      "line_count": 1317
+    },
+    {
+      "path": "crates/pllm-core/src/codec.rs",
+      "sha256": "770e311d626c303c247c8c8c8ebc3dd8e150b23782604231479d9b2eb6a49549",
+      "bytes": 6873,
+      "line_count": 193
+    },
+    {
+      "path": "crates/pllm-garble/src/private_pages.rs",
+      "sha256": "2ae6ca0691092d8837377bc74cc9c9bf95a0d374efbf7aeff2bfa42be3108925",
+      "bytes": 34419,
+      "line_count": 957
+    },
+    {
+      "path": "crates/pllm-python/src/private_pages.rs",
+      "sha256": "04b91f970757f34961cdcaeba2fb1a74816f4e33092b6a0d7d052da5b3a08123",
+      "bytes": 4548,
+      "line_count": 139
+    },
+    {
+      "path": "python/pllm/profiles/__init__.py",
+      "sha256": "cfc8f9be92476b42becf7efd4dbd5302af0acf582376dc718db6a8b390573b21",
+      "bytes": 50090,
+      "line_count": 1224
+    },
+    {
+      "path": "python/pllm/runtime/client.py",
+      "sha256": "3f977dfc023af0172316d56832c0fd045a7259be532b7bb3d446f79deef04996",
+      "bytes": 287303,
+      "line_count": 6062
+    },
+    {
+      "path": "python/pllm/runtime/model_binding.py",
+      "sha256": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a",
+      "bytes": 129654,
+      "line_count": 2598
+    },
+    {
+      "path": "python/pllm/runtime/native.py",
+      "sha256": "4429341014da3db57badb879091afc0281961afa28379f6e09094eabd43cabf6",
+      "bytes": 13512,
+      "line_count": 290
+    },
+    {
+      "path": "python/pllm/runtime/offset_worker.py",
+      "sha256": "49bad6b0f651f6815604517303588b2c3ce9f89ec702e8cc69fd3b0dce071dbd",
+      "bytes": 31920,
+      "line_count": 670
+    },
+    {
+      "path": "python/pllm/runtime/private_boundary_transport.py",
+      "sha256": "d66afdad0794325b76b7e8ec57a2463a0281e5047c80b8f44adad1601dffe4e0",
+      "bytes": 23935,
+      "line_count": 452
+    },
+    {
+      "path": "python/pllm/runtime/quantization.py",
+      "sha256": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+      "bytes": 10047,
+      "line_count": 276
+    },
+    {
+      "path": "python/pllm/runtime/semantic_executor.py",
+      "sha256": "0b9b4223e5c193530f40760fdcf930d4040f5fce5eb67f3ec03b27c56fa42852",
+      "bytes": 80200,
+      "line_count": 1480
+    },
+    {
+      "path": "python/pllm/runtime/transformer_client.py",
+      "sha256": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574",
+      "bytes": 107020,
+      "line_count": 2200
+    }
+  ],
+  "citations": [
+    {
+      "id": "L-codec",
+      "path": "crates/pllm-core/src/codec.rs",
+      "start_line": 142,
+      "end_line": 174,
+      "url": "../crates/pllm-core/src/codec.rs#L142-L174"
+    },
+    {
+      "id": "L-quant",
+      "path": "python/pllm/runtime/quantization.py",
+      "start_line": 179,
+      "end_line": 202,
+      "url": "../python/pllm/runtime/quantization.py#L179-L202"
+    },
+    {
+      "id": "L-boundary-wire",
+      "path": "python/pllm/runtime/private_boundary_transport.py",
+      "start_line": 307,
+      "end_line": 383,
+      "url": "../python/pllm/runtime/private_boundary_transport.py#L307-L383"
+    },
+    {
+      "id": "L-sampler",
+      "path": "python/pllm/runtime/transformer_client.py",
+      "start_line": 1828,
+      "end_line": 1846,
+      "url": "../python/pllm/runtime/transformer_client.py#L1828-L1846"
+    },
+    {
+      "id": "L-boundary-compiler",
+      "path": "crates/pllm-compiler/src/decoder_boundary.rs",
+      "start_line": 160,
+      "end_line": 195,
+      "url": "../crates/pllm-compiler/src/decoder_boundary.rs#L160-L195"
+    },
+    {
+      "id": "L-offset-compiler",
+      "path": "crates/pllm-compiler/src/lib.rs",
+      "start_line": 2123,
+      "end_line": 2206,
+      "url": "../crates/pllm-compiler/src/lib.rs#L2123-L2206"
+    },
+    {
+      "id": "L-profiles",
+      "path": "python/pllm/profiles/__init__.py",
+      "start_line": 690,
+      "end_line": 712,
+      "url": "../python/pllm/profiles/__init__.py#L690-L712"
+    },
+    {
+      "id": "L-binding",
+      "path": "python/pllm/runtime/model_binding.py",
+      "start_line": 368,
+      "end_line": 409,
+      "url": "../python/pllm/runtime/model_binding.py#L368-L409"
+    },
+    {
+      "id": "L-client",
+      "path": "python/pllm/runtime/client.py",
+      "start_line": 1109,
+      "end_line": 1159,
+      "url": "../python/pllm/runtime/client.py#L1109-L1159"
+    },
+    {
+      "id": "L-semantic",
+      "path": "python/pllm/runtime/semantic_executor.py",
+      "start_line": 1131,
+      "end_line": 1155,
+      "url": "../python/pllm/runtime/semantic_executor.py#L1131-L1155"
+    },
+    {
+      "id": "L-worker-bundle",
+      "path": "python/pllm/runtime/offset_worker.py",
+      "start_line": 157,
+      "end_line": 163,
+      "url": "../python/pllm/runtime/offset_worker.py#L157-L163"
+    },
+    {
+      "id": "L-bundle-binding",
+      "path": "python/pllm/runtime/model_binding.py",
+      "start_line": 1928,
+      "end_line": 1960,
+      "url": "../python/pllm/runtime/model_binding.py#L1928-L1960"
+    },
+    {
+      "id": "L-native-pages",
+      "path": "crates/pllm-python/src/private_pages.rs",
+      "start_line": 26,
+      "end_line": 48,
+      "url": "../crates/pllm-python/src/private_pages.rs#L26-L48"
+    },
+    {
+      "id": "L-native-owner",
+      "path": "crates/pllm-garble/src/private_pages.rs",
+      "start_line": 413,
+      "end_line": 485,
+      "url": "../crates/pllm-garble/src/private_pages.rs#L413-L485"
+    },
+    {
+      "id": "L-native-matrix",
+      "path": "python/pllm/runtime/native.py",
+      "start_line": 72,
+      "end_line": 178,
+      "url": "../python/pllm/runtime/native.py#L72-L178"
+    },
+    {
+      "id": "L-worker-bounds",
+      "path": "python/pllm/runtime/offset_worker.py",
+      "start_line": 31,
+      "end_line": 37,
+      "url": "../python/pllm/runtime/offset_worker.py#L31-L37"
+    },
+    {
+      "id": "L-network-placement",
+      "path": "crates/pllm-compiler/src/network_placement.rs",
+      "start_line": 233,
+      "end_line": 241,
+      "url": "../crates/pllm-compiler/src/network_placement.rs#L233-L241"
+    }
+  ]
+}

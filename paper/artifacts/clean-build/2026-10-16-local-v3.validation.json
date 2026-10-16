@@ -1,0 +1,8 @@
+{
+  "artifact_files_checked": 47,
+  "failed_before_build": true,
+  "reason": "RuntimeError('dependencies-install exited 1; preserved dependencies-install.log')",
+  "receipt": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v3/receipt.json",
+  "receipt_sha256": "0f92b230de781c87655a52396f574bc2e4a2c1c29850d7806cd2d1a8195f9c5f",
+  "status": "failed_attempt_hashes_valid"
+}

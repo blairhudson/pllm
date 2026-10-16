@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "rustup",
+    "which",
+    "rustc"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "log": "rustc-path.log",
+  "name": "rustc-path",
+  "started_utc": "2026-10-16T05:44:01.582524+00:00"
+}

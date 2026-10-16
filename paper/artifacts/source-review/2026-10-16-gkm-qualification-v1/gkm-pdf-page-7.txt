@@ -1,0 +1,51 @@
+For large enough N (relative to the magnitude of the entries of M and x, which
+in turn depends on the scaling factor f ) there is no overflow in the final result
+and hence
+                                y = Mx mod N = Mx,
+which is the desired result. Privacy holds as each server Sb only learns a uniform
+value x(b) . We provide the formal protocol in Figure 1.
+   The work of each server is the same as in the computation of the base model,
+and the client’s work consists merely of two vector additions.
+
+
+                                          ΠMVP
+                                                          m×n
+  Inputs: Client C has x ∈ Zn
+                            N ; servers S0 , S1 have M ∈ ZN   .
+  Outputs: C outputs y = M · x
+                                        (1)
+      1. C picks x(0) ← Zn N and sets x     = x − x(0) mod N
+      2. C sends x(0) to S0 and x(1) to S1
+      3. ∀b ∈ {0, 1}, Sb sends back y(b) = M · x(b) mod N
+      4. C outputs y = y(0) + y(1) mod N
+
+
+                  Fig. 1. Private delegation of a matrix-vector product.
+
+
+
+
+4.2     Verification of Matrix-Vector Products
+We now present a mechanism that allows the client to verify that y = M·x. (See
+Figure 2.) It consists of algorithms Setup, Publish, and Verify, where the first two
+are run by the model owner and the third is run by the client. We assume a fixed
+group G of prime order p ≫ N with generator g in which the discrete-logarithm
+problem is hard.
+     Setup generates global setup material that can be used to verify multiple
+executions of the matrix-vector product protocol. It first generates uniform
+r1 , r2 , . . . , rm′ ← Zp , where m′ is the maximum row dimension across all matri-
+ces to be verified. Then it publicly releases {Ri = g ri }i∈[m′ ] , keeping the {ri }
+private.
+     Publish is used to provide per-matrix verification information. For a ma-
+trix M ∈ Zm×n with m ≤ m′ , this algorithm computes s = MT · r for r =
+(r1 , r2 , . . . , rm ). Then, it publishes {Si = g si }ni=1 . Once verification information
+                                                          ′
+for all matrices has been published, the {ri }m       i=1 can be deleted.
+     To verify a claim that y = Mx, the client uses the global setup information
+{Ri } and the specific verification information {Si } corresponding to M to check
+               Qn          ? Qm
+whether i=1 Sixi = i=1 Riyi . Note that although we have written this as in-
+volving the computation of two group elements, it is more efficient to check that
+Q xi Q −yi ?
+    Si         Ri = 1, which requires just a single multi-exponentiation.
+

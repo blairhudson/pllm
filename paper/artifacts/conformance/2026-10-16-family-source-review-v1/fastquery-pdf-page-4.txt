@@ -1,0 +1,73 @@
+DAC ’24, June 23–27, 2024, San Francisco, CA, USA                             Chenqi Lin1† , Tianshi Xu1† , Zebin Yang1† , Runsheng Wang134 , Ru Huang134 and Meng Li213∗
+
+
+Table 2: Comparison on different granularities of INT3 embed-
+ding table quantization, evaluated on WikiText-103. Per-token
+quantization is forbidden as it can leak the query information.
+                                                                                                                                       (a)
+      Quantization Granularities     LLaMA-7B       LLaMA-13B   LLaMA-30B
+      Per-tensor                       15236.57      11210.18    1772.56
+      Per-token (data leakage)          10.949        9.576       6.000                                                                (b)
+      Per-channel                       10.950        8.268       5.659
+
+                                                                                  Figure 7: Mean absolute values of different embedding channels
+                                                                                  in (a) LLaMA-7B and (b) LLaMA-13B.
+to ensure correct decryption as introduced in Section 2. Hence, it is
+important to propose further optimizations for communication reduc-
+tion. Specifically, we can pack multiple low bit-width elements into an                                          100000 126086
+element with a higher precision, making full use of the high-precision
+
+
+
+
+                                                                                          Appearance Frequency
+plaintext coefficients. In FastQuery, we fix the plaintext bit-width to 13.
+Depending on the embedding table precision, we always try to pack
+as many elements as possible. With the proposed packing algorithm,
+each dot product between the input vector and a column is equivalent                                             10000
+to performing a dot product with multiple embedding table columns,
+which reduces both the computation and number of output polynomi-                                                                2704
+als for better communication efficiency. In Figure 6, we illustrate the
+packing process and provide an example to demonstrate the benefits of                                                                        1383
+matrix-vector multiplication.                                                                                                                       947
+                                                                                                                  1000                                    776
+                                                                                                                                                                664
+   Bit-width alignment After computing the HE-based matrix-vector
+multiplication, we need to align the bit-width of each output element                                                            100         200    300   400    500
+before the computation of the next layer. We extend the bit-width of                                                                          Tokens
+all elements to the required bit by leveraging the bit-width extension
+protocol proposed by SiRNN [16]. The bit-width alignment step enables             Figure 8: Appearance frequencies of the most frequent 500 to-
+us to support a mixed-precision quantized embedding table, which                  kens in the WikiText-103 dataset.
+boosts the performance of low bit-width quantized networks with
+negligible communication cost.
+                                                                                  are set to 4-bit, 3-bit, and 3-bit (represented by 4, 3, 3) to prevent 2-bit
+4.3     Communication-aware Embedding Table                                       quantization, which may hurt model performance.
+        Quantization                                                                 Precision of each packing channel Now we need to determine
+We now aim to reduce the bit-width of the embedding table while                   which channel we should quantize to 4-bit in each coefficient. Consid-
+preserving the performance of LLMs. While per-tensor quantization is              ering outliers (weights with high absolute values) cause huge approxi-
+easy to implement, we find it can hurt model performance, as shown in             mation errors in quantization, we observe the weight distribution in
+Table 2. Since our proposed protocol can support mixed bit-widths, we             the embedding table and find the mean absolute value of each channel
+study more fine-grained quantization strategies, including per-token              varies greatly, as shown in Figure 7. Based on this, we quantize the
+quantization and per-channel quantization. As shown in Table 2, by                salient channels whose weights have higher mean absolute values to
+increasing the quantization flexibility and the quantization parameters,          4-bit. There are other strategies such as considering gradient value [9]
+both per-token and per-channel quantization achieve significantly bet-            or Hessian value [3, 8]. Our method achieves the best performance in
+ter performance. However, per-token quantization can leak the query               this bit-width combination and is easy to implement, as shown in Table
+information. Since the quantization parameters, including the scale and           4 and Table 5.
+bit-width, are publicly known, an adversary can infer the query based                In practice, we just quantize 1/3 of the embedding channels that
+on which bit-width or scale is selected after the private table query.            have the highest mean absolute value into 4-bit and the other 2/3 into
+Hence, we propose a per-channel quantization strategy that consists of            3-bit. Then we change the order of embedding channels and the order of
+the following three steps.                                                        QKV projection weight rows in the first MHA block together, keeping
+    Number of channels and bit-width combination in each coef-                    the multiplication result unchanged. At last, the bit-widths of three
+ficient As mentioned before, the bit-width of each plaintext coefficient          adjacent channels will be 4-bit, 3-bit, and 3-bit, which can be packed
+is fixed to 13. In addition, to generate secret shares, the output needs          in a coefficient. This adjustment can unify the bit-width combination
+to be subtracted by a random number 𝑆. So we need to reserve an                   order in each coefficient and will not introduce any calculation error.
+additional 1 bit for each channel in each coefficient. Based on this, now            Data-free Embedding Table Fine-tuning To further improve the
+we determine how many channels we should pack in one coefficient.                 model performance, we need to conduct fine-tuning on the quantized
+If we set this number too low, e.g., two channels, the total number of            embedding table. A simple idea is to train the model on the downstream
+coefficients will be high, leading to a higher embedding table query              task, while this will lead to huge training costs and overfitting problems
+latency. If we set the number too high, e.g., four channels, more than            [8]. So we need a data-free post-training algorithm to conduct fine-
+half of the channels will be quantized to 2-bit or lower. We find that            tuning. At the same time, we find that different tokens in vocabulary
+this will badly hurt model performance, shown in Table 4 and Table 5.             usually have different importance because their appearance frequencies
+So for query efficiency and model performance, we set the number of               vary greatly, as shown in Figure 8. Based on these, we design a data-free
+channels in each coefficient to 3. The bit-widths of the three channels           embedding table fine-tuning algorithm to further reduce the impact of
+

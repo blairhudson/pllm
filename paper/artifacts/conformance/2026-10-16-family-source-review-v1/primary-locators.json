@@ -1,0 +1,784 @@
+{
+  "page_numbering": "PDF page selected with -f/-l; embedded form-feed characters are not page counters",
+  "pdftotext": {
+    "path": "/opt/homebrew/bin/pdftotext",
+    "sha256": "83c5be5ea8da9fdeae4df5bb15395265770a84e89fe81d89b9b2535a669ec214",
+    "version": "pdftotext version 26.10.0\nCopyright 2005-2026 The Poppler Developers - http://poppler.freedesktop.org\nCopyright 1996-2011, 2022 Glyph & Cog, LLC\n"
+  },
+  "prior_art_sources_sha256": "3f32365833385a8e8d9129826f37eb00e360f69007f27156329916dfb7cf445d",
+  "records": [
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "5",
+            "-l",
+            "5",
+            "/Users/blairhudson/workspace/pllm/papers/r07-slalom.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/slalom-pdf-page-5.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "824c251ee458c8c3206e9103b1e9cf5cd4e65710cea7d9ce0e1d91f0172f51bf"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "6",
+            "-l",
+            "6",
+            "/Users/blairhudson/workspace/pllm/papers/r07-slalom.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/slalom-pdf-page-6.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "02a29737fd7fb0a1a092929894c3ab75fcdac7cf581f82b0b3b7f5401ff0d588"
+        }
+      ],
+      "id": "slalom",
+      "locator": "Section 3/Figure 1; Section 3.2/Lemma 3.1; Section 3.3/Theorem 3.2",
+      "pages": [
+        5,
+        6
+      ],
+      "scope": "trusted software client and trusted Preparation replace original SGX boundary; field, one-use attempts and resource contracts differ",
+      "source": {
+        "authors": [
+          "Florian Tram\u00e8r",
+          "Dan Boneh"
+        ],
+        "bytes": 685146,
+        "contribution": "Reference for prepared masked-linear execution and separate trusted-client verification; preserve the original trusted-hardware boundary in paper comparisons.",
+        "evidence_boundary": "Trusted boundary is material; the original setting is not hardware-free remote private inference.",
+        "file": "papers/r07-slalom.pdf",
+        "first_experiment": "Exact masked-linear result and rejection of altered results across supported numeric domains.",
+        "id": "slalom",
+        "map_year": 2019,
+        "owner": "pllm.protocols.masked_linear",
+        "promotion_gate": "A local-client adaptation is not a reproduction of the original TEE deployment.",
+        "registry_id": "R07",
+        "sha256": "ffdccc42057482eada2ca836e93dafbc35832fb3670e0bce0524b3412f7ef536",
+        "source_evidence": "key_sections_reviewed",
+        "source_url": "https://arxiv.org/abs/1806.03287v2",
+        "status": "available",
+        "title": "Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware",
+        "track": "component_candidate",
+        "year": 2019
+      }
+    },
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "3",
+            "-l",
+            "3",
+            "/Users/blairhudson/workspace/pllm/papers/smoothquant.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/smoothquant-pdf-page-3.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "de5dc4c129718336a47f2ef280d2bf77bb9c5f72c949f64908754288283df552"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "4",
+            "-l",
+            "4",
+            "/Users/blairhudson/workspace/pllm/papers/smoothquant.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/smoothquant-pdf-page-4.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "3c88d859bee4025c446a1ad93b8fdbdd360f4a45e89ceebb19fc499d93446820"
+        }
+      ],
+      "id": "smoothquant",
+      "locator": "Equations (3)-(4), Figures 4-5",
+      "pages": [
+        3,
+        4
+      ],
+      "scope": "alpha=3/4 plus floor, geometric normalization, clipping, public source-bound calibration and client divisions",
+      "source": {
+        "authors": [
+          "Guangxuan Xiao",
+          "Ji Lin",
+          "Mickael Seznec",
+          "Hao Wu",
+          "Julien Demouth",
+          "Song Han"
+        ],
+        "bytes": 5203060,
+        "contribution": "Public offline channel equalization before W8A8 quantization.",
+        "evidence_boundary": "PLLM fixes alpha=3/4, normalizes and clips scales, and applies activation scaling at the client; this is a bounded adaptation, not the original fused GPU implementation.",
+        "file": "papers/smoothquant.pdf",
+        "first_experiment": "Source-locked public calibration and matched quantized-model quality and cost.",
+        "id": "smoothquant",
+        "map_year": 2023,
+        "owner": "pllm.quantization",
+        "promotion_gate": "Separate adapted numeric identity and calibration from original SmoothQuant hardware results.",
+        "sha256": "551636e4e0bd9dda9b01186473bc46c72c56e0c190a28fe6b7ed4fa80055372e",
+        "source_evidence": "key_sections_reviewed",
+        "source_url": "https://proceedings.mlr.press/v202/xiao23c.html",
+        "status": "available",
+        "title": "SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models",
+        "track": "component_candidate",
+        "year": 2023
+      }
+    },
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "10",
+            "-l",
+            "10",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-10.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "2cab041112049c06e453baa92c01e48e636587210e3c3418e99feb1bceecfc0f"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "12",
+            "-l",
+            "12",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-12.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "7cead026f89c56a30209b01785892b360bf6f905f27a364d1997486efcf721fd"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "13",
+            "-l",
+            "13",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-13.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "d7109cd5dfc7a8cb026eb1bb58937e475deb85dda607416f396ef9a5bad22736"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "14",
+            "-l",
+            "14",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-14.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "a4ecd441a006f191463eda74f827fb729b0ba7fdee6bd2a9cf2875065a104243"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "15",
+            "-l",
+            "15",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-15.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "8539ca51fd6b5a11bb56741b0686d76943b3382844d51e283a158b5b119e5f76"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "16",
+            "-l",
+            "16",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-16.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "c05e357a51b47ddf71e583d93ac710db20bccb7cc248d2b218368969fd884733"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "17",
+            "-l",
+            "17",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-17.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "03f8051a9e87aa70ccf6cb1335080d7b2f6314730dca31f4dc5a050943372520"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "18",
+            "-l",
+            "18",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-18.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "69252772225983b114d374dd25cb0721a5780badc9896ce5612f6c9d58e5d12e"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "19",
+            "-l",
+            "19",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-19.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "21476c3673d026e90ea42cab616ffb6eae80e3c0c55049197d3e7fc40ce940a0"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "20",
+            "-l",
+            "20",
+            "/Users/blairhudson/workspace/pllm/papers/r05-logrow.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/logrow-pdf-page-20.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "4ce4072d0204e5e2ca4db4a7ea7c25843fb6787dc1c2b4ce56ba2153f490d459"
+        }
+      ],
+      "id": "logrow",
+      "locator": "Section 3.4/Figure 1; Sections 4.1-4.2; Section 5/Construction 1/Figures 3-5; Section 6/Theorem 1",
+      "pages": [
+        10,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "scope": "implementation retains 2n-1 one-hot tree blocks and implements Figure 5 row reduction; paper Figure 1 states 2n-1 but Section 6 charges n-1; do not claim optimized headline accounting",
+      "source": {
+        "authors": [
+          "David Heath",
+          "Vladimir Kolesnikov",
+          "Lucien K. L. Ng"
+        ],
+        "bytes": 584748,
+        "contribution": "Private lookup execution primitive used by nonlinear methods and other protected-selection workloads.",
+        "evidence_boundary": "Bounded in-process reference uses the older two-row one-hot setup; masked table bits remain in the material count. No full protected decoding or security review.",
+        "file": "papers/r05-logrow.pdf",
+        "first_experiment": "Complete private lookup, including the table payload and output reconstruction.",
+        "id": "logrow",
+        "map_year": 2024,
+        "owner": "pllm.protocols",
+        "promotion_gate": "Ciphertext count alone is not total communication.",
+        "registry_id": "R05",
+        "sha256": "ac61a6a77b1f21656fa6a90a2f550e59d854542e137cc0eaebb29e718de98371",
+        "source_evidence": "primary_full_text_reviewed",
+        "source_url": "https://eprint.iacr.org/2024/369",
+        "status": "available",
+        "title": "Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts",
+        "track": "component_candidate",
+        "year": 2024
+      }
+    },
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "4",
+            "-l",
+            "4",
+            "/Users/blairhudson/workspace/pllm/papers/r13-sigma.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/sigma-pdf-page-4.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "6",
+            "-l",
+            "6",
+            "/Users/blairhudson/workspace/pllm/papers/r13-sigma.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/sigma-pdf-page-6.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "8b9e4904e5e51e4cc3dd384ade4ff273153a45bdd58db4b5679e0aa31c14e7f7"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "7",
+            "-l",
+            "7",
+            "/Users/blairhudson/workspace/pllm/papers/r13-sigma.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/sigma-pdf-page-7.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "67503232af36bddd7be0510ebd293550cd4e31e1033483268786d8dd9d1342e5"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "9",
+            "-l",
+            "9",
+            "/Users/blairhudson/workspace/pllm/papers/r13-sigma.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/sigma-pdf-page-9.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "4c62c6c9a54dc6ba6864c4b1e59732df269c056f0b6791609b0ccb6b54721850"
+        }
+      ],
+      "id": "sigma",
+      "locator": "Sections 2.5-2.6, 4.2.1-4.2.2; Section 5.1/Figure 7",
+      "pages": [
+        4,
+        6,
+        7,
+        9
+      ],
+      "scope": "128 seed bits plus flags, CPU AES, bounded signed-gap shifts and residual SiLU complete gated operator",
+      "source": {
+        "authors": [
+          "Kanav Gupta",
+          "Neha Jawalkar",
+          "Ananta Mukherjee",
+          "Nishanth Chandran",
+          "Divya Gupta",
+          "Ashish Panwar",
+          "Rahul Sharma"
+        ],
+        "bytes": 3564461,
+        "contribution": "Protocol-family references and selectively extracted secure operators; whole-system reproduction belongs in a separately reviewed profile.",
+        "evidence_boundary": "Online role count, preprocessing volume and network bandwidth remain part of the cost.",
+        "file": "papers/r13-sigma.pdf",
+        "first_experiment": "One bounded operator and full communication/material accounting before whole-model claims.",
+        "id": "sigma",
+        "map_year": 2024,
+        "owner": "pllm.protocols",
+        "promotion_gate": "Retain each paper-specific role, numeric and security contract; these papers are not mutually interchangeable.",
+        "registry_id": "R13",
+        "sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+        "source_evidence": "key_sections_reviewed",
+        "source_url": "https://petsymposium.org/popets/2024/popets-2024-0107.php",
+        "status": "available",
+        "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+        "track": "alternate_deployment",
+        "year": 2024
+      }
+    },
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "6",
+            "-l",
+            "6",
+            "/Users/blairhudson/workspace/pllm/papers/r14-fusefss.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/fusefss-pdf-page-6.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "88a7611edec0ee27707b6c16c99d3020af2a638a06f5b181c21f2753d583a560"
+        }
+      ],
+      "id": "fusefss",
+      "locator": "Section 4.5/Theorem 4.6, Section 4.6/Theorem 4.7",
+      "pages": [
+        6
+      ],
+      "scope": "specific eight-phase CPU multi-view adaptation; not full gate compiler or transferred proof",
+      "source": {
+        "authors": [
+          "Yuhan Ma",
+          "Yong Li",
+          "Stefan Schmid"
+        ],
+        "bytes": 579897,
+        "contribution": "Typed scalar-operator lowering and mask-aware predicate/coefficient fusion, paired with a compatible FSS backend.",
+        "evidence_boundary": "Operator fusion does not remove the preprocessing role or cooperating online computation parties.",
+        "file": "papers/r14-fusefss.pdf",
+        "first_experiment": "Compile one fixed-point nonlinear operator; check wraparound, signedness, mask-independent public shapes and complete material consumption.",
+        "id": "fusefss",
+        "map_year": 2026,
+        "owner": "pllm.passes",
+        "promotion_gate": "The rewrite requires the exact sharing domains and online party topology; fusion must preserve transcript and freshness obligations.",
+        "registry_id": "R14",
+        "sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+        "source_evidence": "key_sections_reviewed",
+        "source_url": "https://arxiv.org/abs/2606.09551",
+        "status": "available",
+        "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+        "track": "priority_prototype",
+        "year": 2026
+      }
+    },
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "2",
+            "-l",
+            "2",
+            "/Users/blairhudson/workspace/pllm/papers/fastquery.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/fastquery-pdf-page-2.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "c5e4176954b9577f68920fa985696203d4cfea8447c39cbe54e2c732c3be736d"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "3",
+            "-l",
+            "3",
+            "/Users/blairhudson/workspace/pllm/papers/fastquery.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/fastquery-pdf-page-3.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "35e7cc7cd8e3cd27213637057916439a6235e55f6d893b6ee98b75324335913b"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "4",
+            "-l",
+            "4",
+            "/Users/blairhudson/workspace/pllm/papers/fastquery.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/fastquery-pdf-page-4.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "e3c8e33ac8537e05ebe830f780df9fb70f07f9bd3e0851fdca336d36b7c79570"
+        }
+      ],
+      "id": "fastquery",
+      "locator": "Sections 2.2 and 4.1-4.3, Figures 4-6",
+      "pages": [
+        2,
+        3,
+        4
+      ],
+      "scope": "coefficient one-hot query, mixed width and extracted-LWE packing; local half-gates/OT replaces distributed SiRNN; no fine-tuned model",
+      "source": {
+        "authors": [
+          "Chenqi Lin",
+          "Tianshi Xu",
+          "Zebin Yang",
+          "Runsheng Wang",
+          "Ru Huang",
+          "Meng Li"
+        ],
+        "bytes": 3788182,
+        "contribution": "Protected embedding-table selection capability; model lowering identifies the gather operation.",
+        "evidence_boundary": "Embedding lookup only; does not establish privacy or performance of the transformer body.",
+        "file": "papers/fastquery.pdf",
+        "first_experiment": "Compare remote private lookup with trusted-local embedding lookup under the same workload.",
+        "id": "fastquery",
+        "map_year": 2024,
+        "metadata_url": "https://openalex.org/W4399115439",
+        "owner": "pllm.protocols",
+        "pdf_url": "https://arxiv.org/pdf/2405.16241",
+        "promotion_gate": "Protect the lookup index and retain quantization assumptions; embedding-only support is not whole-model support.",
+        "sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+        "source_evidence": "abstract_or_publication_record_reviewed",
+        "source_url": "https://arxiv.org/abs/2405.16241",
+        "status": "available",
+        "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+        "track": "component_candidate",
+        "year": 2024
+      }
+    },
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "6",
+            "-l",
+            "6",
+            "/Users/blairhudson/workspace/pllm/papers/r22-bumblebee.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/bumblebee-pdf-page-6.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "cbf58535f2d78717c7f401b2eb8704d99dff4f6fa513b4a1ddc57df49d2f196d"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "7",
+            "-l",
+            "7",
+            "/Users/blairhudson/workspace/pllm/papers/r22-bumblebee.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/bumblebee-pdf-page-7.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "9da1d79e25f2eacc20d835d9eeecf2600446548662433e8ac49a27ca0d325a1c"
+        }
+      ],
+      "id": "bumblebee",
+      "locator": "cached ePrint Section IV/Figure 6; final NDSS Section III/Figure 6 is separately reviewed",
+      "pages": [
+        6,
+        7
+      ],
+      "scope": "code locks cached ePrint hash, not different final NDSS PDF; RNS division and trace/interleave are bounded BFV adaptation",
+      "source": {
+        "authors": [
+          "Wen-jie Lu",
+          "Zhicong Huang",
+          "Zhen Gu",
+          "Jingyu Li",
+          "Jian Liu",
+          "Cheng Hong",
+          "Kui Ren",
+          "Tao Wei",
+          "Wenguang Chen"
+        ],
+        "bytes": 1056974,
+        "contribution": "Protocol-family references and selectively extracted secure operators; whole-system reproduction belongs in a separately reviewed profile.",
+        "evidence_boundary": "Both parties participate online; evaluated workloads and client cost must be retained.",
+        "file": "papers/r22-bumblebee.pdf",
+        "first_experiment": "One bounded operator and full communication/material accounting before whole-model claims.",
+        "id": "bumblebee",
+        "map_year": 2025,
+        "owner": "pllm.protocols",
+        "promotion_gate": "Retain each paper-specific role, numeric and security contract; these papers are not mutually interchangeable.",
+        "registry_id": "R22",
+        "sha256": "15583a86593998079d42b8b134dc4f4f5be9ca72a7ced8f31bba05f68893516a",
+        "source_evidence": "key_sections_reviewed",
+        "source_url": "https://eprint.iacr.org/2023/1678",
+        "status": "available",
+        "title": "BumbleBee: Secure Two-party Inference Framework for Large Transformers",
+        "track": "alternate_deployment",
+        "year": 2025
+      }
+    },
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "8",
+            "-l",
+            "8",
+            "/Users/blairhudson/workspace/pllm/papers/r21-nexus.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/nexus-pdf-page-8.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "6b8ba2cefa4f6158cdb0d6a4d88ce444e49e2a2df0a662cce2a7a38161f24047"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "9",
+            "-l",
+            "9",
+            "/Users/blairhudson/workspace/pllm/papers/r21-nexus.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/nexus-pdf-page-9.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "477ab0803d3c0a3ccaedf58a2917806ac78c5fcdb9a1207a67797f857d63ff02"
+        }
+      ],
+      "id": "nexus",
+      "locator": "Section IV softmax, Equation (4), following unnumbered repeated-squaring formula with r=8, Algorithm 4",
+      "pages": [
+        8,
+        9
+      ],
+      "scope": "SDK calls Equation (4) the exponential, but (4) is normalized exponentiation; constant-shift optimization already appears in original; exact shift/range/reciprocal iterations adapted",
+      "source": {
+        "authors": [
+          "Jiawen Zhang",
+          "Xinpeng Yang",
+          "Lipeng He",
+          "Kejia Chen",
+          "Wen-jie Lu",
+          "Yinghao Wang",
+          "Xiaoyang Hou",
+          "Jian Liu",
+          "Kui Ren",
+          "Xiaohu Yang"
+        ],
+        "bytes": 1761262,
+        "contribution": "HE/hybrid inference references with selectively extracted packing, linear and nonlinear techniques; separate whole-system profiles only after implementation.",
+        "evidence_boundary": "Forward inference is not equivalent to an autoregressive service with persistent private KV state and private sampling.",
+        "file": "papers/r21-nexus.pdf",
+        "first_experiment": "One supported operator and one complete forward/decode workload, clearly distinguished.",
+        "id": "nexus",
+        "map_year": 2025,
+        "owner": "pllm.protocols",
+        "promotion_gate": "Retain each paper-specific model adaptation, online topology, numerical contract and state coverage.",
+        "registry_id": "R21",
+        "sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+        "source_evidence": "key_sections_reviewed",
+        "source_url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf",
+        "status": "available",
+        "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+        "track": "alternate_deployment",
+        "year": 2025
+      }
+    },
+    {
+      "extraction_commands": [
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "10",
+            "-l",
+            "10",
+            "/Users/blairhudson/workspace/pllm/papers/thor.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/thor-pdf-page-10.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "e72e4df16eb6af1becca21a98bcada01d7cc8d7802e0a29f5b13708a34055ce8"
+        },
+        {
+          "argv": [
+            "/opt/homebrew/bin/pdftotext",
+            "-layout",
+            "-f",
+            "15",
+            "-l",
+            "15",
+            "/Users/blairhudson/workspace/pllm/papers/thor.pdf",
+            "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-family-source-review-v1/thor-pdf-page-15.txt"
+          ],
+          "exit_code": 0,
+          "stderr": "",
+          "text_sha256": "ef83a5f474d29fa6679fc734f632b81423cb27e16b7ba4aed4ec51ca50d29994"
+        }
+      ],
+      "id": "thor",
+      "locator": "Section 5.1/Algorithm 3; Appendix C degree-15 exponential coefficients",
+      "pages": [
+        10,
+        15
+      ],
+      "scope": "delta1=1 delta2=2, balanced powers, narrow public range, two unit-factor reciprocal iterations; no aSOR/bootstrap/full decoder",
+      "source": {
+        "authors": [
+          "Jungho Moon",
+          "Dongwoo Yoo",
+          "Xiaoqian Jiang",
+          "Miran Kim"
+        ],
+        "bytes": 2109310,
+        "contribution": "HE/hybrid inference references with selectively extracted packing, linear and nonlinear techniques; separate whole-system profiles only after implementation.",
+        "evidence_boundary": "Primarily transformer-forward evidence, not by itself a sustained private autoregressive service.",
+        "file": "papers/thor.pdf",
+        "first_experiment": "One supported operator and one complete forward/decode workload, clearly distinguished.",
+        "id": "thor",
+        "map_year": 2025,
+        "metadata_url": "https://openalex.org/W4416549516",
+        "owner": "pllm.protocols",
+        "pdf_url": "https://eprint.iacr.org/2024/1881.pdf",
+        "promotion_gate": "Retain each paper-specific model adaptation, online topology, numerical contract and state coverage.",
+        "sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+        "source_evidence": "key_sections_reviewed",
+        "source_url": "https://eprint.iacr.org/2024/1881",
+        "status": "available",
+        "title": "THOR: Secure Transformer Inference with Homomorphic Encryption",
+        "track": "alternate_deployment",
+        "year": 2025
+      }
+    }
+  ],
+  "review_sha256": "2ceed787e6e400d65f47073e923065e0f075c14884a49335314513a96fdfd15b",
+  "schema": "pllm.paper_family_primary_locators.v1",
+  "scope": "read existing local primary PDF bytes; no new web search, retrieval or upstream execution",
+  "utc": "2026-10-16T05:01:11.470567+00:00"
+}

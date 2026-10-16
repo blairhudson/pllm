@@ -1,0 +1,1697 @@
+{
+  "annotated-doc": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/annotated-doc/0.0.5-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f176682686534378fb5ce340a787b84af001f2222fdd94d03f5c98550cc35998",
+    "payload_files": 8,
+    "sha256": "62312178a55ca71f517f7d485861614ea46598b0f14c212ec5c06f3029b69175",
+    "upstream_lock_record": {
+      "hash": "sha256:117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101",
+      "size": 5302,
+      "upload-time": "2026-07-28T13:50:57.239Z",
+      "url": "https://files.pythonhosted.org/packages/3e/30/e900b21425a860e195f32e37657aa1f7c7f2b1bfb26f03ca209b90933c06/annotated_doc-0.0.5-py3-none-any.whl"
+    },
+    "version": "0.0.5",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/annotated_doc-0.0.5-py3-none-any.whl"
+  },
+  "annotated-types": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/annotated-types/0.8.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "6a9c0e454194becd7668db390e85320d1abd03edc1918139c7425acd41c24765",
+    "payload_files": 7,
+    "sha256": "41bea540c4ae139252beb59dce76939617fdc4ba49f80800a4c542932190ab1c",
+    "upstream_lock_record": {
+      "hash": "sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0",
+      "size": 13427,
+      "upload-time": "2026-07-23T20:16:12.938Z",
+      "url": "https://files.pythonhosted.org/packages/99/91/8acff4f5e50511b911bbccb72b8628a49c68ce14148cd9f6431094859a90/annotated_types-0.8.0-py3-none-any.whl"
+    },
+    "version": "0.8.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/annotated_types-0.8.0-py3-none-any.whl"
+  },
+  "anyio": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/anyio/4.15.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "2df26dffb2c7c4b592d60179332dbba2cb4ae63b746d7ded014490e00ff368f8",
+    "payload_files": 53,
+    "sha256": "3598d4dcf4759e1ab78eb09e5d47f20b5fc1829b1736bf553ac83ba5484c3d2c",
+    "upstream_lock_record": {
+      "hash": "sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101",
+      "size": 132079,
+      "upload-time": "2026-09-05T10:42:37.923Z",
+      "url": "https://files.pythonhosted.org/packages/12/b8/4bd346e22b28902df4d651910f5242c28d84e4a5c2435ca5c3f797ed7e2e/anyio-4.15.1-py3-none-any.whl"
+    },
+    "version": "4.15.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/anyio-4.15.1-py3-none-any.whl"
+  },
+  "asgiref": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/asgiref/3.12.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "43546ef7ccfc7743ff1caae4a9cbeb9912d0e22d290c41ca743ff1379ef1a97a",
+    "payload_files": 16,
+    "sha256": "badaee5ed2d72fd73bd7db15a56e1c471692b519c61617614598597b74158859",
+    "upstream_lock_record": {
+      "hash": "sha256:fe386d1c2bff7259ea95929266d12a8cf9a8b5a1c2598402967d8792e7a7c094",
+      "size": 25478,
+      "upload-time": "2026-07-14T09:56:16.926Z",
+      "url": "https://files.pythonhosted.org/packages/c0/1b/54f4ad77cd8a584fa70746c47df988e002cf1ee1eba43364d46f87803647/asgiref-3.12.1-py3-none-any.whl"
+    },
+    "version": "3.12.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/asgiref-3.12.1-py3-none-any.whl"
+  },
+  "attrs": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/attrs/26.1.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "ba2c48a5a7e4cc6d5c3a3b5e0c2843299dd874353ff667aad8a28aa4badb22d4",
+    "payload_files": 35,
+    "sha256": "a09278942067cadaeb4601031724cfa91fca4c1f5280cf2bd04fbfe4ec07e3cb",
+    "upstream_lock_record": {
+      "hash": "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309",
+      "size": 67548,
+      "upload-time": "2026-03-19T14:22:23.645Z",
+      "url": "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl"
+    },
+    "version": "26.1.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/attrs-26.1.0-py3-none-any.whl"
+  },
+  "build": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/build/1.6.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "7caa56c24cb8d013d7c7af9339ef78a769fb43166c0e4020ecdb2b154872dfe8",
+    "payload_files": 19,
+    "sha256": "91ec6e104bc4faa28bd272822c3e5905a1306888cae81053ad4976b927f79f73",
+    "upstream_lock_record": {
+      "hash": "sha256:f7aaf1ebbb79178a02ba248bb524f2176b256017e17e8e4bd4289c7b38cc2bad",
+      "size": 31187,
+      "upload-time": "2026-08-27T21:01:14.957Z",
+      "url": "https://files.pythonhosted.org/packages/ab/e5/aa1e81b21aea0ce0ba435311837a37d4cb936e7461f9fecac08580073ba9/build-1.6.0-py3-none-any.whl"
+    },
+    "version": "1.6.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/build-1.6.0-py3-none-any.whl"
+  },
+  "certifi": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/certifi/2026.7.22-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "8eca85afa1929e9cb523defd876fdb2611e1fec2356bf951cdac11936f824f31",
+    "payload_files": 12,
+    "sha256": "9348183831022f5363da8266603de234a45b9136b9079bb5957c19b5258e2866",
+    "upstream_lock_record": {
+      "hash": "sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775",
+      "size": 136983,
+      "upload-time": "2026-07-22T03:35:11.276Z",
+      "url": "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl"
+    },
+    "version": "2026.7.22",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/certifi-2026.7.22-py3-none-any.whl"
+  },
+  "cffi": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/cffi/2.1.1-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "531d79b53dc52acfa3857289929e53149808a716375b02a2342d919cc6d0f056",
+    "payload_files": 31,
+    "sha256": "2857cff4dfc305d912c0982c389d9f2cc469e37d2708c631c30ce62d7864165d",
+    "upstream_lock_record": {
+      "hash": "sha256:19ee6127ee34de7d83ce3d371ebc5ed91addbdcc39f9ab15ce4eb35a4e534971",
+      "size": 184764,
+      "upload-time": "2026-08-03T21:20:03.141Z",
+      "url": "https://files.pythonhosted.org/packages/55/41/4c7042f317b9217502988f0873af87e16ad606dc20f84e546e3e6ce9764c/cffi-2.1.1-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "2.1.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/cffi-2.1.1-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "charset-normalizer": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/charset-normalizer/3.5.1-cp313-cp313-macosx_10_13_universal2",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "64fa75eeb2d00a9c05a56a029c1e7c0a79401fc01bf4ef7abe658172b2af21b0",
+    "payload_files": 21,
+    "sha256": "2660714386990182b785da7811e507847cc717e8d7f1449c5b57d68668bc210a",
+    "upstream_lock_record": {
+      "hash": "sha256:e90251c0c7bdd54a100a0dce3c07b7e637278c93af29dbf78ebb89a58c4bac7d",
+      "size": 340473,
+      "upload-time": "2026-08-15T08:17:39.303Z",
+      "url": "https://files.pythonhosted.org/packages/a4/a0/562247944386f7d4ef94467e84876600cc1e0f1b93239aaa9213d2bc3cbd/charset_normalizer-3.5.1-cp313-cp313-macosx_10_13_universal2.whl"
+    },
+    "version": "3.5.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/charset_normalizer-3.5.1-cp313-cp313-macosx_10_13_universal2.whl"
+  },
+  "click": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/click/8.5.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "b3b5e6e5eab7cb22ec614ec0becc94f0488d815b6bf4b4c6370130c04c1ad21a",
+    "payload_files": 22,
+    "sha256": "cbed4557787c286bda51723b0291f80d2e74d28a39a28aa74da53fda0ec0ccfa",
+    "upstream_lock_record": {
+      "hash": "sha256:255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360",
+      "size": 125251,
+      "upload-time": "2026-08-26T13:33:12.928Z",
+      "url": "https://files.pythonhosted.org/packages/58/50/6c0d534c5f134586a8e1ba4e330569e32f057e33372ae556463212fb4cd3/click-8.5.0-py3-none-any.whl"
+    },
+    "version": "8.5.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/click-8.5.0-py3-none-any.whl"
+  },
+  "coverage": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/coverage/7.16.0-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "7187d82678ee2a9e7758f2afedfbd81145de79bc5e485e09ea3d22a5dcef82d9",
+    "payload_files": 62,
+    "sha256": "1e21c72e8e51b97d188eff06fce5906f13b6a409c2a40a48b73711023723a247",
+    "upstream_lock_record": {
+      "hash": "sha256:0598aadae641f30a0796b75b45c0b9c5de8619bd5cfb251bb0cc254e86e6dd13",
+      "size": 223585,
+      "upload-time": "2026-08-28T21:51:57.355Z",
+      "url": "https://files.pythonhosted.org/packages/89/e9/5e62fda9397175fb206f75368b6e85da06d831c181b6d0f67ca073cd2f89/coverage-7.16.0-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "7.16.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/coverage-7.16.0-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "cryptography": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/cryptography/46.0.7-cp311-abi3-macosx_10_9_universal2",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "56d2f2863ec8c44398494f7984443439d1e608e4a3743ac17bc41590d9b85913",
+    "payload_files": 107,
+    "sha256": "7211854745c2f41cc32351ed930c492bd184b3bcbd8a10938cf8960a71cfd927",
+    "upstream_lock_record": {
+      "hash": "sha256:ea42cbe97209df307fdc3b155f1b6fa2577c0defa8f1f7d3be7d31d189108ad4",
+      "size": 7179869,
+      "upload-time": "2026-04-08T01:56:17.157Z",
+      "url": "https://files.pythonhosted.org/packages/0b/5d/4a8f770695d73be252331e60e526291e3df0c9b27556a90a6b47bccca4c2/cryptography-46.0.7-cp311-abi3-macosx_10_9_universal2.whl"
+    },
+    "version": "46.0.7",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/cryptography-46.0.7-cp311-abi3-macosx_10_9_universal2.whl"
+  },
+  "docutils": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/docutils/0.23-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "ba62bd74705406f969ce4d365516cd491d8f009a1af33a9954862d6917d62d86",
+    "payload_files": 212,
+    "sha256": "78c63bb0ea2b34048d6f9281156b3b65e610f0005b749ca392a59113a4003fdf",
+    "upstream_lock_record": {
+      "hash": "sha256:25d013af9bf23bc1c7b2b093dff4208166c53a94786c9e447808335ef1185fea",
+      "size": 634701,
+      "upload-time": "2026-05-27T17:40:58.442Z",
+      "url": "https://files.pythonhosted.org/packages/32/91/30151a39f7570f448ed84529390628a651d7f27c87d73c9b887f8189695e/docutils-0.23-py3-none-any.whl"
+    },
+    "version": "0.23",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/docutils-0.23-py3-none-any.whl"
+  },
+  "fastapi": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/fastapi/0.141.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "9b9665852c99c7b960130e65f3e6d59fd7483680230260cf9c4438e066e4e19c",
+    "payload_files": 61,
+    "sha256": "f51be48f7e868e9f557f94703cc88c6c29b49fb807791f9f25d55f75c09cdc60",
+    "upstream_lock_record": {
+      "hash": "sha256:bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3",
+      "size": 131954,
+      "upload-time": "2026-07-29T17:18:04.364Z",
+      "url": "https://files.pythonhosted.org/packages/cb/03/10388a42375ee7e4ac9b94eb2c5c569c8b5795e377e701c9ac3ad63de890/fastapi-0.141.1-py3-none-any.whl"
+    },
+    "version": "0.141.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/fastapi-0.141.1-py3-none-any.whl"
+  },
+  "filelock": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/filelock/3.32.5-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "4f021b332c0a655e46a320d047f5801d9849f47734647322ed73df75dc10936c",
+    "payload_files": 26,
+    "sha256": "4b52a374cb06cd8dae2ccf8e5f1e21c4df47d78ac7ebc507999b2e74b4b56f5a",
+    "upstream_lock_record": {
+      "hash": "sha256:142cd9fa77a872c5e78c62329a0d15278fadc686eb89e760017968961a4fd6b2",
+      "size": 100003,
+      "upload-time": "2026-08-31T18:56:33.078Z",
+      "url": "https://files.pythonhosted.org/packages/36/d2/b70a31e13d04456d28493f31d2aa087e99eeb2767ef0293b2625727ccb8c/filelock-3.32.5-py3-none-any.whl"
+    },
+    "version": "3.32.5",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/filelock-3.32.5-py3-none-any.whl"
+  },
+  "fsspec": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/fsspec/2026.7.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "1ca38a06f3a783a2244edb337e1a14413fb40ee39f4ba168f2c5ed987d6bd325",
+    "payload_files": 61,
+    "sha256": "e904db215117b9ebc150bdb2d0fe3501ea2ea4f699fd0edddcfea2cc8fd2241e",
+    "upstream_lock_record": {
+      "hash": "sha256:b57ddbafedfaef7018c1ecab32aa200a9d7ca26b77965f64e48b70061249d279",
+      "size": 206583,
+      "upload-time": "2026-07-28T16:34:49.538Z",
+      "url": "https://files.pythonhosted.org/packages/fd/3c/6a2bf344106328fd04963664a60b9bb6496fc25df8e962fcdc1367285fb9/fsspec-2026.7.0-py3-none-any.whl"
+    },
+    "version": "2026.7.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/fsspec-2026.7.0-py3-none-any.whl"
+  },
+  "googleapis-common-protos": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/googleapis-common-protos/1.75.3-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "cb7ddd066ccfc8f1982dca2a2d5f34dbdd1a2b755bd87102d0fd9269f137332c",
+    "payload_files": 199,
+    "sha256": "f7b9c9fa02ec6c37e6f848adc7cfcf5b1f3884a2dec2e9ad3bff64a57775d40d",
+    "upstream_lock_record": {
+      "hash": "sha256:a018d2bf098ca9fb6faa08d5bb780e2a2c2f73c566f069761331386c9596d3f2",
+      "size": 306984,
+      "upload-time": "2026-09-03T22:30:45.133Z",
+      "url": "https://files.pythonhosted.org/packages/1a/7a/7d79170c6ce6f12e109df2b3879d6b934010cf4f99aea8de8b7e5408c174/googleapis_common_protos-1.75.3-py3-none-any.whl"
+    },
+    "version": "1.75.3",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/googleapis_common_protos-1.75.3-py3-none-any.whl"
+  },
+  "griffelib": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/griffelib/2.3.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "75c8a0620bd0827c3e8e47c1bb832f92fbfa3501b2c2ab52678b60f0b24556d3",
+    "payload_files": 50,
+    "sha256": "d38cd529a0316a130d391922d01bc851a6685ca8ff5064e3c9c88d6ca50658a7",
+    "upstream_lock_record": {
+      "hash": "sha256:1b8f9cd525681c26b1d6d574faa1371651e8459ca51d209684f50b8096ae06e0",
+      "size": 169423,
+      "upload-time": "2026-09-04T15:08:12.956Z",
+      "url": "https://files.pythonhosted.org/packages/41/63/e876e789525063c840ccfa8857febdabd6523bcef9ce7eb979b9305ea895/griffelib-2.3.0-py3-none-any.whl"
+    },
+    "version": "2.3.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/griffelib-2.3.0-py3-none-any.whl"
+  },
+  "h11": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/h11/0.16.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "58eebeae117dc722bd1c0fd8702899bb25055eb4cd93e12b78014370ab57b7b7",
+    "payload_files": 17,
+    "sha256": "9efeb7ac0241b89b7179ac687aa1e2f88a527506c3959bc37c474066fa323296",
+    "upstream_lock_record": {
+      "hash": "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86",
+      "size": 37515,
+      "upload-time": "2025-04-24T03:35:24.344Z",
+      "url": "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl"
+    },
+    "version": "0.16.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/h11-0.16.0-py3-none-any.whl"
+  },
+  "hf-xet": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/hf-xet/1.6.0-cp38-abi3-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "63d14fc8257c111d6a0682dc86fa1b4e428efec7973163234e7ea40ea1942edc",
+    "payload_files": 7,
+    "sha256": "ceea796663275d1b2bd3ec546e35fb5cb218d880163f86fa5ef8364c185bf2fc",
+    "upstream_lock_record": {
+      "hash": "sha256:f0906082d9932ae0c0057fa194041c22b4e2cdb46b2592ef3b91f020d62a081a",
+      "size": 3876287,
+      "upload-time": "2026-08-03T22:33:02.251Z",
+      "url": "https://files.pythonhosted.org/packages/4b/69/55b8dcf636142ae660fec1869fcac14c4da2e8412e14d6eee1523be77e9f/hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl"
+    },
+    "version": "1.6.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl"
+  },
+  "httpcore": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/httpcore/1.0.9-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0872c8b103249294ad57a2395f54341e4286c9c349c6b4d789d83d1f197db457",
+    "payload_files": 36,
+    "sha256": "5e8d43ec1a2db73f2f0e7eae0d990edd25f4c0fa1d6075356667774c0e734a54",
+    "upstream_lock_record": {
+      "hash": "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+      "size": 78784,
+      "upload-time": "2025-04-24T22:06:20.566Z",
+      "url": "https://files.pythonhosted.org/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl"
+    },
+    "version": "1.0.9",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/httpcore-1.0.9-py3-none-any.whl"
+  },
+  "httpcore2": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/httpcore2/2.12.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "72bda2ec34e964a4f307f2ddbd4e967ca57ea91bed37da175238005a0232090f",
+    "payload_files": 36,
+    "sha256": "abf4ffc29176940c6aa08a7ae63b12692b90de7eb47844b91db3c9b4605e202f",
+    "upstream_lock_record": {
+      "hash": "sha256:7e04258ce01013d7d615e5b910a3b27fac937d7a95038227e79652b4ba3b4ceb",
+      "size": 83074,
+      "upload-time": "2026-08-18T13:22:05.854Z",
+      "url": "https://files.pythonhosted.org/packages/d2/74/d370e55600d9bcfa0d9794b0166126d49291a3d2b20c268fc98c453a4948/httpcore2-2.12.0-py3-none-any.whl"
+    },
+    "version": "2.12.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/httpcore2-2.12.0-py3-none-any.whl"
+  },
+  "httpx": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/httpx/0.28.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0686cc4acb0284a0cce7f22d7a2cfd906ad4839789a816f8fc1b5e07351e0a49",
+    "payload_files": 29,
+    "sha256": "ce688f5215aa6afce894f806813bec2af84e7e489d26ff6bfab75549924fd11d",
+    "upstream_lock_record": {
+      "hash": "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+      "size": 73517,
+      "upload-time": "2024-12-06T15:37:21.509Z",
+      "url": "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl"
+    },
+    "version": "0.28.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/httpx-0.28.1-py3-none-any.whl"
+  },
+  "httpx2": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/httpx2/2.12.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "25189b5d558bfafc04eabdf316d12e550bb879babdcaff2bca5840e89ad8e4c2",
+    "payload_files": 36,
+    "sha256": "82d5264a05b4c68bb165a53c927296e0d8f9a086a7339e4fb55a528ed676f4aa",
+    "upstream_lock_record": {
+      "hash": "sha256:cc8b6eecb8661c146b8f89a60e97456ee086e91a784ed31ac450c3a9e613dd36",
+      "size": 95427,
+      "upload-time": "2026-08-18T13:22:06.834Z",
+      "url": "https://files.pythonhosted.org/packages/c8/95/411ba65569158e862368917aaf56597f3e5fa3b91b0502919638465a08f3/httpx2-2.12.0-py3-none-any.whl"
+    },
+    "version": "2.12.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/httpx2-2.12.0-py3-none-any.whl"
+  },
+  "huggingface-hub": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/huggingface-hub/1.30.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "829066be9c22eb1dc610065043a4ff87d3b79453fd4678ebdbcc71a487d01ffe",
+    "payload_files": 192,
+    "sha256": "bab5c833ffad23f9f41cbdd3775f106dcda541b9861fc9d2a5c039bd3bec1370",
+    "upstream_lock_record": {
+      "hash": "sha256:96ae0a8e99a234374a6fe43e989ebd21c04640b91ab2927e7e5773ba1131ca59",
+      "size": 796795,
+      "upload-time": "2026-09-03T10:05:12.21Z",
+      "url": "https://files.pythonhosted.org/packages/c3/0e/3e45bbe0dd48f4e56b1d46649d342de853cd1c7e815323472ab62687f153/huggingface_hub-1.30.0-py3-none-any.whl"
+    },
+    "version": "1.30.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/huggingface_hub-1.30.0-py3-none-any.whl"
+  },
+  "id": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/id/1.6.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "4c7d890e4042b86405585539ec066149f52bf09517b9337572fefa6410114e88",
+    "payload_files": 10,
+    "sha256": "6ec433489d717b48ed469e5205c1996546ba27e9b8ba49e768b8bea9c6b09654",
+    "upstream_lock_record": {
+      "hash": "sha256:f5ec41ed2629a508f5d0988eda142e190c9c6da971100612c4de9ad9f9b237ca",
+      "size": 14689,
+      "upload-time": "2026-02-04T16:19:40.051Z",
+      "url": "https://files.pythonhosted.org/packages/42/77/de194443bf38daed9452139e960c632b0ef9f9a5dd9ce605fdf18ca9f1b1/id-1.6.1-py3-none-any.whl"
+    },
+    "version": "1.6.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/id-1.6.1-py3-none-any.whl"
+  },
+  "idna": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/idna/3.19-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "cf961e7709a4ec99d75e52ef3e57dddb9c7a62e1c102d955af9028330b8d3517",
+    "payload_files": 16,
+    "sha256": "1eaf4744e3bc2ad16bef9b37ffd49c8635f5c76dfd198c5f7e02233c0c607935",
+    "upstream_lock_record": {
+      "hash": "sha256:815e7be7a7806d54abb586dc943addc79e8b2ee16915059658cbeff4b1b43bf4",
+      "size": 68550,
+      "upload-time": "2026-08-18T05:14:22.343Z",
+      "url": "https://files.pythonhosted.org/packages/57/b0/0e52c878c53f245edd3a11020f20979b3f490f245af532c7cae3027754b5/idna-3.19-py3-none-any.whl"
+    },
+    "version": "3.19",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/idna-3.19-py3-none-any.whl"
+  },
+  "iniconfig": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/iniconfig/2.3.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "14311a179a5dc713733bde577cff53f1bfb205389a5d4dc214740e1ce2aecd16",
+    "payload_files": 10,
+    "sha256": "e0a1299dcbf810640b829c230fa5230f8c034e43290ca1266f07eca45f95f970",
+    "upstream_lock_record": {
+      "hash": "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12",
+      "size": 7484,
+      "upload-time": "2025-10-18T21:55:41.639Z",
+      "url": "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl"
+    },
+    "version": "2.3.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/iniconfig-2.3.0-py3-none-any.whl"
+  },
+  "jaraco-classes": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/jaraco-classes/3.4.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "d207f44404079c398f71f4e34e990ea10190d8a4ab873fe5596597a256892d43",
+    "payload_files": 10,
+    "sha256": "e36979a88dc9804fdcd0a357dc6a6309a61ba34b970df6a68303f3e0874276aa",
+    "upstream_lock_record": {
+      "hash": "sha256:f662826b6bed8cace05e7ff873ce0f9283b5c924470fe664fff1c2f00f581790",
+      "size": 6777,
+      "upload-time": "2024-03-31T07:27:34.792Z",
+      "url": "https://files.pythonhosted.org/packages/7f/66/b15ce62552d84bbfcec9a4873ab79d993a1dd4edb922cbfccae192bd5b5f/jaraco.classes-3.4.0-py3-none-any.whl"
+    },
+    "version": "3.4.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/jaraco.classes-3.4.0-py3-none-any.whl"
+  },
+  "jaraco-context": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/jaraco-context/6.1.2-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "2cb665dee688556ca34070fabf83a07396fe90f58cb42570fae36369279a06f6",
+    "payload_files": 7,
+    "sha256": "e4bcee211e74ed1b9ce40ebbbb6a325ea0530abd7b3f1af7ffa2ec73bdd5eb1c",
+    "upstream_lock_record": {
+      "hash": "sha256:bf8150b79a2d5d91ae48629d8b427a8f7ba0e1097dd6202a9059f29a36379535",
+      "size": 7871,
+      "upload-time": "2026-03-20T22:13:32.808Z",
+      "url": "https://files.pythonhosted.org/packages/f2/58/bc8954bda5fcda97bd7c19be11b85f91973d67a706ed4a3aec33e7de22db/jaraco_context-6.1.2-py3-none-any.whl"
+    },
+    "version": "6.1.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/jaraco_context-6.1.2-py3-none-any.whl"
+  },
+  "jaraco-functools": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/jaraco-functools/4.6.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0e25d8b64bb3d628ac6ceb5c5354d33caf6fa33cd9172af5c85839d38a0674b7",
+    "payload_files": 10,
+    "sha256": "6df09b73fcc44c4136eaa5d801da7fd4e57958494da7c87b4b2c4c87d31e6ab8",
+    "upstream_lock_record": {
+      "hash": "sha256:99e3dc0060c5cbe8fcd1cdb36258e2a65ca40f1566b2033b12abb1bb44dd3c30",
+      "size": 11677,
+      "upload-time": "2026-07-14T01:28:01.59Z",
+      "url": "https://files.pythonhosted.org/packages/02/36/ecc85bc96c273dc8a11273ed4782272975e6338d4a3e9228621175edf0e3/jaraco_functools-4.6.0-py3-none-any.whl"
+    },
+    "version": "4.6.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/jaraco_functools-4.6.0-py3-none-any.whl"
+  },
+  "jinja2": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/jinja2/3.1.6-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "c9f5fcb09c4ac5806b0cff8c9717a70ee54d4e55fdde56c5caeebac6c983ac75",
+    "payload_files": 31,
+    "sha256": "fa5e116de0bfbb1d0a7df5fb923d8e6ea253251081cfc6442d24e506597d29d7",
+    "upstream_lock_record": {
+      "hash": "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67",
+      "size": 134899,
+      "upload-time": "2025-03-05T20:05:00.369Z",
+      "url": "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl"
+    },
+    "version": "3.1.6",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/jinja2-3.1.6-py3-none-any.whl"
+  },
+  "jiter": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/jiter/0.16.0-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "74c83a33bb85ec7a914b9f374927a9ed9f1a5e5f925a8d0deb1eb83dc7be5052",
+    "payload_files": 9,
+    "sha256": "c576637d743631f5ab8062cfa43e7404ab929568be0386c2999f5d7da08bd444",
+    "upstream_lock_record": {
+      "hash": "sha256:d28bb3c26762358dadf3e5bf0bccd29ae987d65e6988d2e6f49829c76b003c09",
+      "size": 306489,
+      "upload-time": "2026-06-29T13:03:37.846Z",
+      "url": "https://files.pythonhosted.org/packages/d0/2b/c3eaf16f5d7c9bad66ea32f40a95bd169b29a91217fcc7f081375157e99c/jiter-0.16.0-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "0.16.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/jiter-0.16.0-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "jsonschema": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/jsonschema/4.26.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "98239abefefb330b529477424a27db60bde940e3694fa1c0f2c339b014d5e00c",
+    "payload_files": 43,
+    "sha256": "1d2a5c08b42fde478c4d1834af0c0774b353c08af894f99ac2d380d03350a231",
+    "upstream_lock_record": {
+      "hash": "sha256:d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce",
+      "size": 90630,
+      "upload-time": "2026-01-07T13:41:05.306Z",
+      "url": "https://files.pythonhosted.org/packages/69/90/f63fb5873511e014207a475e2bb4e8b2e570d655b00ac19a9a0ca0a385ee/jsonschema-4.26.0-py3-none-any.whl"
+    },
+    "version": "4.26.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/jsonschema-4.26.0-py3-none-any.whl"
+  },
+  "jsonschema-specifications": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/jsonschema-specifications/2025.9.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "967ab809e5be05f787abbb80dcf36b6744dba81a36ef57d8e14fcc2b2232c45d",
+    "payload_files": 28,
+    "sha256": "572cf7a5ff42f6a6871f01e6033634629bdcf4296d56b5ee1288225ff55717fc",
+    "upstream_lock_record": {
+      "hash": "sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe",
+      "size": 18437,
+      "upload-time": "2025-09-08T01:34:57.871Z",
+      "url": "https://files.pythonhosted.org/packages/41/45/1a4ed80516f02155c51f51e8cedb3c1902296743db0bbc66608a0db2814f/jsonschema_specifications-2025.9.1-py3-none-any.whl"
+    },
+    "version": "2025.9.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/jsonschema_specifications-2025.9.1-py3-none-any.whl"
+  },
+  "keyring": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/keyring/25.7.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "9287b9b19f381c90fbf9527007669faa222d1969efbe4dd0630134c99cd78b9e",
+    "payload_files": 37,
+    "sha256": "70276c9be0eb91fdf79ad74e81b1b888402b33dac9911873a6c842ceb7e8ac62",
+    "upstream_lock_record": {
+      "hash": "sha256:be4a0b195f149690c166e850609a477c532ddbfbaed96a404d4e43f8d5e2689f",
+      "size": 39160,
+      "upload-time": "2025-11-16T16:26:08.402Z",
+      "url": "https://files.pythonhosted.org/packages/81/db/e655086b7f3a705df045bf0933bdd9c2f79bb3c97bfef1384598bb79a217/keyring-25.7.0-py3-none-any.whl"
+    },
+    "version": "25.7.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/keyring-25.7.0-py3-none-any.whl"
+  },
+  "markdown-it-py": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/markdown-it-py/4.2.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "e85adfa459e8582efe312b237bfa9d651921aec58d15b471b9019ba3f8782157",
+    "payload_files": 74,
+    "sha256": "08a222a48ab5d598059460e9b68f363149b613c3707ab98742e9424b5a30b61f",
+    "upstream_lock_record": {
+      "hash": "sha256:9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a",
+      "size": 91687,
+      "upload-time": "2026-05-07T12:08:27.182Z",
+      "url": "https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl"
+    },
+    "version": "4.2.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/markdown_it_py-4.2.0-py3-none-any.whl"
+  },
+  "markupsafe": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/markupsafe/3.0.3-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "ec1d64717d0d5686a9a776189133a69c9d715bede4883ebffcddcd9141e97dcb",
+    "payload_files": 11,
+    "sha256": "5ef6f909212cc95aa465aa44c540338fabb412184e136ca6805528650f6251d3",
+    "upstream_lock_record": {
+      "hash": "sha256:116bb52f642a37c115f517494ea5feb03889e04df47eeff5b130b1808ce7c219",
+      "size": 12029,
+      "upload-time": "2025-09-27T18:36:43.257Z",
+      "url": "https://files.pythonhosted.org/packages/9c/d9/5f7756922cdd676869eca1c4e3c0cd0df60ed30199ffd775e319089cb3ed/markupsafe-3.0.3-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "3.0.3",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/markupsafe-3.0.3-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "maturin": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/maturin/1.15.0-e45ef2fc6d5c3af6",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "8d23a5a6f07e4945b6f0c8e0188c28b7f28ae13f8559699d71c999f876e652cd",
+    "payload_files": 10,
+    "sha256": "3b194f7030bfbf92626ef7d6bd400fb3439a5abaa91e9ec2a58cdda55f3c1fe5",
+    "upstream_lock_record": {
+      "hash": "sha256:cd35772633f489841132bc8e71d6fc7f842df30b9c05cd5cdf1ee1ddcb744cc7",
+      "size": 19416513,
+      "upload-time": "2026-08-24T12:10:56.126Z",
+      "url": "https://files.pythonhosted.org/packages/eb/1f/2b431554e11687cdb1077e0cdadcc118c53f611086b3af00c8545a67c6a5/maturin-1.15.0-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl"
+    },
+    "version": "1.15.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/maturin-1.15.0-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl"
+  },
+  "mcp": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/mcp/2.2.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "d75a6a9c7e4a024dac3b57516a4d9b2800e9dc911d3074e6500f23a20143316b",
+    "payload_files": 129,
+    "sha256": "aeff538027c7568efa53ace9c62798c2339729ac0e636b704a4c7acb9c7ddef8",
+    "upstream_lock_record": {
+      "hash": "sha256:bde982589473a060ae145e3406e9a5333fe538c97229ba841f5a7f92be004f81",
+      "size": 365656,
+      "upload-time": "2026-09-07T16:06:19.711Z",
+      "url": "https://files.pythonhosted.org/packages/1b/ff/8e7eade68b8a28f7da0ed1085544341b51f9c935dbf6b95c76b7edfea6a0/mcp-2.2.0-py3-none-any.whl"
+    },
+    "version": "2.2.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/mcp-2.2.0-py3-none-any.whl"
+  },
+  "mcp-types": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/mcp-types/2.2.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "ed7c53a684d106ba57f40ae8690666708de8a1378a0c67701f6083dea5f74a84",
+    "payload_files": 13,
+    "sha256": "828063d249326de0394862904d430d11f51e64c91a48d4af545df6b9972cfbee",
+    "upstream_lock_record": {
+      "hash": "sha256:ea476b73ee86709ab5abc9452385ed36cc05907e582355622e294595c9a04f13",
+      "size": 69106,
+      "upload-time": "2026-09-07T16:06:21.461Z",
+      "url": "https://files.pythonhosted.org/packages/8f/d7/6ffba5d8cd5dd9b8a19478875c50e04945314ba5074e84d749283f27f62d/mcp_types-2.2.0-py3-none-any.whl"
+    },
+    "version": "2.2.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/mcp_types-2.2.0-py3-none-any.whl"
+  },
+  "mdurl": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/mdurl/0.1.2-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "eec0d1ed2536aaad6eaff92afea7eec28ed0baf61f35c02aed16de0fdc908198",
+    "payload_files": 11,
+    "sha256": "1bede58e740347d5af440d49f40d7b5fa7702ef294004aa2154b38279f4f73f1",
+    "upstream_lock_record": {
+      "hash": "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8",
+      "size": 9979,
+      "upload-time": "2022-08-14T12:40:09.779Z",
+      "url": "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl"
+    },
+    "version": "0.1.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/mdurl-0.1.2-py3-none-any.whl"
+  },
+  "ml-dtypes": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/ml-dtypes/0.6.0-cp313-cp313-macosx_10_13_universal2",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "6e5cb03c09cc391d9008b4196a2a1638fda8d9a5cbed5d8110cde7d5a36fdd14",
+    "payload_files": 10,
+    "sha256": "15679be0848f3817485a30f205f65587f0c5c908bafafaa846f915b427abad2e",
+    "upstream_lock_record": {
+      "hash": "sha256:084dfe51a7ad58b171f05115f8226ed4233a454a1611371947e806e76f0c638d",
+      "size": 565468,
+      "upload-time": "2026-08-13T14:14:08.5Z",
+      "url": "https://files.pythonhosted.org/packages/50/51/fd1582b8f5ed8a9e7be0e161a6ea0dff70cb280479a12178df0b3a72700e/ml_dtypes-0.6.0-cp313-cp313-macosx_10_13_universal2.whl"
+    },
+    "version": "0.6.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/ml_dtypes-0.6.0-cp313-cp313-macosx_10_13_universal2.whl"
+  },
+  "mlx": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/mlx/0.32.2-cp313-cp313-macosx_26_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "b8ff8121819192049b74e4034721298b879ae9a4a91f21ea4ae67919027afce7",
+    "payload_files": 48,
+    "sha256": "2061074e5b9e65b4a7c5ce61ec47c9916438f6a8aceebfe1408e2136b870b242",
+    "upstream_lock_record": {
+      "hash": "sha256:df8c75e509de868fca148dfeb38d92ce956eed386569c87caeb72bd16d2d6962",
+      "size": 619417,
+      "upload-time": "2026-08-25T10:31:58.569Z",
+      "url": "https://files.pythonhosted.org/packages/38/96/9db8e27f384d83d3816ec7392c7a2b375979c14509d7f345d1fa3d05cac8/mlx-0.32.2-cp313-cp313-macosx_26_0_arm64.whl"
+    },
+    "version": "0.32.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/mlx-0.32.2-cp313-cp313-macosx_26_0_arm64.whl"
+  },
+  "mlx-metal": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/mlx-metal/0.32.2-py3-none-macosx_26_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "ebcb5c2ddb32298b0d845de77f6f487108f295c391b2d892c0315f16ecb6a747",
+    "payload_files": 405,
+    "sha256": "2b986cdcdfd0fb76e7f0131ebf35e8976a7f16ccf87a00aa69d0c2c55649d90f",
+    "upstream_lock_record": {
+      "hash": "sha256:e6abeac9ac5265830c9c1541b6f96e9be37a85c2446763a46ad466c63a3837ab",
+      "size": 64367860,
+      "upload-time": "2026-08-25T10:31:28.056Z",
+      "url": "https://files.pythonhosted.org/packages/dd/cd/4e50bf325100e7165e13d025f264362bf0009196269f9eaf87f2c6e738a2/mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl"
+    },
+    "version": "0.32.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl"
+  },
+  "more-itertools": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/more-itertools/11.1.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0cf18654b2635b93725a41a4e2e3abb5607e74ccc65888ce461ff767cb09bc9e",
+    "payload_files": 11,
+    "sha256": "9e989416a767ab9fae3448da7d36bec3941c7d822064f01286fdca28ba3ac8bb",
+    "upstream_lock_record": {
+      "hash": "sha256:4b65538ae22f6fed0ce4874efd317463a7489796a0939fa66824dd542125a192",
+      "size": 72226,
+      "upload-time": "2026-05-22T14:14:28.824Z",
+      "url": "https://files.pythonhosted.org/packages/e8/3d/1087453384dbde46a8c7f9356eead2c58be8a7bf156bca40243377c85715/more_itertools-11.1.0-py3-none-any.whl"
+    },
+    "version": "11.1.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/more_itertools-11.1.0-py3-none-any.whl"
+  },
+  "mpmath": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/mpmath/1.3.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "7c9b07ccf12396550dba80af1157e05f39207ebdb1ad031e5b890f1700783728",
+    "payload_files": 92,
+    "sha256": "7ce479987fe24fc6d6dec282e802880e30de8a5dd59633707c670ab808b202ff",
+    "upstream_lock_record": {
+      "hash": "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c",
+      "size": 536198,
+      "upload-time": "2023-03-07T16:47:09.197Z",
+      "url": "https://files.pythonhosted.org/packages/43/e3/7d92a15f894aa0c9c4b49b8ee9ac9850d6e63b03c9c32c0367a13ae62209/mpmath-1.3.0-py3-none-any.whl"
+    },
+    "version": "1.3.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/mpmath-1.3.0-py3-none-any.whl"
+  },
+  "msgpack": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/msgpack/1.2.2-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "2eca9f624740e74b5abac998e09294185ea8b15de38ec0019affb67eb56ce419",
+    "payload_files": 10,
+    "sha256": "00e1f669d9ccb28a256b870b2ec78b9ce37f7646842d5b586df04fb38b7fd3e2",
+    "upstream_lock_record": {
+      "hash": "sha256:1e8cdd1f3e7cc52c751092a9bf740e81e6919ab109cd376ae2d965dad0bbae34",
+      "size": 83734,
+      "upload-time": "2026-08-27T10:02:25.613Z",
+      "url": "https://files.pythonhosted.org/packages/33/54/10c6c16ddba8a5112e3680176b838e3694e4aad7284f9daa6d6d70d98817/msgpack-1.2.2-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "1.2.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/msgpack-1.2.2-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "networkx": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/networkx/3.6.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "fff9e2af0ac9f9f2f80212f3afaca9e29c02ed98209fa8f1bfc7a3d0d2ceab46",
+    "payload_files": 601,
+    "sha256": "91816dcd3b040ee42ab0342118a41c6cdb351bd5cb635ac82ba3129d6d247100",
+    "upstream_lock_record": {
+      "hash": "sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762",
+      "size": 2068504,
+      "upload-time": "2025-12-08T17:02:38.159Z",
+      "url": "https://files.pythonhosted.org/packages/9e/c9/b2622292ea83fbb4ec318f5b9ab867d0a28ab43c5717bb85b0a5f6b3b0a4/networkx-3.6.1-py3-none-any.whl"
+    },
+    "version": "3.6.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/networkx-3.6.1-py3-none-any.whl"
+  },
+  "nh3": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/nh3/0.3.7-4c6357543e9e312e",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "c11f51f75c6ec5b59a5fd84ebea004907048e6c3fed2f1216a5b84bc14eae532",
+    "payload_files": 9,
+    "sha256": "dc2f27177a91d481dd99ccf4975d4612a880c037b9557485d05e29e8556e2a13",
+    "upstream_lock_record": {
+      "hash": "sha256:6c3aa50eb26e9228238271db9f983cbc3b006dfbfeca2d4dc34c33ddc6ac5ea5",
+      "size": 1493959,
+      "upload-time": "2026-08-23T14:26:09.025Z",
+      "url": "https://files.pythonhosted.org/packages/94/0d/c257754bf57f829f307aa226bbe136d3a1356b5a0d08324c7b6bd2a8aacd/nh3-0.3.7-cp38-abi3-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl"
+    },
+    "version": "0.3.7",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/nh3-0.3.7-cp38-abi3-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl"
+  },
+  "numpy": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/numpy/2.5.3-cp313-cp313-macosx_14_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f39b5df8e31f6087d9b2739799324b29fc03b7622d597300ee3540d5a788072e",
+    "payload_files": 923,
+    "sha256": "5800bf295853801d022b8cff5c800686a4ebe315763e50f8702081930ca986e3",
+    "upstream_lock_record": {
+      "hash": "sha256:f9a2353b37a1a9e78fd82b27ad7e2a32a2d036604d18f02b05e3136c62ca3b09",
+      "size": 5439695,
+      "upload-time": "2026-09-06T16:25:05.978Z",
+      "url": "https://files.pythonhosted.org/packages/ab/2a/98282aa5b8f58b1157d440bb6282eed47e3632a5de53a714fbab17e659fe/numpy-2.5.3-cp313-cp313-macosx_14_0_arm64.whl"
+    },
+    "version": "2.5.3",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/numpy-2.5.3-cp313-cp313-macosx_14_0_arm64.whl"
+  },
+  "openai": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/openai/3.8.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f10247e9cf8a3a247f25fbc4233fd935fc0c555149fb4c3578b0993cffe347be",
+    "payload_files": 1581,
+    "sha256": "fa23e82a191e3b463b3000ca6d32674daab7a3fe4bf77e6cc83837f7694a5fb7",
+    "upstream_lock_record": {
+      "hash": "sha256:514736aa1e4ef1033c1209ad53897392845ccd4f2c4fae6413b2cf5f91c2c926",
+      "size": 1740349,
+      "upload-time": "2026-09-03T19:51:08.596Z",
+      "url": "https://files.pythonhosted.org/packages/24/a4/c7e89d3bfb8b7c7ffa38ec9fe527bccf4df723f752fb11bdb3da6c750b76/openai-3.8.0-py3-none-any.whl"
+    },
+    "version": "3.8.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/openai-3.8.0-py3-none-any.whl"
+  },
+  "openai-agents": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/openai-agents/0.22.2-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "da6cb509b7c65c2ffda274ac1cc9c7d2792a41612e10ffe32707e79d37939bfb",
+    "payload_files": 324,
+    "sha256": "fcdc96888690d97792bbf0725cdd085ab5999bbeaa78178d47e47056f12ee3ae",
+    "upstream_lock_record": {
+      "hash": "sha256:685ae918878be4cf52b62d9c732a6d7b8fae7b634268945a20e1a6d2107bd31e",
+      "size": 1144460,
+      "upload-time": "2026-09-09T12:37:23.612Z",
+      "url": "https://files.pythonhosted.org/packages/ef/77/ee12f3de6449f3cd50cba76fb9ddee1d5992e608e3b8739106371334ab04/openai_agents-0.22.2-py3-none-any.whl"
+    },
+    "version": "0.22.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/openai_agents-0.22.2-py3-none-any.whl"
+  },
+  "opentelemetry-api": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-api/1.44.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "59381b46eb87e33a45ac5e844b886d45687b82b69924c9f1a6aa3ed8680b8f65",
+    "payload_files": 47,
+    "sha256": "4697cb3d5ede34843ed2f968803069d81172dfb5cabc06ea6275987c99db3fae",
+    "upstream_lock_record": {
+      "hash": "sha256:94b98c893a91b88657eaac1e3ba89618cdb85be6918196705354f34728b2cdef",
+      "size": 60018,
+      "upload-time": "2026-07-16T15:25:11.657Z",
+      "url": "https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl"
+    },
+    "version": "1.44.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_api-1.44.0-py3-none-any.whl"
+  },
+  "opentelemetry-exporter-otlp-proto-common": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-exporter-otlp-proto-common/1.44.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "6afb08463651e32f6c22d468b179d9337aacd1293ac8f6612c50fec3ce4fce9e",
+    "payload_files": 15,
+    "sha256": "b19e3c57375808a68e3c661dbd61aecb1e2b38e3d659f5b0d21b41a14b3873d3",
+    "upstream_lock_record": {
+      "hash": "sha256:9a9fe61bba73d802904bc989f1d6b4a7b1ee40f06c40e98d6f85af65aaebb694",
+      "size": 17045,
+      "upload-time": "2026-07-16T15:25:18.201Z",
+      "url": "https://files.pythonhosted.org/packages/5e/71/65fd9d54c10b860f87c045ccee1264cab7011268895d3528818a29c1172a/opentelemetry_exporter_otlp_proto_common-1.44.0-py3-none-any.whl"
+    },
+    "version": "1.44.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_exporter_otlp_proto_common-1.44.0-py3-none-any.whl"
+  },
+  "opentelemetry-exporter-otlp-proto-http": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-exporter-otlp-proto-http/1.44.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "74260b22a0636bb6c9902ee30acc09f0a4d18bba1d12e116b7aedb102e0d8ce5",
+    "payload_files": 13,
+    "sha256": "f546241b77b773619151205e1b21f382a77addf01705161d4067f79359467639",
+    "upstream_lock_record": {
+      "hash": "sha256:838592fce774c1c8bb7b9a0a7facbfa82e17be5a8a4e94cef10cb84ae026bae3",
+      "size": 21850,
+      "upload-time": "2026-07-16T15:25:20.006Z",
+      "url": "https://files.pythonhosted.org/packages/cd/d0/fdeb1a98d8d3a6205f5f297c51b4a9bfe65126ab60339669bbe3dd54c2e2/opentelemetry_exporter_otlp_proto_http-1.44.0-py3-none-any.whl"
+    },
+    "version": "1.44.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_exporter_otlp_proto_http-1.44.0-py3-none-any.whl"
+  },
+  "opentelemetry-instrumentation": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-instrumentation/0.65b0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "2f9cfc0057700bd2b6cee5bf95cdab059a92a193696891063f106938f8fe9802",
+    "payload_files": 24,
+    "sha256": "00712e0a52b6c585cab5de632ddeefc23f0df6a4ce2558f8b35aadd962a621d3",
+    "upstream_lock_record": {
+      "hash": "sha256:ea967a72b9939b5fcfdad572753b4306c59dcb99e3f382d95dae04286805e137",
+      "size": 36717,
+      "upload-time": "2026-07-16T15:24:51.424Z",
+      "url": "https://files.pythonhosted.org/packages/40/7b/85eab1215f72adf0e68d3dc4a679b9bff993fa679ff34cd8dd378e2659fd/opentelemetry_instrumentation-0.65b0-py3-none-any.whl"
+    },
+    "version": "0.65b0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_instrumentation-0.65b0-py3-none-any.whl"
+  },
+  "opentelemetry-instrumentation-asgi": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-instrumentation-asgi/0.65b0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "79ebd0f7b00c75bf28de236aa47fe3e1d75710d8bbb46efd928f7c598de02b4d",
+    "payload_files": 8,
+    "sha256": "87108959df69bbe0b53e9faaa8ce8de881d429df253f861285d82ad423810cca",
+    "upstream_lock_record": {
+      "hash": "sha256:3a845a8ebd1c4ef0d8263401e6545f5b219b2feee612090d50f578a87e71fd65",
+      "size": 15903,
+      "upload-time": "2026-07-16T15:24:57.198Z",
+      "url": "https://files.pythonhosted.org/packages/0b/9c/376962840b619d2d55fe8ee2285f8c70971c090e5fff614516fc654a6f3a/opentelemetry_instrumentation_asgi-0.65b0-py3-none-any.whl"
+    },
+    "version": "0.65b0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_instrumentation_asgi-0.65b0-py3-none-any.whl"
+  },
+  "opentelemetry-instrumentation-fastapi": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-instrumentation-fastapi/0.65b0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "4356fb1187746ee6458fd8611654565cf7bf108758e784a0139d0a05330c47cf",
+    "payload_files": 8,
+    "sha256": "dfaeb7815f1de31ba13e92d83ac48983c28d708bff1b33b7f7c1b1abbd18b989",
+    "upstream_lock_record": {
+      "hash": "sha256:cda2610a0ec1b22d19886f33e4d861e9f5dbb886aeaa3a1263b47aff82c36943",
+      "size": 13261,
+      "upload-time": "2026-07-16T15:25:12.429Z",
+      "url": "https://files.pythonhosted.org/packages/fa/b0/c9b0300d33349ecc3dfd2362516eaffc44877e90970e6a52178ff953fec3/opentelemetry_instrumentation_fastapi-0.65b0-py3-none-any.whl"
+    },
+    "version": "0.65b0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_instrumentation_fastapi-0.65b0-py3-none-any.whl"
+  },
+  "opentelemetry-instrumentation-httpx": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-instrumentation-httpx/0.65b0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "8d78d139c0bdcd0ca6d6eb4706ab34e893f5c2ddffd0ac3ca79624f557cc4218",
+    "payload_files": 9,
+    "sha256": "cc68da19316c551811d86e6df57202fbc82520d7dd5f079cb6e068d1118deb65",
+    "upstream_lock_record": {
+      "hash": "sha256:400f1b78afa4ee2332b5debe58e1ed1b317913d58812c952576be76660aeadb1",
+      "size": 17436,
+      "upload-time": "2026-07-16T15:25:15.772Z",
+      "url": "https://files.pythonhosted.org/packages/9d/0f/c6144096b4914bbf44b43ba21c962e8f333ff045770b50a3e79ed8bd455f/opentelemetry_instrumentation_httpx-0.65b0-py3-none-any.whl"
+    },
+    "version": "0.65b0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_instrumentation_httpx-0.65b0-py3-none-any.whl"
+  },
+  "opentelemetry-instrumentation-system-metrics": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-instrumentation-system-metrics/0.65b0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "30c9b9139b82d31cd4e1eb9f75bcc6b3cfc935bbea205cf2abf8704e4ce2ba48",
+    "payload_files": 10,
+    "sha256": "8c796e5165d6e827b925ffcd05cc261977d382b2b2816d74288235a7ee4931a4",
+    "upstream_lock_record": {
+      "hash": "sha256:48ef6c8f5924f391d07c073a40c7018874046703477e538fbe64ff37af196cf0",
+      "size": 14005,
+      "upload-time": "2026-07-16T15:25:36.329Z",
+      "url": "https://files.pythonhosted.org/packages/23/9e/90c142f60d91c80b725b5830cf02d1ab91344611e857427fec048695579f/opentelemetry_instrumentation_system_metrics-0.65b0-py3-none-any.whl"
+    },
+    "version": "0.65b0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_instrumentation_system_metrics-0.65b0-py3-none-any.whl"
+  },
+  "opentelemetry-proto": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-proto/1.44.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "3e26d91bf2bb6617d55a38f1e4b5ef4e6b106692e3169a5696b42a3377cd15fe",
+    "payload_files": 44,
+    "sha256": "6399012fb08cd1f984e3f57f574cd7d716c210eff76a4517977018f40b422154",
+    "upstream_lock_record": {
+      "hash": "sha256:898b155a0e1557afd867478fb6158e8122a46329ca0bb8dc53cc55e98f017f56",
+      "size": 72483,
+      "upload-time": "2026-07-16T15:25:28.429Z",
+      "url": "https://files.pythonhosted.org/packages/d1/7c/8be563d68e93bbefa5c8affb82ddcff91b3ad858ce49957ba7b16fd3e0ab/opentelemetry_proto-1.44.0-py3-none-any.whl"
+    },
+    "version": "1.44.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_proto-1.44.0-py3-none-any.whl"
+  },
+  "opentelemetry-sdk": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-sdk/1.44.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "d11812da03d97dc7ae945e1ee43dfb8a4b6698bb4850bdadb027da72d2fc11b3",
+    "payload_files": 70,
+    "sha256": "aec930d9bd0a4ccfd4c06063b578e5bb2d2bf2cfe08913dd8f83978a88f7e603",
+    "upstream_lock_record": {
+      "hash": "sha256:df081c4c6bcfdb1211e3e86140376792643128a25f8d72d1d27675936e7e96ad",
+      "size": 137221,
+      "upload-time": "2026-07-16T15:25:29.534Z",
+      "url": "https://files.pythonhosted.org/packages/e7/23/ff077e61886ee020a17ce9c8b6fa11c601c8d8345b09ea24f605445df62a/opentelemetry_sdk-1.44.0-py3-none-any.whl"
+    },
+    "version": "1.44.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_sdk-1.44.0-py3-none-any.whl"
+  },
+  "opentelemetry-semantic-conventions": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-semantic-conventions/0.65b0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "7fe655075ac9a97f7a2b3b3881b0e545dcb217a49fdc45556dc021b75c52465d",
+    "payload_files": 132,
+    "sha256": "806c3b8c484985dd5df0a4f22443fce49b186a098ce29679761167b8843da917",
+    "upstream_lock_record": {
+      "hash": "sha256:1cacde7b0ad306f84c5ef08c3dbe1bbaf20165bba6f8bff43b670e555a086bcb",
+      "size": 204645,
+      "upload-time": "2026-07-16T15:25:30.688Z",
+      "url": "https://files.pythonhosted.org/packages/a6/0e/49df70d9b81fb5cbae4bbf2a49d865b09bcbcbc4eb53f5851b1027738d78/opentelemetry_semantic_conventions-0.65b0-py3-none-any.whl"
+    },
+    "version": "0.65b0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_semantic_conventions-0.65b0-py3-none-any.whl"
+  },
+  "opentelemetry-util-http": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/opentelemetry-util-http/0.65b0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "7f6ce2bf9436c3337f6802df30f3c6df0452f3bbbcf2eebbf3b1ac47f96a78f9",
+    "payload_files": 8,
+    "sha256": "80dce9e86dd6d541b1406dc5437481d8ab38604bc80eaeee586b8918680d71ab",
+    "upstream_lock_record": {
+      "hash": "sha256:7553b606f963097cb190536dc30556cce85090692e471a422fff30ca29b04348",
+      "size": 8245,
+      "upload-time": "2026-07-16T15:25:46.482Z",
+      "url": "https://files.pythonhosted.org/packages/23/3f/ab8d29df207ce5f470a07fa96ebb48af4e95b7fab7e7635311b9a32f2fab/opentelemetry_util_http-0.65b0-py3-none-any.whl"
+    },
+    "version": "0.65b0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/opentelemetry_util_http-0.65b0-py3-none-any.whl"
+  },
+  "packaging": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/packaging/26.3-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "662a8cdc99edbbc8ed7377de8d549ab331aa0641ff3f687eafd242e34cc395fd",
+    "payload_files": 29,
+    "sha256": "dfff900a07573acffe73a70572b72635b9a863ed7823ec86ff3616c4ed7905b0",
+    "upstream_lock_record": {
+      "hash": "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+      "size": 129956,
+      "upload-time": "2026-08-04T18:15:27.159Z",
+      "url": "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl"
+    },
+    "version": "26.3",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/packaging-26.3-py3-none-any.whl"
+  },
+  "pluggy": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pluggy/1.6.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "bbbbe63369226c2f82a2e56fca3d1fe16ba653accadaf5f129e28886ca489adb",
+    "payload_files": 14,
+    "sha256": "c19efffc6a3a0f2a1d77e8e5374b889e2e50f45c2a150218dfd5b4a5077c31fd",
+    "upstream_lock_record": {
+      "hash": "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746",
+      "size": 20538,
+      "upload-time": "2025-05-15T12:30:06.134Z",
+      "url": "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl"
+    },
+    "version": "1.6.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pluggy-1.6.0-py3-none-any.whl"
+  },
+  "prompt-toolkit": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/prompt-toolkit/3.0.53-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "42b448a0c03001d102b648c53919d9f5773e81ac0e0a03395295f17d89b8082d",
+    "payload_files": 152,
+    "sha256": "de6d8549664ae0f46e6db50172e81472a10871cda0a00ef1749236b8d0f82552",
+    "upstream_lock_record": {
+      "hash": "sha256:01c0891d7f9237d5e339f7d3e42cdae80b7534abb1c7c0e3352efba6231492f2",
+      "size": 392288,
+      "upload-time": "2026-07-26T20:56:12.512Z",
+      "url": "https://files.pythonhosted.org/packages/54/6f/84908cad2d6aa5144abcf7b42709fe4fdb459bc640ec7ac5786e7693dabc/prompt_toolkit-3.0.53-py3-none-any.whl"
+    },
+    "version": "3.0.53",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/prompt_toolkit-3.0.53-py3-none-any.whl"
+  },
+  "protobuf": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/protobuf/7.36.1-cp310-abi3-macosx_10_9_universal2",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f53e3256b8e3fde9e913a2e29729faeeb4a124933ff58705422756635c0d12e9",
+    "payload_files": 63,
+    "sha256": "4fde728e0bd7d6c6a53a478125bdb50ba2589f3cfc126af1161b6d6135144dcc",
+    "upstream_lock_record": {
+      "hash": "sha256:3cf2ee25d006cee57294a1196ea43b37feb78e0dcd1e8af5c1aeddb777655aca",
+      "size": 456046,
+      "upload-time": "2026-08-31T22:39:56.865Z",
+      "url": "https://files.pythonhosted.org/packages/f7/6c/3a54a58f2948b0f485df9ecdd06590f15d0a7abf46a89d50c3de709ff4ff/protobuf-7.36.1-cp310-abi3-macosx_10_9_universal2.whl"
+    },
+    "version": "7.36.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/protobuf-7.36.1-cp310-abi3-macosx_10_9_universal2.whl"
+  },
+  "psutil": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/psutil/7.2.2-cp36-abi3-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f2549ac35dfad7ae7638fc6601e7a73b8833cbbfce769b3f8f1a316e89b53e3a",
+    "payload_files": 16,
+    "sha256": "f5bfbbc1ac8df8d09d46c2a9acd41659d78bd21e42fa6c982db0105189cc6371",
+    "upstream_lock_record": {
+      "hash": "sha256:1a7b04c10f32cc88ab39cbf606e117fd74721c831c98a27dc04578deb0c16979",
+      "size": 129859,
+      "upload-time": "2026-01-28T18:15:23.795Z",
+      "url": "https://files.pythonhosted.org/packages/80/c4/f5af4c1ca8c1eeb2e92ccca14ce8effdeec651d5ab6053c589b074eda6e1/psutil-7.2.2-cp36-abi3-macosx_11_0_arm64.whl"
+    },
+    "version": "7.2.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/psutil-7.2.2-cp36-abi3-macosx_11_0_arm64.whl"
+  },
+  "pycparser": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pycparser/3.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "175226a5317a30b8f11ac9f050ca07bd93f2517ab569ffeb0585f7c61dbf33c8",
+    "payload_files": 13,
+    "sha256": "71a2041916006eb6be22a819e92a4eff92c7a7210f5215dd3720ec65ea94a064",
+    "upstream_lock_record": {
+      "hash": "sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992",
+      "size": 48172,
+      "upload-time": "2026-01-21T14:26:50.693Z",
+      "url": "https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl"
+    },
+    "version": "3.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pycparser-3.0-py3-none-any.whl"
+  },
+  "pydantic": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pydantic/2.13.5-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "091debb45874f08e75a37dfb7f9402a029e0d8ace857ff2a7e3eef5f1b4b3cae",
+    "payload_files": 111,
+    "sha256": "192ab3509aa16570843f3e3113cc073aa8cd843b98578ff0f8a4c7419f7eae82",
+    "upstream_lock_record": {
+      "hash": "sha256:346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73",
+      "size": 472589,
+      "upload-time": "2026-08-28T14:03:59.136Z",
+      "url": "https://files.pythonhosted.org/packages/eb/47/c95ffc2009878c7aac0c5e08528022dcb885933252a88b5f170058014464/pydantic-2.13.5-py3-none-any.whl"
+    },
+    "version": "2.13.5",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pydantic-2.13.5-py3-none-any.whl"
+  },
+  "pydantic-core": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pydantic-core/2.46.5-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "b5c84545b5a323b9ebe6df1bd284b6742fa82adc1493502c95a9c74a4f4a310c",
+    "payload_files": 10,
+    "sha256": "6b6a92c61594d07e76173094a92b09130bdbfd89a4088111e8b56aed5c75160b",
+    "upstream_lock_record": {
+      "hash": "sha256:f332f0e72a5a0400141f830744e141bf9f97917878dbe968669e8a7fefea78ff",
+      "size": 1922768,
+      "upload-time": "2026-08-28T09:58:49.58Z",
+      "url": "https://files.pythonhosted.org/packages/21/43/6323b1f8b217780454c61304bcd2b38ae4762f50754414124603ccc90bb2/pydantic_core-2.46.5-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "2.46.5",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pydantic_core-2.46.5-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "pygments": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pygments/2.21.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "7157a44a6f5938633e28b10bd0589e7d62a33dedc50eeae263bc425394360e14",
+    "payload_files": 349,
+    "sha256": "27ad7f88d189dc7f9c31130ff798547b99490ebc7c4ad002af1bb4af0379277a",
+    "upstream_lock_record": {
+      "hash": "sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9",
+      "size": 1250147,
+      "upload-time": "2026-08-17T08:02:44.912Z",
+      "url": "https://files.pythonhosted.org/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl"
+    },
+    "version": "2.21.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pygments-2.21.0-py3-none-any.whl"
+  },
+  "pyjwt": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pyjwt/2.14.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "e446ba684293a1100651257146e9c2f2aa6b9292e59e105c37541068da05e72c",
+    "payload_files": 19,
+    "sha256": "935c5f7a9b62bf06c020e30fc269be1201a556ac5ee05d10fe680797163d21f8",
+    "upstream_lock_record": {
+      "hash": "sha256:ad0cef71c756a56e74863c2919cf0985f72decbcfcb550ee2f422e7c62b5eedc",
+      "size": 32896,
+      "upload-time": "2026-09-11T13:11:53.409Z",
+      "url": "https://files.pythonhosted.org/packages/9c/97/672cb32ce0dfea44b740cb7b4f97038463b9cf7c0ead1aacf595572851d6/pyjwt-2.14.0-py3-none-any.whl"
+    },
+    "version": "2.14.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pyjwt-2.14.0-py3-none-any.whl"
+  },
+  "pyproject-hooks": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pyproject-hooks/1.2.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "a364b50429bd898033cfe0bb8ebca5e43b4c32ee59467d487a6941d3dfda3658",
+    "payload_files": 9,
+    "sha256": "47f22b15a4c327f9dae6eebbeed2e0232789abdc58d828604d8bb274b6fc3f41",
+    "upstream_lock_record": {
+      "hash": "sha256:9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913",
+      "size": 10216,
+      "upload-time": "2024-09-29T09:24:11.978Z",
+      "url": "https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl"
+    },
+    "version": "1.2.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pyproject_hooks-1.2.0-py3-none-any.whl"
+  },
+  "pytest": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pytest/9.1.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "5b05266cea1563c6c07f3226b9938a0159f0efb7dc367a7a9cbc00d366e9769f",
+    "payload_files": 89,
+    "sha256": "9e39246cdd4840036c05fc50230fb4650c15cea120157b6b5a46e205e1633f4e",
+    "upstream_lock_record": {
+      "hash": "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c",
+      "size": 386536,
+      "upload-time": "2026-06-19T10:58:31.347Z",
+      "url": "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl"
+    },
+    "version": "9.1.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pytest-9.1.1-py3-none-any.whl"
+  },
+  "pytest-asyncio": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pytest-asyncio/1.4.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0c48fe32b06bcd703729ef8cd09ff6983390aa42d8883ece22ff33b2d86b7859",
+    "payload_files": 9,
+    "sha256": "858eec8f86f8e32db168a8d52e7bce09c88e1ee531490ed19f7c140466d40cbb",
+    "upstream_lock_record": {
+      "hash": "sha256:933ca923a23075a87fb7070c0ec272a6848489824d887c85c812670932835aa1",
+      "size": 16930,
+      "upload-time": "2026-05-26T09:56:02.576Z",
+      "url": "https://files.pythonhosted.org/packages/03/e2/08a497ef684b88559c9cc5f4ad53a37e7b99e727094a86d6ea32536d5d3c/pytest_asyncio-1.4.0-py3-none-any.whl"
+    },
+    "version": "1.4.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pytest_asyncio-1.4.0-py3-none-any.whl"
+  },
+  "pytest-cov": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pytest-cov/7.1.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0836226cb9e1778370078f3c0455b355730117872b9e81985f654987a90ce6b2",
+    "payload_files": 9,
+    "sha256": "942c233b4e5c6f5064cd69a0fdb7469155b6b277b4def2ad46fb9a8585c2b024",
+    "upstream_lock_record": {
+      "hash": "sha256:a0461110b7865f9a271aa1b51e516c9a95de9d696734a2f71e3e78f46e1d4678",
+      "size": 22876,
+      "upload-time": "2026-03-21T20:11:14.438Z",
+      "url": "https://files.pythonhosted.org/packages/9d/7a/d968e294073affff457b041c2be9868a40c1c71f4a35fcc1e45e5493067b/pytest_cov-7.1.0-py3-none-any.whl"
+    },
+    "version": "7.1.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pytest_cov-7.1.0-py3-none-any.whl"
+  },
+  "python-multipart": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/python-multipart/0.0.32-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "7e7bc6c9debca69ff253f9e67861e2264c40a4456745cd2555ee931f2ddd5cc9",
+    "payload_files": 13,
+    "sha256": "d5a36bda24b021f57580b044ea68bf4732c3e4df5a18f9b93a41f671a348c040",
+    "upstream_lock_record": {
+      "hash": "sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23",
+      "size": 30042,
+      "upload-time": "2026-06-04T16:18:57.319Z",
+      "url": "https://files.pythonhosted.org/packages/e1/04/e8135ebd1ad02c56ec633277529b2602ff99ff634be76cdba5744cf554fd/python_multipart-0.0.32-py3-none-any.whl"
+    },
+    "version": "0.0.32",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/python_multipart-0.0.32-py3-none-any.whl"
+  },
+  "pyyaml": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/pyyaml/6.0.3-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "b37231f0fbb2fef7422a8e6e8fe528ee23fa6e29aa7fd8880aa45989c22c1e31",
+    "payload_files": 24,
+    "sha256": "571f0d0975d101a098eebdea207d2be1de1db0f7234f448564c9752ff1bf0fea",
+    "upstream_lock_record": {
+      "hash": "sha256:2283a07e2c21a2aa78d9c4442724ec1eb15f5e42a723b99cb3d822d48f5f7ad1",
+      "size": 173252,
+      "upload-time": "2025-09-25T21:32:25.149Z",
+      "url": "https://files.pythonhosted.org/packages/b1/16/95309993f1d3748cd644e02e38b75d50cbc0d9561d21f390a76242ce073f/pyyaml-6.0.3-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "6.0.3",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/pyyaml-6.0.3-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "readme-renderer": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/readme-renderer/46.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "5c164e9c6946abf8a95f0cb94d5b2f56dcaff98fb23f5f27dd320f034dc2f42d",
+    "payload_files": 12,
+    "sha256": "8216c4b24ca92c8bb455f1047a9c79f7cd050d5c219bb229a501413b786c8353",
+    "upstream_lock_record": {
+      "hash": "sha256:d0dae1f74bb273b534770cb4cccb6bb78735540afdb03c2146f4e19dcd412560",
+      "size": 14239,
+      "upload-time": "2026-08-28T15:18:31.132Z",
+      "url": "https://files.pythonhosted.org/packages/4b/72/ac5ca81fe9121fcaa9d828d21017cba00a16a98e4ea5fb60c878f93dda4f/readme_renderer-46.0-py3-none-any.whl"
+    },
+    "version": "46.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/readme_renderer-46.0-py3-none-any.whl"
+  },
+  "referencing": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/referencing/0.37.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f13670c626be085fca9b8bb640838b354ea42514b3c593d640ea16aadf6c39ec",
+    "payload_files": 19,
+    "sha256": "44dcc1e305759b808b047d2cc93bbcf154fcb1c2a901beafdbd086072d7acca7",
+    "upstream_lock_record": {
+      "hash": "sha256:381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231",
+      "size": 26766,
+      "upload-time": "2025-10-13T15:30:47.625Z",
+      "url": "https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl"
+    },
+    "version": "0.37.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/referencing-0.37.0-py3-none-any.whl"
+  },
+  "regex": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/regex/2026.9.3-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0ac02f4579157214636758e4fe2489c8ee4a7b82056fbbfcfa0c7e7b0fac6dcc",
+    "payload_files": 10,
+    "sha256": "626075c4b6c65c74338e559d73468611a34a6d216a7560f4d9c43429b3a84dc7",
+    "upstream_lock_record": {
+      "hash": "sha256:e33dfc13c02d9c4e55bcf3f3b2eb448537823a6f6f30bf737b2974b63a530bc9",
+      "size": 291783,
+      "upload-time": "2026-09-01T00:50:58.892Z",
+      "url": "https://files.pythonhosted.org/packages/e6/eb/5750ebabdb010ffb0d31fceae68c7a8f3876c06140c3bd6a7feff6240d6d/regex-2026.9.3-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "2026.9.3",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/regex-2026.9.3-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "requests": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/requests/2.34.2-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "727dab059e92d1f7db8ea60cb9328a737af5a238306fa7b0072b3dc63a4c8078",
+    "payload_files": 26,
+    "sha256": "08cd3442de262051472f5f03f3f42ddc2c1310132582923ddafab5456d2c7009",
+    "upstream_lock_record": {
+      "hash": "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0",
+      "size": 73075,
+      "upload-time": "2026-05-14T19:25:26.443Z",
+      "url": "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl"
+    },
+    "version": "2.34.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/requests-2.34.2-py3-none-any.whl"
+  },
+  "requests-toolbelt": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/requests-toolbelt/1.0.0-py2.py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "95ec0b228574542861b8e74c13c6b54978f4132b719616f1707d40340bfa99aa",
+    "payload_files": 40,
+    "sha256": "b5b5d817b4e044222fc51a398929fd6cd9687146dd1429be6f1ac6e07514048b",
+    "upstream_lock_record": {
+      "hash": "sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06",
+      "size": 54481,
+      "upload-time": "2023-05-01T04:11:28.427Z",
+      "url": "https://files.pythonhosted.org/packages/3f/51/d4db610ef29373b879047326cbf6fa98b6c1969d6f6dc423279de2b1be2c/requests_toolbelt-1.0.0-py2.py3-none-any.whl"
+    },
+    "version": "1.0.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/requests_toolbelt-1.0.0-py2.py3-none-any.whl"
+  },
+  "rfc3986": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/rfc3986/2.0.0-py2.py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "c83a4d8dee9dfcc35c04fced5cc0a9a775c890e7aeafbf70e0abd5cbd01bb567",
+    "payload_files": 18,
+    "sha256": "7b4cf7797ecf540560afd777612e649c516b6fee9e9b5ef7a2e7958c8b0ab950",
+    "upstream_lock_record": {
+      "hash": "sha256:50b1502b60e289cb37883f3dfd34532b8873c7de9f49bb546641ce9cbd256ebd",
+      "size": 31326,
+      "upload-time": "2022-01-10T00:52:29.594Z",
+      "url": "https://files.pythonhosted.org/packages/ff/9a/9afaade874b2fa6c752c36f1548f718b5b83af81ed9b76628329dab81c1b/rfc3986-2.0.0-py2.py3-none-any.whl"
+    },
+    "version": "2.0.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/rfc3986-2.0.0-py2.py3-none-any.whl"
+  },
+  "rich": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/rich/15.0.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "c769addbc7101d86346fe9274cf9fa5a7dc974f512f98c893b66b3f4e15728e4",
+    "payload_files": 105,
+    "sha256": "1f134771538dceb1c7545bbeb625d8d1bc289dca3c7f4515807513a8525bff67",
+    "upstream_lock_record": {
+      "hash": "sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb",
+      "size": 310654,
+      "upload-time": "2026-04-12T08:24:02.83Z",
+      "url": "https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl"
+    },
+    "version": "15.0.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/rich-15.0.0-py3-none-any.whl"
+  },
+  "rpds-py": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/rpds-py/2026.6.3-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "b61861cebdf24b9965aca283a4aefea8d6f2df4fa5fabca8429f47094f11dc0c",
+    "payload_files": 9,
+    "sha256": "5a0698e77ab8f1b4fffb4433853eea841647fdffd1db2b8d4cc9d31982324cd0",
+    "upstream_lock_record": {
+      "hash": "sha256:f4d78253f6996be4901669ad25319f842f740eccf4d58e3c7f3dd39e6dde1d8f",
+      "size": 338203,
+      "upload-time": "2026-06-30T07:15:37.462Z",
+      "url": "https://files.pythonhosted.org/packages/f3/6b/686d9dc4359a8f163cfbbf89ee0b4e586431de22fe8248edb63a8cf50d49/rpds_py-2026.6.3-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "2026.6.3",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/rpds_py-2026.6.3-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "ruff": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/ruff/0.16.6-py3-none-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "3a79e9f504efb5c974585e7687961a0822fdb72afff8dc4d6f95aee200ee1284",
+    "payload_files": 9,
+    "sha256": "7059cfa85d9b2dae5f68f04923cfd659bcc0949704123f49574d0cd0532b41fe",
+    "upstream_lock_record": {
+      "hash": "sha256:99b62ea33baf130f50368798d841f0d95527b6d817bf31817b65dd058f1d314c",
+      "size": 9835082,
+      "upload-time": "2026-09-03T16:56:47.142Z",
+      "url": "https://files.pythonhosted.org/packages/43/d9/b75668ce41e4c8d073d18d6d08672ba6906ce45d5c06ea4fdb2e84ce3853/ruff-0.16.6-py3-none-macosx_11_0_arm64.whl"
+    },
+    "version": "0.16.6",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/ruff-0.16.6-py3-none-macosx_11_0_arm64.whl"
+  },
+  "safetensors": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/safetensors/0.8.0-cp310-abi3-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "4e0596bf25dc16ec4c612d2ad412fdf9aa90048681229b2d30c6452145244618",
+    "payload_files": 15,
+    "sha256": "907ef6b9bb96ea0ba1efc9b7521d1856f6a70ec8794b14bf006757a05e9932da",
+    "upstream_lock_record": {
+      "hash": "sha256:c80201d22cbf405b80647a60ada77bba06c8fba2da2743ba1e89cdcc39a81f25",
+      "size": 484562,
+      "upload-time": "2026-06-09T07:52:17.518Z",
+      "url": "https://files.pythonhosted.org/packages/f5/b1/fa7c600e7dceae12e9606c7578cbc9ff1e1ed55844883ee5c92205e86226/safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl"
+    },
+    "version": "0.8.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl"
+  },
+  "sentencepiece": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/sentencepiece/0.2.2-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "440529d550ecea887fa5b6f2e209880b449d7ee30e48d9322307b31a82931035",
+    "payload_files": 16,
+    "sha256": "e32cb382ba15048e62cf2208cc8581011af1ad92f5c582cefe12c2b4501952c4",
+    "upstream_lock_record": {
+      "hash": "sha256:201a8e0f55501a76e08dbf2c54bc45f4642b379271e89c667d517bfbc2191f2a",
+      "size": 1347267,
+      "upload-time": "2026-07-12T08:38:44.389Z",
+      "url": "https://files.pythonhosted.org/packages/34/db/f9ea1a6844b4fa5dfe2312095cd866a1f724cd0905054ab9d5991778ba50/sentencepiece-0.2.2-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "0.2.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/sentencepiece-0.2.2-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "setuptools": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/setuptools/84.0.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "b1f61c48f3797d8c02c0f9aafcea7d7146822511a896aaa795ba85ea653f1438",
+    "payload_files": 343,
+    "sha256": "a375c22617efe9816ac45d2d4568d1afd9b736a24e553b21f71314d06c2f00b7",
+    "upstream_lock_record": {
+      "hash": "sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670",
+      "size": 818216,
+      "upload-time": "2026-08-08T18:27:56.719Z",
+      "url": "https://files.pythonhosted.org/packages/95/9c/c510029fc6ef33a6275cd2c5d3cecd6613dfd6aa401d57c54f1c18852ccf/setuptools-84.0.0-py3-none-any.whl"
+    },
+    "version": "84.0.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/setuptools-84.0.0-py3-none-any.whl"
+  },
+  "shellingham": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/shellingham/1.5.4-py2.py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0d965b2c370c37118b6c872155f8fa5ae990698122f9d341f6c3726636180315",
+    "payload_files": 13,
+    "sha256": "625cd7dff17ed27a83bf4dd0e5a58cab2f36ce4b5f16d250658dbd9e0ec3b01a",
+    "upstream_lock_record": {
+      "hash": "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686",
+      "size": 9755,
+      "upload-time": "2023-10-24T04:13:38.866Z",
+      "url": "https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl"
+    },
+    "version": "1.5.4",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/shellingham-1.5.4-py2.py3-none-any.whl"
+  },
+  "sniffio": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/sniffio/1.3.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "1d8b80687d8181b1e25fd2e77fe8d1cbc0069adbcb53d92ec8a2bd731df93250",
+    "payload_files": 13,
+    "sha256": "e2ef32200eac2100556f73b543a3a434027616ff63b4b937499f298f0363025b",
+    "upstream_lock_record": {
+      "hash": "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2",
+      "size": 10235,
+      "upload-time": "2024-02-25T23:20:01.196Z",
+      "url": "https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl"
+    },
+    "version": "1.3.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/sniffio-1.3.1-py3-none-any.whl"
+  },
+  "sse-starlette": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/sse-starlette/3.4.11-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "d5c08dd4a6726a2dedd80150fe8c11115fa46b7259554908d7ffd2eb415e283d",
+    "payload_files": 11,
+    "sha256": "4985904667fe10ac2bf529d5104cdb18a168ccb915107910b816fc298a2de80a",
+    "upstream_lock_record": {
+      "hash": "sha256:c7b2244bdff016fe7f64e10075e89a3e6bbf899649cc89b0fe884b5545042453",
+      "size": 17122,
+      "upload-time": "2026-09-05T12:11:03.195Z",
+      "url": "https://files.pythonhosted.org/packages/98/6a/2ba3ed4a69babf3afdddf7d8314a48d87562c0a442206bbc2a1b50d5efc0/sse_starlette-3.4.11-py3-none-any.whl"
+    },
+    "version": "3.4.11",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/sse_starlette-3.4.11-py3-none-any.whl"
+  },
+  "starlette": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/starlette/1.6.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f8e8cf1e5e07cf5a4fd0252115213d34f2de8e81fe708164c4ff47acb30d7244",
+    "payload_files": 40,
+    "sha256": "0bc7c4b9e563648545906d3beb118c364d0c0a6fe8ee79e1d893eced483669ba",
+    "upstream_lock_record": {
+      "hash": "sha256:a86dd39d14bb45f85a3d18525215a9ef0cfd1f192ac793220e72598c90335f0c",
+      "size": 75969,
+      "upload-time": "2026-08-08T18:27:56.196Z",
+      "url": "https://files.pythonhosted.org/packages/c8/cb/6a6a47d5b464bd08695d254f3da6e7986cc70c9fa5d778eda57538edfe56/starlette-1.6.0-py3-none-any.whl"
+    },
+    "version": "1.6.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/starlette-1.6.0-py3-none-any.whl"
+  },
+  "sympy": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/sympy/1.14.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "08786c17f30786f66bd66b81d27afb332e5de420216407924d876a4a2ebdd640",
+    "payload_files": 1570,
+    "sha256": "6ebb9613272def92085c1e5d0274cc08728d28c0d216738733dce5a29ae13f62",
+    "upstream_lock_record": {
+      "hash": "sha256:e091cc3e99d2141a0ba2847328f5479b05d94a6635cb96148ccb3f34671bd8f5",
+      "size": 6299353,
+      "upload-time": "2025-04-27T18:04:59.103Z",
+      "url": "https://files.pythonhosted.org/packages/a2/09/77d55d46fd61b4a135c444fc97158ef34a095e5681d0a6c10b75bf356191/sympy-1.14.0-py3-none-any.whl"
+    },
+    "version": "1.14.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/sympy-1.14.0-py3-none-any.whl"
+  },
+  "tenseal": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/tenseal/0.3.17-cp313-cp313-macosx_14_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "0f2959b11c0d852ab8faa5592b94e3c81862266368f1fe9614c688f772f3d35b",
+    "payload_files": 59,
+    "sha256": "26f6ef2517a403888743ac1676e2b0b012a54dd4502be08298dedbc02884b74c",
+    "upstream_lock_record": {
+      "hash": "sha256:6ae0720bdd3dad01280676ecb9a904af7627fc03f625bc89d8375e6e0cf3cb67",
+      "size": 3689554,
+      "upload-time": "2026-08-04T02:48:50.758Z",
+      "url": "https://files.pythonhosted.org/packages/14/c4/dc943e0d3ee0fb41905c8c301871e4d5a7d0d8dd1a9304ac14817742e3ed/tenseal-0.3.17-cp313-cp313-macosx_14_0_arm64.whl"
+    },
+    "version": "0.3.17",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/tenseal-0.3.17-cp313-cp313-macosx_14_0_arm64.whl"
+  },
+  "tokenizers": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/tokenizers/0.23.2-cp310-abi3-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "50bf42f9be2c1fc05816e08569bf52d5a0ed72874ab4f702f9bbd55ae15eafc6",
+    "payload_files": 32,
+    "sha256": "24aea97405bad7bb882b554078b20283f65c54fe3caa3f99eac5d12bd10f4322",
+    "upstream_lock_record": {
+      "hash": "sha256:986670e43691469dcee610ea0f846f91a8f84e91fc6f7a48d4c064414c0ec2bf",
+      "size": 3101593,
+      "upload-time": "2026-09-03T08:55:28.587Z",
+      "url": "https://files.pythonhosted.org/packages/67/49/22da045a91732384d3a3771816bf188dc5a1f702c32e635afa7c679c0bef/tokenizers-0.23.2-cp310-abi3-macosx_11_0_arm64.whl"
+    },
+    "version": "0.23.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/tokenizers-0.23.2-cp310-abi3-macosx_11_0_arm64.whl"
+  },
+  "torch": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/torch/2.14.0-cp313-cp313-macosx_14_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "205fb48cd0c31decdc8d212021d0fadba041c1a496b644c21cc62370802a731f",
+    "payload_files": 12869,
+    "sha256": "f7bf0747b66de54deda2643c785a07e9780b62e20fddcbefa4c39807e0d66930",
+    "upstream_lock_record": {
+      "hash": "sha256:9d4b1022a5d9b71282ec67ad0d9e7235870096b8a246dc1c32d6ea1fc83dc998",
+      "size": 127311393,
+      "upload-time": "2026-09-02T13:43:59.607Z",
+      "url": "https://files.pythonhosted.org/packages/ca/40/0db773452c2a62b37761d3f418acf933d381f9e87077036fb57c2a386c37/torch-2.14.0-cp313-cp313-macosx_14_0_arm64.whl"
+    },
+    "version": "2.14.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/torch-2.14.0-cp313-cp313-macosx_14_0_arm64.whl"
+  },
+  "tqdm": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/tqdm/4.70.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "e6c51d67fe21e62d15b737235144448d0dfbaf16b400e75ee436cb36c05e4190",
+    "payload_files": 39,
+    "sha256": "7e5a2a5e511c11451ea862aba19e855987c089d32c4d6171a0a5a1a6fd012c61",
+    "upstream_lock_record": {
+      "hash": "sha256:7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953",
+      "size": 80184,
+      "upload-time": "2026-07-27T11:33:13.167Z",
+      "url": "https://files.pythonhosted.org/packages/f9/1c/01bfd571a64e7f270e6bab5e33777debe0edc56759233ce84f27dec92d14/tqdm-4.70.0-py3-none-any.whl"
+    },
+    "version": "4.70.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/tqdm-4.70.0-py3-none-any.whl"
+  },
+  "transformers": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/transformers/5.16.1-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "c7c35117543b201ad4d8d13237ba5bc6a08937dccb83c779b64a0943f3b0ee93",
+    "payload_files": 2644,
+    "sha256": "996f3f0e0944a958fade76fe43112d5fce7cc68948b3d9f114993f76a4f789c7",
+    "upstream_lock_record": {
+      "hash": "sha256:2f2d5b98a5ad3718713653734298fa620754ed683702a635ebb587df3ed29c7e",
+      "size": 12080592,
+      "upload-time": "2026-08-26T14:48:55.083Z",
+      "url": "https://files.pythonhosted.org/packages/0d/4d/ee3728674c0bbc637bb4af88ccf0be697f92e4e90b55f5dc110c44d61b61/transformers-5.16.1-py3-none-any.whl"
+    },
+    "version": "5.16.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/transformers-5.16.1-py3-none-any.whl"
+  },
+  "truststore": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/truststore/0.10.4-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "4bbc627bc9e51863c10112ed3d695d855e64fa28468666d3bbfbc572730ecb64",
+    "payload_files": 11,
+    "sha256": "ae662e10cf75d37e92bc1c7a3fbfe92850f37c4b5fec3abe18090a51145cc600",
+    "upstream_lock_record": {
+      "hash": "sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981",
+      "size": 18660,
+      "upload-time": "2025-08-12T18:49:01.46Z",
+      "url": "https://files.pythonhosted.org/packages/19/97/56608b2249fe206a67cd573bc93cd9896e1efb9e98bce9c163bcdc704b88/truststore-0.10.4-py3-none-any.whl"
+    },
+    "version": "0.10.4",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/truststore-0.10.4-py3-none-any.whl"
+  },
+  "twine": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/twine/6.2.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "274d6961522381a7c273c7f2327de177780012b4a1b66053e272fc2d4e4fd17a",
+    "payload_files": 23,
+    "sha256": "f99ec08d84520622b45109dc4082bf06c39c2210f8d4cdbb1347fc9f9586eccf",
+    "upstream_lock_record": {
+      "hash": "sha256:418ebf08ccda9a8caaebe414433b0ba5e25eb5e4a927667122fbe8f829f985d8",
+      "size": 42727,
+      "upload-time": "2025-09-04T15:43:15.994Z",
+      "url": "https://files.pythonhosted.org/packages/3a/7a/882d99539b19b1490cac5d77c67338d126e4122c8276bf640e411650c830/twine-6.2.0-py3-none-any.whl"
+    },
+    "version": "6.2.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/twine-6.2.0-py3-none-any.whl"
+  },
+  "typer": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/typer/0.27.2-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "a56a1e072d027f6336e357d28c13fe701f71e4f95bab2b0aae1f7e1fe26c0973",
+    "payload_files": 41,
+    "sha256": "b8dc468ef2b92ce15ced06cb4b93753d3c634b7c82bd28cba10ec49f12b2b22a",
+    "upstream_lock_record": {
+      "hash": "sha256:b3a5fc4342d5fc8fda8fc3010b1cf117e9249aab7fae800c2eff62fd3842d97d",
+      "size": 123130,
+      "upload-time": "2026-08-28T10:26:53.752Z",
+      "url": "https://files.pythonhosted.org/packages/dc/bf/205d0004930ede8f542fb58f601526fccf4ae7626075ca1e6c4de5d3d652/typer-0.27.2-py3-none-any.whl"
+    },
+    "version": "0.27.2",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/typer-0.27.2-py3-none-any.whl"
+  },
+  "typing-extensions": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/typing-extensions/4.16.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "d3c62e512d9738c4d56a41968a9fda21e1c9b08cb98efa2ab24c7e33bef44730",
+    "payload_files": 5,
+    "sha256": "185796892b94089a12f44d3ebd30a0dec01989005eb4f68fd83b425cd80dee0d",
+    "upstream_lock_record": {
+      "hash": "sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "size": 45571,
+      "upload-time": "2026-07-02T08:40:04.659Z",
+      "url": "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl"
+    },
+    "version": "4.16.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/typing_extensions-4.16.0-py3-none-any.whl"
+  },
+  "typing-inspection": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/typing-inspection/0.4.4-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "9c5cc32fe0729d093b55c49998589536104101afa23bded907836a6541e58dd1",
+    "payload_files": 9,
+    "sha256": "4df9a0006fc944a598f64c3db2c710775078d10b5b3d05c8d6261eaa2356f258",
+    "upstream_lock_record": {
+      "hash": "sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147",
+      "size": 14750,
+      "upload-time": "2026-08-12T12:37:24.648Z",
+      "url": "https://files.pythonhosted.org/packages/67/81/4add07e5172b7ac40d8ed5ff580409a7801a4fe26d529bdd915401dabfbe/typing_inspection-0.4.4-py3-none-any.whl"
+    },
+    "version": "0.4.4",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/typing_inspection-0.4.4-py3-none-any.whl"
+  },
+  "urllib3": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/urllib3/2.7.0-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "28bcd2bec93360feed8c5319236d6aa0248a22917604570d105e379c139b3e1a",
+    "payload_files": 42,
+    "sha256": "40ced5de4127392606f78f61a726b99d6d75073d391c7ec2ef526bd87c04a27b",
+    "upstream_lock_record": {
+      "hash": "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897",
+      "size": 131087,
+      "upload-time": "2026-05-07T16:13:17.151Z",
+      "url": "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl"
+    },
+    "version": "2.7.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/urllib3-2.7.0-py3-none-any.whl"
+  },
+  "uvicorn": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/uvicorn/0.52.4-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f3563975ff6bc16aa8b5ae6475eadab3c793de5b09945d1cc235a847182d3661",
+    "payload_files": 48,
+    "sha256": "86ac1d717850a0420f2fb427c67629ac67241c9b1179614557957c4b01e52c08",
+    "upstream_lock_record": {
+      "hash": "sha256:f86e41a149d7d05a9969337e3946a9c171c06a5d42680896daaba624aeac8da1",
+      "size": 79871,
+      "upload-time": "2026-08-19T06:27:40.36Z",
+      "url": "https://files.pythonhosted.org/packages/f1/79/4a20b54ab0491485ccd8c077db2d39187c7f12b3e15485d38a7be37c81b4/uvicorn-0.52.4-py3-none-any.whl"
+    },
+    "version": "0.52.4",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/uvicorn-0.52.4-py3-none-any.whl"
+  },
+  "wcwidth": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/wcwidth/0.8.3-py3-none-any",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "f7e3d5a8478a857cbd28120900a057dad593a0cbb81fd352eafb57f2597b73e5",
+    "payload_files": 53,
+    "sha256": "0d1b62a549f60f9198acac764c3bcc2d9fb6e03c375067ef4b14114eae6c2e45",
+    "upstream_lock_record": {
+      "hash": "sha256:d5b73dba6158a595ec9370350e7f2637bcac8d6c5e4fde34f30fcffb6103a5e4",
+      "size": 331669,
+      "upload-time": "2026-08-28T18:10:04.909Z",
+      "url": "https://files.pythonhosted.org/packages/c4/0e/57f6bb3024a597b2e8ec4aee710ffe62ddc95af2e2bb1ee7a7abdc22c68c/wcwidth-0.8.3-py3-none-any.whl"
+    },
+    "version": "0.8.3",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/wcwidth-0.8.3-py3-none-any.whl"
+  },
+  "websockets": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/websockets/15.0.1-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "a07e4ca8fc1abc7731f7b1c2a5410c9cce4b58f4597c5223c62bbc4e3a417610",
+    "payload_files": 57,
+    "sha256": "c234f9c36cc5bf659659a12bef31176238e0471322b6aff253fc303911847d9d",
+    "upstream_lock_record": {
+      "hash": "sha256:746ee8dba912cd6fc889a8147168991d50ed70447bf18bcda7039f7d2e3d9151",
+      "size": 173329,
+      "upload-time": "2025-03-05T20:02:39.298Z",
+      "url": "https://files.pythonhosted.org/packages/ff/0b/33cef55ff24f2d92924923c99926dcce78e7bd922d649467f0eda8368923/websockets-15.0.1-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "15.0.1",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/websockets-15.0.1-cp313-cp313-macosx_11_0_arm64.whl"
+  },
+  "wrapt": {
+    "cache_directory": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/wrapt/2.4.0-cp313-cp313-macosx_11_0_arm64",
+    "identity": "Locally reconstructed ZIP; own archive hash, verified original cached RECORD payloads. Upstream archive hash is historical metadata, not asserted equal.",
+    "payload_digest": "4f3902da5474755e8db03910e314801a7d6eb74cb1462938f1bffa013782f21f",
+    "payload_files": 21,
+    "sha256": "819802768e9fbea58b03c2d7aa7e9ac458d669510e951b9ec7c595416cae1153",
+    "upstream_lock_record": {
+      "hash": "sha256:7de5b8d94417e55c02be50cc226e0ae1209bbc73813bf691dff3979c94438115",
+      "size": 96269,
+      "upload-time": "2026-08-30T04:40:01.182Z",
+      "url": "https://files.pythonhosted.org/packages/c3/ab/1dbf50802bea3b46192fd0dc39bb0eb2e77a064c813b2bbd88d2888ad49f/wrapt-2.4.0-cp313-cp313-macosx_11_0_arm64.whl"
+    },
+    "version": "2.4.0",
+    "wheel": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/dependency-wheels/wrapt-2.4.0-cp313-cp313-macosx_11_0_arm64.whl"
+  }
+}

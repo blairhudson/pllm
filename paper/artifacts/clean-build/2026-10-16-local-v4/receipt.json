@@ -1,0 +1,520 @@
+{
+  "artifacts": {
+    "build-environment.json": "e4d112750e7525ba959d6b69ab2e34ecbbbfdc803e51162d8d2a0276352ff8a6",
+    "build-source-receipt.helpers.py": "ee543c22ee3e78dfd77e12bc747cb324286b53947a75cf0cb96d7f97df96760d",
+    "cargo-metadata.command.json": "359f7ad095bdee962d4608dab7278970b564dbbaec6dfdc9485ddd090e6e813c",
+    "cargo-metadata.json": "9948a05978ec5992a1afa158a507332df721e47a9df7ec1c961794942cd2e1f2",
+    "cargo-metadata.log": "a44383aaa945272659aa228394c656236e6182441897d886c53871f8b93b7f6f",
+    "cargo-metadata.request.json": "7a83d08bef1170e6dace906140ea90ceef8ded8d713b09e278b697418bdb46fe",
+    "cargo-path.command.json": "9cf951c9c614f412c3ad0823542b9459834aa1a1904d6bc74d3b51f57fa77220",
+    "cargo-path.log": "862e9f2caa4fdcc275527c0754130765aabf4fa1068a2f4d3419ab25ef4a3b1b",
+    "cargo-path.request.json": "f43c15d10ebd8b4841040e2bde3a74f5f09bcebd20f50163c0bf7a02a7bb088c",
+    "cargo-version.command.json": "582677ab59a708f43f9b39777f322ba3ed42c7c3e0e3631685aa7e7fe8a3e0a2",
+    "cargo-version.log": "9b5a34f85fd5381ed84b1f2026b591265467215ba627e7d90a21dfd1648066c5",
+    "cargo-version.request.json": "c763a9e399eec02ae3299966a4bef6a963b538b24ba8fc482a7ced98fc2d8b22",
+    "clang-path.command.json": "3aaf2ae610fc33828b9e865496f5b9c47abc173f21c3ad337b3f9961dd14a9ab",
+    "clang-path.log": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+    "clang-path.request.json": "d43e569a461d554bc66d71b9cddb5a5d9d0b3da6f6b5b4f934e681ef391f5643",
+    "clang-version.command.json": "3eafd4218a828566f3c7133c99246c0cc55e3369eed4eb7f32a0cf62aed79966",
+    "clang-version.log": "ea3037e0630fa16798079372fdc24f6542d021dadda4915cc979799682d78295",
+    "clang-version.request.json": "1590f52f5bcafc63b078be33c3f1730014fd2421f6b72a71f6e4685a5a4bea17",
+    "dependencies-before.json": "727545ef1c88be863f2bd8fd8d58119289fe4426fa14c47a3df86c913d97d5b1",
+    "dependencies-install.command.json": "0fab38d7fdae6b00a63d2e4d90f14f3be6e629b12aabe6ec406aedd686a4615d",
+    "dependencies-install.log": "58ba3f53fccc29e616a89d090f5e1eb7b45229dabafda21169e282f3147d8d23",
+    "dependencies-install.request.json": "e0f046e99a23dc6948c9b528f3e48a2390a30a5d0931aa76a49274a0d4ee4f00",
+    "driver.py": "139428da9c0c8a766fbc6823b431f90091f177d194b0974c823622f2d07e4864",
+    "environment-before-build.command.json": "b84cc4be165f37f93ce8973d6825b3a4ceecb0f5bafbd9518691ce52b4f28563",
+    "environment-before-build.json": "a00ff45a1e93597580c8f4e0aafa7a5649edd8793dbf3730963e1a4d0eb80ca8",
+    "environment-before-build.log": "543b64a1e6bf7f9abda84e1a647bd23704ac15d22dcd8dd6e7d5fef9012cb153",
+    "environment-before-build.request.json": "de40282e37b105610996fd5758d6547f8489ee870c00baeb17286542b7b689aa",
+    "environment-empty.command.json": "52604d3794d829325750b597a56243c4ee05c5948cb96c1bb58a23f23c42297d",
+    "environment-empty.json": "4a04dad004c00fe4846dd77b7d07890325e2377077720ff78419459f7d9d9040",
+    "environment-empty.log": "88bb6045746585d79282386073ca3859e065b804224dce75dad855a004e2c8f0",
+    "environment-empty.request.json": "173708fd489ee2fff2e224d1e68dadfc7504a65273a767c4e2f26ee8e3e1fd0f",
+    "failure.txt": "d5f5ad2f1163a784854b8dee5b6712630c34c0993a30ca1f1eb2333837dfb3c8",
+    "frozen-dependencies.txt": "f2e95349d282bc3f5735bbd5f3ca2953d9c403af41fd846d61b43d1f9e9fd4e2",
+    "git-before.command.json": "5c6665821383ce2f72614fedfc372387d4e4e655930089fd8915280808ec6325",
+    "git-before.log": "0c098d118d9f13c2726069f30c43c86eb18eba3e0437f7d648310e3f7a5c914d",
+    "git-before.request.json": "207cd075873d63fabece7a44de3abe8ea41278be97ecb91d17f163bdae954f75",
+    "git-commit.command.json": "9034fc84d87b610124577966a3d683f3d181f41e9fae3e4e8675a588f285de37",
+    "git-commit.log": "09ec88c11789a2d876d38d857f43f0d0b6140ff7fa23b48bb15230534b8070c6",
+    "git-commit.request.json": "5d511076d7c55a438cf6db0dfcd499530daefd5daf6175eb2a534205a60ac2df",
+    "installer-tool.json": "aea4b1c46768881263f5c58a835adb7771f1fa251c8de12477fa6d886f989658",
+    "linker-path.command.json": "20b93247033bdbe5135fe35d616c88cb2af183a1cc58ce13cf23a7ff2abd5208",
+    "linker-path.log": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+    "linker-path.request.json": "c4cce12f4946b578fc6b91c9bd69f873377b3971e9574ee37a9f39969cf614ae",
+    "maturin-version.command.json": "b2b2233837e627b2e2ebeaee2d5759f18e8b34e6c8b5c11cb791187c871df5f2",
+    "maturin-version.log": "971f1005e6ea40cc978deb0baba53e0a2b4a1e5f9af63ae5b2276cd93de51d00",
+    "maturin-version.request.json": "578f9a8c8bae46182cda170d4f88dc4629f608ba735802296d002a9dfaa1270e",
+    "memory-pressure-before.command.json": "2b12c28a6cd6b1d1a084510848c46f8864114ff899877edf6c1a6a1c7251acd7",
+    "memory-pressure-before.log": "21274995076c3e9b899a278d006977798d247367d38687fdc7cd72a546ef8f4f",
+    "memory-pressure-before.request.json": "6f1c7e3dfe3fc9252a98b1a81a63440678a46a25a5822da6a4694fca8dab6ddf",
+    "original-environment-before.json": "703ef9c3642a57fedc6202952d5fb10f1aef389b8f2eb49b4f00478c49c76fcb",
+    "preflight.json": "a28d77fc62484b38b819825564a15a867e8166ca3b5589eaadf3d970c2dbc037",
+    "prior-cached-receipt.json": "b7d332fd599f7166f2b28d87012956b785b928cafa0b42e1b3bba60bd58a42fb",
+    "processes-before.command.json": "2e1e0c643dc2b61bc43ed250a4fdf91f3a43026660fb803cb3882698fb6cb723",
+    "processes-before.log": "026cfb71688d8931a654c134c74d2311a6e54498b6fb00b78b92e0485f0c3818",
+    "processes-before.request.json": "b23fb28f38c012bfab40e85bb75abd49cc54a72205a404edc9142ad6331098cb",
+    "python-cache-after.json": "dbc02e8ed24f0c7851513bcd9e51461d48e77f7c428519742592b4095c81eb03",
+    "python-cache-before.json": "dbc02e8ed24f0c7851513bcd9e51461d48e77f7c428519742592b4095c81eb03",
+    "python-dependency-wheel-inputs.json": "0977af6d0cdb1dfbd86b5cbd881ad239356cf0b6c8556f378a47346ca42ebb3c",
+    "rustc-path.command.json": "98cb2a2aff4bfde6b345716cb14316bd617347a6a843ae6d15747f6c36c4436c",
+    "rustc-path.log": "45d7107dcf965f123368ebd6f05b8dd549ec3abc60b1a4eb218f2736023a830b",
+    "rustc-path.request.json": "0360d870b972cbcd8768a81515c5aaa1c86e1efd92bd210db3a84cdbd993fdbc",
+    "rustc-version.command.json": "c00e0dccfb6f18ed3e132195c3e816d415e14518b6c06171527ed832f64dfe8c",
+    "rustc-version.log": "c4daff6ff615863600926bc149a5b0d92907859a57e352c39fa035a86dff05ff",
+    "rustc-version.request.json": "1dc1c3b61f40e21cb66c85f33b34417dc683b9d7c861487e899a587deababf0c",
+    "rustup-toolchain.command.json": "a69079edd0b649eadbc2063d4c3de6a120598008e0ee45132a222256076a7e40",
+    "rustup-toolchain.log": "011338c6cf3419b63b7b891c624178afa66041704b98a4f0a8788adc704053a0",
+    "rustup-toolchain.request.json": "dfd782ff343b90b163477e809abc3d5dec5dffb33ec3ca682845c9dd2f258bc2",
+    "sdk-path.command.json": "cfe25bd48fa8bdb7aa9cc008097d1c1cb4657993b02f1da134f2477a492f7495",
+    "sdk-path.log": "5cb2cff3541ae65432805aa9d9bbfa3454381ef60694cc7b47eed0e2bf973aaf",
+    "sdk-path.request.json": "4d25dfede5d56d77f574b217b66c529d059af6e9c602d9645b94a6af6713e915",
+    "sdk-version.command.json": "44c2ef7beeb5f94dd0f3885f793eb8e5f4b895e66f2bb125e66536de534e0947",
+    "sdk-version.log": "25205f2e2f02dc71036ee827e19c49b893b231a3d1af240e35a3ac55aa8cdcb6",
+    "sdk-version.request.json": "9c8b665bc56942f6fc0714bda62862099641eacf740e667e6785367ba69ee434",
+    "sources-before.json": "b0793db366410817143d9a35d2f1d02c12667bb0108eb4d891691228dff1e3f2",
+    "swap-before.command.json": "4dee5bc6ef6e2c34d6b98be1a2714a00856a83d77b8400c77d43bcc8439953a4",
+    "swap-before.log": "54d729b1518665ab9caa5f571b44c29c5f3a07e9091cbe57a57f93fcea90e7ea",
+    "swap-before.request.json": "7972249cc7000b89e523ed4121ae3efd010951e60c736de6ba6ba6bb42ba1ed3",
+    "target-before-build.json": "13a44418ddff4b7c0f6c5f7274ab0def11ae21f6c6911dce95457d8eb0a04c38",
+    "tools.json": "b44442f5b6db55819927b13fb148f208d6c882d9d0b9d9e06ac7e176290a6e22",
+    "upstream-frozen-dependencies.txt": "bb2c7271e38d3b39b625e8a642865caa324b928357b4f2148a86bd06aeef4888",
+    "uv-cache-dir.command.json": "eb6ee8e1e6636363fdc59bea916215c85063ce6ccfaccd1129a0141a209f8066",
+    "uv-cache-dir.log": "88eb4b8989dce9dc27b1debd0cca97d0f094685bf7bc70fbd6f89971a3836b02",
+    "uv-cache-dir.request.json": "6e7f8172fd036e8479e4a98cba23ee5f015bda34d1a952051babcf12f7af170f",
+    "uv-version.command.json": "dfa88f390943151922765221147cbf9294ec1a3cb8b2322e4c4b797e698f587a",
+    "uv-version.log": "442e7e7123e1a4426e42637e821d1ece6d4d9abc51fed11c0d2b47779c72cba9",
+    "uv-version.request.json": "c6e189b093b61a5a03403ae985dae0eb9be833bac1e796b192d70dd6d2faf9b2",
+    "v4-manifest.json": "919bee0e2b5e2fe5d83a238a61817e1d48e85b99ff804c932f9135698ae497c7",
+    "v4-provenance.json": "fad6234626ae5e42198a21f14b0a84145927bcd04322c034003f9d31e3bc4caa",
+    "venv-configuration.json": "d7e5e8dccad511afdc8559690ff951c3039383ea2aa2c434f34e092484e7fc4b",
+    "venv-create.command.json": "ebb5ff465cb497e9a0626c607f2b97fc08f047acd08312c10e7e8cd0f090718a",
+    "venv-create.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "venv-create.request.json": "1e718e25746678e375a00c1c2ba1503872c5031db26583ea719c1f76c8f1af97",
+    "vm-stat-before.command.json": "1506b282ed519fd3fb1ebfd9aa2f1ea2ee6e8a43a08dbba12d5f0afe0d7cf1d5",
+    "vm-stat-before.log": "c2738ff770126fe9eb35ba65c7ef51b820612edbf0842675f60bd57d8d386c86",
+    "vm-stat-before.request.json": "0576ba6acb379d5b6143d2cfc94a45bb0b0e1ed00392963c205c45735d235ec0"
+  },
+  "attestation": "Local agent-recorded receipt; not CI or independent third-party attestation",
+  "cache_scope": "Initially empty Cargo target; pre-existing registry sources, toolchain, OS SDK and Python wheel cache reused",
+  "cargo_target_dir": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/cargo-target",
+  "commands": [
+    {
+      "argv": [
+        "memory_pressure",
+        "-Q"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.006448875181376934,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "memory-pressure-before.log",
+      "log_sha256": "21274995076c3e9b899a278d006977798d247367d38687fdc7cd72a546ef8f4f",
+      "name": "memory-pressure-before",
+      "started_utc": "2026-10-16T05:40:28.259448+00:00"
+    },
+    {
+      "argv": [
+        "vm_stat"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.005986708216369152,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "vm-stat-before.log",
+      "log_sha256": "c2738ff770126fe9eb35ba65c7ef51b820612edbf0842675f60bd57d8d386c86",
+      "name": "vm-stat-before",
+      "started_utc": "2026-10-16T05:40:28.266624+00:00"
+    },
+    {
+      "argv": [
+        "sysctl",
+        "hw.memsize",
+        "vm.swapusage"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.0063300421461462975,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "swap-before.log",
+      "log_sha256": "54d729b1518665ab9caa5f571b44c29c5f3a07e9091cbe57a57f93fcea90e7ea",
+      "name": "swap-before",
+      "started_utc": "2026-10-16T05:40:28.273306+00:00"
+    },
+    {
+      "argv": [
+        "ps",
+        "-axo",
+        "pid,rss,%cpu,comm"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.04128916747868061,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "processes-before.log",
+      "log_sha256": "026cfb71688d8931a654c134c74d2311a6e54498b6fb00b78b92e0485f0c3818",
+      "name": "processes-before",
+      "started_utc": "2026-10-16T05:40:28.280278+00:00"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.04109983332455158,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "git-before.log",
+      "log_sha256": "0c098d118d9f13c2726069f30c43c86eb18eba3e0437f7d648310e3f7a5c914d",
+      "name": "git-before",
+      "started_utc": "2026-10-16T05:40:28.322455+00:00"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.020763457752764225,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "git-commit.log",
+      "log_sha256": "09ec88c11789a2d876d38d857f43f0d0b6140ff7fa23b48bb15230534b8070c6",
+      "name": "git-commit",
+      "started_utc": "2026-10-16T05:40:28.364447+00:00"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/bin/uv",
+        "--version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.02188295777887106,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "uv-version.log",
+      "log_sha256": "442e7e7123e1a4426e42637e821d1ece6d4d9abc51fed11c0d2b47779c72cba9",
+      "name": "uv-version",
+      "started_utc": "2026-10-16T05:40:33.547564+00:00"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/bin/uv",
+        "cache",
+        "dir"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.02223954163491726,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "uv-cache-dir.log",
+      "log_sha256": "88eb4b8989dce9dc27b1debd0cca97d0f094685bf7bc70fbd6f89971a3836b02",
+      "name": "uv-cache-dir",
+      "started_utc": "2026-10-16T05:40:33.570340+00:00"
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "venv",
+        "--without-pip",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/venv"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.08685779199004173,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "venv-create.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "venv-create",
+      "started_utc": "2026-10-16T05:41:08.119210+00:00"
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/venv/bin/python",
+        "-I",
+        "-B",
+        "/Users/blairhudson/workspace/pllm/scripts/audit_paper_clean_build.py",
+        "--inspect-environment",
+        "--helper",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/build-source-receipt.helpers.py"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.12934766616672277,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "environment-empty.log",
+      "log_sha256": "88bb6045746585d79282386073ca3859e065b804224dce75dad855a004e2c8f0",
+      "name": "environment-empty",
+      "started_utc": "2026-10-16T05:41:08.207143+00:00"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/bin/uv",
+        "--offline",
+        "--no-config",
+        "pip",
+        "install",
+        "--python",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/venv/bin/python",
+        "--no-index",
+        "--cache-dir",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/uv-install-cache",
+        "--require-hashes",
+        "--no-build",
+        "--no-deps",
+        "--link-mode",
+        "copy",
+        "--requirements",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/frozen-dependencies.txt",
+        "--verbose"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 20.193213290534914,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "dependencies-install.log",
+      "log_sha256": "58ba3f53fccc29e616a89d090f5e1eb7b45229dabafda21169e282f3147d8d23",
+      "name": "dependencies-install",
+      "started_utc": "2026-10-16T05:41:08.338328+00:00"
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/venv/bin/python",
+        "-I",
+        "-B",
+        "/Users/blairhudson/workspace/pllm/scripts/audit_paper_clean_build.py",
+        "--inspect-environment",
+        "--helper",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/build-source-receipt.helpers.py"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 5.4629592495039105,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "environment-before-build.log",
+      "log_sha256": "543b64a1e6bf7f9abda84e1a647bd23704ac15d22dcd8dd6e7d5fef9012cb153",
+      "name": "environment-before-build",
+      "started_utc": "2026-10-16T05:41:33.980524+00:00"
+    },
+    {
+      "argv": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.08729620836675167,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "rustc-version.log",
+      "log_sha256": "c4daff6ff615863600926bc149a5b0d92907859a57e352c39fa035a86dff05ff",
+      "name": "rustc-version",
+      "started_utc": "2026-10-16T05:41:39.483072+00:00"
+    },
+    {
+      "argv": [
+        "cargo",
+        "--version",
+        "--verbose"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.08687812555581331,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "cargo-version.log",
+      "log_sha256": "9b5a34f85fd5381ed84b1f2026b591265467215ba627e7d90a21dfd1648066c5",
+      "name": "cargo-version",
+      "started_utc": "2026-10-16T05:41:39.571542+00:00"
+    },
+    {
+      "argv": [
+        "rustup",
+        "show",
+        "active-toolchain"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.04850391671061516,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "rustup-toolchain.log",
+      "log_sha256": "011338c6cf3419b63b7b891c624178afa66041704b98a4f0a8788adc704053a0",
+      "name": "rustup-toolchain",
+      "started_utc": "2026-10-16T05:41:39.659419+00:00"
+    },
+    {
+      "argv": [
+        "rustup",
+        "which",
+        "rustc"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.04847354255616665,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "rustc-path.log",
+      "log_sha256": "45d7107dcf965f123368ebd6f05b8dd549ec3abc60b1a4eb218f2736023a830b",
+      "name": "rustc-path",
+      "started_utc": "2026-10-16T05:41:39.708836+00:00"
+    },
+    {
+      "argv": [
+        "rustup",
+        "which",
+        "cargo"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.042992125265300274,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "cargo-path.log",
+      "log_sha256": "862e9f2caa4fdcc275527c0754130765aabf4fa1068a2f4d3419ab25ef4a3b1b",
+      "name": "cargo-path",
+      "started_utc": "2026-10-16T05:41:39.758218+00:00"
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/venv/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "maturin",
+        "--version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 1.0330761661753058,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "maturin-version.log",
+      "log_sha256": "971f1005e6ea40cc978deb0baba53e0a2b4a1e5f9af63ae5b2276cd93de51d00",
+      "name": "maturin-version",
+      "started_utc": "2026-10-16T05:41:39.802052+00:00"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "clang",
+        "--version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.02524962555617094,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "clang-version.log",
+      "log_sha256": "ea3037e0630fa16798079372fdc24f6542d021dadda4915cc979799682d78295",
+      "name": "clang-version",
+      "started_utc": "2026-10-16T05:41:40.836489+00:00"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "--find",
+        "clang"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.011880375444889069,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "clang-path.log",
+      "log_sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+      "name": "clang-path",
+      "started_utc": "2026-10-16T05:41:40.863022+00:00"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "--find",
+        "ld"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.013042124919593334,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "linker-path.log",
+      "log_sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+      "name": "linker-path",
+      "started_utc": "2026-10-16T05:41:40.875725+00:00"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "--show-sdk-path"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.011715167202055454,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "sdk-path.log",
+      "log_sha256": "5cb2cff3541ae65432805aa9d9bbfa3454381ef60694cc7b47eed0e2bf973aaf",
+      "name": "sdk-path",
+      "started_utc": "2026-10-16T05:41:40.889925+00:00"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "--show-sdk-version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.013857957907021046,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "sdk-version.log",
+      "log_sha256": "25205f2e2f02dc71036ee827e19c49b893b231a3d1af240e35a3ac55aa8cdcb6",
+      "name": "sdk-version",
+      "started_utc": "2026-10-16T05:41:40.902700+00:00"
+    },
+    {
+      "argv": [
+        "cargo",
+        "metadata",
+        "--format-version",
+        "1",
+        "--locked",
+        "--offline"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.2585970424115658,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "cargo-metadata.log",
+      "log_sha256": "a44383aaa945272659aa228394c656236e6182441897d886c53871f8b93b7f6f",
+      "name": "cargo-metadata",
+      "started_utc": "2026-10-16T05:41:41.286460+00:00"
+    }
+  ],
+  "compiler_wrapper_used": false,
+  "driver_argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "scripts/audit_paper_clean_build.py",
+    "--uv",
+    "/opt/homebrew/bin/uv",
+    "--output",
+    "paper/artifacts/clean-build/2026-10-16-local-v4"
+  ],
+  "existing_conformance_transferred": false,
+  "failure": "RuntimeError('Cargo target is not empty immediately before build')",
+  "incremental_cache_reused": false,
+  "limits": [
+    "Bounded source/config and resolved dependency inventory, not a hermetic whole-host image",
+    "Before/after hashes do not observe transient concurrent modifications",
+    "Tool binaries identified; entire OS SDK and Rust sysroot not inventoried",
+    "Offline flags prohibit Cargo/uv fetching, not an OS-level network sandbox",
+    "No models, operator samples, SDK tests or benchmarks executed"
+  ],
+  "original_versions_vs_v4": {},
+  "output": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4",
+  "python": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/venv/bin/python",
+  "python_cache_payloads_unchanged": true,
+  "python_dependency_archive_scope": "Locally reconstructed wheels from RECORD-verified cached payloads; distinct archive hashes, locked versions preserved",
+  "runtime_execution": false,
+  "schema": "pllm.local_clean_build_receipt.v1",
+  "source_commit": "99e10e2c1e0e3dbeddc5f56dcc830e549cb1f2a5",
+  "status": "failed",
+  "venv": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/work/venv"
+}

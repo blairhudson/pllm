@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "rustc",
+    "--version",
+    "--verbose"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "rustc-version.log",
+  "name": "rustc-version",
+  "started_utc": "2026-10-16T05:41:39.483072+00:00"
+}

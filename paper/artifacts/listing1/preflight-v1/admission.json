@@ -1,0 +1,110 @@
+{
+  "admitted": true,
+  "candidates": {
+    "docker": {
+      "admitted": false,
+      "docker": null,
+      "reasons": [
+        "Docker memory capacity is unavailable"
+      ],
+      "required_disk_bytes": 3057064960,
+      "required_host_bytes": 4234084690
+    },
+    "native": {
+      "admitted": true,
+      "docker": null,
+      "reasons": [],
+      "required_disk_bytes": 3057064960,
+      "required_host_bytes": 4234084690
+    }
+  },
+  "enforced_wan": false,
+  "estimate": {
+    "allocation_slack_percent": 25,
+    "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
+    "client_peak_bytes": 1801982290,
+    "compiled_input_bound": 64,
+    "components": {
+      "checkpoint_bytes": 988097824,
+      "client_additional_paged_disk_bytes": 0,
+      "client_bundle_work_bytes": 1095128064,
+      "client_cache_bytes": 0,
+      "client_inflight_copy_work_bytes": 0,
+      "client_inflight_owner_bytes": 0,
+      "client_live_tensor_bytes": 55280648,
+      "client_mask_bytes": 12272288,
+      "client_mask_cursor_bytes": 203424,
+      "client_metal_bytes": 0,
+      "client_nonlinear_work_bytes": 0,
+      "client_paged_metadata_bytes": 0,
+      "client_public_artifact_work_bytes": 0,
+      "client_rotary_coefficient_bytes": 32768,
+      "client_state_work_bytes": 10469376,
+      "client_tensor_work_bytes": 65750024,
+      "client_tokenizer_snapshot_disk_bytes": 0,
+      "client_weight_snapshot_disk_bytes": 0,
+      "float_quantization_work_bytes": 25525248,
+      "largest_loading_temporary_bytes": 272269312,
+      "legacy_client_mask_bytes": 551387136,
+      "legacy_client_tensor_work_bytes": 435596832,
+      "legacy_largest_loading_temporary_bytes": 544538624,
+      "legacy_per_engine_i8_and_native_bytes": 1260191744,
+      "legacy_verifier_bytes": 0,
+      "per_engine_compiled_disk_bytes": 272269312,
+      "per_engine_i8_and_native_bytes": 630095872,
+      "per_provider_metal_bytes": 0,
+      "per_provider_nonlinear_work_bytes": 0,
+      "per_role_i8_and_native_bytes": {
+        "inference": 493961216,
+        "preparation": 357826560
+      },
+      "per_role_loading_temporary_bytes": {
+        "inference": 272269312,
+        "preparation": 161659904
+      },
+      "preparation_additional_paged_disk_bytes": 0,
+      "preparation_digit_workspace_bytes": 0,
+      "provider_artifact_cache_disk_bytes": {},
+      "provider_artifact_cache_work_bytes": {},
+      "provider_correction_bytes": 172744704,
+      "raw_client_bundle_bytes": 182521344,
+      "verifier_bytes": 0
+    },
+    "concurrent_response_bound": 1,
+    "docker_provider_peak_bytes": {
+      "inference": 3325456640,
+      "preparation": 2649440640
+    },
+    "inventory_rows": 71,
+    "kernel": "cpu",
+    "limitations": [],
+    "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+    "max_input_tokens": 64,
+    "max_output_tokens": 8,
+    "model_plan_digest": "159e35f75f01d5ee0a2167dde11082e6f52f5c7b3c539310dbf90d27f61dcd23",
+    "native_total_peak_bytes": 4234084690,
+    "pipeline_digest": "30b4c07c065dab39c467518e531a3e20fbed8aa329c3354d7c820fe4f2af3447",
+    "preparation_decode_epoch_tokens": null,
+    "preparation_kernel": "native",
+    "preparation_storage": "resident",
+    "provider_peak_bytes": {
+      "inference": 1353362560,
+      "preparation": 1078739840
+    },
+    "scope": "conservative allocation estimate; not measured peak RSS",
+    "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+    "verification_allocation": null,
+    "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+  },
+  "host": {
+    "admission_budget_bytes": 7000834048,
+    "available": 11295801344,
+    "disk_free": 36618276864,
+    "reserve_bytes": 4294967296,
+    "swap_used": 4861984768,
+    "total": 34359738368
+  },
+  "requested_backend": "native",
+  "schema": "pllm.benchmark_memory.v1",
+  "selected_backend": "native"
+}

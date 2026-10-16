@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "-I",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/negative-control-driver.py",
+    "timeout"
+  ],
+  "exit_code": 0,
+  "scope": "non-provider subprocess probe"
+}

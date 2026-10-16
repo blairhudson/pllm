@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "-I",
+    "-c",
+    "import runpy; runpy.run_path('/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/child-identities/python-child-isolation.py')['run_child']({'directory': '/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/rejected-native', 'expected_path': '/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/rejected-native/expected.json', 'helper': '/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/child-identities/python-child-isolation.py', 'key': 'rejected', 'mode': 'c', 'arguments': [], 'entry': \"from pathlib import Path; Path('/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/rejected-native/entry-ran.txt').write_text('incorrect')\"})"
+  ],
+  "exit_code": 1,
+  "scope": "non-provider subprocess probe"
+}

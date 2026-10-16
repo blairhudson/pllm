@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "uv",
+    "--no-config",
+    "--offline",
+    "pip",
+    "check",
+    "--python",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-replay-44b5fdd8174a4a3493396125f0983da3/venv/bin/python"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-replay-44b5fdd8174a4a3493396125f0983da3",
+  "elapsed_seconds": 0.02666783332824707,
+  "exit_code": 0,
+  "log": "dependency-check.log",
+  "log_sha256": "f9a0218e5bbbbb270d05c238d53ceeb1cfbb108045886de6de9d26a431d93d50",
+  "started_utc": "2026-10-16T05:46:13.427329+00:00",
+  "stop_reason": null
+}

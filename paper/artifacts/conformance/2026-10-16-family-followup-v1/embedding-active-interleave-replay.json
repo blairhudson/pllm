@@ -1,0 +1,186 @@
+{
+  "benchmark_status": "completed",
+  "checkpoint_quality": null,
+  "citations": [
+    {
+      "paper_id": "fastquery",
+      "scope": "Sections 2.2 and 4.1\u20134.2 one-hot, mixed-width and extracted-LWE output packing; explicit BFV trace/interleave and party-local half-gates adaptations, not SiRNN",
+      "source_sha256": "5a242b1a65ceaaaa256a3f02fd0d3cc6eb40c249ca39c0e645502176520711be",
+      "title": "FastQuery: Communication-efficient Embedding Table Query for Private LLM Inference",
+      "url": "https://arxiv.org/abs/2405.16241"
+    },
+    {
+      "paper_id": "bumblebee",
+      "scope": "Section IV coefficient trace and Figure 6 FFT-style interleaving; independently adapted to BFV one-hot embedding outputs",
+      "source_sha256": "15583a86593998079d42b8b134dc4f4f5be9ca72a7ced8f31bba05f68893516a",
+      "title": "BumbleBee: Secure Two-party Inference Framework for Large Transformers",
+      "url": "https://eprint.iacr.org/2023/1678"
+    }
+  ],
+  "configuration": {
+    "component": {
+      "component": "pllm/private-embedding-lookup/v1",
+      "params": {
+        "conversion": "party_local",
+        "precision": "mixed_4_3_3",
+        "repacking": "interleave",
+        "vocabulary_size": 4096
+      }
+    },
+    "lanes": 7,
+    "samples": 1,
+    "schema": "pllm.operator_benchmark.v1"
+  },
+  "configuration_digest": "b8b1076cd314c20f63c5de3915e0a6b84784f029656e28509b586ea67620cbf2",
+  "environment": {
+    "minimum_bfv_noise_budget_bits": "19",
+    "native": "0.1.0-alpha.2",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "full_wire_bytes": null,
+  "independent_role_transport": false,
+  "input_source": "public-fixture",
+  "limitations": [
+    "N=4096, t=8192; 2 54-bit key-context primes with SEAL TC128 validation; one 54-bit online data prime",
+    "Fresh setup delivery is 1761792 padded bytes per sample, separate from online frames; both public-key copies and client secret polynomial are charged",
+    "Complete trace/interleave uses 43 public-geometry automorphisms per query; all other response coefficients receive uniform fresh masks",
+    "Direct interleaving is a BumbleBee-derived alternative to extracted-LWE packing; repacking choice is explicit",
+    "Party-local input/output shares use local-dealer random-OT correlations; distributed OT setup, SiRNN and authenticated role transport are absent",
+    "Every sample creates fresh HE keys and retires serial one-use conversion state; benchmark oracle alone reconstructs final words",
+    "Honest-client one-hot assumption; no malicious-query proof, circuit privacy proof or independent cryptographic review",
+    "Frames include HE query/reply plus actual conversion phases; material, setup delivery, boundary estimates and public metadata remain distinct",
+    "Caller-owned integer codes; quantizer fitting, fine-tuning and full-checkpoint quality are separate",
+    "Tied client output head still retains the complete matrix: embedding relocation releases zero client weight bytes",
+    "No decoder placement, independent providers, physical-wire or measured whole-client RSS claim"
+  ],
+  "median_issuance_seconds": 0.013614165596663952,
+  "median_online_seconds": 0.013274666853249073,
+  "method": "private-packed-embedding",
+  "native_implementation_digest": "287d419931d7196da6edf28b51f6587285d4faa0e4c75f259907b7a5a2302b91",
+  "numeric_contract_digest": "sha256:4f9ca42a610f495bde4c5db9772c64667328b21a9578e2748cb64ca9368ea9b6",
+  "paper_coverage": "component-reference",
+  "peak_memory_bytes": null,
+  "privacy_reviewed": false,
+  "quality": {
+    "absolute_tolerance": null,
+    "base_profile_exact_outputs": null,
+    "checked_outputs": 7,
+    "exact_integer_outputs": 7,
+    "float_reference": "Independent Python signed-integer row oracle; fixed precision and numeric identity",
+    "maximum_absolute_error": 0.0,
+    "maximum_encoded_profile_error": null,
+    "maximum_normalization_error": null,
+    "maximum_profile_absolute_error": null,
+    "mean_absolute_error": 0.0,
+    "mean_profile_absolute_error": null,
+    "outputs_within_tolerance": null
+  },
+  "resources": {
+    "client_entry_exit_payload_estimate_bytes": 0,
+    "client_mask_payload_estimate_bytes": 8204,
+    "evaluator_ciphertext_bytes": null,
+    "evaluator_constant_label_bytes": null,
+    "expanded_correlation_bytes_per_party": null,
+    "homomorphic_coefficient_bits": null,
+    "homomorphic_polynomial_degree": null,
+    "homomorphic_scale_bits": null,
+    "key_payload_bytes_by_operation": [
+      [
+        "bfv-context-secret-and-public",
+        201216,
+        135680
+      ],
+      [
+        "repacking-galois-key-copies",
+        1626112,
+        1626112
+      ],
+      [
+        "packed-share-conversion",
+        49440,
+        9288
+      ]
+    ],
+    "peer_frame_bytes_by_direction": [
+      70196,
+      74708
+    ],
+    "peer_payload_bits": 1159232,
+    "peer_rounds": 7,
+    "prf_field_evaluations_per_party": null,
+    "protocol_allocation_estimate_bytes": 89374720,
+    "public_metadata_bytes_estimate": 47232,
+    "public_profile_bytes_estimate": null,
+    "public_table_bytes_by_party": [
+      0,
+      53248
+    ],
+    "public_table_bytes_per_party": 0,
+    "raw_key_payload_bits_per_party": [
+      15014144,
+      14168640
+    ],
+    "raw_key_payload_bytes_per_party": [
+      1876768,
+      1771080
+    ],
+    "role_names": [
+      "client-decryptor-and-conversion-evaluator",
+      "provider-and-conversion-garbler"
+    ],
+    "setup_frame_bytes_by_operation": null
+  },
+  "resources_scope": "per-sample",
+  "samples": [
+    {
+      "clear_seconds": 7.078051567077637e-07,
+      "correlation_expansion_seconds": 0.0,
+      "evaluation_seconds": null,
+      "homomorphic_operations": null,
+      "input_sharing_seconds": 0.0,
+      "issuance_seconds": 0.013614165596663952,
+      "minimum_remaining_depth": null,
+      "native_call_process_cpu_seconds": 0.026948,
+      "online_seconds": 0.013274666853249073,
+      "peer_frame_bytes_by_phase": [
+        [
+          69632,
+          69632
+        ],
+        [
+          110,
+          78
+        ],
+        [
+          78,
+          1614
+        ],
+        [
+          110,
+          78
+        ],
+        [
+          78,
+          1614
+        ],
+        [
+          110,
+          78
+        ],
+        [
+          78,
+          1614
+        ]
+      ],
+      "public_setup_seconds": 0.00026020873337984085,
+      "verification_seconds": null
+    }
+  ],
+  "schema": "pllm.operator_benchmark_report.v1",
+  "scope": "bounded in-process operator; fresh one-use material per sample",
+  "sdk_availability": "operator-benchmark",
+  "sdk_implementation_digest": "a37578d856859c994b299e8b030950ff28efe7532d24c6a768678afe6c56b632",
+  "whole_model_executable": false
+}

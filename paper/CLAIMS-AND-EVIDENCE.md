@@ -9,23 +9,24 @@ No historical record supplies missing replicates in a new campaign.
 
 | Gate | Claim or deliverable | Existing starting points | Work required to close |
 | --- | --- | --- | --- |
-| P1-A | Fair comparison contract and nested Low/Medium/High budgets | `python/pllm/search/client_memory_tiers.json`; `docs/research/metric-relationships-reference.md`; draft Section 2 | Freeze security/numeric classes, leakage, lifecycle, remote-work requirement and provider budgets; justify thresholds; measure sensitivity |
-| P1-B (legacy E1) | Reusable executable components | `docs/content/docs/sdk/evaluate/benchmark-coverage.mdx`; `examples/prepared_sdk.py`; semantic compiler and SDK/gateway tests | Pick one complete extension and incompatible control; archive exact conformance and published example replay against the selected build |
-| P1-C | Faithful, independently implemented prior mechanisms | `docs/data/research/implementations.json`; `docs/data/research/paper-library.json`; `docs/data/research/references.bib` | Verify primary sources/metadata and deviations; choose small main-text set; freeze a card per implementation and complete-vs-component classification |
-| P1-D (legacy E2/E3) | Findings on fidelity, complete costs and resource feasibility | Historical W1/C1/M1/Q1/Q2 in manuscript appendices; `docs/research/prepared-maintained-reference.md`; operator reference reports | Fresh matched publication campaign; raw per-role costs; uncertainty and workload breadth; exact state and independent-reference/task quality; retain failed/blocked cells |
-| P1-E (legacy A1) | Reproducible publication | Existing source/build/evidence conventions and standalone paper builder | Immutable revision/build/environment and claim-to-record locks; generated result tables; independent clean replay; author review |
+| P1-A | Fair comparison contract and nested Low/Medium/High budgets | **Normative definitions complete:** `COMPARISON-CONTRACT.md`, `comparison-contract.v1.json`; archived Low sensitivity uses observed maxima | Fresh campaign and sensitivity near Medium/High ceilings remain empirical work; hard aggregate-provider CPU/RSS enforcement is unavailable in the current native driver |
+| P1-B (legacy E1) | Reusable executable components | **Specified conformance slice executed:** fresh clean-build replay passes 29 tests, 29,592 exact state values, independent FP32 references, ordinary benchmark and SDK/gateway; all 31 child identities verified. Fresh-build Listing 1 Qwen replay in `artifacts/listing1/qwen-fresh-v2/` binds actual provider imports and complete before/after model source locks | Defined local implementation gate complete; independent external replay belongs to P1-E. Historical v1 child imports remain unknown |
+| P1-C | Faithful, independently implemented prior mechanisms | **Defined source-mapping/functionality slice complete:** six-family cards in `IMPLEMENTATION-EVIDENCE.md`; fresh clean-build replay passes 46 tests and ten operator/replay pairs, with all 26 child identities verified; captured equalization frames and negative controls reconcile exact bytes | Fresh cost sweeps belong to P1-D; retain the original failed framing run and separate original-system results from adapted-operator results |
+| P1-D (legacy E2/E3) | Findings on fidelity, complete costs and resource feasibility | Four separately audited historical cohorts, 51 clients, original raw samples in `HISTORICAL-RESULTS.md` and `artifacts/historical-results-v1.json`; generated conformance/reference results | Fresh matched publication campaign, workload breadth and uncertainty; full lifecycle and provider accounting; representative task-quality evaluation; preserve blocked cells |
+| P1-E (legacy A1) | Reproducible publication | Standalone paper builds; generated historical tables; frozen execution sources; cached-build equality, separate empty-target/fresh-environment generated replay in `artifacts/release/`, and full SDK/operator replay from `artifacts/clean-build/` | Independent external replay, immutable publication release and author review; local builds reuse dependency caches and are not CI/third-party attestation |
 
-The first implementation slice drafts P1-A and the introduction; it does not close
-P1-A's empirical rationale, P1-B's exact-build execution, or any performance gate.
-The five historical case studies remain numerical records, not a matched modern
-benchmark. The older two-prompt quality findings are retained as historical only.
+The initial scaffold's blanket “execution pending” status is superseded by these
+specific conformance records. The newer historical table audit checks 51 original
+clients across four separate cohorts; it does not execute their tensors anew or
+turn them into the new publication campaign. The older two-prompt quality findings
+remain historical only. Exact-state parity and task quality retain separate gates.
 
 ## Paper 2 gates
 
 | Gate | Claim or deliverable | Existing starting points | Work required to close |
 | --- | --- | --- | --- |
-| P2-A | Original contribution and adequate competitive coverage | `docs/research/private-boundary-sdk-reference.md`; `docs/research/private-lookup-acceleration-reference.md`; implementation inventory | Primary-source novelty map for lookup/head composition; contemporary complete-system comparator review; precise eligibility and exclusion evidence |
-| P2-B | Exact and private complete composition | Native/SDK contracts summarized in `docs/research/private-boundary-sdk-reference.md` and `docs/research/private-boundary-decode-sdk-reference.md` | Exact functionality, allowed coalitions across all four providers, leakage, DPF/security assumptions, erasure/publisher custody; formal composition argument and implementation binding |
+| P2-A | Original contribution and adequate competitive coverage | **Prior-art overlap identified:** `PRIOR-ART-REVIEW.md`; Gupta–Katz–Miers ePrint 2026/1849 already composes private lookup, public linear delegation and client nonlinear work | Qualify and measure closest complete-system comparators; establish a narrower exact-execution/resource/lifecycle contribution and supported frontier claim |
+| P2-B | Exact and private complete composition | `SECURITY-AND-CORRECTNESS.md`; four maximal static coalitions, exact DPF/ring/float/state reasoning, conditional untimed simulation; 12 bounded checks and review corrections in `artifacts/security/` | Independent review of the actual packed DPF and implementation side channels; no timing/error, malicious-provider, adaptive-corruption or forensic-erasure theorem is supplied |
 | P2-C | Low-tier complete-client eligibility with all providers priced | `docs/research/private-boundary-tiers-reference.md`; `docs/research/private-boundary-decode-followup.md` | Freeze current allocation/build/workload; repeat complete-client maxima; distinguish admission; price setup, source-cold, files and helpers; provider-capacity normalization |
 | P2-D | Primary communication and secondary latency advance | 24-client incumbent comparison and separate 150+8/32/64 cohorts | Fresh strong-baseline campaign, varied prompts, ablations, cold/warm crossover, resource/link sensitivity, model-quality checks; freeze finalist |
 | P2-E | Independent confirmation | Existing three-finalist 150+8 confirmation is historical supporting evidence | New cohort after the P2-D freeze, complete parity/accounting, predeclared exclusions, independent evidence audit |
@@ -47,23 +48,25 @@ growth is not a claim of zero swap use.
 
 ## Initial comparator qualification queue
 
-This is a source/code inventory, not a completed current-literature survey. No
-external entry is presently marked defeated or automatically ineligible. Compare
+The dated primary-source review now supplies a targeted qualification map, not an
+exhaustive literature survey or a matched-system benchmark. No external entry is
+marked defeated or automatically ineligible. Compare
 actual adversary/collusion sets, leakage, numerical functions, hardware, complete
 cost windows and source availability before setting a disposition.
 
 | Candidate family | Current PLLM coverage | Required next decision |
 | --- | --- | --- |
 | Maintained prepared, placement/tiling/digit8 choices | End-to-end installed recipes; separate archived cohorts | Freeze best eligible current recipes per metric; include controls in one new build/cohort |
-| Two-online-offset and clear client | Installed complete execution | Admit within selected memory/provider budget; clear stays a computational reference |
+| Two-online-offset and clear client | Installed complete execution with client-owned token/head boundaries | Admit within selected memory/provider budget; clear stays a computational reference; existing offset execution does not cover a two-server remote lookup/full-head comparator |
 | Serial/u32 and parallel/residue private boundaries | Installed complete execution | Own-topology ablations; public certificate/kernel options separate |
+| Gupta–Katz–Miers open-weight outsourcing | Primary construction and public implementation located; remote full head and full KV supported in source; no local complete-system comparison | Mandatory closest comparator; qualify numerical, randomness, verification and placement contracts; its 179 MB storage claim and 4 GB client VM do not establish whole-client Low eligibility or ineligibility |
 | Slalom | Trusted-client Freivalds SDK adaptation, no TEE | Separate verified class and original hardware trust; never label adaptation a complete Slalom reproduction |
 | CrypTen/Cheetah/THE-X | Related-work sources; no qualifying complete reproduction in this inventory | Inspect primary source and exact candidate workloads; decide whether a faithful complete comparator is feasible |
 | SIGMA/FuseFSS | Selected CPU helpers/regions; no complete GPU system | Review complete published systems and true numerical/security contracts; component results alone cannot rank them |
 | NEXUS/THOR | Bounded encrypted softmax, no complete decoder/bootstrap | Review full-system applicability and assumptions; bounded-range rejection is not a proof their complete systems lose |
 | BumbleBee/FastQuery | Bounded packing/lookup adaptations | Check closest full-system and boundary-placement prior art; charge tied head, conversions, setup and model-quality changes |
 | Compact/Curl/LogRow | Bounded nonlinear operators with explicit conversions | Use scoped mechanism comparisons; determine relevant full-system prior art separately |
-| Additional contemporary systems | Literature review pending | Search forward citations/recent primary sources, log search date and include/exclude reasoning |
+| Additional contemporary systems | Dated review includes CacheMir, ROSETTA, CipherGPT, PUMA, Maverick and recent SoKs | Resolve numerical/output/security compatibility and reproduction evidence; refresh before submission |
 
 For each external system, create a reviewed card: bibliographic version and source
 pin; implemented equations; supported functionality; privacy and malicious/security
@@ -71,6 +74,21 @@ parameters; setup/dealer; client/provider work; numeric equivalence or quality
 tolerance; lifecycle accounting; code availability; faithful reproduction plan;
 and final evidence-based comparator disposition. Missing implementation is not a
 performance result.
+
+The closest-comparator gap includes placement, not just numerical precision.
+Installed `PrivateLookupAndFullHead` requires the prepared body and two additional
+boundary roles (`crates/pllm-compiler/src/decoder_boundary.rs`). The current
+two-offset baseline therefore does not substitute for a Gupta–Katz–Miers-style
+two-server composition that also executes the private lookup and full head.
+Qualify that complete placement, including shared operator access budgets, before
+claiming that four-provider execution leads the eligible field.
+The author implementation is public at
+[`kanav99/dvllm`, commit `271637be7196d26a5433ca1e62b1a5357e769a5b`](https://github.com/kanav99/dvllm/tree/271637be7196d26a5433ca1e62b1a5357e769a5b).
+The subsequent source review supersedes the initial unresolved artifact search.
+`COMPETITOR-QUALIFICATION.md` separates original fixed-point execution, a proposed
+exact-W8A8 construction adaptation, and a packed-DPF architecture control. Source
+availability closes the discovery gap, not numerical, privacy or performance
+qualification; no upstream implementation is used as a PLLM runtime dependency.
 
 ## Claim ladder
 

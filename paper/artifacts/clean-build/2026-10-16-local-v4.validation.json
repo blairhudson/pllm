@@ -1,0 +1,9 @@
+{
+  "artifact_files_checked": 95,
+  "dependency_archives_checked": 113,
+  "failed_before_build": true,
+  "reason": "RuntimeError('Cargo target is not empty immediately before build')",
+  "receipt": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v4/receipt.json",
+  "receipt_sha256": "21675bc3781cd56d5bc81a3a7cbb4118a87354ad304ce85b2e44d5f4b94d6443",
+  "status": "failed_attempt_hashes_valid"
+}

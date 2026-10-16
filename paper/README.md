@@ -13,6 +13,39 @@ The technical manuscripts are working drafts, not completed publications.
 milestones. `CLAIMS-AND-EVIDENCE.md` maps placeholders to existing evidence and
 remaining work; `IMPLEMENTATION-STATUS.md` records progress.
 
+Publication evidence has separate, auditable owners:
+
+- `COMPARISON-CONTRACT.md` and `comparison-contract.v1.json`: normative definitions,
+  resource profiles, statistical design and explicit capability gaps.
+- `PRIOR-ART-REVIEW.md` and `prior-art-sources.json`: dated primary-source review,
+  source hashes and closest-system qualification queue.
+- `COMPETITOR-QUALIFICATION.md`: pinned author implementation, exact construction
+  mapping, adaptation tracks and outstanding complete-decoder comparison gates.
+- `SECURITY-AND-CORRECTNESS.md`: exactness and a conditional static, untimed
+  four-provider argument, with bounded witnesses in `artifacts/security/`.
+- `IMPLEMENTATION-EVIDENCE.md` and `artifacts/conformance/`: frozen installed-wheel
+  execution, independent oracles, failed attempts and local build provenance.
+- `artifacts/release/`: separate empty-target build and fresh-environment generated
+  replay, with a distinct native identity and retained failed setup attempts.
+- `artifacts/clean-build/`: a separately traced empty-target build and fresh
+  installation used by the full generated SDK and six-family conformance replays.
+- `artifacts/listing1/`: exact published Qwen listing through SDK and ASGI gateway.
+- `HISTORICAL-RESULTS.md` and `artifacts/historical-results-v1.json`: four original
+  cohorts with raw replicate identities, separate windows and unknowns retained.
+
+Read-only evidence checks, from the repository root:
+
+```bash
+node scripts/audit_publication_evidence.mjs --check
+python3 paper/artifacts/conformance/verify.py
+python3 paper/artifacts/listing1/verify.py
+```
+
+The table auditor's `--write` regenerates its JSON and historical Markdown;
+it validates the manuscript table strings rather than rewriting manuscript prose.
+Security witnesses run with `.venv/bin/python -m pytest -q
+tests/test_paper_boundary_security.py`; the artifact README records their scope.
+
 Pandoc produces website articles and both technical PDFs. The whitepaper uses Pandoc plus
 its dedicated HTML/CSS print layout, rendered to PDF by headless Chrome or
 Chromium. `header.tex` and `pdf.lua` remain technical-paper-only.
@@ -71,8 +104,9 @@ implementations. Its older WAN, CPU, paging and quality case studies remain in a
 historical appendix with their original scope. New matched findings remain gated.
 
 Paper 2 studies coupled private lookup and full-head sharing under Low's 256 MiB
-ceiling. Communication is primary; complete-request latency is secondary. Privacy
-composition, current competitors, provider-capacity normalization and independent
+ceiling. Communication is primary; complete-request latency is secondary. The
+conditional abstract composition argument is written; concrete primitive review,
+current-system measurements, provider-capacity normalization and independent
 confirmation remain required. Historical cold-request gains do not establish a
 warm/source-cold win, lowest memory, or a field-wide SOTA result.
 

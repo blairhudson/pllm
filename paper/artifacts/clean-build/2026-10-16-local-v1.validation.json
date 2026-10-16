@@ -1,0 +1,8 @@
+{
+  "artifact_files_checked": 34,
+  "failed_before_build": true,
+  "reason": "InvalidWheelFilename(\"Invalid wheel filename (wrong number of parts): 'maturin-1.15.0-e45ef2fc6d5c3af6'\")",
+  "receipt": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v1/receipt.json",
+  "receipt_sha256": "5f084265880d14c92f4abdb04b7bbdf781186659495ef3b165d72bdf32b9b803",
+  "status": "failed_attempt_hashes_valid"
+}

@@ -1,0 +1,31 @@
+{
+  "archive": "/Users/blairhudson/workspace/pllm/paper/artifacts/release/2026-10-16-fresh-target-v2",
+  "archive_files": 70,
+  "compiled_crates": 68,
+  "compiled_target_native_matches_wheel": true,
+  "historical_files_preserved": 287,
+  "live_catalog_differences": {
+    "README.md": {
+      "build_time_sha256": "b7b96d00e30aa90cf3443105666615504db3101dc4923506708cf5d93c971dcd",
+      "current_sha256": "4b1e3cff31a68b22676c364afb4b47d38f200f0021431667ca423a4f65e6a71e"
+    },
+    "audit-family-cards.py": {
+      "build_time_sha256": "d3a69c99c888d3570d7033e981076d18cdf09f97344fca32b9fc6a6ebd7b7059",
+      "current_sha256": "4442b0981c8b64c3b39a76ec2d35de5b18a3f51c245a9932473bac391b15e8b7"
+    },
+    "index.json": {
+      "build_time_sha256": "eb0043473f13a680485f455924bc3d9f211df20fe7c7d1506d9b3a9f8bffb3e4",
+      "current_sha256": "4d0b05b91e21735baff89e684fab9c374a16a83d762953038dc8eaeb6780081d"
+    },
+    "verify.py": {
+      "build_time_sha256": "791c7140301ba014c270684d4b39d092ce3752f21010d824c9aa350ff95b71b7",
+      "current_sha256": "fb1263d73e8e3a4687c7e4df33ca7644d572f9810e13f2825fcc5f55c200cdca"
+    }
+  },
+  "live_checked": true,
+  "replay_archive": "/Users/blairhudson/workspace/pllm/paper/artifacts/release/2026-10-16-fresh-environment-v1",
+  "replay_case_groups": 13,
+  "status": "verified",
+  "trajectory_array_pairs_verified": 180,
+  "wheel_sha256": "3b63ae30631f0b54773d708c0921b75dbf951142f14dfb80dd9eedac145043b6"
+}

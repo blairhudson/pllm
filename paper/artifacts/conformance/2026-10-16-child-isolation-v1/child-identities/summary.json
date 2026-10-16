@@ -1,0 +1,40 @@
+{
+  "captured_python_processes": 3,
+  "entries": [
+    {
+      "entry": {
+        "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "code_sha256": "8e758870b1a8269fc086e5d020e16b300f264f11b939ec2ba7a814528338a79a",
+        "entry": "<inline-code>",
+        "mode": "c"
+      },
+      "key": "55d6ff9ee1544fa1ae820b7ee1110de0",
+      "pid": 59218
+    },
+    {
+      "entry": {
+        "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "code_sha256": "b6f7c65ff44691e42fd6a3b68284b4da2c36aac1190261df6f76ed3bc80b7b69",
+        "entry": "<inline-code>",
+        "mode": "c"
+      },
+      "key": "56abc7df5af642189b101e1cec389bb4",
+      "pid": 59217
+    },
+    {
+      "entry": {
+        "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "code_sha256": "3a298cfe74d195638f1ae073c6b57d7464c0fe597c0090134260f490f150e10b",
+        "entry": "<inline-code>",
+        "mode": "c"
+      },
+      "key": "765f0b7a4f03436ca2d412429711479f",
+      "pid": 59228
+    }
+  ],
+  "expected_sha256": "d85d2f9582cb9670c1575391453700ae0e348d04926237470b63ff63a95ffb7d",
+  "failures": [],
+  "roles": {},
+  "schema": "pllm.paper_python_identity_summary.v1",
+  "status": "passed"
+}

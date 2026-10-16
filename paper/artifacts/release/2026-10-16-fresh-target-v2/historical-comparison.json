@@ -1,0 +1,22 @@
+{
+  "fresh_native": {
+    "pllm/_native.abi3.so": "cb607aa0b3776b21882a6363a3cedf055caf6e41ae71ed913127fb467ba3cba9"
+  },
+  "historical_native_sha256": "536b0b444a15c6a7d4bbf55bf47f10c93c95db269b64bd333a52edf3d8c11921",
+  "meaning": "Historical executions retain their original wheel/native identities. These are new build and replay observations.",
+  "native_matches_historical": false,
+  "payload_differences_from_cached_build": {
+    "pllm/_native.abi3.so": {
+      "cached": "536b0b444a15c6a7d4bbf55bf47f10c93c95db269b64bd333a52edf3d8c11921",
+      "fresh": "cb607aa0b3776b21882a6363a3cedf055caf6e41ae71ed913127fb467ba3cba9"
+    },
+    "pllm_run-0.1.0a2.dist-info/RECORD": {
+      "cached": "8e482f294e57cbc4c0111f911cc0ea6e7d2288de6247db164c958a66763ab870",
+      "fresh": "46d5128fc8f18c0007c54f60f58b5814e43fe9b60eaead3661510d983f1c11cc"
+    },
+    "pllm_run-0.1.0a2.dist-info/sboms/pllm-python.cyclonedx.json": {
+      "cached": "1674e69abf7a5dd654c00f9b6a2ed23285c5566cdd28ca266e0c1dacf2339686",
+      "fresh": "056cc186a9595d0e888a80877ac8d58ec304fc72e7d96c4276c672410a808663"
+    }
+  }
+}

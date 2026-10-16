@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "git",
+    "rev-parse",
+    "HEAD"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "git-commit.log",
+  "name": "git-commit",
+  "started_utc": "2026-10-16T05:07:15.324878+00:00"
+}

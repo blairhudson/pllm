@@ -1,0 +1,68 @@
+{
+  "schema": "pllm.paper_competitor_discovery.v1",
+  "records": [
+    {
+      "retrieval": {
+        "requested_url": "https://api.github.com/repos/kanav99/dvllm",
+        "resolved_url": "https://api.github.com/repos/kanav99/dvllm",
+        "method": "GET",
+        "status": 200,
+        "retrieved_utc": "2026-10-16T06:30:34.163170+00:00",
+        "request_headers": {
+          "User-Agent": "PLLM-documentary-source-review/1",
+          "Accept-Encoding": "identity"
+        },
+        "response_headers": {
+          "Date": "Fri, 16 Oct 2026 06:30:34 GMT",
+          "ETag": "W/\"73be2a2c94c6e29c0b86b67ce0776ddbb6a9da180d83f18ac57c089cb29ee1da\"",
+          "Last-Modified": "Tue, 06 Oct 2026 21:34:52 GMT",
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "bytes": 4969,
+        "sha256": "73be2a2c94c6e29c0b86b67ce0776ddbb6a9da180d83f18ac57c089cb29ee1da"
+      },
+      "fields": {
+        "full_name": "kanav99/dvllm",
+        "html_url": "https://github.com/kanav99/dvllm",
+        "homepage": "https://eprint.iacr.org/2026/1849",
+        "description": "delegated and verifiable llm inference",
+        "created_at": "2026-10-01T21:04:18Z",
+        "license": {
+          "key": "mit",
+          "name": "MIT License",
+          "spdx_id": "MIT",
+          "url": "https://api.github.com/licenses/mit",
+          "node_id": "MDc6TGljZW5zZTEz"
+        }
+      }
+    },
+    {
+      "retrieval": {
+        "requested_url": "https://api.github.com/users/kanav99",
+        "resolved_url": "https://api.github.com/users/kanav99",
+        "method": "GET",
+        "status": 200,
+        "retrieved_utc": "2026-10-16T06:30:34.502821+00:00",
+        "request_headers": {
+          "User-Agent": "PLLM-documentary-source-review/1",
+          "Accept-Encoding": "identity"
+        },
+        "response_headers": {
+          "Date": "Fri, 16 Oct 2026 06:30:34 GMT",
+          "ETag": "W/\"35b6ce442000eac2ab79e472fd0413da8faebed46f3a8163485e54745bff01d9\"",
+          "Last-Modified": "Wed, 09 Sep 2026 00:02:36 GMT",
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "bytes": 1212,
+        "sha256": "35b6ce442000eac2ab79e472fd0413da8faebed46f3a8163485e54745bff01d9"
+      },
+      "fields": {
+        "login": "kanav99",
+        "name": "Kanav Gupta",
+        "html_url": "https://github.com/kanav99",
+        "blog": "https://cs.umd.edu/~kanav"
+      }
+    }
+  ],
+  "scope": "Bounded fields from mutable GitHub metadata: author/repository self-identification, not proof of the evaluated build or a complete license/dependency audit"
+}

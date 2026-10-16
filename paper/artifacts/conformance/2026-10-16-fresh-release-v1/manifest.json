@@ -1,0 +1,38 @@
+{
+  "argv": [
+    "scripts/audit_paper_conformance.py",
+    "--output",
+    "paper/artifacts/conformance/2026-10-16-fresh-release-v1",
+    "--wheel",
+    "paper/artifacts/release/2026-10-16-fresh-target-v2/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+    "--reference-python",
+    "/Users/blairhudson/workspace/pllm/.venv/bin/python"
+  ],
+  "artifacts": {
+    "driver.py": "bface38587716e18201c4adf76b43f63bb99f27e1a2fa1c4a50b575ba64e3549",
+    "installed-build.json": "3c08889ea6676b87f155baa5589052fca9f0143dd7e19e5904b91d3a178446ef",
+    "provenance.error.txt": "d1ad154fd8624eb8814cb843a3416af7788842c82badac49cafe921eb8405c43"
+  },
+  "cases": [
+    {
+      "elapsed_seconds": 2.365527292713523,
+      "error": "No package metadata was found for torch",
+      "name": "provenance",
+      "status": "failed",
+      "traceback": "provenance.error.txt"
+    }
+  ],
+  "schema": "pllm.paper_conformance.v2",
+  "scope": "Generated functionality and bounded operator checks; no real checkpoint or resource-tier qualification",
+  "status": "failed",
+  "thread_environment": {
+    "HF_HUB_OFFLINE": "1",
+    "MKL_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "TOKENIZERS_PARALLELISM": "false",
+    "TRANSFORMERS_OFFLINE": "1",
+    "VECLIB_MAXIMUM_THREADS": "1"
+  }
+}

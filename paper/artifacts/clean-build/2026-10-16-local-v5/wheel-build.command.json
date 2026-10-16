@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python",
+    "-I",
+    "-B",
+    "-m",
+    "maturin",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "--interpreter",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python",
+    "--out",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/wheels",
+    "--verbose"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 100.02386558428407,
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "exit_code": 0,
+  "log": "wheel-build.log",
+  "log_sha256": "8f0f8410675275214d3bb46c68a3c9ef66858d5d2584e0d87e2908a911484e0e",
+  "name": "wheel-build",
+  "started_utc": "2026-10-16T05:44:04.320274+00:00"
+}

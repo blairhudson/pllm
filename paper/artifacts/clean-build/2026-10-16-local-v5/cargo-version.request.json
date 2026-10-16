@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "cargo",
+    "--version",
+    "--verbose"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "log": "cargo-version.log",
+  "name": "cargo-version",
+  "started_utc": "2026-10-16T05:44:01.441028+00:00"
+}

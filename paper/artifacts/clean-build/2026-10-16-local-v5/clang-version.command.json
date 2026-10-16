@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/xcrun",
+    "clang",
+    "--version"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.0858495831489563,
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "exit_code": 0,
+  "log": "clang-version.log",
+  "log_sha256": "ea3037e0630fa16798079372fdc24f6542d021dadda4915cc979799682d78295",
+  "name": "clang-version",
+  "started_utc": "2026-10-16T05:44:02.551079+00:00"
+}

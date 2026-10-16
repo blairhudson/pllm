@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "rustup",
+    "show",
+    "active-toolchain"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "rustup-toolchain.log",
+  "name": "rustup-toolchain",
+  "started_utc": "2026-10-16T05:41:39.659419+00:00"
+}

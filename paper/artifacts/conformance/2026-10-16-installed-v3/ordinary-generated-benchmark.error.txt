@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 458, in main
+    result = run()
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 452, in <lambda>
+    ("ordinary-generated-benchmark", lambda: ordinary_benchmark(output, work)),
+                                             ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 355, in ordinary_benchmark
+    assert statuses == ["completed"], statuses
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ['blocked']

@@ -19,7 +19,7 @@ pdf: "paper.pdf"
 source: "paper-source.zip"
 arxiv: "paper-arxiv-source.zip"
 abstract: |
-  Private language-model inference lets clients use remote computation without revealing their inputs under a stated security model. Practical cost depends on more than protected computation: preprocessing, communication, model delivery, and client memory can determine whether a design is usable. We present PLLM, an open-source framework for implementing and evaluating these tradeoffs. PLLM separates model semantics from numerical representations, protocols, and execution placement, and records costs across participating roles and request lifecycles. We define nested client-memory tiers and distinguish executable adaptations of prior work from bounded component references. The evaluation studies correctness, complete costs, and resource feasibility. [P1-D: complete the matched evaluation and insert its methods, workloads, and principal findings.] Executable configurations, correctness checks, and replayable evidence support comparisons without treating different numerical or security contracts as interchangeable.
+  Private language-model inference lets clients use remote computation without revealing their inputs under a stated security model. Practical cost depends on more than protected computation: preprocessing, communication, model delivery, and client memory can determine whether a design is usable. We present PLLM, an open-source framework that separates model semantics from numerical representations, protocols, and execution placement, and records costs across participating roles and request lifecycles. We define nested client-memory tiers and distinguish executable adaptations of prior work from bounded component references. A fresh-target build and fresh-environment replay preserve 88,776 generated logit and cache values exactly; a separate pinned-checkpoint listing passes through the SDK and gateway. A reanalysis of 51 archived client executions across four distinct cohorts finds different leaders for traffic, memory, and decode speed: the lowest-traffic configuration need not have the smallest footprint or highest decode throughput. These scoped results support executable, auditable comparison rather than a universal ranking. [P1-D: complete the broader matched publication campaign before extending these findings to additional workloads or quality claims.]
 ---
 
 *Working manuscript; evidence placeholders remain explicit.*
@@ -72,8 +72,11 @@ client.
 
 Existing frameworks and protocol implementations address different models,
 numerical representations, adversary assumptions, and execution environments.
-Their results do not directly identify which compositions remain effective under
-a fixed client budget and a complete request lifecycle. We present PLLM to make
+Recent systematizations already examine reproducibility, standardized benchmarks,
+and comparison contracts [@chen2026sok; @das2026comparability;
+@albadawi2026sok; @kei2026sok]. PLLM complements that work with executable
+compositions, independently implemented mechanisms, and measured allocation and
+request lifecycles under a fixed client budget. We present PLLM to make
 these choices executable and their costs inspectable. Model adapters produce a
 shared decoder representation; checked components specify numerical, protocol,
 state, and placement choices. Supported compositions run through a common SDK,
@@ -82,8 +85,9 @@ gateway, and benchmark path [@pllm2026].
 The paper contributes (1) source-bound execution contracts for reusable decoder
 and method implementations, (2) a resource-tiered evaluation methodology,
 (3) scoped independent implementations of selected published mechanisms, and
-(4) an empirical account of complete costs and feasible configurations.
-**[P1-D: finalize the fourth contribution from the matched results.]**
+(4) a checked reanalysis of cost and resource tradeoffs in four archived cohorts.
+The fresh conformance checks and historical reanalysis have separate evidence
+identities. **[P1-D: add the broader matched publication campaign.]**
 
 We ask three research questions: **RQ1**, can different designs share an execution
 framework without obscuring their assumptions? **RQ2**, how does complete
@@ -98,10 +102,22 @@ alone is not evidence of a complete private decoder or a new security proof.
 ## 2.1 Functionality, numerics, and security
 
 The core serving comparison concerns public-weight decoder inference: client
-inputs, intermediate values, and outputs are private under each stated role
-contract, while model weights are public. A comparison fixes checkpoint identity,
-numerical representation, workload, sampling, permitted leakage, and adversary
-assumptions. Verified and unverified results retain different contracts.
+inputs, intermediate values, and outputs are protected under each stated role
+contract, while model weights are public. Version 1 of the comparison contract
+fixes checkpoint identity, numerical representation, workload, sampling, permitted
+leakage, adversary assumptions, lifecycle and resources before measurement.
+Verified and unverified results retain different contracts. The machine-readable
+constants and full rules accompany the artifact as
+`paper/comparison-contract.v1.json` and `paper/COMPARISON-CONTRACT.md`.
+
+The common remote profile permits static semi-honest corruption of at most one
+provider role, with trusted client/setup and confidential authenticated channels.
+More permissive coalition families require separate composition arguments; the
+role count alone does not supply one. Public geometry, executed lengths, message
+sizes, stage-level access patterns, timing and termination are disclosed. Secret
+token indices cannot be relabeled as public access patterns. Client-only execution
+is a computational reference, and verified-linear and hardware-trusted methods
+retain their additional assumptions. An unavailable competitor remains unresolved.
 
 The exact-execution track compares complete logits, active KV, positions, executed
 history, pending selections, and sampler behavior against the same unprotected
@@ -119,11 +135,13 @@ inherit the exact track's identity from matching a few selected tokens.
 | High | 16 GiB |
 
 These nested ceilings are PLLM evaluation conventions, not industry standards or
-total device-RAM requirements. They make an explicit client budget part of the
-comparison. Low represents a small inference footprint, Medium an application
-worker, and High a compute-rich worker; application suitability still needs
-measurement. **[P1-A: finalize deployment rationale and sensitivity around each
-threshold.]**
+total device-RAM requirements. Their fixed eightfold spacing is a coarse
+logarithmic budget grid: Low asks for a footprint well below a GiB; each subsequent
+tier relaxes the allowance by the same factor. This convention is not a device
+survey or an application-suitability result. Report exact peaks and sensitivity
+at 0.75, 0.875, 1, 1.125 and 1.25 times each ceiling. The Low grid is therefore
+192/224/256/288/320 MiB. Section 6.3 reclassifies historical observations; behavior
+near the Medium and High limits remains unmeasured.
 
 Observed eligibility uses the largest complete-client peak across accepted
 fresh-process replicates. The ordinary response worker includes SDK, supervisor,
@@ -149,13 +167,22 @@ physical wire have different scopes. Base and output-dependent traffic are
 reported only where attribution is complete.
 
 The eligible frontier fixes the security and outsourcing requirement before
-optimizing resource objectives. An initial predominantly remote comparison proposes
-at least 90% of body linear MACs off-client in both prefill and decode; this
-threshold and its sensitivity require justification in P1-A. Client-only execution
-remains a useful reference. More workers can add both trust requirements and
-aggregate bandwidth. Cross-topology latency results therefore report all providers
-and include a resource-normalized sensitivity comparison. No universal weighted
-score replaces the individual metrics.
+optimizing resource objectives. Predominantly remote execution means at least 90%
+of logical body-linear MACs off-client, separately in prefill and decode. This
+declares a maximum one-tenth client share of that work, not of total CPU. Count a
+logical product once; protocol duplication and preprocessing remain additional
+costs. Lookup, output head, attention products and nonlinear work are outside this
+denominator. Report 80/85/90/95/100% sensitivity; a per-row counter alone cannot
+qualify phase-dependent placement. No universal weighted score replaces the
+individual metrics.
+
+More workers can add both trust requirements and aggregate bandwidth. The
+per-party profile allocates 100/40 Mbps down/up to every role. The normalized
+profile retains client access but divides a fixed 200/80 Mbps provider pool,
+four CPU-core equivalents and 8 GiB provider allowance equally among providers.
+These are synthetic comparison budgets. Current native execution expresses link
+partitions but does not enforce that aggregate CPU/RSS pool; such a run must be
+labeled link-normalized only. Full resource-normalized evidence remains a gate.
 
 # 3 Design and implementation
 
@@ -216,20 +243,51 @@ lookup and output-head execution without changing decoder semantics. Preparation
 paging is also separately selectable. The historical Preparation measurements in
 Appendix A predate that installed choice and retain their isolated probe scope.
 
-**[E1: evidence to add]**
+## 3.3 An executed extension and conformance check
 
-**[P1-B: extension and conformance evidence.]** Add one implemented extension,
-its unchanged interfaces, conformance checks, an ordinary benchmark invocation,
-and a rejected incompatible configuration. Rerun the published SDK example through
-the gateway and archive exact commands and outcomes. Resolution alone does not
-demonstrate a completed inference request. E1 is the earlier draft's alias for
-this gate.
+**[E1: generated implementation checks recorded]**
+
+`MlpPrefillTiling` is a concrete extension through the existing interfaces. It
+recognizes row-independent gate/up, SiLU, multiply and down-projection regions,
+checks exclusive consumers, and executes bounded public row tiles. Full outputs,
+attention and KV retain their original semantics. The native contract binds the
+source plan, schedule, composition and tile size; incompatible Metal and verified
+compositions reject before execution.
+
+A frozen installed-wheel replay runs 29 focused tests for this extension, source
+binding and complete nonlinear operators. Generated Qwen2, Qwen3 and Llama fixtures
+preserve 29,592 byte-exact tiled/untiled logit and active-KV values over batched
+prefill and three same-token decode steps. Independent Transformers FP32 execution
+has maximum logit errors 0.042739, 0.051512 and 0.047203 respectively, below the
+declared 0.1 fixture tolerance. This second comparison tests quantization fidelity;
+it is not an exact FP32 claim or representative task-quality evaluation.
+
+A separate empty-target build and fresh-environment replay check 180 array pairs,
+containing 88,776 logit and active-KV values, across full and tiled executions of
+the same fixture families. Its different native binary retains a separate identity;
+the earlier execution records are not relabeled.
+
+The installed-wheel replay also completes an ordinary response benchmark, the unchanged published
+prepared SDK example, and its HTTP gateway path through separate local provider
+children. A separate cached-checkpoint replay executes Listing 1's exact pinned
+Qwen configuration using the fresh build: SDK and gateway both process 40 input and eight output tokens,
+return matching text, and observe zero swap growth. The SDK audit records masked
+stages and zero plaintext prompt/token-ID bytes sent. These are functionality
+checks, with an in-process ASGI gateway and TCP provider children, not performance
+or independent-operator evidence.
+The fresh archive binds both provider processes to the installed SDK/native build
+and retains complete checkpoint-file locks before and after execution.
+
+`paper/IMPLEMENTATION-EVIDENCE.md` records source/build identities, independent
+oracles, commands and retained failed attempts. `scripts/replay_paper_listing.py`
+extracts the published listing rather than maintaining another configuration.
+**[P1-E: immutable publication release and independent external replay.]**
 
 # 4 Baseline runtime and trust model
 
 The trusted client retains plaintext inputs, activation scales, nonlinear operations, decoder state, and output selection. Token lookup and ordinarily the output head also run locally. An application gateway runs inside this boundary; providers hold public transformer-body weights.
 
-The distributed protocols assume honest-but-curious services that follow the protocol and do not collude. Prepared execution additionally requires Preparation to erase mask material; Preparation may instead be hosted by the client. Co-located processes exercise the implementation but do not provide operator separation. Model weights, tensor dimensions, lengths, timing, and access patterns are outside the protection offered by these protocols. Transport authentication checks role identities; it does not establish non-collusion.
+The distributed protocols assume honest-but-curious services that follow the protocol and obey the declared collusion restriction. Preparation may instead be hosted by the client. Co-located processes exercise the implementation but do not provide operator separation. The algebraic privacy model is untimed: public weights, geometry, admitted lengths and semantic stopping are disclosed, while implementation timing and side channels require separate analysis. Transport authentication checks role identities; it does not establish non-collusion. Logical retirement of a one-use owner is also distinct from secure erasure: retained seed copies can regenerate masks. No adaptive-compromise or forensic-erasure guarantee follows from the present runtime.
 
 ## 4.1 Two-worker execution
 
@@ -262,13 +320,15 @@ CrypTen provides secure tensor computation and a machine-learning interface
 delegation [@tramer2019slalom]. These works motivate different parts of the
 design space; citing them does not establish a PLLM reproduction.
 
-The initial mechanism selection includes complete gated-operator adaptations of
-Compact, Curl, and logarithmic-ciphertext lookup [@islam2024compact;
-@santos2024curl; @heath2024logrow], selected SIGMA/FuseFSS nonlinear mechanisms
-[@gupta2024sigma; @ma2026fusefss], and NEXUS encrypted softmax primitives
-[@zhang2025nexus]. Their numeric, conversion, setup, and transport contracts differ.
-The implementation inventory records these differences rather than assigning
-whole-system paper performance to a bounded operator.
+Our representative set covers six families: Slalom-derived verified delegation;
+SmoothQuant-derived public equalization [@xiao2023smoothquant]; complete gated
+adaptations of Compact, Curl and garbled lookup [@islam2024compact;
+@santos2024curl; @heath2024logrow]; SIGMA/FuseFSS nonlinear mechanisms
+[@gupta2024sigma; @ma2026fusefss]; FastQuery/BumbleBee embedding and packing
+[@lin2024fastquery; @lu2025bumblebee]; and NEXUS/THOR encrypted softmax
+[@zhang2025nexus; @moon2024thor]. Their numerical, conversion, setup and transport
+contracts differ. The implementation inventory records those differences rather
+than assigning whole-system paper performance to a bounded operator.
 
 | Evidence class | What the result establishes |
 | :--- | :--- |
@@ -282,10 +342,34 @@ cost windows, and raw replay evidence. Original software is a specification or
 oracle input, not a runtime dependency. Full-system external comparisons require
 their own qualification. An unavailable implementation is not a defeated baseline.
 
-**[P1-C: primary-source and coverage freeze.]** Select the representative main-text
-mechanisms, verify citations and deviations against primary sources, and link
-every table row to a frozen configuration and report. Broader inventory belongs
-in an appendix. No ranking across incompatible numerical/security contracts follows.
+The complete gated-operator cards illustrate the required precision. Curl's
+public Haar table uses exact replacement rescaling; the LogRow-labeled reference
+uses the paper's lookup and row-reduction construction while retaining a larger
+one-hot setup. Compact adapts density-guided fitting to dyadic polynomial
+intervals and Boolean evaluation. All charge private selection, conversion,
+multiplication and final rounding. A fresh bounded replay checks 32 independent
+integer-oracle outputs and another 32 using fresh material. Their changed profiles
+do not preserve the checkpoint's complete logits/KV, and their operator costs
+cannot rank the original full systems.
+
+The fresh six-family replay passes 46 tests, including captured-frame traffic
+accounting and its rejection controls. Ten bounded operator/replay pairs check
+116 exact integer outputs and eight approximate CKKS outputs in total, within
+their declared contracts. All 26 child processes retain matching installed-package
+start/end identities. The earlier two-byte equalization assertion remains a
+separate failed record: its original frames were not captured. The repaired test
+reconciles actual timing-field widths while rejecting unrelated framing changes.
+These checks establish mechanism functionality, not external paper performance
+or complete encrypted-decoder execution.
+
+The 16 October primary-source review, source hashes and exact implementation cards
+are `paper/PRIOR-ART-REVIEW.md`, `paper/prior-art-sources.json` and
+`paper/IMPLEMENTATION-EVIDENCE.md`. The review distinguishes publication versions
+and abstract-only observations from full-text review. LogRow's locator is
+Section 5, Construction 1 and Figures 3--5; the retained setup differs from its
+Section 6 accounting. The defined P1-C mechanism/conformance slice is complete;
+fresh matched cost sweeps remain P1-D work. Broader mechanisms remain appendix
+references rather than automatic additions to the measured main-text set.
 
 # 6 Evaluation design
 
@@ -319,7 +403,7 @@ is the previous draft's repeated-performance gate.
 - **RQ3: resource feasibility.** Compare client-only, two-offset, prepared, and
   verified prepared paths where admitted, with distinct trust classes. Qualify
   Low/Medium/High by complete-client maxima and show the resulting tradeoffs.
-  **[P1-D Figure 3/Table 2: tier frontier and matched whole-response costs.]**
+  **[P1-D Figure 3/current-baseline table: tier frontier and matched whole-response costs.]**
 
 **[E3: evidence to add]**
 
@@ -327,6 +411,57 @@ For P1-D, add current protected/clear and independent-reference comparisons. Pin
 tokenization and sampling; report full logits/state checks and separate numerical
 errors, prefill/decode agreement, and held-out task quality. The historical
 two-prompt checks in Appendix A do not characterize representative generation.
+
+## 6.3 Audited historical reanalysis
+
+To make the accounting distinction concrete, we also retain a matched 24-client
+case study: eight recipes, three fresh clients each, one pinned Qwen2.5-0.5B
+W8A8 source, and 150 input plus eight output tokens. All recipes use local shared
+100/40 Mbps access pacing and source-present cold clients. A read-only publication
+audit checks the original report, frozen source/plan bindings, complete-state
+commitments, and individual measurements; it does not rerun their computation.
+Table 1 is generated from those original observations.
+
+| Recipe | All-link TCP MB | Request s | Decode tok/s | Maximum client MiB |
+| :--- | ---: | ---: | ---: | ---: |
+| Maintained prepared | 478.65 | 106.64 | 3.79 | 213.44 |
+| MLP tiling | 478.65 | 108.49 | 3.79 | 189.59 |
+| Digit8 Preparation | 478.65 | 104.03 | 3.78 | 224.30 |
+| Tiling + digit8 | 478.65 | 106.44 | 3.76 | 185.56 |
+| Tiling + digit8 + placement | 458.78 | 107.10 | 4.39 | 189.56 |
+| Digit8 + placement | 458.78 | 105.97 | 4.39 | 226.50 |
+| Serial digit8 issuance | 478.65 | 108.75 | 3.79 | 226.89 |
+| Coupled boundary | 367.35 | 82.95 | 1.92 | 210.22 |
+
+**Table 1.** Original 150+8 tier cohort. Traffic, request time, and decode rate are
+medians; memory is the largest complete-client peak across all three replicates.
+The last row adds two boundary workers, and therefore has a different trust and
+aggregate-resource contract. Its values are an explicit cross-topology comparison,
+not a same-resource speedup. MB is decimal; MiB is binary. Indexed-tokenizer and
+checkpoint delivery, physical wire, and Internet delay are unmeasured.
+
+The cohort records 210,247,680 checked logit/KV values and zero observed swap
+growth. It illustrates three different objectives. Tiling plus digit8 has the
+smallest client peak; selective placement lowers traffic with a declared 90.45%
+per-row remote body-linear share; coupled boundaries save cold delivery but add per-token
+work. The latter's aggregate cold-first CPU is 61.87 seconds, versus
+53.81--58.55 seconds across the prepared recipes. These windows end at the first
+response and exclude cleanup. A shorter request does not imply less total work.
+
+Threshold sensitivity also changes eligibility. At 128 MiB no recipe qualifies;
+at 192 MiB only tiling, tiling plus digit8, and tiling plus digit8 plus placement
+qualify; all eight fit the observed 256 MiB ceiling. These are reclassifications of
+the same measured maxima, not fresh admission or memory measurements. They justify
+reporting budgets and sensitivity explicitly rather than declaring one recipe
+universally best. They do not make 256 MiB an externally standardized threshold.
+
+The publication audit also preserves three separate boundary cohorts at 150+8,
+150+32, and 150+64. Their different builds/cohort commitments remain distinct;
+no samples are pooled. Reproduction is
+`node scripts/audit_publication_evidence.mjs --check`; exact source hashes,
+replicate vectors, all seven primary metrics, and paired changes are in
+`paper/artifacts/historical-results-v1.json`. The broader fresh P1-D campaign and
+independent model-quality evaluation remain separate gates.
 
 # 7 Availability, limitations, and open questions
 
@@ -358,11 +493,13 @@ and traffic breakdowns.]**
 # 8 Conclusion
 
 PLLM connects model semantics, numerical and protocol choices, resource ownership,
-and measurement through executable contracts. The framework supports independent
-mechanism implementations and scope-aware comparison across client-memory tiers.
-**[P1-D: replace this placeholder with the principal matched findings.]** A useful
-comparison explains which costs fall, which rise, and under what conditions the
-result remains feasible.
+and measurement through executable contracts. Generated extension checks preserve
+exact decoder state, while independent references assess a different question:
+numerical fidelity. The audited historical cohorts show why communication,
+memory, and decoding speed need separate leaders and explicit resource budgets.
+These results support scope-aware comparison; broader workload and task-quality
+claims retain the P1-D campaign gate. A useful comparison explains which costs
+fall, which rise, and under what conditions the result remains feasible.
 
 # Appendix A: retained historical case studies
 
@@ -373,7 +510,7 @@ limits. They are not the new matched publication evaluation.
 
 The dispatch study (W1) compares four Qwen2.5-0.5B-Instruct candidates using eight-bit weights and activations (W8A8), 39 input tokens, and eight generated tokens. Local link emulation gives each party a shared 100 Mbps downlink and 40 Mbps uplink. An added 20 ms egress delay at each endpoint produces 40 ms additional request–reply delay. All four candidates produce matching output digests.
 
-Sending the independent worker request first raises offset decode throughput from 0.1027 to 0.1994 tokens/s ($1.94\times$), while online application-body bytes remain unchanged (Table 1). Overlapping prepared delivery and issuance raises request throughput by 17.3%, with little change in decode throughput. Scheduling reduces observed latency rather than bytes. Each configuration has one sample; latency distributions are unmeasured.
+Sending the independent worker request first raises offset decode throughput from 0.1027 to 0.1994 tokens/s ($1.94\times$), while online application-body bytes remain unchanged (Table 2). Overlapping prepared delivery and issuance raises request throughput by 17.3%, with little change in decode throughput. Scheduling reduces observed latency rather than bytes. Each configuration has one sample; latency distributions are unmeasured.
 
 | Candidate | Request (s) | Decode (tok/s) | Body MB |
 | :--- | ---: | ---: | ---: |
@@ -382,7 +519,7 @@ Sending the independent worker request first raises offset decode throughput fro
 | Offset control | 155.01 | 0.1027 | 112.005 |
 | Offset seed-first | 105.33 | 0.1994 | 112.005 |
 
-**Table 1.** Local link-emulation results (W1); one sample per candidate. Request timing excludes provider startup and checkpoint distribution. Body MB denotes decimal megabytes of online application bodies.
+**Table 2.** Local link-emulation results (W1); one sample per candidate. Request timing excludes provider startup and checkpoint distribution. Body MB denotes decimal megabytes of online application bodies.
 
 ## A.2 Preprocessing and memory
 

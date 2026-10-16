@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "scripts/replay_paper_listing.py",
+    "--output",
+    "target/paper-listing-preflight-v1",
+    "--preflight-only"
+  ],
+  "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+  "driver_sha256": "ae8365a71c842e6e446cd72e5a0a9d329a67e97ac59133e96f1d2dc6217f0b36",
+  "files": {
+    "admission.json": "c2b18c58062fd410c157d1f3963d6d51ee42f08f593468a439aedb6cfddb2b91",
+    "build.json": "d26de02872fce1ed8a109115c0796db50facbabbe88d9befd7f9e97d42664529",
+    "driver.py": "ae8365a71c842e6e446cd72e5a0a9d329a67e97ac59133e96f1d2dc6217f0b36",
+    "experiment.json": "c638a2f837a524829eab83b7d0ade28c4e35768cee03acce14dc2d468199f2b5",
+    "listing.py": "3dff4863a157ceae1762989d708daa01ab9dcedc6b4a20803e737e8841ac93bb"
+  },
+  "installed_package": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py",
+  "listing_sha256": "3dff4863a157ceae1762989d708daa01ab9dcedc6b4a20803e737e8841ac93bb",
+  "manuscript_sha256_at_execution": "71ea3b21f48f2575765f9b3a9547057a81499f1d1e3464ca9a7734abe6bb3bd7",
+  "public_prompt": "Explain why the sky is blue in one sentence.",
+  "schema": "pllm.paper_listing_replay.v1",
+  "scope": "Cached public checkpoint functionality; no performance or memory-tier claim",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "status": "admitted_not_executed"
+}

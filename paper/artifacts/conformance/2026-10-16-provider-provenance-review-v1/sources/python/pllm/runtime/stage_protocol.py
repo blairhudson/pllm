@@ -1,0 +1,890 @@
+from __future__ import annotations
+
+import math
+import struct
+from dataclasses import dataclass
+from typing import Any, Literal
+
+import msgpack
+import numpy as np
+
+from .protocol import ProtocolError
+from .quantization import centered_residues, positive_residues
+
+STAGE_PROTOCOL_VERSION = 3
+PREPARED_STAGE_BATCH_REQUEST_MAGIC = b"PLLMPSB1"
+PREPARED_STAGE_BATCH_RESPONSE_MAGIC = b"PLLMPSR1"
+PREPARED_STAGE_SINGLE_REQUEST_MAGIC = b"PLLMPSB2"
+PREPARED_STAGE_SINGLE_RESPONSE_MAGIC = b"PLLMPSR2"
+PREPARED_STAGE_PACKED_REQUEST_MAGIC = b"PLLMPSB3"
+RingKind = Literal["u16", "u24", "u32", "prime"]
+
+
+def _ring_from(modulus: int, wire_bits: int, ring: str | None) -> RingKind:
+    if ring is not None:
+        if ring not in {"u16", "u24", "u32", "prime"}:
+            raise ProtocolError("unsupported ring kind")
+        if ring.startswith("u") and (modulus, wire_bits) != (
+            1 << int(ring[1:]), int(ring[1:])
+        ):
+            raise ProtocolError("ring, modulus, and wire width mismatch")
+        return ring  # type: ignore[return-value]
+    if modulus == 1 << 16 and wire_bits == 16:
+        return "u16"
+    if modulus == 1 << 24 and wire_bits == 24:
+        return "u24"
+    if modulus == 1 << 32 and wire_bits == 32:
+        return "u32"
+    return "prime"
+
+
+def pack_residues(values: np.ndarray, wire_bits: int) -> bytes:
+    from .compact import pack_unsigned, CompactCodecError
+    if wire_bits not in {16, 24, 32}:
+        raise ProtocolError("wire_bits must be 16, 24, or 32")
+    try:
+        return pack_unsigned(values, width=wire_bits // 8)
+    except (ValueError, CompactCodecError) as exc:
+        raise ProtocolError(str(exc)) from exc
+
+
+def unpack_residues(payload: bytes, shape: tuple[int, ...], wire_bits: int) -> np.ndarray:
+    from .compact import unpack_unsigned, CompactCodecError
+    import math
+    if wire_bits not in {16, 24, 32} or any(d < 0 for d in shape):
+        raise ProtocolError("invalid residue shape or wire width")
+    try:
+        return unpack_unsigned(payload, width=wire_bits // 8, count=math.prod(shape)).reshape(shape)
+    except (ValueError, CompactCodecError) as exc:
+        raise ProtocolError(str(exc)) from exc
+
+
+def _packed_stage_id(value: str, *, kind: str) -> bytes:
+    try:
+        packed = bytes.fromhex(value)
+    except (TypeError, ValueError) as exc:
+        raise ProtocolError(f"{kind} must contain 128 random bits") from exc
+    if len(packed) != 16:
+        raise ProtocolError(f"{kind} must contain 128 random bits")
+    return packed
+
+
+def prepared_stage_batch_rows(payload: bytes) -> int | None:
+    single = payload.startswith(PREPARED_STAGE_SINGLE_REQUEST_MAGIC)
+    packed = payload.startswith(PREPARED_STAGE_PACKED_REQUEST_MAGIC)
+    if not single and not packed and not payload.startswith(PREPARED_STAGE_BATCH_REQUEST_MAGIC):
+        return None
+    header = len(PREPARED_STAGE_BATCH_REQUEST_MAGIC)
+    if len(payload) < header + 4:
+        raise ProtocolError("invalid prepared stage batch header")
+    rows = struct.unpack_from(">I", payload, header)[0]
+    if rows < 1 or (single and rows != 1) or (not single and not packed and rows <= 1):
+        raise ProtocolError("prepared stage row count differs from its frame version")
+    return rows
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedStageBatchRequest:
+    """Inventory-bound request with explicit single-row and packed namespaces."""
+
+    batch_id: str
+    correlation_ids: tuple[str, ...]
+    masked_input: np.ndarray
+    wire_bits: int
+    input_bits: int | None = None
+
+    def pack(self) -> bytes:
+        value = np.asarray(self.masked_input, dtype=np.uint32)
+        if value.ndim != 2 or value.shape[0] < 1 or value.shape[1] <= 0:
+            raise ProtocolError("prepared stage batch must be a non-empty matrix")
+        rows, columns = value.shape
+        if self.input_bits is None:
+            data = pack_residues(value, self.wire_bits)
+        else:
+            from pllm import _native
+            from .residue_codec import MAX_ROWS, MAX_VALUES
+            if (type(self.input_bits) is not int or self.wire_bits not in {16, 24, 32}
+                    or not 1 <= self.input_bits <= self.wire_bits
+                    or rows > MAX_ROWS or rows * columns > MAX_VALUES):
+                raise ProtocolError("invalid prepared packed-input layout")
+            data = _native.offset_pack_rows(value.astype("<u4", copy=False).tobytes(), bytes([self.input_bits]) * columns, rows)
+        return self.pack_encoded(self.batch_id, self.correlation_ids, data, rows, columns,
+                                 self.wire_bits, self.input_bits)
+
+    @staticmethod
+    def pack_encoded(batch_id, correlation_ids, data, rows, columns, wire_bits, input_bits=None):
+        """Frame canonical native bytes without expanding a second masked tensor."""
+        if (type(rows) is not int or type(columns) is not int or rows < 1 or columns < 1
+                or wire_bits not in {16, 24, 32}
+                or input_bits is not None and (type(input_bits) is not int or not 1 <= input_bits <= wire_bits)):
+            raise ProtocolError("invalid prepared packed-input layout")
+        bits = wire_bits if input_bits is None else input_bits
+        if (type(data) is not bytes or len(data) != (rows * columns * bits + 7) // 8
+                or rows * columns * bits % 8 and data[-1] >> (rows * columns * bits % 8)):
+            raise ProtocolError("invalid prepared encoded payload")
+        if len(correlation_ids) != rows or len(set(correlation_ids)) != rows:
+            raise ProtocolError("prepared stage batch tickets must be unique per row")
+        batch = _packed_stage_id(batch_id, kind="prepared stage batch ID")
+        tickets = b"".join(
+            _packed_stage_id(item, kind="prepared stage ticket")
+            for item in correlation_ids
+        )
+        magic = PREPARED_STAGE_SINGLE_REQUEST_MAGIC if rows == 1 else PREPARED_STAGE_BATCH_REQUEST_MAGIC
+        if input_bits is None:
+            fields = [batch, tickets, columns, wire_bits, data]
+        else:
+            from .residue_codec import MAX_ROWS, MAX_VALUES
+            if rows > MAX_ROWS or rows * columns > MAX_VALUES:
+                raise ProtocolError("invalid prepared packed-input layout")
+            fields = [batch, tickets, columns, wire_bits, input_bits, data]
+            magic = PREPARED_STAGE_PACKED_REQUEST_MAGIC
+        body = msgpack.packb(fields, use_bin_type=True)
+        return magic + struct.pack(">I", rows) + body
+
+    @classmethod
+    def unpack(
+        cls,
+        payload: bytes,
+        *,
+        max_rows: int | None = None,
+        max_tensor_elements: int | None = None,
+        expected_input_bits: int | None = None,
+    ) -> "PreparedStageBatchRequest":
+        rows = prepared_stage_batch_rows(payload)
+        if rows is None:
+            raise ProtocolError("invalid prepared stage batch magic")
+        if max_rows is not None and rows > max_rows:
+            raise ProtocolError("prepared stage batch row count exceeds model context")
+        offset = len(PREPARED_STAGE_BATCH_REQUEST_MAGIC) + 4
+        try:
+            value = msgpack.unpackb(payload[offset:], raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid prepared stage batch request") from exc
+        packed = payload.startswith(PREPARED_STAGE_PACKED_REQUEST_MAGIC)
+        if packed != (expected_input_bits is not None):
+            raise ProtocolError("prepared packed-input encoding differs from admitted session")
+        if not isinstance(value, list) or len(value) != (6 if packed else 5):
+            raise ProtocolError("invalid prepared stage batch request schema")
+        batch, tickets, raw_columns, raw_wire_bits, *tail = value
+        input_bits = tail[0] if packed else None
+        data = tail[-1]
+        if not isinstance(batch, (bytes, bytearray)) or len(batch) != 16:
+            raise ProtocolError("prepared stage batch ID must contain 128 random bits")
+        if not isinstance(tickets, (bytes, bytearray)) or len(tickets) != rows * 16:
+            raise ProtocolError("prepared stage batch ticket count mismatch")
+        if type(raw_columns) is not int or type(raw_wire_bits) is not int:
+            raise ProtocolError("invalid prepared stage integer dimensions")
+        columns = raw_columns
+        wire_bits = raw_wire_bits
+        if columns <= 0:
+            raise ProtocolError("prepared stage batch width must be positive")
+        if max_tensor_elements is not None and rows * columns > max_tensor_elements:
+            raise ProtocolError("prepared stage batch tensor allocation is too large")
+        from .residue_codec import MAX_ROWS, MAX_VALUES
+        if (wire_bits not in {16, 24, 32} or (packed and (
+            type(input_bits) is not int or input_bits != expected_input_bits
+            or not 1 <= input_bits <= wire_bits or rows > MAX_ROWS or rows * columns > MAX_VALUES))):
+            raise ProtocolError("invalid prepared packed-input layout")
+        size = ((rows * columns * input_bits + 7) // 8 if packed else rows * columns * (wire_bits // 8))
+        if not isinstance(data, (bytes, bytearray)) or len(data) != size:
+            raise ProtocolError("prepared stage batch payload length mismatch")
+        ticket_bytes = bytes(tickets)
+        correlation_ids = tuple(
+            ticket_bytes[index : index + 16].hex()
+            for index in range(0, len(ticket_bytes), 16)
+        )
+        if len(set(correlation_ids)) != rows:
+            raise ProtocolError("prepared stage batch tickets must be unique per row")
+        if packed:
+            from pllm import _native
+            try:
+                decoded = _native.unpack_residue_rows(bytes(data), bytes([input_bits]) * columns, rows)
+            except ValueError as exc:
+                raise ProtocolError("invalid prepared packed-input payload") from exc
+            masked_input = np.frombuffer(decoded, dtype="<u4").reshape(rows, columns)
+        else:
+            masked_input = unpack_residues(bytes(data), (rows, columns), wire_bits)
+        return cls(
+            batch_id=bytes(batch).hex(),
+            correlation_ids=correlation_ids,
+            masked_input=masked_input,
+            wire_bits=wire_bits,
+            input_bits=input_bits,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedStageBatchResponse:
+    batch_id: str
+    masked_output: np.ndarray
+    wire_bits: int
+    server_ns: int = 0
+
+    def pack(self) -> bytes:
+        value = np.asarray(self.masked_output, dtype=np.uint32)
+        if value.ndim != 2 or value.shape[0] < 1 or value.shape[1] <= 0:
+            raise ProtocolError("prepared stage batch result must be a non-empty matrix")
+        rows, columns = value.shape
+        batch = _packed_stage_id(self.batch_id, kind="prepared stage batch ID")
+        body = msgpack.packb(
+            [batch, columns, self.wire_bits, self.server_ns, pack_residues(value, self.wire_bits)],
+            use_bin_type=True,
+        )
+        magic = PREPARED_STAGE_SINGLE_RESPONSE_MAGIC if rows == 1 else PREPARED_STAGE_BATCH_RESPONSE_MAGIC
+        return magic + struct.pack(">I", rows) + body
+
+    @classmethod
+    def unpack(
+        cls,
+        payload: bytes,
+        *,
+        max_rows: int | None = None,
+        max_tensor_elements: int | None = None,
+    ) -> "PreparedStageBatchResponse":
+        single = payload.startswith(PREPARED_STAGE_SINGLE_RESPONSE_MAGIC)
+        if not single and not payload.startswith(PREPARED_STAGE_BATCH_RESPONSE_MAGIC):
+            raise ProtocolError("invalid prepared stage batch result magic")
+        header = len(PREPARED_STAGE_BATCH_RESPONSE_MAGIC)
+        if len(payload) < header + 4:
+            raise ProtocolError("invalid prepared stage batch result header")
+        rows = struct.unpack_from(">I", payload, header)[0]
+        if (single and rows != 1) or (not single and rows <= 1):
+            raise ProtocolError("prepared stage result row count differs from its frame version")
+        if max_rows is not None and rows > max_rows:
+            raise ProtocolError("prepared stage batch result row count exceeds model context")
+        try:
+            value = msgpack.unpackb(payload[header + 4 :], raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid prepared stage batch response") from exc
+        if not isinstance(value, list) or len(value) != 5:
+            raise ProtocolError("invalid prepared stage batch response schema")
+        batch, raw_columns, raw_wire_bits, raw_server_ns, data = value
+        if not isinstance(batch, (bytes, bytearray)) or len(batch) != 16:
+            raise ProtocolError("prepared stage batch ID must contain 128 random bits")
+        columns = int(raw_columns)
+        wire_bits = int(raw_wire_bits)
+        if columns <= 0:
+            raise ProtocolError("prepared stage batch result width must be positive")
+        if max_tensor_elements is not None and rows * columns > max_tensor_elements:
+            raise ProtocolError("prepared stage batch result allocation is too large")
+        if not isinstance(data, (bytes, bytearray)) or len(data) != (
+            rows * columns * (wire_bits // 8)
+        ):
+            raise ProtocolError("prepared stage batch result payload length mismatch")
+        return cls(
+            batch_id=bytes(batch).hex(),
+            masked_output=unpack_residues(bytes(data), (rows, columns), wire_bits),
+            wire_bits=wire_bits,
+            server_ns=int(raw_server_ns),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class MaskedStageRequest:
+    model: str
+    stage_id: str
+    correlation_id: str
+    masked_input: np.ndarray
+    activation_scales: np.ndarray | float
+    modulus: int
+    wire_bits: int
+    ring: RingKind | None = None
+    body_fingerprint: str = ""
+    weight_digest: str = ""
+    weight_bits: int = 0
+    activation_bits: int = 0
+    session_id: str = ""
+    out_features: int = 0
+    signed_output_bound: int = 0
+
+    @property
+    def stage(self) -> str:
+        return self.stage_id
+
+    @property
+    def activation_scale(self) -> float:
+        return float(np.asarray(self.activation_scales).reshape(-1)[0])
+
+    def pack(self) -> bytes:
+        value = np.asarray(self.masked_input, dtype=np.uint32)
+        if value.ndim not in {1, 2} or value.size == 0:
+            raise ProtocolError("stage input must be a non-empty vector or matrix")
+        scales = np.asarray(self.activation_scales, dtype=np.float32).reshape(-1)
+        rows = 1 if value.ndim == 1 else value.shape[0]
+        if scales.size not in {1, rows}:
+            raise ProtocolError("activation scale count does not match stage rows")
+        ring = _ring_from(self.modulus, self.wire_bits, self.ring)
+        return msgpack.packb(
+            {
+                "v": STAGE_PROTOCOL_VERSION,
+                "model": self.model,
+                "stage_id": self.stage_id,
+                "correlation_id": self.correlation_id,
+                "ring": ring,
+                "modulus": int(self.modulus),
+                "wire_bits": int(self.wire_bits),
+                "body_fingerprint": self.body_fingerprint,
+                "weight_digest": self.weight_digest,
+                "weight_bits": self.weight_bits,
+                "activation_bits": self.activation_bits,
+                "session_id": self.session_id,
+                "out_features": self.out_features,
+                "signed_output_bound": self.signed_output_bound,
+                "shape": list(value.shape),
+                # The true activation scales stay on the client. This v1 field
+                # is retained only as a public constant for wire compatibility.
+                "scales": np.ones(rows, dtype="<f4").tobytes(),
+                "data": pack_residues(value, self.wire_bits),
+            },
+            use_bin_type=True,
+        )
+
+    @classmethod
+    def unpack(
+        cls,
+        payload: bytes,
+        *,
+        max_rows: int | None = None,
+        max_tensor_elements: int | None = None,
+    ) -> "MaskedStageRequest":
+        try:
+            value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid masked stage request") from exc
+        required = {
+            "v", "model", "stage_id", "correlation_id", "ring", "modulus",
+            "wire_bits", "body_fingerprint", "weight_digest", "weight_bits",
+            "activation_bits", "shape", "scales", "data",
+            "session_id", "out_features", "signed_output_bound",
+        }
+        if not isinstance(value, dict) or set(value) != required:
+            raise ProtocolError("invalid masked stage request schema")
+        if int(value["v"]) != STAGE_PROTOCOL_VERSION:
+            raise ProtocolError("unsupported masked stage protocol")
+        shape = tuple(int(item) for item in value["shape"])
+        if len(shape) not in {1, 2} or any(item <= 0 for item in shape):
+            raise ProtocolError("invalid masked stage input shape")
+        rows = 1 if len(shape) == 1 else shape[0]
+        if max_rows is not None and rows > max_rows:
+            raise ProtocolError("masked stage row count exceeds model context")
+        if max_tensor_elements is not None and math.prod(shape) > max_tensor_elements:
+            raise ProtocolError("masked stage tensor allocation is too large")
+        wire_bits = int(value["wire_bits"])
+        data = value["data"]
+        scales_payload = value["scales"]
+        if not isinstance(data, (bytes, bytearray)) or len(data) != (
+            math.prod(shape) * (wire_bits // 8)
+        ):
+            raise ProtocolError("masked stage input payload length mismatch")
+        if not isinstance(scales_payload, (bytes, bytearray)):
+            raise ProtocolError("invalid activation scales")
+        scales = np.frombuffer(bytes(scales_payload), dtype="<f4").copy()
+        if scales.size not in {1, rows}:
+            raise ProtocolError("activation scale count does not match stage rows")
+        ring = _ring_from(int(value["modulus"]), wire_bits, str(value["ring"]))
+        return cls(
+            model=str(value["model"]),
+            stage_id=str(value["stage_id"]),
+            correlation_id=str(value["correlation_id"]),
+            masked_input=unpack_residues(bytes(data), shape, wire_bits),
+            activation_scales=scales,
+            modulus=int(value["modulus"]),
+            wire_bits=wire_bits,
+            ring=ring,
+            body_fingerprint=str(value["body_fingerprint"]),
+            weight_digest=str(value["weight_digest"]),
+            weight_bits=int(value["weight_bits"]),
+            activation_bits=int(value["activation_bits"]),
+            session_id=str(value["session_id"]),
+            out_features=int(value["out_features"]),
+            signed_output_bound=int(value["signed_output_bound"]),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class MaskedStageResponse:
+    correlation_id: str
+    masked_output: np.ndarray
+    modulus: int
+    wire_bits: int
+    server_ns: int = 0
+    stage_id: str = ""
+    ring: RingKind | None = None
+
+    def pack(self) -> bytes:
+        value = np.asarray(self.masked_output, dtype=np.uint32)
+        if value.ndim not in {1, 2} or value.size == 0:
+            raise ProtocolError("stage output must be a non-empty vector or matrix")
+        ring = _ring_from(self.modulus, self.wire_bits, self.ring)
+        return msgpack.packb(
+            {
+                "v": STAGE_PROTOCOL_VERSION,
+                "stage_id": self.stage_id,
+                "correlation_id": self.correlation_id,
+                "ring": ring,
+                "modulus": int(self.modulus),
+                "wire_bits": int(self.wire_bits),
+                "server_ns": int(self.server_ns),
+                "shape": list(value.shape),
+                "data": pack_residues(value, self.wire_bits),
+            },
+            use_bin_type=True,
+        )
+
+    @classmethod
+    def unpack(cls, payload: bytes) -> "MaskedStageResponse":
+        try:
+            value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid masked stage response") from exc
+        required = {
+            "v", "stage_id", "correlation_id", "ring", "modulus", "wire_bits",
+            "server_ns", "shape", "data",
+        }
+        if not isinstance(value, dict) or set(value) != required:
+            raise ProtocolError("invalid masked stage response schema")
+        if int(value["v"]) != STAGE_PROTOCOL_VERSION:
+            raise ProtocolError("unsupported masked stage protocol")
+        shape = tuple(int(item) for item in value["shape"])
+        if len(shape) not in {1, 2} or any(item <= 0 for item in shape):
+            raise ProtocolError("invalid stage output shape")
+        wire_bits = int(value["wire_bits"])
+        ring = _ring_from(int(value["modulus"]), wire_bits, str(value["ring"]))
+        return cls(
+            correlation_id=str(value["correlation_id"]),
+            masked_output=unpack_residues(value["data"], shape, wire_bits),
+            modulus=int(value["modulus"]),
+            wire_bits=wire_bits,
+            server_ns=int(value["server_ns"]),
+            stage_id=str(value["stage_id"]),
+            ring=ring,
+        )
+
+
+@dataclass(slots=True)
+class StageCorrelation:
+    id: str
+    stage_id: str
+    mask: np.ndarray
+    transformed_mask: np.ndarray
+    modulus: int
+    ring: RingKind | None = None
+    consumed: bool = False
+
+
+def unmask_stage_output(response: MaskedStageResponse, correlation: StageCorrelation) -> np.ndarray:
+    if response.correlation_id != correlation.id:
+        raise ProtocolError("stage result correlation id mismatch")
+    if response.modulus != correlation.modulus:
+        raise ProtocolError("stage result modulus mismatch")
+    value = np.asarray(response.masked_output, dtype=np.uint32)
+    transformed = np.asarray(correlation.transformed_mask, dtype=np.uint32)
+    if value.shape != transformed.shape:
+        raise ProtocolError("stage result and transformed mask shapes differ")
+    ring = _ring_from(response.modulus, response.wire_bits, response.ring or correlation.ring)
+    if ring == "u16":
+        raw = (value.astype(np.uint16) - transformed.astype(np.uint16)).astype(np.uint16)
+        return raw.view(np.int16).astype(np.int64)
+    if ring == "u24":
+        raw = (value.astype(np.int64) - transformed.astype(np.int64)) % (1 << 24)
+        return np.where(raw >= 1 << 23, raw - (1 << 24), raw)
+    if ring == "u32":
+        raw = (value.astype(np.uint32) - transformed.astype(np.uint32)).astype(np.uint32)
+        return raw.view(np.int32).astype(np.int64)
+    from ._native_support import extension
+    native = extension()
+    if native is not None:
+        data = native.unmask(value.astype("<u4", copy=False).tobytes(), transformed.astype("<u4", copy=False).tobytes(), response.modulus)
+        return np.frombuffer(data, dtype="<i8").reshape(value.shape)
+    return centered_residues(value.astype(np.int64) - transformed.astype(np.int64), response.modulus)
+
+
+def encode_signed_with_mask(values: np.ndarray, correlation: StageCorrelation) -> np.ndarray:
+    signed = np.asarray(values, dtype=np.int64)
+    mask = np.asarray(correlation.mask)
+    if signed.shape != mask.shape:
+        raise ProtocolError("activation and correlation shapes differ")
+    ring = correlation.ring or "prime"
+    if ring == "u16":
+        return (signed.astype(np.uint16) + mask.astype(np.uint16)).astype(np.uint16)
+    if ring == "u24":
+        return ((signed + mask.astype(np.int64)) % (1 << 24)).astype(np.uint32)
+    if ring == "u32":
+        return (signed.astype(np.uint32) + mask.astype(np.uint32)).astype(np.uint32)
+    from ._native_support import extension
+    native = extension()
+    if native is not None and (not signed.size or (signed.min() >= -128 and signed.max() <= 127)):
+        data = native.mask(signed.astype(np.int8).tobytes(), mask.astype("<u4", copy=False).tobytes(), correlation.modulus)
+        return np.frombuffer(data, dtype="<u4").reshape(signed.shape)
+    return positive_residues(signed + mask.astype(np.int64), correlation.modulus)
+
+
+def decode_unmasked(values: np.ndarray, correlation: StageCorrelation) -> np.ndarray:
+    response = MaskedStageResponse(
+        correlation_id=correlation.id,
+        masked_output=np.asarray(values),
+        modulus=correlation.modulus,
+        wire_bits={"u16": 16, "u24": 24}.get(correlation.ring or "prime", 32),
+        ring=correlation.ring or "prime",
+    )
+    return unmask_stage_output(response, correlation)
+
+
+def correlation_to_wire(item: StageCorrelation) -> dict[str, Any]:
+    ring = item.ring or "prime"
+    wire_bits = {"u16": 16, "u24": 24}.get(ring, 32)
+    return {
+        "id": item.id,
+        "stage_id": item.stage_id,
+        "ring": ring,
+        "modulus": int(item.modulus),
+        "wire_bits": wire_bits,
+        "input_shape": list(item.mask.shape),
+        "output_shape": list(item.transformed_mask.shape),
+        "mask": pack_residues(np.asarray(item.mask, dtype=np.uint32), wire_bits),
+        "transformed": pack_residues(np.asarray(item.transformed_mask, dtype=np.uint32), wire_bits),
+    }
+
+
+def correlation_from_wire(value: dict[str, Any]) -> StageCorrelation:
+    required = {
+        "id", "stage_id", "ring", "modulus", "wire_bits", "input_shape",
+        "output_shape", "mask", "transformed",
+    }
+    if set(value) != required:
+        raise ProtocolError("invalid stage correlation schema")
+    ring = _ring_from(int(value["modulus"]), int(value["wire_bits"]), str(value["ring"]))
+    return StageCorrelation(
+        id=str(value["id"]),
+        stage_id=str(value["stage_id"]),
+        mask=unpack_residues(value["mask"], value["input_shape"], int(value["wire_bits"])),
+        transformed_mask=unpack_residues(
+            value["transformed"], value["output_shape"], int(value["wire_bits"])
+        ),
+        modulus=int(value["modulus"]),
+        ring=ring,
+    )
+
+
+DIRECT_FHE_STAGE_VERSION = 1
+
+
+@dataclass(frozen=True, slots=True)
+class DirectFHEStageRequest:
+    """Encrypted activation rows for the proprietary-weight mode."""
+
+    model: str
+    stage_id: str
+    context_id: str
+    input_shape: tuple[int, ...]
+    activation_scales: np.ndarray
+    encrypted_rows: tuple[bytes, ...]
+
+    def pack(self) -> bytes:
+        shape = tuple(int(item) for item in self.input_shape)
+        if len(shape) < 1 or any(item <= 0 for item in shape):
+            raise ProtocolError("invalid direct-FHE input shape")
+        rows = int(np.prod(shape[:-1], dtype=np.int64)) if len(shape) > 1 else 1
+        scales = np.asarray(self.activation_scales, dtype=np.float32).reshape(-1)
+        if scales.shape != (rows,):
+            raise ProtocolError("direct-FHE activation scale count mismatch")
+        if len(self.encrypted_rows) != rows or any(not item for item in self.encrypted_rows):
+            raise ProtocolError("direct-FHE encrypted row count mismatch")
+        return msgpack.packb(
+            {
+                "v": DIRECT_FHE_STAGE_VERSION,
+                "model": self.model,
+                "stage_id": self.stage_id,
+                "context_id": self.context_id,
+                "input_shape": list(shape),
+                # The true activation scales stay on the client. This v1 field
+                # is retained only as a public constant for wire compatibility.
+                "scales": np.ones(rows, dtype="<f4").tobytes(),
+                "encrypted_rows": list(self.encrypted_rows),
+            },
+            use_bin_type=True,
+        )
+
+    @classmethod
+    def unpack(cls, payload: bytes) -> "DirectFHEStageRequest":
+        try:
+            value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid direct-FHE stage request") from exc
+        required = {
+            "v", "model", "stage_id", "context_id", "input_shape", "scales", "encrypted_rows",
+        }
+        if not isinstance(value, dict) or set(value) != required:
+            raise ProtocolError("invalid direct-FHE stage request schema")
+        if int(value["v"]) != DIRECT_FHE_STAGE_VERSION:
+            raise ProtocolError("unsupported direct-FHE stage protocol")
+        shape = tuple(int(item) for item in value["input_shape"])
+        if len(shape) < 1 or any(item <= 0 for item in shape):
+            raise ProtocolError("invalid direct-FHE input shape")
+        rows = int(np.prod(shape[:-1], dtype=np.int64)) if len(shape) > 1 else 1
+        scales = np.frombuffer(value["scales"], dtype="<f4").copy()
+        encrypted_rows = tuple(bytes(item) for item in value["encrypted_rows"])
+        if scales.shape != (rows,) or len(encrypted_rows) != rows:
+            raise ProtocolError("direct-FHE row metadata mismatch")
+        return cls(
+            model=str(value["model"]),
+            stage_id=str(value["stage_id"]),
+            context_id=str(value["context_id"]),
+            input_shape=shape,
+            activation_scales=scales,
+            encrypted_rows=encrypted_rows,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DirectFHEStageResponse:
+    stage_id: str
+    output_rows: tuple[bytes, ...]
+    server_ns: int = 0
+
+    def pack(self) -> bytes:
+        if not self.output_rows or any(not item for item in self.output_rows):
+            raise ProtocolError("direct-FHE stage response is empty")
+        return msgpack.packb(
+            {
+                "v": DIRECT_FHE_STAGE_VERSION,
+                "stage_id": self.stage_id,
+                "server_ns": int(self.server_ns),
+                "output_rows": list(self.output_rows),
+            },
+            use_bin_type=True,
+        )
+
+    @classmethod
+    def unpack(cls, payload: bytes) -> "DirectFHEStageResponse":
+        try:
+            value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid direct-FHE stage response") from exc
+        if not isinstance(value, dict) or set(value) != {"v", "stage_id", "server_ns", "output_rows"}:
+            raise ProtocolError("invalid direct-FHE stage response schema")
+        if int(value["v"]) != DIRECT_FHE_STAGE_VERSION:
+            raise ProtocolError("unsupported direct-FHE stage protocol")
+        rows = tuple(bytes(item) for item in value["output_rows"])
+        if not rows:
+            raise ProtocolError("direct-FHE stage response is empty")
+        return cls(
+            stage_id=str(value["stage_id"]),
+            output_rows=rows,
+            server_ns=int(value["server_ns"]),
+        )
+
+BLINDED_STAGE_VERSION = 1
+
+
+@dataclass(slots=True)
+class BlindedStageCorrelation:
+    """Client half of a model-private output-blinded OLE correlation.
+
+    The client knows ``r`` and ``W r + s``. The server alone retains the
+    uniformly random output mask ``s``. The pair can be consumed exactly once.
+    """
+
+    id: str
+    stage_id: str
+    owner_id: str
+    mask: np.ndarray
+    blinded_transformed_mask: np.ndarray
+    modulus: int
+    ring: RingKind | None = None
+    consumed: bool = False
+
+
+def blinded_correlation_to_wire(item: BlindedStageCorrelation) -> dict[str, Any]:
+    ring = item.ring or "prime"
+    wire_bits = {"u16": 16, "u24": 24}.get(ring, 32)
+    return {
+        "id": item.id,
+        "stage_id": item.stage_id,
+        "owner_id": item.owner_id,
+        "ring": ring,
+        "modulus": int(item.modulus),
+        "wire_bits": wire_bits,
+        "input_shape": list(item.mask.shape),
+        "output_shape": list(item.blinded_transformed_mask.shape),
+        "mask": pack_residues(np.asarray(item.mask, dtype=np.uint32), wire_bits),
+        "blinded_transformed": pack_residues(
+            np.asarray(item.blinded_transformed_mask, dtype=np.uint32), wire_bits
+        ),
+    }
+
+
+def blinded_correlation_from_wire(value: dict[str, Any]) -> BlindedStageCorrelation:
+    required = {
+        "id", "stage_id", "owner_id", "ring", "modulus", "wire_bits", "input_shape",
+        "output_shape", "mask", "blinded_transformed",
+    }
+    if set(value) != required:
+        raise ProtocolError("invalid blinded stage correlation schema")
+    ring = _ring_from(int(value["modulus"]), int(value["wire_bits"]), str(value["ring"]))
+    return BlindedStageCorrelation(
+        id=str(value["id"]),
+        stage_id=str(value["stage_id"]),
+        owner_id=str(value["owner_id"]),
+        mask=unpack_residues(value["mask"], value["input_shape"], int(value["wire_bits"])),
+        blinded_transformed_mask=unpack_residues(
+            value["blinded_transformed"], value["output_shape"], int(value["wire_bits"])
+        ),
+        modulus=int(value["modulus"]),
+        ring=ring,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class BlindedStageRequest:
+    """Fast proprietary-weight online stage request.
+
+    Each row is ``x-r``. The server consumes the matching output mask ``s`` and
+    returns ``W(x-r)-s``. The client adds its preprocessed ``Wr+s`` value to
+    reconstruct ``Wx`` without ever receiving an unblinded ``Wr`` equation.
+    """
+
+    model: str
+    stage_id: str
+    owner_id: str
+    correlation_ids: tuple[str, ...]
+    masked_input: np.ndarray
+    activation_scales: np.ndarray | float
+    modulus: int
+    wire_bits: int
+    ring: RingKind | None = None
+
+    def pack(self) -> bytes:
+        value = np.asarray(self.masked_input, dtype=np.uint32)
+        if value.ndim not in {1, 2} or value.size == 0:
+            raise ProtocolError("blinded stage input must be a non-empty vector or matrix")
+        rows = 1 if value.ndim == 1 else value.shape[0]
+        if len(self.correlation_ids) != rows or len(set(self.correlation_ids)) != rows:
+            raise ProtocolError("blinded stage correlation ids must be unique per row")
+        scales = np.asarray(self.activation_scales, dtype=np.float32).reshape(-1)
+        if scales.size not in {1, rows}:
+            raise ProtocolError("activation scale count does not match blinded stage rows")
+        ring = _ring_from(self.modulus, self.wire_bits, self.ring)
+        return msgpack.packb(
+            {
+                "v": BLINDED_STAGE_VERSION,
+                "model": self.model,
+                "stage_id": self.stage_id,
+                "owner_id": self.owner_id,
+                "correlation_ids": list(self.correlation_ids),
+                "ring": ring,
+                "modulus": int(self.modulus),
+                "wire_bits": int(self.wire_bits),
+                "shape": list(value.shape),
+                # The true activation scales stay on the client. This v1 field
+                # is retained only as a public constant for wire compatibility.
+                "scales": np.ones(rows, dtype="<f4").tobytes(),
+                "data": pack_residues(value, self.wire_bits),
+            },
+            use_bin_type=True,
+        )
+
+    @classmethod
+    def unpack(cls, payload: bytes) -> "BlindedStageRequest":
+        try:
+            value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid blinded stage request") from exc
+        required = {
+            "v", "model", "stage_id", "owner_id", "correlation_ids", "ring",
+            "modulus", "wire_bits", "shape", "scales", "data",
+        }
+        if not isinstance(value, dict) or set(value) != required:
+            raise ProtocolError("invalid blinded stage request schema")
+        if int(value["v"]) != BLINDED_STAGE_VERSION:
+            raise ProtocolError("unsupported blinded stage protocol")
+        shape = tuple(int(item) for item in value["shape"])
+        if len(shape) not in {1, 2} or any(item <= 0 for item in shape):
+            raise ProtocolError("invalid blinded stage input shape")
+        rows = 1 if len(shape) == 1 else shape[0]
+        ids = tuple(str(item) for item in value["correlation_ids"])
+        if len(ids) != rows or len(set(ids)) != rows:
+            raise ProtocolError("invalid blinded stage correlation ids")
+        wire_bits = int(value["wire_bits"])
+        scales = np.frombuffer(value["scales"], dtype="<f4").copy()
+        if scales.size not in {1, rows}:
+            raise ProtocolError("activation scale count does not match blinded stage rows")
+        ring = _ring_from(int(value["modulus"]), wire_bits, str(value["ring"]))
+        return cls(
+            model=str(value["model"]),
+            stage_id=str(value["stage_id"]),
+            owner_id=str(value["owner_id"]),
+            correlation_ids=ids,
+            masked_input=unpack_residues(value["data"], shape, wire_bits),
+            activation_scales=scales,
+            modulus=int(value["modulus"]),
+            wire_bits=wire_bits,
+            ring=ring,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class BlindedStageResponse:
+    stage_id: str
+    correlation_ids: tuple[str, ...]
+    masked_output: np.ndarray
+    modulus: int
+    wire_bits: int
+    server_ns: int = 0
+    ring: RingKind | None = None
+
+    def pack(self) -> bytes:
+        value = np.asarray(self.masked_output, dtype=np.uint32)
+        if value.ndim not in {1, 2} or value.size == 0:
+            raise ProtocolError("blinded stage output must be a non-empty vector or matrix")
+        rows = 1 if value.ndim == 1 else value.shape[0]
+        if len(self.correlation_ids) != rows:
+            raise ProtocolError("blinded stage response correlation count mismatch")
+        ring = _ring_from(self.modulus, self.wire_bits, self.ring)
+        return msgpack.packb(
+            {
+                "v": BLINDED_STAGE_VERSION,
+                "stage_id": self.stage_id,
+                "correlation_ids": list(self.correlation_ids),
+                "ring": ring,
+                "modulus": int(self.modulus),
+                "wire_bits": int(self.wire_bits),
+                "server_ns": int(self.server_ns),
+                "shape": list(value.shape),
+                "data": pack_residues(value, self.wire_bits),
+            },
+            use_bin_type=True,
+        )
+
+    @classmethod
+    def unpack(cls, payload: bytes) -> "BlindedStageResponse":
+        try:
+            value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid blinded stage response") from exc
+        required = {
+            "v", "stage_id", "correlation_ids", "ring", "modulus", "wire_bits",
+            "server_ns", "shape", "data",
+        }
+        if not isinstance(value, dict) or set(value) != required:
+            raise ProtocolError("invalid blinded stage response schema")
+        if int(value["v"]) != BLINDED_STAGE_VERSION:
+            raise ProtocolError("unsupported blinded stage protocol")
+        shape = tuple(int(item) for item in value["shape"])
+        if len(shape) not in {1, 2} or any(item <= 0 for item in shape):
+            raise ProtocolError("invalid blinded stage output shape")
+        rows = 1 if len(shape) == 1 else shape[0]
+        ids = tuple(str(item) for item in value["correlation_ids"])
+        if len(ids) != rows:
+            raise ProtocolError("invalid blinded stage response correlation count")
+        wire_bits = int(value["wire_bits"])
+        ring = _ring_from(int(value["modulus"]), wire_bits, str(value["ring"]))
+        return cls(
+            stage_id=str(value["stage_id"]),
+            correlation_ids=ids,
+            masked_output=unpack_residues(value["data"], shape, wire_bits),
+            modulus=int(value["modulus"]),
+            wire_bits=wire_bits,
+            server_ns=int(value["server_ns"]),
+            ring=ring,
+        )

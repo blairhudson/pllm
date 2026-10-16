@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "git",
+    "status",
+    "--short"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.061898333951830864,
+  "exit_code": 0,
+  "log": "git-before.log",
+  "log_sha256": "dcd99f92a2f2b40101fd686c0c20883f424d52bc01afabb62ec15b46a87d2909",
+  "started_utc": "2026-10-16T05:07:28.365693+00:00",
+  "stop_reason": null
+}

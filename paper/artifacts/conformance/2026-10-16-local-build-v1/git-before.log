@@ -1,0 +1,17 @@
+ M paper/IMPLEMENTATION-STATUS.md
+ M paper/low-memory.md
+ M paper/manuscript.md
+ M paper/pdf.lua
+?? docs/tests/publication-evidence.test.mjs
+?? paper/COMPARISON-CONTRACT.md
+?? paper/HISTORICAL-RESULTS.md
+?? paper/IMPLEMENTATION-EVIDENCE.md
+?? paper/PRIOR-ART-REVIEW.md
+?? paper/SECURITY-AND-CORRECTNESS.md
+?? paper/artifacts/
+?? paper/comparison-contract.v1.json
+?? paper/prior-art-sources.json
+?? scripts/audit_paper_conformance.py
+?? scripts/audit_publication_evidence.mjs
+?? scripts/replay_paper_listing.py
+?? tests/test_paper_boundary_security.py

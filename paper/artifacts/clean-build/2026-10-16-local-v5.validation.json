@@ -1,0 +1,32 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "-I",
+    "-B",
+    "scripts/audit_paper_clean_build.py",
+    "--verify",
+    "paper/artifacts/clean-build/2026-10-16-local-v5/receipt.json"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "exit_code": 0,
+  "result": {
+    "artifacts_checked": 127,
+    "installed_distribution_files_checked": 26231,
+    "receipt": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/receipt.json",
+    "receipt_sha256": "4d274918781c78e3f0b4ebfdaef1501e2d19e741ee09e6847ba4e3ba665b243e",
+    "runtime_execution": false,
+    "status": "passed"
+  },
+  "auditor_sha256": "4e900941a3a7d0ae4805da14469ff466aed620df23a18495b6ca722bbd458e21",
+  "supplemental_read_only_checks": {
+    "auditor_matches_archived_driver": true,
+    "cargo_compiling_log_lines": 68,
+    "cargo_fresh_log_lines": 0,
+    "release_native_path": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/cargo-target/release/lib_native.dylib",
+    "release_native_sha256": "826c2f41612912c38a2cd902a1988b50a069b4e278f1f05ffdb6980744e42c64",
+    "release_native_matches_wheel_and_installed_native": true,
+    "wheel_files": 361,
+    "wheel_package_files": 355,
+    "uv_dependency_check": "114 packages; all compatible"
+  }
+}

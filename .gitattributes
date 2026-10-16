@@ -1,6 +1,12 @@
 * text=auto eol=lf
 *.pdf binary
 *.zip binary
+*.whl binary
 *.png binary
 *.jpg binary
 *.safetensors binary
+paper/artifacts/**/*.bin binary
+
+# Frozen command output retains its original bytes, including whitespace.
+paper/artifacts/conformance/**/*.log -text whitespace=-blank-at-eol,-blank-at-eof
+paper/artifacts/conformance/**/*.xml -text whitespace=-blank-at-eol,-blank-at-eof

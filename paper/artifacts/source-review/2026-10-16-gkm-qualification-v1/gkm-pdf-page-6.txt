@@ -1,0 +1,44 @@
+3     Preliminaries
+
+Notation. For a finite set D, we use x ← D to denote uniform sampling of
+x from D. We denote vectors with boldface lowercase letters and matrices with
+boldface uppercase letters. We use xi to denote the ith element of the vector x.
+For a real number x, we use ⌊x⌉ to denote the rounding function which maps x
+to the closest integer. For a positive integer n, we let [n] denote {1, 2, . . . , n}. We
+use ⊕ to denote element-wise exclusive-or between two boolean vectors. For a
+boolean a and a boolean vector x, we use a · x to denote the element-wise AND
+between a and each element of x.
+Threat model. We assume an honest model owner, two servers S0 , S1 , and a
+client C. Either (or both) servers can be malicious, but for privacy we assume
+the servers do not collude with each other. (Verifiability holds even when both
+servers are malicious and colluding with each other.) The client may be malicious
+but in our setting this does not matter since the security requirements of the
+servers are vacuous.
+
+
+4     Detailed Protocol Description
+We now provide a detailed description of our protocol. We proceed bottom-up:
+we describe a sub-protocol for private delegation of matrix-vector products in
+Section 4.1, show how to add verifiability to that sub-protocol in Section 4.2, dis-
+cuss delegation of the initial embedding layer in Section 4.3, and put everything
+together in Section 4.4.
+Fixed-point encoding. Matrices at linear layers have floating-point weights
+and inputs have real (floating-point) entries. Our matrix-vector multiplication
+protocol, however, operates on integers modulo N . We map a floating-point
+value x̃ into an associated fixed-point value x = ⌊f˜ · x⌉ where f is a scaling
+factor. We choose f ≪ N so no overflow occurs during the computation; in our
+experiments, we find N = 264 , f = 2048 to be adequate. Since M̃x̃ ≈ f −2 Mx,
+given a protocol for computing the (fixed-point) value Mx the client can compute
+an approximation to the (floating-point) value M̃x̃. In what follows, we assume
+the conversion from floating point to fixed point has already been done.
+
+4.1   Delegation of Matrix-Vector Products
+Recall the client holds an input x ∈ ZnN and wants to learn y = Mx for a public
+matrix M ∈ Zm×n   N   . Our protocol proceeds as follows: the client splits x into
+x(0) , x(1) ∈ ZnN such that x(0) is uniform and x(1) = x − x(0) mod N , and sends
+x(b) to Sb . Each server Sb computes y(b) = M · x(b) mod N and sends back y(b)
+to the client. Then, the client adds the two output shares modulo N to obtain
+the desired result. Note
+                y = y(0) + y(1) mod N = M · (x(0) + x(1) ) mod N
+                                          = M · x mod N
+

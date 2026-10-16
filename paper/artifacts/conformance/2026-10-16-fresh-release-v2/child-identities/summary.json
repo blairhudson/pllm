@@ -1,0 +1,119 @@
+{
+  "captured_python_processes": 11,
+  "entries": [
+    {
+      "entry": {
+        "arguments_sha256": "25dac9dc19f5427bac76f3395104e242a7562875fcac0319a338b88a576f9cc6",
+        "entry": "pllm",
+        "mode": "m",
+        "role": "preparation"
+      },
+      "key": "32ce8c1666ea4656aca1024d3c5c43ec",
+      "pid": 41743
+    },
+    {
+      "entry": {
+        "arguments_sha256": "b1164b36c5c23ef557ec98c1a78b91d6673dc39d0d675dff7e2a2c864303610d",
+        "entry": "pllm",
+        "mode": "m",
+        "role": "inference"
+      },
+      "key": "3523f09bb6b842eebb19f39e6164bf4b",
+      "pid": 41581
+    },
+    {
+      "entry": {
+        "arguments_sha256": "a2bf40fb28c8fe5d8bc19cb085bc4a0a81e2720ce36bd3b7f8518786b56bfaee",
+        "code_sha256": "bdc04bf02906da71b670500321d8a0866c51857d1aa14fd3e3af1d94dfa9d77a",
+        "entry": "<inline-code>",
+        "mode": "c"
+      },
+      "key": "568782d6e3ba4f5e9be25e8ac87bb666",
+      "pid": 41535
+    },
+    {
+      "entry": {
+        "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "entry": "pllm._benchmark_build",
+        "mode": "m"
+      },
+      "key": "75dd652e4eb04cf7abb096a4b18f20f9",
+      "pid": 41818
+    },
+    {
+      "entry": {
+        "arguments_sha256": "e9e40bab538f36efc2b16d1bd3ce63d834d7ff5b7197197fb8bfd411d35711d3",
+        "entry": "pllm",
+        "mode": "m",
+        "role": "inference"
+      },
+      "key": "76e12dac29c046b5b988d5e7ed410cb4",
+      "pid": 41626
+    },
+    {
+      "entry": {
+        "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "entry": "pllm._benchmark_worker",
+        "mode": "m"
+      },
+      "key": "88ca69915cbf405da9dc9baf2fa2fd51",
+      "pid": 41685
+    },
+    {
+      "entry": {
+        "arguments_sha256": "27284d078a95301d664cfd52da3510e30758747ff5ae197f350cef18a0208233",
+        "entry": "pllm",
+        "mode": "m",
+        "role": "preparation"
+      },
+      "key": "a4df7111afda4b439de660e67512cebb",
+      "pid": 41639
+    },
+    {
+      "entry": {
+        "arguments_sha256": "030deb7a370c9a7a1c01b44b8606cdb51f9f453617f0ebdb8043198d8c9d68ad",
+        "entry": "pllm",
+        "mode": "m",
+        "role": "preparation"
+      },
+      "key": "c9af8ccb1eb444c099849fe8a5923083",
+      "pid": 41595
+    },
+    {
+      "entry": {
+        "arguments_sha256": "300b857cd618e5b45181a981dba4a4e3c26f4283e6b6f0634b729b3c560c6dd7",
+        "entry": "/Users/blairhudson/workspace/pllm/examples/prepared_sdk.py",
+        "mode": "file"
+      },
+      "key": "dd72a8f2728a44019e9945f696d37673",
+      "pid": 41569
+    },
+    {
+      "entry": {
+        "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "entry": "pllm._benchmark_build",
+        "mode": "m"
+      },
+      "key": "ea7a561250c4415dbf529c2aea13e4fa",
+      "pid": 41667
+    },
+    {
+      "entry": {
+        "arguments_sha256": "d55470e29c37e69a672291181e3cd8f78940a99a5edaa69e57eb400801721e30",
+        "entry": "pllm",
+        "mode": "m",
+        "role": "inference"
+      },
+      "key": "ee7e818c1f2d4b56a22b1d1252660104",
+      "pid": 41708
+    }
+  ],
+  "expected_sha256": "1b25b338d5fb0e4ffd163cbe70a1c9adfdc246605902c94d0e7dd40c3efc62fb",
+  "failures": [],
+  "roles": {
+    "inference": 3,
+    "preparation": 3
+  },
+  "schema": "pllm.paper_python_identity_summary.v1",
+  "status": "passed"
+}

@@ -187,10 +187,10 @@
 }
 
 @misc{zeng2025mpcache,
-  author = {Wenxuan Zeng and Ye Dong and Jinjin Zhou and Junming Ma and Jin Tan and Runsheng Wang and Meng Li},
-  title = {{MPCache}: {MPC}-Friendly {KV} Cache Eviction for Efficient Private Large Language Model Inference},
+  author = {Wenxuan Zeng and Ye Dong and Jinjin Zhou and Jin Tan and Lei Wang and Tao Wei and Runsheng Wang and Meng Li},
+  title = {{MPCache}: {MPC}-Friendly {KV} Cache Eviction for Efficient Private {LLM} Inference},
   year = {2025},
-  url = {https://arxiv.org/abs/2501.06807}
+  url = {https://arxiv.org/abs/2501.06807v2}
 }
 @misc{pllm2026,
   author = {Hudson, Blair},
@@ -215,10 +215,15 @@
   url = {https://eprint.iacr.org/2024/369}
 }
 
-@misc{gupta2024sigma,
+@article{gupta2024sigma,
   title = {{SIGMA}: Secure {GPT} Inference with Function Secret Sharing},
   author = {Kanav Gupta and Neha Jawalkar and Ananta Mukherjee and Nishanth Chandran and Divya Gupta and Ashish Panwar and Rahul Sharma},
   year = {2024},
+  journal = {Proceedings on Privacy Enhancing Technologies},
+  volume = {2024},
+  number = {4},
+  pages = {61--79},
+  doi = {10.56553/popets-2024-0107},
   url = {https://petsymposium.org/popets/2024/popets-2024-0107.php}
 }
 
@@ -226,7 +231,7 @@
   title = {{FuseFSS}: Efficient Secure {LLM} Inference with Function Secret Sharing},
   author = {Yuhan Ma and Yong Li and Stefan Schmid},
   year = {2026},
-  url = {https://arxiv.org/abs/2606.09551}
+  url = {https://arxiv.org/abs/2606.09551v1}
 }
 
 @misc{santos2024curl,
@@ -236,18 +241,24 @@
   url = {https://eprint.iacr.org/2024/1127}
 }
 
-@misc{islam2024compact,
+@article{islam2024compact,
   title = {{Compact}: Approximating Complex Activation Functions for Secure Computation},
   author = {Mazharul Islam and Sunpreet S. Arora and Rahul Chatterjee and Peter Rindal and Maliheh Shirvanian},
   year = {2024},
-  url = {https://arxiv.org/abs/2309.04664}
+  journal = {Proceedings on Privacy Enhancing Technologies},
+  volume = {2024},
+  number = {3},
+  pages = {25--41},
+  doi = {10.56553/popets-2024-0065},
+  url = {https://petsymposium.org/popets/2024/popets-2024-0065.php}
 }
 
 @inproceedings{zhang2025nexus,
-  title = {{NEXUS}: Secure Transformer Inference Made Non-interactive},
+  title = {Secure Transformer Inference Made Non-interactive},
   author = {Jiawen Zhang and Xinpeng Yang and Lipeng He and Kejia Chen and Wen-jie Lu and Yinghao Wang and Xiaoyang Hou and Jian Liu and Kui Ren and Xiaohu Yang},
   booktitle = {Network and Distributed System Security Symposium},
   year = {2025},
+  doi = {10.14722/ndss.2025.230868},
   url = {https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf}
 }
 
@@ -265,4 +276,99 @@
   year = {2026},
   note = {Archived source-present Qwen2.5 cohorts; separate workloads and build identities},
   url = {https://github.com/blairhudson/pllm/blob/9d4d5a88/docs/research/private-boundary-decode-followup.md}
+}
+
+@misc{gupta2026outsourcing,
+  author = {Kanav Gupta and Jonathan Katz and Ian Miers},
+  title = {Private and Verifiable Outsourcing of Open-Weight {LLM} Inference},
+  howpublished = {Cryptology ePrint Archive, Paper 2026/1849},
+  year = {2026},
+  url = {https://eprint.iacr.org/2026/1849}
+}
+
+@inproceedings{boyle2015fss,
+  author = {Elette Boyle and Niv Gilboa and Yuval Ishai},
+  title = {Function Secret Sharing},
+  booktitle = {Advances in Cryptology -- EUROCRYPT 2015},
+  year = {2015},
+  doi = {10.1007/978-3-662-46803-6_12}
+}
+
+@inproceedings{boyle2016fss,
+  author = {Elette Boyle and Niv Gilboa and Yuval Ishai},
+  title = {Function Secret Sharing: Improvements and Extensions},
+  booktitle = {Proceedings of the ACM SIGSAC Conference on Computer and Communications Security},
+  year = {2016},
+  doi = {10.1145/2976749.2978429},
+  url = {https://eprint.iacr.org/2018/707},
+  note = {Expanded construction text in ePrint 2018/707}
+}
+
+@inproceedings{xiao2023smoothquant,
+  author = {Guangxuan Xiao and Ji Lin and Mickael Seznec and Hao Wu and Julien Demouth and Song Han},
+  title = {{SmoothQuant}: Accurate and Efficient Post-Training Quantization for Large Language Models},
+  booktitle = {Proceedings of the 40th International Conference on Machine Learning},
+  volume = {202},
+  pages = {38087--38099},
+  year = {2023},
+  url = {https://proceedings.mlr.press/v202/xiao23c.html}
+}
+
+@inproceedings{lin2024fastquery,
+  author = {Chenqi Lin and Tianshi Xu and Zebin Yang and Runsheng Wang and Ru Huang and Meng Li},
+  title = {{FastQuery}: Communication-efficient Embedding Table Query for Private {LLM} Inference},
+  booktitle = {Design Automation Conference},
+  year = {2024},
+  doi = {10.1145/3649329.3657374},
+  url = {https://arxiv.org/abs/2405.16241v1}
+}
+
+@inproceedings{lu2025bumblebee,
+  author = {Wen-jie Lu and Zhicong Huang and Zhen Gu and Jingyu Li and Jian Liu and Cheng Hong and Kui Ren and Tao Wei and WenGuang Chen},
+  title = {{BumbleBee}: Secure Two-party Inference Framework for Large Transformers},
+  booktitle = {Network and Distributed System Security Symposium},
+  year = {2025},
+  doi = {10.14722/ndss.2025.230057},
+  url = {https://www.ndss-symposium.org/wp-content/uploads/2025-57-paper.pdf}
+}
+
+@misc{moon2024thor,
+  author = {Jungho Moon and Dongwoo Yoo and Xiaoqian Jiang and Miran Kim},
+  title = {{THOR}: Secure Transformer Inference with Homomorphic Encryption},
+  howpublished = {Cryptology ePrint Archive, Paper 2024/1881},
+  year = {2024},
+  note = {Revised 12 September 2025},
+  url = {https://eprint.iacr.org/2024/1881}
+}
+
+@misc{chen2026sok,
+  author = {Yuntian Chen and Tianpei Lu and Zhanyong Tang and Bingsheng Zhang and Zhiying Shi and Yuxiang Luan and Zhuzhu Wang},
+  title = {{SoK}: Private Transformer-Based Model Inference},
+  howpublished = {Cryptology ePrint Archive, Paper 2026/491},
+  year = {2026},
+  url = {https://eprint.iacr.org/2026/491}
+}
+
+@misc{das2026comparability,
+  author = {Souvik Das and Ariful Azad and Nitesh Saxena},
+  title = {A Graph-Based Analysis of Comparability, Scale, and Attribution in Private Transformer Inference},
+  howpublished = {arXiv:2610.19607v1},
+  year = {2026},
+  url = {https://arxiv.org/abs/2610.19607v1}
+}
+
+@misc{albadawi2026sok,
+  author = {Ahmad Al Badawi and Andreea Alexandru and Yuriy Polyakov and Vinod Vaikuntanathan},
+  title = {{SoK}: Private {LLM} Inference using Approximate Homomorphic Encryption},
+  howpublished = {Cryptology ePrint Archive, Paper 2026/935},
+  year = {2026},
+  url = {https://eprint.iacr.org/2026/935}
+}
+
+@misc{kei2026sok,
+  author = {Andes Y. L. Kei and Sherman S. M. Chow},
+  title = {{SoK}: Private Transformer Inference Across Systems, Models, and Cryptography},
+  howpublished = {Cryptology ePrint Archive, Paper 2026/2005},
+  year = {2026},
+  url = {https://eprint.iacr.org/2026/2005}
 }

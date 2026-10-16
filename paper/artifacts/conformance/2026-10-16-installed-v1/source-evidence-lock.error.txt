@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 411, in main
+    result = run()
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 402, in <lambda>
+    ("source-evidence-lock", lambda: evidence_locks(output)),
+                                     ~~~~~~~~~~~~~~^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 358, in evidence_locks
+    for p, h in raw.get("source_sha256", {}).items()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute 'items'

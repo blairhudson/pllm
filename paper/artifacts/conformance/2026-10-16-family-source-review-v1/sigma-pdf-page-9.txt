@@ -1,0 +1,103 @@
+Sigma: Secure GPT Inference with Function Secret Sharing                                                 Proceedings on Privacy Enhancing Technologies 2024(4)
+
+
+               GeLUGPU ( ˆ
+   GeLU (GPU) Π𝑛,𝑚,𝑓    𝑥)                                                                                       nExp
+                                                                                    Negative Exponential Π𝑛,𝑚,𝑓 ( ˆ
+                                                                                                                 𝑥)
+      1: 𝑦ˆ ← Π̂ TR    (𝑥ˆ mod 2𝑚 )                                                   1: 𝑑ˆ ← Π̂𝑚DReLU ((𝑥ˆ − 216 ) mod 2𝑚 ) ⊕ 1
+                𝑚,𝑓 −6
+      2: 𝑑ˆ𝑏 ← Π DReLU ( ˆ𝑦)
+                                                                                                 select
+                                                                                      2: 𝑐ˆ ← Π̂ 16     (𝑑,ˆ 𝑥ˆ − (216 − 1) mod 216 ) + (216 − 1)
+                  𝑚−𝑓 +6
+      3: 𝑖ˆ𝑏 ← Π DReLU (𝑦ˆ + 255) ⊕ Π DReLU (𝑦ˆ − 256)                                3: 𝑐ˆ1 ← Π̂ TR
+                                                                                                  16,8 ( ˆ
+                                                                                                         𝑐); 𝑐ˆ0 ← 𝑐ˆ mod 256
+                 𝑚−𝑓 +6              𝑚−𝑓 +6                                                       LUT
+               ˆ = reconstruct(𝑖ˆ𝑏 , 𝑑ˆ𝑏 )                                                ˆ
+                                                                                      4: 𝑡 1 ← Π̂         (𝑐ˆ ); 𝑡ˆ0 ← Π̂LUT
+                                                                                                  8,𝑛,𝑻 1 1
+                                                                                                                                (𝑐ˆ )
+                                                                                                                         8,𝑛,𝑻 0 0
+      4:  (𝑖ˆ, 𝑑)
+                                                                                                Mul
+                                                                                      5: 𝑡ˆ ← Π̂𝑛 (𝑡ˆ0 , 𝑡ˆ1 )
+      5: 𝑧ˆ = 𝑦ˆ mod 256
+                  selectlin𝛾                                                                        GapARS
+      6: 𝑐ˆ ← Π̂ 8           (𝑖ˆ, 𝑑,ˆ ˆ𝑧)                                             6: return Π
+                                                                                                    𝑛,𝑓
+                                                                                                               (𝑡ˆ)
+      7: return Π select (𝑑,  ˆ ˆ𝑥) − ΠLUT ( ˆ𝑐)
+                    𝑛                 8,𝑛,𝑻
+                                                                                                  Figure 8: Protocol for nExp𝑛,𝑚,𝑓
+Figure 7: GPU-optimized protocol for GeLU𝑛,𝑚,𝑓 . The calls to
+ΠDReLU in steps 2-3 can use same key.
+                                                                                 5.2.1 Overview. We need protocols for max, exponentiation of
+                                                                                 negative values and inverse. 𝑥 max can be computed using 𝑘 − 1
+                                                                                 invocations of our protocols      for comparison of 2 elements (Sec-
+operation. However, crucially, since all the DReLU evaluations are                                             
+                                                                                 tion 4.3) and select in 2 log2 (𝑘) rounds. Now, we can subtract
+on 𝑦 shifted by a constant, they can all use the same key. Hence,
+                                                                                 𝑥 max from every element 𝑥 [𝑖] to obtain 𝑥 [𝑖] − 𝑥 max and invoke the
+unlike GeLUCPU, this requires a single DPF key.
+                                                                                 exponentiation protocol on this value to obtain 𝑧 [𝑖]. We can then
+   Given 𝑖 and 𝑑, we compute Abs(Clip(𝑦)) as 255 when 𝑖 = 0, and
+                                                                                 compute 𝑧 = 𝑘−1   𝑗=0 𝑧 [𝑖], invoke our protocol for inverse on 𝑧 to ob-
+                                                                                                 Í
+when 𝑖 = 1, as −𝑦 when 𝑑 = 0 and 𝑦 when 𝑑 = 1. As an opti-
+mization, similar to CPU, before a selection, we first reduce 𝑦 to 8             tain 𝑧 −1 , and compute 𝑦 [𝑖] = 𝑧 −1 · 𝑧 [𝑖] followed by truncation. We
+                                                                                        GapARS
+(relevant) bits and compute Abs(Clip(𝑧)), where 𝑧 = 𝑦 mod 256.                   use Π𝑛,𝑓        for the final truncation as 𝑦 [𝑖] ∈ [0, 1] with precision
+Note that since 𝑖 is computed on 𝑦, it only allows the value of 𝑧 to             2𝑓 (due to being a probability distribution) resulting in a gap.
+propagate when −255 ⩽ 𝑦 ⩽ 255. Since 𝑑 already contains the sign                    Below, we describe novel and efficient protocols for exponential
+of 𝑦, the last 8 bits of 𝑦 (captured by 𝑧), suffice to correctly com-            and inverse that we built using domain knowledge of softmax.
+pute Abs(Clip(𝑦)). For this selection based on 𝑖 and 𝑑, we invoke
+  selectlin
+         𝛾                                                                       5.2.2 Negative Exponential. Define nExp(𝑥) = 𝑒 −𝑥 for 𝑥 ∈ R+ .
+Π̂8        (𝑖, 𝑑, 𝑧) with 𝛾 = {(0, 255), (0, 255), (−1, 0), (1, 0)}. This
+                                                                                 We observe that nExp is a monotonically decreasing function and
+gives us 𝑐 = Abs(Clip(𝑧)).
+                                                                                 for         𝑥 ⩾ 16, fixed-point representation of nExp(𝑥), i.e.,
+                                                                                  −𝑥𝑓 =1212,
+    We provide the formal GPU protocol in Figure 7. We also note
+                                                                                   𝑒 ·2         = 0. Hence, we first clip the inputs to the interval
+that unlike the CPU version, this does not require reconstructing
+                                                                                 [0, 16) ⊂ R+ followed by using an LUT to compute nExp for this
+ReLU(𝑥) over 𝑚 − 𝑓 − 6 bits (Step 3 in Figure 6). This is because
+                                                                                 interval. When 𝑥 ∈ [0, 16), we need 16-bits to represent fixed-
+we extract the interval containment bit needed for Clip from 𝑥 and
+                                                                                 point values with precision 𝑓 = 12. Now, directly using lookup for
+not from Abs(𝑥). This allows us to save on communication as well
+                                                                                 exponentiation would require an expensive LUT of size 216 .
+as one round, resulting in efficient GPU implementation.
+                                                                                     Next, we use the technique from Seedot [34] for nExp (also used
+                GeLUGPU requires a key size equal to the key size of
+Cost Analysis. Π𝑛,𝑚,𝑓                                                            in [66]) that allows reducing one 16-bit LUT to two 8-bit LUTs.
+                                      DReLU ), 1 Π LUT call, 1 Π̂ TR             Let 𝑐 = 𝑐 1 ||𝑐 0 be the 16-bit clipped value with 𝑓 = 12, where 𝑐 1
+1 DPF𝑚−𝑓 +5 key (for the 3 calls to Π̂𝑚−𝑓 +6       8,𝑛,𝑻         𝑚,𝑓 −6          is upper 8-bits and 𝑐 0 is lower 8-bits. These can be calculated as
+call and 2 calls to Π select for bitwidths 8 and 𝑛. The online phase             𝑐 1 = TR16,8 (𝑐) and 𝑐 0 = 𝑐 mod 256. Seedot showed that
+communicates 2(𝑚 − 𝑓 ) + 2𝑛 + 34 bits in 5 rounds.                                           j        𝑐       k
+    Compared to CPU protocol for 𝑛 = 64, 𝑚 = 53, 𝑓 = 12, the GPU                               nExp 12 · 2 𝑓 ≈ ARS𝑛,𝑓 (𝑻 1 [𝑐 1 ] · 𝑻 0 [𝑐 0 ])
+                                                                                                       2
+protocol has 1.8× smaller keysize, 1.3× less communication, and
+1.5× more half-PRG calls. Empirically, on a microbenchmark of 1                  where 𝑻 1, 𝑻 0 are 8-bit LUTs with 𝑛-bit values such that 𝑇1 [𝑖] =
+million GeLUs, our protocol takes about 70ms, of which 34ms is key               ⌊nExp(𝑖/24 ) · 2 𝑓 ⌋ and 𝑇0 [𝑖] = ⌊nExp(𝑖/212 ) · 2 𝑓 ⌋ for all 𝑖 ∈ U28 .
+                                                                                          GapARS
+transfer, 16ms is compute (of which about 88% is DReLU) and 20ms                 Here, Π𝑛,𝑓         suffices to perform ARS𝑛,𝑓 as its input is always
+is communication. This is about 1.4× faster than a naïve port of the             less than 22𝑓 , leading to a gap. Compared to using 16-bit LUT, the
+CPU protocol. Our CPU and GPU protocols for SiLU are similar and                 above approach reduces online compute by 100× (1022 half-PRG
+outlined in Appendix F. Our techniques can be extended to support                calls to 10 half-PRG calls including TR and ARS).
+other activations, and some of these are described in Appendix G.                                                                       nExp
+                                                                                    We provide a formal description of our protocol Π𝑛,𝑚,𝑓 in Fig-
+5.2        Softmax                                                               ure 8. Here, similar to GeLU, we introduce an additional parameter
+                                                                                 𝑚 that captures effective bitwidth and helps reduce cost when pos-
+For a vector 𝒙 ∈ R𝑘 and 𝑥 max = max(𝑥 0, 𝑥 1, . . . , 𝑥𝑘−1 ), softmax on         sible from domain knowledge.
+𝒙 returns a vector 𝒚 ∈ R𝑘 such that:
+                                                                                 5.2.3 Inverse. We calculate inverse using an LUT of carefully cho-
+                                       𝑒 𝑥 [𝑖 ]−𝑥 max                            sen size. It is easy to see that for a softmax of size 𝑘, the input to
+                          𝑦 [𝑖] = Í
+                                      𝑘−1 𝑒 𝑥 [ 𝑗 ]−𝑥 max
+                                      𝑗=0                                        inverse 𝑧 ∈ [1, 𝑘]. That is, it has a non-zero integer part which is
+                                                                            69
+

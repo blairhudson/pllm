@@ -1,0 +1,15 @@
+{
+  "entry": {
+    "arguments_sha256": "a2bf40fb28c8fe5d8bc19cb085bc4a0a81e2720ce36bd3b7f8518786b56bfaee",
+    "code_sha256": "bdc04bf02906da71b670500321d8a0866c51857d1aa14fd3e3af1d94dfa9d77a",
+    "entry": "<inline-code>",
+    "mode": "c"
+  },
+  "environment_values_recorded": false,
+  "expected_sha256": "1b25b338d5fb0e4ffd163cbe70a1c9adfdc246605902c94d0e7dd40c3efc62fb",
+  "helper_sha256": "c28e1be6e70647a74c38ba972703b4e9f858b38e31b6a25e1173e5c1a5ddcae4",
+  "isolated_flag_enforced": true,
+  "launcher_pid": 41514,
+  "removed_environment_keys": [],
+  "schema": "pllm.paper_python_launch.v2"
+}

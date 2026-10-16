@@ -89,7 +89,7 @@ class PaperBuildTests(unittest.TestCase):
 
     def test_arxiv_archive_compiles_without_repository_inputs(self) -> None:
         for name, source, limit, marker in (
-            ("paper", "manuscript.md", 20, "P1-A"),
+            ("paper", "manuscript.md", 20, "P1-D"),
             ("low-memory", "low-memory.md", 16, "P2-A"),
         ):
             with self.subTest(paper=name), tempfile.TemporaryDirectory(
@@ -126,6 +126,23 @@ class PaperBuildTests(unittest.TestCase):
             "paper/*.pdf", "paper/figures",
         ], cwd=ROOT, text=True)
         self.assertEqual(output, "", "Generated papers must not be committed")
+
+    def test_historical_tables_keep_scope_captions_on_the_same_pdf_page(self) -> None:
+        for name, row_marker, caption in (
+            ("paper", "Serial digit8 issuance", "Original 150+8 tier cohort"),
+            ("paper", "Offset seed-first", "Local link-emulation results (W1)"),
+            ("low-memory", "230.56", "Retained source-present cohorts"),
+        ):
+            with self.subTest(paper=name, table=caption):
+                text = subprocess.check_output(
+                    ["pdftotext", "-layout", str(DOWNLOADS / f"{name}.pdf"), "-"],
+                    text=True,
+                )
+                pages = [" ".join(page.split()) for page in text.split("\f")]
+                self.assertTrue(
+                    any(row_marker in page and caption in page for page in pages),
+                    "A floating table must retain its evidence-scope caption",
+                )
 
 
 if __name__ == "__main__":

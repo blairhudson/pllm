@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ps",
+    "-axo",
+    "pid,rss,%cpu,comm"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.0930142505094409,
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "exit_code": 0,
+  "log": "processes-before.log",
+  "log_sha256": "487f58bb216eee52573989e3083ebc6cc6e19ca3675e52bb098f3f0286740da7",
+  "name": "processes-before",
+  "started_utc": "2026-10-16T05:42:57.602007+00:00"
+}

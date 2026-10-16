@@ -1,0 +1,44 @@
+5     Implementation and Evaluation
+We implement the client in C++. We start with the open-source LLM inference
+software llama2.c [14] (and its fork llama3.2.c [12]) and replace matrix-vector
+products and embedding calls with remote server calls. We utilizes AES-NI for
+as a pseudorandom number generator (PRNG), SHA256 as the hash function,
+and secp256k1 as the underlying cryptographic group. We use arkworks (https:
+//arkworks.rs) to implement multi-exponentiations. We reduce communication
+for secret sharing by observing that since one of the two shares is uniform, it
+suffices to send the seed used by the PRNG to generate the share instead of
+sending the share itself.
+    We implement the servers in C++ using CUDA to accelerate matrix multi-
+plications. We use 16-bit integers to encode weight matrices as fixed-point num-
+bers with a scaling factor of f = 2048. We implement a custom CUDA kernel
+for computing the product of matrices with 16-bit integer weights and vectors
+with 64-bit integer entries, using optimizations from prior work [1].
+Experimental setup. We deploy the two servers on GCP VMs each equipped
+with 2 A100-80GB GPUs. While we utilize both GPUs for storing the weights,
+we do not use multi-GPU parallelization; we only use a single GPU at a time
+to speed up matrix-vector multiplications. We deploy server S0 in Ashburn,
+Virginia (us-east4) and server S1 in Columbus, Ohio (us-east5). The client C
+is an E2 instance with 2 vCPUs and 4GB of RAM located in South Carolina
+(us-east1). Ping latency (RTT) and bandwidth between these VMs are: (1) C
+and S0 : 12ms, 4Gbits/s (2) C and S1 : 22ms, 3Gbits/s, and (3) S0 and S1 : 7ms,
+25Gbits/s. Note that lower latency and higher bandwidth between S0 and S1 is
+more favorable to the baseline protocol SIGMA that we compare to, as SIGMA
+requires communication between the two servers while our protocol does not but
+instead uses more client-server communication.
+
+5.1   Model Performance
+To validate whether our fixed-point encoding in the linear layers causes the
+utility of the model to drop, we evaluate the perplexity and next-token prediction
+accuracy on the Wikitext dataset [19] for both the base model and our fixed-
+point approximation; see Table 1. We find that the degradation of model quality,
+if at all, is nominal.
+
+5.2   Efficiency
+To test performance of our protocol, we generate 100 tokens for different models
+using our protocol and report runtime, communication, and round trips per
+token (see Figure 2). Note that the number of round trips is exactly the number
+of linear layers plus one (for the embedding layer). For completeness, we also
+benchmark small models, like Llama 3.2 1B, which can be run on edge devices.
+    We observe that our protocols are latency-bound. That is, most of the run-
+time is caused by the round trips between the client and servers. For instance, for
+

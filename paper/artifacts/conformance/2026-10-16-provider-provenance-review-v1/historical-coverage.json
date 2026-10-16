@@ -1,0 +1,56 @@
+{
+  "equalization_failure": {
+    "node": "tests/test_public_equalization.py::test_prepared_numeric_choices_have_matched_online_stage_body_sizes",
+    "original_frames_retained": false,
+    "recorded_bodies": [
+      [
+        4,
+        11580,
+        16289
+      ],
+      [
+        4,
+        11580,
+        16291
+      ]
+    ],
+    "status": "unresolved"
+  },
+  "historical_provider_child_identity": "unknown",
+  "local_cached_build_receipt_sha256": "b7d332fd599f7166f2b28d87012956b785b928cafa0b42e1b3bba60bd58a42fb",
+  "next_gate": "parent-owned fresh clean-environment SDK/gateway replay with actual provider start/end identity receipts; no such replay performed in this follow-up",
+  "paths": {
+    "direct_generated_sdk_gateway": {
+      "controller_flag": "-I",
+      "parent_import_environment_scrubbed": false,
+      "provider_child_receipts": false
+    },
+    "family_subprocesses": {
+      "child_flag": "-I",
+      "provider_child_receipts": false,
+      "scrubbed_variables": [
+        "PYTHONPATH"
+      ]
+    },
+    "generic_subprocess_pytest_and_example": {
+      "child_flag": "-I",
+      "provider_child_receipts": false,
+      "provider_grandchild_flag_I": false,
+      "scrubbed_prefixes": [],
+      "scrubbed_variables": [
+        "PYTHONPATH"
+      ]
+    },
+    "ordinary_benchmark": {
+      "provider_child_receipts": false,
+      "scrubbed_prefixes": [
+        "PYTHON"
+      ],
+      "worker_flag": "-I"
+    }
+  },
+  "schema": "pllm.paper_historical_child_identity.v1",
+  "scope": "v4 and two family execution supplements; no retrospective provider identity inference",
+  "v4_manifest_sha256": "919bee0e2b5e2fe5d83a238a61817e1d48e85b99ff804c932f9135698ae497c7",
+  "v4_provenance_sha256": "fad6234626ae5e42198a21f14b0a84145927bcd04322c034003f9d31e3bc4caa"
+}

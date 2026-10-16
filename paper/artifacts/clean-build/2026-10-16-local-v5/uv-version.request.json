@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/opt/homebrew/bin/uv",
+    "--version"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "log": "uv-version.log",
+  "name": "uv-version",
+  "started_utc": "2026-10-16T05:43:03.554976+00:00"
+}

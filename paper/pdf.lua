@@ -50,7 +50,8 @@ function Table(element)
     spanning and "\\begin{table*}[t]" or "\\par\\medskip\\noindent\\begin{minipage}{\\linewidth}",
     "\\centering\\small",
   }
-  if #element.caption.long > 0 then
+  local manual_caption = element.attributes["pllm-manual-caption"] == "true"
+  if #element.caption.long > 0 and not manual_caption then
     table.insert(output, spanning and "\\caption{" .. latex(element.caption.long) .. "}" or "\\textbf{" .. latex(element.caption.long) .. "}\\par\\smallskip")
   end
   table.insert(output, "\\begin{tabularx}{\\linewidth}{@{}" .. table.concat(columns) .. "@{}}")
@@ -63,8 +64,33 @@ function Table(element)
   end
   table.insert(output, "\\bottomrule")
   table.insert(output, "\\end{tabularx}")
+  if manual_caption then
+    table.insert(output, "\\par\\smallskip\\raggedright " .. latex(element.caption.long))
+  end
   table.insert(output, spanning and "\\end{table*}" or "\\end{minipage}\\par\\medskip")
   return pandoc.RawBlock("latex", table.concat(output, "\n"))
+end
+
+local function attach_table_captions(blocks)
+  if not FORMAT:match("latex") then return nil end
+  local result = pandoc.List()
+  local index = 1
+  while index <= #blocks do
+    local block, following = blocks[index], blocks[index + 1]
+    if block.t == "Table" and #block.caption.long == 0 and following
+        and following.t == "Para" and following.content[1]
+        and following.content[1].t == "Strong"
+        and pandoc.utils.stringify(following.content[1]):match("^Table %d+%.$") then
+      -- Keep the author-numbered Markdown caption inside its floating table.
+      -- Otherwise a wide table can move to the next page without its scope.
+      block.caption.long = { following }
+      block.attributes["pllm-manual-caption"] = "true"
+      index = index + 1
+    end
+    result:insert(block)
+    index = index + 1
+  end
+  return result
 end
 
 function Code(element)
@@ -88,3 +114,8 @@ function Figure(element)
     "\\end{minipage}\\par\\smallskip",
   }, "\n"))
 end
+
+return {
+  { Blocks = attach_table_captions },
+  { Meta = Meta, Str = Str, Table = Table, Code = Code, Figure = Figure },
+}

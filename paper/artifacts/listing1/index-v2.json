@@ -1,0 +1,50 @@
+{
+  "accepted_invocation": [
+    "paper/artifacts/release/.work/fresh-replay-44b5fdd8174a4a3493396125f0983da3/venv/bin/python",
+    "-I",
+    "-B",
+    "scripts/replay_paper_listing.py",
+    "--output",
+    "target/paper-listing-fresh-release-v1"
+  ],
+  "archive": "qwen-fresh-v2",
+  "files": {
+    "qwen-fresh-v2/admission.json": "4f75d4c49bde93c25f69054fcac7748bc677a05557e71e5b4e12b10ef9d98356",
+    "qwen-fresh-v2/build.json": "3c08889ea6676b87f155baa5589052fca9f0143dd7e19e5904b91d3a178446ef",
+    "qwen-fresh-v2/driver.py": "0a971b01327a21260c6707809798cf20d43a291f3db867a6e06f198c0ce07cc9",
+    "qwen-fresh-v2/experiment.json": "c638a2f837a524829eab83b7d0ade28c4e35768cee03acce14dc2d468199f2b5",
+    "qwen-fresh-v2/listing.py": "3dff4863a157ceae1762989d708daa01ab9dcedc6b4a20803e737e8841ac93bb",
+    "qwen-fresh-v2/parent-identity-after.json": "fcba5238c4c7e9ef6cbf47115895ce3533beae8f609039963097b47c4e93f6fa",
+    "qwen-fresh-v2/parent-identity.json": "fcba5238c4c7e9ef6cbf47115895ce3533beae8f609039963097b47c4e93f6fa",
+    "qwen-fresh-v2/provider-inference.json": "c655054299a2952f8e14143b0433c42d8ef1861f2d553b69f03ff8f90639217f",
+    "qwen-fresh-v2/provider-preparation.json": "02eb128ce95be6b30cf39800ddf56563a8f3d84d4cfc9250e1437cbcb107a145",
+    "qwen-fresh-v2/result.json": "f8ee53a9daddab088dcc7050f3c94b74ed34911d5218f0f0b53070a26ff5efad",
+    "qwen-fresh-v2/source-lock-after.json": "2a06a098b31142f48c57c35d6a749dea69adf358ea85ebba382fa01819cd176b",
+    "qwen-fresh-v2/source-lock-before.json": "2a06a098b31142f48c57c35d6a749dea69adf358ea85ebba382fa01819cd176b"
+  },
+  "original_run": "target/paper-listing-fresh-release-v1",
+  "prior_archive": {
+    "path": "index.json",
+    "sha256": "e1811c411aac68acf4467c03e10c6c0eeed5f995e23f5a8c121d0414717fa00b"
+  },
+  "release": {
+    "build_manifest": {
+      "path": "paper/artifacts/release/2026-10-16-fresh-target-v2/manifest.json",
+      "sha256": "45b879dc33a4fe3e3db20c44698059a7754a7b51176e67b539b7be16ab55883c"
+    },
+    "build_receipt": {
+      "path": "paper/artifacts/release/2026-10-16-fresh-target-v2/receipt.json",
+      "sha256": "899e6baba75acb868686d83e853d9d8a79e91cd78b5cfb0093ce97ac450f4c1d"
+    },
+    "environment_receipt": {
+      "path": "paper/artifacts/release/2026-10-16-fresh-environment-v1/receipt.json",
+      "sha256": "1eaa4884a4099bc02662a280e1f78ec01d1d934d80998a6911b6626b4f9fb87f"
+    },
+    "installed_provenance": {
+      "path": "paper/artifacts/release/2026-10-16-fresh-environment-v1/replay/provenance.json",
+      "sha256": "c16bae0e535468608ba866d7251c521cf8624f0f12b869b57a64ed7bc1758ef8"
+    }
+  },
+  "schema": "pllm.paper_listing_archive.v2",
+  "scope": "Local functionality replay. Qwen recorded native/Python/SDK-source identities, not a full package or dependency before/after inventory. Full wheel/package and dependency observations belong to the earlier fresh-environment release evidence. Original build compilation passed but its install remained blocked; the separate continuation installed the exact wheel. Integrity inventory, not signed or independent attestation."
+}

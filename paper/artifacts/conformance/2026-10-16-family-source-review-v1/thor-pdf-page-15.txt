@@ -1,0 +1,74 @@
+THOR: Secure Transformer Inference with Homomorphic Encryption
+
+
+Algorithm 4 Replication
+                                                                                                     Í
+                                                                           • Exponential. Let 𝑒 (𝑥) = 𝑒𝑖 𝑥 𝑖 denote the polynomial approxi-
+Input: Ciphertexts ct.B 𝑗 of the multi-lower-diagonal batched en-            mation of the exponential function with coefficients
+    coded vectors of (𝐵 (𝑧 ) )𝑧 ∈ [𝐻 ] for 𝑗 ∈ [𝑛/𝑐] where 𝐵 (𝑧 ) ∈ R𝑛×𝑛    (𝑒𝑖 ) = (9.9999 × 10 −1 , 9.9999 × 10 −1 , 5.0002 × 10 −1 , 1.6667 × 10 −1
+Output: Ciphertexts ct.Bℓ′ of the replicated batched lower diagonal                  4.1653 × 10 −2 , 8.3316 × 10 −3 , 1.3920 × 10 −3 , 1.9871 × 10 −4
+    vectors of (𝐵 (𝑧 ) )𝑧 ∈ [𝐻 ] for ℓ ∈ [𝑛]                                         2.4471 × 10 −5 , 2.7286 × 10 −6 , 2.9466 × 10 −7 , 2.6438 × 10 −8 ,
+ 1: for 𝑗 = 0 to 𝑛/𝑐 − 1 do
+                                                                                     1.4896 × 10 −9 , 1.2104 × 10 −10 , 2.0777 × 10 −11 , 1.3376 × 10 −12 ).
+ 2:    for 𝑘 = 0 to 𝑐/2 − 1 do
+ 3:        ct 𝑗,𝑘 ← PMult(ct.B 𝑗 , 𝜈𝑘 )                                    • Inverse. Given 𝑎 0 = 𝑥 ∈ (0, 1) and 𝑏 0 = 1, we iteratively
+ 4:        for 𝑟 = 0 to log(𝑐/2) − 1 do                                      update the values: 𝑎𝑖+1 = 𝑘𝑖 𝑎𝑖 (2 − 𝑘𝑖 𝑎𝑖 ) and 𝑏𝑖+1 = 𝑘𝑖 𝑏𝑖 (2 −
+ 5:             ct 𝑗,𝑘 ← ct 𝑗,𝑘 + Rot(ct 𝑗,𝑘 ; −2𝑛 · 2𝑟 𝐻 )                  𝑘𝑖 𝑎𝑖 ) for 𝑖 = 0, 1, . . . ,𝑇 − 1, where 𝑘𝑖 is a predetermined re-
+                                                                             laxation factor. The inverse of 𝑥 is then approximated by 𝑏𝑇 .
+ 6:           ct.B𝑐′ 𝑗+2𝑘 ← PMult(ct 𝑗,𝑘 , 𝜈)
+                                                                             The relaxation factors used in the approximation are (𝑘𝑖 ) =
+ 7:           ct.B𝑐′ 𝑗+2𝑘+1 ← ct 𝑗,𝑘 − ct.B𝑐′ 𝑗+2𝑘                           (2.00, 2.00, 1.98, 1.94, 1.79, 1.46, 1.12, 1.98, 1.94, 1.79, 1.46, 1.12, 1.01).
+ 8:      for 𝑘 = 0 to 𝑐 − 1 do                                             • Inverse square root. Given 𝑎 0 = 𝑥 ∈ (0, 1) and 𝑏 0 = √          1, we iter-
+ 9:          ct.B𝑐′ 𝑗+𝑘 ← ct.B𝑐′ 𝑗+𝑘 + Rot(ct.B𝑐′ 𝑗+𝑘 ; −𝑛𝐻 )                atively compute 𝑎𝑖+1 = 𝑘𝑖 𝑎𝑖 (3 − 𝑘𝑖 𝑎𝑖 ) 2 /4, and 𝑏𝑖+1 = 𝑘𝑖 𝑏𝑖 (3 −
+                                                                                                                                  √
+                                                                             𝑘𝑖 𝑎𝑖 )/2 for 𝑖 = 0, 1, . . . ,𝑇 −1, where 𝑘𝑖 = 3(1− 𝜖𝑖 +𝜖𝑖 )/(1+𝜖𝑖 +𝜖𝑖2 )
+10: return ct.Bℓ′
+                                                                             and 𝜖𝑖 = 𝑘𝑖 −1𝜖𝑖 −1 (3 − 𝑘𝑖 −1𝜖𝑖 −1 ) 2 /4. The inverse square root of 𝑥
+                                                                             is then approximated by 𝑏𝑇 . The relaxation factors are specified
+                                                                             as (𝑘𝑖 ) = (2.6374, 2.1722, 1.5135,
+                                                                                                               Í     1.0907).     Í
+                                                                           • GELU & Tanh. Let 𝑓1 = 𝑓1,𝑖 𝑥 𝑖 and 𝑓2 = 𝑓2,𝑖 𝑥 𝑖 denote the
+Algorithm 5 Matrix Transpose                                                 polynomial approximations for the GELU function, and let 𝑔1 =
+                                                                             Í                     Í
+Input: Ciphertexts ct.B 𝑗 of the multi-upper-diagonal batched en-               𝑔1,𝑖 𝑥 𝑖 and 𝑔2 = 𝑔2,𝑖 𝑥 𝑖 denote the polynomial approximations
+    coded vectors of (𝐵 (𝑧 ) )𝑧 ∈𝐻 for 𝑗 ∈ [𝑛/𝑐] where 𝐵 (𝑧 ) ∈ R𝑛×𝑛         for the Tanh function:
+Output: Ciphertexts ct.Cℓ of the multi-lower-diagonal batched               (𝑓1𝑖 ) = ( − 1.0624 × 10 −5 , 1.6445 × 10 −4 , −5.8353 × 10 −4 , −3.8091 × 10 −4 ,
+    encoded vectors of (𝐵 (𝑧 ) ) for ℓ ∈ [𝑛/𝑐]                                       2.2443 × 10 −3 , 8.9230 × 10 −3 , −1.0528 × 10 −2 , −1.9183 × 10 −2 ,
+ 1: for 𝑗 = 0 to 𝑛/𝑐 − 1 do
+                                                                                      − 2.0463 × 10 −1 , 4.5401 × 10 −1 , −5.4076 × 10 −1 , 5.6775 × 100 ,
+ 2:    ctrot ← Rot(ct 𝑗 ; [−𝑐 𝑗]𝑛 𝐻 )
+ 3:    ℓ := [−𝑗] (𝑛/𝑐 )                                                               − 1.3643 × 101 , 1.8257 × 101 , −8.4885 × 101 , 1.2869 × 102 ,
+ 4:    ctℓ,0 ← PMult(ctrot, 𝜇 𝑗,0,0 )                                                3.6672 × 102 , −1.0140 × 103 , −1.2628 × 102 , 2.2173 × 103 ,
+ 5:    ctℓ,1 ← PMult(ctrot, 𝜇 𝑗,0,1 )
+                                                                                      − 9.9542 × 102 , −2.3106 × 103 , 1.7358 × 103 , 1.2738 × 103 ,
+ 6: for 𝑗 = 0 to 𝑛/𝑐 − 1 do
+                                                                                      − 1.2784 × 103 , −3.6678 × 102 , 4.7966 × 102 , 4.9461 × 101 ,
+ 7:      ℓ := 𝑛/𝑐 − 1 − 𝑗
+ 8:      for 𝑘 = 1 to 𝑐 − 1 do                                                        − 9.0675 × 101 , −2.3652 × 100 , 8.7431 × 100 , 1.6284 × 10 −2 ).
+ 9:          ctrot ← Rot(ct 𝑗 ; (𝑛 − 𝑐 𝑗 − 𝑘 + 2𝑘𝑛 − 𝑐𝑛)𝐻 )
+                                                                             (𝑓2𝑖 ) = ( − 1.7027 × 102 , 6.8108 × 101 , 1.7920 × 103 , −6.8162 × 102 ,
+10:          ctℓ,0 ← Add(ctℓ,0, PMult(ctrot, 𝜇 𝑗,𝑘,0 ))
+11:          ctℓ,1 ← Add(ctℓ,1, PMult(ctrot, 𝜇 𝑗,𝑘,1 ))                                 − 8.4926 × 103 , 3.0563 × 103 , 2.3958 × 104 , −8.1044 × 103 ,
+
+12:    ct.Cℓ ← Add(ctℓ,0,Rot(ctℓ,1 ; −𝑛𝐻 )                                              − 4.4815 × 104 , 1.4130 × 104 , 5.8620 × 104 , −1.7037 × 104 ,
+
+13: return ct.Cℓ                                                                        − 5.5133 × 104 , 1.4553 × 104 , 3.7787 × 104 , −8.8767 × 103 ,
+                                                                                        − 1.8951 × 104 , 3.8497 × 103 , 6.9417 × 103 , −1.1690 × 103 ,
+                                                                                        − 1.8466 × 103 , 2.4169 × 102 , 3.5445 × 102 , −3.2450 × 101 ,
+                                                                                        − 4.9192 × 101 , 2.5812 × 100 , 5.7839 × 100 , −9.4517 × 10 −2 ).
+𝜇 𝑗,𝑘,0, 𝜇 𝑗,𝑘,1 as follows: for 𝑖 ∈ [𝑠],
+                                                                             (𝑔1𝑖 ) = ( − 7.1453 × 103 , −7.7652 × 101 , 2.7428 × 104 , 2.4515 × 102 ,
+                    (                                                                  − 4.2579 × 104 , −3.0195 × 102 , 3.4219 × 104 , 1.8299 × 102 ,
+                       1   if 𝑎𝐻 ≤ 𝑖 < (𝑎 + 𝑛 − 𝑏)𝐻,
+       𝜇 𝑗,𝑘,0 [𝑖] =                                                                   − 1.5116 × 104 , −5.6410 × 101 , 3.5876 × 103 , 8.1760 × 100 ,
+                       0   otherwise,
+                     (                                                                 − 4.1334 × 102 , −4.2902 × 10 −1 , 1.9506 × 101 , 2.0620 × 10 −3 ).
+                       1   if [(𝑎 − 𝑏)]𝑠 𝐻 ≤ 𝑖 < ([𝑎 − 𝑏]𝑠 + 𝑏)𝐻,
+       𝜇 𝑗,𝑘,1 [𝑖] =                                                        (𝑔2𝑖 ) = ( − 9.0257 × 10 −3 , −1.1232 × 10 −4 , 1.0876 × 10 −1 , 7.9679 × 10 −4 ,
+                       0   otherwise,
+                                                                                      − 5.4133 × 10 −1 , −1.4287 × 10 −3 , 1.4648 × 100 , −2.2242 × 10 −3 ,
+where 𝑎 = [−𝑘𝑛]𝑠 and 𝑏 = [𝑛−𝑘−𝑐 𝑗]𝑛 . The transposition procedure                     − 2.4326 × 100 , 1.1738 × 10 −2 , 2.7497 × 10 −1 , −1.7763 × 10 −2 ,
+requires 2𝑛 plaintext multiplications and 𝑛 + 𝑛/𝑐 rotations in total.                 − 2.3893 × 100 , 1.3019 × 10 −2 , 2.0287 × 100 , −4.0844 × 10 −3 ).
+
+C     Non-linear Approximation Details
+

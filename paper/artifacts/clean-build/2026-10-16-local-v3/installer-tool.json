@@ -1,0 +1,6 @@
+{
+  "path": "/Users/blairhudson/.cache/uv/wheels-v6/pypi/uv/0.11.8-py3-none-macosx_11_0_arm64/uv-0.11.8.data/scripts/uv",
+  "resolved_path": "/Users/blairhudson/.cache/uv/archive-v0/qfSCaejUTO0Gy4kMo_rw6/uv-0.11.8.data/scripts/uv",
+  "selection": "Explicit --uv tool, or PATH default; existing local executable",
+  "sha256": "51f0ae3c531a124727fa39e16e8599f2e371e427822a4aa92ebf667b52548b43"
+}

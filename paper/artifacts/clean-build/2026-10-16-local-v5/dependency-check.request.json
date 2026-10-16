@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/opt/homebrew/bin/uv",
+    "--offline",
+    "--no-config",
+    "pip",
+    "check",
+    "--python",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "environment_overrides": {},
+  "log": "dependency-check.log",
+  "name": "dependency-check",
+  "started_utc": "2026-10-16T05:45:45.781273+00:00"
+}

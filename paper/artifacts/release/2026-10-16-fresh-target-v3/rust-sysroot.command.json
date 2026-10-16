@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "rustc",
+    "--print",
+    "sysroot"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.11214520875364542,
+  "exit_code": 0,
+  "log": "rust-sysroot.log",
+  "log_sha256": "76fabdcdb3b34f2934c350df7d73f5fa7f0a3f067b59c5d59b623d5676146cec",
+  "started_utc": "2026-10-16T05:40:11.951413+00:00",
+  "stop_reason": null
+}

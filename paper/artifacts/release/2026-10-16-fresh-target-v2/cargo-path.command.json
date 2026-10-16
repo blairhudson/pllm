@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "rustup",
+    "which",
+    "cargo"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.053793041966855526,
+  "exit_code": 0,
+  "log": "cargo-path.log",
+  "log_sha256": "862e9f2caa4fdcc275527c0754130765aabf4fa1068a2f4d3419ab25ef4a3b1b",
+  "started_utc": "2026-10-16T05:07:28.818276+00:00",
+  "stop_reason": null
+}

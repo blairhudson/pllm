@@ -4,6 +4,57 @@ Decision date: 16 October 2026. Status: execution started; neither paper is read
 for submission. This is the consolidated publication strategy, manuscript
 scaffolds, critique, and delivery plan agreed with the author.
 
+## Execution update: evidence and revised decision
+
+The original scaffolds below remain the design record. The current comparison
+rules are normative in `COMPARISON-CONTRACT.md` and `comparison-contract.v1.json`;
+current gate status is in `CLAIMS-AND-EVIDENCE.md`.
+
+- **Paper 1 now has executed framework evidence.** Installed-wheel conformance
+  covers the tiled-prefill extension, incompatible configurations, exact generated
+  state, independent FP32 references, the ordinary benchmark and SDK/gateway.
+  Its exact pinned-Qwen Listing 1 also completes through both entry points.
+- **Six mechanism families have explicit implementation cards.** The supplement
+  retains the original 26 passing tests and failed two-byte equalization assertion.
+  A frame-aware repair passes 20 focused checks while preserving that failed record.
+  LogRow's original algorithm locator and the larger retained setup are documented.
+- **Fresh Listing 1 replay closes its child-process provenance gap.** Actual
+  provider package/native identities and complete before/after model-file locks
+  bind the Qwen SDK/gateway run to a fresh-target build. The first archive retains
+  its narrower digest-only/parent scope. Separate fresh build identities remain
+  distinct; the full generated and mechanism replays still need their own records.
+- **Historical tables are reproducible.** A semantic audit retains all 51 clients
+  in four original cohorts, their build identities, metric contracts, per-role
+  observations and maximum-client eligibility. It checks historical evidence;
+  it does not substitute for the new publication campaign.
+- **Paper 2 must narrow its novelty.** Gupta–Katz–Miers, ePrint 2026/1849, already
+  combines private embedding lookup, shared public linear inference and local
+  nonlinear work. The viable hypothesis is exact decoder/state preservation,
+  bounded coupled ownership and a useful measured resource frontier. Generic
+  composition or “lightweight client” is not a new contribution.
+- **The closest implementation is public.** The pinned `kanav99/dvllm` source
+  supports private embeddings, full-head delegation and full client KV. Its dense
+  XOR-PIR, fixed-point arithmetic and verification lifecycle differ from PLLM's
+  packed DPF/W8A8 choices. `COMPETITOR-QUALIFICATION.md` records the source mapping
+  and unresolved gates; existing offset execution with a client-owned head is not
+  that complete comparator.
+- **The four-provider argument is written and audited within its model.** Its
+  maximal allowed static coalitions are P+B0, P+B1, I+B0 and I+B1. Correctness
+  is separated from a conditional untimed privacy argument. Actual packed-DPF
+  security, timing/error leakage and external deployment remain review gates;
+  lifecycle retirement does not establish secure erasure.
+- **No new SOTA is established.** Closest-system qualification and fresh matched
+  screening/confirmation remain necessary. Hard aggregate-provider CPU/RSS
+  enforcement and complete provider lifetime measurements are unavailable in the
+  current native benchmark. Link-normalized runs cannot stand in for them.
+
+Final execution order is therefore: finish full fresh-environment conformance;
+freeze a reproducible publication release; close the stated measurement and
+external-system qualification gaps; run the frozen campaign and confirmation;
+then select the strongest supported paper claims. Paper 1 may proceed on its
+own evidence. If Paper 2's narrowed contribution or comparison fails, revise the
+method rather than manufacture a SOTA headline.
+
 ## 1. Purpose and division of contributions
 
 The argument connecting the papers is:
@@ -12,7 +63,8 @@ The argument connecting the papers is:
 > inputs. Private multi-party inference offers that capability under explicit
 > assumptions. Its practical costs span clients, providers, preprocessing, and
 > communication. PLLM makes those costs and assumptions comparable. That
-> comparison exposes a Low-tier frontier. The second paper advances it.
+> comparison exposes a Low-tier frontier. The second paper must demonstrate an
+> advance against qualified competitors.
 
 | | Paper 1: framework and benchmark | Paper 2: Low-tier method |
 | --- | --- | --- |
@@ -73,8 +125,8 @@ and physical wire are different measurements. Missing Preparation is not measure
 zero work. Exact W8A8 equivalence is separate from BF16/FP32 fidelity or task quality.
 Support exact-execution and quality-matched tracks with separate eligibility rules.
 
-For predominantly remote execution, freeze an application-motivated body-MAC
-requirement (initial proposal: at least 90% separately for prefill and decode).
+For predominantly remote execution, the version-one comparison contract fixes
+at least 90% of body-linear MACs separately for prefill and decode.
 Client-only execution is a computational reference, not an outsourcing winner.
 Provider hardware, thread counts, worker count, memory and access capacity remain
 explicit. Different trust models and verification strengths do not silently rank

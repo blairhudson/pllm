@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "vm_stat"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.0030286256223917007,
+  "environment_file": "build-environment.json",
+  "exit_code": 0,
+  "log": "vm-stat-before.log",
+  "log_sha256": "2d400c4163d7442874c0927b3c36d622a35e600df6009ca441395a9289bcb0a5",
+  "name": "vm-stat-before",
+  "started_utc": "2026-10-16T05:08:13.082218+00:00"
+}

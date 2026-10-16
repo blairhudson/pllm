@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "sysctl",
+    "hw.memsize",
+    "vm.swapusage"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.006284791044890881,
+  "environment_file": "build-environment.json",
+  "exit_code": 0,
+  "log": "swap-before.log",
+  "log_sha256": "2ffd0c674d98729f4fd901c10166f8075f9bbe8a5ed8b64669f5b5b2b0390568",
+  "name": "swap-before",
+  "started_utc": "2026-10-16T05:37:25.654850+00:00"
+}

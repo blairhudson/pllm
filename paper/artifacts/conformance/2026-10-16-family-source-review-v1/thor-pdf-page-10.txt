@@ -1,0 +1,72 @@
+                                                                                                 Jungho Moon, Dongwoo Yoo, Xiaoqian Jiang, and Miran Kim
+
+
+due to the rapid growth of the exponential function. To address             Algorithm 3 ASoftmax(x)
+this issue, the least squares method is applied to approximate the          Input: x = (𝑥𝑖 ) ∈ [−𝑀/2, 𝑀/2]𝑛 , 𝛿 1, 𝛿 2 ∈ Z+
+scaled exponential function 𝑒 𝑥/𝛿 with a low-degree polynomial and          Output: An approximated softmax of x
+then raise the result to the power of 𝛿. After approximating the             1: 𝑧𝑖 ← (AExp(𝑥𝑖 /(𝛿 1𝛿 2 )))𝛿 1 , 𝑖 = 0..𝑛 − 1
+                                                                             2: 𝑆 (0) ← 𝑖 ∈ [𝑛] 𝑧𝑖
+exponential function, we aggregate the results and compute their                       Í
+inverse using Goldschmidt’s division algorithm.                                     (0)
+   A large input range introduces additional computational chal-                3: 𝑦𝑖   ← 𝑧𝑖 · AInv(𝑆 (0) ), 𝑖 = 0..𝑛 − 1
+                                                                                4: for 𝑗 = 1 to log(𝛿 2 ) do
+lenges beyond numerical stability, as it necessitates a substantial
+                                                                                               ( 𝑗 −1) 2
+number of fractional bits to maintain high precision. To address                5:    𝑧𝑖 ← (𝑦𝑖        ) , 𝑖 = 0..𝑛 − 1
+                                                                                      𝑆 ( 𝑗 ) ← 𝑖 ∈ [𝑛] 𝑧𝑖
+                                                                                               Í
+this issue and enable accurate yet efficient softmax evaluation, we             6:
+propose a two-phase method consisting of the following steps. First,                    (𝑗)
+                                                                                7:    𝑦𝑖 ← 𝑧𝑖 · AInv(𝑆 ( 𝑗 ) ), 𝑖 = 0..𝑛 − 1
+we shift the input vector to improve the numerical stability during                                (log(𝛿 2 )
+                                                                                8: return y = (𝑦𝑖             )
+exponentiation and to enhance the tractability of the approxima-
+tion. Specifically, for an input vector with elements within the
+range [𝑎, 𝑏], each element is adjusted by subtracting the constant
+(𝑎 + 𝑏)/2. As a result, the shifted elements are within the interval           Prior works [12, 23, 31] approximate GELU using piecewise poly-
+[−𝑀/2, 𝑀/2], where 𝑀 = 𝑏 − 𝑎. Next, we introduce three scaling              nomials requiring three sign operations. In contrast, we adopt a
+factors 𝛿 0 , 𝛿 1 , and 𝛿 2 . The parameter 𝛿 0 defines the range for the   two-step approach to approximate GELU with a composition of
+exponential approximation; 𝛿 1 manages the power of the initial             low-degree polynomials: 𝑓1 (𝑥) from least-squares fitting and 𝑓2 (𝑥)
+scaled exponentiation; and 𝛿 2 determines the number of repeated            for residual refinement, resulting in the composite 𝑓2 (𝑓1 (𝑥)) as a
+square-and-normalize operations.                                            close approximation of GELU. The NEXUS method needs 56 multi-
+                                                                            plications and depth 14, while ours uses degree-31 and degree-27
+• Phase 1: The input vector is scaled by a factor of 1/(𝛿 1 ·𝛿 2 ). Then    polynomials evaluated with the Paterson–Stockmeyer algorithm in
+  each element of the scaled input vector lies within the interval          39 multiplications and depth 11. The same two-step approximation
+  [−𝑀/(2𝛿 1𝛿 2 ), 𝑀/(2𝛿 1𝛿 2 )] ≈ [−𝛿 0 /2, 𝛿 0 /2], allowing stable ex-    strategy is applied to the Tanh function with two degree-15 poly-
+  ponential computations in subsequent steps. Then, we compute              nomials. We refer to Appendix C for the detailed parameters used
+  the 𝛿 1 -th power of these values. Finally, the resulting exponen-        in the approximations.
+  tials are normalized to form the initial probability distribution
+  by dividing each value by the sum of all exponentials.                    6      Secure Transformer Inference
+• Phase 2: To enhance the numerical stability and accuracy, the             In this section, we present the threat model and detailed architecture
+  probabilities are refined through an iterative process of square-         of THOR for secure transformer inference.
+  and-normalize for log 𝛿 2 iterations.
+
+   Algorithm 3 provides an explicit description of our softmax ap-          6.1      System Setup & Threat Model
+proximation. Here, AExp and AInv denote the approximated expo-              Our system consists of two parties: the service provider, which
+nential and inverse functions, respectively. We approximate the             holds a fine-tuned transformer model, and the client, which requests
+inverse function using Goldschmidt’s algorithm, which iteratively           inference services from this model. The threat model of this paper is
+refines the estimate by the update 𝑓 (𝑥) = 𝑥 (2 − 𝑥). To accelerate         similar to that of previous private transformer inference works [26,
+the convergence of this process, we incorporate the Adaptive Suc-           31]. We assume that the server is honest-but-curious. Our security
+cessive Over-Relaxation (aSOR) method [24], which dynamically               goal is to ensure that the server does not learn any information
+adjusts the relaxation factor 𝑘𝑖 at each iteration. The refined update      about the client’s private input. This can be guaranteed by the
+rule is given by 𝑥𝑖+1 = 𝑘𝑖 𝑥𝑖 (2 − 𝑘𝑖 𝑥𝑖 ), where 𝑘𝑖 = 2/(1 + 𝜖𝑖 ) is       semantic security of the underlying HE scheme, which relies on
+selected to maximize the convergence rate and 𝜖𝑖 represents the             the hardness of the Ring LWE problem. We also remark that the
+minimum value in the current iteration (see Appendix C for details).        CKKS scheme is secure against the key-retrieval attack [22] if the
+                                 (0)
+   The initial output y (0) = (𝑦𝑖 ) of the first phase is an approxi-       plaintext results of the decryption are revealed only to the secret-
+                                                         Í                  key owner. Our protocol is secure against this attack, since the
+mation of Softmax(x/𝛿 2 ). Since Softmax(2x)𝑖 = 𝑦𝑖2 / 𝑗 ∈ [𝑛] 𝑦 2𝑗 for
+                                                     (𝑗)
+                                                                            decrypted results are not shared with any external party.
+y = (𝑦𝑖 ) = Softmax(x), the 𝑗-th update y ( 𝑗 ) = (𝑦𝑖 ) in the second
+phase is approximate to Softmax(2 𝑗 x/𝛿 2 ). After log 𝛿 2 iterations,      6.2      THOR
+this process yields an approximate result for Softmax(x).                   The client first computes the embeddings for a tokenized sentence
+                                                                            using the embedding tables. The resulting output is then encrypted
+5.2    Other Non-linear Functions                                           and fed into the transformer model for secure inference.
+The attention value is normalized
+                               √ across the layer using LayerNorm           6.2.1 Our Strategy. We consider the computation of 𝑄 = 𝑋𝑊 ,
+LayerNorm(x) 𝑗 = 𝛾 · (𝑥 𝑗 − 𝜇)/ 𝜎 2 + 𝜖 + 𝛽 for x = (𝑥 𝑗 ) ∈ R𝑑 , where     where 𝑊 can be provided in cleartext. According to the original
+𝜇 is the mean, 𝜎 2 is the variance, and 𝜖 is a small constant for           matrix multiplication, the encrypted diagonals of 𝑄 are obtained
+numerical stability. The inverse square root is approximated using          by combining rotated ciphertexts of 𝑋 with plaintexts of 𝑊 . For
+the Goldschmidt algorithm combined with the aSOR technique.                 example, in the case of 𝑛 × 𝑛 square matrix multiplication (Eq. (2)),
+

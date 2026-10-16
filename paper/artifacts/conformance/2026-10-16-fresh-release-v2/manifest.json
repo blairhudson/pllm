@@ -1,0 +1,301 @@
+{
+  "argv": [
+    "scripts/audit_paper_conformance.py",
+    "--output",
+    "paper/artifacts/conformance/2026-10-16-fresh-release-v2",
+    "--wheel",
+    "paper/artifacts/release/2026-10-16-fresh-target-v2/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+    "--reference-python",
+    "/Users/blairhudson/workspace/pllm/.venv/bin/python"
+  ],
+  "artifacts": {
+    "child-identities/32ce8c1666ea4656aca1024d3c5c43ec.end.json": "d3347bc51c7d133ad219544320595f62f166272aa26a0faf4a3006e4d4d6af62",
+    "child-identities/32ce8c1666ea4656aca1024d3c5c43ec.exit.json": "c7bcf0d09c0f416696ca463ae02328793e5a45ff60f28e2f59525489e117a5d5",
+    "child-identities/32ce8c1666ea4656aca1024d3c5c43ec.launch.json": "06266da56a36085d53ac14e102c837a4f7063f8ecac83200fd053dac0102a28a",
+    "child-identities/32ce8c1666ea4656aca1024d3c5c43ec.spawn.json": "b8564b162bc20d73e4491dea12e04dd317bbffbfe562cd18c46a35198365daf4",
+    "child-identities/32ce8c1666ea4656aca1024d3c5c43ec.start.json": "36db53ebc48293482c50f6981e47df5013357c1c474e6ef79dc5fda8a3cc7e4b",
+    "child-identities/3523f09bb6b842eebb19f39e6164bf4b.end.json": "732e058fb6ab62113d8e1a0d74c1e80a2c4ab1c93ccdf959ecd5aa44b8392c1e",
+    "child-identities/3523f09bb6b842eebb19f39e6164bf4b.exit.json": "63d36cc1772411c19e07a57f631380b8d8c282331e92ffb8f8111ee682e89103",
+    "child-identities/3523f09bb6b842eebb19f39e6164bf4b.launch.json": "84ab1259e73b09bda8f5759ddca74af03c3910f59cde439c52586534b5f11c56",
+    "child-identities/3523f09bb6b842eebb19f39e6164bf4b.spawn.json": "8c4cc9486e319f8a24945d624b2a307c6f3bbd7da08969edbeb99ac2eda2d7a5",
+    "child-identities/3523f09bb6b842eebb19f39e6164bf4b.start.json": "c7aeeedf1ac8396ad360804dc720dcc355aa8c49e3fedbfaa0a730dece05b8b1",
+    "child-identities/568782d6e3ba4f5e9be25e8ac87bb666.end.json": "f8b63bae70c154f98adde99f89a29701ec06c4edcb65321fc1ebcf9f64fe4970",
+    "child-identities/568782d6e3ba4f5e9be25e8ac87bb666.exit.json": "f484dd663391cdba6ebfcb694f24edc9b89cd192f8f8d3a8be971240e4dc7fee",
+    "child-identities/568782d6e3ba4f5e9be25e8ac87bb666.launch.json": "5950831003c360d5640ce1319665aa9726e337e4cedf90556c2c8b1b9e858f57",
+    "child-identities/568782d6e3ba4f5e9be25e8ac87bb666.spawn.json": "0e8df9cc0cc96bcd7ef8c0e1277750cfdd85a94d3b04b468163f9e8ec21cd217",
+    "child-identities/568782d6e3ba4f5e9be25e8ac87bb666.start.json": "37bd04cd0da20600352cd1d5040a2ef98a2685caf22b44fce995a424124b3665",
+    "child-identities/75dd652e4eb04cf7abb096a4b18f20f9.end.json": "3f37195a0f3b2d24f2abbddfcb87a5d9574c2a31186cfbe4b3615123c048199c",
+    "child-identities/75dd652e4eb04cf7abb096a4b18f20f9.exit.json": "2234cf080567ecbe76a0343a3de0f3f0008c9d6831f1feb641a7a16203e31315",
+    "child-identities/75dd652e4eb04cf7abb096a4b18f20f9.launch.json": "6b5ac5fd719f4d7823b462a7659737aab450db9b5e6b805132608b8679e84ec4",
+    "child-identities/75dd652e4eb04cf7abb096a4b18f20f9.spawn.json": "44e216b85cc7850a0f5b2de2624bebb1a04a2524672157db788ae09cb60efc90",
+    "child-identities/75dd652e4eb04cf7abb096a4b18f20f9.start.json": "f2b004c939a1559d9fd2abb186ded52f5f31adbc85e23f7f7f54d5e59bdc52da",
+    "child-identities/76e12dac29c046b5b988d5e7ed410cb4.end.json": "519de290117f03b3e45cfae129342c4fc027bec6d7897fe00c5ca325f88ea8f9",
+    "child-identities/76e12dac29c046b5b988d5e7ed410cb4.exit.json": "675376aee8f6cbd07855c7aad273a53ff77b0d4492a48430730ebcd9a514dc77",
+    "child-identities/76e12dac29c046b5b988d5e7ed410cb4.launch.json": "5627de4d8294663feb255ed2fa99b1543ce3ec15877c129f37c40e732b5bfac2",
+    "child-identities/76e12dac29c046b5b988d5e7ed410cb4.spawn.json": "8acf75f05a0e81e7d3f7919328701da14dc55044e4568f109da9e535fad04913",
+    "child-identities/76e12dac29c046b5b988d5e7ed410cb4.start.json": "8b730bfe70fd7316a61c1720d6295635e5804b969ff03062daef35116eeda3fe",
+    "child-identities/88ca69915cbf405da9dc9baf2fa2fd51.end.json": "fbf3d4d43f887533f94149ceea5ff23395fdce707c143855972124eb62cc5913",
+    "child-identities/88ca69915cbf405da9dc9baf2fa2fd51.exit.json": "91b9ed89978da96ebdb744675c12ca009a07ab897dde45d1b43517287a338df8",
+    "child-identities/88ca69915cbf405da9dc9baf2fa2fd51.launch.json": "bef889593fac04277886e274f76a0e6c55381e7ee063801d70ebecfb78ef6d19",
+    "child-identities/88ca69915cbf405da9dc9baf2fa2fd51.spawn.json": "ce0e0c32bb0fc33b89584c32e11c915ebdcfe4d1d80eb9de4464b69e2c84fccb",
+    "child-identities/88ca69915cbf405da9dc9baf2fa2fd51.start.json": "83b6172cf5a6db2425f18b4966ba59c4fdcc2c940f22ac1fdc78dd06adfd5f9a",
+    "child-identities/a4df7111afda4b439de660e67512cebb.end.json": "383fe5c2ed339eacd3b8b4a3dd2ca45f033f7df00596300fdec175526c66fc98",
+    "child-identities/a4df7111afda4b439de660e67512cebb.exit.json": "65f095282a6db373e17121b774ba3060c30f3bfd48162db5bb30ac68c2779ebb",
+    "child-identities/a4df7111afda4b439de660e67512cebb.launch.json": "8feafca4c46fa8fdaaa60c5644c9355efa1f20ae20493d9f06eab0e8b3de03ba",
+    "child-identities/a4df7111afda4b439de660e67512cebb.spawn.json": "8409de5eb4313813c500841eb6ea235e2e15ac63b38cecd1efdbd9cbcb2b2c9b",
+    "child-identities/a4df7111afda4b439de660e67512cebb.start.json": "4779d78ed3b0c039084f88d380304d5844dff010e6f31af45070161c42e13cd2",
+    "child-identities/c9af8ccb1eb444c099849fe8a5923083.end.json": "14bb598e852302c31aeb9f884574fcf7aac6e871f9add3091cf239651370217e",
+    "child-identities/c9af8ccb1eb444c099849fe8a5923083.exit.json": "8045a73cd9d12e75ef2dfca1ff3264b658711946247de17d5edbeee4f7c3bf1b",
+    "child-identities/c9af8ccb1eb444c099849fe8a5923083.launch.json": "29906ad09fcd3b56dc902aade0b934a403844ff2af618d36966315c852f06753",
+    "child-identities/c9af8ccb1eb444c099849fe8a5923083.spawn.json": "4365f98aeeea1e55c2e4e06d8138619ae18a9c62feb8fd9150287261ef0c0962",
+    "child-identities/c9af8ccb1eb444c099849fe8a5923083.start.json": "9859227609ba28bb75d4c765f58892d3c297ab6a1af263b3dfba57580615adc7",
+    "child-identities/controller-end.json": "ee761c46d9e3fc6bb74671e4f923224f32b189674eaa214797f00a8d4242d24d",
+    "child-identities/controller-start.json": "73dcf8315d92282fb23d656ac75e39a9e24e699fc866336b550a594c535b7f4c",
+    "child-identities/dd72a8f2728a44019e9945f696d37673.end.json": "d59b405b698582e7b5fc25f87e7e763f6ffff06baf0caa60808c3fa5a3c558bd",
+    "child-identities/dd72a8f2728a44019e9945f696d37673.exit.json": "822f7d3f3a5a1ac6eb57058df9368a4fe91a75f8822fae668cbf78d28c30fbea",
+    "child-identities/dd72a8f2728a44019e9945f696d37673.launch.json": "5bc2d18c52393a83e84b2305dc432aae9691d90484b008a487f1c2081249d71b",
+    "child-identities/dd72a8f2728a44019e9945f696d37673.spawn.json": "0d5de662322e0ecd5601bae924e6277e1c9fa6ef872e94d3ac00c9258b414a3c",
+    "child-identities/dd72a8f2728a44019e9945f696d37673.start.json": "0e7399c627691825e0d37b621897c616327314c99ded208eb6800b9643bfd0cb",
+    "child-identities/ea7a561250c4415dbf529c2aea13e4fa.end.json": "d063e697d3068d493936980ad121a383ef0034f75f14090fa2743e5569a39497",
+    "child-identities/ea7a561250c4415dbf529c2aea13e4fa.exit.json": "d141711319a7a3d5223ca4cb87502fd7a9a5a7e59343e4b7e97f20d858741b6e",
+    "child-identities/ea7a561250c4415dbf529c2aea13e4fa.launch.json": "6b5ac5fd719f4d7823b462a7659737aab450db9b5e6b805132608b8679e84ec4",
+    "child-identities/ea7a561250c4415dbf529c2aea13e4fa.spawn.json": "3cfb97eb4b037580fc0c062b0b1b3b24c9cd6daa39568e492508eefb67180800",
+    "child-identities/ea7a561250c4415dbf529c2aea13e4fa.start.json": "4be5a002a92f31f004ae09e66e15bf1c73ebc2e615bb77769d02f16dc717858d",
+    "child-identities/ee7e818c1f2d4b56a22b1d1252660104.end.json": "403e43e721f1e4209f4227865f993434e2f8a7e489e36d13f8b7deaed3561341",
+    "child-identities/ee7e818c1f2d4b56a22b1d1252660104.exit.json": "fda488831fc99bb4b8f9832ba630e81c537e9fd7aa4cde25d83d4781996760ac",
+    "child-identities/ee7e818c1f2d4b56a22b1d1252660104.launch.json": "5ee36c9af0d3ed9f44dba8dfed06c8c8190aff5256ed044cfc189121cfe7b30a",
+    "child-identities/ee7e818c1f2d4b56a22b1d1252660104.spawn.json": "48465fcbec0247b18b3207d4418305d493e6004bafdbe802af930956677bcad2",
+    "child-identities/ee7e818c1f2d4b56a22b1d1252660104.start.json": "898c9967b640d367d5cb6526b14ae7897ec599c83de9b7f05ad25668250b91f4",
+    "child-identities/expected.json": "1b25b338d5fb0e4ffd163cbe70a1c9adfdc246605902c94d0e7dd40c3efc62fb",
+    "child-identities/policy.json": "046f6243321a6449b0b9d2774ffc0e8bfe2c7f949e3e90e71f262b54609e96d2",
+    "child-identities/python-child-isolation.py": "c28e1be6e70647a74c38ba972703b4e9f858b38e31b6a25e1173e5c1a5ddcae4",
+    "child-identities/summary.json": "1a1e455e3c2d65a6eace66f176e2cf22b42146583872bc3adcfbd137a78b262b",
+    "driver.py": "468b742d7d5041334f1056b1da7d444fed74b5b112ae464aa1a49ba4ed98aa96",
+    "focused-current-test-sources.error.txt": "c30a7e9d735b9e94d8d10af94f933c1815f10819a0adab75cde444c89c09d537",
+    "generated-independent-conformance.error.txt": "adf05aef732b271ba133d2934ae47794348d7f81b1fc8022a73cc062816e8530",
+    "installed-build.json": "3c08889ea6676b87f155baa5589052fca9f0143dd7e19e5904b91d3a178446ef",
+    "operator-replay.json": "a5fde55754c70320750510e9a61ff21c30812f33ea6180174b59d7c83893c8d0",
+    "ordinary-benchmark.json": "4cc852e102c57efb889d61295139fe3f5f280563a3c8611952c0c0c4346ca363",
+    "prepared-sdk.log": "fb0c68b6bb4b41a59c884c4d10ac52b3a70fdaca75cefb125d83fe66464e0b02",
+    "prepared-sdk.log.command.json": "792f25ed5be44b0e0467c4fc4c79b7abe2d290886c784ec7507649cba8785bd9",
+    "provenance.json": "a93cc24ae484254ef0a3cd224660e12df79dff5c8d82a4b35d3d17d192017c34",
+    "published-generated-experiment.json": "3d1e450558d955904d096310d8fa127c199bc022098022bf9e2b6f9c902d5239",
+    "published-requests.json": "11e5ac9ff51d6f0fdf5c58c2a46db73e7853a3fb8752f42e2f84f16d5957ec51",
+    "source-evidence-lock.json": "de0784d278888da32a720a1411bdcc4a64acb8c19088a0ded8506114bc93e588",
+    "tiling.log": "fafc00866873bb7b2280a4d4b44b89b42d0800667359c25480e97a2cf717b04f",
+    "tiling.log.command.json": "4a06f325f217cdd820220aa33f77835ffb9b8d431237188effc4cfae979e8a0a",
+    "tiling.xml": "682a2b67110fbee1355fab837869217cda24b63db4b196ee486aed341d725014"
+  },
+  "cases": [
+    {
+      "elapsed_seconds": 1.8741845833137631,
+      "name": "provenance",
+      "result": {
+        "build_digest": "e82b14e63bfa576a8144dbe00730c0610af707906b7e677cce9363028a2139c4",
+        "different_sdk_files": 0,
+        "import_scope": "installed wheel",
+        "wheel_sha256": "3b63ae30631f0b54773d708c0921b75dbf951142f14dfb80dd9eedac145043b6"
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 0.21615220978856087,
+      "name": "child-isolation-start",
+      "result": {
+        "directory": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-fresh-release-v2/child-identities",
+        "expected_sha256": "1b25b338d5fb0e4ffd163cbe70a1c9adfdc246605902c94d0e7dd40c3efc62fb"
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 0.09250187501311302,
+      "name": "source-evidence-lock",
+      "result": {
+        "historical_records": 5,
+        "locked_files": 53
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 0.0017002085223793983,
+      "error": "No module named 'torch'",
+      "name": "generated-independent-conformance",
+      "status": "failed",
+      "traceback": "generated-independent-conformance.error.txt"
+    },
+    {
+      "elapsed_seconds": 3.2450989577919245,
+      "error": "command exit 2; see /Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-fresh-release-v2/tiling.log",
+      "name": "focused-current-test-sources",
+      "status": "failed",
+      "traceback": "focused-current-test-sources.error.txt"
+    },
+    {
+      "elapsed_seconds": 5.778855291195214,
+      "name": "published-sdk-gateway",
+      "result": {
+        "gateway_status": 200,
+        "standalone_example": "completed"
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 7.5796599593013525,
+      "name": "ordinary-generated-benchmark",
+      "result": {
+        "processes": 1,
+        "scope": "generated functionality, not a performance claim",
+        "statuses": [
+          "completed"
+        ]
+      },
+      "status": "passed"
+    },
+    {
+      "elapsed_seconds": 1.0633817920461297,
+      "name": "bounded-complete-operators",
+      "result": {
+        "additional_replay_checked_outputs": 32,
+        "checked_outputs": 32,
+        "operators": 4
+      },
+      "status": "passed"
+    },
+    {
+      "name": "provider-child-identities",
+      "result": {
+        "captured_python_processes": 11,
+        "entries": [
+          {
+            "entry": {
+              "arguments_sha256": "25dac9dc19f5427bac76f3395104e242a7562875fcac0319a338b88a576f9cc6",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "preparation"
+            },
+            "key": "32ce8c1666ea4656aca1024d3c5c43ec",
+            "pid": 41743
+          },
+          {
+            "entry": {
+              "arguments_sha256": "b1164b36c5c23ef557ec98c1a78b91d6673dc39d0d675dff7e2a2c864303610d",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "inference"
+            },
+            "key": "3523f09bb6b842eebb19f39e6164bf4b",
+            "pid": 41581
+          },
+          {
+            "entry": {
+              "arguments_sha256": "a2bf40fb28c8fe5d8bc19cb085bc4a0a81e2720ce36bd3b7f8518786b56bfaee",
+              "code_sha256": "bdc04bf02906da71b670500321d8a0866c51857d1aa14fd3e3af1d94dfa9d77a",
+              "entry": "<inline-code>",
+              "mode": "c"
+            },
+            "key": "568782d6e3ba4f5e9be25e8ac87bb666",
+            "pid": 41535
+          },
+          {
+            "entry": {
+              "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "entry": "pllm._benchmark_build",
+              "mode": "m"
+            },
+            "key": "75dd652e4eb04cf7abb096a4b18f20f9",
+            "pid": 41818
+          },
+          {
+            "entry": {
+              "arguments_sha256": "e9e40bab538f36efc2b16d1bd3ce63d834d7ff5b7197197fb8bfd411d35711d3",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "inference"
+            },
+            "key": "76e12dac29c046b5b988d5e7ed410cb4",
+            "pid": 41626
+          },
+          {
+            "entry": {
+              "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "entry": "pllm._benchmark_worker",
+              "mode": "m"
+            },
+            "key": "88ca69915cbf405da9dc9baf2fa2fd51",
+            "pid": 41685
+          },
+          {
+            "entry": {
+              "arguments_sha256": "27284d078a95301d664cfd52da3510e30758747ff5ae197f350cef18a0208233",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "preparation"
+            },
+            "key": "a4df7111afda4b439de660e67512cebb",
+            "pid": 41639
+          },
+          {
+            "entry": {
+              "arguments_sha256": "030deb7a370c9a7a1c01b44b8606cdb51f9f453617f0ebdb8043198d8c9d68ad",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "preparation"
+            },
+            "key": "c9af8ccb1eb444c099849fe8a5923083",
+            "pid": 41595
+          },
+          {
+            "entry": {
+              "arguments_sha256": "300b857cd618e5b45181a981dba4a4e3c26f4283e6b6f0634b729b3c560c6dd7",
+              "entry": "/Users/blairhudson/workspace/pllm/examples/prepared_sdk.py",
+              "mode": "file"
+            },
+            "key": "dd72a8f2728a44019e9945f696d37673",
+            "pid": 41569
+          },
+          {
+            "entry": {
+              "arguments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "entry": "pllm._benchmark_build",
+              "mode": "m"
+            },
+            "key": "ea7a561250c4415dbf529c2aea13e4fa",
+            "pid": 41667
+          },
+          {
+            "entry": {
+              "arguments_sha256": "d55470e29c37e69a672291181e3cd8f78940a99a5edaa69e57eb400801721e30",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "inference"
+            },
+            "key": "ee7e818c1f2d4b56a22b1d1252660104",
+            "pid": 41708
+          }
+        ],
+        "expected_sha256": "1b25b338d5fb0e4ffd163cbe70a1c9adfdc246605902c94d0e7dd40c3efc62fb",
+        "failures": [],
+        "roles": {
+          "inference": 3,
+          "preparation": 3
+        },
+        "schema": "pllm.paper_python_identity_summary.v1",
+        "status": "passed"
+      },
+      "status": "passed"
+    }
+  ],
+  "schema": "pllm.paper_conformance.v2",
+  "scope": "Generated functionality and bounded operator checks; no real checkpoint or resource-tier qualification",
+  "status": "failed",
+  "thread_environment": {
+    "HF_HUB_OFFLINE": "1",
+    "MKL_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "TOKENIZERS_PARALLELISM": "false",
+    "TRANSFORMERS_OFFLINE": "1",
+    "VECLIB_MAXIMUM_THREADS": "1"
+  }
+}

@@ -1,0 +1,166 @@
+"""Read-only release-archive verifier; no imports of PLLM, builds, or test execution.
+
+Default checks archived bytes and cross-record consistency. --live also checks
+the recorded local target, tool/dependency sources, fresh installation, current
+repository inputs and pre-existing conformance files. Historical files are never
+rewritten. The manifest is an integrity inventory, not a signed attestation.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import csv
+import hashlib
+import io
+import json
+from pathlib import Path
+import tarfile
+import zipfile
+
+
+def sha(path):
+    with Path(path).open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def require(condition, detail):
+    if not condition:
+        raise ValueError(detail)
+
+
+def verify(archive, live=False):
+    def read(name):
+        return json.loads((archive / name).read_text())
+
+    manifest = read("manifest.json")
+    require(manifest["digest"] == digest(manifest["files"]), "Manifest digest")
+    actual_paths = {p.relative_to(archive).as_posix() for p in archive.rglob("*") if p.is_file()}
+    require(actual_paths == set(manifest["files"]) | {"manifest.json"}, "Archive file set changed")
+    for name, expected in manifest["files"].items():
+        require(sha(archive / name) == expected, f"Archive hash: {name}")
+    receipt = read("receipt.json")
+    require(receipt["status"] == "passed", f"Run not complete: {receipt.get('blocker')}")
+    for command in receipt["commands"]:
+        require(command["exit_code"] == 0 and not command["stop_reason"], f"Command: {command['argv']}")
+        require(sha(archive / command["log"]) == command["log_sha256"], f"Command log: {command['log']}")
+    sources = read("sources-before.json")
+    for prefix in ("sources", "cargo-dependencies", "tools"):
+        before, after = read(prefix + "-before.json"), read(prefix + "-after.json")
+        require(before == after, f"Before/after mismatch: {prefix}")
+        key = "packages" if prefix == "cargo-dependencies" else "files"
+        require(before["digest"] == digest(before[key]), f"Inventory digest: {prefix}")
+    with tarfile.open(archive / "source.tar.gz", "r:gz") as source:
+        require(len(source.getmembers()) == len(sources["files"]), "Source tar entry count")
+        archived = {member.name: hashlib.sha256(source.extractfile(member).read()).hexdigest()
+                    for member in source.getmembers() if member.isfile()}
+        require(archived == sources["files"], "Source archive does not match pre-build inputs")
+    for index, path in enumerate(sorted(sources["cargo_configuration_files"])):
+        require(sha(archive / "cargo-configs" / f"{index}.toml") == sources["cargo_configuration_files"][path], "Cargo config copy")
+    for name, frozen in read("frozen-sources.json").items():
+        require(sha(archive / name) == frozen["sha256"], f"Frozen source: {name}")
+    empty = read("target-before.json")
+    require(empty["created_by_this_run"] and not empty["is_symlink"] and empty["entries"] == [], "Target not recorded empty")
+    require(empty["path"] == receipt["cargo_target_dir"] == empty["cargo_metadata_target_directory"], "Target identity")
+    require(read("cargo-metadata.json")["target_directory"] == empty["path"], "Cargo metadata target")
+    env = read("environment.json")["build"]
+    for key, expected in {"CARGO_TARGET_DIR": empty["path"], "CARGO_BUILD_JOBS": "2",
+                          "CARGO_NET_OFFLINE": "true", "CARGO_INCREMENTAL": "0", "RUSTC_WRAPPER": "",
+                          "RUSTC_WORKSPACE_WRAPPER": ""}.items():
+        require(env[key] == expected, f"Build environment {key}")
+    command = read("wheel-build.command.json")
+    require(all(flag in command["argv"] for flag in ("--release", "--locked", "--offline", "--verbose")), "Build flags")
+    compilation = read("compilation-evidence.json")
+    log = (archive / "wheel-build.log").read_text()
+    compiled = [line for line in log.splitlines() if line.lstrip().startswith("Compiling ")]
+    rustc = [line for line in log.splitlines() if "Running `" in line and "rustc " in line]
+    require(compilation["compiling_lines"] == compiled and len(compiled) == receipt["compiled_crates"] > 0, "Compilation lines")
+    require(compilation["rustc_invocations"] == rustc and len(rustc) == receipt["rustc_invocations"] > 0, "Rust invocations")
+    require(any("--crate-name pllm_python " in line for line in rustc), "Native Rust compilation absent")
+    require(not compilation["cargo_fresh_lines"] and not any(line.lstrip().startswith("Fresh ") for line in log.splitlines()), "Cargo cached output present")
+    require(digest(compilation["target_artifacts"]["files"]) == compilation["target_artifacts"]["digest"], "Target artifact digest")
+    headroom = read("headroom-prebuild.json")
+    require(headroom["memory_available_bytes"] >= headroom["admission"]["minimum_available_bytes"], "Memory admission")
+    require(headroom["disk_free_bytes"] >= headroom["admission"]["minimum_disk_free_bytes"], "Disk admission")
+    require(headroom["cpu_percent_1s"] <= headroom["admission"]["maximum_cpu_percent"], "CPU admission")
+    wheel = archive / receipt["wheel"]
+    require(sha(wheel) == receipt["wheel_sha256"] and wheel.stat().st_size == receipt["wheel_bytes"], "Wheel identity")
+    with zipfile.ZipFile(wheel) as zipped:
+        require(len(zipped.namelist()) == len(set(zipped.namelist())), "Duplicate wheel entries")
+        payload = {name: hashlib.sha256(zipped.read(name)).hexdigest()
+                   for name in zipped.namelist() if not name.endswith("/")}
+        require(payload == read("wheel-files.json"), "Wheel payload")
+        record_name = next(name for name in payload if name.endswith(".dist-info/RECORD"))
+        records = list(csv.reader(io.StringIO(zipped.read(record_name).decode())))
+        require({row[0] for row in records} == set(payload), "Wheel RECORD coverage")
+        for name, encoded, size in records:
+            if name == record_name:
+                require(not encoded and not size, "Wheel RECORD self-entry")
+                continue
+            wanted = "sha256=" + base64.urlsafe_b64encode(bytes.fromhex(payload[name])).decode().rstrip("=")
+            require(encoded == wanted and int(size) == len(zipped.read(name)), f"Wheel RECORD: {name}")
+    package = {name: value for name, value in payload.items() if name.startswith("pllm/")}
+    native = {name: value for name, value in package.items() if name.endswith((".so", ".pyd", ".dylib"))}
+    require(package and native == receipt["native_files"], "Native digest")
+    require(digest(package) == receipt["package_digest"], "Package digest")
+    empty_env = read("venv-empty.json")
+    require(empty_env["distributions"] == [] and empty_env["pllm_spec"] == "None" and not empty_env["user_site"], "Environment not recorded empty")
+    require(empty_env["prefix"] == receipt["fresh_environment"], "Fresh venv identity")
+    provenance = read("replay/provenance.json")
+    require(provenance["wheel_sha256"] == receipt["wheel_sha256"], "Replay wheel identity")
+    require(provenance["package_files"] == package and provenance["package_digest"] == receipt["package_digest"], "Installed package identity")
+    require(provenance["native_sha256"] in native.values(), "Installed native identity")
+    require(provenance["prefix"] == receipt["fresh_environment"] != provenance["base_prefix"], "Isolated venv prefix")
+    require(provenance["isolated_flag"] == 1 and not provenance["user_site_enabled"], "Interpreter isolation")
+    require(provenance["upstream_runtime_distributions_absent"] and not provenance["dependency_errors"], "Fresh dependency checks")
+    dependencies = read("replay/dependencies-before.json")
+    require(dependencies == read("replay/dependencies-after.json") and not dependencies["errors"], "Installed dependency drift/RECORD errors")
+    require(dependencies["digest"] == digest(dependencies["distributions"]), "Installed dependency digest")
+    for name, dist in dependencies["distributions"].items():
+        require(dist["digest"] == digest(dist["files"]), f"Distribution digest: {name}")
+    replay = read("replay/result.json")
+    require(replay["status"] == "passed" and len(replay["cases"]) == 13, "Expected replay cases incomplete")
+    require(all(case["status"] == "passed" for case in replay["cases"]), "Replay failed case")
+    require(replay["dependency_files_unchanged"] and replay["no_upstream_runtime_imported"], "Replay execution constraints")
+    require(replay["frozen_boundary_sha256"] == sha(archive / "frozen-boundary.py"), "Boundary source identity")
+    require(len(read("replay/generated-trajectories.json")) == 3, "Generated family count")
+    for path in replay["imported_pllm_modules"].values():
+        require(Path(path).is_relative_to(Path(provenance["package_path"])), f"Source import: {path}")
+    old = read("historical-files-before.json")
+    require(old == read("historical-files-after.json") and receipt["previous_conformance_files_unchanged"], "Historical archive drift")
+    if live:
+        root = archive.parents[3]
+        for name, expected in sources["files"].items():
+            require(sha(root / name) == expected, f"Live source: {name}")
+        for name, expected in sources["cargo_configuration_files"].items():
+            require(sha(name) == expected, f"Live Cargo config: {name}")
+        for name, expected in read("tools-before.json")["files"].items():
+            require(sha(name) == expected, f"Live tool: {name}")
+        for row in read("cargo-dependencies-before.json")["packages"].values():
+            for name, expected in row["files"].items():
+                require(sha(Path(row["directory"]) / name) == expected, f"Live Cargo dependency: {name}")
+            if row["cached_crate"]:
+                require(sha(row["cached_crate"]["path"]) == row["cached_crate"]["sha256"], "Live cached crate")
+        for name, expected in compilation["target_artifacts"]["files"].items():
+            require(sha(Path(receipt["cargo_target_dir"]) / name) == expected, f"Live target artifact: {name}")
+        site_packages = Path(provenance["package_path"]).parent
+        for dist in dependencies["distributions"].values():
+            for name, expected in dist["files"].items():
+                require(sha(site_packages / name) == expected, f"Live Python distribution: {name}")
+        for name, expected in old.items():
+            require(sha(root / "paper/artifacts/conformance" / name) == expected, f"Live historical file: {name}")
+    return {"status": "verified", "archive": str(archive), "live_checked": live,
+            "archive_files": len(manifest["files"]), "compiled_crates": len(compiled),
+            "wheel_sha256": receipt["wheel_sha256"], "replay_case_groups": len(replay["cases"]),
+            "historical_files_preserved": len(old)}
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("archive", type=Path)
+    parser.add_argument("--live", action="store_true")
+    args = parser.parse_args()
+    print(json.dumps(verify(args.archive.resolve(), args.live), indent=2, sort_keys=True))

@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 411, in main
+    result = run()
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 403, in <lambda>
+    ("generated-independent-conformance", lambda: generated_conformance(output, args.reference_python)),
+                                                  ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 168, in generated_conformance
+    from pllm.schedulers import MlpPrefillTiling
+ImportError: cannot import name 'MlpPrefillTiling' from 'pllm.schedulers' (/Users/blairhudson/workspace/pllm/target/mlp-tiling-venv/lib/python3.13/site-packages/pllm/schedulers/__init__.py)

@@ -1,0 +1,84 @@
+Sigma: Secure GPT Inference with Function Secret Sharing                                               Proceedings on Privacy Enhancing Technologies 2024(4)
+
+
+
+   DReLU Π𝑛DReLU                                                                Theorem 6. Π𝑛DReLU (non-interactively) securely realizes DReLU𝑛
+   Gen𝑛DReLU (rin, rout ) :                                                   with keysize(Π𝑛DReLU ) = keysize(DPF𝑛−1,1 ) + 1. Online phase re-
+                                                                              quires 1 evaluation of DPF𝑛−1,1 .
+    1: 𝑥 1 = 2𝑛 − rin
+    2: 𝑦 1 = 𝑥 1 mod 2𝑛−1                                                     Comparison. To compare two values 𝑥, 𝑦, i.e., to compute 𝑥 ⩾ 𝑦,
+    3: (𝑘 0• , 𝑘 1• ) ← Gen𝑛−1
+                           • (1𝜆 , 𝑦 , 1, {0, 1})
+                                    1                                         similar to prior works, we re-write it as 𝑥 −𝑦 ⩾ 0 and realize it using
+    4: 𝑟 = rout ⊕ MSB𝑛 (𝑥 1 ) ⊕ 1                                             a call to Π𝑛DReLU . To ensure that the output is correct, we require
+    5: share 𝑟                                                                that 𝑥, 𝑦 lie in a sub-domain of U𝑁 , i.e., in [0, 2𝑛−2 ) ∪ [2𝑛 − 2𝑛−2, 2𝑛 ).
+    6: For 𝑏 ∈ {0, 1}, 𝑘𝑏 = 𝑟𝑏 ||𝑘 •                                          All our protocols that call comparison ensure that this requirement
+                                    𝑏
+                                                                              is met.
+   Eval𝑛DReLU (𝑏, 𝑘𝑏 , ˆ
+                      𝑥) :
+    1: Parse 𝑘𝑏 as 𝑟𝑏 ||𝑘 •
+                                                                              5     OUR PROTOCOLS FOR COMPLEX
+                           𝑏
+    2: 𝑦ˆ = 𝑥ˆ mod 2𝑛−1
+                                                                                    NON-LINEARITIES
+    3: 𝑡𝑏 ← Eval𝑛−1< (𝑏, 𝑘 • , 2𝑛−1 − 𝑦ˆ − 1)                                 Here, we describe our protocols for various complex non-linearities
+                             𝑏
+    4: return 𝑏 · MSB𝑛 ( ˆ   𝑥) ⊕ 𝑟𝑏 ⊕ 𝑡𝑏                                     - GeLU and SiLU (Section 5.1), softmax (Section 5.2), and layer
+                                                                              normalization (Section 5.3). Finally, in Section 5.4, we discuss a few
+                                                                              transformers-specific optimizations that allow us to compute these
+                     Figure 3: Protocol for DReLU.
+                                                                              non-linearities over smaller tensors or smaller bitwidths in certain
+                                                                              scenarios. Computing these non-linear functions requires efficient
+                                                                              computation of various unary functions - GeLU, SiLU, exponential,
+4.2.4 Cost Comparison. In contrast, [16] gave a protocol for ARS𝑛,𝑓
+                                                                              inverse, and reciprocal square root. Pika’s approach to compute any
+(also used in [37]) that requires a key size of approximately 𝑛(𝜆 +
+                                                                              arbitrary elementary function is to just look up the correct output
+2𝑛) + 𝑓 (𝜆 + 𝑛) bits and online phase makes 2(𝑛 + 𝑓 − 1) AES calls.
+                                  GapARS                                      from a table [79]. However, for an 𝑛-bit input, it requires a lookup
+Concretely, for 𝑛 = 64, 𝑓 = 12, Π𝑛,𝑓      has 17.5× smaller key size          table (LUT) of size 2𝑛 , and computing it securely requires roughly
+                                   ARS has 2.5× smaller key size
+and 30× lower online compute, and Π𝑛,𝑓                                        2𝑛−7 PRG calls. In contrast, Grotto [72] uses custom splines and
+and 3× lower online compute.                                                  DPFs to realize a subset of functions required in transformers (see
+                                                                              Section 7 for a thorough comparison).
+4.3     Our DReLU and Comparison Protocols                                       In Sigma, we devise function-dependent strategies to signifi-
+                                                                              cantly reduce the size of LUTs used, while ensuring that our proto-
+For an 𝑛-bit value 𝑥 ∈ U𝑁 in 2’s complement notation, derivative
+                                                                              cols provide good numerical approximations and hence, preserve
+of ReLU or DReLU is defined as
+                                                                              the accuracy of transformers when run securely using our proto-
+             DReLU𝑛 (𝑥) = 1{𝑥 < 2𝑛−1 } = 1 ⊕ MSB𝑛 (𝑥)                         cols. For 𝑓 = 12 used by all our benchmarks, our protocols use
+                                                                              LUTs of size 28 for GeLU and exponential, 210 for SiLU, an LUT
+   and the offset function of DReLU𝑛 can be written as
+                                                                              of size between 213 and 216 for inverse, and an LUT of size 213
+                [rin ,rout ]                                                  for reciprocal square root, independent of bitwidth 𝑛. Note that
+       DReLU𝑛                   𝑥) = DReLU𝑛 (𝑥ˆ − rin
+                               (ˆ                       mod 𝑁 ) ⊕ rout
+                                                                              almost all our benchmarks require a bitwidth of around 50 and
+                = MSB𝑛 (𝑥ˆ − rin           mod 𝑁 ) ⊕ 1 ⊕ rout                 our techniques result in significantly smaller LUTs than Pika that
+   Prior FSS works [16, 19, 37, 43] provide a non-interactive protocol        are very efficient to compute securely. Moreover, our recipe for
+for DReLU that uses a DCF key for comparison and evaluates it                 approximating reciprocal square root is general and applicable to
+twice during online phase. In contrast, we provide a non-interactive          any elementary function.
+protocol that does a single evaluation of a DPF key for comparison.              For each of the non-linearities, we describe our secure protocol
+In all, we get > 4× reduction in online compute.                              as a sequence of calls to protocols described in Section 4 and se-
+   Our protocol builds on the logic used in CrypTFlow2 [67] for               curity trivially holds in the simulation paradigm using sequential
+MSB computation over secret shares (in log 𝑛 rounds). For 𝑥 ∈ U𝑁              composition [22, 53]. While for ease of exposition, we describe our
+such that 𝑥 = 𝑥 0 + 𝑥 1 mod 𝑁 , 𝑦0 = 𝑥 0 mod 2𝑛−1 and 𝑦1 = 𝑥 1                ideas for 𝑓 = 12 that is used by all our transformer benchmarks,
+mod 2𝑛−1 ,                                                                    they can easily be generalized to higher precision values by using
+                                                                              appropriately larger LUTs.
+      MSB𝑛 (𝑥) = MSB𝑛 (𝑥 0 ) ⊕ MSB𝑛 (𝑥 1 ) ⊕ 1{𝑦0 + 𝑦1 ≥ 2𝑛−1 }
+   Using this above, we get                                                   5.1    GeLU
+                                                                                                                                 √
+                                                                              For a real number 𝑥, GeLU(𝑥) = 0.5𝑥 (1 + erf (𝑥/ 2)) where erf is
+                    [rin ,rout ]
+          DReLU𝑛                   (ˆ          𝑥) ⊕ MSB𝑛 (2𝑛 − rin )
+                                    𝑥) = MSB𝑛 ( ˆ                             the error function [39]. Prior works, e.g., Crypten [47], Grotto [72],
+                        ⊕ 1{2𝑛−1 − 𝑦0 − 1 < 𝑦1 } ⊕ 1 ⊕ rout                   provide protocols for GeLU in the same threat model as ours. How-
+                                                                              ever, these are an order of magnitude less performant than Sigma
+where 𝑦0 = 𝑥ˆ mod 2𝑛−1 and 𝑦1 = (2𝑛 − rin ) mod 2𝑛−1 .                        (Section 7.1).
+   Based on above equation, we provide a protocol for DReLU𝑛                     Our main insight is that GeLU(𝑥) is same as ReLU(𝑥) = max(𝑥,
+in Figure 3 (security proof in Appendix E.1) where we compute                 0) almost everywhere except in a small interval around 0. Let 𝛿 (𝑥) =
+1{2𝑛−1 − 𝑦0 − 1 < 𝑦1 } using a single DPF-based comparison.                   ReLU(𝑥) − GeLU(𝑥) (plot shown in Figure 4). Given that ReLU(𝑥)
+                                                                         67
+

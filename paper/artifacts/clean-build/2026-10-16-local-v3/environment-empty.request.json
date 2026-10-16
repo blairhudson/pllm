@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v3/work/venv/bin/python",
+    "-I",
+    "-B",
+    "/Users/blairhudson/workspace/pllm/scripts/audit_paper_clean_build.py",
+    "--inspect-environment",
+    "--helper",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v3/build-source-receipt.helpers.py"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "environment-empty.log",
+  "name": "environment-empty",
+  "started_utc": "2026-10-16T05:37:32.546259+00:00"
+}

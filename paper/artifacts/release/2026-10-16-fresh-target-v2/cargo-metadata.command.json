@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "cargo",
+    "metadata",
+    "--format-version",
+    "1",
+    "--locked",
+    "--offline"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.16973337531089783,
+  "exit_code": 0,
+  "log": "cargo-metadata.log",
+  "log_sha256": "529592c88ceac815c62d29faaf45cc0aeddcfb450bda3b0cf81bc5f3c2fa0388",
+  "started_utc": "2026-10-16T05:07:29.347533+00:00",
+  "stop_reason": null
+}

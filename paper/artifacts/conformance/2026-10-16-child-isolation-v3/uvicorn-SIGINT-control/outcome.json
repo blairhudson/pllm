@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "-I",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/no-model-uvicorn.py",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/uvicorn-SIGINT-control"
+  ],
+  "captured": false,
+  "http_status": 200,
+  "lifespan_shutdown": true,
+  "process_group_absent": true,
+  "returncode": -2,
+  "served_identity": {
+    "native_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_native.abi3.so",
+    "native_sha256": "536b0b444a15c6a7d4bbf55bf47f10c93c95db269b64bd333a52edf3d8c11921",
+    "pid": 18196,
+    "port": 61104
+  },
+  "signal": 2
+}

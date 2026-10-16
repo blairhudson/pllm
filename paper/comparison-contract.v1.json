@@ -1,0 +1,166 @@
+{
+  "schema": "pllm.publication_comparison_contract.v1",
+  "kind": "publication_metadata_not_sdk_input",
+  "protocol_date": "2026-10-16",
+  "source_audit_revision": "99e10e2c1e0e3dbeddc5f56dcc830e549cb1f2a5",
+  "normative_document": "paper/COMPARISON-CONTRACT.md",
+  "status": "normative_rules_frozen_empirical_and_implementation_gates_open",
+  "tracks": ["exact-execution", "quality-matched"],
+  "security": {
+    "default_remote_profile": "sh1-public",
+    "corruption": "static_semi_honest",
+    "maximum_corrupted_provider_roles": 1,
+    "trusted_client": true,
+    "preparation_erasure_required": true,
+    "coupled_provider_roles": ["preparation", "inference", "boundary_a", "boundary_b"],
+    "coupled_common_allowed_coalitions": [[], ["preparation"], ["inference"], ["boundary_a"], ["boundary_b"]],
+    "coupled_pairwise_profile": {
+      "status": "requires_composition_proof",
+      "allowed_maximal_coalitions": [["preparation", "boundary_a"], ["preparation", "boundary_b"], ["inference", "boundary_a"], ["inference", "boundary_b"]],
+      "forbidden_minimal_coalitions": [["preparation", "inference"], ["boundary_a", "boundary_b"]]
+    },
+    "other_separate_profiles": ["clear-reference", "verified-linear", "malicious-complete", "hardware-trusted"],
+    "operator_independence_established_by_loopback": false
+  },
+  "memory": {
+    "tiers_bytes": {"low": 268435456, "medium": 2147483648, "high": 17179869184},
+    "nested": true,
+    "comparison": "inclusive_unrounded_bytes",
+    "qualification_statistic": "maximum_complete_client_peak_across_all_accepted_replicates_in_claimed_scope",
+    "ordinary_native_qualification_metric": "process.peak_rss",
+    "ordinary_native_scenario_metric": "client.peak_rss",
+    "sampling_memory_bytes_is_client_ceiling": false,
+    "sampling_memory_bytes_supported_range": [16777216, 17179869184],
+    "sensitivity_multipliers": [0.75, 0.875, 1, 1.125, 1.25],
+    "sensitivity_bytes": {
+      "low": [201326592, 234881024, 268435456, 301989888, 335544320],
+      "medium": [1610612736, 1879048192, 2147483648, 2415919104, 2684354560],
+      "high": [12884901888, 15032385536, 17179869184, 19327352832, 21474836480]
+    },
+    "maximum_accepted_observed_host_swap_growth_bytes": 0,
+    "native_watchdog_swap_abort_growth_bytes": 268435456,
+    "missing_peak_eligibility": "unknown"
+  },
+  "remote_body": {
+    "minimum_percent_each_phase": 90,
+    "phases": ["prefill", "decode"],
+    "sensitivity_percent": [80, 85, 90, 95, 100],
+    "denominator": "executed_logical_body_linear_macs",
+    "excluded_from_denominator": ["token_lookup", "lm_head", "attention_matrix_products", "nonlinear", "protocol_duplication", "preprocessing", "verification", "encoding", "hashing", "transport"],
+    "zero_denominator": "not_applicable_not_100_percent",
+    "dashboard_per_row_counter_is_phase_split_measurement": false
+  },
+  "lifecycle_cells": ["source-present-cold-client", "warm-public-fresh-private", "repeat-or-continuation", "source-cold"],
+  "priority_metrics": ["client.peak_rss", "client.cold_cpu", "preparation.cold_cpu", "preparation.peak_rss", "response.ttft", "response.decode_tps", "network.all_link_stream_bytes"],
+  "additional_required_scopes": ["process.peak_rss", "request.full", "target.latency", "target.cpu", "process.cpu", "all_role_cold_first_cpu", "all_role_startup_through_cleanup_cpu_or_unknown", "directed_body_and_stream_ledgers", "public_acquisition_and_delivery", "private_and_public_disk", "per_provider_resources"],
+  "communication": {
+    "paper2_primary_plane": "tcp_stream_payload",
+    "ordinary_primary_window": "relay_start_through_scenario",
+    "other_planes": ["covered_application_bodies", "physical_wire"],
+    "physical_wire_available_from_native_pacer": false,
+    "cleanup_after_final_snapshot_automatically_included": false,
+    "unattributed_bytes_must_remain_visible": true
+  },
+  "provider_profiles": {
+    "per_party": {"download_mbps": 100, "upload_mbps": 40, "distinct_role_parties": true},
+    "aggregate_normalized": {
+      "client_download_mbps": 100,
+      "client_upload_mbps": 40,
+      "provider_total_download_mbps": 200,
+      "provider_total_upload_mbps": 80,
+      "provider_total_cpu_core_equivalents": 4,
+      "provider_total_allowed_rss_bytes": 8589934592,
+      "partition": "equal_fixed_per_provider_no_idle_role_borrowing",
+      "current_native_support": "link_partitions_only",
+      "cpu_rss_enforcement": "requires_separate_validated_supervisor"
+    },
+    "additional_client_access_sensitivity": {"download_mbps": 25, "upload_mbps": 10}
+  },
+  "initial_campaign_design": {
+    "input_tokens": [150, 288],
+    "output_caps": [8, 32, 64],
+    "distinct_held_out_performance_prompts_per_input_length": 10,
+    "fresh_process_replicates": 5,
+    "repetitions": 1,
+    "warmups": 0,
+    "order": "balanced",
+    "execution": "serial",
+    "initial_design_proves_statistical_adequacy": false,
+    "stopping": "natural_eos_or_cap_no_ignore_eos_option",
+    "response_target_temperature": 0,
+    "state_audit_sampler_seed": 42,
+    "cryptographic_randomness_frozen": false,
+    "state_audit_maximum_selections": 64,
+    "zero_output_confirmation_telemetry": "unsupported",
+    "default_effect_estimator": "equal_weight_mean_of_per_prompt_median_paired_log_ratios",
+    "ratio_orientation": "candidate_over_control_for_costs_control_over_candidate_for_throughput",
+    "zero_denominator_ratio": "undefined_report_absolute_difference_no_pseudocount",
+    "confidence_level": 0.95,
+    "bootstrap_draws": 10000,
+    "bootstrap_seed": "must_be_frozen_in_campaign_manifest",
+    "retry": "new_complete_matched_cohort_no_splicing",
+    "confirmation": "fresh_cohort_after_finalist_and_claim_freeze"
+  },
+  "quality_matched": {
+    "task_suite_and_margins": "must_be_frozen_in_campaign_manifest",
+    "eligibility": "each_primary_task_upper_degradation_bound_at_or_below_its_margin",
+    "familywise_confidence_level": 0.95,
+    "missing_margin": "unqualified",
+    "ordinary_response_target_has_task_quality_evaluator": false
+  },
+  "historical_sensitivity": {
+    "analysis_date": "2026-10-16",
+    "mode": "read_only_hash_checked_scorecard_filtering",
+    "pooled": false,
+    "plan_offload_is_new_phase_split_evidence": false,
+    "cohorts": [
+      {
+        "id": "qwen25-private-boundary-tiers-150-8",
+        "report": "docs/evidence/private-boundary-tiers-qwen25-2026-10-06.json",
+        "sha256": "0bc6061e24f41fdd12ae60c67c9e313ad8551fbefdb36e92bceadfd88e12e1ca",
+        "replicates_per_recipe": 3,
+        "peak_scope": "complete_worker_through_target_finalization",
+        "rows": [
+          {"id": "maintained", "maximum_client_peak_bytes": 223805440, "plan_body_offload_percent": 100},
+          {"id": "tiling", "maximum_client_peak_bytes": 198803456, "plan_body_offload_percent": 100},
+          {"id": "digit8", "maximum_client_peak_bytes": 235192320, "plan_body_offload_percent": 100},
+          {"id": "tiling-digit8", "maximum_client_peak_bytes": 194576384, "plan_body_offload_percent": 100},
+          {"id": "tiling-digit8-placement", "maximum_client_peak_bytes": 198770688, "plan_body_offload_percent": 90.44871794871796},
+          {"id": "digit8-placement", "maximum_client_peak_bytes": 237502464, "plan_body_offload_percent": 90.44871794871796},
+          {"id": "serial-digit8", "maximum_client_peak_bytes": 237912064, "plan_body_offload_percent": 100},
+          {"id": "coupled-boundary", "maximum_client_peak_bytes": 220430336, "plan_body_offload_percent": 100}
+        ],
+        "eligible_counts": {"low": [3, 5, 8, 8, 8], "medium": [8, 8, 8, 8, 8], "high": [8, 8, 8, 8, 8]},
+        "plan_offload_eligible_counts": [8, 8, 8, 6, 6]
+      },
+      {
+        "id": "qwen25-private-boundary-decode-confirmation-150-8",
+        "report": "docs/evidence/private-boundary-decode-confirmation-150x8.json",
+        "sha256": "333b652c4f09aff213012ecff083f40471c8f6a2418ab053eb29fb968d724c34",
+        "replicates_per_recipe": 3,
+        "peak_scope": "complete_worker_through_target_finalization",
+        "rows": [
+          {"id": "maintained", "maximum_client_peak_bytes": 245579776, "plan_body_offload_percent": 100},
+          {"id": "coupled-serial-u32", "maximum_client_peak_bytes": 238518272, "plan_body_offload_percent": 100},
+          {"id": "coupled-parallel-uniform_residues", "maximum_client_peak_bytes": 235012096, "plan_body_offload_percent": 100}
+        ],
+        "eligible_counts": {"low": [0, 0, 3, 3, 3], "medium": [3, 3, 3, 3, 3], "high": [3, 3, 3, 3, 3]},
+        "plan_offload_eligible_counts": [3, 3, 3, 3, 3]
+      },
+      {
+        "id": "qwen3-client-memory-16-8",
+        "report": "docs/evidence/research-qwen3-client-memory.json",
+        "sha256": "3ebe715a7482b5e5d91f26b1895e1d9a9004bb638a144a8f8204b44c12809654",
+        "replicates_per_recipe": 1,
+        "peak_scope": "historical_client_dashboard_lifetime_not_v2_target_finalization",
+        "rows": [
+          {"id": "qwen3-memory-resident", "maximum_client_peak_bytes": 1020461056, "plan_body_offload_percent": 100},
+          {"id": "qwen3-memory-paged", "maximum_client_peak_bytes": 261046272, "plan_body_offload_percent": 100}
+        ],
+        "eligible_counts": {"low": [0, 0, 1, 1, 1], "medium": [2, 2, 2, 2, 2], "high": [2, 2, 2, 2, 2]},
+        "plan_offload_eligible_counts": [2, 2, 2, 2, 2]
+      }
+    ],
+    "near_medium_high_ceiling_coverage": "absent"
+  }
+}

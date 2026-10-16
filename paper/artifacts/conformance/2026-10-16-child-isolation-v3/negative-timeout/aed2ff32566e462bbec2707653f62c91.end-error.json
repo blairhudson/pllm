@@ -1,0 +1,12 @@
+{
+  "capture_errors": [],
+  "error_type": "TimeoutError",
+  "scope": "diagnostic only; does not replace the required end receipt",
+  "status": "failed",
+  "termination": {
+    "kind": "default-signal",
+    "original_handler": "SIG_DFL",
+    "signal": 15
+  },
+  "timeout_seconds": 2.0
+}

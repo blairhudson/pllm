@@ -1,0 +1,26 @@
+IMPLEMENTATION /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py
+============================= test session starts ==============================
+platform darwin -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0 -- /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python
+rootdir: /Users/blairhudson/workspace/pllm
+configfile: pyproject.toml
+collecting ... collected 9 items
+
+tests/test_wavelet_gated.py::test_inputs_and_invalid_configurations_reject_before_any_material PASSED [ 11%]
+tests/test_wavelet_gated.py::test_native_boundary_range_frame_and_commitment_validation PASSED [ 22%]
+tests/test_wavelet_gated.py::test_saved_cost_and_quality_keep_source_numeric_and_execution_scopes PASSED [ 33%]
+tests/test_logrow_product.py::test_invalid_inputs_reject_before_any_garbling PASSED [ 44%]
+tests/test_logrow_product.py::test_native_frame_and_range_validation PASSED [ 55%]
+tests/test_logrow_product.py::test_retained_cost_cohort_conserves_roles_and_existing_quality_scope PASSED [ 66%]
+tests/test_compact_product.py::test_input_and_calibration_admission_precedes_native_material PASSED [ 77%]
+tests/test_compact_product.py::test_native_malformed_frames_and_resource_limits PASSED [ 88%]
+tests/test_compact_product.py::test_retained_evidence_binds_frozen_profiles_complete_costs_and_quality_scope PASSED [100%]
+
+=============================== warnings summary ===============================
+target/frontier-sdk-env/lib/python3.13/site-packages/_pytest/config/__init__.py:1464
+  /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-installed-v2/operators.xml -
+========================= 9 passed, 1 warning in 0.06s =========================

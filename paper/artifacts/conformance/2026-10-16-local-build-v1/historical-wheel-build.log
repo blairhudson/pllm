@@ -1,0 +1,12 @@
+["/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python", "-m", "maturin", "build", "--release", "--out", "/Users/blairhudson/workspace/pllm/target/certified-head-sdk-build-v3/wheels"]
+🍹 Building a mixed python/rust project
+🐍 Found CPython 3.11, CPython 3.12, CPython 3.13
+🔗 Found pyo3 bindings with abi3-py3.11 support
+📡 Using build options features, bindings from pyproject.toml
+💻 Using `MACOSX_DEPLOYMENT_TARGET=11.0` for aarch64-apple-darwin by default
+    Finished `release` profile [optimized] target(s) in 0.08s
+📦 Including files matching "python/pllm/runtime/Dockerfile.measurement"
+📦 Including files matching "python/pllm/components/planned_methods.json"
+📦 Including files matching "python/pllm/components/model_capabilities.json"
+📦 Including files matching "python/pllm/search/client_memory_tiers.json"
+📦 Built wheel for abi3 Python ≥ 3.11 to /Users/blairhudson/workspace/pllm/target/certified-head-sdk-build-v3/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl

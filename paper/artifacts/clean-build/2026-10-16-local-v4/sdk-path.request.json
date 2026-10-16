@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "/usr/bin/xcrun",
+    "--show-sdk-path"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "sdk-path.log",
+  "name": "sdk-path",
+  "started_utc": "2026-10-16T05:41:40.889925+00:00"
+}

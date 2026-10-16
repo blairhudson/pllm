@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 470, in main
+    result = run()
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 462, in <lambda>
+    ("focused-current-test-sources", lambda: pytest_checks(output)),
+                                             ~~~~~~~~~~~~~^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 277, in pytest_checks
+    results[name] = command([sys.executable, "-I", "-c", snippet,
+                    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "-o", "pythonpath=", "-o", "addopts=", "-p", "no:cacheprovider", "-vv",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        f"--junitxml={output / (name + '.xml')}", *tests], output / f"{name}.log")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 107, in command
+    raise RuntimeError(f"command exit {result.returncode}; see {log}")
+RuntimeError: command exit 2; see /Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-fresh-release-v2/tiling.log

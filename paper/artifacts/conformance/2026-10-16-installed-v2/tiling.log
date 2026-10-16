@@ -1,0 +1,34 @@
+IMPLEMENTATION /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/__init__.py
+============================= test session starts ==============================
+platform darwin -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0 -- /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python
+rootdir: /Users/blairhudson/workspace/pllm
+configfile: pyproject.toml
+collecting ... collected 25 items / 12 deselected / 13 selected
+
+tests/test_mlp_tiling.py::test_selected_scheduler_serialization_and_native_rejection PASSED [  7%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-1-qwen2] PASSED [ 15%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-1-qwen3] PASSED [ 23%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-1-llama] PASSED [ 30%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-7-qwen2] PASSED [ 38%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-7-qwen3] PASSED [ 46%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-7-llama] PASSED [ 53%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-16-qwen2] PASSED [ 61%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-16-qwen3] PASSED [ 69%]
+tests/test_mlp_tiling.py::test_tiled_mlp_exact_logits_kv_and_intermediate_retirement[component-16-llama] PASSED [ 76%]
+tests/test_mlp_tiling.py::test_mlp_tiles_preserve_separate_role_logits_state_and_burn[component-qwen2] PASSED [ 84%]
+tests/test_mlp_tiling.py::test_mlp_tiles_preserve_separate_role_logits_state_and_burn[component-qwen3] PASSED [ 92%]
+tests/test_mlp_tiling.py::test_mlp_tiles_preserve_separate_role_logits_state_and_burn[component-llama] PASSED [100%]
+
+=============================== warnings summary ===============================
+target/frontier-sdk-env/lib/python3.13/site-packages/_pytest/config/__init__.py:1464
+  /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_mlp_tiling.py::test_mlp_tiles_preserve_separate_role_logits_state_and_burn[component-qwen2]
+  /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-installed-v2/tiling.xml -
+================ 13 passed, 12 deselected, 2 warnings in 12.73s ================

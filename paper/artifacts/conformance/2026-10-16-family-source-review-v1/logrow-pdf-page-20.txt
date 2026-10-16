@@ -1,0 +1,64 @@
+                                        227
+                                                       Ours
+
+
+
+
+                 Communication (Bits)
+                                        225
+                                                     Standard
+                                        223
+                                        221
+                                        219
+                                        217
+                                        215
+                                        213
+                                        211
+                                         29
+                                                   21       23       25     27     29    211          213    215      217
+                                                                          Number of Rows N
+
+Figure 6: logrow’s communication cost for a single LUT gate. We assume m = 8 column in the LUT and
+κ = 128. Our approach consistently outperforms the (standard) Yao’s encrypted truth table approach by
+orders of magnitude. For N > 97, our communication is more than 10× lower than that of the standard
+approach. For N > 213 , our communication is more than 100× lower.
+
+
+Communication Cost. Recall that we compute JaK 7→ Jf (a)K. There are three steps in our construction
+where G must transmit information to E:
+   • G sends the truth table for f ′ (x) ≜ f (x ⊕ α) ⊕ r(x). Cost: N m bits.
+   • G and E compute JH(x)K. Cost: (n − 1)κ bits [13].
+   • G sends n strings each of length mκ to implement n half-hidden uniform functions (Section 4.2). Cost:
+     nmκ bits.
+In total, G must send N m + (n − 1)κ + nmκ bits. Figure 6 demonstrates that our protocol significantly
+outperforms a standard encrypted truth table.
+
+Computation Cost.                             Below, we count the computation cost of each component of our construction.
+   • The parties first compute JH(x)K. Cost: O(2n cκ ) computation [13].
+   • The parties compute a random function Jr(x)K = i∈[n+1] Jri (x)K. Each half hidden random function
+                                                      L
+
+     Jri (x)K incurs the following computation cost:
+       – Derive the (2n−i−1 )-bit strings Riℓ / Rir by hashing. Cost: O(2n−i mcκ /κ) computation.
+       – Compute JH(x[0 : n − i])K via linear map. Cost: O(2n−i κ) computation.
+       – Construct (resp. decrypt) a garbled row:
+
+                                                                 Z ≜ H(vrow , Y ) ⊕ ((R̂r )⊺ · XG
+                                                                                                r
+                                                                                                  )
+                                                              row ≜ H(vrow , Y ⊕ ∆) ⊕ ((R̂ℓ )⊺ · XG
+                                                                                                  ℓ
+                                                                                                    )⊕Z
+
+          Cost: O(mcκ ).
+       – Compute the following sum:
+
+                                              Jri (x)K = ((Riℓ )⊺ · JH(x[0 : n − i])ℓ K) ⊕ ((Rir )⊺ · JH(x[0 : n − i])r K) ⊕ Z
+
+          Cost: O(2n−i mκ) computation.
+     It takes O(2n−i mcκ /κ+mcκ +2n−i mκ) computation to compute Jri (x)K. Altogether, the n half hidden
+     random functions cost: O(2n mcκ /κ + nmcκ + 2n mκ).
+
+
+                                                                              20
+

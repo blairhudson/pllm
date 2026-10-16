@@ -1,0 +1,84 @@
+Proceedings on Privacy Enhancing Technologies 2024(4)                                                                                                                Gupta et al.
+
+
+4.2     Our Truncation Protocol                                                                  Logical Right-Shift with Gap Π𝑛,𝑓
+                                                                                                                                              GapLRS
+As discussed in Section 3.2, linear layers or matrix multiplica-                                        GapLRS
+tion needs to be followed by an element-wise truncation to bring                                 Gen𝑛,𝑓          (rin, rout ) :
+down precision. Our protocols for complex non-linearities also                                     1:   (𝑘 0•, 𝑘 1• ) ← Gen•𝑓 (1𝜆 , rin mod 2 𝑓 , 1, {0, 1})
+use multiple truncations. The literature considers (cheap) local                                           $
+truncations [47, 59, 80, 81, 84] and (expensive) faithful trunca-                                  2: 𝑐 ← {0, 1}, 𝑟 (𝑤) = extend1,𝑛 (𝑐)
+tions [16, 37, 67]. While local truncations are almost free to im-                                 3: 𝑚 = 2𝑛−𝑓 · extend1,𝑛 (MSB𝑛 (rin ))
+plement, a very recent work Li et al. [52] shows that these do not                                 4: 𝑟 = rout − LRS𝑛,𝑓 (rin )
+satisfy standard simulation-based security and are insecure. In light                              5: share (𝑟 (𝑤) , 𝑚, 𝑟 )
+of this, in this work, all our protocols for secure inference only                                                                 (𝑤)
+                                                                                                   6: For 𝑏 ∈ {0, 1}, 𝑘𝑏 = 𝑘 • ||𝑟     ||𝑚𝑏 ||𝑟𝑏
+                                                                                                                            𝑏 𝑏
+use faithful truncations or arithmetic right shifts (ARS). Here, we
+provide new protocols for truncation that are much more efficient                                Eval𝑛,𝑓
+                                                                                                        GapLRS
+                                                                                                                 (𝑏, 𝑘𝑏 , ˆ
+                                                                                                                         𝑥) :
+than prior FSS-based protocol from [16, 37].
+                                                                                                                          (𝑤)
+                                                                                                   1: Parse 𝑘𝑏 as 𝑘 • ||𝑟       ||𝑚𝑏 ||𝑟𝑏
+4.2.1 ARS with Guaranteed Gap. We first consider the case when                                                        𝑏 𝑏
+                                                                                                                         •                   (𝑤)
+the input is known have a gap w.r.t. the bitwidth used. In particular,                             2: 𝑤ˆ 𝑏 = Eval 𝑓 (𝑏, 𝑘𝑏 , 𝑥ˆ mod 2 𝑓 ) + 𝑟𝑏
+                                                                                                                  <                               mod 2
+we require that 𝑣 ∈ U𝑁 is such that 𝑣 ∈ [0, 2𝑛−2 ) ∪ [2𝑛 − 2𝑛−2, 2𝑛 ).                             3: 𝑤ˆ = reconstruct(𝑤ˆ 𝑏 ), 𝑧ˆ = extend1,𝑛 ( ˆ𝑤)
+Looking ahead, within our protocols for non-linearities, this as-                                                   (𝑤)          (𝑤)
+                                                                                                   4: 𝑢𝑏 = 𝑏 𝑧ˆ + 𝑟     − 2ˆ𝑧𝑟𝑏
+                                                                                                                    𝑏
+sumption holds many a times from domain knowledge.                                                 5: 𝑡𝑏 = 𝑚𝑏 · extend1,𝑛 (1 − MSB𝑛 ( ˆ    𝑥))
+   We first use the following relation from [31] to reduce ARS to                                  6: return 𝑏 · LRS𝑛,𝑓 ( ˆ  𝑥) + 𝑟𝑏 + 𝑡𝑏 − 𝑢𝑏
+logical right shift (LRS), i.e., a reduction of shift of signed values to
+unsigned values. In particular, for 𝑛-bit values and shift amount 𝑓 ,
+when 𝑣 ∈ [0, 2𝑛−2 ) ∪ [2𝑛 − 2𝑛−2, 2𝑛 ), for 𝑥 = 𝑣 + 2𝑛−2 ,                                          Figure 2: Protocol for Logical Right-Shift with Gap
+                                                         𝑛−𝑓 −2
+               ARS𝑛,𝑓 (𝑣) = LRS𝑛,𝑓 (𝑥) − 2
+                  j k                                                                                      GapARS
+where LRS𝑛,𝑓 (𝑥) = 2𝑥𝑓 . Note that constraint on 𝑣 implies that                               keysize(Π𝑛,𝑓     ) = keysize(DPF 𝑓 ,1 )+3𝑛. The online phase requires
+𝑥 = 𝑣 +2𝑛−2 seen as an unsigned value lies in [0, 2𝑛−1 ) which would                          1 evaluation of DPF 𝑓 ,1 and communication of 2 bits in 1 round.
+be crucial for the optimization that we do.                                                   4.2.2 Truncate-Reduce. TR𝑛,𝑓 : U𝑁 → U2𝑛−𝑓 is defined as drop-
+   Now, given the above relation, to construct a protocol for                                 ping the lower 𝑓 bits of the 𝑛-bit input and returning the output as
+ARS𝑛,𝑓 (𝑣), we construct a protocol for LRS𝑛,𝑓 (𝑥) using the fol-                             an (𝑛 − 𝑓 )-bit number. It can be expressed as:
+lowing lemma (also used in [16, 67]).
+                                                                                                                   TR𝑛,𝑓 (𝑥) = LRS𝑛,𝑓 (𝑥)         mod 2𝑛−𝑓
+Lemma 1. For 𝑥 0 = 𝑥ˆ mod 2 𝑓 and 𝑟 0 = rin mod 2 𝑓 ,
+               [rin ,rout ]                                                                   Note that Equation 3 for LRS does not rely on gap in inputs. Now,
+          LRS𝑛,𝑓              (ˆ            𝑥) − LRS𝑛,𝑓 (rin )
+                               𝑥) = LRS𝑛,𝑓 ( ˆ
+                                                                                              as the term 2𝑛−𝑓 · 1{𝑥ˆ < rin } cancels out due to mod operation, we
+                              + 2𝑛−𝑓 · 1{𝑥ˆ < rin } − 1{𝑥 0 < 𝑟 0 } + rout        (3)         can realize truncate-reduce securely using a single comparison for
+                                                                                              1{𝑥 0 < 𝑟 0 }. We omit details and summarize cost below:
+When 𝑥 ∈ [0, 2𝑛−1 ), following observation3 (proof in Appendix D)
+                                                                                                                                     TR that realizes TR
+provides an efficient way to compute 1{𝑥ˆ < rin }.                                               Theorem 4. There exists a protocol Π𝑛,𝑓                𝑛,𝑓 se-
+                                                                                                                         TR ) = keysize(DPF ) + 2(𝑛 − 𝑓 ). The
+                                                                                              curely such that keysize(Π𝑛,𝑓
+Lemma 2. For 𝑥ˆ = 𝑥 + rin mod 𝑁 , if 𝑥 < 2𝑛−1 ,                                                                                               𝑓 ,1
+                                                                                              online phase requires 1 evaluation of DPF 𝑓 ,1 and communicates 2
+         1{𝑥ˆ < rin } = 1{MSB𝑛 ( ˆ
+                                𝑥) = 0} ∧ 1{MSB𝑛 (rin ) = 1}
+                                                                                              bits in 1 round.
+We provide a formal description of our protocol for LRS for inputs
+with a gap in Figure 2 (security proof in Appendix E.1). Here, the                            4.2.3 ARS without Known Gap. Let SignExtℓ,𝑛 : U𝐿 → U𝑁 be
+term 1{𝑥 0 < 𝑟 0 } is computed using DPF-based comparison with                                defined as sign extending a value in ℓ-bits to equivalent value in
+1-bit output to allow for smaller FSS key and lower online compute.                           𝑛-bits. When input to ARS is not known to have a gap, we express4
+Once the evaluators learn the masked value of this bit ( ˆ    𝑤), they                        ARS𝑛,𝑓 as TR𝑛,𝑓 followed by SignExt𝑛−𝑓 ,𝑛 . We use our protocol
+do a local extension (ˆ𝑧). They use 𝑧ˆ and arithmetic shares of the                           for (faithful) truncate-reduce and replace DCF in the protocol for
+mask (𝑟 (𝑤) ) provided by the dealer to obtain arithmetic shares of                           sign-extension from Orca [43] with DPF-based comparison. We
+𝑢 = 1{𝑥 0 < 𝑟 0 }. It is trivial to extend this to ARS (with the same                         summarize overall costs below:
+cost) and we summarize the cost in Theorem 3.                                                                                        ARS that realizes ARS
+                                                                                                 Theorem 5. There exists a protocol Π𝑛,𝑓                  𝑛,𝑓 se-
+                                                    GapARS                                                              ARS ) = keysize(Π TR )+keysize(DPF
+   Theorem 3. There exists a protocol Π𝑛,𝑓                   that realizes ARS𝑛,𝑓             curely such that keysize(Π𝑛,𝑓              𝑛,𝑓                𝑛−𝑓 ,1
+securely for cleartext inputs in [0, 2𝑛−2 ) ∪ [2𝑛 − 2𝑛−2, 2𝑛 ) such that                      ) + 2𝑛 + 1. Online phase requires 1 evaluation each of DPF 𝑓 ,1 and
+3 Similar observation was also used by [31] for their probabilistic LRS protocol that
+                                                                                              DPF𝑛−𝑓 ,1 and communicates 2(𝑛 − 𝑓 ) + 4 bits in 3 rounds.
+ignores the LSB correction term 1{𝑥 0 < 𝑟 0 } and referred to as MSB-to-Wrap optimiza-
+tion in Sirnn [66] and used in various protocols.                                             4 Similar approach was used in Orca [43] for stochastic truncations.
+
+                                                                                         66
+

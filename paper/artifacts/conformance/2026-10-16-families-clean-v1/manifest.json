@@ -1,0 +1,875 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python",
+    "-I",
+    "paper/artifacts/conformance/audit-family-cards.py",
+    "--output",
+    "paper/artifacts/conformance/2026-10-16-families-clean-v1",
+    "--wheel",
+    "paper/artifacts/clean-build/2026-10-16-local-v5/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl"
+  ],
+  "artifacts": {
+    "child-identities/031bfa368c7342d7b1b0a3050b7788fd.end.json": "18cc2085a692bdcd65fb370e2bdb1ae9096dca73706624968a6b257113eaaa4b",
+    "child-identities/031bfa368c7342d7b1b0a3050b7788fd.exit.json": "82d007a026d10e36f27ea94ccd9c1433af896f52a4db82f996861ca0680f6693",
+    "child-identities/031bfa368c7342d7b1b0a3050b7788fd.launch.json": "3b7be1e096c04087135cc1d5022abe81937d1d303429f39dd0df7c0b36e36f82",
+    "child-identities/031bfa368c7342d7b1b0a3050b7788fd.spawn.json": "ca6162e6f205c7b196ec5dfcef590f221d097fd1c4935bd83cb24e07947481ec",
+    "child-identities/031bfa368c7342d7b1b0a3050b7788fd.start.json": "e2b303230c4c9cfd7433a5b806f28b9423616d5672f195ca010f5e1ee741ebd0",
+    "child-identities/0669a3693aad4fa280f4158075f2dd7c.end.json": "759975de361f9a7722ec8d57192ef5aa080611264ef67482908889d834b0a722",
+    "child-identities/0669a3693aad4fa280f4158075f2dd7c.exit.json": "81a2e5489c05f8d7f9e9b8fe3fec71fc2fe11b7a0129ec5c7ed1ebd9b81527d0",
+    "child-identities/0669a3693aad4fa280f4158075f2dd7c.launch.json": "6a1e52ba4ba0959cdeac40144d5398730b41b7eb5e46cee80e6fc6efd99c357e",
+    "child-identities/0669a3693aad4fa280f4158075f2dd7c.spawn.json": "bd4ba5533df98dd3b94352002eb52e23668f164ec71ab08e36d0caa4c8899e91",
+    "child-identities/0669a3693aad4fa280f4158075f2dd7c.start.json": "72e4e8c28bf698a2f7e4ac699167ad68d2566e13c74147210fd5e70f6d316d2e",
+    "child-identities/09cd796d84204c398a14acadfcf012ca.end.json": "6f20e4948a3940a35ad076c34aa211ae9b3de786d9479d711e79d454755c0e52",
+    "child-identities/09cd796d84204c398a14acadfcf012ca.exit.json": "d69729b9b273c2eb82820cfe6824807a2c3d9ab623620b74fac8ec7c9b866246",
+    "child-identities/09cd796d84204c398a14acadfcf012ca.launch.json": "13f5175552f1865729f7543cfe8a3c8ccbb402d682bc316998dad43a9c0abc44",
+    "child-identities/09cd796d84204c398a14acadfcf012ca.spawn.json": "ce6fb289ba8f08de772e5626b158d254f6107ab6aeb4b9c4100dc8a501b07ac3",
+    "child-identities/09cd796d84204c398a14acadfcf012ca.start.json": "d8270366479c6f0cca20bd9fb6cc7e366a8fa017bff2a59a60fe507e6b2f2341",
+    "child-identities/16dc80e219e24275bcf943184c788d10.end.json": "4a53ae62bccabe0e7097fee08dc2fcf34f5242e3a9915df2c439e14eb99c781e",
+    "child-identities/16dc80e219e24275bcf943184c788d10.exit.json": "c6456f194a2e3ae08f9458a64a2d16b3d747aa2a79f9187a91387392d8e924f7",
+    "child-identities/16dc80e219e24275bcf943184c788d10.launch.json": "3571bdf2bfb339228a2bb073595588228e592d74a5ebd36dea10c04a8a8654ec",
+    "child-identities/16dc80e219e24275bcf943184c788d10.spawn.json": "d17efc4728b258c24da7bfa0e04040de58fbd74dd6c36a3d7dff28cebe579cfb",
+    "child-identities/16dc80e219e24275bcf943184c788d10.start.json": "807c2aed5db897daef805ebf2f262c20b3f725552b9ef0fbf5656d10b2d01595",
+    "child-identities/1952bf6c230e44cc8d29cf90f002a8f6.end.json": "1322cefab69568c29e15485fb8b52b4ae281025790083abdf9a8f5eefced3e93",
+    "child-identities/1952bf6c230e44cc8d29cf90f002a8f6.exit.json": "038d447ea4d08bb746ed622db0bdabe76dba0e26cf00e4851ca91475b6b69607",
+    "child-identities/1952bf6c230e44cc8d29cf90f002a8f6.launch.json": "c3330faa17b5e6ec6046038c50e056ecb7ae8972ca8f0b081be7b65472ac6837",
+    "child-identities/1952bf6c230e44cc8d29cf90f002a8f6.spawn.json": "61e859ff04b9dcde9d67513d3f0cd6e0453e8761cc15b51248e2d70e1a70ede4",
+    "child-identities/1952bf6c230e44cc8d29cf90f002a8f6.start.json": "a2c3296048876cd526231792665853dddd0c91f1625f21b51b7afa4c86aba985",
+    "child-identities/1ce010299c064b06b8924b4460ed5b88.end.json": "81ac82e43a6b34068dfea1243570b106956455e3cf3f95726de9bb1d9177e698",
+    "child-identities/1ce010299c064b06b8924b4460ed5b88.exit.json": "19752c65b69677bfd8fa6b3b9df6ccb8292d42c81d0b5ce3c33277c3925d1f53",
+    "child-identities/1ce010299c064b06b8924b4460ed5b88.launch.json": "ef6753df0d7654d7eee7bc81742454b49ac674223b2d700e09c2e9892000ae3f",
+    "child-identities/1ce010299c064b06b8924b4460ed5b88.spawn.json": "2658e12efebe220920997ada5185661a8c3afe2ff404722c2b98a77f64b7c2a4",
+    "child-identities/1ce010299c064b06b8924b4460ed5b88.start.json": "1fd73f387f4e5d6db9666189781252fc762b1f80564bdc84690836098769e4d4",
+    "child-identities/2836ab7a62be4c5ba7cb74cfbe05637a.end.json": "2d1960b84ecb30a0f2655286d4a257b4d2771d50920660bc01e107a15ef4e304",
+    "child-identities/2836ab7a62be4c5ba7cb74cfbe05637a.exit.json": "378a1d5c22f702ebd1dd08552abfa2f1155f51222baf1fffbcf4271a478084d6",
+    "child-identities/2836ab7a62be4c5ba7cb74cfbe05637a.launch.json": "35420751699c7b57603f39f518b3b6cf84c62bc33664403bd9f1fd42941e8e89",
+    "child-identities/2836ab7a62be4c5ba7cb74cfbe05637a.spawn.json": "4a7c7800001f9555c2c295ef65f45bbeb3c1828498280de71a1b2ad68de2a5b6",
+    "child-identities/2836ab7a62be4c5ba7cb74cfbe05637a.start.json": "b765e93672a43aa672275c46aa3879cb896f8b89f0123d37fecae857030b8346",
+    "child-identities/3a60b661e2744600bc479dab20dc611b.end.json": "1ffed88e34d128c0c90e63cc3157ce02c7df9d734f1fcf92e43f56562407a355",
+    "child-identities/3a60b661e2744600bc479dab20dc611b.exit.json": "8dac83e060c498bc50cb64a3e840f71478a740a8058825fb8c287dcd756f44f8",
+    "child-identities/3a60b661e2744600bc479dab20dc611b.launch.json": "ddea69ef811dc17b946f4305721001e2bfafc33915c73cc7d55ed9dbf1e62060",
+    "child-identities/3a60b661e2744600bc479dab20dc611b.spawn.json": "23d6b367777056d695c460faf94b80c79f8d51166c1c5543170482561fa5a5a9",
+    "child-identities/3a60b661e2744600bc479dab20dc611b.start.json": "03d777f5ad35e337ee148be6b24fdf0a2bb2d165fc9310f5260fa7a5fcef1b3b",
+    "child-identities/3b417d0db7b7477fa7a782c58e410cad.end.json": "5985dc05b77724469c3e926fb2cd244dd08fe5513d0497aed3c45ffd31c64fab",
+    "child-identities/3b417d0db7b7477fa7a782c58e410cad.exit.json": "42a8c8bff1194b6570260681158b3dc1d2236dafe96401c8aa5ca16590c65456",
+    "child-identities/3b417d0db7b7477fa7a782c58e410cad.launch.json": "c8b5f1571385911719ae1909b79ab6185332cb908934c9031eadcd600c6c38c3",
+    "child-identities/3b417d0db7b7477fa7a782c58e410cad.spawn.json": "f3c01512cac0538250b340a7b47205fa6d1919319b4795edb8c99554013159e1",
+    "child-identities/3b417d0db7b7477fa7a782c58e410cad.start.json": "d577a7cc58d1bb4f7dcf68c4641fca2eaa71a3e2932727820596ee484d751add",
+    "child-identities/4297f0d6d09841708c9003b81f8b3222.end.json": "63077f8b0bc1f7e9c4e27cdd7fb351766cf1ddec3d494063968858806f040a8a",
+    "child-identities/4297f0d6d09841708c9003b81f8b3222.exit.json": "8c59c9963238e3a16c33f1461487f3efa988e12944f3cb8ac324bab02b29b173",
+    "child-identities/4297f0d6d09841708c9003b81f8b3222.launch.json": "fa3f56bb6d898fed057de7a8144d5f779d77590ed192fedca389d51a081e2b2f",
+    "child-identities/4297f0d6d09841708c9003b81f8b3222.spawn.json": "76245e1f873bde9ce78d75f3d57bf79fe761ba2b3edfa9b26034133431b07362",
+    "child-identities/4297f0d6d09841708c9003b81f8b3222.start.json": "bada38224261b013978821ffee60cdd4c684ad9d3899033e29573edd4c476ea6",
+    "child-identities/47a3257861e9454f96d636e21d4a18df.end.json": "fb345d32b085370467f75621bb7bfe07101cfaed413aa4e7b4785d812c0240ef",
+    "child-identities/47a3257861e9454f96d636e21d4a18df.exit.json": "504c8c8600fbb237eef1c7ef1905c5ddcccd39bfb26382886ffb53cc91a8ac67",
+    "child-identities/47a3257861e9454f96d636e21d4a18df.launch.json": "895795ec350c1d44ddfdeb21a6b20baff1e0a08f0f7d98129069a04bc2162cec",
+    "child-identities/47a3257861e9454f96d636e21d4a18df.spawn.json": "8535e7901ff5ca0c466ecdefbddb59f766b7bc90202965f0164262aeb8ae1450",
+    "child-identities/47a3257861e9454f96d636e21d4a18df.start.json": "d468e374404c72fc59cddd7a5b04c360f51626463540310af634c642c45d585f",
+    "child-identities/55a5927d0e5a4aa09e20c258b4285512.end.json": "0b9b2061a49f2e51e10d1ba498ed362589973fc6b726fee32bdd840b74172d68",
+    "child-identities/55a5927d0e5a4aa09e20c258b4285512.exit.json": "4964fd4bc18838c32932a1c35e70c150c377ac71b0123554c80f104b4f4fb4c0",
+    "child-identities/55a5927d0e5a4aa09e20c258b4285512.launch.json": "2fce3d0ccdaa66e548a4a30fb90211dba21f7323e1d074b701503df03251faa8",
+    "child-identities/55a5927d0e5a4aa09e20c258b4285512.spawn.json": "104f9ceb313daa792f44d04430073f90626c0c9aa69c8192992e921a736ea5fe",
+    "child-identities/55a5927d0e5a4aa09e20c258b4285512.start.json": "6b3e04a5292f478f3141e974c2a6b8a2c9fe0ff93b4fe4ddbf4dfd5d670f4c6a",
+    "child-identities/703cecd10b014be4a1cc1e6f052106b1.end.json": "04765e95428a143a10ab5968b4fea7cb39e885066c226f27ff8df234318e49af",
+    "child-identities/703cecd10b014be4a1cc1e6f052106b1.exit.json": "a920238cab6d9b93fc4b440755973ee1d0e6e8ab0a56a07657fb5756bf9458f2",
+    "child-identities/703cecd10b014be4a1cc1e6f052106b1.launch.json": "05bf1ac8cfcc4e556247888fb15ef2bcbfb9af1c73b7da178a71ad5d6d2d42e5",
+    "child-identities/703cecd10b014be4a1cc1e6f052106b1.spawn.json": "96dffbc867dedf1950ccb05697394cbb74cf2492ada2745461c32587d0b09be0",
+    "child-identities/703cecd10b014be4a1cc1e6f052106b1.start.json": "760898ef74448ac26a0942fc3ea99549c99257e1e5bfe214b20b271e2ea409da",
+    "child-identities/746cb48a9c794d75b3b71d18ddbab281.end.json": "bbe19f0c1e17474de4bdfff3f987c5fcb840c8cec3694cea8ecf1bde4cf09f13",
+    "child-identities/746cb48a9c794d75b3b71d18ddbab281.exit.json": "79537ea4b345a99d10bcb3d5ca2f1c00edc6d207970ec2d9832069d2b779c01d",
+    "child-identities/746cb48a9c794d75b3b71d18ddbab281.launch.json": "8d8c4a0cd6c5f5de351d5aac177ac26e8123bdab2f399b56b628e3fa06d2752b",
+    "child-identities/746cb48a9c794d75b3b71d18ddbab281.spawn.json": "350971141898d2f2dbc8ef6bd4fca01258fa00097d12c03c996c2e990f24018a",
+    "child-identities/746cb48a9c794d75b3b71d18ddbab281.start.json": "1ce8028ba039c47cb6d1f60551df06c3da3d0d68baf692c2f514a10764a28d4c",
+    "child-identities/90810d81706d434aa7cef8d436f5c5fe.end.json": "5ae816e00e5e2fc224fc09a6a59b0c1073d5a889aca23029072f52421cf28a9a",
+    "child-identities/90810d81706d434aa7cef8d436f5c5fe.exit.json": "61b20aac8027a2302f39831055fdd0617dbbf3b572177ab9d54f5c370f5ba28c",
+    "child-identities/90810d81706d434aa7cef8d436f5c5fe.launch.json": "3b669296695dcc4056a9a19d7b241083bbd85f9f1eaf36f278dd7a79ce7aa125",
+    "child-identities/90810d81706d434aa7cef8d436f5c5fe.spawn.json": "7cd65042192409c959588b081588fc930d6b167a8fab290a70a9acc8781cb537",
+    "child-identities/90810d81706d434aa7cef8d436f5c5fe.start.json": "d3c13487049d7ce8dc02b7f54b0669ae731885efba060720b19ad9405e940baf",
+    "child-identities/91be7442d472414db5be0ac8e944fb84.end.json": "bf35d6cad2ce10ee7d2a183597f63a12cd2d03891e543014291237e5f0da2753",
+    "child-identities/91be7442d472414db5be0ac8e944fb84.exit.json": "44de5c7f6b6ef2efd2ca6a216106892d5ef967d527db6358bc541661725090a7",
+    "child-identities/91be7442d472414db5be0ac8e944fb84.launch.json": "311961392ccf14fcf4f96292e1f78ed2525c337d86f1d1642f9e34e651db8a6c",
+    "child-identities/91be7442d472414db5be0ac8e944fb84.spawn.json": "e6d3e2a822a11d7b08e62981f9ce8d799983d7e231cd64cc58daa707580e490e",
+    "child-identities/91be7442d472414db5be0ac8e944fb84.start.json": "bf96ecc9c062006a4c35f366413f14bb10de029330e7e342d99aa4bf2a6b5798",
+    "child-identities/b3e194fb324c4115bc6fdb7a84f8cd11.end.json": "93fd9b4916c3028d51057b4d3a4a22ca33e8bb48b790182489976bd151e106a9",
+    "child-identities/b3e194fb324c4115bc6fdb7a84f8cd11.exit.json": "6613a58e60ff2edc7e0fc15000a0f108a603b5f3f06c7490a3cb26f6beb5c420",
+    "child-identities/b3e194fb324c4115bc6fdb7a84f8cd11.launch.json": "f7662190d784b541e071ec51e304680d87e6463e1f8eb2d826b06f06922fa46a",
+    "child-identities/b3e194fb324c4115bc6fdb7a84f8cd11.spawn.json": "4ec57e15c24c3bb695c80aad2fb02173d0a64c625139445390acc6b093cbe4a9",
+    "child-identities/b3e194fb324c4115bc6fdb7a84f8cd11.start.json": "992e5e3bf4777d30ffeb043c495a1c7923d981f1d9df07a47aff231e6003a629",
+    "child-identities/b426533a70cf459d92a5b987c4c08651.end.json": "edd19ebda4d8d946d6e354cd8dda09e09a6f12f2a1933c5b9b5a978e76e79c49",
+    "child-identities/b426533a70cf459d92a5b987c4c08651.exit.json": "1c2cf8e8bb7791a1354121b66ef163fe69535235f9580d6993176ce3050ee0e7",
+    "child-identities/b426533a70cf459d92a5b987c4c08651.launch.json": "1eb379ea3d389f8344b602860cf47899365fb41d4e49ed1768e6af9a0cc0eb10",
+    "child-identities/b426533a70cf459d92a5b987c4c08651.spawn.json": "e3300c1f9503030fcf37f3da6f44d40be9096c777b8c6fdd939e26e5276f8157",
+    "child-identities/b426533a70cf459d92a5b987c4c08651.start.json": "d508227ecc9e1d6618724edc7e2ad05484714ba6ded16d357349e9216a78aed5",
+    "child-identities/cbc3e686e779426a9cf85a71745c9883.end.json": "22b560cf64a8e2ce5d80588b40c1da4905b3b35ff34e90034ad47803e2f36bc8",
+    "child-identities/cbc3e686e779426a9cf85a71745c9883.exit.json": "f66077c99f56c0024a9f143b2359ae224201f7ee8f190d0d6d0dfbb6a3dcbeb4",
+    "child-identities/cbc3e686e779426a9cf85a71745c9883.launch.json": "e9d818b2c8d3fbbaf2b663e40f826b1f63d163a96e961b42f56d1ddd532220c4",
+    "child-identities/cbc3e686e779426a9cf85a71745c9883.spawn.json": "1cd4bcfd6acfbe0900c88debc03f39d0759cc74a4efc05f3d126339a62273923",
+    "child-identities/cbc3e686e779426a9cf85a71745c9883.start.json": "e48d73a82fd4dfeb511e02a17ae3e7bcb2f032dd6a861b358f2ecd72678b0d35",
+    "child-identities/controller-end.json": "5cccaef9e11da8fb177ad16734e6b5801f6f2c2e4d437dfd76e80adecb65be62",
+    "child-identities/controller-start.json": "40b07f87f822dd45c54c51d99e4a2ecf91c4f94979134502a29ec1ba9008e9f2",
+    "child-identities/d6ed0963a7eb4f09af638c49a6bf7f52.end.json": "756393cac0542ded1e0f4d24b04f6b01fc5fa820ed7a7d46b6c582e6df4cfe4f",
+    "child-identities/d6ed0963a7eb4f09af638c49a6bf7f52.exit.json": "45647fe16c6e71c64cc21a0ba50a04cdfa7698b892953472bbef94c499d06aae",
+    "child-identities/d6ed0963a7eb4f09af638c49a6bf7f52.launch.json": "f9c3cb359283991985b679407a936ce9b93634c6a21c674261ba25ceefc4a97e",
+    "child-identities/d6ed0963a7eb4f09af638c49a6bf7f52.spawn.json": "230ca286cb80684f4211a9578e72aeecb36c8a8119a71df0d8a6ca70686568c6",
+    "child-identities/d6ed0963a7eb4f09af638c49a6bf7f52.start.json": "948371e0c2b7c36bc95c69bfba2a82b476f55b114b9ed7640f8c4269a7aeef86",
+    "child-identities/d81df046b89e4d4cb8f86d211e521310.end.json": "b4255808d1f9bfdee9c2878fe75dd510dd0aa57fdb66f575865f1eb8866f768e",
+    "child-identities/d81df046b89e4d4cb8f86d211e521310.exit.json": "5214120d378097cff07699a49b5b66e09b0f3498c38c8ac83140063ec7169345",
+    "child-identities/d81df046b89e4d4cb8f86d211e521310.launch.json": "572a67d24f3eced49eec86fcca7ca7451e61aa2a6adde4d6f4129c0ba7d20a66",
+    "child-identities/d81df046b89e4d4cb8f86d211e521310.spawn.json": "71eb45868f3b5c46eac256cc0a92dde53e278684cbbe4f9e81805b19be4c19e3",
+    "child-identities/d81df046b89e4d4cb8f86d211e521310.start.json": "3402fbe9295cca193be056af3adb2dbea2d7b8fa2be09fa8a8b5c2876c396b19",
+    "child-identities/daec437387aa4a0ba814abac55183fe9.end.json": "758c4549b4edacd5c31e65572539af083c4faec65e0f770fa31d0c6688f28423",
+    "child-identities/daec437387aa4a0ba814abac55183fe9.exit.json": "e47d6ef7ab4f7160cef9dbdcfa8ab667aa0a83e35fe5cab802d6e7f6120208fc",
+    "child-identities/daec437387aa4a0ba814abac55183fe9.launch.json": "21eab459ba599e21b8a6e52de42832a32adba3e1ad5800d4f795f0a8402be68e",
+    "child-identities/daec437387aa4a0ba814abac55183fe9.spawn.json": "5af61d3ca7f649df3621b7bbbaadfc5a2342d8ae4f1ce7750677652ffd6cd217",
+    "child-identities/daec437387aa4a0ba814abac55183fe9.start.json": "fc6c4c2d24198d75206c7de2a377e3cd8b8d37da1c24d2f1195ec69778fc8f87",
+    "child-identities/ec8bcaa1ba834cf4b4b5cbad9fee65c6.end.json": "22ce28579d8125a87b1e5e7b0aef04584fbc044e7cc8f368f359a1d8ba14e5ca",
+    "child-identities/ec8bcaa1ba834cf4b4b5cbad9fee65c6.exit.json": "3ea30cfa128e23754e4d1407b6ba1544019231108a6ee65866c26c1cbebccd18",
+    "child-identities/ec8bcaa1ba834cf4b4b5cbad9fee65c6.launch.json": "8f39e65f9e01c65e75c6ff9dc3193028198551d5da033e891bd563c459b65cec",
+    "child-identities/ec8bcaa1ba834cf4b4b5cbad9fee65c6.spawn.json": "ee5b8d0d8e17277a18e03b2b30f98d674bd764c9784c590661efe4ee51ba2cf4",
+    "child-identities/ec8bcaa1ba834cf4b4b5cbad9fee65c6.start.json": "67fddf6bbebe554454e63d5fbe5cf6a229e1ba9f527b69a6b135671471a0b52a",
+    "child-identities/expected.json": "7142661034aa1ccc7b30a5db2aaa3c98a6dd5fa8ac0a5210cb19c477061053c5",
+    "child-identities/f592d88d55254f258c98954d474ee903.end.json": "c0ad583bb5a621f3928b1e5f0f1f4ea9236ebf9cfe19d1d80a65b09035fa3bee",
+    "child-identities/f592d88d55254f258c98954d474ee903.exit.json": "9be300f6354e3dd6d3bfb07106eb57e26d4b71ec2de2dbe99fc3eb673ca15fc3",
+    "child-identities/f592d88d55254f258c98954d474ee903.launch.json": "7369ff3e5a9bff04264ce032e1e57f0590f6b62906e254103361abdc1f20033e",
+    "child-identities/f592d88d55254f258c98954d474ee903.spawn.json": "a38f37bf3da17636cfb7c34a45fe9ff71e1c6425dbea69d0b724636a5602e384",
+    "child-identities/f592d88d55254f258c98954d474ee903.start.json": "3c767f94cdf5638eb4cbfecabdb39d4869e4c02121b669babde9ab350b20423d",
+    "child-identities/fb75b402c61848c0aaea4d35c1f1a202.end.json": "d655efd1939601d403695727827d415a75f331617603bbf22c15d43c994ce2fb",
+    "child-identities/fb75b402c61848c0aaea4d35c1f1a202.exit.json": "8dd44391330c8eb2e12507d14b2e4376beeae31c172f6f3aae362060f8d44ba9",
+    "child-identities/fb75b402c61848c0aaea4d35c1f1a202.launch.json": "8f7489ec37efc2a8e1be764f5d96906e98cb7f2e109ae69d5f55376fe4b1c7e9",
+    "child-identities/fb75b402c61848c0aaea4d35c1f1a202.spawn.json": "a4281dad438559b0cf7e9cba53cb44541a994dca642c5faa3f86aef56c2b2d35",
+    "child-identities/fb75b402c61848c0aaea4d35c1f1a202.start.json": "9724bafe428cdbe85ebedf9de47e5de55c7386260e33877cf8ef3784019ce98e",
+    "child-identities/ff398c08d0c34068b8df41b5cb7724f0.end.json": "8808b1f9663f75f57fe76d766fe8a30b7ed0e2e360a50c895e801f41f6b8bd9b",
+    "child-identities/ff398c08d0c34068b8df41b5cb7724f0.exit.json": "e360d92c4c3ea3ed742c091b837816810673511b5cffae8333ffbab87a26d31c",
+    "child-identities/ff398c08d0c34068b8df41b5cb7724f0.launch.json": "1a75c8c38b13bec80c0ca69e4fd2d57fe0677bc5fab072ad9173d12e1051dec6",
+    "child-identities/ff398c08d0c34068b8df41b5cb7724f0.spawn.json": "fb07a62a497354632d6f9ab85aff7379b42d5216c7153551b974adf6a2826307",
+    "child-identities/ff398c08d0c34068b8df41b5cb7724f0.start.json": "1fdb2669efc4e7262e9efdaef73162a7b20b701c67e2dadb5edf3ea314a40b9f",
+    "child-identities/policy.json": "fe6478ed3ae29a60e7ce8b1f86e986199a6f9ad024861ee4ec4a67c9e56a974c",
+    "child-identities/python-child-isolation.py": "c28e1be6e70647a74c38ba972703b4e9f858b38e31b6a25e1173e5c1a5ddcae4",
+    "child-identities/summary.json": "eda7e449521828dbee6f70c8583457cd20e4c583779d70efd51c3e97fef7d14d",
+    "crypto-dependency.json": "0b93cef9270c48252bb4a38e803ffb9bb6bfd4aef36363273f239c8f1b85002b",
+    "driver.py": "5dcd41282c436a7c01812d070173256b65908ca01c0806c6ce02ec9637ddc9ec",
+    "embedding-active-interleave-initial.json": "51256345f646dd4f758017cc2f04b1f28ad059b931119c5c4680110fd81bdbf2",
+    "embedding-active-interleave-replay.json": "34ef278cbc3010132dd9b5c6f509cbf08856bffb98c7e3e944e2a13e1ce40810",
+    "embedding-active-interleave.command.json": "3b41d5a321bc057d67fb5d51397295ca243b689b45a75a77b0e06e7cadca916f",
+    "embedding-active-interleave.log": "060b57aa88704aeae3ecab1ef39bcf65af814954d53caefc12c3e30f0b2c7c94",
+    "embedding-active-none-initial.json": "719b906b6e95795d91c9d6c66837e95afdf0a540be10c06f4677f2e7ff91da84",
+    "embedding-active-none-replay.json": "387e6368a5387300f3891bb48a785e6793a7722b6ee657ef5c07ed480ec70a13",
+    "embedding-active-none.command.json": "32525074e5c1cc487d543a98f6f5ca35776c1117964ac4a2bc6baa5ab063457c",
+    "embedding-active-none.log": "3af7df290d23ea03d11dd2e79e7ddecba65b237bd4c9c4148613c262a2e728c6",
+    "embedding-active-pack_lwes-initial.json": "5a0d1560d5800d586f6a042a16b544ab8d67a1e58d809fab0d59cb968e3778f7",
+    "embedding-active-pack_lwes-replay.json": "a631d8a53e7dc26a57a6a3ff36cabcd167b5fced08cea3dd1ec66e279a7069a7",
+    "embedding-active-pack_lwes.command.json": "a4f828c2f79c12a1a5844cdfcbd2247e18ecf55adb5928e9c469962e06240af9",
+    "embedding-active-pack_lwes.log": "01dcaa230c18e95d2962e6209fc65a2863d0226e4420805a0aef7772b32fc786",
+    "embedding-interleave-initial.json": "604950b511217ead4bd124f10e49bd35866f4eb0d270fc4d5ff2a9695cea759f",
+    "embedding-interleave-replay.json": "108090540b76a598d135e5b474ef9402c933ab5f7fa03cc5fb34b45b70e77224",
+    "embedding-interleave.command.json": "23b666e247df32fbb0dcc8bf3f1fdeee2ecd278667d0d3d52a99cd8fed5d6a2d",
+    "embedding-interleave.log": "f99d9de4a257116d17b4a784a9cb8749ee4b7f2bcd6b38a39cb6539d2c07df22",
+    "embedding-none-initial.json": "0d234865f04047794b27067749783b8e09723bcb5f44ee210e5b1400f140c623",
+    "embedding-none-replay.json": "9c3c0d97d6c58fba76ae0b2913e0519cb0e20768173f7d402ea19a216fe6c809",
+    "embedding-none.command.json": "66afdf67e59418f76998fba7cd6a4ad2837d08eead67f9d9a1ff2d419e81630e",
+    "embedding-none.log": "ae268f797ddcd97f193681642031250cd03da35e1d804e46ebda52f1d9d05c01",
+    "embedding-pack_lwes-initial.json": "b046c7e545d85a3a0dc863c3f948bea59b3d758a40cb0fb18ba46808cc0e3fd7",
+    "embedding-pack_lwes-replay.json": "80003001f8514285da9cb2f8899f746107b4716c05611f9bae1929e5d06e024c",
+    "embedding-pack_lwes.command.json": "2339e25fff6ef2524e1fb4406d07bbd5e07aed008c17ea3e683cfffd688fd49f",
+    "embedding-pack_lwes.log": "3e7098d2cad2bc134119edae4ae6be0478ee4971983cacbb864190a41ddde25b",
+    "embedding.xml": "453b743559f181480faa79f466816e1199ed77168dd6df3dd505704aa0cd488d",
+    "encrypted-softmax.xml": "b9f0740dcbe96da5ac00aa32ac09f7101f235e2616d70cd543570cb3f25fdd69",
+    "equalization-accounting.xml": "052f994439e3b6c7f2a9077efd74125cf2e722a24ef36337f2f88e6b0ea61274",
+    "equalization-algebra.command.json": "11a5347db4627d01c09c762ae9a75d78ebc9a930162c509fad14dd55d3c15499",
+    "equalization-algebra.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "equalization-frames/test_prepared_numeric_choices_0/response-0-0.bin": "ab879efd829ec24c5bf021109070797b565268b873ed7111522dcc0f20ac4d40",
+    "equalization-frames/test_prepared_numeric_choices_0/response-0-1.bin": "681cddc453970a36332bd30fe4a355702e5c13639ef473df7452ea2a2dee3830",
+    "equalization-frames/test_prepared_numeric_choices_0/response-0-2.bin": "0da9a0deac8b96ec3abaa3e481edd689056566bddc1ca08e96bed1fb4672c68b",
+    "equalization-frames/test_prepared_numeric_choices_0/response-0-3.bin": "f2c25457f1f3aeaab224a88b11153db7943c83900e44a2166173987a8cfe8b78",
+    "equalization-frames/test_prepared_numeric_choices_0/response-1-0.bin": "412df0adb6acf2b9d1a35bf4a8d67063b2c988893fea40090672a13d8c85ab84",
+    "equalization-frames/test_prepared_numeric_choices_0/response-1-1.bin": "2c58e24e7feaaf0322700a7bed2a55534b6da158c2b9bd87723c48aa6c47a9ce",
+    "equalization-frames/test_prepared_numeric_choices_0/response-1-2.bin": "231115cf38f578ba9332208b29da2b2dd7951d2b89c9f874ccca0c9032ca1d18",
+    "equalization-frames/test_prepared_numeric_choices_0/response-1-3.bin": "c890366928e86735477b4762be09d6dac86d5899148e570f18e8d9c0746c1a62",
+    "equalization-frames/test_prepared_numeric_choices_0/response-accounting.json": "5cb7a7800a7f35043fe8b1cf053bd8c79dec38f3c29143acf1fb7816b21e0f8b",
+    "equalization-framing-mechanism.json": "48f8fd5643237d4328729536d9cdc6090c814a8090cda14e2e7d55a3bea5eab7",
+    "equalization-framing.command.json": "8badef1fd3f8dfe04272c85ea7874d902b45fb201cf6f92d293ea09a15de110d",
+    "equalization-framing.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "equalization-independent-algebra.json": "22cf1cb8ae8c79e1651c6f4f51a30f1c80eb6f119bec5cf32c09bb453f10fe6b",
+    "equalization.xml": "af188f6027d0369e13a6faf188bfe9048405a1653a1302067dec1cbe70cc1e6d",
+    "installed-build.json": "9403f47480ea18f46c89300bc2741802ae7ca2363f3cd7d8b56c24eb9ac5520d",
+    "masked-fused-initial.json": "34223b8024048c2f9cd9d596cbcefbdcbfa6f6968884138945cb990f5b8151fe",
+    "masked-fused-replay.json": "7bae53b528299e20a8f7a523afad696de64cc93f3e4c8da060f2b0aca2fd189f",
+    "masked-fused.command.json": "6430e52ab30afd4192255cc22dfa4e1018a5a1b2241257983fff0c6f46f71bd3",
+    "masked-fused.log": "309e18764cdec552887fd8e66abff7ad5ddbcbf196f71ce42964c11f1c2a9e4e",
+    "masked-unfused-initial.json": "1581304b923e88b9aa12fb39fc5057614809179093b51dfc4a76d9a7592d6ecb",
+    "masked-unfused-replay.json": "1f9d214601fd311ffe6580e6f2cd3f5d2fcfc0134b610eacb34d3fd075776d81",
+    "masked-unfused.command.json": "7072a6a0d0419ffbdb2ffbdf81c26b8bdef4a9022f1e01f9beb3d50e88566429",
+    "masked-unfused.log": "bc6953fdb41dc1f3502a57a6a27d8a05d38beb16d0d8e9f9ee0b3d0925174d11",
+    "masked-wire.xml": "729a7839e5957a8b831a9e35189fed795df5f67c647939482738433b80cd8898",
+    "prior-archive-index.json": "fe28bdcd5bc816a380e8eafaaf7f3f47f62fe31a3c9e9420c04a7ecd10177e09",
+    "provenance.json": "4ce07f8423c3b82fee09260e7fffea403c608ad9c6414f56ed6e495a8ac866f3",
+    "public-framing-65535.bin": "546a7d1969c57ce3644aa2a2a4ea50c87aedbacd283ce4577155ac598a75fe7c",
+    "public-framing-65536.bin": "b4bdcb25a380821417a5c42388a31e46e60632f680cf3a5b940b67933d165fdc",
+    "slalom.xml": "d6716327ed5cd8e7769adeccbea78bca818fc5fba9951e92d98d4ca79ab60649",
+    "softmax-repeated_squaring-decoder-rejection.json": "2ed3b2fccaa077fdce2cd9ff0073bee541ac8ab9aa2040f55c8d25d7b15370e7",
+    "softmax-repeated_squaring-initial.json": "219c23913af44ddd048233b59bcd45f456ef55988e1070c35a0a7094dd428faf",
+    "softmax-repeated_squaring-replay.json": "b17c79f89bc1645b55ede441840451e5fe22f4eacf5acd117ec29c6c18a8f230",
+    "softmax-repeated_squaring.command.json": "38c69a6c7b7c0f27c9911a729a61ee69b72b4054e26d7da39071befb6a001e6e",
+    "softmax-repeated_squaring.log": "a2b84c38e2b1205d382fe5fcc6b779ddcbcc724af35b46b61ad07b9a35bd1213",
+    "softmax-square_normalize-decoder-rejection.json": "2ed3b2fccaa077fdce2cd9ff0073bee541ac8ab9aa2040f55c8d25d7b15370e7",
+    "softmax-square_normalize-initial.json": "da6a7a4c542fd63c56f687eac6079e4ccdad0ee9a818d33a3dbd9bfb3c5d89e4",
+    "softmax-square_normalize-replay.json": "e9c1670c4680f27d0e26f3617ea1092b00f53ac2f86b1d44d615c9bb7865cfaa",
+    "softmax-square_normalize.command.json": "c667a005ade36e0f24ac7c623cac417a018c72be36d4bf28ef9205e7ec69ca62",
+    "softmax-square_normalize.log": "fbc8a21d11ac1447daffc556f85c3867892dfec0f9a90e59bd101bee696e8b27",
+    "source-evidence-lock.json": "1bcea39580a4c8b8f42ff3e2e62ae8c95a9ffd42146faaae7f072d680cd9b342",
+    "sources-after.json": "16b90a19fde7687af0b7e3707fcf21616c90d99ddf5751544c27e274ee6586fe",
+    "tests-embedding.command.json": "aebe9c164839957d24bfcb6e813639424864026a09d06516fff183d25873eb5c",
+    "tests-embedding.log": "c5bbe6c15c7fe92ff9d19029a51dc1c416bf6e38e4ed5757e8ab65664eb172b8",
+    "tests-encrypted-softmax.command.json": "bb02bced7c4eb3c47ba242c30bf080b046c9d5976ba57605358b4baab45b2281",
+    "tests-encrypted-softmax.log": "791a0506115a51d255448033c3dcf176a48ca7939247a5f211162c3040f3f6cf",
+    "tests-equalization-accounting.command.json": "a9678b6bfc4243769f93e0742339dd5b6b2a48f6d2c68ff4e7691d18789ab443",
+    "tests-equalization-accounting.log": "30cd475a9395482aefd314defa922e215416919903127bdbf2fbdd6ee24ac2dd",
+    "tests-equalization.command.json": "4a3a36dafe0f4ea73ee924e175b2e957cd0a59cdc7ac5158a79334f09b00a854",
+    "tests-equalization.log": "fdba38ddbb51fe562aae5dff60bebeeffeb7c16e7d1f7913168640bfcf2a19e8",
+    "tests-masked-wire.command.json": "d2b5bcd5f7e68054b1887753f7ddb4fa6b8cafd29edc182991986b7cff09ad36",
+    "tests-masked-wire.log": "65d333cb6af8e53cd06d6638da2e2fe028b588ccfd144a9ea260a7c50d1c013e",
+    "tests-slalom.command.json": "8c31d42ccf3f60d900ad04a4c1c5ca821e187ccc2e8df3919161ca8a748bb2a0",
+    "tests-slalom.log": "40de8521a91280645ef237bddde7f28d58a7492fda32916b7b2383602706d93b"
+  },
+  "build_digest": "8a8803783aa2b61f84ac461c209925f911acbc447dc86bdc3120ee384d4c83d9",
+  "cases": [
+    {
+      "name": "tests-slalom",
+      "status": "passed",
+      "tests": [
+        {
+          "class": "tests.test_native_freivalds",
+          "failed": false,
+          "name": "test_native_freivalds_verifies_runtime_oriented_batches_once",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_native_freivalds",
+          "failed": false,
+          "name": "test_native_freivalds_rejects_corruption_binding_and_ranges",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_native_freivalds",
+          "failed": false,
+          "name": "test_native_freivalds_rejects_malformed_import_and_supports_cancel",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_native_freivalds",
+          "failed": false,
+          "name": "test_native_freivalds_type_failure_burns_verifier",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_native_freivalds",
+          "failed": false,
+          "name": "test_native_freivalds_session_rejects_material_reimport",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_native_freivalds",
+          "failed": false,
+          "name": "test_native_freivalds_policy_composes_declared_attempts",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_live_compiled_execution",
+          "failed": false,
+          "name": "test_verified_compiled_decoder_uses_prepared_roles_and_gateway",
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "name": "tests-equalization",
+      "status": "passed",
+      "tests": [
+        {
+          "class": "tests.test_public_equalization",
+          "failed": false,
+          "name": "test_profile_is_source_bound_canonical_immutable_and_checked",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization",
+          "failed": false,
+          "name": "test_calibrated_client_executes_compiled_decoder_and_rejects_downgrade",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization",
+          "failed": false,
+          "name": "test_profile_missing_or_wrong_source_fails_before_stage_import",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization",
+          "failed": false,
+          "name": "test_calibrated_sdk_and_gateway_follow_experiment_roles[True]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization",
+          "failed": false,
+          "name": "test_calibrated_sdk_and_gateway_follow_experiment_roles[False]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization",
+          "failed": false,
+          "name": "test_prepared_numeric_choices_have_matched_online_stage_body_sizes",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization",
+          "failed": false,
+          "name": "test_role_cli_preserves_pinned_hub_profile_and_rejects_changed_source[False]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization",
+          "failed": false,
+          "name": "test_role_cli_preserves_pinned_hub_profile_and_rejects_changed_source[True]",
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "name": "tests-equalization-accounting",
+      "status": "passed",
+      "tests": [
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_accepts_only_timing_width_and_fresh_mask_contents[batch]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_accepts_only_timing_width_and_fresh_mask_contents[single]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_accepts_only_timing_width_and_fresh_mask_contents[masked]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_uses_actual_encoded_clock_length",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_non_timing_changes[geometry]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_non_timing_changes[wire-width]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_non_timing_changes[stage-order]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_non_timing_changes[integer-framing]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_non_timing_changes[data-length-header]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unbound_or_malformed_frames[extra-field]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unbound_or_malformed_frames[trailing-byte]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unbound_or_malformed_frames[truncated-data]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unbound_or_malformed_frames[wrong-request]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unbound_or_malformed_frames[wrong-clock-type]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unexplained_audit_bytes[calls]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unexplained_audit_bytes[uploads]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unexplained_audit_bytes[downloads]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unexplained_audit_bytes[omitted-frame]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_public_equalization_accounting",
+          "failed": false,
+          "name": "test_response_accounting_rejects_unexplained_audit_bytes[clock-span]",
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "name": "tests-masked-wire",
+      "status": "passed",
+      "tests": [
+        {
+          "class": "tests.test_masked_wire_sdk",
+          "failed": false,
+          "name": "test_fused_complete_block_preserves_numerics_and_prices_all_work[1]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_masked_wire_sdk",
+          "failed": false,
+          "name": "test_fail_closed_if_binding_disagrees_and_fresh_session_per_sample",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_masked_wire_sdk",
+          "failed": false,
+          "name": "test_replay_rejects_changed_or_extra_contract_fields",
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "name": "tests-embedding",
+      "status": "passed",
+      "tests": [
+        {
+          "class": "tests.test_packed_embedding",
+          "failed": false,
+          "name": "test_conversion_corrects_cross_slot_borrows_and_sign_extends_before_resharing",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_packed_embedding",
+          "failed": false,
+          "name": "test_public_geometry_and_input_bounds_reject_before_model_or_material_allocation",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_packed_embedding",
+          "failed": false,
+          "name": "test_bounded_seal_codec_rejects_length_and_padding_before_backend_load",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_packed_embedding",
+          "failed": false,
+          "name": "test_native_geometry_and_code_bounds_reject",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_packed_embedding",
+          "failed": false,
+          "name": "test_operator_configuration_cannot_activate_unimplemented_decoder_placement",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_repacked_embedding",
+          "failed": false,
+          "name": "test_party_input_type_and_foreign_context_burn_before_conversion",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_repacked_embedding",
+          "failed": false,
+          "name": "test_repacking_admission_precedes_material[interleave]",
+          "skipped": false
+        },
+        {
+          "class": "tests.test_repacked_embedding",
+          "failed": false,
+          "name": "test_repacking_admission_precedes_material[pack_lwes]",
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "name": "tests-encrypted-softmax",
+      "status": "passed",
+      "tests": [
+        {
+          "class": "tests.test_encrypted_softmax",
+          "failed": false,
+          "name": "test_invalid_private_range_and_geometry_reject_before_material",
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "name": "equalization-algebra",
+      "status": "passed"
+    },
+    {
+      "name": "equalization-framing",
+      "status": "passed"
+    },
+    {
+      "name": "masked-unfused",
+      "status": "passed"
+    },
+    {
+      "name": "masked-fused",
+      "status": "passed"
+    },
+    {
+      "name": "embedding-none",
+      "status": "passed"
+    },
+    {
+      "name": "embedding-interleave",
+      "status": "passed"
+    },
+    {
+      "name": "embedding-pack_lwes",
+      "status": "passed"
+    },
+    {
+      "name": "embedding-active-none",
+      "status": "passed"
+    },
+    {
+      "name": "embedding-active-interleave",
+      "status": "passed"
+    },
+    {
+      "name": "embedding-active-pack_lwes",
+      "status": "passed"
+    },
+    {
+      "name": "softmax-repeated_squaring",
+      "status": "passed"
+    },
+    {
+      "name": "softmax-square_normalize",
+      "status": "passed"
+    },
+    {
+      "name": "child-identities",
+      "result": {
+        "captured_python_processes": 26,
+        "entries": [
+          {
+            "entry": {
+              "arguments_sha256": "f96c64c6e2d8b8b959f5eebb8f461c83ae04a0c4d50c7bde187eefbc262ee59c",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "031bfa368c7342d7b1b0a3050b7788fd",
+            "pid": 51318
+          },
+          {
+            "entry": {
+              "arguments_sha256": "faa10706f5428b0eb62a00429ca021b8de2a11c32dec96954777cc79c5a8af6b",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "0669a3693aad4fa280f4158075f2dd7c",
+            "pid": 51313
+          },
+          {
+            "entry": {
+              "arguments_sha256": "ef50cdc66db4d21e55068731f0da55a5fca00dfd86ac24656d1cd3b45a76fb70",
+              "code_sha256": "92356c3fda76dfdc42e73e6ce3fd940d202dce84f9720d85a0257d48d027ef60",
+              "entry": "<inline-code>",
+              "mode": "c"
+            },
+            "key": "09cd796d84204c398a14acadfcf012ca",
+            "pid": 51236
+          },
+          {
+            "entry": {
+              "arguments_sha256": "ecb6d655b05403ef757e981c409aa0613dcf0505f596264a015da3ff57a0b26f",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "16dc80e219e24275bcf943184c788d10",
+            "pid": 51538
+          },
+          {
+            "entry": {
+              "arguments_sha256": "c59a829ca4789c6eddfe1f9912d7bc5d7322daa1bb4e1bfe608a7f2111fef94a",
+              "code_sha256": "92356c3fda76dfdc42e73e6ce3fd940d202dce84f9720d85a0257d48d027ef60",
+              "entry": "<inline-code>",
+              "mode": "c"
+            },
+            "key": "1952bf6c230e44cc8d29cf90f002a8f6",
+            "pid": 50910
+          },
+          {
+            "entry": {
+              "arguments_sha256": "34fa3ec18256ebd7a7eb76080eb85adb0008839b161edba08fde39fdf73d0af2",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "1ce010299c064b06b8924b4460ed5b88",
+            "pid": 51260
+          },
+          {
+            "entry": {
+              "arguments_sha256": "cbbc0678a1eaaa4ea2f616864f419a54412a6b3f5817671399cc4d192e278a40",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "2836ab7a62be4c5ba7cb74cfbe05637a",
+            "pid": 51282
+          },
+          {
+            "entry": {
+              "arguments_sha256": "b61ea9274498d9e857ef9a8d141f11a5e4e5641154bc3d6b896440b2963e0697",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "inference"
+            },
+            "key": "3a60b661e2744600bc479dab20dc611b",
+            "pid": 51054
+          },
+          {
+            "entry": {
+              "arguments_sha256": "08eaade0f7698c1d9a3df878b611ebd2fdbb07ed6ca382d0471a7a559631ed0c",
+              "code_sha256": "92356c3fda76dfdc42e73e6ce3fd940d202dce84f9720d85a0257d48d027ef60",
+              "entry": "<inline-code>",
+              "mode": "c"
+            },
+            "key": "3b417d0db7b7477fa7a782c58e410cad",
+            "pid": 51212
+          },
+          {
+            "entry": {
+              "arguments_sha256": "44064d8d5831c195e0d4d166ce51792a22f0a53b94209ca2809d5428e5cc5fca",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "4297f0d6d09841708c9003b81f8b3222",
+            "pid": 51297
+          },
+          {
+            "entry": {
+              "arguments_sha256": "fdd37adc34943cc5a1cc1fff137c271d46ea4d28ec739b66fa20b993d1f2a961",
+              "code_sha256": "92356c3fda76dfdc42e73e6ce3fd940d202dce84f9720d85a0257d48d027ef60",
+              "entry": "<inline-code>",
+              "mode": "c"
+            },
+            "key": "47a3257861e9454f96d636e21d4a18df",
+            "pid": 50989
+          },
+          {
+            "entry": {
+              "arguments_sha256": "4ecfa4f094026e0871a7b39cee6a9d32b4eabadef76ac3f79ae9533ea77175af",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "55a5927d0e5a4aa09e20c258b4285512",
+            "pid": 51333
+          },
+          {
+            "entry": {
+              "arguments_sha256": "91c77c48713f563c2455a2713b4f21ea0673e2173e9d5cfc43b51a3b8fd1c8a5",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "preparation"
+            },
+            "key": "703cecd10b014be4a1cc1e6f052106b1",
+            "pid": 51130
+          },
+          {
+            "entry": {
+              "arguments_sha256": "0201fac8ffc7ab172c79f0fbf331e8363037c290668477e044b8af71a1f9c763",
+              "code_sha256": "92356c3fda76dfdc42e73e6ce3fd940d202dce84f9720d85a0257d48d027ef60",
+              "entry": "<inline-code>",
+              "mode": "c"
+            },
+            "key": "746cb48a9c794d75b3b71d18ddbab281",
+            "pid": 51191
+          },
+          {
+            "entry": {
+              "arguments_sha256": "81c6a1543418d1675ae3ade5684b800d400aa44367b2c3c2038bddfe6300c7d7",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "inference"
+            },
+            "key": "90810d81706d434aa7cef8d436f5c5fe",
+            "pid": 51120
+          },
+          {
+            "entry": {
+              "arguments_sha256": "9d5be59c5f67841fcbcbf16050a408c62240ddec858a95dc1f3d581d644bd1ad",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "preparation"
+            },
+            "key": "91be7442d472414db5be0ac8e944fb84",
+            "pid": 50951
+          },
+          {
+            "entry": {
+              "arguments_sha256": "53e558eb7c557ad9b1cdf51a375e9964c3dd7db4e5f421a2df1feefa7783eb9c",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "b3e194fb324c4115bc6fdb7a84f8cd11",
+            "pid": 51270
+          },
+          {
+            "entry": {
+              "arguments_sha256": "bcbe3d1977ce3504e452e80c37adf2d0ac21c0638d0b3ff6705e64effe8a6242",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "inference"
+            },
+            "key": "b426533a70cf459d92a5b987c4c08651",
+            "pid": 51088
+          },
+          {
+            "entry": {
+              "arguments_sha256": "96a29047b46d47dd1c0eb75c94efcf1256973e8b438ccfbe7fee98c352ecde8e",
+              "code_sha256": "92356c3fda76dfdc42e73e6ce3fd940d202dce84f9720d85a0257d48d027ef60",
+              "entry": "<inline-code>",
+              "mode": "c"
+            },
+            "key": "cbc3e686e779426a9cf85a71745c9883",
+            "pid": 51246
+          },
+          {
+            "entry": {
+              "arguments_sha256": "a2d7095dabd652d68a6a7f42f321d870a8405e7f9f24e0a6635d4c25361b656e",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "d6ed0963a7eb4f09af638c49a6bf7f52",
+            "pid": 51259
+          },
+          {
+            "entry": {
+              "arguments_sha256": "0f574bddf3eea408ef90dc02725414043f7472f85fd1177ff8d912d1a29c7e00",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "d81df046b89e4d4cb8f86d211e521310",
+            "pid": 51330
+          },
+          {
+            "entry": {
+              "arguments_sha256": "f3f4b07521e218a5adc92add57444e7908dd442ac9114ecd81aaa4d5ff6f8293",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "daec437387aa4a0ba814abac55183fe9",
+            "pid": 51300
+          },
+          {
+            "entry": {
+              "arguments_sha256": "4dd9cc768fb67a3bb26d8c7a52946494e2f7d77279b936069afcad12086fb32d",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "preparation"
+            },
+            "key": "ec8bcaa1ba834cf4b4b5cbad9fee65c6",
+            "pid": 51107
+          },
+          {
+            "entry": {
+              "arguments_sha256": "abfec299ab7fd76e87d945e01bc94e524a6daa598678a16002a612eeff2d95b0",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "inference"
+            },
+            "key": "f592d88d55254f258c98954d474ee903",
+            "pid": 50934
+          },
+          {
+            "entry": {
+              "arguments_sha256": "4cc089f60f34b5c0b6deff5fb58517a9d9796c2fd331f7b75ca0881e0f25c3c5",
+              "entry": "pllm",
+              "mode": "m",
+              "role": "preparation"
+            },
+            "key": "fb75b402c61848c0aaea4d35c1f1a202",
+            "pid": 51064
+          },
+          {
+            "entry": {
+              "arguments_sha256": "fc59dce222a0a02d9b924cff0ccddafe315aa667c4e5b2a8f41fe17d72d6e3eb",
+              "entry": "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/audit-family-cards.py",
+              "mode": "file"
+            },
+            "key": "ff398c08d0c34068b8df41b5cb7724f0",
+            "pid": 51285
+          }
+        ],
+        "expected_sha256": "7142661034aa1ccc7b30a5db2aaa3c98a6dd5fa8ac0a5210cb19c477061053c5",
+        "failures": [],
+        "roles": {
+          "inference": 4,
+          "preparation": 4
+        },
+        "schema": "pllm.paper_python_identity_summary.v1",
+        "status": "passed"
+      },
+      "status": "passed"
+    }
+  ],
+  "identity_equals_original_v4": {
+    "build_digest": false,
+    "native_sha256": false,
+    "wheel_package_files": false,
+    "wheel_sha256": false
+  },
+  "local_build_receipt_sha256": "b7d332fd599f7166f2b28d87012956b785b928cafa0b42e1b3bba60bd58a42fb",
+  "native_sha256": "826c2f41612912c38a2cd902a1988b50a069b4e278f1f05ffdb6980744e42c64",
+  "original_execution_manifest_sha256": "919bee0e2b5e2fe5d83a238a61817e1d48e85b99ff804c932f9135698ae497c7",
+  "schema": "pllm.paper_family_conformance.v2",
+  "scope": "tiny current installed-wheel functionality and independent oracles; serial; no system/performance reproduction",
+  "sources_unchanged": true,
+  "status": "passed",
+  "wheel_sha256": "1811d2d9d5c6cf1360091122a62fd9678031159acab1ab2a278b13b7872d2e8c"
+}

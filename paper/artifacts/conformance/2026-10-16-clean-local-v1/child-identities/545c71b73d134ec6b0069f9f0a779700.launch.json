@@ -1,0 +1,15 @@
+{
+  "entry": {
+    "arguments_sha256": "9638b423b26cc430f681c51bf588f2de675c20c66bd58242950e08a1014952ee",
+    "entry": "pllm",
+    "mode": "m",
+    "role": "inference"
+  },
+  "environment_values_recorded": false,
+  "expected_sha256": "7142661034aa1ccc7b30a5db2aaa3c98a6dd5fa8ac0a5210cb19c477061053c5",
+  "helper_sha256": "c28e1be6e70647a74c38ba972703b4e9f858b38e31b6a25e1173e5c1a5ddcae4",
+  "isolated_flag_enforced": true,
+  "launcher_pid": 47293,
+  "removed_environment_keys": [],
+  "schema": "pllm.paper_python_launch.v2"
+}

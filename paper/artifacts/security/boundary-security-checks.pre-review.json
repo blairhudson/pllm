@@ -1,0 +1,159 @@
+{
+  "artifacts": {
+    "crates/pllm-core/src/mask_stream.rs": "96bc662be5d19353e14adf88b93314b5984b6e6f56e26a593e3a1f465c392b9b",
+    "crates/pllm-core/src/offset_transport.rs": "5b379541fa4de7390cc048a564a44616cae7cf6b82c3c869993df2ec76c660c2",
+    "crates/pllm-garble/src/private_pages.rs": "2ae6ca0691092d8837377bc74cc9c9bf95a0d374efbf7aeff2bfa42be3108925",
+    "python/pllm/_native.abi3.so": "6b9370fba12ddd3df25979631d2ae9d37097d60bf0ae9bba1cd1bc2e8389a41e",
+    "python/pllm/runtime/preparation_protocol.py": "dc879c9816840e722c4eee5675783b7d4d7b67250012d9276ab5c54a9c3a6503",
+    "python/pllm/runtime/private_boundary_transport.py": "d66afdad0794325b76b7e8ec57a2463a0281e5047c80b8f44adad1601dffe4e0",
+    "python/pllm/runtime/transformer_client.py": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574",
+    "tests/test_paper_boundary_security.py": "32018c15049ad17ca9f93e020fc5fbb7411be4b393eb6071301b7c6fe8f0122c"
+  },
+  "checks": {
+    "check_cancelled_owner_retains_rederivable_seed": {
+      "cancelled_api_rejects": true,
+      "retained_seed_rederives_prior_mask": true,
+      "scope": "client-owner custody witness; not proof of provider post-ACK retention",
+      "status": "pass"
+    },
+    "check_cross_role_randomness_reuse_breaks_mixed_pairs": {
+      "I+B1_recovers_body_x": 17,
+      "P+B0_recovers_hidden": 29,
+      "scope": "counterfactual shared randomness; production head draws independent OS bytes",
+      "status": "pass"
+    },
+    "check_head_mask_reuse_reveals_differences": {
+      "recovered_hidden_difference": 12,
+      "scope": "counterfactual reuse; production draws a new vector per head call",
+      "status": "pass"
+    },
+    "check_head_residue_exhaustive": {
+      "cases": 57600,
+      "interpretation": "finite algebra check",
+      "ring_modulus": 16,
+      "status": "pass"
+    },
+    "check_joint_coalition_views": {
+      "allowed": [
+        [],
+        [
+          "P"
+        ],
+        [
+          "I"
+        ],
+        [
+          "B0"
+        ],
+        [
+          "B1"
+        ],
+        [
+          "P",
+          "B0"
+        ],
+        [
+          "P",
+          "B1"
+        ],
+        [
+          "I",
+          "B0"
+        ],
+        [
+          "I",
+          "B1"
+        ]
+      ],
+      "assignments_per_input": 512,
+      "forbidden": [
+        [
+          "P",
+          "I"
+        ],
+        [
+          "B0",
+          "B1"
+        ],
+        [
+          "P",
+          "I",
+          "B0"
+        ],
+        [
+          "P",
+          "I",
+          "B1"
+        ],
+        [
+          "P",
+          "B0",
+          "B1"
+        ],
+        [
+          "I",
+          "B0",
+          "B1"
+        ],
+        [
+          "P",
+          "I",
+          "B0",
+          "B1"
+        ]
+      ],
+      "interpretation": "exact ideal-XOR toy distributions; not AES-DPF security evidence",
+      "status": "pass"
+    },
+    "check_native_head_against_integer_oracle": {
+      "actual": [
+        32512,
+        0,
+        -32258,
+        32512
+      ],
+      "expected": [
+        32512,
+        0,
+        -32258,
+        32512
+      ],
+      "scope": "installed native wrap32 and row codec, independent Python integer oracle",
+      "status": "pass",
+      "widths": [
+        16,
+        1,
+        17,
+        17
+      ]
+    },
+    "check_output_mask_is_essential": {
+      "example": 51,
+      "omitted_output_mask_reveals": "W*x",
+      "scope": "counterfactual variant; implementation uses output-s",
+      "status": "pass"
+    },
+    "check_retired_dpf_keys_survive_in_saved_transcripts": {
+      "fresh_owner_accepts_saved_keys": true,
+      "recovered_synthetic_record": 128,
+      "same_owner_replay_rejects": true,
+      "scope": "both historical key shares; forbidden cumulative B0+B1 coalition",
+      "status": "pass"
+    },
+    "check_underbound_residue_alias_passes_a_global_range_check": {
+      "decoded_result": -2,
+      "global_bound": 6,
+      "range_check_passes": true,
+      "scope": "missing trusted-bound assumption, not an accepted honest-worker certificate",
+      "status": "pass",
+      "true_result": 6,
+      "undersized_bits": 3
+    }
+  },
+  "native_build_matches_source": "not established; existing binary hashed, no rebuild performed",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python": "3.13.15 (main, Aug 25 2026, 13:50:12) [Clang 22.1.3 ]",
+  "schema": "pllm.paper.boundary_security_checks.v1",
+  "scope": "bounded synthetic algebra/custody checks; no model load or cryptographic security proof",
+  "source_revision": "99e10e2c1e0e3dbeddc5f56dcc830e549cb1f2a5"
+}

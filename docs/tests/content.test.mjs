@@ -1196,7 +1196,14 @@ test('technical draft preserves archived evidence and explicit unfinished gates'
   };
   const memoryGain = (peak('resident') / peak('paged')).toFixed(2);
   assert.ok(paper.includes(`${memoryGain}\\times`));
-  for (const gate of ['E1', 'E2', 'E3', 'A1']) assert.ok(paper.includes(`[${gate}: evidence to add]`));
+  for (const gate of ['E2', 'E3', 'A1']) assert.ok(paper.includes(`[${gate}: evidence to add]`));
+  const conformance = JSON.parse(fs.readFileSync(path.join(root,
+    'paper/artifacts/conformance/2026-10-16-installed-v4/manifest.json'), 'utf8'));
+  const generated = conformance.cases.find((row) => row.name === 'generated-independent-conformance');
+  assert.equal(generated.status, 'passed');
+  assert.equal(generated.result.families, 3);
+  assert.ok(paper.includes(generated.result.bit_exact_values.toLocaleString('en-US')));
+  assert.ok(paper.includes('[E1: generated implementation checks recorded]'));
   assert.ok(paper.includes('Working manuscript; evidence placeholders remain explicit.'));
   assert.ok(paper.includes('54605c1bcc699d801bc3b62d9b02c17d69a56f0e'));
   assert.ok(!fs.existsSync(path.join(root, 'pllm-paper-v2.md')));

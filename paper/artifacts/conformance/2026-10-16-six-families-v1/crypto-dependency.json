@@ -1,0 +1,25 @@
+{
+  "seal_extension": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/_sealapi_cpp.cpython-313-darwin.so",
+  "seal_extension_sha256": "218c23e6ce1291f5ef91f5db35be19fe6dbe901132366732acdb8895bde51b14",
+  "tenseal_code": {
+    "code_files": {
+      "_sealapi_cpp.cpython-313-darwin.so": "218c23e6ce1291f5ef91f5db35be19fe6dbe901132366732acdb8895bde51b14",
+      "_tenseal_cpp.cpython-313-darwin.so": "56aa375311ac47ee34c47296f8ccb372b79f42180827f1faee5166d8a4de81f7",
+      "libtenseal.dylib": "307ceeb8c0f88e9f67fb29526eb14bb05f86721fb83a7c206463b0a19e28b313",
+      "tenseal/__init__.py": "9a21f887ea05f999fe31a13d7766dc39fa30c1ad16f9b0d7822ffb9bfd554c30",
+      "tenseal/enc_context.py": "6d61e94a6806a64c760eb4d648798291f8e394a3bca63cc7f33727a93324f83b",
+      "tenseal/sealapi/__init__.py": "e8f747f7f76b906c95367a73d1aba6e6d5fe445d48412c0948569250a8783196",
+      "tenseal/sealapi/util/__init__.py": "1042e414efc7506fb0b536bfae385a621145d78925d94dc93c13259282b2181e",
+      "tenseal/tensors/__init__.py": "c03b76ade8e4df2144896bd9e9f4d36486a3b9fc4ba5d83e6a384de412be296a",
+      "tenseal/tensors/abstract_tensor.py": "25d59cd9d794a02ea1a4b8f965c0f2e8d6c505381e77b6beef54a3bc2398f5ce",
+      "tenseal/tensors/bfvtensor.py": "a0b73aea441289d86a1941d4a91034fe7ec720f4a8ea5f967ec9d8c1ff24b9fc",
+      "tenseal/tensors/bfvvector.py": "09bc321686c7a2356e0bb7e41332788a17f8ec402b13c5e13550560c82796520",
+      "tenseal/tensors/ckkstensor.py": "f6d278f08d2fe4d1b845e82559b529d3b3fab0e59dd33270e727198ebaf4e6b3",
+      "tenseal/tensors/ckksvector.py": "efee9c6984bf71b437674300c527603f6729f305ac44d107175ef9adae09f351",
+      "tenseal/tensors/plaintensor.py": "3b1e72b8cb483a8595640d9b5db755928d5d5b1a24c0ea262efdec703b0344ba",
+      "tenseal/version.py": "1d7866bfcd36fb73d09cce6adbdbe5cab3b5d33196296650ef1b31dea3d85513"
+    },
+    "version": "0.3.17"
+  },
+  "tenseal_version": "0.3.17"
+}

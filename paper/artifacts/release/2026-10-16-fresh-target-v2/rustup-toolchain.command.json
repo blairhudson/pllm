@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "rustup",
+    "show",
+    "active-toolchain"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "elapsed_seconds": 0.06139154080301523,
+  "exit_code": 0,
+  "log": "rustup-toolchain.log",
+  "log_sha256": "011338c6cf3419b63b7b891c624178afa66041704b98a4f0a8788adc704053a0",
+  "started_utc": "2026-10-16T05:07:28.698771+00:00",
+  "stop_reason": null
+}

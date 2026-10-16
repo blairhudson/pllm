@@ -1,0 +1,50 @@
+omit a description of the non-linear layers since they are computed locally by
+the client.
+    In our protocol the client delegates linear layers using ΠMVP and (batch)
+verifies them using ΠV . Similarly, we use ΠEmbedding to delegate the embedding,
+and use corresponding methods from ΠV to verify correctness.
+
+
+
+                                         ΠInference
+  Inputs: Client C has input x and the verification information; servers S0 , S1
+  have the model weights
+  Outputs: C outputs the correct result y or aborts if malicious behavior is detected
+
+
+  Setup Phase (Run by model owner):
+
+   1. Let m′ be the largest row dimension of all linear-layer weight matrices
+   2. {Ri } ← ΠV .Setup(m′ )
+   3. Initiate empty list cmt = {}
+   4. Iterate over all layers:
+      (a) For embedding layer with table T , push ΠV .PublishEmbedding (T ) to cmt
+      (b) For linear layer with matrix M, push ΠV .PublishMVP (M) to cmt
+   5. Publicly release the verification information {Ri }, cmt along with the model
+      weights
+
+  Execution Phase (Jointly run by C, S0 , S1 ):
+
+   1. For each linear layer ℓ, input dimension n, and output dimension m, C ini-
+      tializes xℓ,acc = 0n , yℓ,acc = 0m
+   2. C sequentially processes layers:
+      (a) For embedding layer with input (w, T ):
+             i. S0 , S1 and C jointly invoke ΠEmbedding with inputs w, T, T , respec-
+                tively, and C learns y
+            ii. C fetches verification information c from cmt and aborts if
+                ΠV .VerifyEmbedding (w, y, c) = Reject
+      (b) For linear layer ℓ with input (x, M):
+             i. S0 , S1 and C jointly invoke ΠMVP with inputs x, M, M, respectively,
+                and C learns y
+            ii. C samples α ← F, and updates xℓ,acc = xℓ,acc + α · x and yℓ,acc =
+                yℓ,acc + α · y
+      (c) For other layers, C does the computation locally
+   3. C learns y as the output
+   4. C concatenates xℓ,acc , yℓ,acc , {Si }, {Ri } accross all layer identifiers ℓ to get
+      x̂ or each linear layer ℓ and verification information {Si }, C checks if
+      ΠV .VerifyMVP (xℓ,acc , yℓ,acc , {Si }, {Ri }) = Accept, aborts otherwise.
+   5. C outputs y
+
+
+                   Fig. 5. Overall protocol for outsourced inference
+

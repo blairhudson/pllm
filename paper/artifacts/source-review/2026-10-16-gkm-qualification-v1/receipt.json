@@ -1,0 +1,44 @@
+{
+  "schema": "pllm.paper_competitor_source_review.v1",
+  "review_date": "2026-10-16",
+  "sealed_utc": "2026-10-16T06:41:15.858484+00:00",
+  "status": "quarantined_specification_oracle_only",
+  "scope": "Documentary source qualification only; no upstream imports, linking, builds, execution, model/provider/operator runs or benchmarks; not a security or performance attestation",
+  "capture_commands": [
+    {
+      "argv": ["python3", "-B", "paper/artifacts/source-review/2026-10-16-gkm-qualification-v1/capture.py"],
+      "outcome": "succeeded; 12 code files and 8 PDF pages"
+    },
+    {
+      "argv": ["python3", "-B", "paper/artifacts/source-review/2026-10-16-gkm-qualification-v1/capture.py", "--discovery-only"],
+      "outcome": "succeeded; repository and owner metadata"
+    }
+  ],
+  "capture_notes": "Two pre-seal source-extract range checks rejected LICENSE line 21 and async_verify.hpp line 85; bounds corrected to actual file lengths before successful record capture. No upstream code executed.",
+  "read_only_verification_commands": [
+    ["python3", "-B", "paper/artifacts/source-review/2026-10-16-gkm-qualification-v1/check.py"],
+    ["python3", "-B", "paper/artifacts/source-review/2026-10-16-gkm-qualification-v1/check.py", "--online", "--pdf-text"]
+  ],
+  "artifacts": {
+    "README.md": "1e8712af3fc2f995efc28e6b8703fd0ec82a318e2bad317e098c2a2552d81974",
+    "capture.py": "4ea7771c0b25ac1525b7e4e3c5695ad504818c459fc1b75cd0ad81fc3b1efa65",
+    "check.py": "e0081e6fa88494d5b27cf4252933122ad3558e5d4d937fc11528ef770f41ef22",
+    "code-lock.json": "0575902701e9eae051965a2b1cd651e0ef30dcb70349248739cfe5e2b46c04ab",
+    "gkm-pdf-page-10.txt": "967db32799d3c9f7d332af03c0b913403f9c6e4aa3f9ed0f4d18a6a88f6532cb",
+    "gkm-pdf-page-11.txt": "e5f35301f3ddbc97b5a2577b928401471853c2e45b8eed9e809c046e4438151c",
+    "gkm-pdf-page-12.txt": "a842a213a2f3f17665a1993a8e7b51069473d038fc6babc8c3976f5a10b46fb8",
+    "gkm-pdf-page-13.txt": "2cf3a78c67b80e5ddc138142bfd54b9b30eab27c7a8f3e7fd56b4ae55d8615b8",
+    "gkm-pdf-page-6.txt": "9f145d69d8eed50019d120fd805b548670afc960b5e6b79cfb760b6da8bfe0f5",
+    "gkm-pdf-page-7.txt": "15573ea7911cfe7873c94d4972dd0b38b9f2d6a8648600080dfaa89ff67ec427",
+    "gkm-pdf-page-8.txt": "455b6423bfe71e656aaa42306ae696c1eb8cd1a7b2008c11bb82376d0ca6854c",
+    "gkm-pdf-page-9.txt": "f8ab025ffb5246688ae82c77d87a0240459b5e672aeda0563bdabfcadb12ef60",
+    "local-locators.json": "88ced8251bb25a6cc09e7dbc5ace838e34b0a3acefb2357f56eec3fc6513e62e",
+    "primary-locators.json": "57b9c3807d9542b89d292dc6906cdcd6d333d55568373297ecbf32d3b7e1b6a2",
+    "repository-record.json": "9d1eb8ba3ed5057303f2b53260c5771fb96e12a15786c9a63026e3911011473c"
+  },
+  "documents": {
+    "paper/PRIOR-ART-REVIEW.md": "fd84d319984a10fd4ec1a981996c3bd51c294ec602ff6779445c6b3f11ad5416",
+    "paper/prior-art-sources.json": "3085179d4e738ff58979955e7ee0c6487a67707f5397d008ee0c5ace7eb11c7e",
+    "paper/COMPETITOR-QUALIFICATION.md": "df398ccdf175b8f0bac40d67f1fa495ef0ff48b621536f4caff8eda391e426cb"
+  }
+}

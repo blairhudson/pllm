@@ -1,0 +1,82 @@
+{
+  "budget": {
+    "max_input_tokens": 256,
+    "max_new_tokens": 8,
+    "requests": 2
+  },
+  "deployment": {
+    "kind": "local",
+    "root": "/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/paper-conformance-792g7wat/gateway"
+  },
+  "name": "prepared-sdk",
+  "pipeline": {
+    "components": {
+      "cache": {
+        "component": "pllm/client-prefix-reuse/v1",
+        "params": {
+          "fixed_input_tokens": 256,
+          "max_bytes": 33554432
+        }
+      },
+      "delivery": {
+        "component": "pllm/client-bundle-transport/v1",
+        "params": {
+          "batch_objects": 64,
+          "compression": "zlib",
+          "encoding": "artifacts",
+          "provider_cache_bytes": 536870912,
+          "storage": "paged"
+        }
+      },
+      "inference": {
+        "component": "pllm/inference",
+        "params": {}
+      },
+      "inventory": {
+        "component": "pllm/prepared-inventory-policy/v1",
+        "params": {
+          "allocation": "demand",
+          "policy": "request-sized",
+          "refill": "on-demand",
+          "rows": 1,
+          "stage_window": 4,
+          "stage_window_bytes": 67108864
+        }
+      },
+      "kernels": {
+        "component": "pllm/cpu",
+        "params": {
+          "threads": 1
+        }
+      },
+      "linear": {
+        "component": "pllm/masked-linear",
+        "params": {
+          "output_encoding": "row_residues",
+          "prefill_chunk_rows": 16,
+          "prefill_pruning": "terminal",
+          "request_encoding": "stage_packed"
+        }
+      },
+      "preparation": {
+        "component": "pllm/model-aware-corrections",
+        "params": {
+          "storage": "paged"
+        }
+      },
+      "quantization": {
+        "component": "pllm/symmetric-per-row-quantization/v1",
+        "params": {
+          "activation_bits": 8,
+          "causal_reduction": "prefix_f32",
+          "weight_bits": 8
+        }
+      }
+    },
+    "model": {
+      "kind": "tiny",
+      "source": "qwen2"
+    }
+  },
+  "schema": "pllm.experiment.v2"
+}

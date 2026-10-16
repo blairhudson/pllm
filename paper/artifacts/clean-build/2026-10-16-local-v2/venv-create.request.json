@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "-I",
+    "-B",
+    "-m",
+    "venv",
+    "--without-pip",
+    "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/venv"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "environment_file": "build-environment.json",
+  "log": "venv-create.log",
+  "name": "venv-create",
+  "started_utc": "2026-10-16T05:08:20.357533+00:00"
+}

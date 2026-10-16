@@ -1,0 +1,50 @@
+i.e., a vector for which xw = 1 and ∀j ̸= w, xj = 0. It then secret shares this
+vector bitwise, i.e., it samples uniform x(0) ← {0, 1}V , sets x(1) = x ⊕ x(0) ,
+                                                          LV       (b)
+and sends x(b) to Sb . Each server Sb computes y(b) = j=1 xj · T [j] (viewing
+T [j] as a fixed-length bit-string) and sends this to the client. The client outputs
+y(0) ⊕ y(1) . Correctness holds since:
+                                            V             
+                                                 (0)   (1)
+                                            M
+                          y(0) ⊕ y(1) =         xj ⊕ x j     · T [j]
+                                            j=1
+                                        = T [w].
+
+See Figure 3 for details. Note that the total communication is V bits from the
+client to each server, and a (bit-string encoding a) single table entry in return.
+    Note that here we do not need a fixed-point encoding, but can work directly
+with the floating-point values in the table.
+Verification. To verify the output of delegated embedding, we use hashing.
+The model owner publishes a (second preimage-resistant) hash of each entry in
+the table T . To verify a claimed result y, a client can simply hash y and compare
+it with the corresponding hash value. If we instantiate the hash function with
+SHA256 and take V = 128000, the size of the verification information stored
+by the client is 4MB; verification requires only one hash evaluation. We provide
+a formal description of these procedures in Figure 4.
+
+
+                                       ΠV (Continued.)
+  Let H be a hash function
+  PublishEmbedding (T ∈ RV ×d ):
+
+      1. Output c, where cj = H(T [j]) for j ∈ [V ]
+
+  VerifyEmbedding (w ∈ [V ], y ∈ Rd , c):
+
+      1. Output Accept if H(y) = cw , and Reject otherwise
+
+
+                      Fig. 4. Verification for embedding operations.
+
+
+
+
+4.4     Overall Protocol for Outsourced Inference
+
+We provide a description of our overall protocol in Figure 5. We model the
+inference computation as a sequence of layers. Each layer is associated with an
+operation g and optionally with some weights W . Specifically, each linear layer
+is associated with a matrix M and outputs M · x on input x. Similarly, the
+embedding layer is associated with a table T and outputs T [i] on input i. We
+

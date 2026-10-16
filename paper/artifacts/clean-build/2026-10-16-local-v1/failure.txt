@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_clean_build.py", line 259, in build
+    cache_before = cache_inventory(cache, pins, h)
+  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_clean_build.py", line 79, in cache_inventory
+    _, _, _, tags = parse_wheel_filename(filename)
+                    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/packaging/utils.py", line 263, in parse_wheel_filename
+    raise InvalidWheelFilename(
+        f"Invalid wheel filename (wrong number of parts): {filename!r}"
+    )
+packaging.utils.InvalidWheelFilename: Invalid wheel filename (wrong number of parts): 'maturin-1.15.0-e45ef2fc6d5c3af6'

@@ -1,0 +1,255 @@
+{
+  "artifacts": {
+    "build-environment.json": "b23d52490c0e3e7acbf29a599722cf77341b2d54628a5c35b5689c3c3adb5883",
+    "build-source-receipt.helpers.py": "ee543c22ee3e78dfd77e12bc747cb324286b53947a75cf0cb96d7f97df96760d",
+    "dependencies-install.command.json": "d76ae8bd25b23879028f71e5597dd19106171a4194f92f864ce2f83015489637",
+    "dependencies-install.log": "e07e5309ef3eaaa08b4e9eddee7346fdcffe5edd977d0ac37e8e7f2dc9622a65",
+    "dependencies-install.request.json": "b5a145a22ccb614943441bdeb367373053a8de502156bffd55a7fc08d1508429",
+    "driver.py": "ebe85cf5f52aa620b9765dd7952c563a623e260c48bd9e0a914610ad5cd477f7",
+    "environment-empty.command.json": "e7f31d2a396e18df9da41b9c63a1ee64ae1e1ad4563c2884331a72ac3e17e738",
+    "environment-empty.json": "e16280b9f07bb24af7078ca11d881dce98d7730a460f7a137c4d2612978d0cf7",
+    "environment-empty.log": "c2c9e52ab4d3cb73ed1f3c96b623eb67e35bf44471665380da292f62b21a308e",
+    "environment-empty.request.json": "92ce10d3da1bc98441ddac33607dbde6d95d514f6c24cb83f4e9397f6bd8985b",
+    "failure.txt": "afaf2654902892bdbbb0c7e6f9b000073be6969e40d3fece5bcb28f650cf60ba",
+    "frozen-dependencies.txt": "bb2c7271e38d3b39b625e8a642865caa324b928357b4f2148a86bd06aeef4888",
+    "git-before.command.json": "047ae5f9f5749cda8713906d32978f0aef1f8b93961587a8845d8034ff9f87a6",
+    "git-before.log": "dcd99f92a2f2b40101fd686c0c20883f424d52bc01afabb62ec15b46a87d2909",
+    "git-before.request.json": "384ca2ce5eabb805d895c21b32b64dcfc02774f28f7276e3e08542e5b93edc39",
+    "git-commit.command.json": "8df4ff2fad15dd1d9491deef8ff068d80f21d72f7e1525ffe2c2d4e080c31c75",
+    "git-commit.log": "09ec88c11789a2d876d38d857f43f0d0b6140ff7fa23b48bb15230534b8070c6",
+    "git-commit.request.json": "dd1fa2314b30506e255e5f6265670e8ff7befdaa1923e88564a0a31fa06d71ce",
+    "memory-pressure-before.command.json": "b285542a7f8a6db75b9f74fd2473964e0d975e9f3b63b02bd8e3c09f19d06e54",
+    "memory-pressure-before.log": "4b73646802dd374c7d3b5b97426792eb99cc13a738774e5e0b3cae3c70916b11",
+    "memory-pressure-before.request.json": "f14bd0c324f67446bd0b43d19d74baf085814ca10db6b9228177d65898fb6bf9",
+    "original-environment-before.json": "703ef9c3642a57fedc6202952d5fb10f1aef389b8f2eb49b4f00478c49c76fcb",
+    "preflight.json": "52665db35587c941c021ca85a2b6308793a5a3ea0b5cc3122983c35593f51d2e",
+    "prior-cached-receipt.json": "b7d332fd599f7166f2b28d87012956b785b928cafa0b42e1b3bba60bd58a42fb",
+    "processes-before.command.json": "45b1ae93d625cf857356861c76899ba175aa71eb89112c63ca7086ad9b123d0b",
+    "processes-before.log": "6c50b831c02f52e21ec83c2f44871b80da8f8ea934d6e11a669028e0a5835005",
+    "processes-before.request.json": "1e3918a7e1ce49c710e7a97ad08b3d5b36795c8862f256a19c926166305d0f3b",
+    "python-cache-before.json": "dbc02e8ed24f0c7851513bcd9e51461d48e77f7c428519742592b4095c81eb03",
+    "swap-before.command.json": "91de86a9bde711319b4a696a9111fe1ac0aa63c6514741e4a695286d063f5343",
+    "swap-before.log": "e6fe930545e35a0bcf7c5d865f5f26dd6a65edfd43106bdca49e170262cf5e80",
+    "swap-before.request.json": "cf73e25f536f5165eb7754288db5076e9c092752a6441ac96123a5c51afd0731",
+    "uv-cache-dir.command.json": "53af79cf4997988ed79707c815e866a0069afe3c5864917ed16781f8a279643c",
+    "uv-cache-dir.log": "88eb4b8989dce9dc27b1debd0cca97d0f094685bf7bc70fbd6f89971a3836b02",
+    "uv-cache-dir.request.json": "285adfa54fb649918a332eead52b47b1c30c815271fb19e362937319207274ef",
+    "uv-version.command.json": "4ecb2cc4076fb29cb4cc2e48665137eebdfebf204ab0e7d70223eca587855794",
+    "uv-version.log": "442e7e7123e1a4426e42637e821d1ece6d4d9abc51fed11c0d2b47779c72cba9",
+    "uv-version.request.json": "e5eb2c8552cbc38c92c469668476adf9bbd44851b353140ef1f5c0d91dd70599",
+    "v4-manifest.json": "919bee0e2b5e2fe5d83a238a61817e1d48e85b99ff804c932f9135698ae497c7",
+    "v4-provenance.json": "fad6234626ae5e42198a21f14b0a84145927bcd04322c034003f9d31e3bc4caa",
+    "venv-configuration.json": "5c63730fed2d7c0da0635c1d4532a9285215a27ff89fb45011f294db8075ccd3",
+    "venv-create.command.json": "86a957a5544ea63cd69b623e3601e299f82aafc8e61f3b4cd39ff8b17d0a5963",
+    "venv-create.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "venv-create.request.json": "e165a9961ba3cf78e3acf365a97fd398de5c240f2c68799a7001a4363633f92c",
+    "vm-stat-before.command.json": "2fac9fe438096f342a6f6a0034c4e6b14ef7293b0e8ee558082c4abb34f1f701",
+    "vm-stat-before.log": "2d400c4163d7442874c0927b3c36d622a35e600df6009ca441395a9289bcb0a5",
+    "vm-stat-before.request.json": "bd9685a3776323ea94cab68a2b6af04703af79495ab983121ed613293ee8a62b"
+  },
+  "attestation": "Local agent-recorded receipt; not CI or independent third-party attestation",
+  "cache_scope": "Initially empty Cargo target; pre-existing registry sources, toolchain, OS SDK and Python wheel cache reused",
+  "cargo_target_dir": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/cargo-target",
+  "commands": [
+    {
+      "argv": [
+        "memory_pressure",
+        "-Q"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.003246457315981388,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "memory-pressure-before.log",
+      "log_sha256": "4b73646802dd374c7d3b5b97426792eb99cc13a738774e5e0b3cae3c70916b11",
+      "name": "memory-pressure-before",
+      "started_utc": "2026-10-16T05:08:13.078558+00:00"
+    },
+    {
+      "argv": [
+        "vm_stat"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.0030286256223917007,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "vm-stat-before.log",
+      "log_sha256": "2d400c4163d7442874c0927b3c36d622a35e600df6009ca441395a9289bcb0a5",
+      "name": "vm-stat-before",
+      "started_utc": "2026-10-16T05:08:13.082218+00:00"
+    },
+    {
+      "argv": [
+        "sysctl",
+        "hw.memsize",
+        "vm.swapusage"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.0028787916526198387,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "swap-before.log",
+      "log_sha256": "e6fe930545e35a0bcf7c5d865f5f26dd6a65edfd43106bdca49e170262cf5e80",
+      "name": "swap-before",
+      "started_utc": "2026-10-16T05:08:13.085642+00:00"
+    },
+    {
+      "argv": [
+        "ps",
+        "-axo",
+        "pid,rss,%cpu,comm"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.023294166661798954,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "processes-before.log",
+      "log_sha256": "6c50b831c02f52e21ec83c2f44871b80da8f8ea934d6e11a669028e0a5835005",
+      "name": "processes-before",
+      "started_utc": "2026-10-16T05:08:13.088850+00:00"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.02461550012230873,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "git-before.log",
+      "log_sha256": "dcd99f92a2f2b40101fd686c0c20883f424d52bc01afabb62ec15b46a87d2909",
+      "name": "git-before",
+      "started_utc": "2026-10-16T05:08:13.112597+00:00"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.012578584253787994,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "git-commit.log",
+      "log_sha256": "09ec88c11789a2d876d38d857f43f0d0b6140ff7fa23b48bb15230534b8070c6",
+      "name": "git-commit",
+      "started_utc": "2026-10-16T05:08:13.137681+00:00"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/bin/uv",
+        "--version"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.044318582862615585,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "uv-version.log",
+      "log_sha256": "442e7e7123e1a4426e42637e821d1ece6d4d9abc51fed11c0d2b47779c72cba9",
+      "name": "uv-version",
+      "started_utc": "2026-10-16T05:08:16.579694+00:00"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/bin/uv",
+        "cache",
+        "dir"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.02421466540545225,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "uv-cache-dir.log",
+      "log_sha256": "88eb4b8989dce9dc27b1debd0cca97d0f094685bf7bc70fbd6f89971a3836b02",
+      "name": "uv-cache-dir",
+      "started_utc": "2026-10-16T05:08:16.624583+00:00"
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "venv",
+        "--without-pip",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/venv"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.04173954110592604,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "venv-create.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "venv-create",
+      "started_utc": "2026-10-16T05:08:20.357533+00:00"
+    },
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/venv/bin/python",
+        "-I",
+        "-B",
+        "/Users/blairhudson/workspace/pllm/scripts/audit_paper_clean_build.py",
+        "--inspect-environment",
+        "--helper",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/build-source-receipt.helpers.py"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.0817671250551939,
+      "environment_file": "build-environment.json",
+      "exit_code": 0,
+      "log": "environment-empty.log",
+      "log_sha256": "c2c9e52ab4d3cb73ed1f3c96b623eb67e35bf44471665380da292f62b21a308e",
+      "name": "environment-empty",
+      "started_utc": "2026-10-16T05:08:20.399987+00:00"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/bin/uv",
+        "--offline",
+        "--no-config",
+        "pip",
+        "install",
+        "--python",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/venv/bin/python",
+        "--require-hashes",
+        "--no-build",
+        "--no-deps",
+        "--link-mode",
+        "copy",
+        "--requirements",
+        "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/frozen-dependencies.txt",
+        "--verbose"
+      ],
+      "cwd": "/Users/blairhudson/workspace/pllm",
+      "elapsed_seconds": 0.0785565422847867,
+      "environment_file": "build-environment.json",
+      "exit_code": 1,
+      "log": "dependencies-install.log",
+      "log_sha256": "e07e5309ef3eaaa08b4e9eddee7346fdcffe5edd977d0ac37e8e7f2dc9622a65",
+      "name": "dependencies-install",
+      "started_utc": "2026-10-16T05:08:20.482660+00:00"
+    }
+  ],
+  "compiler_wrapper_used": false,
+  "existing_conformance_transferred": false,
+  "failure": "RuntimeError('dependencies-install exited 1; preserved dependencies-install.log')",
+  "incremental_cache_reused": false,
+  "limits": [
+    "Bounded source/config and resolved dependency inventory, not a hermetic whole-host image",
+    "Before/after hashes do not observe transient concurrent modifications",
+    "Tool binaries identified; entire OS SDK and Rust sysroot not inventoried",
+    "Offline flags prohibit Cargo/uv fetching, not an OS-level network sandbox",
+    "No models, operator samples, SDK tests or benchmarks executed"
+  ],
+  "original_versions_vs_v4": {},
+  "output": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2",
+  "python": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/venv/bin/python",
+  "runtime_execution": false,
+  "schema": "pllm.local_clean_build_receipt.v1",
+  "source_commit": "99e10e2c1e0e3dbeddc5f56dcc830e549cb1f2a5",
+  "status": "failed",
+  "venv": "/Users/blairhudson/workspace/pllm/paper/artifacts/clean-build/2026-10-16-local-v2/work/venv"
+}

@@ -1,0 +1,175 @@
+{
+  "schema": "pllm.paper_competitor_primary_locators.v1",
+  "captured_utc": "2026-10-16T06:28:32.173424+00:00",
+  "primary_record": {
+    "id": "open-weight-verifiable",
+    "url": "https://eprint.iacr.org/2026/1849",
+    "cache": "papers/r19-open-weight-verifiable.pdf",
+    "sha256": "e1863980621e0bbd2d446b43f2d9415318ebeec400b0e6c818685752f6448e1d"
+  },
+  "primary_pdf_bytes": 432619,
+  "prior_manifest_raw_sha256_before_append": "3f32365833385a8e8d9129826f37eb00e360f69007f27156329916dfb7cf445d",
+  "frozen_primary_records_canonical_sha256": "35491288c1e022bc7e6daaa10aa8cdc42e2891e3f2c8640e710cf977ea3d1673",
+  "canonicalization": "json.dumps(sort_keys=True, separators=(',', ':'), ensure_ascii=True); UTF-8; exclude newly appended source_code_reviews",
+  "pdf_version": "Existing unversioned cache pinned by SHA-256; no fresh PDF identity asserted",
+  "pdftotext": {
+    "path": "/opt/homebrew/bin/pdftotext",
+    "sha256": "83c5be5ea8da9fdeae4df5bb15395265770a84e89fe81d89b9b2535a669ec214",
+    "version": "pdftotext version 26.10.0\nCopyright 2005-2026 The Poppler Developers - http://poppler.freedesktop.org\nCopyright 1996-2011, 2022 Glyph & Cog, LLC\n"
+  },
+  "page_numbering": "PDF page selected with -f/-l, not count of form-feed characters",
+  "pages": [
+    {
+      "page": 6,
+      "locator": "Section 3; Section 4 encoding and Section 4.1",
+      "path": "gkm-pdf-page-6.txt",
+      "argv": [
+        "/opt/homebrew/bin/pdftotext",
+        "-layout",
+        "-f",
+        "6",
+        "-l",
+        "6",
+        "papers/r19-open-weight-verifiable.pdf",
+        "-"
+      ],
+      "cwd": "repository root",
+      "exit_code": 0,
+      "stderr": "",
+      "sha256": "9f145d69d8eed50019d120fd805b548670afc960b5e6b79cfb760b6da8bfe0f5"
+    },
+    {
+      "page": 7,
+      "locator": "Figure 1; Section 4.2 linear verification",
+      "path": "gkm-pdf-page-7.txt",
+      "argv": [
+        "/opt/homebrew/bin/pdftotext",
+        "-layout",
+        "-f",
+        "7",
+        "-l",
+        "7",
+        "papers/r19-open-weight-verifiable.pdf",
+        "-"
+      ],
+      "cwd": "repository root",
+      "exit_code": 0,
+      "stderr": "",
+      "sha256": "15573ea7911cfe7873c94d4972dd0b38b9f2d6a8648600080dfaa89ff67ec427"
+    },
+    {
+      "page": 8,
+      "locator": "Figure 2; verification completeness and security discussion",
+      "path": "gkm-pdf-page-8.txt",
+      "argv": [
+        "/opt/homebrew/bin/pdftotext",
+        "-layout",
+        "-f",
+        "8",
+        "-l",
+        "8",
+        "papers/r19-open-weight-verifiable.pdf",
+        "-"
+      ],
+      "cwd": "repository root",
+      "exit_code": 0,
+      "stderr": "",
+      "sha256": "455b6423bfe71e656aaa42306ae696c1eb8cd1a7b2008c11bb82376d0ca6854c"
+    },
+    {
+      "page": 9,
+      "locator": "Section 4.3; Figure 3 dense XOR-PIR",
+      "path": "gkm-pdf-page-9.txt",
+      "argv": [
+        "/opt/homebrew/bin/pdftotext",
+        "-layout",
+        "-f",
+        "9",
+        "-l",
+        "9",
+        "papers/r19-open-weight-verifiable.pdf",
+        "-"
+      ],
+      "cwd": "repository root",
+      "exit_code": 0,
+      "stderr": "",
+      "sha256": "f8ab025ffb5246688ae82c77d87a0240459b5e672aeda0563bdabfcadb12ef60"
+    },
+    {
+      "page": 10,
+      "locator": "Figure 4 embedding verification; Section 4.4",
+      "path": "gkm-pdf-page-10.txt",
+      "argv": [
+        "/opt/homebrew/bin/pdftotext",
+        "-layout",
+        "-f",
+        "10",
+        "-l",
+        "10",
+        "papers/r19-open-weight-verifiable.pdf",
+        "-"
+      ],
+      "cwd": "repository root",
+      "exit_code": 0,
+      "stderr": "",
+      "sha256": "967db32799d3c9f7d332af03c0b913403f9c6e4aa3f9ed0f4d18a6a88f6532cb"
+    },
+    {
+      "page": 11,
+      "locator": "Figure 5 complete private/verifiable inference; batching",
+      "path": "gkm-pdf-page-11.txt",
+      "argv": [
+        "/opt/homebrew/bin/pdftotext",
+        "-layout",
+        "-f",
+        "11",
+        "-l",
+        "11",
+        "papers/r19-open-weight-verifiable.pdf",
+        "-"
+      ],
+      "cwd": "repository root",
+      "exit_code": 0,
+      "stderr": "",
+      "sha256": "e5f35301f3ddbc97b5a2577b928401471853c2e45b8eed9e809c046e4438151c"
+    },
+    {
+      "page": 12,
+      "locator": "Section 5 implementation, PRG optimization and experimental setup",
+      "path": "gkm-pdf-page-12.txt",
+      "argv": [
+        "/opt/homebrew/bin/pdftotext",
+        "-layout",
+        "-f",
+        "12",
+        "-l",
+        "12",
+        "papers/r19-open-weight-verifiable.pdf",
+        "-"
+      ],
+      "cwd": "repository root",
+      "exit_code": 0,
+      "stderr": "",
+      "sha256": "a842a213a2f3f17665a1993a8e7b51069473d038fc6babc8c3976f5a10b46fb8"
+    },
+    {
+      "page": 13,
+      "locator": "Tables 1-2; per-token costs amortized over 100 tokens and separate 100-token verification",
+      "path": "gkm-pdf-page-13.txt",
+      "argv": [
+        "/opt/homebrew/bin/pdftotext",
+        "-layout",
+        "-f",
+        "13",
+        "-l",
+        "13",
+        "papers/r19-open-weight-verifiable.pdf",
+        "-"
+      ],
+      "cwd": "repository root",
+      "exit_code": 0,
+      "stderr": "",
+      "sha256": "2cf3a78c67b80e5ddc138142bfd54b9b30eab27c7a8f3e7fd56b4ae55d8615b8"
+    }
+  ]
+}
